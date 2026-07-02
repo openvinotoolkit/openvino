@@ -10,6 +10,7 @@
 #include "utils.hpp"
 
 #include <vector>
+#include <algorithm>
 #include <set>
 #include <unordered_set>
 #include <map>
@@ -29,25 +30,44 @@ using memory_ptr = std::shared_ptr<memory>;
 template<typename Key, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class memory_restricter {
     private:
-        const std::unordered_set<Key, Hash, KeyEqual>* set1;  // Const reference to immutable set
-        std::unordered_set<Key, Hash, KeyEqual> set2;         // Internal mutable set
+        const std::vector<Key>* set1;  // Const reference to immutable set
+        mutable std::vector<Key> set2; // Internal mutable set
+        mutable bool set2_needs_repack = false;
+
+        void repack_set2() const {
+            if (!set2_needs_repack)
+                return;
+
+            std::sort(set2.begin(), set2.end());
+            set2.erase(std::unique(set2.begin(), set2.end()), set2.end());
+            set2_needs_repack = false;
+        }
 
     public:
         memory_restricter() : set1(nullptr) {};
 
         // Constructor to initialize with a const reference for set1
-        explicit memory_restricter(const std::unordered_set<Key, Hash, KeyEqual>* externalSet)
+        explicit memory_restricter(const std::vector<Key>* externalSet)
             : set1(externalSet) {}
 
         // Insert into set2 (set1 is read-only)
         void insert(const Key& key) {
-            if (set1->find(key) == set1->end())
-                set2.insert(key);
+            if (set1 && std::binary_search(set1->begin(), set1->end(), key))
+                return;
+
+            if (std::find(set2.begin(), set2.end(), key) == set2.end()) {
+                set2.push_back(key);
+                set2_needs_repack = true;
+            }
         }
 
         // Check existence in either set
         bool contains(const Key& key) const {
-            return set1->find(key) != set1->end() || set2.find(key) != set2.end();
+            if (set1 && std::binary_search(set1->begin(), set1->end(), key))
+                return true;
+
+            repack_set2();
+            return std::binary_search(set2.begin(), set2.end(), key);
         }
 
         // Total size of both sets
@@ -57,12 +77,17 @@ class memory_restricter {
 
         // Check if both sets are empty
         bool empty() const {
-            return set1->empty() && set2.empty();
+            return (!set1 || set1->empty()) && set2.empty();
         }
 
         // Iterate over both sets
         void for_each(void(*func)(const Key&)) const {
-            for (const auto& key : set1) func(key);
+            if (set1) {
+                for (const auto& key : *set1)
+                    func(key);
+            }
+
+            repack_set2();
             for (const auto& key : set2) func(key);
         }
 }; // end of memory_restricter
