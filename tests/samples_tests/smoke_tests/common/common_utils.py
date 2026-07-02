@@ -76,7 +76,8 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
     else:
         cmd = " ".join(cmd)
 
-    _log.debug("Running: %s", " ".join(cmd) if isinstance(cmd, list) else cmd)
+    cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
+    _log.debug("Running: %s", cmd_str)
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     _log.debug("PID %d started", p.pid)
     try:
@@ -90,15 +91,19 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
             return -1, stdout_str, f"Command timed out after {timeout} seconds"
     finally:
         if p.poll() is None:
-            _log.warning("PID %d still running after communicate(); killing (likely pytest-timeout)", p.pid)
+            _log.warning(
+                "PID %d still running (likely pytest-timeout); killing.\n  cmd: %s",
+                p.pid,
+                cmd_str,
+            )
             p.kill()
             try:
                 partial_out, partial_err = p.communicate(timeout=10)
                 _log.warning(
-                    "PID %d output before kill:\nstdout: %s\nstderr: %s",
+                    "PID %d partial output before kill:\nstdout: %s\nstderr: %s",
                     p.pid,
-                    partial_out.decode('utf-8', errors='replace')[:4000] if partial_out else '<empty>',
-                    partial_err.decode('utf-8', errors='replace')[:2000] if partial_err else '<empty>',
+                    partial_out.decode("utf-8", errors="replace")[:4000] if partial_out else "<empty>",
+                    partial_err.decode("utf-8", errors="replace")[:2000] if partial_err else "<empty>",
                 )
             except Exception:
                 p.wait()

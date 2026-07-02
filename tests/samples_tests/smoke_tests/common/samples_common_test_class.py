@@ -316,13 +316,25 @@ class SamplesCommonTestClass():
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
 
-        log.info("Running command: {} {}".format(executable_path, cmd_line))
+        # Build a short tag for all log messages so each test is unambiguously
+        # identified even when xdist interleaves output from parallel workers.
+        device = param_cp.get("d", "-")
+        test_tag = "[{}/{}]".format(sample_type, device)
+
+        log.info("%s Running command: %s %s", test_tag, executable_path, cmd_line)
         retcode, stdout, stderr = shell([executable_path, cmd_line])
 
         if get_shell_result:
             return retcode, stdout, stderr
         # Check return code
-        if (retcode != 0):
-            log.error(stderr)
+        if retcode != 0:
+            log.warning(
+                "%s FAILED (retcode=%d). Sample stdout (may contain plugin error details):\n%s",
+                test_tag,
+                retcode,
+                stdout[:4000],
+            )
+            log.error("%s stderr: %s", test_tag, stderr)
         assert retcode == 0, "Sample execution failed"
+        log.info("%s completed (retcode=0)", test_tag)
         return stdout
