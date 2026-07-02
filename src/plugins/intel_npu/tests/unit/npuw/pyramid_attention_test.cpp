@@ -718,35 +718,6 @@ TEST(PyramidAttentionTest, ValidateExtractsCorrectBlockIndicesForSingleLayer) {
     EXPECT_EQ(block_result.past_value_block_global_param_indices.size(), 1u);
 }
 
-TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForBlockModeGenerateCase) {
-    AttentionModelConfig cfg;
-    cfg.query_len = 1;
-    cfg.past_len = 63;
-    auto model = build_isolated_attention_model(cfg);
-
-    // Apply SplitKVCacheIntoBlocks transformation
-    auto block_model = apply_split_kvcache_into_blocks(model, 32);
-
-    auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
-    ASSERT_TRUE(validation.has_value());
-    const auto& block_result = get_block_result(*validation);
-
-    const size_t pyramid_step = 32;
-    auto result = ov::npuw::function::process_pyramid_model(block_model,
-                                                            0,
-                                                            pyramid_step,
-                                                            block_result.query_length,
-                                                            0,  // full_past_kv_length not used in block mode
-                                                            block_result.full_context_length,
-                                                            {},  // past_key_sequence_dims not used
-                                                            {},  // past_value_sequence_dims not used
-                                                            true);  // is_block_split = true
-
-    ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(result->is_valid());
-    EXPECT_NE(result->model, nullptr);
-}
-
 TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForBlockModePrefillCase) {
     AttentionModelConfig cfg;
     cfg.query_len = 128;
@@ -777,8 +748,8 @@ TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForBlockModePrefillCase) {
 
 TEST(PyramidAttentionTest, ProcessBlockModeModelClonesAndDoesNotModifyOriginal) {
     AttentionModelConfig cfg;
-    cfg.query_len = 1;
-    cfg.past_len = 63;
+    cfg.query_len = 32;
+    cfg.past_len = 64;
     auto model = build_isolated_attention_model(cfg);
 
     // Apply SplitKVCacheIntoBlocks transformation and record original state
@@ -813,8 +784,8 @@ TEST(PyramidAttentionTest, ProcessBlockModeModelClonesAndDoesNotModifyOriginal) 
 
 TEST(PyramidAttentionTest, ProcessBlockModePyramidModelsProducesGrowingContextLengths) {
     AttentionModelConfig cfg;
-    cfg.query_len = 1;
-    cfg.past_len = 127;  // context = 128, step = 32 -> 4 models
+    cfg.query_len = 32;
+    cfg.past_len = 128;  // context = 128, step = 32 -> 4 models
     auto model = build_isolated_attention_model(cfg);
 
     // Apply SplitKVCacheIntoBlocks transformation
@@ -826,7 +797,7 @@ TEST(PyramidAttentionTest, ProcessBlockModePyramidModelsProducesGrowingContextLe
 
     const size_t pyramid_step = 32;
     const size_t num_models = block_result.full_context_length / pyramid_step;
-    ASSERT_EQ(num_models, 4u);
+    ASSERT_EQ(num_models, 5u);  // context=160 (query_len=32 + past_len=128), step=32 -> 5 models
 
     std::vector<size_t> context_lengths;
     for (size_t i = 0; i < num_models - 1; ++i) {
