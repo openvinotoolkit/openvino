@@ -1406,8 +1406,21 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
-        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
+    std::string isolate_tag;
+    for (const auto& gptr : gptrs) {
+        if (!gptr->isolatedTag().empty()) {
+            isolate_tag = gptr->isolatedTag();
+            break;
+        }
+    }
+
+    const bool keep_by_size = block_layer_size >= m_ctx.keep_block_size;
+    const bool keep_by_isolate_tag = !isolate_tag.empty();
+    if (gptrs.size() >= m_ctx.keep_blocks && (keep_by_size || keep_by_isolate_tag)) {
+        LOG_VERB("Keeping a repeated block of "
+                 << gptrs.size() << " groups with " << block_layer_size << " layers"
+                 << (keep_by_isolate_tag && !keep_by_size ? " - isolate tag '" + isolate_tag + "'" : std::string())
+                 << ".");
         for (const auto& g : gptrs) {
             g->freeze();
         }
