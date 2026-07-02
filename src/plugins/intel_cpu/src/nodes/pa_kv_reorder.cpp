@@ -136,8 +136,11 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     auto* out = getDstDataAtPort(0);
-    if (out != nullptr && !getDstMemoryAtPort(0)->getShape().hasZeroDims()) {
-        std::memset(out, 0, getDstMemoryAtPort(0)->getDesc().getCurrentMemSize());
+    const auto& outputMemory = getDstMemoryAtPort(0);
+    const auto& outputShape = outputMemory->getShape();
+    if (out != nullptr && outputShape.isStatic() && !outputShape.hasZeroDims()) {
+        const auto outputSize = outputShape.getElementsCount() * outputMemory->getDesc().getPrecision().size();
+        std::memset(out, 0, outputSize);
     }
 }
 
