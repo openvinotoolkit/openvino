@@ -904,16 +904,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
                 auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
                 if (ext == ONNX_EXTENSION) {
-                    originalModel = get_core()->read_model(ov::util::make_path(weightsPath),
-                                                           ov::util::make_path(weightsPath),
-                                                           properties);
+                    originalModel = get_core()->read_model(weightsPath, weightsPath, properties);
                     check_weightless_cache_attribute_occurrence(originalModel);
-                } else if (ext == WEIGHTS_IR_EXTENSION || ext == WEIGHTS_ONNX_EXTENSION) {
+                } else if (ext == WEIGHTS_IR_EXTENSION) {
                     // constants will be populated in parser
                 } else {
                     OPENVINO_THROW("Invalid path to the weights: ",
                                    weightsPath,
-                                   ". A \".bin\", \".data_proxy\" or \".onnx\" extension was expected.");
+                                   ". A \".bin\" or \".onnx\" extension was expected.");
                 }
             } else {
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
