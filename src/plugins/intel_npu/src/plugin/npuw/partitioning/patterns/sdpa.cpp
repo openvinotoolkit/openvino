@@ -85,13 +85,13 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 /*
     Decomposed SDPA Pattern:
-            Convert
+
                 \       /
                  Concat
                     |
                 opt:Unsqueeze
                     |
-                opt:Broadcast   Convert
+                opt:Broadcast
                     |       \       /
                 opt:Reshape       Concat
         \           /           |
@@ -111,8 +111,29 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                const std::string& isol_tag) {
-    auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
+    // KV-cache Concat predicate: all inputs except the last (current KV slice) must be
+    // Parameters or Parameter-through-Convert.  This guards against matching Eagle-style
+    // concats or DQ-chain concats whose non-last inputs are intermediate nodes such as
+    // Multiply/Subtract produced by a dequantisation path.
+    auto kv_concat_pred = [](const ov::Output<ov::Node>& output) {
+        auto concat = output.get_node_shared_ptr();
+        const auto num_inputs = concat->get_input_size();
+        if (num_inputs < 2)
+            return false;
+        for (size_t i = 0; i + 1 < num_inputs; ++i) {
+            auto inp = concat->get_input_node_shared_ptr(i);
+            if (ov::as_type_ptr<ov::op::v0::Parameter>(inp))
+                continue;
+            if (auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(inp)) {
+                if (ov::as_type_ptr<ov::op::v0::Parameter>(cvt->get_input_node_shared_ptr(0)))
+                    continue;
+            }
+            return false;
+        }
+        return true;
+    };
+
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>(kv_concat_pred);
 
     // GQA optional nodes — require single consumer so shared KV (e.g. Gemma4) does not
     // accidentally match: if any expansion node is shared across multiple heads the
@@ -125,8 +146,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
     auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()}, single_user);
 
-    auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>(kv_concat_pred);
 
     // GQA optional nodes — same single-consumer guard
     auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()}, single_user);
@@ -158,15 +178,34 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
             }
         };
 
-        // Isolate all matched nodes in the pattern
-        isolate_matched(convert1);
-        isolate_matched(concat1);
+        // Isolate concat nodes and their Convert inputs (if any)
+        auto isolate_concat_with_inputs = [&](const auto& concat_pattern) {
+            auto concat_iter = node_to_output.find(concat_pattern);
+            if (concat_iter != node_to_output.end()) {
+                auto concat_node = concat_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(concat_node)->isolate(isol_tag);
+
+                // Also isolate all Convert inputs to this Concat
+                for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
+                    auto input_node = concat_node->get_input_node_shared_ptr(i);
+                    if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(input_node)) {
+                        if (node_to_gptr->count(convert_node)) {
+                            node_to_gptr->at(convert_node)->isolate(isol_tag);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Isolate Concat nodes with all their Convert inputs
+        isolate_concat_with_inputs(concat1);
+        isolate_concat_with_inputs(concat2);
+
+        // Isolate all other matched nodes in the pattern
         isolate_matched(unsqueeze1);
         isolate_matched(broadcast1);
         isolate_matched(reshape1);
 
-        isolate_matched(convert2);
-        isolate_matched(concat2);
         isolate_matched(unsqueeze2);
         isolate_matched(broadcast2);
         isolate_matched(reshape2);
@@ -182,6 +221,135 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     };
 
     register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPADecomposed"), std::move(callback));
+}
+
+/*
+    Decomposed SDPA Pattern with Dynamic Dequantization (i8 KV cache):
+
+    After ConvertKVCacheToPrecision(i8), past KV cache inputs have DQ nodes:
+        [any_input] → Subtract(zp) → Multiply(scale) → Concat
+    instead of:
+        Convert → Concat
+
+    Full pattern:
+          Convert
+            |
+        opt:Subtract (zp)
+                |
+            Multiply (scale)
+                \       /
+                 Concat
+                    |
+                opt:Unsqueeze
+                    |
+                opt:Broadcast Convert
+                    |       \   |
+                opt:Reshape opt:Subtract (zp)
+                    |            |
+                    |        Multiply (scale)
+                    |            \       /
+            \           /                 Concat
+                MatMul                       |
+        \       /                      opt:Unsqueeze
+           Add                              |
+            |                          opt:Broadcast
+         Softmax                            |
+                \                      opt:Reshape
+                    \               /
+                          MatMul
+                            |
+                        Transpose
+                            |
+                        Reshape
+                            |
+*/
+
+SDPACompressed::SDPACompressed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                               const std::string& isol_tag) {
+    // Key path: opt:Convert → opt:Subtract(opt:Convert(any), any) → Multiply(any) → Concat(any)
+    // Convert is optional to handle models where the past KV is already in the expected type.
+    // Subtract is optional to handle both asymmetric (with zp) and symmetric (without zp) DQ.
+    // The zp input also has an optional Convert (i8→f32) that must be isolated
+    // to preserve the original DQ zp parameter name for PyramidAttention::from().
+    auto convert1 = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    auto zp_convert1 = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    auto subtract1 = opp::optional<ov::op::v1::Subtract>({convert1, zp_convert1});
+    auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({subtract1, opp::any_input()});
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>({multiply1, opp::any_input()});
+
+    // GQA optional nodes — single consumer guard
+    auto single_user = [](const ov::Output<ov::Node>& output) {
+        return output.get_target_inputs().size() == 1;
+    };
+    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()}, single_user);
+    auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
+    auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()}, single_user);
+
+    // Value path: opt:Convert → opt:Subtract(opt:Convert(any), any) → Multiply(any) → Concat(any)
+    auto convert2 = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    auto zp_convert2 = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    auto subtract2 = opp::optional<ov::op::v1::Subtract>({convert2, zp_convert2});
+    auto multiply2 = opp::wrap_type<ov::op::v1::Multiply>({subtract2, opp::any_input()});
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>({multiply2, opp::any_input()});
+
+    // GQA optional nodes — same single-consumer guard
+    auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()}, single_user);
+    auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()}, single_user);
+    auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()}, single_user);
+
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
+    auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({add});
+
+    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape2});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul2, opp::any_input()});
+    auto reshape3 = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        LOG_DEBUG("Decomposed SDPA DQ pattern matched!");
+
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto isolate_matched = [&](const auto& pattern) {
+            auto optional_node = node_to_output.find(pattern);
+            if (optional_node != node_to_output.end()) {
+                auto matched_node = optional_node->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_node)->isolate(isol_tag);
+            }
+        };
+
+        // Isolate all matched nodes in the pattern
+        isolate_matched(convert1);
+        isolate_matched(zp_convert1);
+        isolate_matched(subtract1);
+        isolate_matched(multiply1);
+        isolate_matched(concat1);
+        isolate_matched(unsqueeze1);
+        isolate_matched(broadcast1);
+        isolate_matched(reshape1);
+
+        isolate_matched(convert2);
+        isolate_matched(zp_convert2);
+        isolate_matched(subtract2);
+        isolate_matched(multiply2);
+        isolate_matched(concat2);
+        isolate_matched(unsqueeze2);
+        isolate_matched(broadcast2);
+        isolate_matched(reshape2);
+
+        isolate_matched(matmul1);
+        isolate_matched(add);
+        isolate_matched(softmax);
+        isolate_matched(matmul2);
+        isolate_matched(transpose);
+        isolate_matched(reshape3);
+
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPADecomposedDQ"), std::move(callback));
 }
 
 }  // namespace attn
@@ -312,7 +480,7 @@ AttentionBroadcast3::AttentionBroadcast3() {
 
 ShapeOfParameter::ShapeOfParameter() {
     auto param_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto param_cvt = opp::wrap_type<ov::op::v0::Convert>({param_in});
+    auto param_cvt = opp::optional<ov::op::v0::Convert>({param_in});
     auto param_shp = opp::wrap_type<ov::op::v3::ShapeOf>({param_cvt});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback

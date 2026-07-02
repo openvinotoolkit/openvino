@@ -54,6 +54,26 @@ KERNEL(quantize_ref)(
     const int v = ((vuwzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_SIZE_U;
 #endif
 
+#if OUTPUT_LAYOUT_B_FS_YX_FSV16
+    if (of >= OUTPUT_FEATURE_NUM)
+        return;
+#else
+    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
+        return;
+#if OUTPUT_DIMS >= 6
+    if (w >= OUTPUT_SIZE_W)
+        return;
+#endif
+#if OUTPUT_DIMS >= 7
+    if (u >= OUTPUT_SIZE_U)
+        return;
+#endif
+#if OUTPUT_DIMS >= 8
+    if (v >= OUTPUT_SIZE_V)
+        return;
+#endif
+#endif
+
 #if INPUT0_DIMS == 8
     const int input_offset = INPUT0_GET_INDEX(b, of, v, u, w, z, y, x);
 #elif INPUT0_DIMS == 7
@@ -128,19 +148,10 @@ KERNEL(quantize_ref)(
 
     INPUT0_COMPUTE_TYPE val = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
-#if OUTPUT_LAYOUT_B_FS_YX_FSV16
-    if (of >= OUTPUT_FEATURE_NUM)
-        return;
-#else
-    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
-        return;
-#endif
-
     INPUT1_COMPUTE_TYPE  input_low_val  = DECODE_INPUT1_COMPUTE_TYPE(input_low[input_low_offset]);
     INPUT2_COMPUTE_TYPE  input_high_val  = DECODE_INPUT2_COMPUTE_TYPE(input_high[input_high_offset]);
     INPUT3_COMPUTE_TYPE  output_low_val  = DECODE_INPUT3_COMPUTE_TYPE(output_low[output_low_offset]);
     INPUT4_COMPUTE_TYPE  output_high_val  = DECODE_INPUT4_COMPUTE_TYPE(output_high[output_high_offset]);
-
 
     if (val <= input_low_val)
     {
