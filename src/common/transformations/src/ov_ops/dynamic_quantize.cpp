@@ -4,6 +4,7 @@
 
 #include "ov_ops/dynamic_quantize.hpp"
 
+#include "itt.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -134,6 +135,55 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
     return out_shapes;
 }
 
+bool DynamicQuantize::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(internal_DynamicQuantize_visit_attributes);
+    visitor.on_attribute("quantization_type", m_attrs.quantization_type);
+    visitor.on_attribute("quantization_dt", m_attrs.quantization_dt);
+    visitor.on_attribute("scale_dt", m_attrs.scale_dt);
+    visitor.on_attribute("zp_dt", m_attrs.zp_dt);
+    visitor.on_attribute("precomputed_reduction_dt", m_attrs.precomputed_reduction_dt);
+    visitor.on_attribute("precomputed_reduction", m_attrs.precomputed_reduction);
+    visitor.on_attribute("group_sizes", m_attrs.group_sizes);
+    visitor.on_attribute("scales_zp_output_order", m_attrs.scales_zp_output_order);
+    visitor.on_attribute("output_storage_type", m_attrs.output_storage_type);
+    return true;
+}
+
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type) {
+    return s << ov::as_string(quantization_type);
+}
+
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type) {
+    return s << ov::as_string(output_storage_type);
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>&
+EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>::get() {
+    static auto enum_names = EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>(
+        "ov::op::internal::DynamicQuantize::QuantizationType",
+        {
+            {"symmetric", ov::op::internal::DynamicQuantize::QuantizationType::Symmetric},
+            {"asymmetric", ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric},
+        });
+    return enum_names;
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>&
+EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>::get() {
+    static auto enum_names = EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>(
+        "ov::op::internal::DynamicQuantize::OutputStorageType",
+        {
+            {"planar", ov::op::internal::DynamicQuantize::OutputStorageType::Planar},
+            {"interleaved_scales_zp", ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP},
+        });
+    return enum_names;
+}
+
 }  // namespace ov

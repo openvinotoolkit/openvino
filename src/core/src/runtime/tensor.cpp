@@ -211,20 +211,6 @@ ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
     return view_tensor;
 }
 
-Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memory,
-                                  const ov::element::Type& element_type,
-                                  const ov::PartialShape& partial_shape,
-                                  size_t offset_in_bytes) {
-    const auto static_shape = resolve_static_shape(mapped_memory->size(), element_type, partial_shape);
-    const auto shared_buffer =
-        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                              mapped_memory->size(),
-                                                                              mapped_memory);
-    auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
-    set_tensor_source_id(tensor, mapped_memory->get_id());
-    return tensor;
-}
-
 size_t get_size_for_mapping(const ov::element::Type& element_type, const ov::PartialShape& partial_shape) {
     if (partial_shape.is_static()) {
         const auto memory_size = ov::util::get_memory_size_safe(element_type, partial_shape.get_shape());
@@ -238,6 +224,18 @@ size_t get_size_for_mapping(const ov::element::Type& element_type, const ov::Par
         return auto_size;
     }
 }
+
+Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
+                                  const element::Type& element_type,
+                                  const PartialShape& partial_shape) {
+    const auto static_shape = resolve_static_shape(mapped_memory->size(), element_type, partial_shape);
+    const auto shared_buffer = std::make_shared<SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                             mapped_memory->size(),
+                                                                                             mapped_memory);
+    auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    set_tensor_source_id(tensor, mapped_memory->get_id());
+    return tensor;
+}
 }  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
@@ -248,10 +246,9 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
         const auto size = get_size_for_mapping(element_type, partial_shape);
-        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size),
+        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size, /*no_placeholder=*/true),
                                           element_type,
-                                          partial_shape,
-                                          offset_in_bytes);
+                                          partial_shape);
     } else {
         const auto file_size = std::filesystem::file_size(file_name);
         OPENVINO_ASSERT(offset_in_bytes <= file_size,
@@ -277,7 +274,6 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
     const auto size = get_size_for_mapping(element_type, partial_shape);
     return read_tensor_data_mmap_impl(load_mmap_object(file_handle, offset_in_bytes, size),
                                       element_type,
-                                      partial_shape,
-                                      offset_in_bytes);
+                                      partial_shape);
 }
 }  // namespace ov

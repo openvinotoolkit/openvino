@@ -580,6 +580,62 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    auto model = convert_model("relu_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    auto model = convert_model("relu_opset13.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::bfloat16>(
+        {ov::bfloat16(-1), ov::bfloat16(-2), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.add_expected_output<ov::bfloat16>(
+        {ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int8) {
+    auto model = convert_model("relu_opset14_int8.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int8_t>({-3, -1, 0, 1, 2, 5});
+    test_case.add_expected_output<int8_t>({0, 0, 0, 1, 2, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int16) {
+    auto model = convert_model("relu_opset14_int16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int16_t>({-300, -1, 0, 1, 200, 500});
+    test_case.add_expected_output<int16_t>({0, 0, 0, 1, 200, 500});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int32) {
+    auto model = convert_model("relu_opset14_int32.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int32_t>({-100000, -1, 0, 1, 200000, 500000});
+    test_case.add_expected_output<int32_t>({0, 0, 0, 1, 200000, 500000});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int64) {
+    auto model = convert_model("relu_opset14_int64.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({-1000000000LL, -1, 0, 1, 1000000000LL, 2000000000LL});
+    test_case.add_expected_output<int64_t>({0, 0, 0, 1, 1000000000LL, 2000000000LL});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sum_opset1) {
     // Simple Sum test for opset1.
     auto model = convert_model("sum_opset1.onnx");
@@ -3626,8 +3682,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
-    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ov::Exception)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+    const auto model = convert_model("scatter_nd_opset16_reduction_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Duplicate indices (1 appears twice) exercise the `add` reduction:
+    // updates 10 and 12 both target index 1, so result[1] = 2 + 10 + 12 = 24.
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_input<int64_t>({4, 1, 1, 7});
+    test_case.add_input<float>({9.f, 10.f, 12.f, 11.f});
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 24.f, 3.f, 4.f, 14.f, 6.f, 7.f, 19.f});
+
+    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
@@ -6123,6 +6188,60 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_linear) {
+    const auto model = convert_model("grid_sample_opset20.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, gen_range<float>(16));
+    test_case.add_input<float>(
+        Shape{1, 6, 6, 2},
+        {-1.0000f, -1.0000f, -0.6000f, -1.0000f, -0.2000f, -1.0000f, 0.2000f,  -1.0000f, 0.6000f,  -1.0000f, 1.0000f,
+         -1.0000f, -1.0000f, -0.6000f, -0.6000f, -0.6000f, -0.2000f, -0.6000f, 0.2000f,  -0.6000f, 0.6000f,  -0.6000f,
+         1.0000f,  -0.6000f, -1.0000f, -0.2000f, -0.6000f, -0.2000f, -0.2000f, -0.2000f, 0.2000f,  -0.2000f, 0.6000f,
+         -0.2000f, 1.0000f,  -0.2000f, -1.0000f, 0.2000f,  -0.6000f, 0.2000f,  -0.2000f, 0.2000f,  0.2000f,  0.2000f,
+         0.6000f,  0.2000f,  1.0000f,  0.2000f,  -1.0000f, 0.6000f,  -0.6000f, 0.6000f,  -0.2000f, 0.6000f,  0.2000f,
+         0.6000f,  0.6000f,  0.6000f,  1.0000f,  0.6000f,  -1.0000f, 1.0000f,  -0.6000f, 1.0000f,  -0.2000f, 1.0000f,
+         0.2000f,  1.0000f,  0.6000f,  1.0000f,  1.0000f,  1.0000});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 6},
+        {0.0000f,  0.1500f,  0.5500f, 0.9500f, 1.3500f,  0.7500f, 0.6000f, 1.5000f,  2.3000f,
+         3.1000f,  3.9000f,  2.1000f, 2.2000f, 4.7000f,  5.5000f, 6.3000f, 7.1000f,  3.7000f,
+         3.8000f,  7.9000f,  8.7000f, 9.5000f, 10.3000f, 5.3000f, 5.4000f, 11.1000f, 11.9000f,
+         12.7000f, 13.5000f, 6.9000f, 3.0000f, 6.1500f,  6.5500f, 6.9500f, 7.3500f,  3.7500});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_cubic) {
+    const auto model = convert_model("grid_sample_opset20_cubic.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, gen_range<float>(16));
+    test_case.add_input<float>(
+        Shape{1, 6, 6, 2},
+        {-1.0000f, -1.0000f, -0.6000f, -1.0000f, -0.2000f, -1.0000f, 0.2000f,  -1.0000f, 0.6000f,  -1.0000f, 1.0000f,
+         -1.0000f, -1.0000f, -0.6000f, -0.6000f, -0.6000f, -0.2000f, -0.6000f, 0.2000f,  -0.6000f, 0.6000f,  -0.6000f,
+         1.0000f,  -0.6000f, -1.0000f, -0.2000f, -0.6000f, -0.2000f, -0.2000f, -0.2000f, 0.2000f,  -0.2000f, 0.6000f,
+         -0.2000f, 1.0000f,  -0.2000f, -1.0000f, 0.2000f,  -0.6000f, 0.2000f,  -0.2000f, 0.2000f,  0.2000f,  0.2000f,
+         0.6000f,  0.2000f,  1.0000f,  0.2000f,  -1.0000f, 0.6000f,  -0.6000f, 0.6000f,  -0.2000f, 0.6000f,  0.2000f,
+         0.6000f,  0.6000f,  0.6000f,  1.0000f,  0.6000f,  -1.0000f, 1.0000f,  -0.6000f, 1.0000f,  -0.2000f, 1.0000f,
+         0.2000f,  1.0000f,  0.6000f,  1.0000f,  1.0000f,  1.0000});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 6},
+        {-0.2344f, -0.3005f, 0.1930f, 0.5570f, 1.1332f,  0.6094f, 0.3594f, 1.2865f,  2.1882f,
+         2.9965f,  4.4699f,  2.2330f, 2.1783f, 5.2767f,  5.6800f, 6.4080f, 8.1440f,  3.8658f,
+         3.6343f,  8.5098f,  8.5920f, 9.3200f, 11.3770f, 5.3218f, 6.0939f, 14.0200f, 13.6572f,
+         14.4655f, 17.2033f, 7.9675f, 3.1406f, 7.1937f,  6.9430f, 7.3070f, 8.6273f,  3.9844f});
+
+    test_case.run_with_tolerance_as_fp(1.0e-3f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_5d_input_rejected) {
+    EXPECT_THROW(convert_model("grid_sample_opset20_5d.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
     const auto model = convert_model("concat_empty_init.onnx");
 
@@ -7619,6 +7738,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
     test_case.run();
 }
 
+/// @brief Testing ONNX SequenceLength operator via SequenceConstruct fast path.
+/// All inputs are graph initializers (constants), so SequenceLength is constant-folded
+/// at conversion time to the scalar value 3.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_length_constant_sequence) {
+    const auto model = convert_model("sequence_length_3_elements.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase middle element.
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase(pos=1) -> SequenceAt(pos=0) -> a.
+/// After erasing element at index 1 (b), the sequence is [a, c]; SequenceAt(0) returns a.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_middle_element) {
+    const auto model = convert_model("sequence_erase_middle.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b (erased)
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c
+    test_case.add_expected_output<float>(Shape{2}, {10., 20.});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase last element (no position input).
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase() -> SequenceAt(pos=1) -> b.
+/// After erasing the last element (c), the sequence is [a, b]; SequenceAt(1) returns b.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_last_element) {
+    const auto model = convert_model("sequence_erase_last.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c (erased)
+    test_case.add_expected_output<float>(Shape{2}, {30., 40.});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX BitShift with an Y output of uint32 type
 /// The input model was taken from a bug report, where parsing the type of the Y input
 /// failed.
@@ -7666,6 +7827,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_biased) {
          1.4707088f,  1.834275f,    -2.0627153f, 0.8972385f,  -0.38503534f, -0.60342413f, -2.3845546f, -1.6216844f});
 
     test_case.run_with_tolerance_as_fp(0.0001f);
+}
+
+// Minimal smoke test for the standard ONNX opset-23 RMSNormalization translator.
+// Verifies that the decomposition built via ov::decomposition::rms_norm produces
+// the expected RMS-normalized output. Comprehensive coverage lives in the ONNX
+// node conformance suite (test_rms_normalization_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rms_normalization) {
+    const auto model = convert_model("rms_normalization.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 4}, {1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    // RMS over last axis: sqrt(mean(x^2) + 1e-5)
+    //   Row 0: sqrt(7.5 + 1e-5) ~ 2.738614
+    //   Row 1: sqrt(1.0 + 1e-5) ~ 1.0000050
+    test_case.add_expected_output<float>(
+        Shape{2, 4},
+        {0.36514688f, 0.73029375f, 1.09544063f, 1.46058750f, 0.99999499f, 0.99999499f, 0.99999499f, 0.99999499f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+// Minimal smoke test for the standard ONNX opset-23 RotaryEmbedding translator.
+// Uses cos=1, sin=0 so the rotation is identity — the test verifies that the
+// reshape/transpose/decomposition pipeline plumbs the input through unchanged.
+// Comprehensive correctness coverage lives in the ONNX node conformance suite
+// (test_rotary_embedding_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
+    const auto model = convert_model("rotary_embedding.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    const std::vector<float> input = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
+    test_case.add_input<float>(Shape{1, 1, 2, 4}, input);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 4}, input);
+    test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {

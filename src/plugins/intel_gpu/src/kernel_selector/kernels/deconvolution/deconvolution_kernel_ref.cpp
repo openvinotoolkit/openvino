@@ -62,6 +62,7 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
+    k.EnableDilation();
     return k;
 }
 

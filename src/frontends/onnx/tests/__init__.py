@@ -66,7 +66,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
@@ -152,7 +151,7 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 # ONNX 1.15
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
-skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support cubic and linear modes, and 4D tensor") # Need to enable after bumping to 1.15
+skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support volumetric (5D) inputs")
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
@@ -177,7 +176,5 @@ skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 
 # ONNX 1.18
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
-xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
-xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
 xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")
