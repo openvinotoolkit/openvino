@@ -5,7 +5,6 @@
 #include "weightless_utils.hpp"
 
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -63,10 +62,21 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             OPENVINO_ASSERT(opt.has_value(), "Failed parse id for constant: ", descriptor.nameFromCompiler);
 
             const size_t id = opt.value();
-            auto weight_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-                mapped_memory->data() + id,
-                ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape())),
-                mapped_memory);
+            const size_t byte_size =
+                ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            OPENVINO_ASSERT(id <= mapped_memory->size() && byte_size <= mapped_memory->size() - id,
+                            "Constant offset/size is out of bounds for mapped weights file: offset=",
+                            id,
+                            ", size=",
+                            byte_size,
+                            ", file_size=",
+                            mapped_memory->size(),
+                            ", name=",
+                            descriptor.nameFromCompiler);
+            auto weight_buffer =
+                std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + id,
+                                                                                      byte_size,
+                                                                                      mapped_memory);
 
             constants.insert({id,
                               std::make_shared<ov::op::v0::Constant>(descriptor.precision,
