@@ -13,8 +13,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "attention.hpp"
-#include "host_flash_attention.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -81,6 +79,14 @@ public:
         return m_history_size;
     }
 
+    std::size_t get_run_iteration() const {
+        return m_run_iter;
+    }
+
+    bool should_copy_subgraph_input(std::size_t idx) const {
+        return needs_copy(idx);
+    }
+
 protected:
     int64_t m_history_size = 0;
 
@@ -92,7 +98,6 @@ protected:
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1);
-    void ensure_subrequest_is_accurate(std::size_t idx);
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
@@ -137,33 +142,10 @@ protected:
     };
     std::vector<SpatialIO> m_spatial_io;
 
-    // FIXME: All comments for SpatialIO above apply here as well.
-    struct AttentionIO {
-        std::vector<ov::SoPtr<ov::ITensor>> inputs;  // # of elements - # of graph-side inputs
-    };
-    std::vector<AttentionIO> m_attention_io;
-
-    // Host Flash Attention I/O structure
-    // Stores input and output tensors for HFA tiled inference
-    struct HostFlashAttentionIO {
-        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of original SDPA model inputs
-        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of original SDPA model outputs
-    };
-    std::vector<HostFlashAttentionIO> m_hfa_io;
-
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
     runtime::spatial::Selector::Ptr m_spatial_selector;
-
-    // Same thing about this one
-    runtime::attention::Selector::Ptr m_attention_selector;
-
-    // Separate selector for pyramid attention
-    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
-
-    // Host flash attention selector for dynamic execution
-    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
@@ -197,11 +179,13 @@ protected:
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
+    virtual bool bind_behavior_input(std::size_t idx,
+                                     std::size_t real_idx,
+                                     std::size_t input_idx,
+                                     const ov::SoPtr<ov::ITensor>& tensor,
+                                     RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
-
-    void bind_attention_inputs(std::size_t idx, RqPtr request);
-    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
@@ -231,8 +215,6 @@ protected:
     bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
-
-    RqPtrs m_ref_subrequests;
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;

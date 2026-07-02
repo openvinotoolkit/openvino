@@ -21,7 +21,6 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
     default:
@@ -43,7 +42,7 @@ protected:
         const auto& v_shape = params.get_input_layout(2).get_partial_shape();
         const size_t v_head_nums = v_shape[2].get_length();
         const size_t v_head_dims = v_shape[3].get_length();
-        const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
+        const float scale_factor = 1.0f / std::sqrt(static_cast<float>(k_head_dims));
         const auto output_state = params.output_layouts.size() > 1 ? 1 : 0;
 
         jit.make("K_HEAD_NUM", q_head_nums);

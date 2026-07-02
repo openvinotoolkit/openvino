@@ -4,7 +4,18 @@
 
 #include "subgraph_collector.hpp"
 
-#include <deque>
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <map>
+#include <numeric>
+#include <unordered_map>
+#include <unordered_set>
+
+#if defined(_MSC_VER)
+#    include <intrin.h>
+#endif
 
 #include "graph_debug_dump.hpp"
 #include "op/device_subgraph.hpp"
@@ -18,27 +29,6 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 namespace {
-
-template <typename Set>
-static Set intersection(const Set& lhs, const Set& rhs) {
-    Set result;
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            result.insert(val);
-    return result;
-}
-
-template <typename Set>
-static bool intersects(const Set& lhs, const Set& rhs) {
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            return true;
-    return false;
-}
 
 template <typename T>
 static std::vector<T> addition(const std::vector<T>& vector1, const std::vector<T>& vector2) {
@@ -77,12 +67,10 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _intermediate_parameters{},
       _intermediate_results(),
       _affinities{affinities},
-      _node_input_dependencies{},
       _subgraph_inputs{},
       _subgraph_parameter_to_prev_result{} {
     init();
-    split_cyclic_dependencies();
-    _subgraph_ids = collect_subgraphs_ids();
+    _subgraph_ids = split_cyclic_dependencies();
 }
 
 bool ov::hetero::SubgraphCollector::is_graph_input_node(const ov::Node* node) const {
@@ -90,21 +78,18 @@ bool ov::hetero::SubgraphCollector::is_graph_input_node(const ov::Node* node) co
 }
 
 void ov::hetero::SubgraphCollector::init() {
-    // Get all subgraph inputs using just node affinities. Also collect transitive closure
+    // Seed _subgraph_inputs from per-node affinities: Parameters/Constants are self-boundaries,
+    // and any cross-affinity input edge is a boundary; Result nodes inherit producer affinity.
     for (const auto& node : _ordered_ops) {
         if (is_graph_input_node(node.get())) {
             _subgraph_inputs.insert(Input{node.get(), 0});
-            _node_input_dependencies[node].insert(Input{node.get(), 0});
         } else {
-            auto inputs = node->inputs();
-            auto& node_input_dependency = _node_input_dependencies[node];
-            for (const auto& input : inputs) {
-                node_input_dependency.insert(input);
-                auto& input_dependency = _node_input_dependencies[input_node(input)];
-                node_input_dependency.insert(input_dependency.begin(), input_dependency.end());
-                if (_affinities.at(node) != _affinities.at(input_node(input))) {
+            const auto& node_affinity = _affinities.at(node);
+            for (const auto& input : node->inputs()) {
+                const auto source = input_node(input);
+                if (node_affinity != _affinities.at(source)) {
                     if (ov::op::util::is_output(node)) {
-                        _affinities[node] = _affinities.at(input_node(input));
+                        _affinities[node] = _affinities.at(source);
                     } else {
                         _subgraph_inputs.insert(input);
                     }
@@ -113,92 +98,672 @@ void ov::hetero::SubgraphCollector::init() {
         }
     }
 }
-void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
+
+ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
+    // Iteratively detect cross-subgraph cycles (subgraph A feeds B and B feeds A) and break them
+    // by promoting offending edges into _subgraph_inputs until no new boundaries are added.
+    //
+    // Returns the final SubgraphIdsMap (valid w.r.t. _subgraph_inputs at return), so the caller
+    // does not re-run collect_subgraphs_ids(). The map is also reused across loop boundaries:
+    // the per-node loop's last iteration always exits without adding boundaries (loop
+    // condition), so its `subgraph_ids` is still valid for the SCC loop's first iteration; and
+    // each SCC iteration only recomputes after it actually modified _subgraph_inputs.
+    const size_t nodes_count = _ordered_ops.size();
+    std::unordered_map<const ov::Node*, size_t> node_to_index;
+    node_to_index.reserve(nodes_count);
+    std::vector<InputVector> ordered_inputs(nodes_count);
+    std::vector<std::vector<size_t>> output_consumer_counts(nodes_count);
+    for (size_t i = 0; i < nodes_count; ++i) {
+        node_to_index.emplace(_ordered_ops[i].get(), i);
+        ordered_inputs[i] = _ordered_ops[i]->inputs();
+        const auto outputs = _ordered_ops[i]->outputs();
+        auto& consumer_counts = output_consumer_counts[i];
+        consumer_counts.reserve(outputs.size());
+        for (const auto& output : outputs) {
+            consumer_counts.push_back(output.get_target_inputs().size());
+        }
+    }
+
+    auto get_index_by_node = [&node_to_index](const ov::Node* node) {
+        const auto it = node_to_index.find(node);
+        OPENVINO_ASSERT(it != node_to_index.end());
+        return it->second;
+    };
+
+    // Bitset helpers. Subgraph-input dependency sets are represented as packed
+    // 64-bit words indexed by a dense id assigned to each member of
+    // _subgraph_inputs at the start of every outer iteration. This replaces the
+    // previous std::set<Input>-based propagation: union/intersect/test become
+    // O(S/64) bitwise ops with no per-element hashing/comparator/allocation,
+    // typically ~50-100x faster for graphs with hundreds of subgraph inputs.
+    using Bits = std::vector<uint64_t>;
+    auto ctz64 = [](uint64_t x) -> unsigned {
+    // Precondition: x != 0. Both __builtin_ctzll(0) and _BitScanForward64 with a zero
+    // mask are undefined; all call sites guard with `while (bits)` before invoking.
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+        unsigned long idx;
+        _BitScanForward64(&idx, x);
+        return static_cast<unsigned>(idx);
+#elif defined(_MSC_VER)
+        unsigned idx = 0;
+        while ((x & 1ULL) == 0) {
+            x >>= 1;
+            ++idx;
+        }
+        return idx;
+#else
+        return static_cast<unsigned>(__builtin_ctzll(x));
+#endif
+    };
+    auto set_bit = [](Bits& b, size_t i) {
+        b[i >> 6] |= (1ULL << (i & 63));
+    };
+    auto bit_or = [](Bits& a, const Bits& b) {
+        for (size_t i = 0; i < a.size(); ++i)
+            a[i] |= b[i];
+    };
+    auto bit_intersects = [](const Bits& a, const Bits& b) {
+        for (size_t i = 0; i < a.size(); ++i)
+            if (a[i] & b[i])
+                return true;
+        return false;
+    };
+    auto bit_any = [](const Bits& a) {
+        for (uint64_t v : a)
+            if (v)
+                return true;
+        return false;
+    };
+    auto bit_all_of = [&](const Bits& a, const auto& pred) {
+        for (size_t i = 0; i < a.size(); ++i) {
+            uint64_t bits = a[i];
+            while (bits) {
+                const size_t b = (i << 6) + ctz64(bits);
+                bits &= bits - 1;
+                if (!pred(b)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    // Subgraph-ID state is shared across the per-node loop, the SCC loop, and the return value.
+    SubgraphIdsMap subgraph_ids;
+    std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
+
     // Split cyclic dependencies.
     for (size_t prev_subgraphs = 0, cyclic_split_step = 0; prev_subgraphs != _subgraph_inputs.size();
          ++cyclic_split_step) {
         OPENVINO_ASSERT(cyclic_split_step < _ordered_ops.size(), "Cannot resolve cycles during submodels split!");
         prev_subgraphs = _subgraph_inputs.size();
-        auto subgraph_ids = collect_subgraphs_ids();
-        // All inputs that belong to the same subgraph as node
-        NodeMap<InputSet> node_subgraph_input_dependencies;
-        // All inputs that depends on the same subgraph as node
-        NodeMap<InputSet> node_subgraph_cyclic_iput_dependencies;
+        subgraph_ids = collect_subgraphs_ids();
+
         for (const auto& node : _ordered_ops) {
-            auto& node_subgraph_input_dependency = node_subgraph_input_dependencies[node];
-            auto all_node_subgraph_inputs = intersection(_node_input_dependencies[node], _subgraph_inputs);
-            for (const auto& subgraph_input : all_node_subgraph_inputs) {
-                if (subgraph_ids[node] == subgraph_ids[subgraph_input.get_node()->shared_from_this()]) {
-                    node_subgraph_input_dependency.emplace(subgraph_input);
-                }
+            const auto index = get_index_by_node(node.get());
+            subgraph_id_by_index[index] = subgraph_ids.at(node);
+        }
+
+        // === Phase 1: assign a dense bit id to every current subgraph input. ===
+        const size_t S = _subgraph_inputs.size();
+        const size_t W = (S + 63) / 64;
+        struct InputHash {
+            size_t operator()(const Input& in) const noexcept {
+                // Input == {Node*, port_index}. Mix the pointer with the port to avoid
+                // collisions across multiple inputs of the same node.
+                const auto h1 = std::hash<const ov::Node*>{}(in.get_node());
+                const auto h2 = std::hash<size_t>{}(in.get_index());
+                return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
             }
-            auto& node_subgraph_cyclic_input_dependency = node_subgraph_cyclic_iput_dependencies[node];
-            for (const auto& subgraph_input : all_node_subgraph_inputs) {
-                if (!is_graph_input_node(subgraph_input.get_node()) &&
-                    subgraph_ids[node] == subgraph_ids[input_node(subgraph_input)]) {
-                    node_subgraph_cyclic_input_dependency.emplace(subgraph_input);
+        };
+        std::unordered_map<Input, size_t, InputHash> input_to_bit;
+        input_to_bit.reserve(S * 2);
+        std::vector<Input> bit_to_input;
+        bit_to_input.reserve(S);
+        for (const auto& in : _subgraph_inputs) {
+            input_to_bit.emplace(in, bit_to_input.size());
+            bit_to_input.push_back(in);
+        }
+
+        // === Phase 2: per-bit metadata used by the per-node classification step. ===
+        std::vector<SubgraphId> bit_owner_subgraph(S);  // subgraph of subgraph_input.get_node()
+        std::vector<SubgraphId> bit_producer_subgraph(
+            S);  // subgraph of producing node (only meaningful when not graph input)
+        std::vector<uint8_t> bit_is_graph_input(S);
+        for (size_t b = 0; b < S; ++b) {
+            const auto& in = bit_to_input[b];
+            const auto owner = in.get_node();
+            bit_owner_subgraph[b] = subgraph_id_by_index[get_index_by_node(owner)];
+            const bool gi = is_graph_input_node(owner);
+            bit_is_graph_input[b] = gi ? 1 : 0;
+            bit_producer_subgraph[b] = gi ? static_cast<SubgraphId>(-1)
+                                          : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
+        }
+
+        // === Phase 3: forward-propagate subgraph-input dependencies in topological order. ===
+        // Equivalent to intersection(full_transitive_closure, _subgraph_inputs)
+        // but bounded by |_subgraph_inputs| via the bitset width.
+        std::vector<Bits> node_input_deps(nodes_count, Bits(W, 0ULL));
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            const auto& node = _ordered_ops[node_idx];
+            auto& deps = node_input_deps[node_idx];
+            if (is_graph_input_node(node.get())) {
+                Input self_input{node.get(), 0};
+                const auto it = input_to_bit.find(self_input);
+                if (it != input_to_bit.end()) {
+                    set_bit(deps, it->second);
+                }
+            } else {
+                for (const auto& input : ordered_inputs[node_idx]) {
+                    const auto it = input_to_bit.find(input);
+                    if (it != input_to_bit.end()) {
+                        set_bit(deps, it->second);
+                    }
+                    const auto source_idx = get_index_by_node(input.get_source_output().get_node());
+                    bit_or(deps, node_input_deps[source_idx]);
                 }
             }
         }
 
-        for (const auto& node : _ordered_ops) {
-            auto& node_subgraph_cyclic_input_dependency = node_subgraph_cyclic_iput_dependencies[node];
-            if (!node_subgraph_cyclic_input_dependency.empty()) {
-                // Collect all subgraph inputs that cyclic subgraph output depends on
-                InputSet cyclic_inputs_dependencies;
-                for (const auto& cyclicInput : node_subgraph_cyclic_input_dependency) {
-                    for (const auto& input : node_subgraph_input_dependencies[input_node(cyclicInput)]) {
-                        cyclic_inputs_dependencies.emplace(input);
+        // === Phase 4a: classify each node's deps into same-subgraph and cyclic-feedback subsets. ===
+        std::vector<Bits> node_subgraph_input_dependencies(nodes_count, Bits(W, 0ULL));
+        std::vector<Bits> node_subgraph_cyclic_input_dependencies(nodes_count, Bits(W, 0ULL));
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            const auto& deps = node_input_deps[node_idx];
+            const SubgraphId my_sg = subgraph_id_by_index[node_idx];
+            auto& sg_dep = node_subgraph_input_dependencies[node_idx];
+            auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = deps[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    if (bit_owner_subgraph[b] == my_sg) {
+                        set_bit(sg_dep, b);
+                    }
+                    if (!bit_is_graph_input[b] && bit_producer_subgraph[b] == my_sg) {
+                        set_bit(cyc_dep, b);
                     }
                 }
-                for (const auto& input : node->inputs()) {
-                    auto& input_node_subgraph_cyclic_input_dependency =
-                        node_subgraph_cyclic_iput_dependencies[input_node(input)];
-                    auto& input_node_subgraph_input_dependency = node_subgraph_input_dependencies[input_node(input)];
-                    if (!intersects(node_subgraph_cyclic_input_dependency,
-                                    input_node_subgraph_cyclic_input_dependency) &&
-                        intersects(cyclic_inputs_dependencies, input_node_subgraph_input_dependency)) {
+            }
+        }
+
+        // === Phase 4b: for each node with cyclic feedback, promote offending edges into _subgraph_inputs. ===
+        auto promote_boundaries_for_node = [&](size_t node_idx) {
+            const auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
+            if (!bit_any(cyc_dep))
+                return;
+            const SubgraphId my_sg = subgraph_id_by_index[node_idx];
+            // Collect all subgraph inputs that the cyclic feedback transitively depends on.
+            Bits cyclic_inputs_dependencies(W, 0ULL);
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = cyc_dep[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    const auto& cyclic_input = bit_to_input[b];
+                    const auto cyclic_input_idx = get_index_by_node(cyclic_input.get_source_output().get_node());
+                    bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[cyclic_input_idx]);
+                }
+            }
+            // Also include dependencies at cycle re-entry points: boundary edges where
+            // data from another subgraph flows back into this one. Without this, the
+            // intersection check below misses edges that bridge independently-entered
+            // nodes (e.g., a shared constant) to the cycle's return path.
+            const auto& sg_dep = node_subgraph_input_dependencies[node_idx];
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = sg_dep[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    if (!bit_is_graph_input[b] && bit_owner_subgraph[b] == my_sg && bit_producer_subgraph[b] != my_sg) {
+                        const auto owner_idx = get_index_by_node(bit_to_input[b].get_node());
+                        bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[owner_idx]);
+                    }
+                }
+            }
+            for (const auto& input : ordered_inputs[node_idx]) {
+                const auto input_source_idx = get_index_by_node(input.get_source_output().get_node());
+                const auto& src_cyc_dep = node_subgraph_cyclic_input_dependencies[input_source_idx];
+                const auto& src_sg_dep = node_subgraph_input_dependencies[input_source_idx];
+                if (!bit_intersects(cyc_dep, src_cyc_dep) && bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
+                    const auto source_output = input.get_source_output();
+                    const bool single_consumer_graph_input_leaf =
+                        output_consumer_counts[input_source_idx][source_output.get_index()] == 1 &&
+                        !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
+                        bit_all_of(src_sg_dep, [&](size_t b) {
+                            const auto& traced_input = bit_to_input[b];
+                            if (is_graph_input_node(traced_input.get_node())) {
+                                return true;
+                            }
+                            const auto* traced_producer = traced_input.get_source_output().get_node();
+                            return is_graph_input_node(traced_producer);
+                        });
+                    if (!single_consumer_graph_input_leaf) {
                         _subgraph_inputs.insert(input);
                     }
                 }
             }
+        };
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            promote_boundaries_for_node(node_idx);
         }
     }
-}
 
-ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::collect_subgraphs_ids() {
-    std::deque<SubgraphId> subgraph_ids;
-    NodeMap<SubgraphId*> subgraph_id_ptrs;
-    for (const auto& node : _ordered_ops) {
-        auto all_node_inputs = node->inputs();
-        InputVector inputs;
-        for (const auto& input : all_node_inputs) {
-            if (_subgraph_inputs.find(input) == _subgraph_inputs.end()) {
-                inputs.emplace_back(std::move(input));
-            }
+    // === Subgraph-level SCC fallback. ===========================================================
+    // The per-node heuristic above only detects cycles whose re-entry point sits on a node whose
+    // own cyc_dep bitset is non-empty (same-sg data flows back through a foreign sg into that
+    // node's inputs). Two classes of subgraph-DAG cycles fall outside its scope, and both are
+    // first-class cases this fallback exists to handle -- neither is exceptional:
+    //
+    //   (a) Multi-hop subgraph-DAG cycles (sg_A -> sg_B -> sg_C -> sg_D -> sg_A) where the
+    //       producer and re-entry consumer are several subgraphs apart and no single node sees
+    //       its own sg on the cycle.
+    //   (b) Shared-graph-input cycles, where a Constant (or other graph input) fans out to
+    //       multiple consumers that Union-Find fuses into a single subgraph, and that fused
+    //       subgraph then both produces and consumes data on the same neighbor subgraph. The
+    //       cut edge here is an input of the foreign-sg node, not of the same-sg node whose
+    //       cyc_dep is non-empty, so Phase 4b cannot promote it by construction.
+    //
+    // Both arise from Union-Find merging structurally independent regions via shared inputs.
+    // The ov::Model itself is a DAG; the cycle is purely an artifact of subgraph fusion that
+    // run()'s topological sort cannot resolve.
+    //
+    // Break the cycle by identifying non-trivial SCCs in the subgraph DAG and, per iteration,
+    // isolating one node out of some SCC-member Union-Find component by promoting all of its
+    // same-sg input edges to boundary (see isolate_one_scc_node for the rationale and the
+    // convergence argument). The loop is bounded by the total number of node-input edges; in
+    // practice it converges in ~#SCC iterations.
+
+    // Helper 1: build the subgraph DAG from cross-subgraph edges already recorded in
+    // _subgraph_inputs. Parallel edges between the same pair of subgraphs are de-duplicated;
+    // self-edges (producer_sg == owner_sg) are filtered so single-subgraph SCCs cannot arise.
+    using SgAdj = std::unordered_map<SubgraphId, std::unordered_set<SubgraphId>>;
+    auto build_subgraph_adjacency =
+        [&](const std::vector<SubgraphId>& sg_id_by_index) -> std::pair<SgAdj, std::unordered_set<SubgraphId>> {
+        SgAdj adj;
+        std::unordered_set<SubgraphId> all_sgs;
+        for (size_t i = 0; i < nodes_count; ++i) {
+            all_sgs.insert(sg_id_by_index[i]);
         }
-        if (inputs.empty()) {
-            subgraph_ids.push_back(static_cast<SubgraphId>(subgraph_ids.size()));
-            subgraph_id_ptrs.emplace(node, &(subgraph_ids.back()));
-        } else {
-            auto first_input_subgraph_id_ptr = subgraph_id_ptrs[input_node(inputs.front())];
-            for (const auto& input : inputs) {
-                auto input_id = *subgraph_id_ptrs[input_node(input)];
-                for (auto& subgraph_id : subgraph_ids) {
-                    if (subgraph_id == input_id) {
-                        subgraph_id = *first_input_subgraph_id_ptr;
+        for (const auto& inp : _subgraph_inputs) {
+            if (is_graph_input_node(inp.get_node()))
+                continue;
+            const auto owner_sg = sg_id_by_index[get_index_by_node(inp.get_node())];
+            const auto producer_sg = sg_id_by_index[get_index_by_node(inp.get_source_output().get_node())];
+            if (owner_sg == producer_sg)
+                continue;
+            adj[producer_sg].insert(owner_sg);
+        }
+        return {std::move(adj), std::move(all_sgs)};
+    };
+
+    // Helper 2: return the set of subgraphs that belong to any non-trivial SCC of `adj`, using
+    // iterative Tarjan. An exact SCC algorithm is required here: a two-peel (forward + reverse
+    // Kahn) approximation also flags acyclic bridges between two disjoint cycles (e.g. X in
+    // A<->B -> X -> C<->D survives both peels), which would either waste a promotion on an
+    // acyclic subgraph or trip the "no internal edge" assert below when the bridge subgraph has
+    // no same-sg edge. The loop is iterative to avoid recursion depth issues on large partitions.
+    auto find_non_trivial_scc_members =
+        [](const SgAdj& adj, const std::unordered_set<SubgraphId>& all_sgs) -> std::unordered_set<SubgraphId> {
+        std::unordered_set<SubgraphId> scc_members;
+        std::unordered_map<SubgraphId, int> index_of;
+        std::unordered_map<SubgraphId, int> lowlink;
+        std::unordered_set<SubgraphId> on_stack;
+        std::vector<SubgraphId> tarjan_stack;
+        int next_index = 0;
+        struct Frame {
+            SubgraphId v;
+            std::vector<SubgraphId> neighbors;
+            size_t next_neighbor;
+        };
+        std::vector<Frame> call_stack;
+        auto neighbors_of = [&adj](SubgraphId v) {
+            std::vector<SubgraphId> out;
+            const auto it = adj.find(v);
+            if (it != adj.end())
+                out.assign(it->second.begin(), it->second.end());
+            return out;
+        };
+        auto open_node = [&](SubgraphId v) {
+            index_of[v] = next_index;
+            lowlink[v] = next_index;
+            ++next_index;
+            tarjan_stack.push_back(v);
+            on_stack.insert(v);
+            call_stack.push_back({v, neighbors_of(v), 0});
+        };
+        for (auto start : all_sgs) {
+            if (index_of.count(start))
+                continue;
+            open_node(start);
+            while (!call_stack.empty()) {
+                auto& frame = call_stack.back();
+                if (frame.next_neighbor < frame.neighbors.size()) {
+                    const auto w = frame.neighbors[frame.next_neighbor++];
+                    if (!index_of.count(w)) {
+                        open_node(w);
+                    } else if (on_stack.count(w)) {
+                        lowlink[frame.v] = std::min(lowlink[frame.v], index_of[w]);
+                    }
+                } else {
+                    const auto v = frame.v;
+                    if (lowlink[v] == index_of[v]) {
+                        std::vector<SubgraphId> comp;
+                        while (true) {
+                            const auto w = tarjan_stack.back();
+                            tarjan_stack.pop_back();
+                            on_stack.erase(w);
+                            comp.push_back(w);
+                            if (w == v)
+                                break;
+                        }
+                        // Only non-trivial SCCs (size > 1) represent real cycles in the subgraph
+                        // DAG; singletons are reported by Tarjan even for nodes with no cycle and
+                        // must be excluded. Self-loops were filtered out by build_subgraph_adjacency.
+                        if (comp.size() > 1) {
+                            for (auto m : comp)
+                                scc_members.insert(m);
+                        }
+                    }
+                    const auto finished = frame.v;
+                    call_stack.pop_back();
+                    if (!call_stack.empty()) {
+                        lowlink[call_stack.back().v] = std::min(lowlink[call_stack.back().v], lowlink[finished]);
                     }
                 }
             }
-            subgraph_id_ptrs.emplace(node, first_input_subgraph_id_ptr);
+        }
+        return scc_members;
+    };
+
+    // Helper 3: isolate one Union-Find node from its SCC member by promoting ALL its
+    // same-subgraph non-boundary input edges into _subgraph_inputs. Returns the number of
+    // edges promoted (1 .. node's input arity).
+    //
+    // Rationale (why this works and the simpler alternatives don't):
+    //   * Promoting a single same-sg input edge per iteration diverges: the chosen node still
+    //     re-merges into the SCC via its OTHER same-sg inputs in the next collect_subgraphs_ids
+    //     round, and "first-input-wins" union-find keeps it in the same component. Observed on
+    //     yolo26s-seg: SCC member count grew 4 -> 26 across iterations.
+    //   * Promoting only edges at entry/exit points of SCC members misses the common
+    //     "shared-Constant fuses regions" case: S = {c_shared, a, b, c, ...} where c_shared is
+    //     a Constant unioning multiple consumers. c_shared has no same-sg consumers in OTHER
+    //     SCC members (its consumers are all in S), so it is neither an entry nor an exit, and
+    //     the only same-sg input that would break the cycle — (a <- c_shared) — is skipped.
+    //   * Dissolving a whole SCC-member subgraph at once explodes the partition. On
+    //     yolo26s-seg the GPU mainland S has 428 nodes / 449 internal edges; full dissolution
+    //     produces ~450 subgraphs and breaks downstream compile_model.
+    //
+    // The "isolate one node" cut is the minimum needed: by promoting all of n's same-sg
+    // inputs, n becomes a Union-Find root on the next round, severed from every upstream node
+    // in S (including shared-Constant connectors). Each iteration thus strictly reduces the
+    // size of some SCC member by 1 (n moves to its own singleton component).
+    //
+    // Convergence:
+    //   * In any non-trivial SCC (size > 1) of the subgraph DAG, at least one member is not a
+    //     Union-Find singleton: if ALL members were singletons, the SCC-DAG cycle
+    //     sg_X1 -> ... -> sg_Xk -> sg_X1 would unfold into a node-level cycle
+    //     x1 -> ... -> xk -> x1 in the original ov::Model, which is a DAG.
+    //   * A non-singleton Union-Find component of size m has exactly m-1 unification edges,
+    //     i.e. m-1 non-boundary input edges, so at least one node in it has a same-sg input.
+    //   * Each iteration isolates one such node, strictly reducing the total non-singleton
+    //     mass of SCC members. The loop therefore terminates in at most nodes_count iterations
+    //     and well within the total_node_inputs edge budget.
+    //
+    // Target selection: among all candidate nodes (in any SCC member with >= 1 same-sg input),
+    // prefer cuts at actual SCC re-entry nodes and shared connectors. Falling back to the node
+    // with the fewest same-sg inputs is still valid for convergence, but doing so too early may
+    // peel ordinary linear compute nodes out of the main device region and create tiny
+    // Parameter->op->Result submodels. Those are especially expensive for GPU compilation.
+    auto isolate_one_scc_node = [&](const std::vector<SubgraphId>& sg_id_by_index,
+                                    const std::unordered_set<SubgraphId>& scc_members) -> size_t {
+        struct CandidateRank {
+            size_t lacks_scc_boundary_input = 1;
+            size_t lacks_shared_same_sg_source = 1;
+            size_t has_trivial_leaf_input = 1;
+            size_t is_linear_compute_node = 1;
+            size_t same_sg_inputs = 0;
+            size_t node_idx = 0;
+        };
+
+        auto is_better_rank = [](const CandidateRank& lhs, const CandidateRank& rhs) {
+            if (lhs.lacks_scc_boundary_input != rhs.lacks_scc_boundary_input)
+                return lhs.lacks_scc_boundary_input < rhs.lacks_scc_boundary_input;
+            if (lhs.lacks_shared_same_sg_source != rhs.lacks_shared_same_sg_source)
+                return lhs.lacks_shared_same_sg_source < rhs.lacks_shared_same_sg_source;
+            if (lhs.has_trivial_leaf_input != rhs.has_trivial_leaf_input)
+                return lhs.has_trivial_leaf_input < rhs.has_trivial_leaf_input;
+            if (lhs.is_linear_compute_node != rhs.is_linear_compute_node)
+                return lhs.is_linear_compute_node < rhs.is_linear_compute_node;
+            if (lhs.same_sg_inputs != rhs.same_sg_inputs)
+                return lhs.same_sg_inputs < rhs.same_sg_inputs;
+            return lhs.node_idx < rhs.node_idx;
+        };
+
+        auto count_non_result_consumers = [](const std::shared_ptr<ov::Node>& node) {
+            size_t non_result_consumers = 0;
+            for (const auto& output : node->outputs()) {
+                for (const auto& target_input : output.get_target_inputs()) {
+                    if (!ov::op::util::is_output(target_input.get_node())) {
+                        ++non_result_consumers;
+                    }
+                }
+            }
+            return non_result_consumers;
+        };
+        std::vector<size_t> non_result_consumer_counts(nodes_count, static_cast<size_t>(-1));
+        auto count_non_result_consumers_by_index = [&](size_t node_idx) {
+            auto& cached = non_result_consumer_counts[node_idx];
+            if (cached == static_cast<size_t>(-1)) {
+                cached = count_non_result_consumers(_ordered_ops[node_idx]);
+            }
+            return cached;
+        };
+
+        bool have_target = false;
+        size_t target_idx = 0;
+        CandidateRank target_rank;
+        auto is_graph_input_leaf_source = [&](size_t node_idx) {
+            const auto& node = _ordered_ops[node_idx];
+            if (is_graph_input_node(node.get()))
+                return false;
+
+            if (count_non_result_consumers_by_index(node_idx) != 1)
+                return false;
+
+            for (const auto& input : ordered_inputs[node_idx]) {
+                if (!is_graph_input_node(input.get_source_output().get_node()))
+                    return false;
+            }
+            return true;
+        };
+        for (size_t i = 0; i < nodes_count; ++i) {
+            const auto my_sg = sg_id_by_index[i];
+            if (!scc_members.count(my_sg))
+                continue;
+            size_t same_sg_inputs = 0;
+            bool has_scc_boundary_input = false;
+            bool has_shared_same_sg_source = false;
+            bool has_trivial_leaf_input = false;
+            for (const auto& input : ordered_inputs[i]) {
+                if (_subgraph_inputs.count(input)) {
+                    if (!is_graph_input_node(input.get_node())) {
+                        const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+                        const auto producer_sg = sg_id_by_index[src_idx];
+                        has_scc_boundary_input =
+                            has_scc_boundary_input || (producer_sg != my_sg && scc_members.count(producer_sg));
+                    }
+                    continue;
+                }
+                const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+                if (sg_id_by_index[src_idx] != my_sg)
+                    continue;
+                ++same_sg_inputs;
+                has_shared_same_sg_source =
+                    has_shared_same_sg_source || count_non_result_consumers_by_index(src_idx) > 1;
+                has_trivial_leaf_input = has_trivial_leaf_input || is_graph_input_leaf_source(src_idx);
+            }
+            if (same_sg_inputs == 0)
+                continue;
+
+            const CandidateRank candidate_rank{
+                has_scc_boundary_input ? 0UL : 1UL,
+                has_shared_same_sg_source ? 0UL : 1UL,
+                has_trivial_leaf_input ? 1UL : 0UL,
+                (same_sg_inputs == 1 && count_non_result_consumers_by_index(i) <= 1) ? 1UL : 0UL,
+                same_sg_inputs,
+                i};
+            const bool better_target = !have_target || is_better_rank(candidate_rank, target_rank);
+            if (better_target) {
+                have_target = true;
+                target_idx = i;
+                target_rank = candidate_rank;
+            }
+        }
+        OPENVINO_ASSERT(have_target,
+                        "Subgraph SCC fallback found a cyclic subgraph DAG but every node in "
+                        "every SCC member is a Union-Find singleton; that would require a "
+                        "node-level cycle in the original ov::Model, which is impossible on a DAG.");
+
+        size_t promoted = 0;
+        const auto target_sg = sg_id_by_index[target_idx];
+        for (const auto& input : ordered_inputs[target_idx]) {
+            if (_subgraph_inputs.count(input))
+                continue;
+            const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+            if (sg_id_by_index[src_idx] != target_sg)
+                continue;
+            _subgraph_inputs.insert(input);
+            ++promoted;
+        }
+        return promoted;
+    };
+
+    size_t total_node_inputs = 0;
+    for (size_t i = 0; i < nodes_count; ++i) {
+        total_node_inputs += ordered_inputs[i].size();
+    }
+    // subgraph_ids / subgraph_id_by_index reach this point already valid w.r.t. the current
+    // _subgraph_inputs: the per-node loop exits only when its last iteration adds no boundaries,
+    // so the ids it computed at the top of that final iteration are still in sync. Recompute
+    // only after the SCC step actually modifies _subgraph_inputs.
+    bool ids_valid = true;
+    for (size_t scc_step = 0;; ++scc_step) {
+        OPENVINO_ASSERT(scc_step < total_node_inputs + 1,
+                        "Subgraph SCC fallback did not converge: exceeded node-input edge budget");
+        if (!ids_valid) {
+            subgraph_ids = collect_subgraphs_ids();
+            for (size_t i = 0; i < nodes_count; ++i) {
+                subgraph_id_by_index[i] = subgraph_ids.at(_ordered_ops[i]);
+            }
+            ids_valid = true;
+        }
+        const size_t inputs_before_step = _subgraph_inputs.size();
+
+        const auto sg_graph = build_subgraph_adjacency(subgraph_id_by_index);
+        const auto& sg_adj = sg_graph.first;
+        const auto& all_sgs = sg_graph.second;
+        const auto scc_members = find_non_trivial_scc_members(sg_adj, all_sgs);
+        if (scc_members.empty()) {
+            break;  // subgraph DAG is acyclic, fix-point reached.
+        }
+
+        // Isolate one Union-Find node from any SCC member by promoting ALL its same-sg input
+        // edges. See isolate_one_scc_node for why a single-edge cut diverges, why entry/exit
+        // cuts miss shared-Constant SCCs, and the convergence argument (the candidate always
+        // exists because singleton-only SCCs are impossible on a DAG).
+        const size_t promoted = isolate_one_scc_node(subgraph_id_by_index, scc_members);
+        OPENVINO_ASSERT(promoted > 0,
+                        "Subgraph SCC fallback found a cyclic subgraph DAG but the chosen node "
+                        "had no same-subgraph inputs to promote; helper invariant violated.");
+        // Defensive: each iteration must grow _subgraph_inputs strictly. If insert() ever found
+        // all promoted edges already present (logic bug), surface it here instead of looping
+        // silently until the edge budget runs out.
+        OPENVINO_ASSERT(_subgraph_inputs.size() > inputs_before_step,
+                        "Subgraph SCC fallback promoted edges but _subgraph_inputs did not grow");
+        ids_valid = false;  // _subgraph_inputs grew; next iteration must rebuild ids.
+    }
+
+    // Edge case: if init() produced no _subgraph_inputs at all, the per-node loop never ran and
+    // subgraph_ids is empty. Materialize the final mapping in that case.
+    if (subgraph_ids.empty()) {
+        subgraph_ids = collect_subgraphs_ids();
+    }
+    return subgraph_ids;
+}
+
+ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::collect_subgraphs_ids() {
+    // Assign a SubgraphId to every node via Union-Find: nodes connected by non-boundary edges
+    // share an id. IDs are allocated as a counter at root creation, and merges keep the first
+    // input's id (matches the original numbering for backward-compatible mapping/tests).
+    const size_t n = _ordered_ops.size();
+    std::unordered_map<const ov::Node*, size_t> idx;
+    idx.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        idx.emplace(_ordered_ops[i].get(), i);
+    }
+
+    std::vector<size_t> parent(n);
+    std::iota(parent.begin(), parent.end(), size_t{0});
+    std::vector<SubgraphId> comp_id(n, -1);
+    auto find = [&parent](size_t x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    // Always parent `b`'s root under `a`'s root, so `a`'s root stays canonical
+    // and its comp_id (the first input's id) wins.
+    auto unite_keep_first = [&](size_t a, size_t b) {
+        const auto ra = find(a);
+        const auto rb = find(b);
+        if (ra != rb) {
+            parent[rb] = ra;
+        }
+    };
+
+    SubgraphId counter = 0;
+    InputVector srcs_buf;
+    for (size_t i = 0; i < n; ++i) {
+        srcs_buf.clear();
+        for (const auto& input : _ordered_ops[i]->inputs()) {
+            if (_subgraph_inputs.find(input) == _subgraph_inputs.end()) {
+                srcs_buf.emplace_back(input);
+            }
+        }
+        if (srcs_buf.empty()) {
+            comp_id[find(i)] = counter++;
+        } else {
+            const auto first_src_it = idx.find(srcs_buf.front().get_source_output().get_node());
+            OPENVINO_ASSERT(first_src_it != idx.end());
+            const size_t first_src = first_src_it->second;
+            const SubgraphId first_id = comp_id[find(first_src)];
+            unite_keep_first(first_src, i);
+            for (size_t k = 1; k < srcs_buf.size(); ++k) {
+                const auto src_it = idx.find(srcs_buf[k].get_source_output().get_node());
+                OPENVINO_ASSERT(src_it != idx.end());
+                unite_keep_first(first_src, src_it->second);
+            }
+            // first_src's root is preserved by unite_keep_first; reassert its id.
+            comp_id[find(first_src)] = first_id;
         }
     }
+
     SubgraphIdsMap result;
-    for (const auto& subgraph_id_ptr : subgraph_id_ptrs) {
-        result.emplace(subgraph_id_ptr.first, *(subgraph_id_ptr.second));
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        const auto id = comp_id[find(i)];
+        OPENVINO_ASSERT(id != static_cast<SubgraphId>(-1),
+                        "SubgraphCollector: node '",
+                        _ordered_ops[i]->get_friendly_name(),
+                        "' was not assigned a subgraph id (Union-Find invariant violated).");
+        result.emplace(_ordered_ops[i], id);
     }
     return result;
 }
+
 void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
     // Sort subgraph inputs by order
     InputVector ordered_subgraph_inputs;

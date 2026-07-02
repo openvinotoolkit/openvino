@@ -228,6 +228,12 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::F32;
         case cldnn::data_types::bf16:
             return kernel_selector::data_type::BF16;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::data_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::data_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::data_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
@@ -257,6 +263,12 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::f16;
         case kernel_selector::data_type::F32:
             return cldnn::data_types::f32;
+        case kernel_selector::data_type::F8E4M3:
+            return cldnn::data_types::f8e4m3;
+        case kernel_selector::data_type::F8E5M2:
+            return cldnn::data_types::f8e5m2;
+        case kernel_selector::data_type::F8E8M0:
+            return cldnn::data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -280,6 +292,12 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::INT32;
         case cldnn::data_types::bf16:
             return kernel_selector::weights_type::BF16;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::weights_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::weights_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::weights_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
@@ -301,6 +319,12 @@ data_types from_weights_type(kernel_selector::weights_type dt) {
             return data_types::f32;
         case kernel_selector::weights_type::INT32:
             return data_types::i32;
+        case kernel_selector::weights_type::F8E4M3:
+            return data_types::f8e4m3;
+        case kernel_selector::weights_type::F8E5M2:
+            return data_types::f8e5m2;
+        case kernel_selector::weights_type::F8E8M0:
+            return data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -1062,6 +1086,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:
             return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
+        case cldnn::activation_func::erfinv:
+            return kernel_selector::activation_function::ERFINV;
         default:
             throw std::runtime_error("Unknown activation function");
             break;
@@ -1078,8 +1104,8 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
         auto clamp_max = casted->_desc->clamp_max;
         auto swish_beta = casted->_desc->swish_beta;
         auto up_add_val = casted->_desc->up_add_val;
-        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis,
-                                                                     glu_stride,
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(static_cast<int32_t>(axis),
+                                                                     static_cast<size_t>(glu_stride),
                                                                      gate_idx,
                                                                      clamp_min,
                                                                      clamp_max,

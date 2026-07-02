@@ -27,7 +27,6 @@ private:
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
-    ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis);
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,

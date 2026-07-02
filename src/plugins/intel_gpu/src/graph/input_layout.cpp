@@ -11,28 +11,30 @@
 #include <algorithm>
 
 namespace {
-bool has_optimized_users(cldnn::input_layout_node const& node) {
-    for (auto& user : node.get_users()) {
-        if (user->can_be_optimized()) {
-            return true;
-        }
+
+bool requires_eager_input_allocation(const cldnn::input_layout_node& node) {
+    if (node.is_dynamic()) {
+        return false;
     }
 
-    return false;
+    const auto& out_layout = node.get_output_layout();
+
+    // Scalars assume input memory is always materialized. Blocked inputs still have
+    // initialization paths that depend on an eager placeholder allocation.
+    return out_layout.count() <= 1 || cldnn::format::is_blocked(out_layout.format);
 }
 }  // namespace
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
-input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
-    : parent(dprim, prog) {
+input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog) : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
-input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node)
-    : parent(network, node, !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
-    _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
+input_layout_inst::typed_primitive_inst(network& network, const input_layout_node& node)
+    : parent(network, node, /*allocate_mem*/ requires_eager_input_allocation(node)) {
+    _has_valid_input = false;                          // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
 event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
@@ -49,16 +51,27 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
     // Allow to set dummy simple_attached_memory empty tensor as network input
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
-        OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
-        _outputs[0] = mem;
-    } else {
-        if (_outputs.empty() || !_outputs[0]) {
+        if (_outputs.empty()) {
             _outputs.resize(1);
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+        }
+        if (_max_output_layout_count.empty()) {
+            _max_output_layout_count.resize(1);
         }
 
-        if (ol.is_dynamic() && _outputs[0]->size() < mem->size()) {
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+        // Do not use set_output_memory() for externally-owned memory here.
+        // The same device buffer can be rebound with a different logical layout,
+        // and primitive_inst::set_output_memory() short-circuits on buffer identity.
+        // That keeps a stale memory object/layout on input_layout and breaks
+        // dynamic stateful flows that feed previous outputs back as inputs.
+        _outputs[0] = mem;
+        _max_output_layout_count[0] = mem->get_layout().get_linear_size();
+    } else {
+        if (_outputs.empty()) {
+            _outputs.resize(1);
+        }
+        // Only allocate if needed and not already large enough
+        if (!_outputs[0] || _outputs[0]->size() < mem->size()) {
+            set_output_memory(engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false), false);
         }
         mem_lock<uint8_t> src(mem, stream);
         ev = _outputs[0]->copy_from(stream, src.data(), false);
@@ -78,7 +91,7 @@ void input_layout_inst::update_shape() {
     _impl_params->output_layouts[0] = mem_layout;
 }
 
-std::string input_layout_inst::to_string(input_layout_node const& node) {
+std::string input_layout_inst::to_string(const input_layout_node& node) {
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

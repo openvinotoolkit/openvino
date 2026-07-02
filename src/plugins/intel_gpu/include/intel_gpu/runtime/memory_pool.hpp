@@ -195,12 +195,12 @@ public:
         return _non_padded_pool.size();
     }
 
-    void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");
+    void dump(uint32_t id, int64_t iter, std::string dump_dir_path = "");
     size_t get_total_mem_pool_size(allocation_type type);
 
 private:
-    void dump_to_screen(uint32_t id, uint32_t iter);
-    void dump_to_file(uint32_t id, uint32_t iter, std::string dump_dir_path);
+    void dump_to_screen(uint32_t id, int64_t iter);
+    void dump_to_file(uint32_t id, int64_t iter, std::string dump_dir_path);
 
 #ifdef GPU_DEBUG_CONFIG
     std::vector<memory_record> _no_reusable_mems;

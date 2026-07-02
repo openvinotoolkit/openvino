@@ -6,6 +6,8 @@
 
 #include <limits.h>
 
+#include <iomanip>
+
 #include "common_test_utils/float_util.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 

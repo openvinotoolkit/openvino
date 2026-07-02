@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 import torch
-from openvino.frontend.pytorch import ModuleExtension, gptq
+from openvino.frontend.pytorch import ModuleExtension, compressed_tensors, gptq
 from openvino.frontend.pytorch.patch_model import (
     patch_model, unpatch_model, patch_model_for_export)
 
@@ -131,7 +131,6 @@ def _build_quantized_extensions(
     elif quant_type == "nncf":
         try:
             from nncf.experimental.torch.qlinear import NNCFQLinear
-            from nncf.experimental.torch.qlinear import NNCFQLinearDequantizer
             extensions[NNCFQLinear] = ModuleExtension(
                 NNCFQLinear, "ov_ext::nncf_qlinear",
                 convert=lambda module, target_op, *args, **kwargs: target_op(
@@ -141,16 +140,10 @@ def _build_quantized_extensions(
                     module.bias),
                 evaluate=lambda module, *args, **kwargs: fp32_tensor(
                     *args[0].shape[:-1], module.out_features))  # type: ignore
-            extensions[NNCFQLinearDequantizer] = ModuleExtension(
-                NNCFQLinearDequantizer, "ov_ext::nncf_qlinear",
-                convert=lambda module, target_op, *args, **kwargs: target_op(
-                    args[0], module.qweight, module.qzeros, module.scales,
-                    torch.tensor(module.group_size),
-                    torch.tensor(module.bits), torch.tensor(module.sym)),
-                evaluate=lambda module, *args, **kwargs: fp32_tensor(
-                    *args[0].shape[:-1], module.out_features))  # type: ignore
         except ImportError:
             pass
+    elif quant_type == "compressed-tensors":
+        return compressed_tensors.build_extensions(for_export)  # type: ignore
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")
     return extensions

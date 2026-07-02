@@ -9,6 +9,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "life_time.hpp"
+#include "openvino/util/codec_xor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -72,7 +73,7 @@ static void release_order_test(std::vector<std::size_t> order,
                                ov::AnyMap configuration) {
     ov::AnyVector objects;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, deviceName, configuration);
         auto request = compiled_model.create_infer_request();
 
@@ -104,7 +105,7 @@ TEST_P(OVHoldersTestNPU, Orders) {
 TEST_P(OVHoldersTestNPU, LoadedState) {
     std::vector<ov::VariableState> states;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         auto request = compiled_model.create_infer_request();
         try {
@@ -117,7 +118,7 @@ TEST_P(OVHoldersTestNPU, LoadedState) {
 TEST_P(OVHoldersTestNPU, LoadedInferRequest) {
     ov::InferRequest inferRequest;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         inferRequest = compiled_model.create_infer_request();
     }
@@ -126,7 +127,7 @@ TEST_P(OVHoldersTestNPU, LoadedInferRequest) {
 TEST_P(OVHoldersTestNPU, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
@@ -136,7 +137,7 @@ TEST_P(OVHoldersTestNPU, LoadedTensor) {
 TEST_P(OVHoldersTestNPU, LoadedAny) {
     ov::Any any;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         any = compiled_model.get_property(ov::supported_properties.name());
     }
@@ -147,13 +148,28 @@ TEST_P(OVHoldersTestNPU, LoadedRemoteContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         try {
             ctx = compiled_model.get_context();
         } catch (...) {
         }
     }
+}
+
+TEST_P(OVHoldersTestNPU, CompileModelWithEncryptionWorksAfterConfigDeallocate) {
+    ov::CompiledModel compiled_model;
+    {
+        ov::AnyMap copy_configuration = configuration;
+        copy_configuration.insert(
+            ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
+        ov::Core core = ov::test::utils::create_core();
+        compiled_model = core.compile_model(function, target_device, copy_configuration);
+    }
+    std::stringstream str;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(str));
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor}));
+    OV_ASSERT_NO_THROW(ov::Core().import_model(str, target_device, configuration));
 }
 
 class OVHoldersTestOnImportedNetworkNPU : public OVPluginTestBase,
@@ -202,7 +218,7 @@ public:
 };
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, LoadedTensor) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device, configuration);
@@ -214,7 +230,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, LoadedTensor) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device, configuration);
@@ -226,7 +242,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterTensorIsDestroyed) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
 
     for (size_t i = 0; i < 2; ++i) {
         ov::CompiledModel compiled_model;
