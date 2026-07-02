@@ -75,10 +75,12 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_encoder_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -127,6 +129,9 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+    // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
+    // routed to the dedicated KV/RoPE-free encoder embedding path.
+    bool m_is_encoder_embedding = false;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
