@@ -4,6 +4,7 @@
 
 #include "openvino/xml_util/xml_deserialize_util.hpp"
 
+#include <fstream>
 #include <regex>
 #include <stack>
 #include <string_view>
@@ -407,13 +408,13 @@ private:
 };
 
 XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
-                                 const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                 std::shared_ptr<WeightsProvider> weights_provider,
                                  const std::unordered_map<std::string, ov::OpSet>& opsets,
                                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                                  std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                                  size_t version)
     : m_node(node),
-      m_weights(weights),
+      m_weights_provider(std::move(weights_provider)),
       m_opsets(opsets),
       m_extensions(extensions),
       m_variables(variables),
@@ -823,13 +824,15 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             if (!getParameters<int64_t>(dn, "shape", shape))
                 return;
 
-            if (!m_weights)
-                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
+            OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
+
+            if (m_weights_provider->size() < offset + size)
                 OPENVINO_THROW("Incorrect weights in bin file!");
-            char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer =
-                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+
+            auto raw_buffer = m_weights_provider->make_region(offset, size);
+            auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
+                raw_buffer->get_ptr<char>(),
+                size);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -868,9 +871,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
         if (body_node.empty()) {
             OPENVINO_THROW("TensorIterator has no body.");
         }
-        model = parse_function(m_node.child(name.c_str()), m_weights);
+        model = parse_function(m_node.child(name.c_str()));
     } else if (!name.compare("net")) {
-        model = parse_function(m_node, m_weights);
+        model = parse_function(m_node);
     } else {
         OPENVINO_THROW("Error: not recognized adapter name: ", name, ".");
     }
@@ -878,7 +881,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
-    OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
+    OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
@@ -892,13 +895,15 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(m_weights->size() >= offset + size, "Incorrect weights in bin file!");
-
-    char* data = m_weights->get_ptr<char>() + offset;
+    OPENVINO_ASSERT(m_weights_provider && m_weights_provider->size() >= offset + size,
+                    "Incorrect weights in bin file!");
 
     const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
-        auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+        auto raw_buffer = m_weights_provider->make_region(offset, size);
+        auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
+            raw_buffer->get_ptr<char>(),
+            size);
         adapter.set(buffer);
     } else {
         if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
@@ -913,13 +918,12 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                            ov::util::get_memory_size(el_type, ov::shape_size(shape)));
         }
 
-        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+        auto buffer = m_weights_provider->make_region(offset, size);
         adapter.set(buffer);
     }
 }
 
-std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root,
-                                                           const std::shared_ptr<ov::AlignedBuffer>& weights) {
+std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root) {
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -1025,7 +1029,7 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
             inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
         }
 
-        auto node = create_node(inputs, p.xml, weights, p.params);
+        auto node = create_node(inputs, p.xml, p.params);
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
@@ -1213,7 +1217,6 @@ static const std::string& translate_type_name(const std::string& name) {
 
 std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
                                                        const pugi::xml_node& node,
-                                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
                                                        const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -1234,7 +1237,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     const auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         ovNode = (*extensionIt->second).create(inputs, *visitor).at(0).get_node_shared_ptr();
     }
 
@@ -1285,7 +1288,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         if (ovNode->visit_attributes(*visitor)) {
             ovNode->constructor_validate_and_infer_types();
         }
@@ -1297,7 +1300,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         ovNode = std::make_shared<ov::op::util::FrameworkNode>(inputs);
         // XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         // ovNode->visit_attributes(visitor);
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         ovNode->visit_attributes(*visitor);
 
         size_t index{0};

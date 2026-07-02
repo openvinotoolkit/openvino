@@ -293,7 +293,7 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
-    OPENVINO_ASSERT(get_weights() != nullptr || m_origin_weights != nullptr,
+    OPENVINO_ASSERT(get_weights_provider() != nullptr || m_origin_weights != nullptr,
                     "Empty weights data in bin file or bin file cannot be found!");
     const auto& node = get_node();
     const auto dn = node.child("data");
