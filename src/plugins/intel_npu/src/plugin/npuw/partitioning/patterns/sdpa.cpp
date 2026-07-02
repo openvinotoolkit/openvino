@@ -49,18 +49,18 @@ bool consumes_global_mask(const ov::Output<ov::Node>& output) {
 }
 
 // Pattern nodes for the global-attention decomposed SDPA sub-graph shared by
-// SDPADecomposed1 and SeparateKVCache. The Add node carries the consumes_global_mask
+// QuantizedSDPAWithGlobalMask and SeparateKVCache. The Add node carries the consumes_global_mask
 // predicate, so this pattern only matches global-attention blocks -- which is exactly
 // what SeparateKVCache needs, since local attention is not isolated/folded.
-struct SDPADecomposed1Nodes {
+struct QuantizedSDPAWithGlobalMaskNodes {
     std::shared_ptr<ov::Node> past_k, concat1, convert1, multiply1, transpose1, matmul1;
     std::shared_ptr<ov::Node> add, softmax;
     std::shared_ptr<ov::Node> past_v, concat2, convert2, multiply2;
     std::shared_ptr<ov::Node> matmul2, reshape1, transpose, reshape2, fake_quantize;
 };
 
-inline SDPADecomposed1Nodes make_sdpa_decomposed1_pattern() {
-    SDPADecomposed1Nodes n;
+inline QuantizedSDPAWithGlobalMaskNodes make_sdpa_decomposed1_pattern() {
+    QuantizedSDPAWithGlobalMaskNodes n;
     n.past_k = opp::wrap_type<ov::op::v0::Parameter>();
     n.concat1 = opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), n.past_k});
     n.convert1 = opp::wrap_type<ov::op::v0::Convert>({n.concat1});
@@ -287,8 +287,8 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPADecomposed"), std::move(callback));
 }
 
-SDPADecomposed1::SDPADecomposed1(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                                 const std::string& isol_tag) {
+QuantizedSDPAWithGlobalMask::QuantizedSDPAWithGlobalMask(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                                         const std::string& isol_tag) {
     // AttentionBroadcast4 pre-folds the shape sub-graph before this pass runs.
     auto n = make_sdpa_decomposed1_pattern();
 
@@ -346,7 +346,7 @@ SDPADecomposed1::SDPADecomposed1(const std::shared_ptr<ov::npuw::online::Snapsho
         return false;  // root hasn't changed
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "TagSDPADecomposed1"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "TagQuantizedSDPAWithGlobalMask"), std::move(callback));
 }
 
 }  // namespace attn
@@ -500,11 +500,11 @@ ShapeOfParameter::ShapeOfParameter() {
 }
 
 // AttentionBroadcast4: folds the ShapeOf->Gather->Concat->Reshape chain that
-// appears on the attention mask path (originally part of SDPADecomposed1 before
-// it was simplified). Running this before SDPADecomposed1 allows that pattern
+// appears on the attention mask path (originally part of QuantizedSDPAWithGlobalMask before
+// it was simplified). Running this before QuantizedSDPAWithGlobalMask allows that pattern
 // to use any_input() for the Add's second operand.
 AttentionBroadcast4::AttentionBroadcast4() {
-    // Pattern derived from the original SDPADecomposed1 mask-shape sub-graph:
+    // Pattern derived from the original QuantizedSDPAWithGlobalMask mask-shape sub-graph:
     //   ShapeOf(kv) -> Gather
     //                        Concat(any, any, any, Gather) -> Reshape -> Add
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
@@ -552,7 +552,7 @@ AttentionBroadcast4::AttentionBroadcast4() {
 // (Concat->Convert->Multiply->Transpose) and the V side (Concat->Convert->Multiply) are
 // handled the same way.
 //
-// NB: This pass reuses the SDPADecomposed1 pattern (with the consumes_global_mask
+// NB: This pass reuses the QuantizedSDPAWithGlobalMask pattern (with the consumes_global_mask
 // predicate), so it only fires for global-attention blocks. Local attention is not
 // isolated/folded here, so leaving its (also shared) KV chains untouched is fine.
 SeparateKVCache::SeparateKVCache() {
@@ -633,12 +633,12 @@ SeparateKVCache::SeparateKVCache() {
                 concat1_node->get_axis());
             auto new_convert =
                 std::make_shared<ov::op::v0::Convert>(new_concat, convert1_node->get_convert_element_type());
-            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(
-                new_convert,
-                clone_source(multiply1_inputs[1].get_source_output()));
-            auto new_transpose = std::make_shared<ov::op::v1::Transpose>(
-                new_multiply,
-                clone_source(transpose1_inputs[1].get_source_output()));
+            auto new_multiply =
+                std::make_shared<ov::op::v1::Multiply>(new_convert,
+                                                       clone_source(multiply1_inputs[1].get_source_output()));
+            auto new_transpose =
+                std::make_shared<ov::op::v1::Transpose>(new_multiply,
+                                                        clone_source(transpose1_inputs[1].get_source_output()));
             return new_transpose->output(0);
         };
 
@@ -649,9 +649,9 @@ SeparateKVCache::SeparateKVCache() {
                 concat2_node->get_axis());
             auto new_convert =
                 std::make_shared<ov::op::v0::Convert>(new_concat, convert2_node->get_convert_element_type());
-            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(
-                new_convert,
-                clone_source(multiply2_inputs[1].get_source_output()));
+            auto new_multiply =
+                std::make_shared<ov::op::v1::Multiply>(new_convert,
+                                                       clone_source(multiply2_inputs[1].get_source_output()));
             return new_multiply->output(0);
         };
 

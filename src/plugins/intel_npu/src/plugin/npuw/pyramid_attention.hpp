@@ -358,13 +358,14 @@ public:
     }
 };
 
-// Define pyramid model selection based on position ids
+// Define pyramid model selection based on position ids.
+// Handles the regular (contiguous) case where the KV update step matches the query
+// length, e.g. the SDPADecomposed pattern.
 class PositionIDs final : public Selector {
     std::size_t m_position_ids_idx = 0u;
     int64_t m_current_length = 0;
     int64_t m_past_length = 0;
     std::size_t m_query_size = 0u;
-    std::size_t m_pyramid_step = 0u;
 
     // Store pyramid attention reference for pyramid model selection
     const compiled::PyramidAttention* m_pyramid_attention = nullptr;
@@ -378,6 +379,31 @@ class PositionIDs final : public Selector {
 
 public:
     static Selector::Ptr find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+};
+
+// Define pyramid model selection based on position ids for attention patterns where the
+// KV update step (pyramid_step) differs from the query length - e.g. QuantizedSDPAWithGlobalMask,
+// where a large query is matched against a smaller-granularity KV cache update.
+// Equivalent to PositionIDs, except past/current sequence length are derived from
+// pyramid_step instead of query_size. Constructed only via PositionIDs::find().
+class GlobalPositionIDs final : public Selector {
+    std::size_t m_position_ids_idx = 0u;
+    int64_t m_current_length = 0;
+    int64_t m_past_length = 0;
+    std::size_t m_query_size = 0u;
+    std::size_t m_pyramid_step = 0u;
+
+    // Store pyramid attention reference for pyramid model selection
+    const compiled::PyramidAttention* m_pyramid_attention = nullptr;
+
+    const ov::ISyncInferRequest& m_rq;
+
+    GlobalPositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t length() const override;
+    int64_t past_length() const override;
+
+    friend class PositionIDs;  // constructed only via PositionIDs::find()
 };
 
 }  // namespace pyramid_attention

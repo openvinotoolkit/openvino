@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Unit tests for the three passes introduced alongside the SDPADecomposed1
+// Unit tests for the three passes introduced alongside the QuantizedSDPAWithGlobalMask
 // online-partitioner pattern:
 //
 //   1. AttentionBroadcast4 (regularize namespace)
 //      Folds a ShapeOf → Gather → [any, Constant, any, Gather] Concat → Reshape
 //      chain into a static Constant when the ShapeOf input has a known static
-//      shape.  This pre-processing step is required before SDPADecomposed1 can
+//      shape.  This pre-processing step is required before QuantizedSDPAWithGlobalMask can
 //      match the simplified attention-mask sub-graph.
 //
 //   2. SeparateVCache (regularize namespace)
@@ -17,7 +17,7 @@
 //      every extra consumer so that each MatMul owns an independent copy.  This
 //      is required for correct partition-weight bank assignment.
 //
-//   3. SDPADecomposed1 (attn namespace, online-partitioner MatcherPass)
+//   3. QuantizedSDPAWithGlobalMask (attn namespace, online-partitioner MatcherPass)
 //      Tags all nodes of a KV-cache-augmented decomposed SDPA sub-graph with the
 //      given isolation tag so that the online partitioner can isolate them into
 //      a single attention partition.
@@ -188,7 +188,7 @@ TEST(AttentionBroadcast4Test, DoesNotFoldWhenShapeIsDynamic) {
 
 // Builds the full decomposed SDPA pattern where the V-cache chain
 // (concat2 → convert2 → multiply2) is consumed by TWO MatMul nodes:
-//   - matmul2      : the "pattern" consumer (part of the full SDPADecomposed1 sub-graph)
+//   - matmul2      : the "pattern" consumer (part of the full QuantizedSDPAWithGlobalMask sub-graph)
 //   - extra_matmul : an extra head consuming the same V-cache
 // This simulates shared V-cache across attention heads.
 //
@@ -251,7 +251,7 @@ static SharedVCacheModel build_shared_vcache_model() {
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
     // --- Attention mask and softmax ---
-    // SeparateVCache shares the same pattern as SDPADecomposed1, so the Add
+    // SeparateVCache shares the same pattern as QuantizedSDPAWithGlobalMask, so the Add
     // must consume the global attention mask chain (consumes_global_mask predicate).
     auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
@@ -509,10 +509,10 @@ TEST(SeparateKVCacheTest, DuplicatesSharedKCacheChain) {
 }
 
 // ---------------------------------------------------------------------------
-// SDPADecomposed1 online-partitioner pattern tests
+// QuantizedSDPAWithGlobalMask online-partitioner pattern tests
 // ---------------------------------------------------------------------------
 
-// Builds the full decomposed SDPA sub-graph that SDPADecomposed1 is designed
+// Builds the full decomposed SDPA sub-graph that QuantizedSDPAWithGlobalMask is designed
 // to match:
 //
 //   past_k, new_k → Concat1 → Convert1 → Multiply1 → Transpose1
@@ -525,13 +525,13 @@ TEST(SeparateKVCacheTest, DuplicatesSharedKCacheChain) {
 //
 // The new_k and new_v parameters are expected to be renamed to
 // "past_key_values.0.key" / "past_key_values.0.value" by the callback.
-struct SDPADecomposed1Model {
+struct QuantizedSDPAWithGlobalMaskModel {
     std::shared_ptr<Model> model;
     std::shared_ptr<op::v0::Parameter> new_k;
     std::shared_ptr<op::v0::Parameter> new_v;
 };
 
-static SDPADecomposed1Model build_sdpa_decomposed1_model() {
+static QuantizedSDPAWithGlobalMaskModel build_sdpa_decomposed1_model() {
     const Shape kv_past  = {1, 2, 4, 8};
     const Shape kv_new   = {1, 2, 1, 8};
     const Shape query_sh = {1, 2, 1, 8};
@@ -565,7 +565,7 @@ static SDPADecomposed1Model build_sdpa_decomposed1_model() {
     auto matmul1  = std::make_shared<op::v0::MatMul>(query, transpose1);
     matmul1->set_friendly_name("matmul1");
 
-    // Mask path: the updated SDPADecomposed1 predicate (consumes_global_mask) requires
+    // Mask path: the updated QuantizedSDPAWithGlobalMask predicate (consumes_global_mask) requires
     // Reshape(Tile(Convert(Parameter("..attention_mask_global..")))) as Add's second input.
     auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
@@ -608,7 +608,7 @@ static SDPADecomposed1Model build_sdpa_decomposed1_model() {
     return {model, new_k, new_v};
 }
 
-TEST(SDPADecomposed1Test, IsolatesAllPatternNodes) {
+TEST(QuantizedSDPAWithGlobalMaskTest, IsolatesAllPatternNodes) {
     auto [model, new_k, new_v] = build_sdpa_decomposed1_model();
 
     // Build the online-partitioner Snapshot and initialize per-node groups.
@@ -625,7 +625,7 @@ TEST(SDPADecomposed1Test, IsolatesAllPatternNodes) {
     }
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::attn::SDPADecomposed1>(snap, "attn");
+    rewr.add_matcher<ov::npuw::patterns::attn::QuantizedSDPAWithGlobalMask>(snap, "attn");
     rewr.run_on_model(model);
 
     // After matching, at least all 14 pattern nodes must carry the "attn" tag:
@@ -643,14 +643,14 @@ TEST(SDPADecomposed1Test, IsolatesAllPatternNodes) {
         << "at least " << kPatternNodes << " pattern nodes must be tagged 'attn'";
 }
 
-TEST(SDPADecomposed1Test, RenamesNewKVInputsToKVCacheNames) {
+TEST(QuantizedSDPAWithGlobalMaskTest, RenamesNewKVInputsToKVCacheNames) {
     auto [model, new_k, new_v] = build_sdpa_decomposed1_model();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::attn::SDPADecomposed1>(snap, "attn");
+    rewr.add_matcher<ov::npuw::patterns::attn::QuantizedSDPAWithGlobalMask>(snap, "attn");
     rewr.run_on_model(model);
 
     // The callback renames concat1->input(1) and concat2->input(1) to the
@@ -661,7 +661,7 @@ TEST(SDPADecomposed1Test, RenamesNewKVInputsToKVCacheNames) {
         << "new_v must be renamed to the KV-cache value name";
 }
 
-TEST(SDPADecomposed1Test, NoTaggingOnNonMatchingModel) {
+TEST(QuantizedSDPAWithGlobalMaskTest, NoTaggingOnNonMatchingModel) {
     // Build a model that does NOT match the pattern (missing the K-path).
     // A plain MatMul(q, k) → Add(mask) → Softmax → MatMul(softmax, v) → Result
     // is not matched because it lacks the Concat→Convert→Multiply→Transpose chain.
@@ -684,7 +684,7 @@ TEST(SDPADecomposed1Test, NoTaggingOnNonMatchingModel) {
     snap->buildGraph();
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::attn::SDPADecomposed1>(snap, "attn");
+    rewr.add_matcher<ov::npuw::patterns::attn::QuantizedSDPAWithGlobalMask>(snap, "attn");
     rewr.run_on_model(model);
 
     const auto& gptr_map = snap->getNodeToGroupMap();
