@@ -226,7 +226,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
     Output<Node> result;
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
-    // linalg.mtrix_norm(x.to(dtype))
+    // linalg.matrix_norm(x.to(dtype))
     if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
@@ -269,16 +269,11 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not determined
+    // ord=None: Frobenius (two dims) and vector L2 (otherwise) are both sqrt(sum(x^2)) over `dim`
+    // for the real inputs supported here, so the L2 reduction is correct and rank-agnostic --
+    // needing neither the static rank nor a foldable `dim`.
     if (context.input_is_none(1)) {
-        auto input_rank = x.get_partial_shape().rank();
-        if (input_rank.is_static() && input_rank.get_length() == 2) {
-            result = frobenius_norm(context, x, dim, keep_dim);
-        } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
-            result = norm_vector(context, x, dim, 2, keep_dim);
-        } else {
-            PYTORCH_OP_CONVERSION_CHECK(false, "linalg norm for tensor rank > 2 without ord specification unsupported");
-        }
+        result = norm_vector(context, x, dim, 2, keep_dim);
     } else {
         // ord defines the  norm that is computed can be string or number
         auto ord_type = context.get_input_type(1);

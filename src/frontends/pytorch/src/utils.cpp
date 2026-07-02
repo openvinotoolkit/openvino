@@ -160,6 +160,74 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
     return res;
 }
 
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label) {
+    const auto& pshape = x.get_partial_shape();
+    const auto rank = pshape.rank();
+    if (rank.is_static()) {
+        // A matrix op needs at least two axes; reject a lower static rank at conversion rather than
+        // letting the runtime guard reinterpret e.g. a 1-D tensor of n*n elements as n x n.
+        PYTORCH_OP_CONVERSION_CHECK(rank.get_length() >= 2,
+                                    op_label,
+                                    " requires a batch of ",
+                                    n,
+                                    "x",
+                                    n,
+                                    " matrices (rank >= 2), got rank ",
+                                    rank.get_length(),
+                                    ".");
+        const auto& m_dim = pshape[rank.get_length() - 2];
+        const auto& n_dim = pshape[rank.get_length() - 1];
+        // Fail at conversion for any statically-known trailing dim != n (incl. the mixed static/dynamic
+        // case), giving the clean op-labeled message instead of a bare runtime reshape error.
+        PYTORCH_OP_CONVERSION_CHECK(
+            (!m_dim.is_static() || m_dim.get_length() == n) && (!n_dim.is_static() || n_dim.get_length() == n),
+            op_label,
+            " is only supported for ",
+            n,
+            "x",
+            n,
+            " matrices, got trailing dimensions ",
+            m_dim,
+            "x",
+            n_dim,
+            ".");
+        if (m_dim.is_static() && n_dim.is_static()) {
+            // Genuine static n x n: no runtime guard needed.
+            return x;
+        }
+    }
+    // Dynamic trailing dims: pin each trailing axis to n with its own Reshape so the element-count
+    // check runs per axis (a single [..,n,n] reshape only checks n*n total, so [1,9] would pass as
+    // 3x3). A genuine n x n is an identity through both; anything else fails loudly at runtime. The
+    // op-labeled name surfaces the op and supported size in the CPU error, matching the static branch.
+    const auto guard_name = op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n);
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto n_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {n}));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+
+    // Pin the last axis to n (fails iff the last extent != n).
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto neg_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto head = context.mark_node(std::make_shared<v8::Slice>(shape, zero, neg_one, step, axis));
+    auto shape_last = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head, n_1d}, 0));
+    auto g1 = context.mark_node(std::make_shared<v1::Reshape>(x, shape_last, /*special_zero=*/false));
+    g1->set_friendly_name(guard_name);
+
+    // Pin the second-to-last axis to n (fails iff the -2 extent != n), keeping the validated last = n.
+    auto shape1 = context.mark_node(std::make_shared<v3::ShapeOf>(g1, element::i64));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape1, zero, neg_two, step, axis));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    auto g2 = context.mark_node(std::make_shared<v1::Reshape>(g1, new_shape, /*special_zero=*/false));
+    g2->set_friendly_name(guard_name);
+    return g2;
+}
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     return get_node_axes_range(context, x);

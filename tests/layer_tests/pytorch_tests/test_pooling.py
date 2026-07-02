@@ -5,6 +5,7 @@ import platform
 
 import pytest
 import torch
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
@@ -275,3 +276,135 @@ class TestPooling(PytorchLayerTest):
         self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
+
+
+class TestMaxPoolDynamicKernel(PytorchLayerTest):
+    """max_pool with a kernel_size built from x.size(...).
+
+    Such a kernel is a runtime value the OpenVINO MaxPool op cannot represent (its kernel is a
+    constructor attribute); for a full-extent (global) pool the frontend decomposes it into a
+    ReduceMax over that axis. trace_model=True keeps the kernel a runtime value (a plain literal
+    would be const-folded onto the static MaxPool path).
+    """
+
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, dims, axes):
+        # axes: spatial axis indices (within the rank-(dims+2) NCHW... tensor) whose kernel element
+        # is the full extent x.size(axis); all other spatial axes get a static window of 1.
+        class aten_max_pool_dynamic(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.dims = dims
+                self.axes = axes
+
+            def _kernel(self, x):
+                # first spatial axis is index 2 (after N, C); for the no-batch case the harness still
+                # feeds a rank (dims+1) tensor, handled by using sizes relative to the actual rank.
+                first_spatial = x.dim() - self.dims
+                ks = []
+                for i in range(self.dims):
+                    axis = first_spatial + i
+                    # full extent on requested axes (referenced as absolute axis on the rank-(dims+2)
+                    # tensor), window 1 otherwise
+                    if (axis - x.dim()) in self.axes or axis in self.axes:
+                        ks.append(x.size(axis))
+                    else:
+                        ks.append(1)
+                return ks
+
+            def forward(self, x):
+                ks = self._kernel(x)
+                if self.dims == 1:
+                    return torch.nn.functional.max_pool1d(x, kernel_size=ks)
+                if self.dims == 2:
+                    return torch.nn.functional.max_pool2d(x, kernel_size=ks)
+                return torch.nn.functional.max_pool3d(x, kernel_size=ks)
+
+        op_name = {1: "aten::max_pool1d", 2: "aten::max_pool2d", 3: "aten::max_pool3d"}[dims]
+        return aten_max_pool_dynamic(), op_name
+
+    @pytest.mark.parametrize("input_shape,dims,axes", [
+        ([1, 128, 40, 64], 2, [-1]),         # pool full last axis (SAM-6D PositionalEncoding)
+        ([2, 8, 5, 7], 2, [-1]),             # smaller, non-trivial npoint/nsample
+        ([1, 128, 40, 64], 2, [-2]),         # pool the other spatial axis
+        ([1, 128, 40, 64], 2, [-2, -1]),     # pool both spatial axes (global)
+        ([1, 16, 30], 1, [-1]),              # 1d full-extent pool
+        ([1, 8, 6, 6, 10], 3, [-1]),         # 3d full-extent pool over last axis
+        ([3, 40, 64], 2, [-1]),              # no batch dim
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel(self, input_shape, dims, axes, is_dynamic_shapes,
+                                     ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model(dims, axes), ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=is_dynamic_shapes)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_sliding_window_unsupported(self, ie_device, precision, ir_version):
+        # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool
+        # that a ReduceMax cannot represent: conversion must fail with a clear message. Convert
+        # directly (like the det/svd negative tests) so this expected conversion failure skips
+        # _test's retry/inference plumbing.
+        class aten_max_pool_mixed(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[3, x.size(3)])
+
+        example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_mixed(), example)
+        # The dynamic last axis keeps x.size(3) a runtime value, so the mixed static-window/dynamic
+        # kernel reaches the frontend and the conversion guard fires (a static axis would const-fold
+        # to [3, 20] and hit the static MaxPool path). The guard raises OpConversionFailure.
+        with pytest.raises(ov.frontend.OpConversionFailure):
+            ov.convert_model(scripted, example_input=(example,),
+                             input=[ov.PartialShape([1, 8, 15, -1])])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_partial_kernel_fails_at_runtime(self, ie_device, precision, ir_version):
+        # A runtime kernel that does not span the full axis extent is a strided pool the ReduceMax
+        # decomposition can't represent; the runtime guard must fail loudly instead of returning a
+        # wrong [N, C, H, 1]. Here kernel = x.size(3)//2 = 32 vs. extent 64, so the guard reshape fails.
+        if ie_device != "CPU":
+            pytest.skip("runtime reshape-guard failure is asserted on CPU")
+
+        class aten_max_pool_partial(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3) // 2])
+
+        example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_partial(), example)
+        # Dynamic last axis keeps the kernel a runtime value, so the dynamic-kernel guard is emitted.
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([1, 128, 40, -1])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "ReduceMax" in op_types, f"expected the dynamic-kernel branch; ops: {op_types}"
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
+        # op-labeled guard node so an unrelated failure cannot green this test.
+        with pytest.raises(Exception) as exc_info:
+            compiled((example.numpy(),))
+        assert "require_full_extent" in str(exc_info.value)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_uses_reducemax(self, ie_device, precision, ir_version):
+        # Structurally prove the dynamic-kernel branch fired: the model must contain a ReduceMax and
+        # no MaxPool (the numeric tests above can't distinguish it from a const-folded static MaxPool).
+        # A dynamic input shape keeps x.size(3) a runtime value so the kernel cannot const-fold.
+        class aten_max_pool_dyn(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3)])
+
+        example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_dyn(), example)
+        # Dynamic last axis -> the kernel stays a runtime ShapeOf value at conversion time.
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([1, 128, 40, -1])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "ReduceMax" in op_types, f"expected the dynamic-kernel ReduceMax branch; ops: {op_types}"
+        assert "MaxPool" not in op_types, f"static MaxPool must not be present; ops: {op_types}"

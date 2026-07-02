@@ -55,6 +55,23 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
+/// \brief Ensures the trailing two axes of `x` form an n x n matrix.
+///
+/// Statically-known trailing dims that are not n x n are rejected with a clear conversion-time
+/// message (`op_label` names the op). When they are dynamic -- the common TorchScript case, where
+/// the decoder forces all dims dynamic -- a runtime guard pins each trailing axis to n with its
+/// own Reshape (so the element-count check runs per axis; a single [n, n] reshape would let e.g.
+/// [1, 9] pass as 3x3). A genuine n x n is an identity; any other size fails loudly at runtime.
+/// \param context Node context for marking nodes.
+/// \param x Batched matrix whose trailing two axes are validated/guarded.
+/// \param n Expected square matrix size.
+/// \param op_label Op name used in the error message.
+/// \return `x` unchanged when statically validated, otherwise the runtime reshape-guarded matrix.
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label);
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x);
