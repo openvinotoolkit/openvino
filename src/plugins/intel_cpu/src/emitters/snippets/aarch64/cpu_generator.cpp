@@ -49,6 +49,7 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
@@ -70,6 +71,7 @@
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
@@ -295,6 +297,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
     jitters[ov::op::v7::Gelu::get_type_info_static()] =
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
+    jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
     jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_node<jit_mish_emitter>();
     jitters[ov::op::v0::Negative::get_type_info_static()] = emitter_factory.from_node<jit_negative_emitter>();
@@ -303,6 +306,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v5::Round::get_type_info_static()] =
         CREATE_ROUND_V5_EMITTER(jit_round_half_away_from_zero_emitter, jit_round_half_to_even_emitter);
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_node<jit_sigmoid_emitter>();
+    jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_node<jit_soft_sign_emitter>();
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_node<jit_sqrt_emitter>();
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = emitter_factory.from_node<jit_swish_emitter>();
     jitters[ov::op::v0::Tanh::get_type_info_static()] = emitter_factory.from_node<jit_tanh_emitter>();
