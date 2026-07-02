@@ -32,21 +32,17 @@ using namespace ov::op;
 
 namespace {
 
-// Number of Jacobi sweeps. One-sided Jacobi for 3x3 converges in ~5 sweeps; 6 adds
-// margin (matches torch.svd to ~1e-5 across many seeds, including rank-deficient
-// matrices).
+// One-sided Jacobi for 3x3 converges in ~5 sweeps; 6 adds margin (matches torch.svd to ~1e-5,
+// incl. rank-deficient matrices).
 constexpr int SVD_SWEEPS = 6;
 // Column index pairs swept by one-sided Jacobi.
 constexpr int PAIRS[3][2] = {{0, 1}, {0, 2}, {1, 2}};
 
-// Builds an OpenVINO subgraph computing the SVD of batched 3x3 matrices via the
-// ONE-SIDED JACOBI method. Unlike the normal-equations (A^T A eigendecomposition)
-// approach, Jacobi operates on A directly and stays fp32-accurate for rank-
-// deficient matrices (e.g. the 3-point Weighted-Procrustes / Kabsch matrices used
-// in SAM-6D pose estimation). It orthogonalizes the columns of A by a fixed number
-// of sweeps of Jacobi rotations (accumulated into V); afterwards the singular
-// values are the column norms and U = A_col / sigma. Columns are sorted by
-// descending singular value to match torch's convention.
+// SVD of batched 3x3 matrices via ONE-SIDED JACOBI. Unlike normal equations (A^T A
+// eigendecomposition), it operates on A directly and stays fp32-accurate for rank-deficient
+// matrices (the 3-point Weighted-Procrustes / Kabsch matrices in SAM-6D pose estimation): it
+// orthogonalizes A's columns over a fixed number of rotation sweeps (accumulated into V); the
+// singular values are then the column norms and U = A_col / sigma, sorted descending like torch.
 class JacobiSvd3x3 {
 public:
     JacobiSvd3x3(const NodeContext& context, element::Type et) : m_ctx(context), m_et(et), m_tiny(cf(1e-30f)) {}
@@ -198,11 +194,9 @@ private:
         return m_ctx.mark_node(std::make_shared<v0::Abs>(x));
     }
     Output<Node> signum(const Output<Node>& x) {
-        // sign(x) with sign(0) = +1. v0::Sign returns 0 for input 0, but here a zero input
-        // (zeta == (beta - alpha) / (2*gamma), i.e. two columns of equal norm that are not
-        // orthogonal) must still trigger the +-45 degree Jacobi rotation. sign(0) = 0 would
-        // set t = 0 and skip that rotation, leaving equal-norm (e.g. rank-deficient) columns
-        // un-orthogonalized. Force +1 at exactly 0.
+        // sign(x) with sign(0) = +1. v0::Sign(0) = 0 would set t = 0 and skip the +-45 degree
+        // rotation exactly when two equal-norm columns are non-orthogonal (zeta == 0), leaving
+        // rank-deficient columns un-orthogonalized. Force +1 at 0 so the rotation still fires.
         auto s = m_ctx.mark_node(std::make_shared<v0::Sign>(x));
         auto is_zero = m_ctx.mark_node(std::make_shared<v1::Equal>(x, cf(0.0f)));
         return sel(is_zero, cf(1.0f), s);
@@ -221,16 +215,12 @@ private:
 OutputVector svd_common(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    // The Jacobi decomposition below is written for 3x3 matrices. ensure_trailing_square
-    // validates the trailing axes are 3x3 (static shapes) or, on the dynamic path (the
-    // TorchScript decoder forces all dims dynamic), returns x wrapped in a reshape-to-[...,3,3]
-    // so a non-3x3 input fails loudly at runtime instead of silently producing a wrong result.
+    // The Jacobi decomposition below is written for 3x3; ensure_trailing_square validates/guards
+    // the trailing axes to 3x3 (a non-3x3 input fails at conversion or loudly at runtime).
     x = ensure_trailing_square(context, x, 3, "aten::svd");
 
     auto in_et = x.get_element_type();
-    // Compute at least in f32 (f16/bf16 are too coarse for the Jacobi rotations).
-    // f64 is preserved when statically requested. When the input type is dynamic
-    // at conversion time, default the compute type to f32.
+    // Compute in f32 (f16/bf16 are too coarse for the rotations); keep f64 when statically requested.
     auto compute_et = (in_et == element::f64) ? element::f64 : element::f32;
     Output<Node> A = x;
     if (in_et != compute_et) {
@@ -241,9 +231,8 @@ OutputVector svd_common(const NodeContext& context) {
     Output<Node> U, S, V;
     std::tie(U, S, V) = builder.build(A);
 
-    // Cast the outputs back to the input element type. ConvertLike resolves the
-    // target type from `x` even when it is dynamic at conversion time (a direct
-    // Convert to a dynamic type would fail at runtime).
+    // Cast outputs back to the input type. ConvertLike resolves it from `x` even when it is
+    // dynamic at conversion time (a direct Convert to a dynamic type would fail).
     if (in_et != compute_et) {
         U = context.mark_node(std::make_shared<v1::ConvertLike>(U, x));
         S = context.mark_node(std::make_shared<v1::ConvertLike>(S, x));
@@ -256,13 +245,9 @@ OutputVector svd_common(const NodeContext& context) {
 
 OutputVector translate_svd(const NodeContext& context) {
     // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
-    // With compute_uv=False PyTorch returns zero-filled U and V (only S is meaningful). This
-    // translator always produces real U/V, so compute_uv must be a constant true:
-    //  - a constant false is rejected (returning real singular vectors where a caller expects
-    //    zeros would be a silent wrong result);
-    //  - a non-constant compute_uv is also rejected, because its runtime value could be false and
-    //    there is no way to know at conversion time -- accepting it would let the same silent
-    //    zero-vs-real mismatch through.
+    // PyTorch returns zero-filled U/V when compute_uv=False; this translator always produces real
+    // U/V, so compute_uv must be a constant true. A constant false, or a non-constant flag that
+    // could be false at runtime, is rejected -- otherwise a caller expecting zeros gets real vectors.
     if (context.get_input_size() > 2 && !context.input_is_none(2)) {
         const auto c = ov::util::get_constant_from_source(context.get_input(2));
         PYTORCH_OP_CONVERSION_CHECK(c, "aten::svd with a non-constant compute_uv is not supported.");

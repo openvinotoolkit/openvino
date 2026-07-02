@@ -269,12 +269,9 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // When ord is not specified (None), torch.linalg.norm computes the Frobenius norm
-    // when reducing over exactly two dims and the vector 2-norm (L2) otherwise. Both are
-    // sqrt(sum(x^2)) over the selected axes (x^2 == |x|^2 for the real inputs supported
-    // here), so the result is identical and rank-agnostic regardless of how many axes
-    // `dim` selects. Compute it directly with the vector L2 reduction over `dim`; this
-    // needs neither the static rank nor a foldable `dim`.
+    // ord=None: Frobenius (two dims) and vector L2 (otherwise) are both sqrt(sum(x^2)) over `dim`
+    // for the real inputs supported here, so the L2 reduction is correct and rank-agnostic --
+    // needing neither the static rank nor a foldable `dim`.
     if (context.input_is_none(1)) {
         result = norm_vector(context, x, dim, 2, keep_dim);
     } else {

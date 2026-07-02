@@ -45,13 +45,9 @@ class TestDet(PytorchLayerTest):
         [2, 4, 3, 3],    # multi-dim batch of 3x3
     ])
     def test_det(self, variant, input_shape, ie_device, precision, ir_version):
-        # FP16 squares element magnitudes in the cofactor products and is too
-        # coarse for a meaningful determinant comparison; keep FP32.
+        # FP16 is too coarse for the cofactor products; validate the determinant in FP32.
         if precision == "FP16":
             pytest.skip("determinant closed form is validated in FP32")
-        # The PyTorch frontend presents the input with a dynamic shape at
-        # conversion time, so the translator decomposes the supported 3x3 case;
-        # these tests therefore cover 3x3 matrices (the rigid-transform use case).
         self._test(*self.create_model(variant), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_shape})
 

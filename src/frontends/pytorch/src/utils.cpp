@@ -167,9 +167,8 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
     const auto& pshape = x.get_partial_shape();
     const auto rank = pshape.rank();
     if (rank.is_static()) {
-        // A matrix op needs at least two axes; a lower static rank can never be n x n and must
-        // not silently fall through to the runtime reshape guard (which could otherwise reinterpret
-        // e.g. a 1-D tensor of n*n elements as an n x n matrix instead of failing like PyTorch).
+        // A matrix op needs at least two axes; reject a lower static rank at conversion rather than
+        // letting the runtime guard reinterpret e.g. a 1-D tensor of n*n elements as n x n.
         PYTORCH_OP_CONVERSION_CHECK(rank.get_length() >= 2,
                                     op_label,
                                     " requires a batch of ",
@@ -181,9 +180,8 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
                                     ".");
         const auto& m_dim = pshape[rank.get_length() - 2];
         const auto& n_dim = pshape[rank.get_length() - 1];
-        // Fail at conversion for any statically-known trailing dimension that is not n (this also
-        // covers the mixed case where one trailing dim is static != n and the other is dynamic),
-        // matching the clean op-labeled message instead of deferring to a bare runtime reshape error.
+        // Fail at conversion for any statically-known trailing dim != n (incl. the mixed static/dynamic
+        // case), giving the clean op-labeled message instead of a bare runtime reshape error.
         PYTORCH_OP_CONVERSION_CHECK(
             (!m_dim.is_static() || m_dim.get_length() == n) && (!n_dim.is_static() || n_dim.get_length() == n),
             op_label,
@@ -201,11 +199,10 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
             return x;
         }
     }
-    // Dynamic trailing dimension(s): pin each trailing axis to n with its own Reshape so the
-    // element-count check runs per axis (a single [..,n,n] reshape only checks n*n total, so e.g.
-    // [1,9] would masquerade as 3x3). A genuine n x n input is an identity through both; any other
-    // trailing extent makes one Reshape fail loudly at runtime. The op-labeled name lets the CPU
-    // plugin identify the op and the only supported size in the error, matching the static branch.
+    // Dynamic trailing dims: pin each trailing axis to n with its own Reshape so the element-count
+    // check runs per axis (a single [..,n,n] reshape only checks n*n total, so [1,9] would pass as
+    // 3x3). A genuine n x n is an identity through both; anything else fails loudly at runtime. The
+    // op-labeled name surfaces the op and supported size in the CPU error, matching the static branch.
     const auto guard_name = op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n);
     auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
     auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
