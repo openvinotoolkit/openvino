@@ -35,6 +35,8 @@ namespace ov::pass {
 // be (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535) (depends on type and depends
 // on sign of the quantized data type). Another limitation is that 'zero_point' and 'scale' have to be broadcastable to
 // the output of FakeQuantize.
+// Mixed precision is supported: the quantizer (FakeQuantize input) and dequantizer (scale/zero_point)
+// can use different floating-point precisions (e.g., FakeQuantize on fp32, dequantizer scale in fp16).
 //
 //
 //                                   |  |  |  |  |
@@ -69,10 +71,12 @@ namespace ov::pass {
 //                                        v
 //
 
-ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions,
-                                                     const ov::element::TypeVector& supported_original_precisions) {
+ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-    auto data_pattern = pattern::any_input(pattern::type_matches_any(supported_original_precisions));
+    // Allow floating-point input types (fp32, fp16, bf16) for mixed precision support
+    auto data_pattern = pattern::any_input([](const Output<Node>& output) {
+        return output.get_element_type().is_real();
+    });
     auto input_low_pattern = pattern::any_input();
     auto input_high_pattern = pattern::any_input();
     auto output_low_pattern = pattern::wrap_type<v0::Constant>();
@@ -82,9 +86,8 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
     auto convert1_pattern = pattern::wrap_type<v0::Convert>(
         {fq_pattern},
         pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1));
-    auto convert2_pattern = pattern::wrap_type<v0::Convert>(
-        {convert1_pattern},
-        pattern::type_matches_any(supported_original_precisions) && pattern::consumers_count(1));
+    // Allow mixed precision: dequantizer can use fp16 even if quantizer uses fp32
+    auto convert2_pattern = pattern::wrap_type<v0::Convert>({convert1_pattern}, pattern::consumers_count(1));
 
     auto zero_point_pattern = pattern::any_input();
     auto sub_pattern =
@@ -115,6 +118,12 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         auto convert1 = pattern_map.at(convert1_pattern);
         auto convert2 = pattern_map.at(convert2_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
+
+        // Validate convert2 outputs floating-point type (fp32, fp16, bf16)
+        const auto& convert2_type = convert2.get_element_type();
+        if (!convert2_type.is_real()) {
+            return false;
+        }
 
         static const std::unordered_set<size_t> supported_levels{256, 65536};
         const auto levels = fq->get_levels();
@@ -151,15 +160,35 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
             return false;
         }
 
+        // Get the element type of the FakeQuantize output bounds (typically f32)
+        const auto& fq_output_type = output_low->get_element_type();
+        const auto& scale_type = scale.get_element_type();
+
+        // Perform arithmetic in FP32 to avoid overflow (e.g., 65535 overflows FP16 max ~65504),
+        // then convert the final result to the scale's precision to preserve dequantizer precision info.
         const bool has_zero_point = pattern_map.count(zero_point_pattern);
         std::shared_ptr<Node> new_out_low = output_low, new_out_high = output_high;
         if (has_zero_point) {
-            const auto& zero_point = pattern_map.at(zero_point_pattern);
+            auto zero_point = pattern_map.at(zero_point_pattern);
+            // Ensure zero_point is in FP32 for safe arithmetic
+            if (zero_point.get_element_type() != fq_output_type) {
+                zero_point = std::make_shared<v0::Convert>(zero_point, fq_output_type);
+            }
             new_out_low = std::make_shared<v1::Subtract>(new_out_low, zero_point);
             new_out_high = std::make_shared<v1::Subtract>(new_out_high, zero_point);
         }
-        new_out_low = std::make_shared<v1::Multiply>(new_out_low, scale);
-        new_out_high = std::make_shared<v1::Multiply>(new_out_high, scale);
+        // Ensure scale is in FP32 for safe multiplication
+        auto scale_fp32 = scale;
+        if (scale_type != fq_output_type) {
+            scale_fp32 = std::make_shared<v0::Convert>(scale, fq_output_type);
+        }
+        new_out_low = std::make_shared<v1::Multiply>(new_out_low, scale_fp32);
+        new_out_high = std::make_shared<v1::Multiply>(new_out_high, scale_fp32);
+        // Convert the result to scale's original precision to preserve dequantizer precision info
+        if (scale_type != fq_output_type) {
+            new_out_low = std::make_shared<v0::Convert>(new_out_low, scale_type);
+            new_out_high = std::make_shared<v0::Convert>(new_out_high, scale_type);
+        }
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();
@@ -181,10 +210,23 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
 
         auto new_fq =
             std::make_shared<v0::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
-        new_fq->set_friendly_name(mul->get_friendly_name());
 
-        copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
-        replace_node(mul, new_fq);
+        // Preserve the output precision of the dequantizer (e.g., fp16)
+        std::shared_ptr<Node> final_output = new_fq;
+        const auto& mul_output_type = mul->get_output_element_type(0);
+        if (mul_output_type != new_fq->get_output_element_type(0)) {
+            // Convert FakeQuantize output to match the original dequantizer output type
+            auto convert_output = std::make_shared<v0::Convert>(new_fq, mul_output_type);
+            convert_output->set_friendly_name(mul->get_friendly_name());
+            copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()},
+                              {new_fq, convert_output});
+            final_output = convert_output;
+        } else {
+            new_fq->set_friendly_name(mul->get_friendly_name());
+            copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
+        }
+
+        replace_node(mul, final_output);
 
         return true;
     };
