@@ -353,7 +353,7 @@ void PluginPropertyManager::registerProperties() {
     });
 
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
-        [this, &has_backend_and_valid_device](const FilteredConfig& config) {  // support predicate
+        [this, has_backend_and_valid_device](const FilteredConfig& config) {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
             if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false) {
                 return false;
@@ -392,26 +392,11 @@ void PluginPropertyManager::registerProperties() {
     });
 
     // clang-format off
-    register_property_with_support_and_custom_function(_properties, ov::execution_devices.name(), has_backend, true, [this](const FilteredConfig& config) {
-        return std::vector<std::string>{"NPU"};
-    });
     register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), has_backend, false, [this](const FilteredConfig&) {
         return utils::getBackendName(_backend);
     });
     register_property_with_support_and_custom_function(_properties, ov::intel_npu::driver_version.name(), has_backend, true, [this](const FilteredConfig&) {
         return utils::getDriverVersion(_backend);
-    });
-    register_property_with_support_and_custom_function(_properties, ov::available_devices.name(), has_backend, true, [this](const FilteredConfig&) {
-        return utils::getAvailableDevicesNames(_backend);
-    });
-    register_property_with_support_and_custom_function( _properties, ov::device::capabilities.name(), has_backend, true, [this](const FilteredConfig&) {
-        return _optimizationCapabilities;
-    });
-    register_property_with_support_and_custom_function(_properties, ov::range_for_async_infer_requests.name(), has_backend, true, [this](const FilteredConfig&) {
-        return _rangeForAsyncInferRequests;
-    });
-    register_property_with_support_and_custom_function(_properties, ov::range_for_streams.name(), has_backend, true, [this](const FilteredConfig&) {
-        return _rangeForStreams;
     });
     register_property_with_support_and_custom_function(_properties, ov::device::pci_info.name(), has_backend_and_valid_device, true, [this](const FilteredConfig& config) {
         return utils::getPciInfo(_backend, config.get<intel_npu::DEVICE_ID>());
@@ -442,6 +427,21 @@ void PluginPropertyManager::registerProperties() {
         return utils::getDeviceLUID(_backend, config.get<intel_npu::DEVICE_ID>());
     });
 
+    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [this](const FilteredConfig& config) {
+        return std::vector<std::string>{"NPU"};
+    });
+    register_property_with_custom_function( _properties, ov::device::capabilities.name(), true, [this](const FilteredConfig&) {
+        return _optimizationCapabilities;
+    });
+    register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const FilteredConfig&) {
+        return _rangeForAsyncInferRequests;
+    });
+    register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const FilteredConfig&) {
+        return _rangeForStreams;
+    });
+    register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const FilteredConfig&) {
+        return utils::getAvailableDevicesNames(_backend);
+    });
     register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const FilteredConfig&) {
         return std::shared_ptr<const ov::Model>(nullptr);
     });
