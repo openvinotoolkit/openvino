@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu_parallel.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -1395,18 +1394,16 @@ void RNN::prepareParams() {
 
     auto engine = getEngine();
     auto builder = [&engine](const RNNKey& key) -> executorPtr {
-        return withDnnlDescriptorConcurrency([&]() -> executorPtr {
-            const auto descPtr = createPrimitiveDescriptor(engine,
-                                                           key.cellType,
-                                                           key.cellAct,
-                                                           key.direction,
-                                                           key.inDataDescs,
-                                                           key.outDataDescs,
-                                                           key.wDescs,
-                                                           key.attr);
+        const auto descPtr = createPrimitiveDescriptor(engine,
+                                                       key.cellType,
+                                                       key.cellAct,
+                                                       key.direction,
+                                                       key.inDataDescs,
+                                                       key.outDataDescs,
+                                                       key.wDescs,
+                                                       key.attr);
 
-            return descPtr ? std::make_shared<RnnDnnlExecutor>(descPtr) : nullptr;
-        });
+        return descPtr ? std::make_shared<RnnDnnlExecutor>(descPtr) : nullptr;
     };
 
     auto cache = context->getParamsCache();

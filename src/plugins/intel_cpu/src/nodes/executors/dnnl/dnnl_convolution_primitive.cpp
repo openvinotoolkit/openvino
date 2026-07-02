@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu_parallel.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -339,112 +338,109 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           bool fcSemantic,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const impl_desc_type defaultImplType) {
-    return withDnnlDescriptorConcurrency([&]() -> primitive_desc {
-        auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
-            return fcSemantic ? createInnerProductDescriptor(inputDesc,
-                                                             weightDesc,
-                                                             biasDesc,
-                                                             outputDesc,
-                                                             stride,
-                                                             dilation,
-                                                             paddingL,
-                                                             paddingR,
-                                                             attr,
-                                                             engine)
-                              : createConvolutionDescriptor(inputDesc,
-                                                            weightDesc,
-                                                            biasDesc,
-                                                            outputDesc,
-                                                            stride,
-                                                            dilation,
-                                                            paddingL,
-                                                            paddingR,
-                                                            attr,
-                                                            engine);
-        };
+    auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
+        return fcSemantic ? createInnerProductDescriptor(inputDesc,
+                                                         weightDesc,
+                                                         biasDesc,
+                                                         outputDesc,
+                                                         stride,
+                                                         dilation,
+                                                         paddingL,
+                                                         paddingR,
+                                                         attr,
+                                                         engine)
+                          : createConvolutionDescriptor(inputDesc,
+                                                        weightDesc,
+                                                        biasDesc,
+                                                        outputDesc,
+                                                        stride,
+                                                        dilation,
+                                                        paddingL,
+                                                        paddingR,
+                                                        attr,
+                                                        engine);
+    };
 
-        auto createConvolutionDescriptorAny = [](const dnnl::memory::desc& inputDesc,
-                                                 const dnnl::memory::desc& weightDesc,
-                                                 const dnnl::memory::desc& biasDesc,
-                                                 const dnnl::memory::desc& outputDesc,
-                                                 const std::vector<size_t>& stride,
-                                                 const std::vector<size_t>& dilation,
-                                                 const std::vector<ptrdiff_t>& paddingL,
-                                                 const std::vector<ptrdiff_t>& paddingR,
-                                                 const dnnl::primitive_attr& attr,
-                                                 const dnnl::engine& engine) {
-            auto inputDescAny =
-                dnnl::memory::desc(inputDesc.get_dims(), inputDesc.get_data_type(), memory::format_tag::any);
-            auto outputDescAny =
-                dnnl::memory::desc(outputDesc.get_dims(), outputDesc.get_data_type(), memory::format_tag::any);
-            return createConvolutionDescriptor(inputDescAny,
-                                               weightDesc,
-                                               biasDesc,
-                                               outputDescAny,
-                                               stride,
-                                               dilation,
-                                               paddingL,
-                                               paddingR,
-                                               attr,
-                                               engine);
-        };
+    auto createConvolutionDescriptorAny = [](const dnnl::memory::desc& inputDesc,
+                                             const dnnl::memory::desc& weightDesc,
+                                             const dnnl::memory::desc& biasDesc,
+                                             const dnnl::memory::desc& outputDesc,
+                                             const std::vector<size_t>& stride,
+                                             const std::vector<size_t>& dilation,
+                                             const std::vector<ptrdiff_t>& paddingL,
+                                             const std::vector<ptrdiff_t>& paddingR,
+                                             const dnnl::primitive_attr& attr,
+                                             const dnnl::engine& engine) {
+        auto inputDescAny =
+            dnnl::memory::desc(inputDesc.get_dims(), inputDesc.get_data_type(), memory::format_tag::any);
+        auto outputDescAny =
+            dnnl::memory::desc(outputDesc.get_dims(), outputDesc.get_data_type(), memory::format_tag::any);
+        return createConvolutionDescriptor(inputDescAny,
+                                           weightDesc,
+                                           biasDesc,
+                                           outputDescAny,
+                                           stride,
+                                           dilation,
+                                           paddingL,
+                                           paddingR,
+                                           attr,
+                                           engine);
+    };
 
-        auto prim_desc = createPrimitiveDescriptor(attr);
-        // keep first implementation descriptor to fallback to it if no other implementation is found
-        auto first_desc = prim_desc;
-        // if default implementation type is not specified, try to find the best implementation
-        if (defaultImplType == impl_desc_type::undef) {
-            if (!prim_desc) {
-                // fallback to 'any' implementation
-                return createConvolutionDescriptorAny(inputDesc,
-                                                      weightDesc,
-                                                      biasDesc,
-                                                      outputDesc,
-                                                      stride,
-                                                      dilation,
-                                                      paddingL,
-                                                      paddingR,
-                                                      attr,
-                                                      engine);
+    auto prim_desc = createPrimitiveDescriptor(attr);
+    // keep first implementation descriptor to fallback to it if no other implementation is found
+    auto first_desc = prim_desc;
+    // if default implementation type is not specified, try to find the best implementation
+    if (defaultImplType == impl_desc_type::undef) {
+        if (!prim_desc) {
+            // fallback to 'any' implementation
+            return createConvolutionDescriptorAny(inputDesc,
+                                                  weightDesc,
+                                                  biasDesc,
+                                                  outputDesc,
+                                                  stride,
+                                                  dilation,
+                                                  paddingL,
+                                                  paddingR,
+                                                  attr,
+                                                  engine);
+        }
+
+        for (auto preferredImplType : implPriorities) {
+            // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
+
+            if (found) {
+                return std::move(prim_desc);
             }
 
-            for (auto preferredImplType : implPriorities) {
-                // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
-                const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
-
-                if (found) {
-                    return std::move(prim_desc);
-                }
-
-                prim_desc = createPrimitiveDescriptor(attr);
-            }
-
-            return std::move(first_desc);
+            prim_desc = createPrimitiveDescriptor(attr);
         }
 
-        // try to use a default implementations type (created using dummy shapes) if specified
-        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
+        return std::move(first_desc);
+    }
+    // try to use a default implementations type (created using dummy shapes) if specified
+    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
 
-        if (found) {
-            return std::move(prim_desc);
-        }
+    if (found) {
+        return std::move(prim_desc);
+    }
 
-        if (fcSemantic) {  // fallback to the first implementation if used as FC executor
-            return std::move(first_desc);
-        }
+    if (fcSemantic) {  // fallback to the first implementation if used as FC executor
+        return std::move(first_desc);
+    }
 
-        // fallback to 'any' implementation
-        return createConvolutionDescriptorAny(inputDesc,
-                                              weightDesc,
-                                              biasDesc,
-                                              outputDesc,
-                                              stride,
-                                              dilation,
-                                              paddingL,
-                                              paddingR,
-                                              attr,
-                                              engine);
-    });
+    // fallback to 'any' implementation
+    return createConvolutionDescriptorAny(inputDesc,
+                                          weightDesc,
+                                          biasDesc,
+                                          outputDesc,
+                                          stride,
+                                          dilation,
+                                          paddingL,
+                                          paddingR,
+                                          attr,
+                                          engine);
 }
 
 static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& attrs,

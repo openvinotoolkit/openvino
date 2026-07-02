@@ -24,7 +24,6 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "dnnl_postops_composer_legacy.h"
@@ -830,37 +829,35 @@ dnnl::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candi
                                               const ov::CoordinateDiff& paddingR,
                                               const dnnl::primitive_attr& attr,
                                               const dnnl::engine& engine) {
-    return withDnnlDescriptorConcurrency([&]() -> dnnl::primitive_desc {
-        auto convertDims = [](const std::vector<ptrdiff_t>& orig_dims) {
-            return memory::dims(orig_dims.begin(), orig_dims.end());
-        };
+    auto convertDims = [](const std::vector<ptrdiff_t>& orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
 
-        if (with_bias) {
-            return dnnl::deconvolution_forward::primitive_desc(engine,
-                                                               prop_kind::forward_inference,
-                                                               dnnl::algorithm::deconvolution_direct,
-                                                               in_candidate,
-                                                               wgh_candidate,
-                                                               bias_candidate,
-                                                               out_candidate,
-                                                               convertDims(stride),
-                                                               convertDims(dilation),
-                                                               convertDims(paddingL),
-                                                               convertDims(paddingR),
-                                                               attr);
-        }
+    if (with_bias) {
         return dnnl::deconvolution_forward::primitive_desc(engine,
                                                            prop_kind::forward_inference,
                                                            dnnl::algorithm::deconvolution_direct,
                                                            in_candidate,
                                                            wgh_candidate,
+                                                           bias_candidate,
                                                            out_candidate,
                                                            convertDims(stride),
                                                            convertDims(dilation),
                                                            convertDims(paddingL),
                                                            convertDims(paddingR),
                                                            attr);
-    });
+    }
+    return dnnl::deconvolution_forward::primitive_desc(engine,
+                                                       prop_kind::forward_inference,
+                                                       dnnl::algorithm::deconvolution_direct,
+                                                       in_candidate,
+                                                       wgh_candidate,
+                                                       out_candidate,
+                                                       convertDims(stride),
+                                                       convertDims(dilation),
+                                                       convertDims(paddingL),
+                                                       convertDims(paddingR),
+                                                       attr);
 }
 }  // namespace
 

@@ -128,7 +128,7 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
 
     m_context = context;
     m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
-    m_context->getCpuParallel()->activateForInit();
+    m_context->getCpuParallel()->activate();
 
     this->_name = std::move(name);
 
@@ -385,7 +385,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 
     m_context = context;
     m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
-    m_context->getCpuParallel()->activateForInit();
+    m_context->getCpuParallel()->activate();
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -397,8 +397,6 @@ void Graph::Activate() {
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
     // We probably want to avoid such uncertainty
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
-    m_context->getCpuParallel()->activateForExecution();
-
     Allocate();
 
     CreatePrimitivesAndExecConstants();
