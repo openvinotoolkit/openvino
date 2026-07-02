@@ -173,7 +173,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                                 std::shared_ptr<DynamicArguments> arguments,
+                                 std::shared_ptr<DynamicArguments> requestArguments,
                                  size_t batch_size)
     : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
@@ -195,11 +195,18 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
 
     _command_lists.reserve(_batch_size);
-    for (size_t i = 0; i < _batch_size; i++) {
-        // create the first command list with arguments for the first batch, other batches create their own arguments
-        auto commandListArguments = (i == 0) ? arguments : nullptr;
+    if (batch_size > 1) {
+        _logger.debug("Batch size %zu greater than 1, use new graph arguments for each batch", batch_size);
+        for (size_t i = 0; i < _batch_size; i++) {
+            _command_lists.emplace_back(
+                std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, nullptr));
+        }
+    } else if (batch_size == 1) {
+        _logger.debug("Batch size is 1, use the same graph arguments for all command lists");
         _command_lists.emplace_back(
-            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, commandListArguments));
+            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, requestArguments));
+    } else {
+        OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
     }
 
     if (_sync_output_with_fences) {
