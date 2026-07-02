@@ -86,3 +86,29 @@ def _is_testing(options) -> Optional[Any]:
         if bool(is_testing) and str(is_testing).lower not in ["false", "0"]:
             return True
     return False
+
+
+# Caller can opt into a preset of defaults (currently the only one is the
+# vLLM preset, lives in torchdynamo.vllm.preset). The generic backend_utils
+# does not know about specific presets; it just delegates.
+def _bool_opt(options, key: str, default: bool) -> bool:
+    """Resolve a boolean plugin option.
+
+    Priority: options[key] > preset (if active) > default.
+    Strings "false"/"0" are treated as False.
+    """
+    if options is not None and key in options:
+        v = options[key]
+    else:
+        # Check vLLM preset, if active. Imported lazily so backend_utils
+        # stays usable without the vllm subpackage on disk.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
+        except Exception:
+            _preset = None
+        if _preset is not None and _preset.is_vllm_preset(options) and _preset.has_preset_flag(key):
+            v = _preset.preset_flag(key)
+        else:
+            return default
+    return bool(v) and str(v).lower() not in ("false", "0")
+

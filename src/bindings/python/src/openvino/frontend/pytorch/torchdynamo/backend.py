@@ -103,12 +103,37 @@ def fx_openvino(subgraph, example_inputs, options=None):
             model = subgraph
         else:
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            model = make_fx(
-                subgraph,
-                decomposition_table=get_decompositions(decompositions),
-                tracing_mode="fake",
-                _allow_non_fake_inputs=True,
-            )(*example_inputs)
+            # vLLM's compile pipeline activates an outer FakeTensorMode with
+            # allow_non_fake_inputs=False, and example_inputs are FakeTensors.
+            # `tracing_mode="fake"` reuses that outer mode (via
+            # `detect_fake_mode(args)`), so the local `_allow_non_fake_inputs`
+            # flag is silently ignored. Real Parameters then trigger an
+            # AssertionError on the first op (typically aten.embedding.default),
+            # and even if the flag is flipped, mixed fake/real operands
+            # mis-propagate dtypes (fp16 fake * fp32 real param -> fp16 in fake
+            # mode, fp32 at runtime), breaking downstream kernels like
+            # torch.ops._C.onednn_mm. Switch to real tracing with materialized
+            # inputs to avoid the fake-mode interaction entirely.
+            from torch._subclasses.fake_tensor import (
+                unset_fake_temporarily as _unset_fake,
+                FakeTensor as _FakeTensor,
+            )
+
+            def _materialize(t):
+                if isinstance(t, _FakeTensor):
+                    return torch.zeros(
+                        t.shape, dtype=t.dtype,
+                        device=t.device if t.device.type != "meta" else "cpu",
+                    )
+                return t
+
+            with _unset_fake():
+                real_inputs = [_materialize(t) for t in example_inputs]
+                model = make_fx(
+                    subgraph,
+                    decomposition_table=get_decompositions(decompositions),
+                    tracing_mode="real",
+                )(*real_inputs)
             with torch.no_grad():
                 model.eval()
         partitioner = Partitioner(options)
