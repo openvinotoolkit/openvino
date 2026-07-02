@@ -560,6 +560,9 @@ ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::GQACompiledModel::create_sync_infer_request() const {
     auto self = std::static_pointer_cast<const GQACompiledModel>(shared_from_this());
+    if (m_kv_managed) {
+        return std::make_shared<ov::npuw::ManagedGQAInferRequest>(std::move(self));
+    }
     return std::make_shared<ov::npuw::GQAInferRequest>(std::move(self));
 }
 
@@ -572,13 +575,6 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
         m_inner_request = m_compiled_model->m_compiled_model->create_infer_request();
         OPENVINO_ASSERT(m_inner_request != nullptr, "GQA infer request requires a valid inner request");
     }
-}
-
-bool ov::npuw::GQAInferRequest::is_kv_output_locked(size_t idx) const {
-    if (!m_compiled_model->m_kv_managed)
-        return false;
-    const auto& kv = m_compiled_model->m_kv_output_indices;
-    return std::find(kv.begin(), kv.end(), idx) != kv.end();
 }
 
 const ov::Output<const ov::Node>& ov::npuw::GQAInferRequest::map_port_locked(
@@ -609,36 +605,51 @@ const ov::Output<const ov::Node>& ov::npuw::GQAInferRequest::map_port_locked(
 void ov::npuw::GQAInferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-
-    // When the KV scatter is managed here, read seqlens_k before the inner infer so we
-    // can compute the write offset into the user-supplied full KV-cache tensors.
-    int64_t seqlens_k_val = 0;
-    if (m_compiled_model->m_kv_managed) {
-        const auto& inner_inputs = m_inner_request->get_compiled_model()->inputs();
-        size_t sk_idx = SIZE_MAX;
-        for (size_t i = 0; i < inner_inputs.size(); ++i) {
-            if (inner_inputs[i].get_node()->get_friendly_name() == m_compiled_model->m_seqlens_k_name) {
-                sk_idx = i;
-                break;
-            }
-        }
-        OPENVINO_ASSERT(sk_idx != SIZE_MAX,
-                        "seqlens_k port '",
-                        m_compiled_model->m_seqlens_k_name,
-                        "' not found in inner compiled model");
-        auto sk = m_inner_request->get_tensor(inner_inputs[sk_idx]);
-        if (sk->get_element_type() == ov::element::i32)
-            seqlens_k_val = static_cast<int64_t>(*reinterpret_cast<const int32_t*>(sk->data()));
-        else
-            seqlens_k_val = *reinterpret_cast<const int64_t*>(sk->data());
-    }
-
     m_inner_request->infer();
+}
 
-    if (!m_compiled_model->m_kv_managed)
-        return;
+ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+    return m_inner_request->get_tensor(map_port_locked(port));
+}
 
-    // Scatter the small inner KV outputs into the right offset of the user's full KV tensors.
+void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                           const ov::SoPtr<ov::ITensor>& tensor) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+    m_inner_request->set_tensor(map_port_locked(port), tensor);
+}
+
+ov::npuw::ManagedGQAInferRequest::ManagedGQAInferRequest(std::shared_ptr<const GQACompiledModel> compiled_model)
+    : GQAInferRequest(std::move(compiled_model)) {}
+
+bool ov::npuw::ManagedGQAInferRequest::is_kv_output_locked(size_t idx) const {
+    const auto& kv = m_compiled_model->m_kv_output_indices;
+    return std::find(kv.begin(), kv.end(), idx) != kv.end();
+}
+
+int64_t ov::npuw::ManagedGQAInferRequest::read_seqlens_k_locked() const {
+    const auto& inner_inputs = m_inner_request->get_compiled_model()->inputs();
+    size_t sk_idx = SIZE_MAX;
+    for (size_t i = 0; i < inner_inputs.size(); ++i) {
+        if (inner_inputs[i].get_node()->get_friendly_name() == m_compiled_model->m_seqlens_k_name) {
+            sk_idx = i;
+            break;
+        }
+    }
+    OPENVINO_ASSERT(sk_idx != SIZE_MAX,
+                    "seqlens_k port '",
+                    m_compiled_model->m_seqlens_k_name,
+                    "' not found in inner compiled model");
+    auto sk = m_inner_request->get_tensor(inner_inputs[sk_idx]);
+    if (sk->get_element_type() == ov::element::i32) {
+        return static_cast<int64_t>(*reinterpret_cast<const int32_t*>(sk->data()));
+    }
+    return *reinterpret_cast<const int64_t*>(sk->data());
+}
+
+void ov::npuw::ManagedGQAInferRequest::scatter_kv_outputs_locked(int64_t seqlens_k_val) const {
     for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
         const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
         auto user_it = m_user_kv_tensors.find(kv_idx);
@@ -650,10 +661,8 @@ void ov::npuw::GQAInferRequest::infer() {
             continue;
         }
 
-        // inner_t is the working tensor NPUW wrote K curr data into.
-        auto& inner_t = work_it->second;
-        auto& user_t = user_it->second;
-
+        const auto& inner_t = work_it->second;
+        const auto& user_t = user_it->second;
         const auto inner_shape = inner_t->get_shape();
         const size_t kv_heads = inner_shape[1];
         const size_t past = static_cast<size_t>(seqlens_k_val);
@@ -665,8 +674,6 @@ void ov::npuw::GQAInferRequest::infer() {
         const bool transposed =
             (ki < m_compiled_model->m_kv_transposed.size()) && m_compiled_model->m_kv_transposed[ki];
         if (!transposed) {
-            // K layout — inner_t: [1, kv_heads, curr_seq, head_size]
-            //            user_t:  [1, kv_heads, max_seq,  head_size]
             const size_t curr_seq = inner_shape[2];
             const size_t head_size = inner_shape[3];
             const size_t max_seq = user_t->get_shape()[2];
@@ -675,75 +682,73 @@ void ov::npuw::GQAInferRequest::infer() {
                             src + h * curr_seq * head_size * esz,
                             curr_seq * head_size * esz);
             }
-        } else {
-            // Transposed V layout — inner_t: [1, kv_heads, head_size, curr_seq]
-            //                       user_t:  [1, kv_heads, head_size, max_seq]
-            // Transpose is preserved in the inner model, so inner_t is already in the right
-            // layout. For each (h, d) the curr_seq elements are contiguous in both tensors;
-            // just memcpy them to the right offset in the user tensor.
-            const size_t head_size = inner_shape[2];
-            const size_t curr_seq = inner_shape[3];
-            const size_t max_seq = user_t->get_shape()[3];
-            for (size_t h = 0; h < kv_heads; ++h) {
-                for (size_t d = 0; d < head_size; ++d) {
-                    std::memcpy(dst + ((h * head_size + d) * max_seq + past) * esz,
-                                src + (h * head_size + d) * curr_seq * esz,
-                                curr_seq * esz);
-                }
+            continue;
+        }
+
+        const size_t head_size = inner_shape[2];
+        const size_t curr_seq = inner_shape[3];
+        const size_t max_seq = user_t->get_shape()[3];
+        for (size_t h = 0; h < kv_heads; ++h) {
+            for (size_t d = 0; d < head_size; ++d) {
+                std::memcpy(dst + ((h * head_size + d) * max_seq + past) * esz,
+                            src + (h * head_size + d) * curr_seq * esz,
+                            curr_seq * esz);
             }
         }
     }
 }
 
-ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+void ov::npuw::ManagedGQAInferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
 
-    if (m_compiled_model->m_kv_managed) {
-        const auto& outer_outputs = m_compiled_model->outputs();
-        for (size_t i = 0; i < outer_outputs.size(); ++i) {
-            if (outer_outputs[i] != port || !is_kv_output_locked(i))
-                continue;
-            auto it = m_user_kv_tensors.find(i);
-            if (it != m_user_kv_tensors.end())
-                return it->second;
-            // Allocate a default tensor from the outer port's static shape.
-            auto t =
-                ov::make_tensor(outer_outputs[i].get_element_type(), outer_outputs[i].get_partial_shape().to_shape());
-            m_user_kv_tensors[i] = t;
-            return t;
-        }
+    const int64_t seqlens_k_val = read_seqlens_k_locked();
+    m_inner_request->infer();
+    scatter_kv_outputs_locked(seqlens_k_val);
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::ManagedGQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+
+    const auto& outer_outputs = m_compiled_model->outputs();
+    for (size_t i = 0; i < outer_outputs.size(); ++i) {
+        if (outer_outputs[i] != port || !is_kv_output_locked(i))
+            continue;
+        auto it = m_user_kv_tensors.find(i);
+        if (it != m_user_kv_tensors.end())
+            return it->second;
+        auto t = ov::make_tensor(outer_outputs[i].get_element_type(), outer_outputs[i].get_partial_shape().to_shape());
+        m_user_kv_tensors[i] = t;
+        return t;
     }
+
     return m_inner_request->get_tensor(map_port_locked(port));
 }
 
-void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
-                                           const ov::SoPtr<ov::ITensor>& tensor) {
+void ov::npuw::ManagedGQAInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                                  const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
 
-    if (m_compiled_model->m_kv_managed) {
-        const auto& outer_outputs = m_compiled_model->outputs();
-        const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
-        for (size_t i = 0; i < outer_outputs.size(); ++i) {
-            if (outer_outputs[i] == port && is_kv_output_locked(i)) {
-                // Store the user's full KV tensor (scatter destination).
-                m_user_kv_tensors[i] = tensor;
-                // Provide the inner request with a correctly-sized working buffer so
-                // NPUW never has to allocate its own — the tensor is always set from outside.
-                if (i < inner_outputs.size()) {
-                    auto& wt = m_kv_working_tensors[i];
-                    const auto& inner_port = inner_outputs[i];
-                    const auto needed_shape = inner_port.get_partial_shape().to_shape();
-                    if (!wt || wt->get_shape() != needed_shape) {
-                        wt = ov::make_tensor(inner_port.get_element_type(), needed_shape);
-                    }
-                    m_inner_request->set_tensor(inner_outputs[i], wt);
+    const auto& outer_outputs = m_compiled_model->outputs();
+    const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
+    for (size_t i = 0; i < outer_outputs.size(); ++i) {
+        if (outer_outputs[i] == port && is_kv_output_locked(i)) {
+            m_user_kv_tensors[i] = tensor;
+            if (i < inner_outputs.size()) {
+                auto& wt = m_kv_working_tensors[i];
+                const auto& inner_port = inner_outputs[i];
+                const auto needed_shape = inner_port.get_partial_shape().to_shape();
+                if (!wt || wt->get_shape() != needed_shape) {
+                    wt = ov::make_tensor(inner_port.get_element_type(), needed_shape);
                 }
-                return;
+                m_inner_request->set_tensor(inner_outputs[i], wt);
             }
+            return;
         }
     }
+
     m_inner_request->set_tensor(map_port_locked(port), tensor);
 }
 

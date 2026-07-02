@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -17,7 +18,7 @@ namespace ov::npuw {
 
 class GQACompiledModel;
 
-class GQAInferRequest final : public ov::ISyncInferRequest {
+class GQAInferRequest : public ov::ISyncInferRequest {
 public:
     explicit GQAInferRequest(std::shared_ptr<const GQACompiledModel> compiled_model);
 
@@ -30,17 +31,32 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-private:
+protected:
     void ensure_inner_request_locked() const;
     const ov::Output<const ov::Node>& map_port_locked(const ov::Output<const ov::Node>& port) const;
-    bool is_kv_output_locked(size_t output_index) const;
 
     std::shared_ptr<const GQACompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
+};
+
+class ManagedGQAInferRequest final : public GQAInferRequest {
+public:
+    explicit ManagedGQAInferRequest(std::shared_ptr<const GQACompiledModel> compiled_model);
+
+    void infer() override;
+
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+
+private:
+    bool is_kv_output_locked(size_t output_index) const;
+    int64_t read_seqlens_k_locked() const;
+    void scatter_kv_outputs_locked(int64_t seqlens_k_val) const;
+
     // User-set tensors for KV outputs intercepted by the managed KV scatter path.
     mutable std::unordered_map<size_t, ov::SoPtr<ov::ITensor>> m_user_kv_tensors;
-    // Correctly-sized working tensors forwarded to the inner request for each managed K output.
+    // Correctly-sized working tensors forwarded to the inner request for each managed KV output.
     mutable std::unordered_map<size_t, ov::SoPtr<ov::ITensor>> m_kv_working_tensors;
 };
 
@@ -101,6 +117,7 @@ private:
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
 
     friend class GQAInferRequest;
+    friend class ManagedGQAInferRequest;
 
     std::shared_ptr<ov::npuw::ICompiledModel> m_compiled_model;
     bool m_kv_managed = false;
