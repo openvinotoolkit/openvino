@@ -36,3 +36,8 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Install custom cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh
