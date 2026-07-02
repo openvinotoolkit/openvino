@@ -589,11 +589,16 @@ endif()
 #
 
 # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 find_package(nlohmann_json 3.9.0 QUIET)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
+
 if(nlohmann_json_FOUND)
     # conan and vcpkg create imported target nlohmann_json::nlohmann_json
 else()
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
 
     # this is required only because of NPU plugin reused this: export & install
     ov_developer_package_export_targets(TARGET nlohmann_json
