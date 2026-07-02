@@ -19,6 +19,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
+#include "model_validation.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -506,6 +507,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
     }
+
+    // Reject models with unbounded dynamic dimensions (upper bound == INT64_MAX) before they reach the compiler,
+    // where they would otherwise surface as opaque errors. The check runs on the debatched model when batch handling
+    // rewrote it, since debatching may resolve a dynamic batch axis. Bounded dynamic shapes are allowed through.
+    // See model_validation.hpp for details.
+    validate_no_unbounded_dynamic_dimensions(successfullyDebatched ? batchedModel : model);
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
