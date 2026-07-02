@@ -3155,6 +3155,89 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// Regression test for the fully-masked query row. With a 2-token query but only 1 valid position
+// (seqlens_k = 0), the causal mask fully masks the second query row. The attention mask must use the
+// element type's finite lowest() (not -inf) so that row's softmax stays finite instead of 0/0 = NaN.
+// The expected values below are finite; if the mask ever regresses to -inf this row becomes NaN and
+// the comparison fails.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_fully_masked_row_is_finite) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -0.026000f, -0.055600f, 0.520900f,  -0.628400f, 0.372700f,  -0.855500f, -0.102900f, -0.117300f, 0.564100f,
+        -0.006300f, -0.306600f, 0.686800f,  0.805500f,  -0.344600f, 0.346000f,  -0.224100f, 0.081200f,  0.128600f,
+        -0.637700f, 0.032000f,  -0.530900f, -0.494700f, -0.228900f, -0.992100f, -0.738200f, 0.115900f,  0.322100f,
+        0.426100f,  -0.232000f, 0.348600f,  0.783900f,  0.589300f,  -0.692000f, -0.873700f, 0.201400f,  0.622200f,
+        -0.011900f, 0.476300f,  0.122500f,  0.112000f,  0.148300f,  0.110400f,  -0.211700f, 0.922800f,  0.460100f,
+        -0.279000f, -0.142600f, -0.520600f, 0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f,
+        -0.590400f, 0.382300f,  -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f,  -0.196300f,
+        -0.203200f, -0.192900f, 0.500500f,  -0.223800f, -0.058000f, 0.584500f,  0.257800f,  -0.128900f, 0.142500f,
+        -0.702300f, -0.754500f, 0.217200f,  1.377500f,  1.005400f,  1.259900f,  0.285200f,  -0.263300f, 0.534100f,
+        -0.597300f, -1.429800f, 0.212100f,  0.516800f,  0.352600f,  0.775100f,  0.382700f,  0.173200f,  -0.526900f,
+        -0.064700f, -0.590700f, -0.184400f, 0.951400f,  0.105100f,  0.188400f,  -0.347000f, 1.301400f,  -0.991600f,
+        -0.463400f, 0.472900f,  -0.375300f, -0.397100f, 0.254200f,  0.374200f,  0.341300f,  -0.428100f, 0.376600f,
+        -0.604900f, -0.458800f, -0.498400f, 0.163800f,  -0.176100f, -0.475900f, 0.015700f,  -0.511700f, -0.252400f,
+        -0.156000f, -0.283900f, -0.503100f, -0.624000f, 0.549300f,  -1.033800f, 0.148900f,  -0.402500f, -0.353900f,
+        -0.891500f, -0.015300f};
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};  // only 1 valid position => query row 1 is fully masked
+    std::vector<int> total_sequence_length = {2};
+    std::vector<float> cos_cache = {0.809800f,
+                                    0.337700f,
+                                    0.195600f,
+                                    0.342000f,
+                                    0.672800f,
+                                    0.283100f,
+                                    0.265700f,
+                                    0.881100f,
+                                    0.539100f,
+                                    0.743800f,
+                                    0.897800f,
+                                    0.274000f,
+                                    0.533400f,
+                                    0.133200f,
+                                    0.961900f,
+                                    0.812500f};
+    std::vector<float> sin_cache = {0.651400f,
+                                    0.202300f,
+                                    0.970800f,
+                                    0.035500f,
+                                    0.423200f,
+                                    0.944400f,
+                                    0.319200f,
+                                    0.776900f,
+                                    0.975100f,
+                                    0.701900f,
+                                    0.302500f,
+                                    0.968700f,
+                                    0.395700f,
+                                    0.951300f,
+                                    0.129400f,
+                                    0.937100f};
+
+    std::vector<float> expected_output = {
+        0.032050f,  -0.594800f, -0.075450f, -0.069000f, 0.013850f,  0.065450f, -0.437150f, -0.060400f,
+        -0.345600f, 0.605800f,  -0.586000f, 0.494350f,  -0.097450f, 0.009950f, -0.543900f, -0.109250f,
+        0.032050f,  -0.594800f, -0.075450f, -0.069000f, 0.013850f,  0.065450f, -0.437150f, -0.060400f,
+        -0.345600f, 0.605800f,  -0.586000f, 0.494350f,  -0.097450f, 0.009950f, -0.543900f, -0.109250f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f, -0.196300f, -0.203200f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 2, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-3f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_fp16) {
     // Load the existing GQA rotary model and change float inputs to float16
     // to verify that neg_one constant type matches input element type in GQA decomposition
