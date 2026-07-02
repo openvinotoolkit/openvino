@@ -147,10 +147,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
 {
     const uint b = (uint)get_global_id(2);
     const uint gid1 = (uint)get_global_id(1);
-    const uint f_grp = gid1 * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
     const uint sglid = get_sub_group_local_id();
-    const uint blockid = gid1 % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
     const bool valid_block = gid1 < TOTAL_BLOCK_NUM;
+    const uint safe_gid1 = min(gid1, (uint)(TOTAL_BLOCK_NUM - 1));
+    const uint f_grp = safe_gid1 * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
+    const uint blockid = safe_gid1 % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
@@ -178,21 +179,17 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half grp_min = ACT_MIN_VAL;
     half max_value = 0.0h;
     half min_value = 0.0h;
-    if (valid_block) {
-        val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
-    }
+    // Unconditional load: safe_gid1 guarantees the address is always within bounds.
+    val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
 
 #if ASYMMETRIC_QUANTIZATION
-    if (valid_block) {
         unroll_for (int j = 0; j < VEC_SIZE; j++) {
             max_value = fmax(max_value, val[j]);
             min_value = fmin(min_value, val[j]);
         }
         grp_max = fmax(grp_max, max_value);
         grp_min = fmin(grp_min, min_value);
-    }
 #else
-    if (valid_block) {
         abs_val = fabs(val);
 
         unroll_for (int j = 0; j < VEC_SIZE; j++) {
@@ -200,7 +197,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
         }
 
         grp_max = fmax(grp_max, max_value);
-    }
 #endif
 
     max_value = sub_group_reduce_max(grp_max);
@@ -244,22 +240,16 @@ KERNEL(dynamic_quantize_gpu_opt)(
     int precomputed_reduction = 0;
 
 #if IS_F8
-    if (valid_block) {
-        val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
-        VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
-    }
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
+    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
-    if (valid_block) {
-        val *= scale;
-        val += zp;
-        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
-    }
+    val *= scale;
+    val += zp;
+    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #else // i8 symmetric
-    if (valid_block) {
-        val *= scale;
-        VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
-    }
+    val *= scale;
+    VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
