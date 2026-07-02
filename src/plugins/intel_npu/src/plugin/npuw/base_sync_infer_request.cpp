@@ -181,7 +181,7 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
 
 void ov::npuw::IBaseInferRequest::propagate_params_to_subrequests() {
     for (std::size_t idx = 0; idx < m_subrequests.size(); ++idx) {
-        if (valid_subrequest(idx) && m_subrequests[idx]) {
+        if (m_subrequests[idx]) {
             bind_global_params(idx, m_subrequests[idx]);
         }
     }

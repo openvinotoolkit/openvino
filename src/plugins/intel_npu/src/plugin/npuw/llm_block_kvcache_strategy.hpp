@@ -21,6 +21,15 @@ namespace npuw {
 
 class LLMInferRequest;  // forward declaration — avoids circular include
 
+/// @brief Pre-classified kind for a KV block input port, computed once and cached in
+/// ClassifiedPortsMap to avoid repeated string operations on every scan.
+enum class BlockParamKind {
+    KeyBlock,    ///< numbered key block   (key_block_N)
+    ValueBlock,  ///< numbered value block (value_block_N)
+    TailBlock,   ///< block_tail port — use isPastKeyParam() to distinguish key vs value
+    Skip,        ///< not a block KV param (contiguous KV or unrelated port)
+};
+
 /// @brief Pair of key/value block managers for one transformer layer.
 struct LayerBlockManagers {
     std::unique_ptr<KVCacheBlockManager> key_manager;
@@ -58,6 +67,12 @@ struct BlockBindingHelper {
     }
 };
 
+/// @brief Pre-computed binding helpers for one transformer layer (key + value).
+struct LayerBlockBindingHelpers {
+    BlockBindingHelper key_helper;
+    BlockBindingHelper value_helper;
+};
+
 /**
  * @brief KV cache strategy for the block-based (paged) KV cache implementation.
  *
@@ -73,6 +88,14 @@ class LLMBlockKVCacheStrategy final : public LLMKVCacheStrategy {
 public:
     // PortsMap matches the alias used by LLMInferRequest for consistency.
     using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
+
+    // ClassifiedPortsMap embeds the pre-computed BlockParamKind for each port entry,
+    // built once at initialization to avoid re-classifying names on every scan.
+    struct ClassifiedPort {
+        ov::Output<const ov::Node> port;
+        BlockParamKind kind;
+    };
+    using ClassifiedPortsMap = std::unordered_map<std::string, ClassifiedPort>;
 
     // Dummy tensors shared across all numbered block input ports (key + value).
     struct DummyTensors {
@@ -98,12 +121,6 @@ private:
     // Private helper structs (used only during initialize())
     // -------------------------------------------------------------------------
 
-    // Pre-computed binding helpers for one layer (key + value)
-    struct LayerBlockBindingHelpers {
-        BlockBindingHelper key_helper;
-        BlockBindingHelper value_helper;
-    };
-
     // Pre-computed classification for each KV output port (e.g. "present.0.key").
     struct OutputKVInfo {
         uint32_t layer_idx;
@@ -119,10 +136,7 @@ private:
     // a valid dummy before any real block tensor is bound.
     void set_dummy_tensors_to_all_requests();
 
-    void create_block_managers_and_helpers(
-        const PortsMap& prefill_in_ports,
-        const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
-        const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports);
+    void create_block_managers_and_helpers();
 
     // -------------------------------------------------------------------------
     // Core KV copy/bind engine (shared by prefill and generate paths)
@@ -173,6 +187,11 @@ private:
     // Stored here so on_reset() can restore all ports to dummy tensors before clear_all(),
     // releasing any live shared_ptr references held by inference requests.
     DummyTensors m_dummy_tensors;
+
+    // Pre-classified input port maps built once in on_initialize().
+    // Avoids re-running classify_block_param() on every scan across the port map.
+    ClassifiedPortsMap m_prefill_classified_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, ClassifiedPortsMap> m_gen_classified_in_ports;
 
     // Whether the most recent on_prefill_chunk_begin() chose the zero-copy path.
     bool m_zero_copy_last_chunk = false;

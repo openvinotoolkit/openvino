@@ -21,75 +21,121 @@ std::string make_numbered_block_input_name(const std::string& kv_type, const std
     return "past_key_values." + layer_idx + "." + kv_type + "_block_" + std::to_string(block_idx);
 }
 
-// Construct block_tail input name: e.g. "past_key_values.5.key_block_tail"
-std::string make_block_tail_input_name(const std::string& kv_type, const std::string& layer_idx) {
-    return "past_key_values." + layer_idx + "." + kv_type + "_block_tail";
-}
-
-// Classify a port name as a numbered block KV param (non-contiguous, non-tail).
-// Returns: true  => numbered key block (key_block_N)
-//          false => numbered value block (value_block_N)
-//          nullopt => skip (not a KV param, contiguous, or tail)
-std::optional<bool> classify_numbered_block_param(const std::string& name) {
+// Classify a port name into its KV block role.
+// Returns Key/Value for numbered blocks, Tail for block_tail ports,
+// and Skip for contiguous KV params or unrelated ports.
+ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
+    using ov::npuw::BlockParamKind;
     namespace uu = ov::npuw::util;
     const bool is_key = uu::isPastKeyParam(name);
     const bool is_value = uu::isPastValueParam(name);
     if (!is_key && !is_value) {
-        return std::nullopt;
+        return ov::npuw::BlockParamKind::Skip;
     }
     if (uu::isPastKeyValuesKeyContiguous(name).has_value() || uu::isPastKeyValuesValueContiguous(name).has_value()) {
-        return std::nullopt;
+        return ov::npuw::BlockParamKind::Skip;
     }
     if (name.find("block_tail") != std::string::npos) {
-        return std::nullopt;
+        return ov::npuw::BlockParamKind::TailBlock;
     }
-    return is_key;
+    return is_key ? ov::npuw::BlockParamKind::KeyBlock : ov::npuw::BlockParamKind::ValueBlock;
 }
 
-// Set dummy tensors on all numbered block inputs in a ports map.
+// Build a ClassifiedPortsMap from a raw PortsMap, classifying each port once.
+ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap build_classified_ports_map(
+    const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& ports_map) {
+    ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap result;
+    result.reserve(ports_map.size());
+    for (const auto& [name, port] : ports_map) {
+        result.emplace(name, ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPort{port, classify_block_param(name)});
+    }
+    return result;
+}
+
+// Set dummy tensors on all numbered block inputs in a classified ports map.
 // Returns the count of block inputs that were set.
-template <typename PortMapType, typename SetTensorFn>
-size_t set_dummy_block_tensors(const PortMapType& ports_map,
+template <typename SetTensorFn>
+size_t set_dummy_block_tensors(const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& ports_map,
                                SetTensorFn&& set_tensor_fn,
                                const ov::SoPtr<ov::ITensor>& dummy_key_tensor,
                                const ov::SoPtr<ov::ITensor>& dummy_value_tensor) {
+    using ov::npuw::BlockParamKind;
     size_t block_count = 0;
-    for (const auto& [name, port] : ports_map) {
-        const auto kv_type = classify_numbered_block_param(name);
-        if (!kv_type.has_value()) {
-            continue;
+    for (const auto& [name, cp] : ports_map) {
+        if (cp.kind == BlockParamKind::Skip || cp.kind == BlockParamKind::TailBlock) {
+            continue;  // skip non-block ports and tail ports (tail is copy-filled separately)
         }
-        set_tensor_fn(port, kv_type.value() ? dummy_key_tensor : dummy_value_tensor);
+        set_tensor_fn(cp.port, cp.kind == BlockParamKind::KeyBlock ? dummy_key_tensor : dummy_value_tensor);
         block_count++;
     }
     return block_count;
 }
 
-// Pre-categorised block ports for one layer, ready for BlockBindingHelper::from_ports().
-struct LayerBlockPorts {
-    std::vector<ov::Output<const ov::Node>> numbered;  // block_0, block_1, …
-    std::optional<ov::Output<const ov::Node>> tail;    // block_tail (nullopt if absent)
-};
+// Build the complete per-layer binding helpers for one generate variant by scanning
+// its ClassifiedPortsMap once and parsing block indices directly from port names.
+std::unordered_map<uint32_t, ov::npuw::LayerBlockBindingHelpers> build_variant_layer_helpers(
+    const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified,
+    uint32_t block_size) {
+    using ov::npuw::BlockParamKind;
+    namespace uu = ov::npuw::util;
 
-// Partition block input ports for one layer into numbered (block_0, block_1, …) and tail.
-LayerBlockPorts partition_layer_block_ports(
-    const std::string& kv_type,
-    const std::string& layer_idx,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& ports_map,
-    uint32_t max_blocks) {
-    LayerBlockPorts result;
-    result.numbered.reserve(max_blocks);
-    for (uint32_t idx = 0; idx < max_blocks; ++idx) {
-        auto it = ports_map.find(make_numbered_block_input_name(kv_type, layer_idx, static_cast<size_t>(idx)));
-        if (it != ports_map.end()) {
-            result.numbered.push_back(it->second);
+    // Accumulate ports per layer, using std::map to keep numbered slots sorted by block_idx.
+    struct PerLayerKV {
+        std::map<uint32_t, ov::Output<const ov::Node>> key_numbered;  // block_idx → port
+        std::map<uint32_t, ov::Output<const ov::Node>> value_numbered;
+        std::optional<ov::Output<const ov::Node>> key_tail;
+        std::optional<ov::Output<const ov::Node>> value_tail;
+    };
+    std::unordered_map<uint32_t, PerLayerKV> per_layer;
+
+    // Matches tail ports:     past_key_values.{layer}.*  → group 1 = layer
+    // Matches numbered ports: past_key_values.{layer}.[key|value]_block_{idx}
+    //                                                  → group 1 = layer, group 2 = block index
+    static const std::regex tail_regex(R"(past_key_values\.(\d+)\.)");
+    static const std::regex numbered_regex(R"(past_key_values\.(\d+)\.[a-z]+_block_(\d+)$)");
+    for (const auto& [name, cp] : classified) {
+        if (cp.kind == BlockParamKind::Skip)
+            continue;
+
+        std::smatch match;
+        if (cp.kind == BlockParamKind::TailBlock) {
+            if (!std::regex_search(name, match, tail_regex) || match.size() <= 1)
+                continue;
+            const uint32_t layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
+            if (uu::isPastKeyParam(name))
+                per_layer[layer_idx].key_tail = cp.port;
+            else
+                per_layer[layer_idx].value_tail = cp.port;
         } else {
-            break;  // This variant has fewer blocks than max_blocks
+            if (!std::regex_search(name, match, numbered_regex) || match.size() <= 2)
+                continue;
+            const uint32_t layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
+            const uint32_t block_idx = static_cast<uint32_t>(std::stoi(match[2].str()));
+            if (cp.kind == BlockParamKind::KeyBlock)
+                per_layer[layer_idx].key_numbered[block_idx] = cp.port;
+            else
+                per_layer[layer_idx].value_numbered[block_idx] = cp.port;
         }
     }
-    auto tail_it = ports_map.find(make_block_tail_input_name(kv_type, layer_idx));
-    if (tail_it != ports_map.end()) {
-        result.tail = tail_it->second;
+
+    // Convert accumulated per-layer data into LayerBlockBindingHelpers.
+    std::unordered_map<uint32_t, ov::npuw::LayerBlockBindingHelpers> result;
+    for (auto& [layer_idx, lkv] : per_layer) {
+        ov::npuw::LayerBlockBindingHelpers helpers;
+
+        std::vector<ov::Output<const ov::Node>> key_vec;
+        key_vec.reserve(lkv.key_numbered.size());
+        for (auto& [idx, port] : lkv.key_numbered)
+            key_vec.push_back(port);
+        helpers.key_helper = ov::npuw::BlockBindingHelper::from_ports(std::move(key_vec), lkv.key_tail, block_size);
+
+        std::vector<ov::Output<const ov::Node>> val_vec;
+        val_vec.reserve(lkv.value_numbered.size());
+        for (auto& [idx, port] : lkv.value_numbered)
+            val_vec.push_back(port);
+        helpers.value_helper = ov::npuw::BlockBindingHelper::from_ports(std::move(val_vec), lkv.value_tail, block_size);
+
+        result[layer_idx] = std::move(helpers);
     }
     return result;
 }
@@ -120,23 +166,23 @@ struct BlockShapeInfo {
     bool found_value = false;
 };
 
-// Scan prefill input ports to discover the shape and element type of block tensors.
-BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports) {
+// Scan classified prefill input ports to discover the shape and element type of block tensors.
+BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified_ports) {
+    using ov::npuw::BlockParamKind;
     BlockShapeInfo shapes;
-    for (const auto& [name, port] : prefill_in_ports) {
-        const auto kv_type = classify_numbered_block_param(name);
-        if (!kv_type.has_value()) {
+    for (const auto& [name, cp] : classified_ports) {
+        if (cp.kind == BlockParamKind::Skip || cp.kind == BlockParamKind::TailBlock) {
             continue;
         }
-        const bool is_key = kv_type.value();
+        const bool is_key = cp.kind == BlockParamKind::KeyBlock;
         if (!shapes.found_key && is_key) {
-            shapes.key_shape = port.get_shape();
-            shapes.elem_type = port.get_element_type();
+            shapes.key_shape = cp.port.get_shape();
+            shapes.elem_type = cp.port.get_element_type();
             shapes.found_key = true;
             LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
         }
         if (!shapes.found_value && !is_key) {
-            shapes.value_shape = port.get_shape();
+            shapes.value_shape = cp.port.get_shape();
             shapes.found_value = true;
             LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
         }
@@ -149,10 +195,10 @@ BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::PortsM
 
 // Set dummy tensors on all numbered block input ports of a single inference request.
 size_t set_dummy_tensors_to_request(const std::shared_ptr<ov::IAsyncInferRequest>& request,
-                                    const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& ports_map,
+                                    const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified_ports,
                                     const ov::npuw::LLMBlockKVCacheStrategy::DummyTensors& dummies) {
     return set_dummy_block_tensors(
-        ports_map,
+        classified_ports,
         [&request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
             request->set_tensor(port, tensor);
         },
@@ -175,7 +221,14 @@ void LLMBlockKVCacheStrategy::on_initialize() {
     const auto& prefill_in_ports = m_req.m_prefill_in_ports;
     const auto& prefill_out_ports = m_req.m_prefill_out_ports;
 
-    auto block_shapes = find_block_shapes(prefill_in_ports);
+    // Pre-classify all port names once — reused by find_block_shapes,
+    // set_dummy_block_tensors, and the phase-1 layer scan.
+    m_prefill_classified_in_ports = build_classified_ports_map(prefill_in_ports);
+    for (const auto& [request, ports] : m_req.m_generate_variant_in_ports) {
+        m_gen_classified_in_ports.emplace(request, build_classified_ports_map(ports));
+    }
+
+    auto block_shapes = find_block_shapes(m_prefill_classified_in_ports);
     if (block_shapes.found_key) {
         // Dummy tensor optimization: share one dummy tensor per shape across all block inputs.
         // Store in m_dummy_tensors so on_reset() can restore ports to release block tensor refs.
@@ -198,7 +251,7 @@ void LLMBlockKVCacheStrategy::on_initialize() {
     }
 
     // Create block managers and pre-compute per-variant binding helpers
-    create_block_managers_and_helpers(prefill_in_ports, m_req.m_generate_requests, m_req.m_generate_variant_in_ports);
+    create_block_managers_and_helpers();
 
     // Snapshot original prefill output tensors (for restore_prefill_output_buffers()) and
     // build m_output_kv_info (output_name → layer/kv) to avoid per-call regex.
@@ -220,13 +273,13 @@ void LLMBlockKVCacheStrategy::on_initialize() {
 
 void LLMBlockKVCacheStrategy::set_dummy_tensors_to_all_requests() {
     size_t prefill_count =
-        set_dummy_tensors_to_request(m_req.m_prefill_request, m_req.m_prefill_in_ports, m_dummy_tensors);
+        set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
     LOG_INFO("Set " << prefill_count << " prefill numbered block inputs to shared dummy tensors");
 
     size_t gen_count = 0;
     for (const auto& generate_request : m_req.m_generate_requests) {
         gen_count += set_dummy_tensors_to_request(generate_request,
-                                                  m_req.m_generate_variant_in_ports.at(generate_request),
+                                                  m_gen_classified_in_ports.at(generate_request),
                                                   m_dummy_tensors);
     }
     LOG_INFO("Set " << gen_count << " generate numbered block inputs to shared dummy tensors");
@@ -255,17 +308,21 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
     // re-bound to live block tensors.  Other variants remain on dummy tensors from
     // on_initialize() and need no action.
     {
-        set_dummy_tensors_to_request(m_req.m_prefill_request, m_req.m_prefill_in_ports, m_dummy_tensors);
+        set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
         set_dummy_tensors_to_request(m_req.m_kvcache_request,
-                                     m_req.m_generate_variant_in_ports.at(m_req.m_kvcache_request),
+                                     m_gen_classified_in_ports.at(m_req.m_kvcache_request),
                                      m_dummy_tensors);
     }
 
     // ── Step 3: propagate dummies into sub-requests ──────────────────────────────────
-    // Sub-requests hold their own SoPtr to block tensors and only refresh them at the
-    // next infer() call.  Push the dummies set above into the current variant's
-    // sub-requests so device memory is freed immediately.  Other variants were never
-    // bound to live block tensors, so they do not need propagation.
+    // set_tensor() on the outer (LLM-level) request updates the tensor stored at that
+    // level, but NPUW sub-requests each hold an independent SoPtr to block tensors and
+    // only pick up new tensors via bind_global_params() at the start of their next
+    // infer() call.  If this variant is not selected in the next conversation, infer()
+    // may never run again, leaving sub-requests with live refs that prevent release()
+    // from actually freeing device memory.  Propagating the dummies now drops those
+    // refs immediately.  Other variants were never bound to live block tensors, so they
+    // do not need propagation.
     {
         auto it =
             std::find(m_req.m_generate_requests.begin(), m_req.m_generate_requests.end(), m_req.m_kvcache_request);
@@ -761,10 +818,7 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 // Private: initialization helpers
 // ============================================================================
 
-void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
-    const PortsMap& prefill_in_ports,
-    const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
-    const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports) {
+void LLMBlockKVCacheStrategy::create_block_managers_and_helpers() {
     const auto& compiled_model = m_req.m_npuw_llm_compiled_model;
     const uint32_t block_size = static_cast<uint32_t>(compiled_model->m_prefill_chunk_size);
     m_block_size = block_size;
@@ -785,10 +839,10 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
     std::map<uint32_t, LayerKVPresence> layer_presence;
 
     static const std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
-    for (const auto& [name, port] : prefill_in_ports) {
+    for (const auto& [name, cp] : m_prefill_classified_in_ports) {
         namespace uu = ov::npuw::util;
-        if (!uu::isPastKeyParam(name) && !uu::isPastValueParam(name)) {
-            continue;
+        if (cp.kind == ov::npuw::BlockParamKind::Skip) {
+            continue;  // non-KV or contiguous param
         }
         std::smatch match;
         if (!std::regex_search(name, match, layer_regex) || match.size() <= 1) {
@@ -797,15 +851,13 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         const uint32_t layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
         auto& presence = layer_presence[layer_idx];
 
-        const bool is_tail = name.find("block_tail") != std::string::npos;
-        const bool is_key = uu::isPastKeyParam(name);
-        if (is_tail) {
-            if (is_key)
+        if (cp.kind == ov::npuw::BlockParamKind::TailBlock) {
+            if (uu::isPastKeyParam(name))
                 presence.has_key_tail_block = true;
             else
                 presence.has_value_tail_block = true;
-        } else if (classify_numbered_block_param(name).has_value()) {
-            if (is_key)
+        } else {  // KeyBlock or ValueBlock
+            if (cp.kind == ov::npuw::BlockParamKind::KeyBlock)
                 presence.has_key_numbered_block = true;
             else
                 presence.has_value_numbered_block = true;
@@ -841,12 +893,12 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         if (presence.has_key_numbered_block) {
             // Invariant B: numbered blocks must start at block_0
             const std::string key_block0_name = make_numbered_block_input_name("key", layer_idx_str, 0);
-            OPENVINO_ASSERT(prefill_in_ports.count(key_block0_name),
+            OPENVINO_ASSERT(m_prefill_classified_in_ports.count(key_block0_name),
                             "NPUW block KV cache: layer ",
                             layer_idx,
                             " has key blocks but no key_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
-            auto first_key_port = prefill_in_ports.at(key_block0_name);
+            auto first_key_port = m_prefill_classified_in_ports.at(key_block0_name).port;
             layer_managers.key_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                max_blocks,
                                                                                first_key_port.get_shape(),
@@ -856,12 +908,12 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         }
         if (presence.has_value_numbered_block) {
             const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str, 0);
-            OPENVINO_ASSERT(prefill_in_ports.count(value_block0_name),
+            OPENVINO_ASSERT(m_prefill_classified_in_ports.count(value_block0_name),
                             "NPUW block KV cache: layer ",
                             layer_idx,
                             " has value blocks but no value_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
-            auto first_value_port = prefill_in_ports.at(value_block0_name);
+            auto first_value_port = m_prefill_classified_in_ports.at(value_block0_name).port;
             layer_managers.value_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                  max_blocks,
                                                                                  first_value_port.get_shape(),
@@ -871,30 +923,12 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         }
 
         m_kv_cache_block_managers[layer_idx] = std::move(layer_managers);
-        const auto& layer_managers_ref = m_kv_cache_block_managers.at(layer_idx);
+    }
 
-        for (const auto& generate_request : generate_requests) {
-            const auto& variant_in_ports = gen_variant_in_ports.at(generate_request);
-            auto& variant_layer_helpers = m_variant_block_binding_helpers[generate_request];
-            LayerBlockBindingHelpers layer_helpers;
-
-            if (layer_managers_ref.key_manager) {
-                uint32_t max_blocks_key = layer_managers_ref.key_manager->get_max_blocks();
-                auto key_ports = partition_layer_block_ports("key", layer_idx_str, variant_in_ports, max_blocks_key);
-                layer_helpers.key_helper = BlockBindingHelper::from_ports(std::move(key_ports.numbered),
-                                                                          std::move(key_ports.tail),
-                                                                          block_size);
-            }
-            if (layer_managers_ref.value_manager) {
-                uint32_t max_blocks_value = layer_managers_ref.value_manager->get_max_blocks();
-                auto value_ports =
-                    partition_layer_block_ports("value", layer_idx_str, variant_in_ports, max_blocks_value);
-                layer_helpers.value_helper = BlockBindingHelper::from_ports(std::move(value_ports.numbered),
-                                                                            std::move(value_ports.tail),
-                                                                            block_size);
-            }
-            variant_layer_helpers[layer_idx] = std::move(layer_helpers);
-        }
+    // Build binding helpers for every generate variant in one scan per variant
+    // (no per-layer index enumeration).
+    for (const auto& [generate_request, classified] : m_gen_classified_in_ports) {
+        m_variant_block_binding_helpers[generate_request] = build_variant_layer_helpers(classified, block_size);
     }
 }
 
