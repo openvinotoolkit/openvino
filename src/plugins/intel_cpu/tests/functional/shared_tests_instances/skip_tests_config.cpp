@@ -656,6 +656,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_IT=\([^)]*f16[^)]*\).*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_OT=\([^)]*f16[^)]*\).*)"));
         }
+        if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+            patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
+        }
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (!ov::with_cpu_x86_avx2()) {
