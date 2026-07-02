@@ -30,9 +30,6 @@ KERNEL (mvn_gpu_bfyx_opt)(
         ++iters_num;
 
     float my_sum = 0;
-#if NORMALIZE_VARIANCE == 1
-    float my_sum_squared = 0;
-#   endif
     float tmp;
 
     //each WI reads items_num consecutive items from batch*feature, accumulating sum(x) and sum(x²)
@@ -40,15 +37,9 @@ KERNEL (mvn_gpu_bfyx_opt)(
     {
         tmp = (float)input[my_data_offset + i * workers_per_data_set];
         my_sum += tmp;
-#if     NORMALIZE_VARIANCE == 1
-        my_sum_squared += tmp * tmp;
-#       endif
     }
 
     my_sum = work_group_reduce_add(my_sum);
-#if NORMALIZE_VARIANCE == 1
-    my_sum_squared = work_group_reduce_add(my_sum_squared);
-#   endif
 
     float mean = my_sum / data_set_size;
 
@@ -68,13 +59,25 @@ KERNEL (mvn_gpu_bfyx_opt)(
     float my_variance;
     if (in_data_set_idx == 0)
     {
-        float mean_of_squares = my_sum_squared / data_set_size;
-        my_variance = mean_of_squares - mean * mean;
+    // Use Welford's algorithm to avoid catastrophic cancellation in variance.
+    float welford_mean = 0.0f;
+    float welford_m2 = 0.0f;
+
+    for (uint j = 0; j < data_set_size; ++j) {
+        const float x = (float)input[data_set_offset + j];
+        const float delta = x - welford_mean;
+        welford_mean += delta / (float)(j + 1);
+        const float delta2 = x - welford_mean;
+        welford_m2 += delta * delta2;
+    }
+
+    float variance = welford_m2 / (float)data_set_size;
+    variance = fmax(variance, 0.0f);
 
 #   if defined EPS_OUTSIDE_SQRT
-        my_variance = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
+    my_variance = native_powr(native_sqrt(variance) + (float)EPSILON, -1.f);
 #   elif defined EPS_INSIDE_SQRT
-        my_variance = native_powr(my_variance + (float)EPSILON, -0.5f);
+    my_variance = native_powr(variance + (float)EPSILON, -0.5f);
 #   endif
     }
 
