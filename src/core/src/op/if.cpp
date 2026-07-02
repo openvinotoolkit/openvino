@@ -27,10 +27,20 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     auto then_rank = then_pshape.rank();
     auto else_rank = else_pshape.rank();
 
-    // if rangs of shapes are not equal or rang of one of them is dynamic function
-    // return shape with dynamic rank
-    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
+    // If both ranks are dynamic, return a fully dynamic shape.
+    // If exactly one rank is static, prefer the static rank with fully dynamic dimensions:
+    // this preserves rank information when one branch could not be shape-inferred with the
+    // inputs propagated from the parent scope (e.g. an 8 kHz branch evaluated with 16 kHz
+    // shapes). ONNX semantics require both branches to produce compatible shapes at runtime,
+    // so the static rank is the authoritative one.
+    if (then_rank.is_dynamic() && else_rank.is_dynamic()) {
         return ov::PartialShape::dynamic();
+    }
+    if (then_rank.is_dynamic()) {
+        return ov::PartialShape::dynamic(else_rank.get_length());
+    }
+    if (else_rank.is_dynamic()) {
+        return ov::PartialShape::dynamic(then_rank.get_length());
     }
     if (then_rank.get_length() != else_rank.get_length()) {
         auto is_one_element = [](const ov::PartialShape& pshape) {
@@ -123,9 +133,22 @@ void ov::op::v8::If::validate_and_infer_types() {
         }
     } else  // condition is non constant
     {
-        // If cond is non const, shape and type inference is run for both bodies
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        // If cond is non const, shape and type inference is run for both bodies.
+        // Some frontends may build branch graphs while tensor ranks are still dynamic and revalidation
+        // with more specific parent shapes can fail for an otherwise valid runtime path. In that case,
+        // keep the If node convertible by falling back to dynamic output shapes.
+        bool then_body_valid = true;
+        bool else_body_valid = true;
+        try {
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        } catch (const ov::Exception&) {
+            then_body_valid = false;
+        }
+        try {
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        } catch (const ov::Exception&) {
+            else_body_valid = false;
+        }
         auto output_nodes = outputs();
 
         // Getting map<output_index_from_if, output_description>. This map guarantees that each
@@ -156,19 +179,32 @@ void ov::op::v8::If::validate_and_infer_types() {
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
-            element::Type merged_type;
-            NODE_VALIDATION_CHECK(this,
-                                  element::Type::merge(merged_type,
-                                                       then_node_result.get_element_type(),
-                                                       else_node_result.get_element_type()),
-                                  "type of then_body output ",
-                                  then_node_result.get_element_type(),
-                                  " is not equal type of else_body output",
-                                  else_node_result.get_element_type());
+            const auto& then_type = then_node_result.get_element_type();
+            const auto& else_type = else_node_result.get_element_type();
+            element::Type merged_type = element::dynamic;
+            const auto types_merged = element::Type::merge(merged_type, then_type, else_type);
+            if (!types_merged) {
+                NODE_VALIDATION_CHECK(this,
+                                      !then_body_valid || !else_body_valid,
+                                      "type of then_body output ",
+                                      then_type,
+                                      " is not equal type of else_body output",
+                                      else_type);
+                if (then_body_valid && !else_body_valid) {
+                    merged_type = then_type;
+                } else if (!then_body_valid && else_body_valid) {
+                    merged_type = else_type;
+                }
+            }
 
-            // shape inference for output and associated with it body outputs
-            auto partial_shape =
-                resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
+            const auto& then_shape = then_node_result.get_partial_shape();
+            const auto& else_shape = else_node_result.get_partial_shape();
+            ov::PartialShape partial_shape = resolve_shape(then_shape, else_shape);
+            if (!then_body_valid && else_body_valid) {
+                partial_shape = else_shape;
+            } else if (then_body_valid && !else_body_valid) {
+                partial_shape = then_shape;
+            }
             set_output_type(output_index, merged_type, partial_shape);
         }
     }
