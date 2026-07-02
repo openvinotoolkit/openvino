@@ -294,19 +294,17 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint linear_pos = (batch * out_feature_gws + feature) * out_spatial_gws + (uint)get_global_id(2);
     const uint spatial_size = INPUT0_SIZE_W * INPUT0_SIZE_Z *INPUT0_SIZE_Y * INPUT0_SIZE_X;
     const uint b_input = linear_pos / (INPUT0_FEATURE_NUM * spatial_size);
-    const uint fzyx_pos = linear_pos % (INPUT0_FEATURE_NUM * spatial_size);
-    const uint f_input = fzyx_pos / spatial_size;
+    const uint fwzyx_pos = linear_pos % (INPUT0_FEATURE_NUM * spatial_size);
+    const uint f_input = fwzyx_pos / spatial_size;
 #ifdef INPUT0_LAYOUT_BFYX
-    
     const uint w_input = 0;
     const uint z_input = 0;
-    const uint yx_pos = fzyx_pos % spatial_size;
+    const uint yx_pos = fwzyx_pos % spatial_size;
     const uint y_input = yx_pos / INPUT0_SIZE_X;
     const uint x_input = yx_pos % INPUT0_SIZE_X;
 #elif INPUT0_LAYOUT_BFZYX
-    
     const uint w_input = 0;
-    const uint zyx_pos = fzyx_pos % spatial_size;
+    const uint zyx_pos = fwzyx_pos % spatial_size;
     const uint z_input = zyx_pos / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint yx_pos = zyx_pos % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint y_input = yx_pos / INPUT0_SIZE_X;
