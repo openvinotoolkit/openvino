@@ -198,6 +198,23 @@ def test_input_tensor_with_multiple_names(sample_language, device, pv_in_tensor_
     # if one of command line input shapes has not been captured correctly.
     verify(sample_language, device, shape=data_shape, model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
 
+
+@pytest.mark.skipif('CPU' not in get_devices(), reason='requires CPU plugin')
+@pytest.mark.parametrize('sample_language', ['C++'])
+def test_beam_idx_random_values_stay_in_range(sample_language, cache, tmp_path):
+    '''
+    Regression test for benchmark_app random filling of integer inputs named beam_idx.
+
+    The model uses beam_idx as Gather indices, so out-of-range values would fail during inference.
+    '''
+    beam_idx = opset.parameter([2, 2], ov.Type.i32, name='beam_idx')
+    table = opset.constant(np.array([[10, 20], [30, 40]], dtype=np.int32), dtype=ov.Type.i32, name='beam_idx_table')
+    gathered = opset.gather_elements(table, beam_idx, 0)
+    result = opset.result(gathered, name='output')
+    model = ov.Model([result], [beam_idx], 'model_with_beam_idx_gather')
+
+    verify(sample_language, 'CPU', model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 @pytest.mark.parametrize('in_node_name, in_tensor_names, out_node_name, out_tensor_names', [

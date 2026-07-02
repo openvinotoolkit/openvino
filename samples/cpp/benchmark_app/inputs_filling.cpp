@@ -5,6 +5,7 @@
 #include "inputs_filling.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <memory>
@@ -22,6 +23,33 @@ using uniformDistribution = typename std::conditional<
     std::is_floating_point<T>::value,
     std::uniform_real_distribution<T>,
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
+
+static std::string normalize_input_name(std::string input_name) {
+    // Keep only the last path segment to avoid matching namespace prefixes.
+    const auto slash_pos = input_name.find_last_of("/\\");
+    if (slash_pos != std::string::npos) {
+        input_name = input_name.substr(slash_pos + 1);
+    }
+
+    auto is_all_digits = [](const std::string& suffix) {
+        return !suffix.empty() && std::all_of(suffix.begin(), suffix.end(), [](unsigned char c) {
+            return std::isdigit(c) != 0;
+        });
+    };
+
+    // Strip common port/index suffixes like ":0" or ".1".
+    const auto colon_pos = input_name.rfind(':');
+    if (colon_pos != std::string::npos && is_all_digits(input_name.substr(colon_pos + 1))) {
+        input_name = input_name.substr(0, colon_pos);
+    }
+
+    const auto dot_pos = input_name.rfind('.');
+    if (dot_pos != std::string::npos && is_all_digits(input_name.substr(dot_pos + 1))) {
+        input_name = input_name.substr(0, dot_pos);
+    }
+
+    return input_name;
+}
 
 template <typename T>
 ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
@@ -260,6 +288,77 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     }
 
     return tensor;
+}
+
+template <typename T>
+ov::Tensor create_tensor_constant(const benchmark_app::InputInfo& inputInfo, T value) {
+    const size_t tensor_size = ov::shape_size(inputInfo.dataShape);
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    if (tensor_size == 0) {
+        return tensor;
+    }
+    auto data = tensor.data<T>();
+
+    std::fill_n(data, tensor_size, value);
+
+    return tensor;
+}
+
+template <typename T>
+ov::Tensor create_tensor_position_ids(const benchmark_app::InputInfo& inputInfo) {
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
+
+    if (inputInfo.dataShape.empty()) {
+        data[0] = static_cast<T>(0);
+        return tensor;
+    }
+
+    const size_t sequence_length = inputInfo.dataShape.back();
+    const size_t tensor_size = ov::shape_size(inputInfo.dataShape);
+    for (size_t index = 0; index < tensor_size; ++index) {
+        data[index] = static_cast<T>(index % sequence_length);
+    }
+
+    return tensor;
+}
+
+template <typename T>
+ov::Tensor create_tensor_beam_idx(const benchmark_app::InputInfo& inputInfo) {
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
+
+    if (inputInfo.dataShape.empty()) {
+        data[0] = static_cast<T>(0);
+        return tensor;
+    }
+
+    const size_t tensor_size = ov::shape_size(inputInfo.dataShape);
+    const size_t batch = std::max<size_t>(1, inputInfo.dataShape[0]);
+    for (size_t index = 0; index < tensor_size; ++index) {
+        data[index] = static_cast<T>(index % batch);
+    }
+
+    return tensor;
+}
+
+template <typename T>
+bool try_get_special_random_tensor(const benchmark_app::InputInfo& inputInfo,
+                                   const std::string& normalized_input_name,
+                                   ov::Tensor& special_tensor) {
+    if (normalized_input_name == "beam_idx") {
+        special_tensor = create_tensor_beam_idx<T>(inputInfo);
+        return true;
+    }
+    if (normalized_input_name == "attention_mask") {
+        special_tensor = create_tensor_constant<T>(inputInfo, static_cast<T>(1));
+        return true;
+    }
+    if (normalized_input_name == "position_ids") {
+        special_tensor = create_tensor_position_ids<T>(inputInfo);
+        return true;
+    }
+    return false;
 }
 
 ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
@@ -579,7 +678,9 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
 }
 
 ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+    const auto normalized_input_name = normalize_input_name(inputInfo.first);
     auto type = inputInfo.second.type;
+    ov::Tensor special_tensor;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
     } else if (type == ov::element::f64) {
@@ -589,13 +690,27 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::bf16) {
         return create_tensor_random<ov::bfloat16, float>(inputInfo.second);
     } else if (type == ov::element::i32) {
+        if (try_get_special_random_tensor<int32_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
+        }
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
+        if (try_get_special_random_tensor<int64_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
+        }
         return create_tensor_random<int64_t, int64_t>(inputInfo.second);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+    } else if (type == ov::element::u8) {
+        if (try_get_special_random_tensor<uint8_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
+        }
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
+    } else if (type == ov::element::boolean) {
+        if (try_get_special_random_tensor<uint8_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
+        }
+        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
@@ -606,8 +721,6 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {
         return create_tensor_random<int16_t, int16_t>(inputInfo.second);
-    } else if (type == ov::element::boolean) {
-        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else if (type == ov::element::u4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::i4) {
