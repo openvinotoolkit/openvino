@@ -9,7 +9,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstring>
+#include <future>
+#include <mutex>
 #include <thread>
 #include <tuple>
 
@@ -55,6 +58,35 @@ inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_
         const auto raw_len = (size == auto_size) ? available : std::min(size, available);
         return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
     }
+}
+
+/**
+ * @brief Plan computed by @ref make_prefetch_plan, shared between the sync and async
+ * hint_prefetch() implementations.
+ */
+struct PrefetchPlan {
+    uintptr_t m_address = 0;
+    size_t m_aligned_size = 0;
+};
+
+/**
+ * @brief Computes the aligned region and page-aligned size to use for a
+ * hint_prefetch()/hint_prefetch_async() call.
+ *
+ * @param data         The base address of the mapped memory region.
+ * @param mapping_size The size of the mapped memory region.
+ * @param offset       Offset within the mapping where prefetching starts.
+ * @param size         Number of bytes to prefetch.
+ * @return PrefetchPlan with m_aligned_size == 0 when the requested region is below the
+ * 4 MiB threshold (a real population pass would not be worth it).
+ */
+inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    constexpr size_t one_mb = 1024 * 1024;
+    // Below 4 MiB the overhead of populating pages exceeds the benefit; skip.
+    if (const auto region = make_madvise_region(data, mapping_size, offset, size); region.m_length > 4 * one_mb) {
+        return {region.m_address, align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()))};
+    }
+    return {};
 }
 }  // namespace util
 
@@ -103,6 +135,38 @@ class MapHolder final : public MappedMemory {
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
+    // Tasks handed off via PrefetchToken::detach(): must be waited on before unmapping, see
+    // wait_for_pending_prefetch() / ~MapHolder().
+    std::mutex m_pending_prefetch_mutex;
+    std::vector<std::future<void>> m_pending_prefetch;
+
+    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        // Opportunistically reap already-finished futures (non-blocking check via wait_for(0))
+        // so the vector doesn't grow without bound if hint_prefetch_async().detach() is called
+        // repeatedly over the lifetime of this mapping.
+        m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                m_pending_prefetch.end(),
+                                                [](std::future<void>& task) {
+                                                    return !task.valid() ||
+                                                           task.wait_for(std::chrono::seconds(0)) ==
+                                                               std::future_status::ready;
+                                                }),
+                                 m_pending_prefetch.end());
+        m_pending_prefetch.insert(m_pending_prefetch.end(),
+                                  std::make_move_iterator(tasks.begin()),
+                                  std::make_move_iterator(tasks.end()));
+    }
+
+    void wait_for_pending_prefetch() noexcept {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        for (auto& task : m_pending_prefetch) {
+            if (task.valid()) {
+                task.wait();
+            }
+        }
+        m_pending_prefetch.clear();
+    }
 
 public:
     MapHolder() = default;
@@ -150,6 +214,9 @@ public:
     }
 
     ~MapHolder() {
+        // Detached prefetch tasks (see hint_prefetch_async()) may still be touching this
+        // mapping's pages; they must complete before the mapping is torn down.
+        wait_for_pending_prefetch();
         if (m_mapped_view != MAP_FAILED) {
             munmap(m_mapped_view, m_mapped_view_size);
         }
@@ -172,13 +239,22 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        constexpr size_t one_mb = 1024 * 1024;
-        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
-            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
-            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
+            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size, /*fast=*/false);
         }
+    }
+
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) override {
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
+            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size);
+            // Allow token.detach() to hand the still-running tasks off to this object, so that
+            // they are guaranteed to complete before ~MapHolder() unmaps the memory.
+            token.set_detach_sink([this](std::vector<std::future<void>>&& tasks) {
+                adopt_pending_prefetch(std::move(tasks));
+            });
+            return token;
+        }
+        return {};
     }
 };
 

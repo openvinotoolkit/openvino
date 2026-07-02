@@ -11,11 +11,13 @@
 #include <iostream>
 #include <numeric>
 #include <sstream>
+#include <utility>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 namespace ov::test {
+
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
     std::filesystem::path file1 = utils::generateTestFilePrefix() + "_file1";
@@ -518,6 +520,209 @@ TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
     mapped->hint_prefetch(prefetch_offset, prefetch_size);
     const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
     EXPECT_EQ(pages_after, pages_before) << "hint_prefetch evicted pages.";
+}
+
+class HintPrefetchAsyncTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+
+    void TearDown() override {
+        std::filesystem::remove(m_file_path);
+    }
+
+    static std::vector<uint8_t> read_mapped(MappedMemory& mm) {
+        return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    }
+
+    static std::vector<uint8_t> make_pattern(size_t size) {
+        std::vector<uint8_t> data(size);
+        for (size_t i = 0; i < size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
+        return data;
+    }
+
+    void write_file(const std::vector<uint8_t>& data) {
+        std::ofstream f(m_file_path, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
+    }
+};
+
+TEST_F(HintPrefetchAsyncTest, pages_resident_after_wait) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_wait.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t total_pages = (file_size + page - 1) / page;
+
+    auto token = mapped->hint_prefetch_async();
+    EXPECT_TRUE(static_cast<bool>(token));
+
+    token.wait();
+    EXPECT_FALSE(static_cast<bool>(token));  // wait() releases ownership of the joined threads
+
+    const size_t pages_resident = utils::count_resident_pages(mapped->data(), file_size);
+    EXPECT_EQ(pages_resident, total_pages) << "Expected all pages resident after token.wait().";
+}
+
+TEST_F(HintPrefetchAsyncTest, pages_resident_after_token_destruction) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_destroy.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t total_pages = (file_size + page - 1) / page;
+
+    {
+        auto token = mapped->hint_prefetch_async();
+        EXPECT_TRUE(static_cast<bool>(token));
+    }  // token destructor joins the worker threads here
+
+    const size_t pages_resident = utils::count_resident_pages(mapped->data(), file_size);
+    EXPECT_EQ(pages_resident, total_pages) << "Expected all pages resident after token destruction.";
+}
+
+TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_partial.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB
+    constexpr size_t prefetch_offset = 1 * 1024 * 1024;
+    constexpr size_t prefetch_size = 5 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t region_pages = (prefetch_size + page - 1) / page;
+
+    auto token = mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
+    EXPECT_TRUE(static_cast<bool>(token));
+    token.wait();
+
+    const size_t pages_resident = utils::count_resident_pages(mapped->data() + prefetch_offset, prefetch_size);
+    EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
+
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, below_threshold_returns_empty_token) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_small.bin");
+    constexpr size_t file_size = 1024;  // 1 KiB - below the 4 MiB threshold
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto token = mapped->hint_prefetch_async();
+    EXPECT_FALSE(static_cast<bool>(token));
+    EXPECT_FALSE(token.valid());
+
+    EXPECT_NO_THROW(token.wait());  // no-op on an empty token
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, data_correct_while_token_alive) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_alive.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto token = mapped->hint_prefetch_async();
+    // The mapping is always readable/correct regardless of prefetch completion; background
+    // threads only accelerate residency.
+    EXPECT_EQ(read_mapped(*mapped), data);
+    token.wait();
+}
+
+TEST_F(HintPrefetchAsyncTest, move_transfers_ownership) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_move.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto token = mapped->hint_prefetch_async();
+    ASSERT_TRUE(static_cast<bool>(token));
+
+    util::PrefetchToken moved(std::move(token));
+    EXPECT_FALSE(static_cast<bool>(token));  // moved-from token is empty
+    EXPECT_TRUE(static_cast<bool>(moved));   // ownership transferred to the new token
+
+    util::PrefetchToken move_assigned;
+    move_assigned = std::move(moved);
+    EXPECT_FALSE(static_cast<bool>(moved));         // moved-from token is empty again
+    EXPECT_TRUE(static_cast<bool>(move_assigned));  // ownership transferred via move-assignment
+
+    move_assigned.wait();
+    EXPECT_FALSE(static_cast<bool>(move_assigned));
+
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, detach_hands_off_join_to_mapped_object) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_detach.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto token = mapped->hint_prefetch_async();
+    ASSERT_TRUE(static_cast<bool>(token));
+
+    token.detach();
+    EXPECT_FALSE(static_cast<bool>(token));  // detach() always empties the token itself
+
+    // The mapped object internally adopted the still-running tasks (via the detach sink
+    // registered in hint_prefetch_async()) and must join them in its own destructor before
+    // unmapping. Destroying it here must not crash / use-after-free, and data must still be
+    // correct up until destruction.
+    EXPECT_EQ(read_mapped(*mapped), data);
+    mapped.reset();
+}
+
+TEST_F(HintPrefetchAsyncTest, detach_without_sink_is_fire_and_forget) {
+    // Use a page-aligned buffer that is intentionally never freed for the lifetime of the
+    // process, so that a detach() with no registered sink (which releases the background
+    // tasks without waiting on them, like std::thread::detach()) cannot cause a real
+    // use-after-free, regardless of when the tasks actually finish running.
+    const auto page = static_cast<size_t>(util::get_system_page_size());
+    const size_t buf_size = util::align_size_down(8 * 1024 * 1024, page);
+    static void* leaked_buffer = util::aligned_alloc(buf_size, page);
+    ASSERT_NE(leaked_buffer, nullptr);
+
+    auto token = util::vm_prefetch_async(leaked_buffer, buf_size);
+    ASSERT_TRUE(static_cast<bool>(token));
+
+    // No sink was registered (this token was created directly via vm_prefetch_async, not via
+    // MappedMemory::hint_prefetch_async()), so detach() is a bare fire-and-forget release.
+    EXPECT_NO_THROW(token.detach());
+    EXPECT_FALSE(static_cast<bool>(token));
 }
 
 }  // namespace ov::test

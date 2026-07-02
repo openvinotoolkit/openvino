@@ -16,6 +16,7 @@
 #include <string>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
@@ -48,7 +49,30 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
+
+    /**
+     * @brief Asynchronous variant of @ref hint_prefetch.
+     *
+     * Starts populating the given region of the mapping in background threads and returns
+     * immediately with a @ref util::PrefetchToken that must be used to wait for completion
+     * (explicitly via wait(), or implicitly by letting the token go out of scope).
+     *
+     * The default implementation is a no-op that returns an empty token, so existing
+     * implementers of this interface keep compiling/behaving unchanged unless they override it.
+     *
+     * @note The caller must keep this MappedMemory instance alive until the returned token has
+     * completed (via wait() or destruction); the token does not extend the mapping's lifetime.
+     *
+     * @param offset Offset within the mapping where prefetching starts.
+     * @param size   Number of bytes to prefetch. Defaults to the rest of the
+     *               mapping when set to auto_size.
+     * @return A @ref util::PrefetchToken owning any spawned worker threads (empty by default).
+     */
+    virtual util::PrefetchToken hint_prefetch_async(size_t offset = 0, size_t size = auto_size) {
+        return {};
+    }
 };
+
 
 /**
  * @brief Returns mapped memory for a file from provided path.
