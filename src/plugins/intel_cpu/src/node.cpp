@@ -813,7 +813,7 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
-                context->getCpuParallel()->activateForExecution();
+                context->getCpuParallel()->activate();
                 prepareParams();
             }
         }
