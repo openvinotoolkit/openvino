@@ -16,6 +16,7 @@
 #include "transformations/smart_reshape/proposal_scales_stridedslice.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/smart_reshape/reshape_to_1D.hpp"
+#include "transformations/smart_reshape/restore_reshape_baked_batch.hpp"
 #include "transformations/smart_reshape/shape_of_const_folding.hpp"
 #include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
@@ -35,6 +36,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     static_manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     static_manager.register_pass<ov::pass::LSTMStatesBroadcast>();
     static_manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
+    static_manager.register_pass<ov::pass::RestoreReshapeBakedBatch>();
     static_manager.run_passes(f);
 
     ov::pass::Manager dynamic_manager("SmartReshape:dynamic");
