@@ -97,6 +97,12 @@ size_t jit_add_emitter::get_inputs_count() const {
 void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == dnnl::impl::cpu::aarch64::sve_128) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_128>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == dnnl::impl::cpu::aarch64::sve_256) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_256>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == dnnl::impl::cpu::aarch64::sve_512) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_512>(in_vec_idxs, out_vec_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }

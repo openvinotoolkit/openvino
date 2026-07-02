@@ -132,6 +132,8 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* ho
 void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_idxs, out_idxs);
+    } else if (dnnl::impl::cpu::aarch64::is_superset(host_isa_, dnnl::impl::cpu::aarch64::sve_128)) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_128>(in_idxs, out_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported isa.");
     }
@@ -145,27 +147,37 @@ void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std:
     auto dst_s = SReg(out_idxs[0]);
     auto dst_d = DReg(out_idxs[0]);
 
-    switch (load_num_) {
-    case 0:
-        break;
-    case 1:
-        load_with_offset_check(h, dst_s, src, byte_offset_);
-        break;
-    case 2:
-        load_with_offset_check(h, dst_d, src, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        load_with_offset_check(h, dst_d, src, byte_offset_);
-        h->add_imm(prc, src, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
-        h->ld1(dst.s[2], ptr(prc));
-        break;
-    }
-    case 4:
-        load_with_offset_check(h, QReg(out_idxs[0]), src, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+    // For SVE with VL <= 128, partial loads use ASIMD-compatible scalar/partial instructions.
+    // Full vector loads (load_num_ == 4 for f32) use SVE when available.
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128) && load_num_ == 4) {
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, src, byte_offset_, h->X_TMP_0);
+            src = h->X_DEFAULT_ADDR;
+        }
+        h->ld1w(ZRegS(out_idxs[0]), h->P_ALL_ONE, ptr(src));
+    } else {
+        switch (load_num_) {
+        case 0:
+            break;
+        case 1:
+            load_with_offset_check(h, dst_s, src, byte_offset_);
+            break;
+        case 2:
+            load_with_offset_check(h, dst_d, src, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            load_with_offset_check(h, dst_d, src, byte_offset_);
+            h->add_imm(prc, src, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
+            h->ld1(VReg(out_idxs[0]).s[2], ptr(prc));
+            break;
+        }
+        case 4:
+            load_with_offset_check(h, QReg(out_idxs[0]), src, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+        }
     }
 }
 
@@ -178,27 +190,39 @@ void jit_load_emitter::load_dbyte(const std::vector<size_t>& in_idxs, const std:
     auto dst_s = SReg(out_idxs[0]);
     auto dst_d = DReg(out_idxs[0]);
 
-    switch (load_num_) {
-    case 0:
-        break;
-    case 1:
-        load_with_offset_check(h, dst_h, src, byte_offset_);
-        break;
-    case 2:
-        load_with_offset_check(h, dst_s, src, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        load_with_offset_check(h, dst_s, src, byte_offset_);
-        h->add_imm(prc, src, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
-        h->ld1(dst.h[2], ptr(prc));
-        break;
-    }
-    case 4:
-        load_with_offset_check(h, dst_d, src, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+    // For SVE with VL <= 128, partial loads use ASIMD-compatible scalar/partial instructions.
+    // Full vector loads use SVE when available.
+    constexpr auto full_dvec = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(uint16_t);
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128) && load_num_ == full_dvec) {
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, src, byte_offset_, h->X_TMP_0);
+            src = h->X_DEFAULT_ADDR;
+        }
+        h->ld1h(ZRegH(out_idxs[0]), h->P_ALL_ONE, ptr(src));
+    } else {
+        // ASIMD path
+        switch (load_num_) {
+        case 0:
+            break;
+        case 1:
+            load_with_offset_check(h, dst_h, src, byte_offset_);
+            break;
+        case 2:
+            load_with_offset_check(h, dst_s, src, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            load_with_offset_check(h, dst_s, src, byte_offset_);
+            h->add_imm(prc, src, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
+            h->ld1(VReg(out_idxs[0]).h[2], ptr(prc));
+            break;
+        }
+        case 4:
+            load_with_offset_check(h, dst_d, src, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+        }
     }
 }
 
@@ -211,27 +235,39 @@ void jit_load_emitter::load_byte(const std::vector<size_t>& in_idxs, const std::
     auto dst_h = HReg(out_idxs[0]);
     auto dst_s = SReg(out_idxs[0]);
 
-    switch (load_num_) {
-    case 0:
-        break;
-    case 1:
-        load_with_offset_check(h, dst_b, src, byte_offset_);
-        break;
-    case 2:
-        load_with_offset_check(h, dst_h, src, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        load_with_offset_check(h, dst_h, src, byte_offset_);
-        h->add_imm(prc, src, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
-        h->ld1(dst.b[2], ptr(prc));
-        break;
-    }
-    case 4:
-        load_with_offset_check(h, dst_s, src, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+    // For SVE with VL <= 128, partial loads use ASIMD-compatible scalar/partial instructions.
+    // Full vector loads use SVE when available.
+    constexpr auto full_bvec = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(uint8_t);
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128) && load_num_ == full_bvec) {
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, src, byte_offset_, h->X_TMP_0);
+            src = h->X_DEFAULT_ADDR;
+        }
+        h->ld1b(ZRegB(out_idxs[0]), h->P_ALL_ONE, ptr(src));
+    } else {
+        // ASIMD path
+        switch (load_num_) {
+        case 0:
+            break;
+        case 1:
+            load_with_offset_check(h, dst_b, src, byte_offset_);
+            break;
+        case 2:
+            load_with_offset_check(h, dst_h, src, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            load_with_offset_check(h, dst_h, src, byte_offset_);
+            h->add_imm(prc, src, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
+            h->ld1(VReg(out_idxs[0]).b[2], ptr(prc));
+            break;
+        }
+        case 4:
+            load_with_offset_check(h, dst_s, src, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
+        }
     }
 }
 
@@ -240,7 +276,8 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     OV_CPU_JIT_EMITTER_ASSERT(
         any_of(src_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
-    OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= 4, "Unexpected number of elements to load.");
+    constexpr auto max_load_num = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= max_load_num, "Unexpected number of elements to load.");
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const auto dst = TReg(out_idxs[0]);
@@ -262,7 +299,8 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     }
 
     if (src_prc_ != dst_prc_) {
-        jit_conversion::emit_convert_process(h, dst, dst, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
+        auto vdst = VReg(out_idxs[0]);
+        jit_conversion::emit_convert_process(h, vdst, vdst, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
     }
 }
 
@@ -299,6 +337,8 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* 
 void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_idxs, out_idxs);
+    } else if (dnnl::impl::cpu::aarch64::is_superset(host_isa_, dnnl::impl::cpu::aarch64::sve_128)) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_128>(in_idxs, out_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported isa.");
     }
@@ -313,27 +353,37 @@ void jit_store_emitter::store_qbyte(const std::vector<size_t>& in_idxs, const st
     auto src_q = QReg(in_idxs[0]);
     auto dst = XReg(out_idxs[0]);
 
-    switch (store_num_) {
-    case 0:
-        break;
-    case 1:
-        store_with_offset_check(h, src_s, dst, byte_offset_);
-        break;
-    case 2:
-        store_with_offset_check(h, src_d, dst, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        store_with_offset_check(h, src_d, dst, byte_offset_);
-        h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
-        h->st1(src.s[2], ptr(prc));
-        break;
-    }
-    case 4:
-        store_with_offset_check(h, src_q, dst, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128) && store_num_ == 4) {
+        auto eff_dst = dst;
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, dst, byte_offset_, h->X_TMP_0);
+            eff_dst = h->X_DEFAULT_ADDR;
+        }
+        h->st1w(ZRegS(in_idxs[0]), h->P_ALL_ONE, ptr(eff_dst));
+    } else {
+        // ASIMD path
+        switch (store_num_) {
+        case 0:
+            break;
+        case 1:
+            store_with_offset_check(h, src_s, dst, byte_offset_);
+            break;
+        case 2:
+            store_with_offset_check(h, src_d, dst, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            store_with_offset_check(h, src_d, dst, byte_offset_);
+            h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
+            h->st1(VReg(in_idxs[0]).s[2], ptr(prc));
+            break;
+        }
+        case 4:
+            store_with_offset_check(h, src_q, dst, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+        }
     }
 }
 
@@ -346,27 +396,42 @@ void jit_store_emitter::store_dbyte(const std::vector<size_t>& in_idxs, const st
     auto src_d = DReg(in_idxs[0]);
     auto dst = XReg(out_idxs[0]);
 
-    switch (store_num_) {
-    case 0:
-        break;
-    case 1:
-        store_with_offset_check(h, src_h, dst, byte_offset_);
-        break;
-    case 2:
-        store_with_offset_check(h, src_s, dst, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        store_with_offset_check(h, src_s, dst, byte_offset_);
-        h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
-        h->st1(src.h[2], ptr(prc));
-        break;
-    }
-    case 4:
-        store_with_offset_check(h, src_d, dst, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128)) {
+        // SVE path: full-vector or predicated half-word stores
+        if (store_num_ == 0) {
+            return;
+        }
+        auto eff_dst = dst;
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, dst, byte_offset_, h->X_TMP_0);
+            eff_dst = h->X_DEFAULT_ADDR;
+        }
+        // Full SVE vector store for half-words
+        h->st1h(ZRegH(in_idxs[0]), h->P_ALL_ONE, ptr(eff_dst));
+    } else {
+        // ASIMD path
+        switch (store_num_) {
+        case 0:
+            break;
+        case 1:
+            store_with_offset_check(h, src_h, dst, byte_offset_);
+            break;
+        case 2:
+            store_with_offset_check(h, src_s, dst, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            store_with_offset_check(h, src_s, dst, byte_offset_);
+            h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
+            h->st1(VReg(in_idxs[0]).h[2], ptr(prc));
+            break;
+        }
+        case 4:
+            store_with_offset_check(h, src_d, dst, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+        }
     }
 }
 
@@ -379,27 +444,42 @@ void jit_store_emitter::store_byte(const std::vector<size_t>& in_idxs, const std
     auto src_s = SReg(in_idxs[0]);
     auto dst = XReg(out_idxs[0]);
 
-    switch (store_num_) {
-    case 0:
-        break;
-    case 1:
-        store_with_offset_check(h, src_b, dst, byte_offset_);
-        break;
-    case 2:
-        store_with_offset_check(h, src_h, dst, byte_offset_);
-        break;
-    case 3: {
-        auto prc = XReg(aux_gpr_idxs[0]);
-        store_with_offset_check(h, src_h, dst, byte_offset_);
-        h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
-        h->st1(src.b[2], ptr(prc));
-        break;
-    }
-    case 4:
-        store_with_offset_check(h, src_s, dst, byte_offset_);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+    if (dnnl::impl::cpu::aarch64::is_superset(isa, dnnl::impl::cpu::aarch64::sve_128)) {
+        // SVE path: full-vector or predicated byte stores
+        if (store_num_ == 0) {
+            return;
+        }
+        auto eff_dst = dst;
+        if (byte_offset_ != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, dst, byte_offset_, h->X_TMP_0);
+            eff_dst = h->X_DEFAULT_ADDR;
+        }
+        // Full SVE vector store for bytes
+        h->st1b(ZRegB(in_idxs[0]), h->P_ALL_ONE, ptr(eff_dst));
+    } else {
+        // ASIMD path
+        switch (store_num_) {
+        case 0:
+            break;
+        case 1:
+            store_with_offset_check(h, src_b, dst, byte_offset_);
+            break;
+        case 2:
+            store_with_offset_check(h, src_h, dst, byte_offset_);
+            break;
+        case 3: {
+            auto prc = XReg(aux_gpr_idxs[0]);
+            store_with_offset_check(h, src_h, dst, byte_offset_);
+            h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
+            h->st1(VReg(in_idxs[0]).b[2], ptr(prc));
+            break;
+        }
+        case 4:
+            store_with_offset_check(h, src_s, dst, byte_offset_);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
+        }
     }
 }
 
@@ -408,14 +488,15 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
     OV_CPU_JIT_EMITTER_ASSERT(
         any_of(dst_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
-    OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= 4, "Unexpected number of elements to store.");
+    constexpr auto max_store_num = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= max_store_num, "Unexpected number of elements to store.");
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto data_idxs = in_idxs;
     if (src_prc_ != dst_prc_) {
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "Store conversion requires an auxiliary vector register.");
-        const auto src = TReg(in_idxs[0]);
-        const auto converted = TReg(aux_vec_idxs[0]);
+        const auto src = VReg(in_idxs[0]);
+        const auto converted = VReg(aux_vec_idxs[0]);
         jit_conversion::emit_convert_process(h,
                                              src,
                                              converted,
