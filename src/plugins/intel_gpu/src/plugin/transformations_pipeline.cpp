@@ -138,6 +138,7 @@
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/topk_renormalize_to_softmax_after_topk_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
@@ -593,6 +594,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }();
 
         const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
+
+        // Canonicalizes routing into the TopK -> Softmax form expected by the MOE fusions below
+        manager.register_pass<ov::pass::TopkRenormalizeToSoftmaxAfterTopkFusion>();
 
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
