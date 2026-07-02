@@ -337,3 +337,32 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::
     activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
 }));
+
+TEST_F(ActivationFusingTest, reorder_activation_i16) {
+    // This tests CVS-188408: Ensure int16 Reorder -> Abs activation compiles cleanly
+    // Prior to fix, this would fail with CL_BUILD_PROGRAM_FAILURE due to "fabs" macro ambiguity.
+    auto& engine = get_test_engine();
+    ov::PartialShape input_shape = { 1, 4, 1, 1 };
+    layout in_layout{ input_shape, data_types::f32, format::bfyx };
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), format::bfyx, data_types::i16),
+        activation("abs", input_info("reorder"), activation_func::abs),
+        reorder("reorder_out", input_info("abs"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, { -5.0f, 10.0f, -15.0f, 20.0f });
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    auto out_mem = outputs.at("reorder_out").get_memory();
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    std::vector<float> expected_output = { 5.0f, 10.0f, 15.0f, 20.0f };
+    for (size_t i = 0; i < expected_output.size(); ++i) { EXPECT_EQ(out_ptr[i], expected_output[i]); }
+}
