@@ -30,7 +30,7 @@ function(ov_model_convert SRC DST OUT)
         set(model_source_dir "${SRC}/${rel_dir}")
 
         if(ext STREQUAL ".prototxt")
-            # convert model
+            # convert model (only reached when onnx_FOUND, due to glob guard above)
             set(rel_out_name "${name_we}.onnx")
             if(rel_dir)
                 set(rel_out_name "${rel_dir}/${rel_out_name}")
