@@ -96,10 +96,12 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
         source /etc/os-release
         if [[ "$ID" == "fedora" ]]; then
             yum install -y fedora-repos
-        else
+        elif [[ "$ID" == "centos" ]]; then
             yum install -y centos-release-scl
             # CentOS 7 is EOL and throws an error for centos-sclo-sclo
             yum-config-manager --save --setopt=centos-sclo-sclo.skip_if_unavailable=true
+            yum install -y epel-release
+        else
             yum install -y epel-release
         fi
         yum install -y \
@@ -110,13 +112,18 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
     else
         yum install -y epol-release
     fi
+    MAJOR_VERSION=${VERSION_ID%%.*}
+    if [[ ( "$ID" == "rhel" || "$ID" == "rocky" ) && "$MAJOR_VERSION" -ge 10 ]]; then
+        yum config-manager --set-enabled crb
+        yum install -y cmake python3-scons python3-rpm
+    else
+        yum install -y cmake3 scons rpm-python
+    fi
     yum install -y \
         file \
         `# build tools` \
-        cmake3 \
         ccache \
         ninja-build \
-        scons \
         gcc \
         gcc-c++ \
         make \
@@ -138,9 +145,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
         opencl-headers \
         `# python API` \
         python3-pip \
-        python3-devel \
-        `# rpmlint dependency` \
-        rpm-python
+        python3-devel
 elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper refresh
     zypper install -y \
