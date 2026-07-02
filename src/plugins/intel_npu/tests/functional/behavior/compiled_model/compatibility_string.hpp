@@ -275,6 +275,7 @@ TEST_P(ClassCompatibilityStringTestSuite, TESTING_CompatibilityCheck_BehaviorByD
         std::cout << "unknown driver\n";
         GTEST_FAIL();
     }
+}
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
     // Forcing CIP as the current compiler type
