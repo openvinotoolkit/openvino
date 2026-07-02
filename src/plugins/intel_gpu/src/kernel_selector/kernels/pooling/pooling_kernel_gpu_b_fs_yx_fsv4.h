@@ -11,7 +11,7 @@ namespace kernel_selector {
 class PoolingKerneGPU_b_fs_yx_fsv4 : public PoolingKernelBase {
 public:
     PoolingKerneGPU_b_fs_yx_fsv4() : PoolingKernelBase("pooling_gpu_b_fs_yx_fsv4") {}
-    virtual ~PoolingKerneGPU_b_fs_yx_fsv4() {}
+    ~PoolingKerneGPU_b_fs_yx_fsv4() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -98,7 +98,7 @@ struct reorder_weights_params : public Params {
 class ReorderKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ReorderKernelBase() {}
+    ~ReorderKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 

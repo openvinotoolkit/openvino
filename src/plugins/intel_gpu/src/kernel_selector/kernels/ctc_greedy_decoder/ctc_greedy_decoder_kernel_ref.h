@@ -13,7 +13,7 @@ class CTCGreedyDecoderKernelRef : public CTCGreedyDecoderKernelBase {
 public:
     using Parent = CTCGreedyDecoderKernelBase;
     CTCGreedyDecoderKernelRef() : CTCGreedyDecoderKernelBase("ctc_greedy_decoder_ref") {}
-    virtual ~CTCGreedyDecoderKernelRef() {}
+    ~CTCGreedyDecoderKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

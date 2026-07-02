@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ArgMaxMinKernelOpt : public ArgMaxMinKernelBase {
 public:
     ArgMaxMinKernelOpt() : ArgMaxMinKernelBase("arg_max_min_opt") {}
-    virtual ~ArgMaxMinKernelOpt() {}
+    ~ArgMaxMinKernelOpt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

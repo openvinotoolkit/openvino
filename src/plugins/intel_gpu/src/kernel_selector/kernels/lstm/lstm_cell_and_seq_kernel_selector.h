@@ -16,7 +16,7 @@ public:
 
     lstm_cell_and_seq_kernel_selector();
 
-    virtual ~lstm_cell_and_seq_kernel_selector() {}
+    ~lstm_cell_and_seq_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

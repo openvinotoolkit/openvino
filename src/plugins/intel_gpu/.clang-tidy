@@ -1,0 +1,20 @@
+---
+# Intel GPU plugin clang-tidy configuration.
+#
+# Checks are rolled out incrementally: each new diagnostic is enabled in its
+# own pull request. Add new checks to the 'Checks' list below; 'WarningsAsErrors'
+# is intentionally '*' so any enabled check is enforced without further edits.
+
+Checks: >
+  -*,
+  modernize-use-override
+# Treat every enabled check as an error so they are enforced during the build.
+# Scope is controlled via 'Checks' above; matches the CPU plugin configuration.
+WarningsAsErrors: '*'
+# Use clang-format for applied fixes.
+FormatStyle: file
+HeaderFilterRegex: "src/plugins/intel_gpu/(include|src|tests)/.*\\.(h|hpp)$"
+CheckOptions:
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+---

@@ -11,7 +11,7 @@ class RMSKernelBfyxOpt : public RMSKernelBase {
 public:
     using Parent = RMSKernelBase;
     RMSKernelBfyxOpt() : RMSKernelBase("rms_gpu_bfyx_opt") {}
-    virtual ~RMSKernelBfyxOpt() {}
+    ~RMSKernelBfyxOpt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

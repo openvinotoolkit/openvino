@@ -102,4 +102,6 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

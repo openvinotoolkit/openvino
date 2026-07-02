@@ -41,7 +41,7 @@ struct batch_to_space_fuse_params : fuse_params {
 class BatchToSpaceKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~BatchToSpaceKernelBase() {}
+    ~BatchToSpaceKernelBase() override {}
 
     struct DispatchData : public CommonDispatchData {};
 

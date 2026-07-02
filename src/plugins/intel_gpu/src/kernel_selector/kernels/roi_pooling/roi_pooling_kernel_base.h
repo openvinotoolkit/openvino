@@ -43,7 +43,7 @@ struct roi_pooling_params : public base_params {
 class ROIPoolingKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ROIPoolingKernelBase() {}
+    ~ROIPoolingKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 

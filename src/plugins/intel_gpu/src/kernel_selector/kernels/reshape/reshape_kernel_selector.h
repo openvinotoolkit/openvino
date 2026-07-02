@@ -16,7 +16,7 @@ public:
 
     reshape_kernel_selector();
 
-    virtual ~reshape_kernel_selector() {}
+    ~reshape_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -15,7 +15,7 @@ namespace kernel_selector {
 class EltwiseKernel_fs_b_yx_fsv32 : public EltwiseKernelBase {
 public:
     EltwiseKernel_fs_b_yx_fsv32() : EltwiseKernelBase("eltwise_fs_b_yx_fsv32") {}
-    virtual ~EltwiseKernel_fs_b_yx_fsv32() {}
+    ~EltwiseKernel_fs_b_yx_fsv32() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

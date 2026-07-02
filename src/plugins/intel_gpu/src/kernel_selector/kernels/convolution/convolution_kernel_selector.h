@@ -16,7 +16,7 @@ public:
 
     convolution_kernel_selector();
 
-    virtual ~convolution_kernel_selector() {}
+    ~convolution_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

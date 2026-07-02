@@ -655,7 +655,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    virtual ~base_params() {}
+    ~base_params() override {}
 
     enum class ArgType {
         Input,

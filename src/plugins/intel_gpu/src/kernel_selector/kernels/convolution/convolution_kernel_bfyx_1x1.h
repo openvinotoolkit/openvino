@@ -14,7 +14,7 @@ public:
     using Parent = ConvolutionKernelBase;
 
     ConvolutionKernel_bfyx_1x1() : ConvolutionKernelBase("convolution_gpu_bfyx_1x1") {}
-    virtual ~ConvolutionKernel_bfyx_1x1() {}
+    ~ConvolutionKernel_bfyx_1x1() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -13,7 +13,7 @@ public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_bfyx_depthwise_weights_lwg()
         : ConvolutionKernelBase("convolution_gpu_bfyx_depthwise_weights_lwg") {}
-    virtual ~ConvolutionKernel_bfyx_depthwise_weights_lwg() {}
+    ~ConvolutionKernel_bfyx_depthwise_weights_lwg() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
