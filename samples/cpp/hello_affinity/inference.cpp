@@ -347,7 +347,7 @@ double run_inference(ov::CompiledModel& compiled_model,
         const auto warmup_start_time = Time::now();
         infer_request.infer();
         const auto warmup_time_ms = get_duration_ms(warmup_start_time);
-        slog::info << "First inference took " << warmup_time_ms << " ms" << slog::endl;
+        slog::info << "First inference took " << format_duration_ms(warmup_time_ms) << " ms" << slog::endl;
     } else {
         slog::info << "Skipping warm-up inference due to -no_warmup flag" << slog::endl;
     }

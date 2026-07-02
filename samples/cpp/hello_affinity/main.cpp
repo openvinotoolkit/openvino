@@ -555,7 +555,7 @@ int tmain(int argc, tchar* argv[]) {
         const auto compile_time_ms = get_duration_ms(compile_start_time);
 
         slog::info << "Model compiled successfully" << slog::endl;
-        slog::info << "Compile model took " << compile_time_ms << " ms" << slog::endl;
+        slog::info << "Compile model took " << format_duration_ms(compile_time_ms) << " ms" << slog::endl;
         print_runtime_parameters(compiled_model);
 
         for (const auto& output : compiled_model.outputs()) {

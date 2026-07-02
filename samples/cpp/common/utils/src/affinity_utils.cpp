@@ -23,6 +23,8 @@
 
 namespace {
 
+constexpr size_t k_max_unmapped_ops_to_print = 50;
+
 bool has_json_extension(const std::string& value) {
     static constexpr std::string_view json_extension = ".json";
     if (value.size() < json_extension.size()) {
@@ -40,11 +42,9 @@ bool has_json_extension(const std::string& value) {
 }
 
 std::string format_unmapped_ops_message(size_t count, const std::string& names) {
-    static constexpr size_t max_names_to_print = 50;
-
     std::ostringstream stream;
     stream << "Unmapped ops count: " << count;
-    if (count != 0 && count <= max_names_to_print) {
+    if (count != 0 && count <= k_max_unmapped_ops_to_print) {
         stream << ": " << names;
     }
 
@@ -188,7 +188,7 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
             node->get_rt_info()["affinity"] = fallback_device;
             fallback_count++;
         } else {
-            if (unmapped_ops_count < 50) {
+            if (unmapped_ops_count < k_max_unmapped_ops_to_print) {
                 if (unmapped_ops_count != 0) {
                     unmapped_ops_oss << ", ";
                 }
