@@ -94,3 +94,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 # Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
+# Install custom cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh

@@ -35,3 +35,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Install custom cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh
