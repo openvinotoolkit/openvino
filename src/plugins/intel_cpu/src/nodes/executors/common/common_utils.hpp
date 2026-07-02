@@ -74,11 +74,6 @@ inline void multiplyAndBroadcastScales(std::vector<float>& dstScales,
     }
 }
 
-// Fold an integer FakeQuantize output shift (with unit output scale) into the input shift. For a signed i8 dst the
-// requantization FakeQuantize is typically round(x * inScale + 128) - 128, i.e. inShift ~= +128 and outShift == -128;
-// folding yields the true per-tensor output offset (~0) used as the ACL requantization offset. Without this fold the
-// offset is wrong whenever inShift drifts just below 128 (getDstQuantizationInfo()'s >=128 normalization does not see
-// outShift), which corrupts the requantized result. Shared by the ACL int8 Convolution and FullyConnected executors.
 inline void foldFakeQuantizeOutputShift(std::vector<float>& fqInputShift,
                                         const std::vector<float>& fqOutputScale,
                                         const std::vector<float>& fqOutputShift) {

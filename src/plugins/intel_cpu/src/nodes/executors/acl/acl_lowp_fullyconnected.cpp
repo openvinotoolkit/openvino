@@ -85,13 +85,9 @@ static void initFCAttrs(const FCAttrs& attrs,
 ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
                                                              const MemoryArgs& memory,
                                                              const ExecutorContext::CPtr& context) {
-    // The (possibly per-channel) dequantization scale folded from the post-FC dequantization Multiply is provided via
-    // FCAttrs::dqScales (GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales), mirroring ConvAttrs::dqScales.
     dequantizationScales = attrs.dqScales;
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo);
 
-    // Capture a fused per-tensor FakeQuantize requantization for the quantized dst path. The output scale/shift are
-    // applied as the GEMMLowp output stage built in validateTensorsInfo(); see acl_conv.cpp for the conv analogue.
     hasQuantizedDst = any_of(memory.at(ARG_DST)->getPrecision(), ov::element::i8, ov::element::u8);
     if (hasQuantizedDst && !attrs.postOps.empty()) {
         if (const auto* const fq = std::any_cast<const FakeQuantizePostOp>(attrs.postOps.data())) {
@@ -110,14 +106,10 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
            UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
-    // f32 dst keeps the dequantized-output path (no output stage). i8/u8 dst fuses a per-tensor FakeQuantize
-    // requantization into a GEMMLowp output stage. NEGEMMLowpMatrixMultiplyCore couples a quantized dst with an
-    // S32 bias (float dst requires F32 bias), so the bias precision is verified together with the dst type.
     VERIFY(any_of(dstType(config), ov::element::f32, ov::element::i8, ov::element::u8), UNSUPPORTED_DST_PRECISIONS);
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
     const bool isQuantizedDst = any_of(dstType(config), ov::element::i8, ov::element::u8);
     if (isQuantizedDst) {
-        // The output stage requires a fused per-tensor FakeQuantize to derive the requantization multiplier.
         const bool hasFakeQuantize = !config.attrs.postOps.empty() &&
                                      std::any_cast<const FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
         VERIFY(hasFakeQuantize, UNSUPPORTED_TYPE_OF_POSTOPS);
@@ -135,10 +127,6 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
-    // The fused dequantization scales are applied as the weights QuantizationInfo, mirroring the ACL conv path
-    // (acl_conv.cpp): the activation QuantizationInfo stays trivial and the (possibly per-channel) requantization
-    // lives on the weights. calculate_quantized_multipliers() then produces
-    // multiplier_i = src_scale(1.0) * wei_scale[i] / dst_scale.
     const auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));
 
@@ -147,16 +135,8 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
                                                    ? arm_compute::QuantizationInfo(1.F)
                                                    : arm_compute::QuantizationInfo(dequantizationScales));
 
-    // Quantized dst path: derive the destination quantization from the fused per-tensor FakeQuantize and build a
-    // GEMMLowp output stage so NEGEMMLowpMatrixMultiplyCore requantizes int32 accumulators back to i8/u8 in-kernel.
-    // NEGEMMLowpMatrixMultiplyCore couples this with an S32 bias (verified in supports()); the float dst path keeps
-    // the default NONE output stage. The requantization multiplier follows ACL's own conv pipeline
-    // (CpuGemmConv2d -> calculate_quantized_multipliers): multiplier = src_scale * wei_scale / dst_scale.
     const auto& tensor_info_dst = aclMemoryInfos[ACLArgs::ACL_DST];
     if (hasQuantizedDst) {
-        // hasQuantizedDst (set in the ctor from the i8/u8 OV dst precision) always implies an ACL
-        // QASYMM8/QASYMM8_SIGNED dst, since initTensorInfo() maps S8/U8 to QASYMM8_SIGNED/QASYMM8 via
-        // convertToQuantizedType().
         const bool quantizedDst =
             any_of(tensor_info_dst->data_type(), arm_compute::DataType::QASYMM8, arm_compute::DataType::QASYMM8_SIGNED);
         OPENVINO_ASSERT(quantizedDst, "ACLLowpFullyConnectedExecutor: quantized dst expected for the output stage");
@@ -173,12 +153,6 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
         outputStage.gemmlowp_offset = oqinfo.offset;
         outputStage.gemmlowp_min_bound = type_min;
         outputStage.gemmlowp_max_bound = type_max;
-        // The FakeQuantize requantization (dst scale/shift) is always per-tensor here (gated by
-        // isPerTensorFakeQuantize() in checkPostOps()), but the weights quantization may be per-channel when the
-        // fused dequantization scale is a vector. calculate_quantized_multipliers() keys the per-channel multiplier
-        // path off the weights scale vector size, so the output stage must advertise it as per-channel accordingly.
-        // ACL's GEMMLowp accepts a QASYMM8_SIGNED weights tensor carrying a per-channel QuantizationInfo (the
-        // QSYMM8_PER_CHANNEL data type is not required); see CpuGemmLowpMatrixMultiplyCore::validate().
         outputStage.is_quantized_per_channel = dequantizationScales.size() > 1;
         outputStage.output_data_type = tensor_info_dst->data_type();
         const auto multipliersStatus =

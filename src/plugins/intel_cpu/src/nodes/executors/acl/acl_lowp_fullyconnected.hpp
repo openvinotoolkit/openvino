@@ -42,8 +42,6 @@ private:
     ACLFCAttrs aclfcAttrs;
     std::vector<float> dequantizationScales;
 
-    // Requantization parameters captured from a fused per-tensor FakeQuantize post op.
-    // Populated only for the quantized destination path (i8/u8 dst); empty otherwise.
     std::vector<float> fqInputScale;
     std::vector<float> fqInputShift;
     bool hasQuantizedDst = false;

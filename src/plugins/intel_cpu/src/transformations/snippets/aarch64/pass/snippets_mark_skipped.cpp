@@ -297,8 +297,6 @@ bool isACLInt8MatMulFQChainMarked(const std::shared_ptr<Node>& node) {
     if (!match_acl_int8_matmul_fq_chain(node)) {
         return false;
     }
-    // Keep the no-activation MatMul-Add-Mul-FQ requantization chain out of Subgraph tokenization so it can be
-    // fused into the int8 ACL FullyConnected executor's quantized output stage.
     snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
 
     const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));

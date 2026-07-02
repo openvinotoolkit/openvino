@@ -121,10 +121,6 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node) {
-    // Returns true if a MatMul-Add-Mul-FQ chain (the no-activation int8 requantization) will be fused into the int8
-    // ACL FullyConnected executor and handled as a quantized output stage. The chain order is the post-swap form
-    // produced by ConvertFullyConnectedBias on ARM (bias Add before dequantization Multiply), mirroring the conv
-    // ConvAddMul pattern. The ACL int8 FC executor supports only matching activation and FQ output types.
     if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) ||
         none_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
         return false;
@@ -146,9 +142,6 @@ bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node)
         return false;
     }
 
-    // The ACL int8 FC executor requantizes through a per-tensor output stage only. Per-channel requantization must
-    // stay decomposed (snippet), otherwise the kept FakeQuantize would have no executor to fuse into. The FakeQuantize
-    // input range (ports 1-2) is per-tensor when its constants hold a single element.
     const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
         const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
         return constant != nullptr && shape_size(constant->get_shape()) == 1;
