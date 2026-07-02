@@ -98,7 +98,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     case ov::intel_gpu::ContextType::ZE:
         // when ZE runtime and interoperability is available, the context is set to OCL
         OPENVINO_THROW("[GPU] OCL context is required for remote device memory. "
-            "Driver needs to support LEO to enable OCL/ZE interoperability.");
+                        "Driver needs to support LEO to enable OCL/ZE interoperability.");
         break;
     default:
         OPENVINO_THROW("[GPU] OCL context is required for remote device memory.");
