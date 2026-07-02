@@ -28,6 +28,12 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     auto output_shapes = std::vector<TRShape>{input_shapes[0]};
     auto& n_dims = output_shapes[0];
     const auto& n_dims_rank = n_dims.rank();
+    const auto& key = input_shapes[1];
+    const auto& key_rank = key.rank();
+    const auto& value = input_shapes[2];
+    const auto& value_rank = value.rank();
+    bool gqa_mode = false;
+    TRShape n_dims_sub;
     if (n_dims_rank.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
@@ -36,17 +42,36 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         l_dim = *(n_dims.end() - 2);
         e_dim = *(n_dims.end() - 1);
         n_dims.resize(n_dims.size() - 2);
+        n_dims_sub = TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1));
+        if ((key_rank.is_static() && key_rank.get_length() >= 3) && value_rank.is_static() &&
+            value_rank.get_length() >= 3) {
+            const ov::Dimension q_num_head = *(n_dims.end() - 1);
+            const ov::Dimension k_num_head = (key_rank.is_static()) ? *(key.end() - 3) : ov::Dimension(1);
+            if (q_num_head.is_static() && k_num_head.is_static()) {
+                if ((q_num_head.get_length() % k_num_head.get_length() == 0) &&
+                    (q_num_head.get_length() != k_num_head.get_length())) {
+                    gqa_mode = true;
+                }
+            }
+        }
     }
-
-    const auto& key = input_shapes[1];
-    const auto& key_rank = key.rank();
+    bool key_input_correctness = true;
     if (key_rank.is_static()) {
-        const bool& key_input_correctness =
-            key_rank.get_length() >= 3 &&
-            TRShape::broadcast_merge_into(n_dims,
-                                          TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
-                                          AutoBroadcastType::NUMPY) &&
-            DimType::merge(e_dim, e_dim, *(key.end() - 1));
+        if (gqa_mode) {
+            key_input_correctness =
+                key_rank.get_length() >= 3 &&
+                TRShape::broadcast_merge_into(n_dims_sub,
+                                              TRShape(std::vector<DimType>(key.begin(), key.end() - 3)),
+                                              AutoBroadcastType::NUMPY) &&
+                DimType::merge(e_dim, e_dim, *(key.end() - 1));
+        } else {
+            key_input_correctness =
+                key_rank.get_length() >= 3 &&
+                TRShape::broadcast_merge_into(n_dims,
+                                              TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
+                                              AutoBroadcastType::NUMPY) &&
+                DimType::merge(e_dim, e_dim, *(key.end() - 1));
+        }
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                key_input_correctness,
@@ -54,15 +79,23 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         s_dim = *(key.end() - 2);
     }
 
-    const auto& value = input_shapes[2];
-    const auto& value_rank = value.rank();
+    bool value_input_correctness = true;
     if (value_rank.is_static()) {
-        const bool& value_input_correctness =
-            value_rank.get_length() >= 3 &&
-            TRShape::broadcast_merge_into(n_dims,
-                                          TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
-                                          AutoBroadcastType::NUMPY) &&
-            DimType::merge(s_dim, s_dim, *(value.end() - 2));
+        if (gqa_mode) {
+            value_input_correctness =
+                value_rank.get_length() >= 3 &&
+                TRShape::broadcast_merge_into(n_dims_sub,
+                                              TRShape(std::vector<DimType>(value.begin(), value.end() - 3)),
+                                              AutoBroadcastType::NUMPY) &&
+                DimType::merge(s_dim, s_dim, *(value.end() - 2));
+        } else
+            value_input_correctness =
+                value_rank.get_length() >= 3 &&
+                TRShape::broadcast_merge_into(n_dims,
+                                              TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
+                                              AutoBroadcastType::NUMPY) &&
+                DimType::merge(s_dim, s_dim, *(value.end() - 2));
+
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                value_input_correctness,
