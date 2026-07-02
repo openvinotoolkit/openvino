@@ -173,6 +173,15 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
+bool has_group_convolution(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
     if (!model->has_rt_info(rt_info_path)) {
@@ -1148,6 +1157,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                                            generate_attn_hfa)
                 .run_on_model(model_variant);
         }
+    }
+
+    if (npudesc.has_value() && npudesc->compiler_dq && has_group_convolution(model)) {
+        generate_config["NPUW_ONLINE_PIPELINE"] = "NONE";
     }
 
     // Compile multiple generate model variants with different sizes
