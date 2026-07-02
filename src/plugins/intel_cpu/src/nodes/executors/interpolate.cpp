@@ -117,13 +117,15 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
     if (scale == 1.0F || (inShape == outShape)) {
         return static_cast<float>(outCoord);
     }
+
+    const double scaleDouble = static_cast<double>(outShape) / static_cast<double>(inShape);
     switch (interpAttrs.coordTransMode) {
     case InterpolateCoordTransMode::half_pixel: {
-        return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
+        return static_cast<float>((static_cast<double>(outCoord) + 0.5) / scaleDouble - 0.5);
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
         if (outShape > 1) {
-            return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
+            return static_cast<float>((static_cast<double>(outCoord) + 0.5) / scaleDouble - 0.5);
         }
         return 0;
     }
@@ -131,7 +133,7 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         return static_cast<float>(outCoord) / scale;
     }
     case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-        return (static_cast<float>(outCoord) + 0.5F) / scale;
+        return static_cast<float>((static_cast<double>(outCoord) + 0.5) / scaleDouble);
     }
     case InterpolateCoordTransMode::align_corners: {
         if (outShape > 1) {

@@ -12,6 +12,10 @@ import argparse
 import glob
 import ntpath
 import re
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "graph", "common_utils"))
+from kernels_db_gen import detect_guard_patterns
 
 class KernelLang(Enum):
     OCLC = 0
@@ -88,17 +92,22 @@ class Kernels2CHeaders(object):
         content = []
         with open(filename) as f:
             content += f.readlines()
+
+        guard_patterns = detect_guard_patterns("".join(content))
+
         for line in content:
             if '#define' in line:
                 name = line.strip().split(" ")[1].split("(")[0]
-                undefs += "#ifdef " + name + "\n"
-                undefs += "#undef " + name + "\n"
-                undefs += "#endif\n"
+                if name not in guard_patterns:
+                    undefs += "#ifdef " + name + "\n"
+                    undefs += "#undef " + name + "\n"
+                    undefs += "#endif\n"
             if '# define' in line:
                 name = line.strip().split(" ")[2].split("(")[0]
-                undefs += "#ifdef " + name + "\n"
-                undefs += "#undef " + name + "\n"
-                undefs += "#endif\n"
+                if name not in guard_patterns:
+                    undefs += "#ifdef " + name + "\n"
+                    undefs += "#undef " + name + "\n"
+                    undefs += "#endif\n"
         if filename in self.include_files:
             for include_file in self.include_files[filename]:
                 include_file_undefs = self.append_undefs(include_file)

@@ -38,6 +38,16 @@ public:
     std::shared_ptr<ov::Node> max_pos_id;
 };
 
+class LongRopev5PatternDesc : public RopePatternDesc {
+public:
+    std::shared_ptr<ov::Node> matched_short_factor;
+    std::shared_ptr<ov::Node> matched_long_factor;
+    std::shared_ptr<ov::Node> matched_cond;
+    std::shared_ptr<ov::Node> max_pos_id;
+    std::shared_ptr<ov::Node> matched_multiply_const;
+    std::shared_ptr<ov::Node> matched_power_const;
+};
+
 class RopePatternLLama2 : public RopePatternDesc {
     ov::pass::MultiMatcher matcher;
 
@@ -55,6 +65,17 @@ class LongRopePatternPhi : public LongRopePatternDesc {
 public:
     using LongRopePatternDesc::transform_cb;
     LongRopePatternPhi();
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) {
+        return matcher.run_on_model(m);
+    }
+};
+
+class LongRopePatternPhi_v5 : public LongRopev5PatternDesc {
+    ov::pass::MultiMatcher matcher;
+
+public:
+    using LongRopev5PatternDesc::transform_cb;
+    LongRopePatternPhi_v5();
     bool run_on_model(const std::shared_ptr<ov::Model>& m) {
         return matcher.run_on_model(m);
     }

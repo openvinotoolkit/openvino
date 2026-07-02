@@ -21,6 +21,22 @@ void MOECompressed::validate_and_infer_types() {
 
     set_output_type(0, output_type, get_input_partial_shape(0));
 
+    if (m_config.expert_type == Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+        NODE_VALIDATION_CHECK(this,
+                              m_config.activation_type == Activation_type::SWIGLU,
+                              "GEMM2_BIAS_SWIGLU_CLAMP expert type only supports SWIGLU activation");
+    }
+
+    // Check that routing_weights and router_topk_output_indices have the same shape
+    const auto& routing_weights_shape = get_input_partial_shape(1);
+    const auto& topk_indices_shape = get_input_partial_shape(2);
+    NODE_VALIDATION_CHECK(this,
+                          routing_weights_shape == topk_indices_shape,
+                          "routing_weights shape ",
+                          routing_weights_shape,
+                          " must be compatible with router_topk_output_indices shape ",
+                          topk_indices_shape);
+
     // Config carries a single group_size; gate/up/down must share it.
     auto check_scale = [&](size_t scale_idx, size_t K, const char* name) {
         if (scale_idx >= get_input_size())
@@ -164,28 +180,9 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("has_batch_dim", m_config.has_batch_dim);
     visitor.on_attribute("has_zp", m_config.has_zp);
     visitor.on_attribute("out_type", m_config.out_type);
-    visitor.on_attribute("routing_type", m_config.routing_type);
     if (m_config.scale_factor.has_value())
         visitor.on_attribute("scale_factor", m_config.scale_factor.value());
     return true;
 }
 
-std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type) {
-    return s << as_string(type);
-}
-
 }  // namespace ov::op::internal
-
-namespace ov {
-using RoutingType = ov::op::internal::MOECompressed::RoutingType;
-template <>
-EnumNames<RoutingType>& EnumNames<RoutingType>::get() {
-    static auto enum_names = EnumNames<RoutingType>("MOECompressed::RoutingType",
-                                                    {
-                                                        {"softmax", RoutingType::SOFTMAX},
-                                                        {"sigmoid_bias", RoutingType::SIGMOID_BIAS},
-                                                    });
-    return enum_names;
-}
-
-}  // namespace ov

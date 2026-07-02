@@ -160,7 +160,7 @@ struct non_max_suppression_basic : public testing::Test {
                                         this->pad};
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -217,7 +217,7 @@ struct non_max_suppression_basic : public testing::Test {
         };
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -304,7 +304,7 @@ struct non_max_suppression_basic : public testing::Test {
         };
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -325,7 +325,7 @@ struct non_max_suppression_basic : public testing::Test {
         auto second_output_result = second_output_net.execute();
         auto plane_scores_mem = second_output_result.at("plane_scores").get_memory();
         if (this->data_type == data_types::f32) {
-            cldnn::mem_lock<float> second_output_ptr(plane_scores_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> second_output_ptr(plane_scores_mem, get_test_stream());
 
             for (size_t i = 0; i < expected_second_out.size(); ++i) {
                 ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
@@ -423,7 +423,7 @@ struct non_max_suppression_basic : public testing::Test {
         };
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         auto selected_scores_mem = result.at("plane_scores").get_memory();
         auto valid_outputs_mem = result.at("plane_outputs").get_memory();
@@ -445,7 +445,7 @@ struct non_max_suppression_basic : public testing::Test {
         auto second_output_result = second_output_net.execute();
         auto plane_scores_mem = second_output_result.at("plane_scores").get_memory();
         if (this->data_type == data_types::f32) {
-            cldnn::mem_lock<float> second_output_ptr(plane_scores_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> second_output_ptr(plane_scores_mem, get_test_stream());
 
             for (size_t i = 0; i < expected_second_out.size(); ++i) {
                 ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
@@ -507,7 +507,7 @@ struct non_max_suppression_basic : public testing::Test {
             this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad};
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -564,7 +564,7 @@ struct non_max_suppression_basic : public testing::Test {
             this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad};
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -642,7 +642,7 @@ struct non_max_suppression_basic : public testing::Test {
         };
 
         auto out_mem0 = result.at("plane_nms0").get_memory();
-        cldnn::mem_lock<int> out0_ptr(out_mem0, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out0_ptr(out_mem0, get_test_stream());
 
         ASSERT_EQ(expected_out0.size(), out0_ptr.size());
         for (size_t i = 0; i < out0_ptr.size(); ++i) {
@@ -659,7 +659,7 @@ struct non_max_suppression_basic : public testing::Test {
                 1.0f, 0.0f, 0.5f
             };
             auto out_mem1 = result.at("plane_nms1").get_memory();
-            cldnn::mem_lock<float> out1_ptr(out_mem1, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> out1_ptr(out_mem1, get_test_stream());
 
             ASSERT_EQ(expected_out1.size(), out1_ptr.size());
             for (size_t i = 0; i < out1_ptr.size(); ++i) {
@@ -674,7 +674,7 @@ struct non_max_suppression_basic : public testing::Test {
                 1.0f, 0.0f, 0.5f
             };
             auto out_mem1 = result.at("plane_nms1").get_memory();
-            cldnn::mem_lock<ov::float16> out1_ptr(out_mem1, get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> out1_ptr(out_mem1, get_test_stream());
 
             ASSERT_EQ(expected_out1.size(), out1_ptr.size());
             for (size_t i = 0; i < out1_ptr.size(); ++i) {
@@ -686,7 +686,7 @@ struct non_max_suppression_basic : public testing::Test {
 
         // output 2
         auto out_mem2 = result.at("plane_nms2").get_memory();
-        cldnn::mem_lock<int> out2_ptr(out_mem2, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out2_ptr(out_mem2, get_test_stream());
         ASSERT_EQ(1, out2_ptr.size());
         ASSERT_EQ(5, out2_ptr[0]);
     }
@@ -744,7 +744,7 @@ struct non_max_suppression_basic : public testing::Test {
             this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad};
 
         auto out_mem = result.at("plane_nms").get_memory();
-        cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
         std::vector<int64_t> score_indices;
         score_indices.resize(36);
         std::vector<float> sel_scores(36);
@@ -934,7 +934,7 @@ public:
         net->set_input_data("scores", scores_mem);
         const auto result = net->execute();
         const auto indices_mem = result.at("nms").get_memory();
-        const cldnn::mem_lock<T_IND> indices_ptr(indices_mem, get_test_stream());
+        const cldnn::mem_lock<T_IND, mem_lock_type::read> indices_ptr(indices_mem, get_test_stream());
         const cldnn::mem_lock<T> selected_scores_ptr(selected_scores_mem, get_test_stream());
         const cldnn::mem_lock<int> valid_outputs_ptr(valid_outputs_mem, get_test_stream());
 

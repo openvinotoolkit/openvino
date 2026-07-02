@@ -161,7 +161,7 @@ StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, 
 }
 
 StringAlignedBuffer::~StringAlignedBuffer() {
-    if (m_allocated_buffer) {
+    if (m_aligned_buffer) {
         const auto first = get_ptr<std::string>();
         for_each(first, first + m_num_elements, [](std::string& s) {
             using std::string;
@@ -171,7 +171,6 @@ StringAlignedBuffer::~StringAlignedBuffer() {
 }
 
 SharedStringAlignedBuffer::SharedStringAlignedBuffer(char* ptr, size_t size) {
-    m_allocated_buffer = ptr;
     m_aligned_buffer = ptr;
     m_byte_size = size;
     m_num_elements = size / ov::element::string.size();
@@ -179,7 +178,7 @@ SharedStringAlignedBuffer::SharedStringAlignedBuffer(char* ptr, size_t size) {
 
 SharedStringAlignedBuffer::~SharedStringAlignedBuffer() {
     // to prevent deallocation in parent dtors.
-    m_allocated_buffer = nullptr;
+    m_aligned_buffer = nullptr;
 }
 
 AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::AttributeAdapter(

@@ -31,14 +31,15 @@ struct lockable_gpu_mem {
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
-    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer,
+               std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
@@ -60,6 +61,11 @@ protected:
     cl::Buffer _buffer;
 };
 
+struct gpu_buffer_from_handle : public gpu_buffer {
+    using gpu_buffer::gpu_buffer; // constructor inheritance
+    ~gpu_buffer_from_handle() override;
+};
+
 struct gpu_image2d : public lockable_gpu_mem, public memory {
     gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ocl_engine* engine, const layout& layout);
@@ -68,7 +74,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
     const cl::Image2D& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
@@ -88,7 +94,7 @@ protected:
 
 struct gpu_media_buffer : public gpu_image2d {
     gpu_media_buffer(ocl_engine* engine, const layout& new_layout, shared_mem_params params);
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
 private:
     void* device;
 #ifdef _WIN32
@@ -102,7 +108,7 @@ private:
 #ifdef _WIN32
 struct gpu_dx_buffer : public gpu_buffer {
     gpu_dx_buffer(ocl_engine* engine, const layout& new_layout, shared_mem_params VAEncMiscParameterTypeSubMbPartPel);
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
 private:
     void* device;
     void* resource;
@@ -122,7 +128,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
     event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;

@@ -675,8 +675,24 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
                                   output_layout.feature() >= required_feature_num);
     auto in_features_per_group = input_layout.feature() / conv->groups;
     auto out_features_per_group = output_layout.feature() / conv->groups;
-    if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size)
-        correct_in_feature = true;
+    if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size) {
+        // Estimate register pressure of bfyx_to_b_fs_yx_fsv16 kernel's line_cache[] array.
+        // Reject b_fs_yx_fsv16 when input_block_size > 64 to prevent CL_OUT_OF_RESOURCES
+        // on register-constrained GPUs (e.g. Xe-LPG with 128 GRFs/thread).
+        constexpr size_t default_block_width = 8;
+        constexpr size_t sg_size = 16;
+        size_t stride_x = conv->stride[conv->stride.size() - 1];
+        size_t dilation_x = conv->dilation[conv->dilation.size() - 1] + 1;
+        size_t filter_x = weights_layout.spatial(0);
+        size_t filter_y = weights_layout.spatial(1);
+        size_t input_line_size = stride_x * (default_block_width - 1) + (filter_x - 1) * dilation_x + 1;
+        if (static_cast<size_t>(input_layout.spatial(0)) < input_line_size)
+            input_line_size = static_cast<size_t>(input_layout.spatial(0));
+        size_t input_block_size = (input_line_size * filter_y + sg_size - 1) / sg_size;
+        if (input_block_size <= 64)
+            correct_in_feature = true;
+    }
+
     bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.feature());  // depthwise conv
     bool grouped = ((feature_block_size % out_features_per_group == 0) &&
                        (feature_block_size % in_features_per_group == 0) &&

@@ -178,6 +178,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 auto scale_zp_concat_kernel_impl = scale_zp_concat_kernel_selector.GetImplementation(_kernels_data[*scale_concat_stage].kernelName);
                 scale_zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*scale_concat_stage]);
             }
+
+            if (const auto zp_concat_stage = stages.try_get_index(kv_stage::zp_concat)) {
+                auto& zp_concat_kernel_selector = kernel_selector_t::Instance();
+                auto zp_concat_kernel_impl = zp_concat_kernel_selector.GetImplementation(_kernels_data[*zp_concat_stage].kernelName);
+                zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*zp_concat_stage]);
+            }
         }
     }
     void set_arguments_impl(kv_cache_inst& instance) override {}

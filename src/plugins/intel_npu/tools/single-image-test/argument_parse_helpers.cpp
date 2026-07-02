@@ -92,6 +92,18 @@ DEFINE_string(rrmse_loss_threshold, std::to_string(metric_defaults::rrmse_loss_t
         "Threshold for 'rrmse' mode. Can be a single value or per-layer: 'layer1:0.1;layer2:0.2'");
 DEFINE_string(nrmse_loss_threshold, std::to_string(metric_defaults::nrmse_loss_threshold),
         "Threshold for 'nrmse' mode. Can be a single value or per-layer: 'logits:0.03;pred_boxes:0.05'");
+DEFINE_string(nrmse_prefill_seq_len_axis, "",
+        "Optional. Per-output sequence-length axis used by the 'nrmse' mode to slice prefill LLM "
+        "outputs (KV cache / hidden state). Semicolon-separated list of 'layer:axis' pairs, e.g. "
+        "'present.0.key:2;present.0.value:3;Result_logits:1'. Combined with --nrmse_prefill_seq_len_size, "
+        "the output tensor is sliced to its last N elements along the specified axis before computing "
+        "NRMSE. If either flag is missing for a given layer, the full tensor is compared.");
+DEFINE_string(nrmse_prefill_seq_len_size, "",
+        "Optional. Per-output number of elements to keep along the sequence-length axis (= prompt "
+        "length) when computing NRMSE on prefill LLM outputs. Semicolon-separated 'layer:N' pairs, "
+        "e.g. 'present.0.key:7;present.0.value:7;Result_logits:7'. Used together with "
+        "--nrmse_prefill_seq_len_axis. If either flag is missing for a given layer, the full tensor "
+        "is compared.");
 DEFINE_string(l2norm_threshold, std::to_string(metric_defaults::l2norm_threshold),
         "Threshold for 'l2norm' mode. Can be a single value or per-layer: 'layer1:1.0;layer2:2.0'");
 DEFINE_string(overlap_threshold, std::to_string(metric_defaults::overlap_threshold),
@@ -188,6 +200,10 @@ void utils::parseCommandLine(int argc, char* argv[]) {
             std::cout << "    mAP Threshold:     " << FLAGS_map_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "nrmse")) {
             std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
+            if (!FLAGS_nrmse_prefill_seq_len_axis.empty() || !FLAGS_nrmse_prefill_seq_len_size.empty()) {
+                std::cout << "    Prefill seq-len axis: " << FLAGS_nrmse_prefill_seq_len_axis << std::endl;
+                std::cout << "    Prefill seq-len size: " << FLAGS_nrmse_prefill_seq_len_size << std::endl;
+            }
         } else if (strEq(FLAGS_mode, "l2norm")) {
             std::cout << "    Threshold:        " << FLAGS_l2norm_threshold << std::endl;
         }

@@ -15,6 +15,10 @@
  */
 
 // Counting sort: groups tokens by expert within each slot. Single-WG, sequential.
+//
+// JIT flags (default 0 for legacy OCL batched-prefill path):
+//   EXPERT_MAJOR_ORDER  — pack each expert's rows contiguously; required by dnnl grouped src/dst.
+//   EMIT_EXPERT_OFFSETS — append expert_offsets[N_ALL_EXPERTS]: cumulative exclusive end per expert.
 
 KERNEL(bgm_sort)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -25,6 +29,9 @@ KERNEL(bgm_sort)(
     global int* group_sizes,
     global int* token_map,
     global int* num_groups
+#if EMIT_EXPERT_OFFSETS
+    , global int* expert_offsets
+#endif
 ) {
     int n_tokens = N_TOKENS;
     int top_k = TOP_K;
@@ -32,8 +39,7 @@ KERNEL(bgm_sort)(
 
     int max_groups = n_all_experts * top_k;
 
-    // Phase 1 (group_sizes scratch): histogram + compact pass — superseded below; kept
-    // for behavioural parity. TODO: drop and run only the clean Pass 1-3.
+    // Phase 1 scratch pass — superseded by Pass 1-3 below; kept for behavioural parity. TODO: drop.
     for (int i = 0; i < max_groups; i++) {
         group_sizes[i] = 0;
     }
@@ -84,6 +90,26 @@ KERNEL(bgm_sort)(
     for (int i = 0; i < max_groups; i++) {
         group_sizes[i] = -1;
     }
+#if EXPERT_MAJOR_ORDER
+    for (int e = 0; e < n_all_experts; e++) {
+        for (int s = 0; s < top_k; s++) {
+            int bin = s * n_all_experts + e;
+            int count = token_map[bin];
+            if (count > 0) {
+                group_expert_ids[g] = e;
+                group_slot_ids[g] = s;
+                group_offsets[g] = offset;
+                group_sizes[bin] = g;
+                offset += count;
+                g++;
+            }
+        }
+  #if EMIT_EXPERT_OFFSETS
+        expert_offsets[e] = offset;
+  #endif
+    }
+#else
+    // Slot-major (legacy OCL batched_gemm dispatch).
     for (int s = 0; s < top_k; s++) {
         for (int e = 0; e < n_all_experts; e++) {
             int bin = s * n_all_experts + e;
@@ -98,6 +124,7 @@ KERNEL(bgm_sort)(
             }
         }
     }
+#endif
     total_groups = g;
     num_groups[0] = total_groups;
 

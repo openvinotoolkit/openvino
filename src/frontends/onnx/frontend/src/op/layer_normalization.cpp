@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -10,13 +13,17 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
 using namespace ov::op::v0;
@@ -43,12 +50,11 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
                      num_inputs == 2 || num_inputs == 3,
                      "LayerNormalization expects 2 or 3 input tensors. Got: ",
                      num_inputs);
+    const auto num_outputs = node.get_outputs_size();
     CHECK_VALID_NODE(node,
-                     node.get_outputs_size() == 1,
-                     "LayerNormalization expects 1 output tensor to be used in a model, other configurations are used "
-                     "for training and are not supported. Got: ",
-                     node.get_outputs_size(),
-                     " outputs.");
+                     num_outputs >= 1 && num_outputs <= 3,
+                     "LayerNormalization expects 1, 2 or 3 output tensors. Got: ",
+                     num_outputs);
 
     auto default_stash_type_i = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
     int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type_i);
@@ -81,36 +87,68 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     if (needs_type_casting)
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
-    ov::Output<ov::Node> normalized_shape = std::make_shared<v0::ShapeOf>(normalized);
-    ov::Output<ov::Node> sub_shape = std::make_shared<v8::Slice>(normalized_shape,
-                                                                 Constant::create(element::i64, {1}, {axis}),
-                                                                 Constant::create(element::i64, {1}, {INT_MAX}),
-                                                                 Constant::create(element::i64, {1}, {1}));
-    auto normalized_rank = normalized.get_partial_shape().rank();
-
-    auto scale = inputs.at(1);
-    auto scale_rank = scale.get_partial_shape().rank();
-    if ((scale_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
-        ((scale_rank.is_static() && normalized_rank.is_static()) &&
-         scale_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
-             static_cast<size_t>(normalized_rank.get_length()))) {
-        scale = std::make_shared<v1::Reshape>(scale, sub_shape, false);
-    }
-    auto scaled = std::make_shared<Multiply>(normalized, scale);
-
-    if (common::is_input_valid(node, 2)) {
-        auto bias = inputs.at(2);
-        auto bias_rank = bias.get_partial_shape().rank();
-        if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
-            ((bias_rank.is_static() && normalized_rank.is_static()) &&
-             bias_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
-                 static_cast<size_t>(normalized_rank.get_length()))) {
-            bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
+    // Use int32 max as the slice stop value; int64 max is not supported by all plugins (WA).
+    constexpr auto slice_stop = std::numeric_limits<std::int32_t>::max();
+    auto sub_shape = std::make_shared<v8::Slice>(std::make_shared<v0::ShapeOf>(normalized),
+                                                 Constant::create(element::i64, {1}, {axis}),
+                                                 Constant::create(element::i64, {1}, {slice_stop}),
+                                                 Constant::create(element::i64, {1}, {1}));
+    const auto normalized_rank = normalized.get_partial_shape().rank();
+    const auto reshape_to_sub_shape = [&](ov::Output<ov::Node> param) -> ov::Output<ov::Node> {
+        const auto param_rank = param.get_partial_shape().rank();
+        const bool both_dynamic = param_rank.is_dynamic() && normalized_rank.is_dynamic();
+        const bool size_mismatch = param_rank.is_static() && normalized_rank.is_static() &&
+                                   param_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+                                       static_cast<size_t>(normalized_rank.get_length());
+        if (both_dynamic || size_mismatch) {
+            return std::make_shared<v1::Reshape>(param, sub_shape, false);
         }
-        return {std::make_shared<Add>(scaled, bias)->output(0)};
-    } else {
-        return {scaled->output(0)};
+        return param;
+    };
+
+    ov::Output<ov::Node> y = std::make_shared<Multiply>(normalized, reshape_to_sub_shape(inputs.at(1)));
+    if (common::is_input_valid(node, 2)) {
+        y = std::make_shared<Add>(y, reshape_to_sub_shape(inputs.at(2)));
     }
+
+    ov::OutputVector results{y};
+    if (num_outputs == 1) {
+        return results;
+    }
+
+    // Mean and InvStdDev are emitted in stash_type. MVN doesn't expose them, so they're recomputed via the
+    // spec's reference decomposition (reduce over the same axes with keep_dims=true).
+    const auto& output_names = node.get_output_names();
+    const auto wanted = [&](size_t i) {
+        return num_outputs > i && output_names.size() > i && !output_names[i].get().empty();
+    };
+    const auto null_output = []() {
+        return std::make_shared<NullNode>()->output(0);
+    };
+
+    // Only build the reference decomposition when Mean and/or InvStdDev are actually requested, so inference-only
+    // models that keep the extra outputs but leave them empty don't get redundant ReduceMean nodes.
+    constexpr auto keep_dims = true;
+    std::shared_ptr<ov::Node> mean;
+    if (wanted(1) || wanted(2)) {
+        mean = std::make_shared<v1::ReduceMean>(data, axes, keep_dims);
+    }
+    if (num_outputs >= 2) {
+        results.push_back(wanted(1) ? mean->output(0) : null_output());
+    }
+    if (num_outputs >= 3) {
+        if (wanted(2)) {
+            auto deviation = std::make_shared<v1::Subtract>(data, mean);
+            auto variance =
+                std::make_shared<v1::ReduceMean>(std::make_shared<Multiply>(deviation, deviation), axes, keep_dims);
+            auto std_dev = std::make_shared<v0::Sqrt>(
+                std::make_shared<v1::Add>(variance, Constant::create(stash_type, {}, {epsilon})));
+            results.push_back(std::make_shared<v1::Divide>(Constant::create(stash_type, {}, {1}), std_dev)->output(0));
+        } else {
+            results.push_back(null_output());
+        }
+    }
+    return results;
 }
 
 ONNX_OP("LayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::layer_normalization);

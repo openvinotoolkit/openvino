@@ -159,9 +159,8 @@ TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
     ExecutionConfig config;
     config.finalize(ctx.get(), model.get());
 
-    // WA: 4-bit auto-detect is temporarily disabled (see execution_config.cpp).
-    // PA models default to i8 when no user override is set.
-    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
+    // 4-bit weights detected → auto-enable u4 KV-cache compression
+    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::u4);
 }
 
 TEST(execution_config, kv_cache_i4_weights_auto_detect_u4) {
@@ -172,9 +171,8 @@ TEST(execution_config, kv_cache_i4_weights_auto_detect_u4) {
     ExecutionConfig config;
     config.finalize(ctx.get(), model.get());
 
-    // WA: 4-bit auto-detect is temporarily disabled (see execution_config.cpp).
-    // PA models default to i8 when no user override is set.
-    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
+    // 4-bit weights detected → auto-enable u4 KV-cache compression
+    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::u4);
 }
 
 TEST(execution_config, kv_cache_u8_weights_no_u4) {

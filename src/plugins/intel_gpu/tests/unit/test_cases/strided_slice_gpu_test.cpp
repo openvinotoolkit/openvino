@@ -66,7 +66,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -111,7 +111,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -274,7 +274,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -321,7 +321,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -369,7 +369,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -420,7 +420,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -536,7 +536,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -578,7 +578,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -623,7 +623,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -664,7 +664,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -709,7 +709,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -751,7 +751,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -797,7 +797,7 @@ public:
                 0.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -841,7 +841,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -890,7 +890,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -931,7 +931,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -987,7 +987,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1095,7 +1095,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1225,7 +1225,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1284,7 +1284,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1344,7 +1344,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1411,7 +1411,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1558,7 +1558,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1612,7 +1612,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1666,7 +1666,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1719,7 +1719,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1772,7 +1772,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1828,7 +1828,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1879,7 +1879,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1930,7 +1930,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1981,7 +1981,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2035,7 +2035,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2090,7 +2090,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2143,7 +2143,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2200,7 +2200,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2255,7 +2255,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2310,7 +2310,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2373,7 +2373,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2430,7 +2430,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2474,7 +2474,7 @@ public:
                 0, 1, 2, 3
         };
 
-        cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -2515,7 +2515,7 @@ public:
                 0, 1, 2, 3, 4, 5, 6, 7,
         };
 
-        cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -2570,7 +2570,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {

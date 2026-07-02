@@ -49,7 +49,7 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "utils/cpu_utils.hpp"
 #endif
@@ -57,6 +57,10 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+
+#ifndef CPU_DEBUG_CAPS
+#    include <ostream>
+#endif
 
 using namespace dnnl;
 using namespace openvino;
@@ -183,7 +187,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (fp16_compression_is_disabled(op)) {
+    if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
 }
@@ -1699,11 +1703,11 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->getData(),
-                    buffer.data(),
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        cpu_parallel_convert(constBlob->getData(),
+                             buffer.data(),
+                             DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                             ov::element::f32,
+                             elementsCount);
     };
 
     const auto constPort = getParentEdgeAt(0)->getParent().get() == parentNode ? 1 : 0;

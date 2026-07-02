@@ -11,7 +11,6 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${TARGET_INCLUDE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
-
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
@@ -27,6 +26,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -37,8 +37,7 @@ endif()
 ov_build_target_faster(${TARGET_NAME} PCH)
 
 # developer package
-
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
-                                    INSTALL_INCLUDE_DIRECTORIES "${TARGET_INCLUDE_DIR}/")
+    INSTALL_INCLUDE_DIRECTORIES "${TARGET_INCLUDE_DIR}/")

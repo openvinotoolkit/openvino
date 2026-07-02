@@ -301,6 +301,11 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     set_weights_inputs();
 }
 
+std::optional<std::string_view> WeightlessGraph::get_compatibility_descriptor() const {
+    _logger.warning("Compatibility descriptor is not supported for WeightlessGraph");
+    return std::nullopt;
+}
+
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
@@ -551,19 +556,25 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
 }
 
 void WeightlessGraph::release_graphs() {
-    size_t initIndex = 0;
     if (_zeGraphExt != nullptr) {
         for (auto& initGraphDesc : _initsGraphDesc) {
-            _zeGraphExt->destroyGraph(initGraphDesc);
+            if (initGraphDesc._handle) {
+                _zeGraphExt->destroyGraph(initGraphDesc);
+            }
+        }
 
-            if (!_blobIsPersistent && _initBlobs != std::nullopt && _initBlobs->at(initIndex)) {
+        _wgLogger.debug("Init graphs are destroyed");
+    }
+
+    if (!_blobIsPersistent && _initBlobs != std::nullopt) {
+        for (size_t initIndex = 0; initIndex < _initBlobs->size(); ++initIndex) {
+            if (_initBlobs->at(initIndex)) {
                 _initBlobs->at(initIndex) = ov::Tensor();
             }
-
-            initIndex++;
         }
+
+        _wgLogger.debug("Init blobs are released");
     }
-    _wgLogger.debug("Init graphs are destroyed");
 }
 
 WeightlessGraph::~WeightlessGraph() {

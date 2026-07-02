@@ -21,6 +21,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -125,27 +126,33 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
-    auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-        return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-    };
     if (is_static_input) {
-        // Cache memory layout for static shapes:
-        // - Keys:    [0, ..., 0, past_key[0], ..., past_key[N-1], K[0], ..., K[M-1]]
-        // - Values:  [0, ..., 0, past_value[0], ..., past_value[N-1], V[0], ..., V[M-1]]
-        // Here, padding 0 are lay on front of the buffer.
-        //  M = current_seqlen, which is always 1 for the KV cache model.
-        const auto current_kv_len_const = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
-        const auto past_kv_len_const = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{1}, {past_key.get_partial_shape()[2].get_length()}));
-        past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
+        // static design for GQA (KV cache is static max length, valid KVs are left align)
+        // inputs are:
+        //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
+        //   ..., Pn, 0, 0, ...]
+        //   2. current K/V: [1, num_heads, current_kv_len, head_size], data is in the front along axis 2, [C0, C1, ...,
+        //   Ck, 0, 0, ...]
+        // Output present_key/present_value has the same shape with past_key/past_value, but with data in order [P0, P1,
+        // ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
+        //
+        // Use ScatterUpdate to scatter insert Current into Past
+        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen].
+        std::shared_ptr<ov::Node> scatter_idx =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
+        V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
     } else {
+        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
+            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
+        };
         past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
         past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        K = construct_kv_cache(past_key, K);
+        V = construct_kv_cache(past_value, V);
     }
-    K = construct_kv_cache(past_key, K);
-    V = construct_kv_cache(past_value, V);
 
     ov::Output<ov::Node> present_k = K;
     ov::Output<ov::Node> present_v = V;
@@ -187,12 +194,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         std::shared_ptr<ov::Node> vert_range =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        if (is_static_input) {
-            const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-            vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
-        } else {
-            vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
-        }
+        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
 
         const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
         const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
@@ -205,14 +207,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
         mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
-
-        if (is_static_input) {
-            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
-            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
-            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
-            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
-            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
-        }
     }
 
     std::shared_ptr<ov::Node> qga_output;

@@ -6,6 +6,7 @@
 #include "gather_matmul_inst.h"
 #include "moe_3gemm_fused_inst.h"
 #include "moe_gemm_inst.h"
+#include "impls/ocl_v2/moe/moe_3gemm_base.hpp"
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -634,17 +635,26 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
 }
 
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
+    using ov::intel_gpu::ocl::MOE3GemmInputIndex;
     auto prim = node.get_primitive();
     const auto& cfg = prim->_config;
-    // Routed-expert scales at 3/6/9 (gate/up/down); zp at +1 when has_zp.
-    constexpr std::array<size_t, 3> routed_scale_indices{3u, 6u, 9u};
+    // Routed-expert scales (gate/up/down); zp at +1 when has_zp.
+    constexpr std::array<size_t, 3> routed_scale_indices{
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_0),
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_1),
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_2),
+    };
     for (size_t idx : routed_scale_indices) {
         reorder_decompression_param_to_byfx(node, idx, p);
         if (cfg.has_zp)
             reorder_decompression_param_to_byfx(node, idx + 1, p);
     }
     if (cfg.num_shared_expert > 0) {
-        constexpr std::array<size_t, 3> shared_scale_indices{14u, 17u, 20u};
+        constexpr std::array<size_t, 3> shared_scale_indices{
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_SCALE),
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_SCALE),
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE),
+        };
         for (size_t idx : shared_scale_indices) {
             reorder_decompression_param_to_byfx(node, idx, p);
             if (cfg.has_zp)

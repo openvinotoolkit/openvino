@@ -412,6 +412,11 @@ protected:
     std::vector<IncorrectValue> incorrect_values_abs;
     double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
     size_t tensor_size;
+    // Track the coord with the largest |actual - expected| so release builds (which only
+    // print one failing coord) surface the coord that actually drives the failure —
+    // otherwise the reader sees the first-in-tensor-order fail, which may be far from worst.
+    double worst_diff = -1.0;
+    IncorrectValue worst_value{0.0, 0.0, 0.0, 0};
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
@@ -438,6 +443,10 @@ public:
         if (less_or_equal(diff, threshold)) {
             return true;
         }
+        if (diff > worst_diff) {
+            worst_diff = diff;
+            worst_value = IncorrectValue(actual, expected, threshold, coordinate);
+        }
         emplace_back(actual, expected, threshold, coordinate);
         return false;
     }
@@ -463,12 +472,22 @@ public:
             constexpr size_t max_num_to_print = 1;
 #endif
             size_t i = 0;
-            for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
-                auto val = incorrect_values_abs[i];
-                std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
-                          << " Actual: " << val.actual_value
-                          << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                          << " abs_threshold: " << val.threshold << "\n";
+            if constexpr (max_num_to_print == 1) {
+                if (worst_diff >= 0.0) {
+                    std::cout << "Coordinate: " << std::setw(2) << worst_value.coordinate
+                              << " Expected: " << worst_value.expected_value << " Actual: " << worst_value.actual_value
+                              << " Diff: " << worst_diff << " abs_threshold: " << worst_value.threshold << " (worst of "
+                              << incorrect_values_abs.size() << ")\n";
+                    i = 1;
+                }
+            } else {
+                for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
+                    auto val = incorrect_values_abs[i];
+                    std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
+                              << " Actual: " << val.actual_value
+                              << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                              << " abs_threshold: " << val.threshold << "\n";
+                }
             }
 
             if constexpr (max_num_to_print > 1) {

@@ -325,8 +325,8 @@ Can be used for both model caching and user requested export or import of compil
 
 .. note::
 
-   If user compiles a model using ``Compiler-In-Driver``, currently there is no secure compilation available in driver until ``32.0.100.4724`` (inclusively) and a warning
-   describing this potential security flaw will be issued if encryption callbacks were set.
+   If user compiles a model using ``Compiler-In-Driver``, currently there is no secure compilation available in driver until ``32.0.100.4724`` (inclusively) and an exception will be thrown
+   for older drivers during compilation if encryption callbacks were set.
 
 Usage example:
 

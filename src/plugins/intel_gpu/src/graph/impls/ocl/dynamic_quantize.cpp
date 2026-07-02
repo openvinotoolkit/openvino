@@ -75,7 +75,10 @@ attach_dynamic_quantize_impl::attach_dynamic_quantize_impl() {
     auto types = {
         data_types::f16,
         data_types::i8,
-        data_types::u8
+        data_types::u8,
+        data_types::f8e4m3,
+        data_types::f8e5m2,
+        data_types::f8e8m0,
     };
 
     auto formats = {

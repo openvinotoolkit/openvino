@@ -10,6 +10,9 @@ set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
+# convert white-space separated string to list
+string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
+
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
@@ -17,6 +20,13 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     endif()
 
     find_package(IntelSYCL REQUIRED)
+    set(OV_GPU_WITH_SYCL 1)
+    set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
+        INTERFACE_COMPILE_OPTIONS ${SYCL_EXTRA_FLAGS}
+    )
+    set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
+        INTERFACE_LINK_OPTIONS ${SYCL_EXTRA_FLAGS}
+    )
 
     if (WIN32)
         ov_add_compiler_flags(/WX)
@@ -28,10 +38,70 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
+if(OV_COMPILER_IS_CLANG)
+    include(CMakePushCheckState)
+    include(CheckCXXSourceCompiles)
+
+    set(FSYCL_OPTION -fsycl)
+    check_cxx_compiler_flag(${FSYCL_OPTION} HAS_FSYCL_OPTION)
+
+    if(HAS_FSYCL_OPTION)
+        set(CHECK_SYCL_HEADER_SOURCE
+        "
+            #include <sycl/sycl.hpp>
+            int main() {
+                return 0;
+            }
+        ")
+
+        cmake_push_check_state(RESET)
+        string(JOIN " " CMAKE_REQUIRED_FLAGS ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+        check_cxx_source_compiles("${CHECK_SYCL_HEADER_SOURCE}" HAS_SYCL_HEADER_WITH_FSYCL)
+        cmake_pop_check_state()
+    endif()
+
+    if(HAS_FSYCL_OPTION AND HAS_SYCL_HEADER_WITH_FSYCL)
+        set(OV_GPU_WITH_SYCL 1)
+
+        function(add_sycl_to_target)
+            set(options)
+            set(one_value_args TARGET)
+            set(multi_value_args SOURCES)
+            cmake_parse_arguments(SYCL
+                ""
+                "${one_value_args}"
+                "${multi_value_args}"
+                ${ARGN})
+            if(SYCL_SOURCES)
+                foreach(source ${SYCL_SOURCES})
+                    set_property(SOURCE ${source}
+                                 APPEND
+                                 PROPERTY COMPILE_OPTIONS
+                                 ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS}
+                    )
+                endforeach()
+            else()
+                target_compile_options(${SYCL_TARGET} PUBLIC ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+            endif()
+            target_link_options(${SYCL_TARGET} PUBLIC ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+        endfunction()
+    endif()
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
     # see https://github.com/oneapi-src/oneDNN/issues/2028
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
+    message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
+endif()
+
+# When -fsycl and -flto are both active, archive members are emitted in a format
+# that the linker cannot read from static libraries ("archive member is neither ET_REL nor LLVM bitcode").
+if(OV_GPU_WITH_SYCL AND ENABLE_LTO)
+    message(FATAL_ERROR "Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON")
 endif()
 
 if(WIN32)

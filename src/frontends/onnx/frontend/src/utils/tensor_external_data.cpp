@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "exceptions.hpp"
+#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -77,30 +78,39 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     } catch (const std::runtime_error& e) {
         throw error::invalid_external_data{e.what()};
     }
-    std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
 
-    if (external_data_stream.fail()) {
-        throw error::invalid_external_data{*this};
-    }
-    const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
-    if (m_data_length > file_size || m_offset > file_size - m_data_length) {
+    const auto file_size = util::file_size(full_path);
+    if (file_size < 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
+    const auto get_now_buffer = [&]() {
+        std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
+        if (external_data_stream.fail()) {
+            throw error::invalid_external_data{*this};
+        }
+        // default value of m_offset is 0
+        external_data_stream.seekg(m_offset, std::ios::beg);
 
-    // default value of m_offset is 0
-    external_data_stream.seekg(m_offset, std::ios::beg);
+        auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
+        external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
+        external_data_stream.close();
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
+                                                                                      read_data->size(),
+                                                                                      read_data);
+    };
+    const auto get_lazy_buffer = [&]() {
+        const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
+        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
+            static_cast<char*>(lazy->get_reserved_ptr()),
+            lazy->size(),
+            lazy);
+    };
 
-    auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
-    external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
-    external_data_stream.close();
-
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
-                                                                                         read_data->size(),
-                                                                                         read_data);
-
-    return buffer;
+    constexpr size_t lazy_loading_threshold = 0x100000;  // 1MB
+    return read_data_length >= lazy_loading_threshold ? get_lazy_buffer() : get_now_buffer();
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {

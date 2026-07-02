@@ -47,6 +47,8 @@ public:
      */
     void initialize_impl(const FilteredConfig& config) override;
 
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
+
     // TODO: public for multi-threaded execution
     struct InputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;

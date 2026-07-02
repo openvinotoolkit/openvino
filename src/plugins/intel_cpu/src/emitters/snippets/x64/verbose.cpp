@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
-#include <cstdlib>
-#include <memory>
-#include <sstream>
-#include <string>
 #ifdef SNIPPETS_DEBUG_CAPS
+
+#    include "verbose.hpp"
+
+#    include <cstddef>
+#    include <cstdlib>
+#    include <memory>
+#    include <sstream>
+#    include <string>
 
 #    include "emitters/snippets/common/verbose_utils.hpp"
 #    include "jit_brgemm_copy_b_emitter.hpp"
@@ -18,7 +21,6 @@
 #    include "kernel_executors/brgemm.hpp"
 #    include "kernel_executors/brgemm_amx.hpp"
 #    include "openvino/util/common_util.hpp"
-#    include "verbose.hpp"
 
 namespace ov::intel_cpu {
 

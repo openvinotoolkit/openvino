@@ -159,7 +159,7 @@ private:
 
         auto output = outputs.at("slice").get_memory();
 
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<T> wanted_output_ptr(params.wanted_output, get_test_stream());
 
         ASSERT_EQ(output->get_layout(), params.wanted_output->get_layout());

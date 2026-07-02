@@ -10,7 +10,7 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::zero_loader ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::Headers PRIVATE openvino::runtime openvino::util)
+target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::Headers PRIVATE openvino::util)
 target_include_directories(${TARGET_NAME} 
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )

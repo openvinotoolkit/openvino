@@ -37,7 +37,6 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/selective_build.h"
@@ -1050,7 +1049,8 @@ public:
 private:
     void normalize(const in_data_t* src_data, out_data_t* dst_data, const CpuParallelPtr& cpu_parallel) {
         cpu_parallel->parallel_for(workAmount, [&](size_t i) {
-            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+            dst_data[i] =
+                src_data[i] == static_cast<in_data_t>(0) ? static_cast<out_data_t>(0) : static_cast<out_data_t>(1);
         });
     }
 
@@ -1492,9 +1492,9 @@ private:
                         float dst_value = src_data_bc[m] * modulo_inv;
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == ov::element::u8) {
-                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                            dst_data_bc[m] = static_cast<out_data_t>((dst_value >= 0.0F) ? dst_value : 0.0F);
                         } else {
-                            dst_data_bc[m] = dst_value;
+                            dst_data_bc[m] = static_cast<out_data_t>(dst_value);
                         }
                     }
                 });
@@ -1524,9 +1524,10 @@ private:
                         float dst_value = src_data_bc[m] * moduloM[m];
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == ov::element::u8) {
-                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                            dst_data_bc[m] = (dst_value >= 0.0F) ? static_cast<out_data_t>(dst_value)
+                                                                 : static_cast<out_data_t>(0.0F);
                         } else {
-                            dst_data_bc[m] = dst_value;
+                            dst_data_bc[m] = static_cast<out_data_t>(dst_value);
                         }
                     }
                 });

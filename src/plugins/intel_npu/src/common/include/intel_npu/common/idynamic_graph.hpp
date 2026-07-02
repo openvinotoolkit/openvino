@@ -72,7 +72,8 @@ public:
 
     virtual uint64_t get_num_subgraphs() const;
 
-    virtual void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+    virtual void predict_output_shape(GraphArguments& args,
+                                      std::vector<MemRefType>& inputDescriptors,
                                       std::vector<MemRefType>& outputDescriptors);
 };
 

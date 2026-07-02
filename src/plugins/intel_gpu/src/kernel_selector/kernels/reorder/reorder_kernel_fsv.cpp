@@ -87,23 +87,6 @@ bool ReorderKernel_fsv::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    // Padding not supported
-    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
-        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
-        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
-        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
-        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
-    if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
-        output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
-        output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
-        output.Feature().pad.before != 0 || output.Feature().pad.after != 0 ||
-        output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
     return true;
 }
 

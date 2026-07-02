@@ -7,17 +7,20 @@
 
 #include <cstddef>
 
-#include "codecs/cache_codec.hpp"
+#include "cache_spec.hpp"
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
+// Packed byte size helper (used by scaled_attn.cpp to size cache buffers).
+size_t turboq_head_bytes(int head_dim, int bits);
+
 // Generic codec-aware fused multi-head attention pipeline.
-// k_codec / v_codec: identify the encoding scheme of cached K/V.
+// k_spec / v_spec: per-side cache specification.
 // k_scale_zp / v_scale_zp: scale/zp tensor (empty when cache is raw).
-// key_group_size / value_group_size: u8 group size (ignored when not u8).
 // q_precision: element type of q_input (f32, bf16, or f16).
 void mha_kv_cache(ov::intel_cpu::PlainTensor& q_input,
                   const ov::intel_cpu::PlainTensor& key_cache,
@@ -30,16 +33,19 @@ void mha_kv_cache(ov::intel_cpu::PlainTensor& q_input,
                   ov::intel_cpu::PlainTensor& buf_attn_score,
                   bool has_out_transpose,
                   float d_scale,
-                  ov::Extensions::Cpu::CacheCodec k_codec,
-                  ov::Extensions::Cpu::CacheCodec v_codec,
+                  const ov::Extensions::Cpu::CacheSpec& k_spec,
+                  const ov::Extensions::Cpu::CacheSpec& v_spec,
                   bool auto_causal,
                   const ov::intel_cpu::PlainTensor& sink_input,
                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                   const ov::intel_cpu::PlainTensor& k_scale_zp,
-                  size_t key_group_size,
                   const ov::intel_cpu::PlainTensor& v_scale_zp,
-                  size_t value_group_size,
                   ov::element::Type q_precision,
-                  size_t value_head_dim);
+                  size_t value_head_dim,
+                  float* per_thread_head_scratch,
+                  size_t per_thread_head_stride,
+                  const ov::intel_cpu::PlainTensor& k_quant_meta_data,
+                  const ov::intel_cpu::PlainTensor& v_quant_meta_data,
+                  const ov::intel_cpu::PlainTensor& wht_signs);
 
 }  // namespace ov::Extensions::Cpu::XARCH

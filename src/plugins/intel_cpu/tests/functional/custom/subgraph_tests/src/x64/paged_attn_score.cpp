@@ -176,7 +176,7 @@ public:
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
         paged_attn->get_rt_info()["v_head_size"] = head_size;
-        
+
         enable_keep_const_precision(paged_attn->get_input_node_shared_ptr(3));
         enable_keep_const_precision(paged_attn->get_input_node_shared_ptr(4));
         

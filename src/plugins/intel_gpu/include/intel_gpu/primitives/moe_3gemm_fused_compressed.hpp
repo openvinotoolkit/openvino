@@ -5,12 +5,12 @@
 #pragma once
 #include <vector>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
-using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
+using MOECompressed = ov::op::internal::MOECompressed;
 
 /// @brief moe compressed primitive
 /// @details Performs moe compressed
@@ -24,57 +24,54 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
     // @param id      An identifier of new primitive.
     // @param inputs  A list of Input primitive ids (inputs).
     //                   0: hidden_states - input tensor with hidden representations
-    //                   1: routing_weights - [num_seq, num_experts] routing weights for all experts
-    //                   2: w0_weight - expert weights for first projection,
+    //                   1: topk_weights - [num_tokens, top_k] normalized routing weights from MoERouterFused
+    //                   2: topk_indices - [num_tokens, top_k] expert indices from MoERouterFused
+    //                   3: w0_weight - expert weights for first projection,
     //                      shape [num_experts, inter_size, group_num, group_size]
-    //                   3: w0_scale - expert scale for first projection for compressed experts,
+    //                   4: w0_scale - expert scale for first projection for compressed experts,
     //                      shape [num_experts, inter_size, group_num, 1]
-    //                   4: w0_zp - expert zp for first projection for compressed experts,
+    //                   5: w0_zp - expert zp for first projection for compressed experts,
     //                      shape [num_experts, inter_size, group_num, 1]
-    //                   5: w1_weight - expert weights for second projection,
+    //                   6: w1_weight - expert weights for second projection,
     //                      shape [num_experts, inter_size, group_num, group_size]
-    //                   6: w1_scale - expert scale for second projection for compressed experts,
+    //                   7: w1_scale - expert scale for second projection for compressed experts,
     //                      shape [num_experts, inter_size, group_num, 1]
-    //                   7: w1_zp - expert zp for second projection for compressed experts,
+    //                   8: w1_zp - expert zp for second projection for compressed experts,
     //                      shape [num_experts, inter_size, group_num, 1]
-    //                   8: w2_weight - expert weights for final projection,
+    //                   9: w2_weight - expert weights for final projection,
     //                      shape [num_experts, hidden_size, group_num, group_size]
-    //                   9: w2_scale - expert scale for final projection for compressed experts,
+    //                   10: w2_scale - expert scale for final projection for compressed experts,
     //                      shape [num_experts, hidden_size, group_num, 1]
-    //                   10: w2_zp - expert zp for final projection for compressed experts,
+    //                   11: w2_zp - expert zp for final projection for compressed experts,
     //                      shape [num_experts, hidden_size, group_num, 1]
-    //                   11: routing_bias (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    //                      [1, num_experts] routing bias for sigmoid routing
-    //                   12: routing_eps (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    //                      scalar epsilon for normalization (read at kernel compile time)
     //
-    //                   Options for shared experts (if config.num_shared_expert > 0, always starting at index 13):
-    //                   13: shared_gate_weight - shared expert weights for first projection,
+    //                   Options for shared experts (if config.num_shared_expert > 0, always starting at index 12):
+    //                   12: shared_gate_weight - shared expert weights for first projection,
     //                      shape [1, inter_size, group_num, group_size]
-    //                   14: shared_gate_scale - shared expert scale for first projection,
+    //                   13: shared_gate_scale - shared expert scale for first projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   15: shared_gate_zp - shared expert zp for first projection,
+    //                   14: shared_gate_zp - shared expert zp for first projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   16: shared_up_weight - shared expert weights for second projection,
+    //                   15: shared_up_weight - shared expert weights for second projection,
     //                      shape [1, inter_size, group_num, group_size]
-    //                   17: shared_up_scale - shared expert scale for second projection,
+    //                   16: shared_up_scale - shared expert scale for second projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   18: shared_up_zp - shared expert zp for second projection,
+    //                   17: shared_up_zp - shared expert zp for second projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   19: shared_down_weight - shared expert weights for final projection,
+    //                   18: shared_down_weight - shared expert weights for final projection,
     //                      shape [1, hidden_size, group_num, group_size]
-    //                   20: shared_down_scale - shared expert scale for final projection,
+    //                   19: shared_down_scale - shared expert scale for final projection,
     //                      shape [1, hidden_size, group_num, 1]
-    //                   21: shared_down_zp - shared expert zp for final projection,
+    //                   20: shared_down_zp - shared expert zp for final projection,
     //                      shape [1, hidden_size, group_num, 1]
-    //                   22: shared_gate_gate_weight - shared expert gate weight for gating,
+    //                   21: shared_gate_gate_weight - shared expert gate weight for gating,
     //                      shape [hidden_size]
     //
-    moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOE3GemmFusedCompressed::Config& config)
+    moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOECompressed::Config& config)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config) {}
 
-    MOE3GemmFusedCompressed::Config _config;
+    MOECompressed::Config _config;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))

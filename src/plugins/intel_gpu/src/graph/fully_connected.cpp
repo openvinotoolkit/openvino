@@ -111,10 +111,14 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     const auto supports_immad = node.get_program().get_engine().get_device_info().supports_immad;
 
-    auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+    auto reshape_to_2d = [&](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
         size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        std::vector<int64_t> reshapeSize;
+        if (desc->weights_transposed)
+            reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        else
+            reshapeSize = { feature, static_cast<int64_t>(total) / feature };
         return reshapeSize;
     };
 
@@ -130,16 +134,17 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (supports_immad) {
-        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch(), 1, 1};
+        auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
+        ov::PartialShape out_pshape = {input_layout.batch(), out_features, 1, 1};
         if (desc->input_size == 3) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1};
+            out_pshape = {input_layout.batch(), input_layout.feature(), out_features, 1};
         } else if (desc->input_size == 4) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), out_features};
         } else if (desc->input_size == 5) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), out_features};
         } else if (desc->input_size == 6) {
             out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(3),
-                          input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+                          input_layout.spatial(2), input_layout.spatial(1), out_features};
         }
 
         format output_format = get_preferred_format(node, impl_param);
@@ -150,13 +155,14 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
         }
 
-        auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
+        auto output_size = tensor(input_layout.batch(), out_features, 1, 1);
         if (desc->input_size == 3) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, out_features);
         } else if (desc->input_size == 4) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+            output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1));
         } else if (desc->input_size == 5) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
+            output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1), input_layout.spatial(2));
         }
 
         format output_format = get_preferred_format(node, impl_param);
@@ -180,7 +186,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     }
 
     ov::op::v0::MatMul matmul_op;
-    matmul_op.set_transpose_b(true);
+    matmul_op.set_transpose_b(desc->weights_transposed);
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()

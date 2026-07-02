@@ -168,7 +168,7 @@ uint64_t IDynamicGraph::get_num_subgraphs() const {
     OPENVINO_THROW("get_num_subgraphs not implemented");
 }
 
-void IDynamicGraph::predict_output_shape(std::vector<MemRefType>&, std::vector<MemRefType>&) {
+void IDynamicGraph::predict_output_shape(GraphArguments&, std::vector<MemRefType>&, std::vector<MemRefType>&) {
     OPENVINO_THROW("predict_output_shape not implemented");
 }
 

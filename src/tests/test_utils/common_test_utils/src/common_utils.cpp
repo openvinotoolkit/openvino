@@ -19,7 +19,10 @@
 
 #    include "psapi.h"
 #else
+#    include <sys/mman.h>  // mincore
 #    include <unistd.h>
+
+#    include <cstdint>
 #endif
 
 namespace ov {
@@ -78,6 +81,10 @@ size_t getVmRSSInKB() {
     return getMemoryInfo().WorkingSetSize / 1024;
 }
 
+size_t count_resident_pages(const void* data, size_t size) {
+    throw std::runtime_error("count_resident_pages is not implemented on Windows");
+}
+
 #else
 
 size_t getSystemDataByName(char* name) {
@@ -117,6 +124,29 @@ size_t getVmSizeInKB() {
 
 size_t getVmRSSInKB() {
     return getSystemDataByName(const_cast<char*>("VmRSS:"));
+}
+
+// Returns the number of pages in [data, data+size) that are resident in the page cache.
+// Uses mincore(2). Returns 0 if mincore fails (region not mapped or other error).
+size_t count_resident_pages(const void* data, size_t size) {
+    if (!data || size == 0)
+        return 0;
+    const size_t page = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+    const auto base_addr = reinterpret_cast<uintptr_t>(data);
+    const auto aligned = (base_addr / page) * page;
+    const auto gap = base_addr - aligned;
+    const size_t aligned_size = size + gap;
+    const size_t num_pages = (aligned_size + page - 1) / page;
+    std::vector<unsigned char> vec(num_pages, 0);
+#    ifdef __linux__
+    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, vec.data()) != 0)
+#    else
+    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, reinterpret_cast<char*>(vec.data())) != 0)
+#    endif
+        return 0;
+    return static_cast<size_t>(std::count_if(vec.begin(), vec.end(), [](unsigned char v) {
+        return (v & 1) != 0;
+    }));
 }
 
 #endif

@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
@@ -14,6 +18,7 @@ cl_context get_cl_context();
 cl_command_queue get_cl_queue();
 cl::Buffer allocate_buffer(size_t size);
 cl::Image2D allocate_image(size_t size);
+ov::intel_gpu::ocl::os_handle_param get_shared_handle();
 
 
 #ifdef WIN32
@@ -60,6 +65,16 @@ int main() {
     cl::Image2D shared_buffer = allocate_image(input_size);
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
     //! [wrap_cl_image]
+}
+
+{
+    //! [wrap_shared_handle]
+    auto shared_handle = get_shared_handle();
+    auto remote_tensor = gpu_context.create_tensor(in_element_type,
+                                                   in_shape,
+                                                   shared_handle,
+                                                   ov::intel_gpu::MemType::SHARED_BUF);
+    //! [wrap_shared_handle]
 }
 
 {

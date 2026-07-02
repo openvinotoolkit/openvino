@@ -509,11 +509,18 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph())
         return false;
 
+    // Treat crop as dynamic if its predecessor is dynamic, so that the
+    // dyn-only guards below match the runtime path. Skipped at runtime
+    // since the predecessor shape is already resolved there.
+    const bool dyn_aware = node.is_dynamic() ||
+                           (!is_runtime && !node.get_dependencies().empty() &&
+                            node.get_dependency(0).is_dynamic());
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
+        if (dyn_aware && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -528,15 +535,15 @@ bool crop_in_place_optimization::match(const program_node& node,
         // where the total size of tensor is not properly calculated and becomes 0
         // It causes issue for internal buffer allocation during runtime
         // TODO: Need to allow optimization for gemm user
-        if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
+        if (dyn_aware && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
+            if (dyn_aware && node.get_users().size() != 1)
                 return false;
             auto& reshape_node = user->as<reshape>();
             if (can_reshape_be_optimized(reshape_node) &&
-                (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
+                (!dyn_aware || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
@@ -568,17 +575,17 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && node.is_dynamic()) {
+        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && dyn_aware) {
             return false;
         }
 
         // optimization is available for cropping across depth(features) or batch
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
-        if ((!node.is_dynamic() || is_runtime) &&
+        if ((!dyn_aware || is_runtime) &&
             !is_optimizable_padding_for_crop(node, crop_layout, input_layout, crop_params.input_offsets[0]))
             return false;
-        if (!(((!node.is_dynamic() || is_runtime) && can_crop_be_optimized_along_feature(crop_layout, input_layout))
+        if (!(((!dyn_aware || is_runtime) && can_crop_be_optimized_along_feature(crop_layout, input_layout))
             || can_crop_be_optimized_simple_data_format(crop_layout, input_layout)))
             return false;
     } else {

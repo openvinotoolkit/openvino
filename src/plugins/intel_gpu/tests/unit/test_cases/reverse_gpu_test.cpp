@@ -82,7 +82,7 @@ public:
         auto result = network->execute();
 
         auto out_mem = result.at(ouput_op_name).get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {

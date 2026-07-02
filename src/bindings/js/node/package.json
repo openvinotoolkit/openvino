@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test_setup": "node ./tests/setup.js",
-    "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
+    "test": "npm run test_setup && node --expose-gc --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",

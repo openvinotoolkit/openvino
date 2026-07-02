@@ -213,6 +213,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
         if (isv_size > 1 && (output.IFM().v % isv_size) != 0) {
             jit.AddConstant(MakeJitConstant("IFM_PADDING", 1));
             jit.AddConstant(MakeJitConstant("ACTUAL_IFM_NUM", output.IFM().v));
+            jit.AddConstant(MakeJitConstant("IFM_PADDED_NUM", Align(output.IFM().v, isv_size)));
         }
     }
 

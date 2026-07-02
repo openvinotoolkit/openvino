@@ -238,15 +238,15 @@ TEST_F(WeightShareExtensionTest, set_constant_buffer_with_id) {
     auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
     auto wt_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
         buffer->get_ptr<char>() + 100,
-        buffer->size(),
+        buffer->size() - 100,
         buffer,
         ov::create_base_descriptor(12, 0, buffer));
-    auto c = Constant(element::f32, Shape{1000}, wt_buffer);
+    auto c = Constant(element::f32, Shape{975}, wt_buffer);
 
     ASSERT_TRUE(weight_sharing::set_constant(shared_ctx, c));
     const auto& [const_offset, const_size, const_type] = shared_ctx.m_weight_registry[12][100];
     EXPECT_EQ(const_offset, 100);
-    EXPECT_EQ(const_size, 4000);
+    EXPECT_EQ(const_size, 4000 - 100);
     EXPECT_EQ(const_type, element::f32);
 }
 

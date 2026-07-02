@@ -69,25 +69,27 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(zp_mem->get_layout(), dnnl::memory::format_tag::a);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
-            bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
+
+            const auto input_dt = instance.get_input_layout(0).data_type;
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
-                auto activation_scale_idx = idx++;
-                auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
+                const auto activation_scale_idx = idx++;
+                const auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
-                auto activation_zp_idx = idx++;
-                auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
+                const auto activation_zp_idx = idx++;
+                const auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
-                auto activation_precomputed_reduction_idx = idx++;
-                auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
+                const auto activation_precomputed_reduction_idx = idx++;
+                const auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_precomputed_reduction_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
             }
@@ -109,22 +111,23 @@ protected:
 
         dnnl::memory::format_tag target_fmt;
         dnnl::memory::format_tag weights_fmt;
+        bool weights_transposed = impl_params.typed_desc<fully_connected>()->weights_transposed;
 
         if (prim_input_size == 3) {
             target_fmt = dnnl::memory::format_tag::abc;
-            weights_fmt = dnnl::memory::format_tag::acb;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc;
         } else if (prim_input_size == 4) {
             target_fmt = dnnl::memory::format_tag::abcd;
-            weights_fmt = dnnl::memory::format_tag::abdc;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd;
         } else if (prim_input_size == 5) {
             target_fmt = dnnl::memory::format_tag::abcde;
-            weights_fmt = dnnl::memory::format_tag::abced;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde;
         } else if (prim_input_size == 6) {
             target_fmt = dnnl::memory::format_tag::abcdef;
-            weights_fmt = dnnl::memory::format_tag::abcdfe;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef;
         } else {
             target_fmt = dnnl::memory::format_tag::ab;
-            weights_fmt = dnnl::memory::format_tag::ba;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab;
         }
 
         if (prim_input_size < 4) {
@@ -304,7 +307,8 @@ public:
             }
         }
 
-        bool is_dyn_quan_input = impl_params->get_input_layout(0).data_type == data_types::i8 || impl_params->get_input_layout(0).data_type == data_types::u8;
+        const auto input_dt = impl_params->get_input_layout(0).data_type;
+        const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
         if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
@@ -351,7 +355,8 @@ public:
         int idx = !arg.bias_term() ? 1 : 2;
 
         if (prim->compressed_weights) {
-            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
+            const auto input_dt = impl_params.get_input_layout(0).data_type;
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
             if (is_dyn_quan_input) {
                 OPENVINO_ASSERT(prim->input_size <= 3, "[GPU] Dynamic quantization for 4D matmul is not implemented");
             } else {
@@ -434,7 +439,6 @@ public:
                     attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 }
             }
-
 
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

@@ -84,6 +84,8 @@ DECLARE_string(raw_tolerance);
 DECLARE_string(cosim_threshold);
 DECLARE_string(rrmse_loss_threshold);
 DECLARE_string(nrmse_loss_threshold);
+DECLARE_string(nrmse_prefill_seq_len_axis);
+DECLARE_string(nrmse_prefill_seq_len_size);
 DECLARE_string(l2norm_threshold);
 DECLARE_string(overlap_threshold);
 DECLARE_string(map_threshold);

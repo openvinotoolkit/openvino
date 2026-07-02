@@ -16,11 +16,10 @@ JitConstants GatherMatmulSortGenerator::get_jit_constants(const kernel_impl_para
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
 
-    // indices layout for INPUT0 in the sort kernel
+    // Sort kernel reads only indices; INPUT0 is the indices layout here.
     jit.add(
         make_layout_jit_constants("INPUT0", params.input_layouts[gather_matmul::BGMInputIdx::INDICES], in_offsets_map.at(gather_matmul::BGMInputIdx::INDICES)));
 
-    // Activations rank3, indices rank2, weights rank3 (BATCH=n_all_experts).
     LayoutJitter input_jitter(params.input_layouts[gather_matmul::BGMInputIdx::INPUT], in_offsets_map.at(gather_matmul::BGMInputIdx::INPUT));
     LayoutJitter indices_jitter(params.input_layouts[gather_matmul::BGMInputIdx::INDICES], in_offsets_map.at(gather_matmul::BGMInputIdx::INDICES));
     LayoutJitter weight_jitter(params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT], in_offsets_map.at(gather_matmul::BGMInputIdx::WEIGHT));
@@ -37,9 +36,7 @@ Arguments GatherMatmulSortGenerator::get_arguments_desc(const kernel_impl_params
     if (params.is_dynamic())
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
-    // indices input
     args.push_back({ArgumentDescriptor::Types::INPUT, gather_matmul::BGMInputIdx::INDICES});
-    // Internal buffers: group_expert_ids, group_slot_ids, group_offsets, group_sizes, token_map, num_groups
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // group_expert_ids
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // group_slot_ids
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // group_offsets
@@ -53,10 +50,25 @@ Arguments GatherMatmulSortGenerator::get_arguments_desc(const kernel_impl_params
 DispatchDataFunc GatherMatmulSortGenerator::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
-        // Single workgroup — all work done sequentially
+        // Single-WG sequential.
         wgs.global = {1, 1, 1};
         wgs.local = {1, 1, 1};
     }};
+}
+
+// --- onednn variant: expert-major order + per-expert cumulative end-offsets ---
+
+JitConstants GatherMatmulOnednnSortGenerator::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = GatherMatmulSortGenerator::get_jit_constants(params);
+    jit.make("EXPERT_MAJOR_ORDER", 1);
+    jit.make("EMIT_EXPERT_OFFSETS", 1);
+    return jit;
+}
+
+Arguments GatherMatmulOnednnSortGenerator::get_arguments_desc(const kernel_impl_params& params) const {
+    auto args = GatherMatmulSortGenerator::get_arguments_desc(params);
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});  // expert_offsets
+    return args;
 }
 
 }  // namespace ov::intel_gpu::ocl

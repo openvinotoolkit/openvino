@@ -21,6 +21,7 @@ productTypes = (
     'public_windows_vs2019_release',
     'public_windows_vs2019_debug',
     'public_windows_vs2022_release',
+    'public_windows_vs2022_levelzero_release',
     'public_windows_vs2022_debug',
     'public_manylinux_2_28_x86_64_release',
     'public_macos_x86_64_release',

@@ -26,6 +26,11 @@ constexpr const char* EXPERT_TAG = "expert";
 constexpr const char* MLP_ROUTER_NAME = ".mlp.router";
 constexpr const char* MLP_EXPERT_NAME = ".mlp.expert";
 
+// RT info key used to propagate the Router's K value from pattern-matching
+// callbacks to the partition stage (written by Router matchers, read by
+// PartitioningCallbacks::find_node_with_rt_info).
+constexpr const char* RT_INFO_MOE_K = "npuw_moe_k";
+
 class GPTOSSExpert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSExpert");
@@ -47,13 +52,53 @@ public:
     static constexpr const char* pattern_name() {
         return "GPTOSSRouter";
     }
+    // NOTE: GPTOSSRouter does NOT isolate any nodes.  It only tags the matched
+    // TopK with RT_INFO_MOE_K.  This tag is the ISOL_PRESETS lookup key used by
+    // the pattern registry ("P:GPTOSSRouter/router") — not an isolation target.
     static constexpr const char* isolation_tag() {
         return ROUTER_TAG;
     }
     static constexpr const char* group_name() {
         return "moe";
     }
+    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
+    //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
     GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class Qwen3Expert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Expert");
+    static constexpr const char* pattern_name() {
+        return "Qwen3Expert";
+    }
+    static constexpr const char* isolation_tag() {
+        return EXPERT_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class Qwen3Router : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Router");
+    static constexpr const char* pattern_name() {
+        return "Qwen3Router";
+    }
+    // NOTE: Qwen3Router does NOT isolate any nodes.  It only tags the matched
+    // TopK with RT_INFO_MOE_K.  This tag is the ISOL_PRESETS lookup key used by
+    // the pattern registry ("P:Qwen3Router/router") — not an isolation target.
+    static constexpr const char* isolation_tag() {
+        return ROUTER_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
+    //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
+    Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 }  // namespace moe

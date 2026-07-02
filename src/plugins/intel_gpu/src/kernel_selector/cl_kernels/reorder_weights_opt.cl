@@ -49,8 +49,13 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
     const int g_io = get_global_id(0);
 #if OSV_FIRST
 #if OUTPUT_GROUPED
+#if defined(IFM_PADDING)
+    const int i = (g_io % (IFM_PADDED_NUM / SECOND_BLOCK_SIZE)) * SECOND_BLOCK_SIZE;
+    const int g = (g_io / (IFM_PADDED_NUM / SECOND_BLOCK_SIZE));
+#else
     const int i = (g_io % (OUTPUT_IFM_NUM / SECOND_BLOCK_SIZE)) * SECOND_BLOCK_SIZE;
     const int g = (g_io / (OUTPUT_IFM_NUM / SECOND_BLOCK_SIZE));
+#endif
 #else
     const int i = g_io * SECOND_BLOCK_SIZE;
 #endif  // OUTPUT_GROUPED

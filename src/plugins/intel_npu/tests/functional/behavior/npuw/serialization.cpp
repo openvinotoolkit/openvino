@@ -9,6 +9,7 @@
 #include "npuw/test_engine/models/model_builder.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using ov::test::npuw::LLMConfig;
 using ov::test::npuw::ModelBuilder;
@@ -107,6 +108,8 @@ void skip_if_no_npu(ov::Core& core) {
 // FIXME: parametrize all the tests below
 
 TEST(SerializationTestNPUW, Stress_ParallelImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     // Only run this test on NPU device
     ov::Core ov_core;
     auto core_devices = ov_core.get_available_devices();
@@ -176,6 +179,8 @@ TEST(SerializationTestNPUW, Stress_ParallelImport) {
 }
 
 TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityExportSucceedsWithStaticAttention) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     ov::Core ov_core;
     skip_if_no_npu(ov_core);
 
@@ -185,6 +190,8 @@ TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityExportSucceedsWithSt
 }
 
 TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsCpuPinnedSubgraphExport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     ov::Core ov_core;
     skip_if_no_npu(ov_core);
 

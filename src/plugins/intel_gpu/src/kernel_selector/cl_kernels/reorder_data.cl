@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_F8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+
+#if IS_F8
+#include "include/batch_headers/common.cl"
+#include "include/f8_utils.cl"
+#endif
+
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 
@@ -153,6 +160,8 @@ KERNEL (reorder_data)(
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
         OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+    #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
+            OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(_convert_float(input[input_idx]));
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif

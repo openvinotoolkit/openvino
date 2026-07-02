@@ -1,0 +1,290 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#if defined(_WIN32) && defined(ENABLE_DX12)
+#include <gtest/gtest.h>
+
+#include <common_test_utils/subgraph_builders/conv_pool_relu.hpp>
+#include "openvino/core/any.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+
+#include <d3d12.h>
+#include <wrl.h>
+
+namespace {
+
+std::shared_ptr<ov::Model> make_model() {
+    std::vector<size_t> inputShape = {1, 2, 32, 32};
+    ov::element::Type_t ngPrc = ov::element::Type_t::f32;
+    return ov::test::utils::make_conv_pool_relu(inputShape, ngPrc);
+}
+
+class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase {
+protected:
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> ov_model;
+
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
+    Microsoft::WRL::ComPtr<ID3D12Heap> heap = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> placed_resources = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> comitted_resource;
+
+    HANDLE shared_mem = nullptr;
+
+public:
+    void SetUp() override {
+#ifndef CL_VERSION_3_0
+    GTEST_SKIP() << "OpenCL version 3.0 is required for external memory sharing"; 
+#endif
+        //tests works on 32.101.7076 - not tried with older driver
+        target_device = ov::test::utils::DEVICE_GPU;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        OVPluginTestBase::SetUp();
+        ov_model = make_model();
+        createDevice();
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            ov::test::utils::PluginCache::get().reset();
+        }
+
+        APIBaseTest::TearDown();
+    }
+
+    void createDevice() {
+        auto res = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "D3D12CreateDevice failed";
+    }
+
+    void createHeap(const size_t byte_size) {
+        const size_t size = (byte_size + (static_cast<size_t>(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) - 1)) &
+                            ~(static_cast<size_t>(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) - 1);
+
+        D3D12_HEAP_DESC desc_heap{};
+        desc_heap.SizeInBytes = size;
+        desc_heap.Properties.Type = D3D12_HEAP_TYPE_CUSTOM;
+        desc_heap.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+        desc_heap.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+        desc_heap.Properties.CreationNodeMask = 1;
+        desc_heap.Properties.VisibleNodeMask = 1;
+        desc_heap.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        desc_heap.Flags = D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER | D3D12_HEAP_FLAG_SHARED;
+        auto res = device->CreateHeap(&desc_heap, IID_PPV_ARGS(heap.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateHeap failed.";
+
+        res = device->CreateSharedHandle(heap.Get(), nullptr, GENERIC_ALL, nullptr, &shared_mem);
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateSharedHandle failed.";
+    }
+
+    void createPlacedResources(const size_t byte_size) {
+        D3D12_RESOURCE_DESC desc_resource{};
+        desc_resource.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc_resource.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        desc_resource.Width = byte_size;
+        desc_resource.Height = 1;
+        desc_resource.DepthOrArraySize = 1;
+        desc_resource.MipLevels = 1;
+        desc_resource.Format = DXGI_FORMAT_UNKNOWN;
+        desc_resource.SampleDesc.Count = 1;
+        desc_resource.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc_resource.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        auto res = device->CreatePlacedResource(heap.Get(),
+                                                0,
+                                                &desc_resource,
+                                                D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                nullptr,
+                                                IID_PPV_ARGS(placed_resources.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreatePlacedResource failed.";
+    }
+
+    void createComittedResources(const size_t byte_size) {
+        D3D12_HEAP_PROPERTIES heap_properties{};
+        heap_properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+        heap_properties.CreationNodeMask = 1;
+        heap_properties.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC resource_desc{};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resource_desc.Width = byte_size;
+        resource_desc.Height = 1;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        auto res = device->CreateCommittedResource(&heap_properties,
+                                                   D3D12_HEAP_FLAG_NONE,
+                                                   &resource_desc,
+                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                   nullptr,
+                                                   IID_PPV_ARGS(comitted_resource.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommittedResource failed.";
+    }
+
+    void createResources(const size_t byte_size) {
+        createHeap(byte_size);
+        createPlacedResources(byte_size);
+        createComittedResources(byte_size);
+    }
+
+    void copyResources(const size_t byte_size) {
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> command_queue;
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator> command_allocator;
+        Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> command_list;
+        Microsoft::WRL::ComPtr<ID3D12Fence> fence;
+        uint32_t fence_value = 0;
+
+        D3D12_COMMAND_QUEUE_DESC desc{};
+        desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+        desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+        desc.NodeMask = 0;
+        auto res = device->CreateCommandQueue(&desc, IID_PPV_ARGS(command_queue.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandQueue failed.";
+
+        res = device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateFence failed.";
+
+        res = device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                                                   IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandAllocator failed.";
+        res = device->CreateCommandList(0,
+                                        D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                                        command_allocator.Get(),
+                                        nullptr,
+                                        IID_PPV_ARGS(command_list.ReleaseAndGetAddressOf()));
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandList failed.";
+
+        command_list->CopyBufferRegion(placed_resources.Get(), 0, comitted_resource.Get(), 0, byte_size);
+        res = command_list->Close();
+        ASSERT_TRUE(SUCCEEDED(res)) << "Close command list failed.";
+
+        ID3D12CommandList* command_lists[] = {command_list.Get()};
+        command_queue->ExecuteCommandLists(ARRAYSIZE(command_lists), command_lists);
+        res = command_queue->Signal(fence.Get(), ++fence_value);
+        ASSERT_TRUE(SUCCEEDED(res)) << "Signal command queue failed.";
+
+        volatile auto event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        res = fence->SetEventOnCompletion(fence_value, event);
+        ASSERT_TRUE(SUCCEEDED(res)) << "SetEventOnCompletion failed.";
+        WaitForSingleObject(event, INFINITE);
+    }
+};
+
+TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuf) {
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    auto tensor = inference_request.get_input_tensor();
+
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+
+    auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+
+    createHeap(byte_size);
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+
+    ov::Tensor check_remote_tensor;
+    ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuChangingTensors) {
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    auto tensor = inference_request.get_input_tensor();
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+    auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();;
+    createHeap(byte_size);
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+    ov::Tensor check_remote_tensor;
+    ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    // set random input tensor
+    std::vector<float> random_buffer_tensor(shape_size(tensor.get_shape()), 1);
+    ov::Tensor random_tensor_input{ov::element::f32, tensor.get_shape(), random_buffer_tensor.data()};
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(random_tensor_input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    // set random output tensor
+    auto output_tensor = inference_request.get_output_tensor();
+
+    std::vector<float> output_random_buffer_tensor(shape_size(output_tensor.get_shape()), 1);
+    ov::Tensor outputrandom_tensor_input{ov::element::f32, output_tensor.get_shape(), output_random_buffer_tensor.data()};
+    OV_ASSERT_NO_THROW(inference_request.set_output_tensor(outputrandom_tensor_input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_F(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    auto tensor = inference_request.get_input_tensor();
+
+    auto shape = tensor.get_shape();
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(shape));
+    tensor = {};
+
+    createResources(byte_size);
+    void* mem;
+    comitted_resource.Get()->Map(0, nullptr, &mem);
+    for(int i = 0; i < shape_size(shape); ++i) {
+        static_cast<float*>(mem)[i] = 99;
+    }
+    comitted_resource.Get()->Unmap(0, nullptr);
+    copyResources(byte_size);
+
+    auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+
+    auto output_tensor = inference_request.get_output_tensor();
+    std::vector<float> output_data_one(output_tensor.get_size());
+    ov::Tensor output_data_tensor_one{ov::element::f32, output_tensor.get_shape(), output_data_one.data()};
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape, shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_one));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    std::vector<float> output_data_two(output_tensor.get_size());
+    ov::Tensor output_data_tensor_two{ov::element::f32, output_tensor.get_shape(), output_data_two.data()};
+
+    std::vector<float> input_data(shape_size(shape), 99);
+    ov::Tensor input_data_tensor{ov::element::f32, shape, input_data.data()};
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
+    OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_two));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    EXPECT_NE(output_data_one.data(), output_data_two.data());
+    for (size_t i = 0; i < output_data_one.size(); ++i) {
+        EXPECT_FLOAT_EQ(output_data_one[i], output_data_two[i]) << "Output mismatch at index " << i << output_data_one[i] << " vs " << output_data_two[i];
+    }
+}
+} // namespace
+#endif // defined(_WIN32) && defined(ENABLE_DX12)

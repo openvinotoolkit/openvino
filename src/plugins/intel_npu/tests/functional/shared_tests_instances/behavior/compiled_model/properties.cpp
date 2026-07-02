@@ -61,7 +61,6 @@ const std::string& expectedModelName = []() -> std::string {
 }();
 
 const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
-    {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
     {{ov::loaded_from_cache.name(), ov::Any(false)}},

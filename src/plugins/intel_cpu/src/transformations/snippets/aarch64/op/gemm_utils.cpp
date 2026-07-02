@@ -4,12 +4,19 @@
 
 #include "gemm_utils.hpp"
 
+#include <cstddef>
+
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.hpp"
+
+using namespace ov::snippets::utils;
 
 namespace ov::intel_cpu::aarch64::gemm_utils::repacking {
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& gemm_expr) {
@@ -28,6 +35,53 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
         }
     }
     return nullptr;
+}
+
+size_t get_inner_n_block(const ov::element::Type& precision) {
+    if (precision == element::f32) {
+        return 8;
+    }
+    if (precision == element::f16) {
+        return 16;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM inner N block: ", precision.get_type_name());
+}
+
+size_t get_k_pad_size(const ov::element::Type& precision) {
+    if (precision == element::f32 || precision == element::f16) {
+        return 1;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM K pad size: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_offset(const ov::element::Type& precision, size_t n_idx, size_t K) {
+    if (precision == element::f32) {
+        return kai_get_rhs_packed_offset_rhs_pack_kxn_x32p16x1b_x32_x32_neon(n_idx, K);
+    }
+    if (precision == element::f16) {
+        return kai_get_rhs_packed_offset_rhs_pack_kxn_x16p32x1b_x16_x16_neon(n_idx, K);
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed offset: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_size(const ov::element::Type& precision, size_t N, size_t K) {
+    if (precision == element::f32) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x32p16x1b_x32_x32_neon(N, K);
+    }
+    if (precision == element::f16) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x16p32x1b_x16_x16_neon(N, K);
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed size: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_n_step(const ov::element::Type& precision) {
+    if (precision == element::f32) {
+        return kai_get_n_step_rhs_pack_kxn_x32p16x1b_x32_x32_neon();
+    }
+    if (precision == element::f16) {
+        return kai_get_n_step_rhs_pack_kxn_x16p32x1b_x16_x16_neon();
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed N step: ", precision.get_type_name());
 }
 
 }  // namespace ov::intel_cpu::aarch64::gemm_utils::repacking
