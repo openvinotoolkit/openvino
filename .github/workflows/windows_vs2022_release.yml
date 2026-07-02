@@ -167,10 +167,14 @@ jobs:
           python3 -m pip install pytest-timeout==2.4.0
           . "./setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
+          # Enable AUTO/MULTI plugin INFO-level logging to diagnose device-init hangs
+          $Env:OPENVINO_LOG_LEVEL="2"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ./tests/smoke_tests --numprocesses auto `
             -v -ra `
-            -o log_cli=true --log-cli-level=INFO `
-            --timeout=180 `
+            -o log_cli=true --log-cli-level=DEBUG `
+            --timeout=300 `
+            --log-file=${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests.log `
+            --log-file-level=DEBUG `
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
@@ -179,12 +183,24 @@ jobs:
           WORKSPACE: ${{ env.INSTALL_DIR }}
         working-directory: ${{ env.INSTALL_DIR }}
 
+      - name: Dump system state on failure
+        if: ${{ always() }}
+        run: |
+          echo "=== Running processes ==="
+          Get-Process | Sort-Object CPU -Descending | Select-Object -First 30 | Format-Table -AutoSize
+          echo "=== Memory usage ==="
+          Get-WmiObject Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize | Format-List
+        shell: pwsh
+        continue-on-error: true
+
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
         with:
           name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+            ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests.log
           if-no-files-found: 'warn'
 
       # Test .bat scripts for samples building

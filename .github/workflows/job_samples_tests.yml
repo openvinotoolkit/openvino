@@ -120,6 +120,8 @@ jobs:
           export IE_APP_PATH=$INSTALL_DIR/samples_bin
           export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
+          # Enable AUTO/MULTI plugin INFO-level logging to diagnose device-init hangs
+          export OPENVINO_LOG_LEVEL=2
 
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
@@ -131,14 +133,29 @@ jobs:
 
           PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
             -v -ra \
-            -o log_cli=true --log-cli-level=INFO \
-            --timeout=180 \
+            -o log_cli=true --log-cli-level=DEBUG \
+            --timeout=300 \
+            --timeout-method=signal \
+            --log-file=$INSTALL_TEST_DIR/samples_smoke_tests.log \
+            --log-file-level=DEBUG \
             --junitxml=$INSTALL_TEST_DIR/TEST-samples_smoke_tests.xml
+
+      - name: Dump system state on failure
+        if: failure()
+        run: |
+          echo "=== Running processes ==="
+          ps auxf || true
+          echo "=== Memory usage ==="
+          free -h || true
+          echo "=== Kernel OOM / kill events ==="
+          dmesg | grep -iE 'oom|kill|out of memory' | tail -30 || true
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
         with:
           name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+            ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests.log
           if-no-files-found: 'warn'
