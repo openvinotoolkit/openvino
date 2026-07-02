@@ -22,8 +22,24 @@ using namespace ov;
 using namespace ov::intel_gpu::ocl;
 using namespace cldnn;
 namespace {
+// single_token finalization uses the original split (16 head_size columns per thread).
 constexpr size_t reduce_split_step = 16;
 constexpr size_t KV_SUB_BLOCK_SIZE = 16;
+
+// small_q finalization uses a larger split (64 by default) to reduce cross-partition
+// reduce overhead at long contexts — fewer threads but each does more work, amortising
+// fixed per-thread overhead (LSE read, launch cost). head_size (128) stays divisible.
+// Overridable via env OV_GPU_PA_SMALL_Q_REDUCE_SPLIT for A/B testing.
+inline size_t get_small_q_reduce_split_step() {
+    size_t v = 64;
+    if (const char* env = std::getenv("OV_GPU_PA_SMALL_Q_REDUCE_SPLIT")) {
+        int parsed = std::atoi(env);
+        if (parsed >= 1 && parsed <= 128) {
+            v = static_cast<size_t>(parsed);
+        }
+    }
+    return v;
+}
 }  // namespace
 
 #define DEBUG_ENABLED 0
@@ -352,6 +368,12 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
+    } else if (_xattn_block_size <= 1 && desc->has_qq_bias) {
+        // Speculative tree mask path: only the dense `pa_multi_token_1` stage carries qq_bias.
+        // When has_xattention is also true, the user must bypass xattn at runtime
+        // (threshold >= 1.0) so execute_multi_token_path() routes here.
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
     }
     return args;
 }
@@ -381,6 +403,16 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
     jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
+
+    // Speculative tree mask: applied only on the dense `_xattn_block_size == 1` stage.
+    // Sparse xattn stages (128/256) skip qq_bias because they short-circuit via block-mask;
+    // when both xattn and qq_bias are configured, runtime bypass (threshold >= 1.0) routes
+    // to the dense stage instead.
+    if (_xattn_block_size <= 1 && desc->has_qq_bias) {
+        jit.make("HAS_QQ_BIAS", 1);
+    } else {
+        jit.make("HAS_QQ_BIAS", 0);
+    }
 
     return jit;
 }
@@ -566,6 +598,185 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
                       << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// small-q decode generator (q_len > 1 spec-decoding subsequences)
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorSmallQ::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    auto desc = params.typed_desc<paged_attention>();
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
+    const size_t kv_partition_size = get_partition_size(desc->has_xattention);
+    jit.make("KV_PARTITION_SIZE", kv_partition_size);
+    if (desc->has_xattention) {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+    }
+    jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("HEADS_NUM", desc->heads_num);
+    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+
+    const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
+    jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
+
+    // TILE_Q packs multiple q-tokens per SG. Constraint: Q_head_chunk_size*TILE_Q<=8
+    // (DPAS RepeatCount cap). Helper clamps automatically.
+    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(q_chunking.q_head_chunk_size));
+    jit.make("TILE_Q", tile_q);
+
+    // ONLINE_TILE_STEPS: online-softmax tile granularity. Overridable via env
+    // OV_GPU_PA_ONLINE_TILE_STEPS for A/B testing. Set to KV_PARTITION_STEP_NUM
+    // (= KV_PARTITION_SIZE / KV_STEP) to collapse online loop to 1 iter (behaves
+    // like the pre-online-softmax baseline for this partition size).
+    if (const char* env = std::getenv("OV_GPU_PA_ONLINE_TILE_STEPS")) {
+        int v = std::atoi(env);
+        if (v >= 1) {
+            jit.make("ONLINE_TILE_STEPS", v);
+        }
+    }
+
+    // NOTE: qq_bias temporarily disabled during online-softmax kernel rewrite.
+    // Kernel doesn't accept the qq_bias args; force HAS_QQ_BIAS=0 so the tree-mask
+    // path is inactive at both jit level and argument list level.
+    jit.make("HAS_QQ_BIAS", 0);
+    return jit;
+}
+
+Arguments PagedAttentionGeneratorSmallQ::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto has_scores_output = params.output_layouts.size() > 1;
+    OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSmallQ with scores output is not supported yet");
+
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_SELECTED_MAPPING});
+
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_PARTITIONOUT});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_EXPSUMS});
+
+    // qq_bias temporarily disabled — kernel doesn't accept these args in current
+    // online-softmax rewrite. Matches HAS_QQ_BIAS=0 jit constant above.
+    // if (desc->has_qq_bias) {
+    //     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});
+    //     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});
+    // }
+
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len_unused (kept for ABI parity with single-token)
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // selected_token_count
+
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        OPENVINO_ASSERT(rt_params != nullptr);
+
+        const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t partition_num = rtp->num_of_partitions;
+
+        OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
+        // gws[0] = tile count (one SG per TILE_Q consecutive q-tokens of a subseq).
+        // selected_token_count scalar carries tile_count too (kernel indexes mapping triples).
+        const size_t tile_count = rtp->small_q_tile_count;
+        wgs.global = {tile_count, kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        std::vector<size_t> scaler_value = {1, tile_count};
+        scalars.resize(scaler_value.size());
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+
+        if (DEBUG_ENABLED) {
+            std::cout << "PagedAttentionGeneratorSmallQ::get_dispatch_data_func: small_q_tokens=" << rtp->small_q_token_count
+                      << ", tile_count=" << tile_count << ", TILE_Q=" << rtp->small_q_tile_q
+                      << ", partition_num=" << partition_num << ", gws=[" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]\n";
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// small-q finalization generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorSmallQFinalization::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    const auto desc = params.typed_desc<paged_attention>();
+    jit.make("REDUCE_SPLIT_SIZE", get_small_q_reduce_split_step());
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("HEADS_NUM", desc->heads_num);
+
+    // Finalization decomposes token_row into (tile_idx, t_in_tile) via TILE_Q,
+    // so TILE_Q must match PagedAttentionGeneratorSmallQ.
+    const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
+    const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
+    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
+    jit.make("TILE_Q", tile_q);
+    return jit;
+}
+
+Arguments PagedAttentionGeneratorSmallQFinalization::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    const auto has_scores_output = params.output_layouts.size() > 1;
+    if (has_scores_output)
+        OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSmallQFinalization with scores output is not supported yet");
+
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_PARTITIONOUT});
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_EXPSUMS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_SELECTED_MAPPING});
+
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // selected_token_count
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_partition_num
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorSmallQFinalization::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        OPENVINO_ASSERT(rt_params != nullptr);
+
+        const size_t heads_num = desc->heads_num;
+        const size_t head_size = desc->k_head_size;
+        // Partition buffer is [tile_count * TILE_Q, head, partition, head_size] — one row
+        // per potential q-token slot (including padding). Finalization walks all these
+        // rows; padded rows early-return via t_in_tile >= valid_count check.
+        const size_t partition_token_rows =
+            rtp->small_q_tile_count * static_cast<size_t>(std::max(1, rtp->small_q_tile_q));
+        const size_t sq_reduce_step = get_small_q_reduce_split_step();
+        wgs.global = {partition_token_rows, heads_num, head_size / sq_reduce_step};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        const size_t partition_num = rtp->num_of_partitions;
+        std::vector<size_t> scaler_value = {partition_token_rows, partition_num};
+        scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
             scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
