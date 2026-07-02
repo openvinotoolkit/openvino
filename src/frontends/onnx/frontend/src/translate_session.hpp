@@ -11,9 +11,13 @@
 
 namespace ov {
 namespace frontend {
+
+class TelemetryExtension;
+
 namespace onnx {
 
 class OperatorsBridge;
+class DecoderBaseOperation;
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, cache of converted body graph models, operation translators (including
@@ -59,6 +63,10 @@ private:
     /// builds the ov::Model.
     void translate_graph_from_iterator(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model);
+
+    /// \brief Translate one operation decoder into its OpenVINO outputs, shared by both conversion paths.
+    ov::OutputVector translate_operation(const std::shared_ptr<DecoderBaseOperation>& decoder,
+                                         const std::shared_ptr<TelemetryExtension>& telemetry);
 
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<OperatorsBridge> m_translator_map;
