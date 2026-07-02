@@ -52,7 +52,18 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+    ///这个应该放在public中吗？
+    //这行应该放在 dynamic_arguments.hpp 里吗？看上去是给ececute  executeGraph的使用的
+    bool _useInterpreter = true;
+    bool _optimizedDynamicStridesMode = false;
+    ov::intel_npu::CommandListMode _bindingCommandListMode;
+    ////
+
 private:
+    /// 
+    void setOptimizedDynamicStridesMode(bool mode);
+    ////
+
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
@@ -71,17 +82,9 @@ private:
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
-<<<<<<< HEAD
-=======
-    /**
-     * @brief Stores the number of subgraphs for dynamic models
-     * @note the number of subgraphs will be one for static models
-     */
-    uint64_t _num_of_subgraphs = 1;
 
-    bool _useInterpreter = true;
 
->>>>>>> update_commandlist
+
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;

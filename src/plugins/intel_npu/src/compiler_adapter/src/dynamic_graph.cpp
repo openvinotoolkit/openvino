@@ -11,128 +11,22 @@
 #include "compiler_impl.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
+//// add by PR35626
 #include "intel_npu/npu_private_properties.hpp"
+///
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+//// add by PR35626
 #include "ze_graph_ext_wrappers.hpp"
+////
 
 namespace intel_npu {
 
-<<<<<<< HEAD
 void DynamicGraph::create_execution_engine() {
-=======
-class DynamicGraphImpl : public DynamicGraph::Impl {
-public:
-    using MemRefType = DynamicGraph::MemRefType;
-
-public:
-    DynamicGraphImpl(const FilteredConfig& config, bool useInterpreter)
-        : _engineProperties{},
-          _bindingCommandListMode(config.get<COMMANDLIST_MODE>()),
-          _useInterpreter(useInterpreter),
-          _logger("DynamicGraphImpl", Logger::global().level()) {}
-    void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
-    void createExecutionEngine(std::optional<ov::Tensor>& blob);
-    void prepareMetadata(NetworkMetadata& metadata);
-    void initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
-    void setArgumentValue(uint32_t argi, const void* argv) override;
-    void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) override;
-    void setOptimizedDynamicStridesMode(bool enabled) override {
-        _optimizedDynamicStridesMode = enabled;
-    }
-    uint64_t getNumSubgraphs() override {
-        return _engineProperties.numOfSubGraphs;
-    }
-    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                      DynamicGraph::GraphArguments& args,
-                      std::vector<ze_command_list_handle_t>& commandLists,
-                      ze_command_queue_handle_t commandQueue,
-                      ze_fence_handle_t inferenceFence,
-                      ze_event_handle_t event,
-                      ze_graph_profiling_pool_handle_t profiling) override;
-    void getBinding(DynamicGraph::GraphArguments& binding) override;
-
-    virtual ~DynamicGraphImpl() {
-        destroy();
-    }
-
-    void destroy() {
-        if (_engine != nullptr) {
-            npuVMRuntimeDestroy(_engine);
-            _engine = nullptr;
-        }
-    }
-
-    void predictOutputShape(DynamicGraph::GraphArguments& args,
-                            std::vector<DynamicGraph::MemRefType>& inputDescriptors,
-                            std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
-
-public:
-    npu_vm_runtime_handle_t _engine = nullptr;
-    npu_vm_runtime_properties_t _engineProperties;
-    DynamicGraph::GraphArguments _binding;
-    ov::intel_npu::CommandListMode _bindingCommandListMode;
-    bool _useInterpreter = false;
-    bool _optimizedDynamicStridesMode = false;
-    bool _initialized = false;
-    Logger _logger;
-};
-
-void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
-    if (!_initialized) {
-        initializeDynamicGraphExecution(blob, metadata);
-        _initialized = true;
-    }
-
-    _binding._inputs.resize(metadata.inputs.size());
-
-    if (_logger.level() >= ov::log::Level::DEBUG) {
-        // dump output of _metadata
-        _logger.debug("Dump metadata info from blob");
-        _logger.debug("Metadata inputs: %d", metadata.inputs.size());
-        for (const auto& input : metadata.inputs) {
-            _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                          input.nameFromCompiler.c_str(),
-                          input.nodeFriendlyName.c_str(),
-                          input.shapeFromCompiler.to_string().c_str(),
-                          input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
-        }
-        _logger.debug("Metadata outputs: %d", metadata.outputs.size());
-        for (const auto& output : metadata.outputs) {
-            _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                          output.nameFromCompiler.c_str(),
-                          output.nodeFriendlyName.c_str(),
-                          output.shapeFromCompiler.to_string().c_str(),
-                          output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
-        }
-    }
-
-    auto& inputs = _binding._inputs;
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        // Use size as placeholder of stride
-        const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
-        std::vector<int64_t> shapeVec(shape.begin(), shape.end());
-        inputs[i] = MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
-        // Calc real stride
-        inputs[i].updateStride();
-    }
-
-    _binding._outputs.resize(metadata.outputs.size());
-    auto& outputs = _binding._outputs;
-    for (size_t i = 0; i < outputs.size(); ++i) {
-        const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
-        std::vector<int64_t> shapeVec(shape.begin(), shape.end());
-        outputs[i] = MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
-        outputs[i].updateStride();
-    }
-}
-
-void DynamicGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
->>>>>>> update_commandlist
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
@@ -297,6 +191,13 @@ void DynamicGraph::initialize_engine() {
     }
 }
 
+///这个应该放在public中吗？
+//这行应该放在 dynamic_arguments.hpp 里吗？看上去是给ececute  executeGraph的使用的
+void DynamicGraph::setOptimizedDynamicStridesMode(bool enabled) {
+    _optimizedDynamicStridesMode = enabled;
+}
+////
+
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
                            const FilteredConfig& config)
@@ -313,16 +214,13 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
     }
+    _bindingCommandListMode = config.get<COMMANDLIST_MODE>();
 
-<<<<<<< HEAD
-=======
-    _impl = std::make_unique<DynamicGraphImpl>(config, _useInterpreter);
-
->>>>>>> update_commandlist
+    //这一部分在initialize_impl被调用似乎，不需要额外处理什么吧？
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
-    initialize_engine();
+    // initialize_engine();
 
     initialize(config);
 }
@@ -443,19 +341,16 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
 void* DynamicGraph::get_handle() const {
     return _engine;
 }
-
+//call by initialize(config)
 void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
-<<<<<<< HEAD
-    if (!_engineInitialized) {
-=======
-    if (!_impl) {
-        _impl = std::make_unique<DynamicGraphImpl>(config, _useInterpreter);
->>>>>>> update_commandlist
-        // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine();
-    }
+    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
+    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
+    // descriptors
+    // initialize VM execution engine, metadata, input&output descriptors
+    initialize_engine();
+
 
     if (!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
@@ -463,8 +358,9 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     }
 
     _logger.debug("Graph initialize without graph handle");
-
-    _impl->setOptimizedDynamicStridesMode(ZeGraphExtWrappers(_zeroInitStruct).isOptimizedDynamicStridesSupported());
+    setOptimizedDynamicStridesMode(ZeGraphExtWrappers(_zeroInitStruct).isOptimizedDynamicStridesSupported());
+    /// where to update this????
+    // _impl->setOptimizedDynamicStridesMode(ZeGraphExtWrappers(_zeroInitStruct).isOptimizedDynamicStridesSupported());
 
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
