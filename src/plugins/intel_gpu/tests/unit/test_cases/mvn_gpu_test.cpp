@@ -576,6 +576,85 @@ TEST(mvn_gpu_test, dynamic_within_channels_inside_sqrt_bfyx_normalize_variance_f
     mvn_compute_mean_within_channels<ov::float16>(output, true);
 }
 
+TEST(mvn_gpu_test, mvn_test_variance_large_values_bfyx_opt) {
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    // 1 * 1 * 1 * 4096 elements in bfyx layout (tensor ctor order: b, f, x, y).
+    const tensor input_size{1, 1, 4096, 1};
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, input_size});
+
+    std::vector<float> input_data(input->count());
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        const size_t idx = i + 1;
+        if (idx % 4 == 0) {
+            input_data[i] = 200000.0f;
+        } else if (idx % 2 == 0) {
+            input_data[i] = 100000.0f;
+        } else if (idx % 3 == 0) {
+            input_data[i] = 50000.0f;
+        } else {
+            input_data[i] = 25000.0f;
+        }
+    }
+    set_values(input, input_data);
+
+    double input_sum = 0.0f;
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_sum += input_data[i];
+    }
+    const double input_mean = input_sum / static_cast<float>(input_data.size());
+
+    double input_variance = 0.0;
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        const double centered = input_data[i] - input_mean;
+        input_variance += centered * centered;
+    }
+    input_variance /= static_cast<float>(input_data.size());
+    const float epsilon = 1e-10f;
+    const double denominator = std::sqrt(input_variance) + epsilon;
+    std::vector<double> expected_output(input_data.size());
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        expected_output[i] = (input_data[i] - input_mean) / denominator;
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, epsilon, false, {3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"mvn", {format::bfyx, "mvn_gpu_bfyx_opt"}}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output->count(), input_data.size());
+
+    cldnn::mem_lock<float> out_ptr(output, get_test_stream());
+    constexpr double max_rel_error = 0.001f;  // 0.1%
+    for (size_t i = 0; i < output->count(); ++i) {
+        const double actual = static_cast<double>(out_ptr[i]);
+        const double expected = expected_output[i];
+        const double abs_diff = std::abs(actual - expected);
+        const double abs_expected = std::abs(expected);
+        const double denom = abs_expected > 1e-9 ? abs_expected : 1.0;
+        const double rel_error = abs_diff / denom;
+        ASSERT_LE(rel_error, max_rel_error)
+            << " at i=" << i
+            << ", actual=" << actual
+            << ", expected=" << expected
+            << ", rel_error=" << rel_error;
+    }
+}
+
 struct mvn_basic_test_params {
     format::type input_format;
     data_types input_type;
