@@ -44,16 +44,16 @@ inline void register_property(const FilteredConfig& config, PropertyMap& propert
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
-        PropertyDescriptor{
-            option.isPublic(),
-            option.mutability(),
-            std::function<bool(const FilteredConfig&)>([propertyName](const FilteredConfig& configValue) {
-                return configValue.isAvailable(propertyName);
-            }),
-            std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
-                return configValue.get<OptionType>();
-            }),
-            {}});
+        PropertyDescriptor{option.isPublic(),
+                           option.mutability(),
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return configValue.isAvailable(propertyName);
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
+                               return configValue.get<OptionType>();
+                           }),
+                           {}});
 }
 
 /**
@@ -72,16 +72,16 @@ inline void register_property_with_custom_visibility(const FilteredConfig& confi
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
-        PropertyDescriptor{
-            isPublic,
-            option.mutability(),
-            std::function<bool(const FilteredConfig&)>([propertyName](const FilteredConfig& configValue) {
-                return configValue.isAvailable(propertyName);
-            }),
-            std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
-                return configValue.get<OptionType>();
-            }),
-            {}});
+        PropertyDescriptor{isPublic,
+                           option.mutability(),
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return configValue.isAvailable(propertyName);
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
+                               return configValue.get<OptionType>();
+                           }),
+                           {}});
 }
 
 /**
@@ -97,15 +97,16 @@ inline void register_property_with_custom_function(const FilteredConfig& config,
                                                    Getter&& getter) {
     ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
-    properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
-                                          std::function<bool(const FilteredConfig&)>(
-                                              [propertyName](const FilteredConfig& configValue) {
-                                                  return configValue.isAvailable(propertyName);
-                                              }),
-                                          std::function<ov::Any(const FilteredConfig&)>(std::forward<Getter>(getter)),
-                                          {}});
+    properties.emplace(
+        propertyName,
+        PropertyDescriptor{option.isPublic(),
+                           option.mutability(),
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return configValue.isAvailable(propertyName);
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>(std::forward<Getter>(getter)),
+                           {}});
 }
 
 /**
@@ -169,16 +170,16 @@ inline void register_property_as_read_only(const FilteredConfig& config,
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
-        PropertyDescriptor{
-            option.isPublic(),
-            ov::PropertyMutability::RO,
-            std::function<bool(const FilteredConfig&)>([propertyName](const FilteredConfig& configValue) {
-                return configValue.isAvailable(propertyName);
-            }),
-            std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
-                return configValue.get<OptionType>();
-            }),
-            {}});
+        PropertyDescriptor{option.isPublic(),
+                           ov::PropertyMutability::RO,
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return configValue.isAvailable(propertyName);
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
+                               return configValue.get<OptionType>();
+                           }),
+                           {}});
 }
 
 /**
@@ -195,16 +196,16 @@ inline void register_property_as_read_only_mark_supported_if_set(const FilteredC
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
-        PropertyDescriptor{
-            option.isPublic(),
-            ov::PropertyMutability::RO,
-            std::function<bool(const FilteredConfig&)>([propertyName](const FilteredConfig& configValue) {
-                return (configValue.isAvailable(propertyName) && configValue.has(propertyName));
-            }),
-            std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
-                return configValue.get<OptionType>();
-            }),
-            {}});
+        PropertyDescriptor{option.isPublic(),
+                           ov::PropertyMutability::RO,
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return (configValue.isAvailable(propertyName) && configValue.has(propertyName));
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
+                               return configValue.get<OptionType>();
+                           }),
+                           {}});
 }
 
 /**
@@ -219,16 +220,16 @@ inline void register_npuw_property(const FilteredConfig& config, PropertyMap& pr
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
-        PropertyDescriptor{
-            option.isPublic(),
-            option.mutability(),
-            std::function<bool(const FilteredConfig&)>([propertyName](const FilteredConfig& configValue) {
-                return configValue.isAvailable(propertyName);
-            }),
-            std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
-                return configValue.get<OptionType>();
-            }),
-            {}});
+        PropertyDescriptor{option.isPublic(),
+                           option.mutability(),
+                           std::function<bool(const FilteredConfig&)>(
+                               [propertyName = std::string(propertyName)](const FilteredConfig& configValue) {
+                                   return configValue.isAvailable(propertyName);
+                               }),
+                           std::function<ov::Any(const FilteredConfig&)>([](const FilteredConfig& configValue) {
+                               return configValue.get<OptionType>();
+                           }),
+                           {}});
 }
 
 template <typename GetterOrValue>
