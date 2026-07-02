@@ -292,44 +292,38 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_feature_gws = (uint)OUTPUT_FEATURE_NUM;
     const uint out_spatial_gws = (uint)(OUTPUT_SIZE_W * OUTPUT_SIZE_Z * OUTPUT_SIZE_Y * OUTPUT_SIZE_X);
     const uint linear_pos = (batch * out_feature_gws + feature) * out_spatial_gws + (uint)get_global_id(2);
+    const uint spatial_size = INPUT0_SIZE_W * INPUT0_SIZE_Z *INPUT0_SIZE_Y * INPUT0_SIZE_X;
+    const uint b_input = linear_pos / (INPUT0_FEATURE_NUM * spatial_size);
+    const uint fzyx_pos = linear_pos % (INPUT0_FEATURE_NUM * spatial_size);
+    const uint f_input = fzyx_pos / spatial_size;
 #ifdef INPUT0_LAYOUT_BFYX
-    const uint in_feature_spatial = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint input_batch_id = linear_pos / (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint in_batch_pos = linear_pos % (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint input_feature_id = in_batch_pos / in_feature_spatial;
-    const uint index_in_batch = in_batch_pos % in_feature_spatial;
+    
     const uint w_input = 0;
     const uint z_input = 0;
-    const uint y_input = index_in_batch / INPUT0_SIZE_X;
-    const uint x_input = index_in_batch % INPUT0_SIZE_X;
+    const uint yx_pos = fzyx_pos % spatial_size;
+    const uint y_input = yx_pos / INPUT0_SIZE_X;
+    const uint x_input = yx_pos % INPUT0_SIZE_X;
 #elif INPUT0_LAYOUT_BFZYX
-    const uint in_feature_spatial = INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z;
-    const uint input_batch_id = linear_pos / (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint in_batch_pos = linear_pos % (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint input_feature_id = in_batch_pos / in_feature_spatial;
-    const uint index_in_batch = in_batch_pos % in_feature_spatial;
+    
     const uint w_input = 0;
-    const uint yx_input = index_in_batch % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint z_input = index_in_batch / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
+    const uint zyx_pos = fzyx_pos % spatial_size;
+    const uint z_input = zyx_pos / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
+    const uint yx_pos = zyx_pos % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
+    const uint y_input = yx_pos / INPUT0_SIZE_X;
+    const uint x_input = yx_pos % INPUT0_SIZE_X;
 #elif INPUT0_LAYOUT_BFWZYX
-    const uint in_feature_spatial = INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_SIZE_W;
-    const uint input_batch_id = linear_pos / (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint in_batch_pos = linear_pos % (INPUT0_FEATURE_NUM * in_feature_spatial);
-    const uint input_feature_id = in_batch_pos / in_feature_spatial;
-    const uint index_in_batch = in_batch_pos % in_feature_spatial;
-    const uint zyx_input = index_in_batch % (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint w_input = index_in_batch / (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint z_input = zyx_input / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint yx_input = zyx_input % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
+    const uint wzyx_pos = fwzyx_pos % spatial_size;
+    const uint w_input = wzyx_pos / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
+    const uint zyx_pos = wzyx_pos % (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X );
+    const uint z_input = zyx_pos / (INPUT0_SIZE_Y * INPUT0_SIZE_X);
+    const uint yx_pos = zyx_pos % (INPUT0_SIZE_Y * INPUT0_SIZE_X);
+    const uint y_input = yx_pos / INPUT0_SIZE_X;
+    const uint x_input = yx_pos % INPUT0_SIZE_X;
 #endif
 
     const uint input_index = INPUT0_OFFSET +
-        input_batch_id * INPUT0_BATCH_PITCH +
-        input_feature_id * INPUT0_FEATURE_PITCH +
+        b_input * INPUT0_BATCH_PITCH +
+        f_input * INPUT0_FEATURE_PITCH +
         w_input * INPUT0_W_PITCH +
         z_input * INPUT0_Z_PITCH +
         y_input * INPUT0_Y_PITCH +
