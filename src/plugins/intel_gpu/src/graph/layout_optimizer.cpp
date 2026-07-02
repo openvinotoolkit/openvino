@@ -137,6 +137,15 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
 
+    // Aligned MVN flattens the normalized axes into the innermost dimension, which is only valid for planar /
+    // single feature-blocked layouts; reject other layouts (e.g. byxf) so a reorder to planar is inserted instead.
+    if (node.is_type<mvn>()) {
+        const auto& input_layout = node.get_input_layout(0);
+        const layout candidate{input_layout.get_partial_shape(), input_layout.data_type, fmt};
+        if (!node.as<mvn>().get_primitive()->is_aligned_layout_supported(candidate))
+            return false;
+    }
+
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
