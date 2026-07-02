@@ -139,7 +139,8 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& outputMemory = getDstMemoryAtPort(0);
     const auto& outputShape = outputMemory->getShape();
     if (out != nullptr && outputShape.isStatic() && !outputShape.hasZeroDims()) {
-        const auto outputSize = outputShape.getElementsCount() * outputMemory->getDesc().getPrecision().size();
+        const auto outputSize = outputMemory->getDesc().getCurrentMemSize();
+        CPU_NODE_ASSERT(outputSize != MemoryDesc::UNDEFINED_SIZE, "KV output tensor size is undefined");
         std::memset(out, 0, outputSize);
     }
 }
