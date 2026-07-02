@@ -37,6 +37,7 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
+    m_parallel_validation = true;
     const auto& [shapes, outputSize, sampling_ratio, pyramid_scales, aligned, model_type, targetName] =
         this->GetParam();
 
