@@ -67,12 +67,38 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& in_layout = reduce_node.get_input_layout(0);
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
-#ifdef OV_GPU_VENDOR_INTEL
         auto out_dt = out_layout.data_type;
+#ifdef OV_GPU_VENDOR_INTEL
 
         if (in_dt == data_types::f32 && out_dt == data_types::f32) {
             return false;
         }
+#endif
+
+#ifdef OV_GPU_VENDOR_NVIDIA
+        // cuDNN reduction only supports f32/f16/s8 inputs and outputs with
+        // default attributes and plain memory descriptors.
+        if (!one_of(in_dt, {data_types::f32, data_types::f16, data_types::i8}) ||
+            !one_of(out_dt, {data_types::f32, data_types::f16, data_types::i8}))
+            return false;
+
+        // cudnn_reduction_t::pd_t::check_format() validates only the source
+        // descriptor and accepts canonical plain a/ab/abc/abcd/abcde tags.
+        // In the plugin, these correspond to default plain data layouts only.
+        if (!format::is_simple_data_format(in_layout.format) ||
+            !format::is_default_format(in_layout.format))
+            return false;
+
+        // Destination must remain plain (no blocked layout), but does not need
+        // to be restricted to nchw/ncdhw-style ordering.
+        if (!format::is_simple_data_format(out_layout.format))
+            return false;
+
+        if (in_layout.format.dimension() > 5 || out_layout.format.dimension() > 5)
+            return false;
+
+        if (get_post_ops_count(node) > 0)
+            return false;
 #endif
 
         static const std::vector<format::type> supported_formats = {
@@ -115,6 +141,11 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::l2:
                 // modes have a limitation of data type
                 if (one_of(in_dt, {data_types::f16, data_types::f32, data_types::bf16})) {
+#ifdef OV_GPU_VENDOR_NVIDIA
+                    if (reduce_prim->mode != reduce_mode::l2) {
+                        return false;
+                    }
+#endif
                     break;
                 }
             default:
