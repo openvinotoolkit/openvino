@@ -43,10 +43,13 @@ _GENX_MAIN_ void KERNEL_NAME(
     // Element-count offsets for in-place crop (TransposeSplitMatcher axis=1 pattern).
     // When the upstream Reshape propagates dynamic padding from a Split(axis=1) crop,
     // the SVM base pointer still points to the start of the packed QKV buffer.
-    // These scalars shift query/output (token_offset_q) and key/value (token_offset_kv)
-    // to the correct slice.  Both are 0 when no crop optimization is active.
+    // Each scalar shifts one slice (Q/K/V) to its data start and equals
+    // lower_pad[feature] * head_size (elements).  When CMFLA_IS_QKV_FUSED is set the
+    // per-token pitch also switches to the packed stride.  All three are 0 (and
+    // CMFLA_IS_QKV_FUSED == 0) when no crop optimization is active.
     int  token_offset_q,
-    int  token_offset_kv
+    int  token_offset_k,
+    int  token_offset_v
     ) {
     constexpr int num_heads = CMFLA_NUM_HEADS;
     constexpr int head_size = CMFLA_HEAD_SIZE;
@@ -114,26 +117,36 @@ _GENX_MAIN_ void KERNEL_NAME(
         kv_start = cu_seqlens[wg_id];
         kv_seq_len = cu_seqlens[wg_id + 1] - kv_start;
     }
-    // qo_offset / kv_offset: element index into the slice buffer.
-    // token_offset_q / token_offset_kv are added to advance the SVM base pointer
-    // past the slice padding set by the in-place crop optimization.
-    uint qo_offset = (q_start*num_heads + h)*head_size + token_offset_q;
-    uint kv_offset = (kv_start*num_kv_heads + hkv)*head_size + token_offset_kv;
+    // Per-token stride: when the QKV buffer is packed (in-place crop active) each
+    // token occupies (num_heads + 2*num_kv_heads)*head_size elements; otherwise each
+    // slice is contiguous.  The output is never packed, so it keeps the plain pitch.
+    constexpr int packed_token_stride = (num_heads + num_kv_heads*2) * head_size;
+    constexpr int q_token_stride  = CMFLA_IS_QKV_FUSED ? packed_token_stride : (num_heads    * head_size);
+    constexpr int kv_token_stride = CMFLA_IS_QKV_FUSED ? packed_token_stride : (num_kv_heads * head_size);
+
+    // q_in_offset / k_offset / v_offset: element index of this work-item's first
+    // token+head inside the (possibly packed) input buffer.  token_offset_* adds the
+    // per-slice base padding set by the in-place crop optimization.
+    uint q_in_offset = q_start * q_token_stride  + h   * head_size + token_offset_q;
+    uint k_offset    = kv_start * kv_token_stride + hkv * head_size + token_offset_k;
+    uint v_offset    = kv_start * kv_token_stride + hkv * head_size + token_offset_v;
+    // Output is a plain [L, num_heads, head_size] buffer (never packed).
+    uint o_offset    = (q_start * num_heads + h) * head_size;
 
 #if USE_LSC == 1
 #if USE_LSC_PREFETCH
-    sdpa_kernel_lsc_prefetch<false, num_heads, num_kv_heads, head_size, 0, 16>(
+    sdpa_kernel_lsc_prefetch<false, num_heads, num_kv_heads, head_size, CMFLA_IS_QKV_FUSED, 16>(
                                 wg_local_id,
                                 q_start,
                                 kv_seq_len,
                                 q_len,
                                 kv_seq_len, //kv_len,
-                                reinterpret_cast<svmptr_t>(query + qo_offset),
-                                reinterpret_cast<svmptr_t>(key + kv_offset),
-                                reinterpret_cast<svmptr_t>(value + kv_offset),
-                                reinterpret_cast<svmptr_t>(output + qo_offset));
+                                reinterpret_cast<svmptr_t>(query + q_in_offset),
+                                reinterpret_cast<svmptr_t>(key + k_offset),
+                                reinterpret_cast<svmptr_t>(value + v_offset),
+                                reinterpret_cast<svmptr_t>(output + o_offset));
 #else
-    sdpa_kernel_lsc<false, num_heads, num_kv_heads, head_size>(
+    sdpa_kernel_lsc<false, num_heads, num_kv_heads, head_size, CMFLA_IS_QKV_FUSED>(
                                 slm_K,
                                 slm_V,
                                 wg_local_id,
@@ -142,13 +155,13 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 kv_seq_len, //kv_stop,
                                 q_len, //q_len,
                                 kv_seq_len, //kv_len,
-                                reinterpret_cast<svmptr_t>(query + qo_offset),
-                                reinterpret_cast<svmptr_t>(key + kv_offset),
-                                reinterpret_cast<svmptr_t>(value + kv_offset),
-                                reinterpret_cast<svmptr_t>(output + qo_offset));
+                                reinterpret_cast<svmptr_t>(query + q_in_offset),
+                                reinterpret_cast<svmptr_t>(key + k_offset),
+                                reinterpret_cast<svmptr_t>(value + v_offset),
+                                reinterpret_cast<svmptr_t>(output + o_offset));
 #endif
 #else
-    sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
+    sdpa_kernel<false, num_heads, num_kv_heads, head_size, CMFLA_IS_QKV_FUSED>(
                                 slm_K,
                                 slm_V,
                                 wg_local_id,
@@ -161,10 +174,10 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 key,
                                 value,
                                 output,
-                                qo_offset * sizeof(half),
-                                kv_offset * sizeof(half),
-                                kv_offset * sizeof(half),
-                                qo_offset * sizeof(half)
+                                q_in_offset * sizeof(half),
+                                k_offset * sizeof(half),
+                                v_offset * sizeof(half),
+                                o_offset * sizeof(half)
                                 );
 #endif
 }
