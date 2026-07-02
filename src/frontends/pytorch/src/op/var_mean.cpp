@@ -47,16 +47,19 @@ OutputVector translate_var_mean_common(const NodeContext& context,
     auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, t_mean));
     auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
     auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, _axes, keepdims));
-    // if unbiased=true Bessel’s correction will be used
-    // Correct bias in calculating variance, by dividing it over (N - 1) instead on N
+    // Apply the requested correction by dividing the sum of squared deviations
+    // over (N - correction) instead of N. correction=0 keeps the biased estimator
+    // (already produced by ReduceMean), correction=1 is Bessel's correction, and
+    // PyTorch also accepts other non-negative integer corrections.
     if (correction) {
-        PYTORCH_OP_CONVERSION_CHECK(correction == 1, "Unexpected value of correction.");
+        PYTORCH_OP_CONVERSION_CHECK(correction >= 0, "Unexpected value of correction.");
         num_elements = context.mark_node(std::make_shared<v1::ConvertLike>(num_elements, data));
-        auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-        one = context.mark_node(std::make_shared<v1::ConvertLike>(one, data));
+        auto correction_c =
+            context.mark_node(v0::Constant::create(element::f32, Shape{}, {static_cast<float>(correction)}));
+        correction_c = context.mark_node(std::make_shared<v1::ConvertLike>(correction_c, data));
         auto mul = context.mark_node(std::make_shared<v1::Multiply>(var, num_elements));
-        auto n_minus_one = context.mark_node(std::make_shared<v1::Subtract>(num_elements, one));
-        var = context.mark_node(std::make_shared<v1::Divide>(mul, n_minus_one));
+        auto n_minus_correction = context.mark_node(std::make_shared<v1::Subtract>(num_elements, correction_c));
+        var = context.mark_node(std::make_shared<v1::Divide>(mul, n_minus_correction));
     }
     return {var, mean};
 };
