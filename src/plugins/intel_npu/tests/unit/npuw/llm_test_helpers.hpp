@@ -128,6 +128,43 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
     return model;
 }
 
+/// Hybrid LLM: alternating linear-attention / full-attention layers.
+/// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+/// Attention layers are Qwen3.5-style: output-gated, partial RoPE.
+inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.attn_output_gate = true;
+    cfg.rotary_dim = cfg.head_dim / 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<GatedDeltaNetMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->num_heads = cfg.num_heads;
+    mixer->key_head_dim = cfg.head_dim;
+    mixer->value_head_dim = cfg.head_dim;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+/// LFM2-style hybrid: gated short-conv mixer layers interleaved with full attention.
+/// 4 layers → layers 0,2 short-conv; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<ShortConvMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->conv_dim = cfg.hidden_size;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());
