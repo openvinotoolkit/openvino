@@ -969,6 +969,18 @@ bool ov::npuw::util::isPastValueParam(const std::string& str) {
     return std::regex_match(str, pattern);
 }
 
+bool ov::npuw::util::isDQScaleOrZPKey(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past key cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/key/(?:scale|zp))");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past value cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/value/(?:scale|zp))");
+    return std::regex_match(str, pattern);
+}
+
 bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
