@@ -392,7 +392,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
         // odd channel -> high nibble) biased by +8. Unpack the nibbles back into per-channel integers first,
         // then let low_precision_dequantize apply the (Convert - 8) * scale chain (zero_point = 8 removes the bias).
         const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
-        const auto mask_low = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {0x0F}));
+        const auto mask_low =
+            register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {0x0F}));
         const auto shift_4 = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {4}));
         const auto low_nibble = register_new_node<v13::BitwiseAnd>(quantized, mask_low);
         const auto high_nibble = register_new_node<v15::BitwiseRightShift>(quantized, shift_4);
@@ -404,7 +405,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
         const auto unpacked = register_new_node<v1::Reshape>(interleaved, flat_shape, true);
         const auto zero_point = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {8}));
         ov::pass::NodeRegistry reg;
-        auto dequant = ov::decomposition::low_precision_dequantize(reg, unpacked, scale_bcast, zero_point, {}, compute_type);
+        auto dequant =
+            ov::decomposition::low_precision_dequantize(reg, unpacked, scale_bcast, zero_point, {}, compute_type);
         for (const auto& node : reg.get()) {
             register_new_node(node);
         }
@@ -420,13 +422,12 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
     return dequant.get_node_shared_ptr();
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(
-    const ov::Output<ov::Node>& current,
-    const ov::Output<ov::Node>& scale,
-    int64_t kv_num_heads,
-    int64_t kv_cache_bit_width,
-    const std::string& quant_type,
-    const ov::element::Type& cache_type) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(const ov::Output<ov::Node>& current,
+                                                                                  const ov::Output<ov::Node>& scale,
+                                                                                  int64_t kv_num_heads,
+                                                                                  int64_t kv_cache_bit_width,
+                                                                                  const std::string& quant_type,
+                                                                                  const ov::element::Type& cache_type) {
     // Symmetric quantize-on-write: q = clamp(round(x / scale)). Rounding is round-half-to-even to match the
     // ONNX Runtime MLAS/CUDA reference (std::rintf). Clamp is applied before the narrowing Convert to avoid
     // overflow on out-of-range values.
@@ -446,7 +447,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_k
         const auto biased = register_new_node<v1::Add>(clamped, bias);
         const auto as_u8 = register_new_node<v0::Convert>(biased, cache_type);
         // Split the head_size axis into pairs: [.., 2*packed] -> [.., packed, 2] -> low/high nibbles.
-        const auto pair_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, -1, 2}));
+        const auto pair_shape =
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, -1, 2}));
         const auto paired = register_new_node<v1::Reshape>(as_u8, pair_shape, true);
         const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
         const auto split = register_new_node<v1::VariadicSplit>(
