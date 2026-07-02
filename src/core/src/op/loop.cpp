@@ -236,9 +236,9 @@ void Loop::validate_and_infer_types() {
                             PartialShape new_ps;
                             bool shape_changed = false;
                             if (body_rank_len == input_rank_len) {
-                                new_ps = body_value_shape;
+                                new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
+                                    if (!input_param_ps[j].relaxes(body_value_shape[j])) {
                                         new_ps[j] = Dimension::dynamic();
                                         shape_changed = true;
                                     }

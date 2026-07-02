@@ -7,7 +7,7 @@
 ## Debug capabilities
 
  * [Matcher logging README](./debug_capabilities/matcher_logging.md)
- * [Transformation statistics collection and Visualization README](./debug_capabilities/transformation_statistics_collection.md)
+ * [Transformation statistics collection and Visualization README](./debug_capabilities/transformation_profiling.md)
 
 ## Key Contacts
 

@@ -927,6 +927,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_concat) {
     test_case.run();
 }
 
+/// @brief Body Concat(a_in, [2.0]) grows the merged-input dim each iteration; the body
+/// parameter must widen to dynamic and the loop run to completion without hanging.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_back_edge_growing_merged_dim) {
+    const auto model = convert_model("controlflow/loop_concat_growing_merged_dim.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // seed = [1.0], trip_count = 3, step (body initializer) = [2.0]
+    // iter 0: concat([1.0], [2.0]) = [1.0, 2.0]
+    // iter 1: concat([1.0, 2.0], [2.0]) = [1.0, 2.0, 2.0]
+    // iter 2: concat([1.0, 2.0, 2.0], [2.0]) = [1.0, 2.0, 2.0, 2.0]
+    test_case.add_input<float>({1.f});  // a_init
+    test_case.add_expected_output<float>(Shape{4}, {1.f, 2.f, 2.f, 2.f});
+    test_case.run();
+}
+
 /// @brief Test SequenceEmpty -> SequenceInsert chain -> ConcatFromSequence with new_axis=1
 /// Exercises the same chain pattern starting from an empty sequence and stacking along a new axis.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_new_axis) {
