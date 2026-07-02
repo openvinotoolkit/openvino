@@ -27,7 +27,6 @@ private:
     ov::SoPtr<ov::ITensor> create_prefill_output_tensor();
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
 
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
 
