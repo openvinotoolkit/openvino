@@ -183,20 +183,20 @@ KERNEL(dynamic_quantize_gpu_opt)(
     val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
 
 #if ASYMMETRIC_QUANTIZATION
-        unroll_for (int j = 0; j < VEC_SIZE; j++) {
-            max_value = fmax(max_value, val[j]);
-            min_value = fmin(min_value, val[j]);
-        }
-        grp_max = fmax(grp_max, max_value);
-        grp_min = fmin(grp_min, min_value);
+    unroll_for (int j = 0; j < VEC_SIZE; j++) {
+        max_value = fmax(max_value, val[j]);
+        min_value = fmin(min_value, val[j]);
+    }
+    grp_max = fmax(grp_max, max_value);
+    grp_min = fmin(grp_min, min_value);
 #else
-        abs_val = fabs(val);
+    abs_val = fabs(val);
 
-        unroll_for (int j = 0; j < VEC_SIZE; j++) {
-            max_value = fmax(max_value, abs_val[j]);
-        }
+    unroll_for (int j = 0; j < VEC_SIZE; j++) {
+        max_value = fmax(max_value, abs_val[j]);
+    }
 
-        grp_max = fmax(grp_max, max_value);
+    grp_max = fmax(grp_max, max_value);
 #endif
 
     max_value = sub_group_reduce_max(grp_max);
@@ -282,7 +282,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 #endif
 
-        if (valid_block && sglid == 0 && blockid == 0) {
+    if (valid_block && sglid == 0 && blockid == 0) {
 #if OUTPUT_DIMS == 2
         const int output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
 #else
