@@ -398,6 +398,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_sparse_mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
@@ -772,6 +773,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::tensor_split - Supported in limited set of patterns
         {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
+        {"aten::to_sparse", op::skip_node},  // OpenVINO has no sparse layout; dense passthrough (aten::_sparse_mm becomes MatMul)
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
