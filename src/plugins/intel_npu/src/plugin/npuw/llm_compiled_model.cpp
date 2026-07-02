@@ -487,21 +487,32 @@ void apply_moe_config(ov::AnyMap& stage_config,
                       const std::string& stage_name) {
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
         LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
-        // MoE expert and router pattern isolation options
+        // MoE expert and router pattern isolation options.
+        // Note: NPUW_ONLINE_ISOLATE is handled separately below to support coexistence
+        // with attention isolation (e.g. "ATTN" already set by dyn_attn_opts).  A plain
+        // merge_config_with would overwrite the existing value and silently drop ATTN.
         const ov::AnyMap expert_opts = {
             {"NPUW_ONLINE_PIPELINE", "REP"},
-            {"NPUW_ONLINE_ISOLATE", "MOE"},
             {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
+        // Append "MOE" to any pre-existing isolation preset (e.g. "ATTN") rather than
+        // overwriting it.  getIsolates() accepts a comma-separated list of presets.
+        auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
+        if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
+            isol_it->second = isol_it->second.as<std::string>() + ",MOE";
+            LOG_INFO("MoE config: appended MOE to NPUW_ONLINE_ISOLATE -> " << isol_it->second.as<std::string>());
+        } else {
+            stage_config["NPUW_ONLINE_ISOLATE"] = "MOE";
+        }
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
         if (stage_name == "PREFILL") {
             NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
                                  "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
                                  "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
         }
-        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
+        stage_config["NPUW_UNFOLD_IREQS"] = "YES";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
         LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
@@ -1072,32 +1083,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config["NPUW_FALLBACK_EXEC"] = "NO";
     }
 
-    if (is_moe) {
-        // Apply MoE configuration for prefill stage
-        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
-
-        // Apply MoE configuration for generate stage
-        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
-
-        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
-        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
-        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
-        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
-        for (auto&& model_variant : generate_model_variants) {
-            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
-        }
-
-        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
-            // transformations)
-            for (auto&& model_variant : generate_model_variants) {
-                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
-            }
-        }
-    }
-
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
         if (is_int8_compressed(model)) {
@@ -1134,6 +1119,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     kv_size,
                     ov::npuw::LLMInferRequest::layer_names::longrope_input);
                 rope_cacher.run_on_model(generate_model_variants[i]);
+            }
+        }
+    }
+
+    if (is_moe) {
+        // All MoE-specific config and model transforms are applied here, after RopeCache but
+        // BEFORE RegularizeSDPA, because:
+        //   1. RopeCache needs ShapeOf→Gather→Concat intact; FoldShapeComputeChain folds it after.
+        //   2. ApplyMoEDeviceRoutedTransforms must run before RegularizeSDPA modifies SDPA nodes,
+        //      otherwise topological sort detects a cycle in the router subgraph.
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
+
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
+
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) before online partitioning.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& model_variant : generate_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+        }
+
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            // PREFILL doesn't support DEVICE_ROUTED transformations
+            for (auto&& model_variant : generate_model_variants) {
+                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
         }
     }
