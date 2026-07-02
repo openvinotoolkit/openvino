@@ -54,10 +54,10 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
     FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 11),
                                   "GroupQueryAttention: head_sink input is not supported.");
-    FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 14) &&
-                                      !common::is_input_valid(onnx_op_inputs, 15),
-                                  "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
-                                  "supported.");
+    FRONT_END_OP_CONVERSION_CHECK(
+        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
+        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
+        "supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
