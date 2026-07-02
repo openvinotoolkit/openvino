@@ -18,7 +18,8 @@ using namespace ::tests;
 
 template<typename T>
 void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
-                          std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes) {
+                          std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes,
+                          const std::string& expected_kernel = "") {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
@@ -84,6 +85,20 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
                 }
             }
         }
+    }
+
+    // Assert the expected implementation was selected (e.g. "broadcast_gpu_opt" vs
+    // "broadcast_gpu_ref"). Correctness alone doesn't prove which kernel ran — a test
+    // that silently falls back to ref validates nothing about the opt kernel.
+    if (!expected_kernel.empty()) {
+        std::string broadcast_kernel;
+        for (auto& info : network.get_primitives_info()) {
+            if (info.original_id == "broadcast")
+                broadcast_kernel = info.kernel_id;
+        }
+        ASSERT_NE(broadcast_kernel.find(expected_kernel), std::string::npos)
+            << "Expected broadcast impl containing '" << expected_kernel
+            << "' but got '" << broadcast_kernel << "'";
     }
 }
 template<typename inT, typename outT>
@@ -2410,4 +2425,100 @@ TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
 
 TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
     run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+}
+
+// ===== Tests targeting broadcast_gpu_opt kernel (batch-repeat path) =====
+// The opt kernel fires when:
+//   input.Batch() == 1, output.Batch() > 1, input bytes > 16KB,
+//   input.X() == output.X(), output.X() >= 32, planar format, no fused ops.
+// These tests stress the BATCH_REPEAT loop and OUTPUT_BATCH_PITCH stride math.
+
+// Basic batch broadcast, X divisible by VEC_SIZE=8.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// FP16 path (most common in inference).
+TEST(broadcast_gpu_opt, bfyx_fp16_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<ov::float16>(format::bfyx, data_types::f16, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// X NOT divisible by VEC_SIZE=8 -> exercises scalar tail loop.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x70_to_8x16x32x70_axes_0_x_not_aligned) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,70}, {16,32,70}, {0}, "broadcast_gpu_opt");
+}
+
+// X just at threshold (kMinXForOpt = 32).
+TEST(broadcast_gpu_opt, bfyx_1x16x16x32_to_4x16x16x32_axes_0_x_min_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,16,32}, {16,16,32}, {0}, "broadcast_gpu_opt");
+}
+
+// Non-power-of-2 batch.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_3x16x32x64_axes_0_batch_3) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {3,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_17x16x32x64_axes_0_batch_17) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {17,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// 5D bfzyx layout.
+TEST(broadcast_gpu_opt, bfzyx_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test_5d<float>(format::bfzyx, data_types::f32, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// FP16 5D path.
+TEST(broadcast_gpu_opt, bfzyx_fp16_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test_5d<ov::float16>(format::bfzyx, data_types::f16, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// INT8 path (verifies opt kernel handles 1-byte types).
+TEST(broadcast_gpu_opt, bfyx_int8_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<int8_t>(format::bfyx, data_types::i8, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// INT64 path. Input must exceed the 16KB batch-repeat threshold to hit opt:
+// 4*16*40 i64 = 20480 bytes > 16384.
+TEST(broadcast_gpu_opt, bfyx_int64_1x4x16x40_to_4x4x16x40_axes_0) {
+    start_broadcast_test<int64_t>(format::bfyx, data_types::i64, {4,4,16,40}, {4,16,40}, {0}, "broadcast_gpu_opt");
+}
+
+// Input just above the 16KB threshold -> opt kernel.
+// 4*16*65 fp32 = 16640 bytes > 16384.
+TEST(broadcast_gpu_opt, bfyx_1x4x16x65_to_4x4x16x65_axes_0_above_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,65}, {4,16,65}, {0}, "broadcast_gpu_opt");
+}
+
+// Input just below threshold -> ref kernel (verifies fallback works).
+// 4*16*32 fp32 = 8192 bytes < 16384.
+TEST(broadcast_gpu_opt, bfyx_1x4x16x32_to_4x4x16x32_axes_0_below_threshold_uses_ref) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,32}, {4,16,32}, {0}, "broadcast_gpu_ref");
+}
+
+// Combined batch+feature broadcast. axes={0,1} -> identity input_order. Input must exceed
+// the 16KB batch-repeat threshold to hit opt: 64*128 f32 = 32768 bytes > 16384.
+// Input [1,1,64,128] -> Output [4,16,64,128]: batch (1->4) AND feature (1->16) broadcast.
+// Feature is handled via in_row_base modulo; opt fires because output.Batch>1, input.Batch==1.
+TEST(broadcast_gpu_opt, bfyx_1x1x64x128_to_4x16x64x128_axes_0_1) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,64,128}, {64,128}, {0,1}, "broadcast_gpu_opt");
+}
+
+// Batch + Y broadcast. broadcast_axes={0,2} yields a permuted input_order [0,2,1,3]
+// (NOT identity), so the opt kernel defers to ref. Verifies correctness on the fallback path.
+// Input [16,64] (dims F,X) -> Output [4,16,32,64]: batch (axis 0) AND Y (axis 2) broadcast.
+TEST(broadcast_gpu_opt, bfyx_16x64_to_4x16x32x64_axes_0_2) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {16,64}, {0,2}, "broadcast_gpu_ref");
+}
+
+// Guard regression test: broadcast_axes={2} (a middle axis) produces a permuted
+// input_order [1,2,0,3] (NOT identity). The opt kernel maps output axis i -> input axis i
+// with no permutation, so it must defer to ref here. Verifies the input_order identity
+// guard routes this correctly and the result still matches the reference.
+// NOTE: the legacy reinterpret (broadcast_axes) helper can only produce identity
+// input_order for leading-axis broadcasts ({0}, {0,1}, ...). Trailing/middle-axis
+// broadcasts always yield a permuted order and are (correctly) handled by ref. The opt
+// kernel's X-broadcast / block-write fast path is exercised by the standalone numpy-mode
+// benchmarks (broadcast_test_x_axis, broadcast_test_scalar) where input.X is genuinely 1.
+TEST(broadcast_gpu_opt, bfyx_axis2_permuted_order_uses_ref) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {4,16,64}, {2}, "broadcast_gpu_ref");
 }
