@@ -826,8 +826,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (m_is_embedding) {
         // Distinguish autoregressive (Qwen3-Embedding-style) from non-autoregressive bidirectional
         // encoders (BERT: xiaobu, bge, Conan). The latter cannot be reconstructed into a prefill/KV
-        // model and must run as a single static forward.
+        // model and must run as a single static forward. The check keys on the KV-cache concat
+        // pattern on the SDPA key input; log the verdict at INFO so a misclassified model (e.g.
+        // an unusual decoder topology routed to the encoder path) is diagnosable from the logs.
         m_is_encoder_embedding = ov::npuw::util::is_encoder_embedding_model(kvcache_model);
+        LOG_INFO("Text-embedding model classified as "
+                 << (m_is_encoder_embedding ? "bidirectional encoder: single-forward, prefill-only path"
+                                            : "autoregressive decoder: reconstructed prefill/KV path"));
         if (m_is_encoder_embedding) {
             LOG_DEBUG("Encoder (bidirectional) text-embedding model rebuild");
             // A bidirectional encoder attends over the whole sequence at once; chunked prefill is
