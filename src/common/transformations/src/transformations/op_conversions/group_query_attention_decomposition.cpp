@@ -9,17 +9,26 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
@@ -38,8 +47,10 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
+namespace v5 = ov::op::v5;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
+namespace v15 = ov::op::v15;
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
@@ -78,6 +89,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_value = node->input_value(4);
     auto seqlens_k = node->input_value(5);
     auto total_sequence_length = node->input_value(6);
+
+    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8 and are dequantized before the
+    // attention math and (re)quantized when appended to the cache. Scales live at inputs 12 (K) / 13 (V).
+    const bool kv_quantized = node->is_kv_quantized();
+    const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
+    const auto k_quant_type = node->get_k_quant_type();
+    const auto v_quant_type = node->get_v_quant_type();
+    const auto kv_cache_type = past_key.get_element_type();
+    ov::Output<ov::Node> k_scale, v_scale;
+    if (kv_quantized) {
+        k_scale = node->input_value(12);
+        v_scale = node->input_value(13);
+    }
 
     auto is_null = [](const ov::Output<ov::Node>& output) {
         return output.get_node_shared_ptr()->description() == "NullNode";
@@ -126,6 +150,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
+    // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
+    // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
+    // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
+    if (kv_quantized) {
+        K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
+        V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
+    }
+
     if (is_static_input) {
         // static design for GQA (KV cache is static max length, valid KVs are left align)
         // inputs are:
@@ -154,8 +186,16 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = construct_kv_cache(past_value, V);
     }
 
+    // present_key/present_value are the assembled cache (quantized when kv_quantized), matching the op outputs.
     ov::Output<ov::Node> present_k = K;
     ov::Output<ov::Node> present_v = V;
+
+    // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
+    // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
+    if (kv_quantized) {
+        K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
+        V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
+    }
 
     const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
@@ -199,10 +239,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
         const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
+        // Mask with the type's finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf =
-                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
         else if (T == ov::element::f16)
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
@@ -307,4 +347,131 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     }
 
     return output.get_node_shared_ptr();
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_scale(const ov::Output<ov::Node>& scale,
+                                                                                    int64_t kv_num_heads,
+                                                                                    const std::string& quant_type) {
+    // The KV cache is laid out as [batch, kv_num_heads, seq_len, head_size]. Reshape the flat scale so it
+    // broadcasts along that layout. A fully static target shape is used (no -1 wildcard) so the result stays
+    // static-shaped for plugins (e.g. NPU) that require static shapes. A fresh shape Constant is built per
+    // call so no two GQA layers alias it.
+    std::vector<int64_t> target_shape;
+    if (quant_type == "PER_CHANNEL") {
+        // Per-channel scale has kv_num_heads * head_size elements, head-major (scale[kv_head * head_size + ch]).
+        // Reshape to [1, kv_num_heads, 1, head_size] to broadcast over batch and seq. head_size is derived from
+        // the (static) scale length when known, otherwise falls back to a -1 wildcard.
+        int64_t head_size = -1;
+        const auto& scale_pshape = scale.get_partial_shape();
+        if (scale_pshape.rank().is_static() && scale_pshape.rank().get_length() == 1 && scale_pshape[0].is_static()) {
+            head_size = scale_pshape[0].get_length() / kv_num_heads;
+        }
+        target_shape = {1, kv_num_heads, 1, head_size};
+    } else {
+        // PER_TENSOR: a single scalar broadcast over the whole tensor.
+        target_shape = {1, 1, 1, 1};
+    }
+    const auto shape_const =
+        register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{target_shape.size()}, target_shape));
+    return register_new_node<v1::Reshape>(scale, shape_const, false);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize_kv(
+    const ov::Output<ov::Node>& quantized,
+    const ov::Output<ov::Node>& scale,
+    int64_t kv_num_heads,
+    int64_t kv_cache_bit_width,
+    const std::string& quant_type,
+    const ov::element::Type& compute_type) {
+    // Symmetric dequantization matching ONNX Runtime MLAS/CUDA QDQ. The actual Convert(->float) * scale
+    // (optionally - zero_point) chain is built via the shared ov::decomposition::low_precision_dequantize
+    // helper, so it produces the canonical dequantization pattern recognized by MarkDequantization / LPT.
+    const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
+
+    if (kv_cache_bit_width == 4) {
+        // 4-bit cache is stored as u8 with two signed values packed per byte (even channel -> low nibble,
+        // odd channel -> high nibble) biased by +8. Unpack the nibbles back into per-channel integers first,
+        // then let low_precision_dequantize apply the (Convert - 8) * scale chain (zero_point = 8 removes the bias).
+        const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto mask_low =
+            register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {0x0F}));
+        const auto shift_4 = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {4}));
+        const auto low_nibble = register_new_node<v13::BitwiseAnd>(quantized, mask_low);
+        const auto high_nibble = register_new_node<v15::BitwiseRightShift>(quantized, shift_4);
+        // Interleave low/high nibbles back along the head_size axis: [.., packed] -> [.., packed, 2] -> [.., 2*packed].
+        const auto low_u = register_new_node<v0::Unsqueeze>(low_nibble, axis_last);
+        const auto high_u = register_new_node<v0::Unsqueeze>(high_nibble, axis_last);
+        const auto interleaved = register_new_node<v0::Concat>(ov::OutputVector{low_u, high_u}, -1);
+        const auto flat_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, -1}));
+        const auto unpacked = register_new_node<v1::Reshape>(interleaved, flat_shape, true);
+        const auto zero_point = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {8}));
+        ov::pass::NodeRegistry reg;
+        auto dequant =
+            ov::decomposition::low_precision_dequantize(reg, unpacked, scale_bcast, zero_point, {}, compute_type);
+        for (const auto& node : reg.get()) {
+            register_new_node(node);
+        }
+        return dequant.get_node_shared_ptr();
+    }
+
+    // 8-bit cache: symmetric (no zero point) Convert(->compute) * scale via the shared helper.
+    ov::pass::NodeRegistry reg;
+    auto dequant = ov::decomposition::low_precision_dequantize(reg, quantized, scale_bcast, {}, {}, compute_type);
+    for (const auto& node : reg.get()) {
+        register_new_node(node);
+    }
+    return dequant.get_node_shared_ptr();
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(const ov::Output<ov::Node>& current,
+                                                                                  const ov::Output<ov::Node>& scale,
+                                                                                  int64_t kv_num_heads,
+                                                                                  int64_t kv_cache_bit_width,
+                                                                                  const std::string& quant_type,
+                                                                                  const ov::element::Type& cache_type) {
+    // Symmetric quantize-on-write: q = clamp(round(x * inv_scale)). Rounding is round-half-to-even to match the
+    // ONNX Runtime MLAS/CUDA reference (std::rintf). Clamp is applied before the narrowing Convert to avoid
+    // overflow on out-of-range values. inv_scale mirrors MLAS SafeInvScale: a zero scale maps to 1.0 so the step
+    // degenerates to clamp(round(x)) instead of producing NaN (and multiplying by the reciprocal matches MLAS).
+    const auto compute_type = current.get_element_type();
+    const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
+    ov::Output<ov::Node> scale_ct = scale_bcast;
+    if (scale.get_element_type() != compute_type) {
+        scale_ct = register_new_node<v0::Convert>(scale_bcast, compute_type);
+    }
+    const auto one = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {1}));
+    const auto zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
+    const auto is_zero_scale = register_new_node<v1::Equal>(scale_ct, zero);
+    const auto safe_scale = register_new_node<v1::Select>(is_zero_scale, one, scale_ct);
+    const auto inv_scale = register_new_node<v1::Divide>(one, safe_scale);
+    const auto scaled = register_new_node<v1::Multiply>(current, inv_scale);
+    const auto rounded = register_new_node<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN);
+
+    if (kv_cache_bit_width == 4) {
+        // Clamp to signed 4-bit range, add the +8 storage bias, then pack pairs of channels into u8 bytes.
+        const auto clamped = register_new_node<v0::Clamp>(rounded, -8.0, 7.0);
+        const auto bias = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {8}));
+        const auto biased = register_new_node<v1::Add>(clamped, bias);
+        const auto as_u8 = register_new_node<v0::Convert>(biased, cache_type);
+        // Split the head_size axis into pairs: [.., 2*packed] -> [.., packed, 2] -> low/high nibbles.
+        const auto pair_shape =
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, -1, 2}));
+        const auto paired = register_new_node<v1::Reshape>(as_u8, pair_shape, true);
+        const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto split = register_new_node<v1::VariadicSplit>(
+            paired,
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {-1})),
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1})));
+        const auto low = register_new_node<v0::Squeeze>(split->output(0), axis_last);
+        const auto high = register_new_node<v0::Squeeze>(split->output(1), axis_last);
+        const auto shift_4 = register_new_node(v0::Constant::create(cache_type, ov::Shape{}, {4}));
+        const auto mask_low = register_new_node(v0::Constant::create(cache_type, ov::Shape{}, {0x0F}));
+        const auto low_masked = register_new_node<v13::BitwiseAnd>(low, mask_low);
+        const auto high_shifted = register_new_node<v15::BitwiseLeftShift>(high, shift_4);
+        return register_new_node<v13::BitwiseOr>(low_masked, high_shifted);
+    }
+
+    // 8-bit cache: clamp to signed 8-bit range and narrow to the cache type.
+    const auto clamped = register_new_node<v0::Clamp>(rounded, -128.0, 127.0);
+    return register_new_node<v0::Convert>(clamped, cache_type);
 }
