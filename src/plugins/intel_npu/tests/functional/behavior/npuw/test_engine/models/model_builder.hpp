@@ -29,7 +29,8 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  const std::string& name,
                                  ov::element::Type precision = ov::element::f32,
                                  const WeightFn& weight_fn = FP32Weight{},
-                                 const WeightFn& bias_fn = {});
+                                 const WeightFn& bias_fn = {},
+                                 const LoRAInjector* lora = nullptr);
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -168,6 +169,13 @@ using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::No
                                                          ov::element::Type,
                                                          size_t)>;
 
+/// Minimal standalone LoRA adapter model config (no attention/KV/RoPE).
+struct LoRAConfig : public BaseModelConfig {
+    size_t lora_rank = 8;
+    std::vector<std::string> lora_targets;  ///< Empty = q,k,v,o,gate,up,down.
+    bool lora_stateful = false;             ///< true = ReadValue/Assign states.
+};
+
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
@@ -186,6 +194,16 @@ struct LLMConfig : public BaseModelConfig {
     size_t sliding_to_full_ratio = 0;
     bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
     SlidingMaskFn sliding_mask_fn;       ///< Empty = default float SWA (matches no NPUW pass; set make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
+
+    /// LoRA adapter support: inject low-rank A/B/alpha tensors per adapted linear layer.
+    /// 0 = no LoRA. >0 = inject LoRA with this max rank into adapted projections.
+    size_t lora_rank = 0;
+    /// Which projection names get LoRA adapters ("q_proj", "v_proj", etc).
+    /// Empty = default set (q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj).
+    std::vector<std::string> lora_targets;
+    /// false = expose LoRA tensors as Parameters (NPUW stateless form).
+    /// true = expose LoRA tensors as ReadValue/Assign states (GenAI dynamic form before NPUW conversion).
+    bool lora_stateful = false;
 };
 
 struct WhisperConfig : public BaseModelConfig {
@@ -246,6 +264,7 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
+    std::shared_ptr<ov::Model> build_lora_adapter(const LoRAConfig& config = {});
     std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
