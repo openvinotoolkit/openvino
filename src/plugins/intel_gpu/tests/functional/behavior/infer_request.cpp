@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <atomic>
+#include <thread>
+#include <vector>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -90,6 +94,159 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(ov::Shape{1, 50}),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
+
+static std::shared_ptr<ov::Model> makeStaticInputModel(ov::Shape& shape_out) {
+    const ov::Shape shape{1, 64};
+    shape_out = shape;
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    param->set_friendly_name("static_input");
+    param->output(0).get_tensor().set_names({"static_input"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+}
+
+// Regression: a static input must be inferable when set_tensor() is never called. The reserved
+// (null) slot is materialized lazily in enqueue(), and check_tensors() must not fail for it.
+TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // Do NOT set any input tensor: the slot stays reserved until enqueue() allocates it.
+    OV_ASSERT_NO_THROW(request.infer());
+
+    // The lazily-allocated input tensor must now be valid and correctly shaped.
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+    OV_ASSERT_NO_THROW(request.get_output_tensor(0));
+}
+
+// Regression: accessing the input via get_tensor() before infer() must materialize the reserved
+// slot on the const get_tensor() path (a different entry point than enqueue()), and inference
+// must still work afterwards.
+TEST(TensorTest, smoke_lazyAllocStaticInputGetTensorBeforeInfer) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // First access via get_tensor() must materialize the reserved slot.
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+
+    OV_ASSERT_NO_THROW(request.infer());
+}
+
+static std::shared_ptr<ov::Model> makeDynamicInputModel() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                         ov::PartialShape{1, ov::Dimension::dynamic()});
+    param->set_friendly_name("dyn_input");
+    param->output(0).get_tensor().set_names({"dyn_input"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+}
+
+TEST(TensorTest, smoke_eagerAllocDynamicInputInfer) {
+    auto model = makeDynamicInputModel();
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // Eagerly allocated: accessing the tensor before set/infer must not throw.
+    OV_ASSERT_NO_THROW(request.get_input_tensor(0));
+
+    const ov::Shape concrete{1, 8};
+    ov::Tensor input(ov::element::f32, concrete);
+    OV_ASSERT_NO_THROW(request.set_input_tensor(0, input));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    ov::Tensor out;
+    OV_ASSERT_NO_THROW(out = request.get_output_tensor(0));
+    ASSERT_EQ(out.get_shape(), concrete);
+}
+
+// Data-race guard for the lazy input path: many threads race on the first get_tensor() of a fresh
+// request, all hitting the reserved-null slot at once. The double-checked lock in
+// ensure_input_allocated() must collapse them into one allocation, so every thread must observe the
+// same backing buffer. A fresh request per iteration re-arms the race. Run under TSan for full
+// coverage (TSan is Linux-only; on Windows this still catches divergent-buffer/crash regressions).
+TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    constexpr int kThreads = 8;
+    constexpr int kIterations = 100;
+
+    std::atomic<bool> failed{false};
+
+    for (int iter = 0; iter < kIterations && !failed.load(); ++iter) {
+        // Fresh request: input slot starts reserved (null), so the first get_tensor() from any
+        // thread races to materialize it. No infer() runs, so the async BUSY gate does not serialize.
+        auto request = compiled_model.create_infer_request();
+
+        std::atomic<int> ready{0};
+        std::atomic<bool> go{false};
+        std::vector<const void*> observed(kThreads, nullptr);
+
+        std::vector<std::thread> threads;
+        threads.reserve(kThreads);
+        for (int t = 0; t < kThreads; ++t) {
+            threads.emplace_back([&, t] {
+                ready.fetch_add(1, std::memory_order_acq_rel);
+                // yield-spin until released: all threads hit get_tensor() at nearly the same instant.
+                while (!go.load(std::memory_order_acquire)) {
+                    std::this_thread::yield();
+                }
+                try {
+                    auto in = request.get_input_tensor(0);
+                    if (in.get_shape() != shape || in.data() == nullptr) {
+                        failed.store(true);
+                    }
+                    observed[t] = in.data();
+                } catch (...) {
+                    // Any exception on the concurrent first-touch materialization is a failure.
+                    failed.store(true);
+                }
+            });
+        }
+
+        // Release all threads at once to maximize contention on the reserved-null slot.
+        while (ready.load(std::memory_order_acquire) < kThreads) {
+            std::this_thread::yield();
+        }
+        go.store(true, std::memory_order_release);
+
+        for (auto& th : threads) {
+            th.join();
+        }
+
+        // Every racer must have been handed the SAME buffer; a divergent pointer means the
+        // double-checked lock failed to collapse duplicate allocations (a real race).
+        const void* first = observed[0];
+        for (int t = 1; t < kThreads; ++t) {
+            if (observed[t] != first) {
+                failed.store(true);
+            }
+        }
+    }
+
+    ASSERT_FALSE(failed.load());
+}
 
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();

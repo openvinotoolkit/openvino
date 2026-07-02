@@ -15,6 +15,8 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <mutex>
+#include <shared_mutex>
 
 namespace ov::intel_gpu {
 
@@ -69,7 +71,16 @@ public:
 private:
     void check_tensors() const override;
 
-    std::unordered_map<size_t, TensorWrapper> m_user_inputs;
+    // Lazily allocate the reserved (null) host tensor for a deferred input slot. Idempotent and
+    // safe from the const get_tensor(); takes m_user_inputs_mutex exclusively (double-checked).
+    void ensure_input_allocated(const ov::Output<const ov::Node>& port, size_t input_idx) const;
+
+    // Mutable because the lazy-allocation path reachable from the const get_tensor() mutates it.
+    // All accesses to m_user_inputs must be guarded by m_user_inputs_mutex (shared lock for reads,
+    // exclusive for the deferred allocation) so a const get_tensor() can be called concurrently
+    // with infer()/check_tensors() without a data race.
+    mutable std::unordered_map<size_t, TensorWrapper> m_user_inputs;
+    mutable std::shared_mutex m_user_inputs_mutex;
     std::unordered_map<size_t, TensorWrapper> m_user_outputs;
 
     std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
