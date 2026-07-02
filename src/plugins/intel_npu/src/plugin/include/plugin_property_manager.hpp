@@ -53,16 +53,13 @@ private:
         std::shared_ptr<CompilerOptionSupportHelper> optionSupportHelper;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
-        bool compatibilityCheckSupported;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
-        bool compatibilityCheckFiltered;
     };
 
     explicit PluginPropertyManager(CopyState&& state);
 
     void registerProperties();
-    void initializeCompatibilityCheckSupportIfNeeded();
     bool isPropertyRegistered(const std::string& propertyName) const;
 
     FilteredConfig _config;
@@ -72,10 +69,8 @@ private:
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
-    bool _compatibilityCheckSupported = false;
     std::string _currentlyUsedPlatform;
     bool _compilerConfigsFilteredByCompiler = false;
-    bool _compatibilityCheckFiltered = false;
 
     std::map<std::string, PropertyDescriptor> _properties;
 
