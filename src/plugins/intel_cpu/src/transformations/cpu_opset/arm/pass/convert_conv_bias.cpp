@@ -28,13 +28,14 @@
 using namespace ov::pass;
 
 ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
-    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(true);
+    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
         const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
         const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
+        const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
         const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
         if (!conv_out || !mul_out || !add_out || !fq_out) {
             return false;
@@ -48,7 +49,8 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
             return false;
         }
 
-        if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
+        const bool has_swish = activation_out.has_value();
+        if (!has_swish && fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
@@ -59,19 +61,42 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         // mark Multiply as dequantization node to avoid its conversion to PowerStatic
         ov::mark_as_dequantization_node(new_mul);
 
-        add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
-        auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
-        auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-        auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
+        if (!has_swish) {
+            add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
+            auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
+            auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+            auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
-        auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
-            ov::element::TypeVector{ov::element::f32, ov::element::f32},
-            ov::element::TypeVector{ov::element::f32},
-            ov::op::TemporaryReplaceOutputType(add->input_value(0), ov::element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
-        new_add->set_friendly_name(add->get_friendly_name());
-        ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
-        ov::replace_node(add, new_add);
+            auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
+                ov::element::TypeVector{ov::element::f32, ov::element::f32},
+                ov::element::TypeVector{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(add->input_value(0), ov::element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
+            new_add->set_friendly_name(add->get_friendly_name());
+            ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
+            ov::replace_node(add, new_add);
+        } else {
+            auto new_add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
+            auto dq_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(new_mul->get_input_node_shared_ptr(1));
+            if (new_add && dq_scale_const) {
+                auto bias_div_scale =
+                    ov::as_type_ptr<ov::op::v0::Constant>(new_add->get_input_node_shared_ptr(1));
+                if (bias_div_scale) {
+                    const auto bds_vals = bias_div_scale->cast_vector<float>();
+                    const auto scale_vals = dq_scale_const->cast_vector<float>();
+                    std::vector<float> restored(bds_vals.size());
+                    for (size_t i = 0; i < bds_vals.size(); i++) {
+                        const float s = (scale_vals.size() == 1) ? scale_vals[0] : scale_vals[i];
+                        restored[i] = bds_vals[i] * s;
+                    }
+                    auto restored_const = ov::op::v0::Constant::create(
+                        ov::element::f32, bias_div_scale->get_shape(), restored);
+                    restored_const->set_friendly_name(bias_div_scale->get_friendly_name());
+                    ov::copy_runtime_info(bias_div_scale, restored_const);
+                    ov::replace_node(bias_div_scale, restored_const);
+                }
+            }
+        }
 
         return true;
     };
