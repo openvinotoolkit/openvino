@@ -55,10 +55,13 @@ PoolingFactory::PoolingFactory(const Node& node)
 
 ov::OutputVector PoolingFactory::make_avg_pool() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
+    const bool is_ceil_mode = m_rounding_type == ov::op::RoundingType::CEIL;
 
-    if (std::all_of(m_dilations.begin(), m_dilations.end(), [](size_t d) {
-            return d == static_cast<size_t>(1);
-        })) {
+    const bool has_dilations = std::any_of(m_dilations.begin(), m_dilations.end(), [](size_t d) {
+        return d != static_cast<size_t>(1);
+    });
+
+    if (!has_dilations && !is_ceil_mode) {
         return {std::make_shared<v1::AvgPool>(m_inputs.at(0),
                                               m_strides,
                                               m_padding_below,
@@ -68,6 +71,8 @@ ov::OutputVector PoolingFactory::make_avg_pool() const {
                                               m_rounding_type,
                                               m_auto_pad)};
     }
+    // ONNX ceil_mode must not let a window start in padding; only CEIL_TORCH enforces that.
+    const auto rounding_type = is_ceil_mode ? ov::op::RoundingType::CEIL_TORCH : m_rounding_type;
     return {std::make_shared<v16::AvgPool>(m_inputs.at(0),
                                            m_strides,
                                            m_dilations,
@@ -75,7 +80,7 @@ ov::OutputVector PoolingFactory::make_avg_pool() const {
                                            m_padding_above,
                                            m_kernel_shape,
                                            !count_include_pad,
-                                           m_rounding_type,
+                                           rounding_type,
                                            m_auto_pad)};
 }
 
