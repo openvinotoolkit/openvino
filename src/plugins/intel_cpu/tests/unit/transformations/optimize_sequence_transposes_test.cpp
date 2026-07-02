@@ -5,10 +5,10 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
-
 #include <openvino/core/model.hpp>
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset5_decl.hpp"
