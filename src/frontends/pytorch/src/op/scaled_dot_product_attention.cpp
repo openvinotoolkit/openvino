@@ -151,7 +151,7 @@ std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
     }
 
     auto inputs = prepare_inputs_to_sdpa(context, q_reshaped, k_unsqueezed, v_unsqueezed, scale, unsqueezed_attn_mask);
-    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
+    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, true, is_causal));
 
     // Reshape back: [B,..., Hk, group_size, T, Dv] -> [B,..., Hq, T, Dv]
     auto reshape_out_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hq, L, Dv}, 0));
@@ -166,6 +166,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
     auto value = context.get_input(2);
 
     auto is_causal = context.input_is_none(5) ? false : context.const_input<bool>(5);
+    auto is_gqa = context.input_is_none(4) ? false : context.const_input<bool>(4);
 
     ov::Output<ov::Node> attn_mask{};
     ov::Output<ov::Node> scale{};
@@ -183,7 +184,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
     }
 
     auto inputs = prepare_inputs_to_sdpa(context, query, key, value, scale, attn_mask);
-    return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
+    return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_gqa,is_causal));
 }
 
 OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
@@ -205,6 +206,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     OutputVector inputs{query, key, value};
     // Index 3 is dropout
     auto causal = false;
+    auto gqa_mode = false;
     if (context.has_attribute("is_causal")) {
         causal = context.get_attribute<bool>("is_causal");
     } else if (!context.input_is_none(4)) {
@@ -221,7 +223,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
         const auto scale = context.get_input("scale");
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(scale, query)));
     }
-    auto sdpa = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, causal));
+    auto sdpa = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, gqa_mode, causal));
     return {context.mark_node(make_list_construct({sdpa}))};
 };
 

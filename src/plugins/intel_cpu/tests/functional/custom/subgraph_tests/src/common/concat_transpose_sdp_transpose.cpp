@@ -163,7 +163,7 @@ public:
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
         auto transposeV = std::make_shared<ov::op::v1::Transpose>(concatV, preOrder);
 
-        auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(transposeQ, transposeK, transposeV, false);
+        auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(transposeQ, transposeK, transposeV, false, false);
         sdp->set_friendly_name("mha");
 
         // post SDPA transpose + reshape

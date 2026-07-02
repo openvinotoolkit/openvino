@@ -328,6 +328,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
                                                           ov::Dimension v_features,
                                                           ov::element::Type_t element_type,
                                                           std::vector<int64_t> qkv_order,
+                                                          bool gqa,
                                                           bool causal,
                                                           bool with_mask,
                                                           bool with_scale,
@@ -395,11 +396,11 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
 
     std::shared_ptr<ov::Node> sdpa = nullptr;
     if (mask && scale) {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, causal);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, gqa, causal);
     } else if (mask) {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, causal);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, gqa, causal);
     } else {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, causal);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, gqa, causal);
     }
     sdpa->set_friendly_name("sdpa");
 

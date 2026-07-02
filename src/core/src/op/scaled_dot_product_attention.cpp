@@ -10,8 +10,9 @@
 using namespace std;
 namespace ov {
 
-op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const OutputVector& inputs, bool causal)
+op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const OutputVector& inputs, bool gqa_mode, bool causal)
     : op::Op(inputs),
+      m_gqa_mode(gqa_mode),
       m_causal(causal) {
     constructor_validate_and_infer_types();
 }
@@ -21,8 +22,9 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
                                                               const Output<Node>& value,
                                                               const Output<Node>& attn_mask,
                                                               const Output<Node>& scale,
+                                                              bool gqa_mode,
                                                               bool causal)
-    : ScaledDotProductAttention({query, key, value, attn_mask, scale}, causal) {}
+    : ScaledDotProductAttention({query, key, value, attn_mask, scale}, gqa_mode, causal) {}
 
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
                                                               const Output<Node>& key,
@@ -30,21 +32,24 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
                                                               const Output<Node>& attn_mask,
                                                               const Output<Node>& scale,
                                                               const Output<Node>& sink,
+                                                              bool gqa_mode,
                                                               bool causal)
-    : ScaledDotProductAttention({query, key, value, attn_mask, scale, sink}, causal) {}
+    : ScaledDotProductAttention({query, key, value, attn_mask, scale, sink}, gqa_mode, causal) {}
 
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
                                                               const Output<Node>& key,
                                                               const Output<Node>& value,
                                                               const Output<Node>& attn_mask,
+                                                              bool gqa_mode,
                                                               bool causal)
-    : ScaledDotProductAttention({query, key, value, attn_mask}, causal) {}
+    : ScaledDotProductAttention({query, key, value, attn_mask}, gqa_mode, causal) {}
 
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
                                                               const Output<Node>& key,
                                                               const Output<Node>& value,
+                                                              bool gqa_mode,
                                                               bool causal)
-    : ScaledDotProductAttention({query, key, value}, causal) {}
+    : ScaledDotProductAttention({query, key, value}, gqa_mode, causal) {}
 
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
@@ -79,12 +84,13 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_clone_with_new_inputs);
-    return std::make_shared<ScaledDotProductAttention>(new_args, m_causal);
+    return std::make_shared<ScaledDotProductAttention>(new_args, m_gqa_mode, m_causal);
 }
 
 bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);
+    visitor.on_attribute("gqa_mode", m_gqa_mode);
     return true;
 }
 

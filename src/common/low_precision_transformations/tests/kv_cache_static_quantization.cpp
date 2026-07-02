@@ -115,13 +115,13 @@ inline std::shared_ptr<ov::Node> create_sdpa(SDPAType sdpa_type,
         auto mask = make_attention_mask(q, k, original_precision, qkv_order);
         auto scale =
             v0::Constant::create(original_precision, ov::Shape{}, {1.0f / std::sqrt(k_features.get_max_length())});
-        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, scale, true);
+        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, scale, false, true);
     } else if (sdpa_type == SDPAType::WithMask) {
         auto mask = make_attention_mask(q, k, original_precision, qkv_order);
-        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, true);
+        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, false, true);
     } else {
         OPENVINO_ASSERT(sdpa_type == SDPAType::Standard, "Unsupported SDPA type: ", static_cast<int>(sdpa_type));
-        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, true);
+        sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, false, true);
     }
     sdpa->set_friendly_name("sdpa");
     return sdpa;

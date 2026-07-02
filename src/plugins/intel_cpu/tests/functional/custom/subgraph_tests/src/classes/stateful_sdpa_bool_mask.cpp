@@ -93,7 +93,7 @@ void StatefulSdpaBoolMaskTest::SetUp() {
     auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather_k, k}, 2);
     auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather_v, v}, 2);
 
-    auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concat_k, concat_v, mask, false);
+    auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concat_k, concat_v, mask, false, false);
     sdpa->set_friendly_name("stateful_sdpa");
 
     auto assign_k = std::make_shared<ov::op::v6::Assign>(concat_k, variable_k);

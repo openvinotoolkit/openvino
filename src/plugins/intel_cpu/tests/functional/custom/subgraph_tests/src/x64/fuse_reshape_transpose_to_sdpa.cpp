@@ -110,7 +110,7 @@ public:
             transposes[i] = std::make_shared<ov::op::v1::Transpose>(reshape, transposeOrder);
         }
 
-        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(transposes, false);
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(transposes, false, false);
         sdpa->set_friendly_name("mha");
 
         // post SDPA transpose + reshape

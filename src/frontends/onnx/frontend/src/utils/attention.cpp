@@ -99,6 +99,7 @@ ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
                                 bool has_mask,
                                 const ov::Output<ov::Node>& attn_mask,
                                 float scale_attr,
+                                bool is_gqa,
                                 bool is_causal) {
     ov::OutputVector inputs{Q, K, V};
     if (has_mask) {
@@ -112,7 +113,7 @@ ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
         }
         inputs.push_back(v0::Constant::create(Q.get_element_type(), ov::Shape{}, {scale_attr}));
     }
-    return std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
+    return std::make_shared<v13::ScaledDotProductAttention>(inputs, is_gqa, is_causal)->output(0);
 }
 
 // Build manual attention decomposition (for softcap or qk_matmul_output)

@@ -20,9 +20,10 @@ TEST(type_prop, scaled_dot_product_attention_static_5_inputs) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (Shape{2, 3, 6}));
 }
@@ -33,8 +34,9 @@ TEST(type_prop, scaled_dot_product_attention_static_4_inputs) {
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -44,8 +46,9 @@ TEST(type_prop, scaled_dot_product_attention_static_3_inputs) {
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -55,8 +58,9 @@ TEST(type_prop, scaled_dot_product_attention_static_3_inputs_causal) {
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
     auto causal = true;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -68,9 +72,10 @@ TEST(type_prop, scaled_dot_product_scalar_attention_causal_false) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -82,9 +87,10 @@ TEST(type_prop, scaled_dot_product_attention_static_ignored_attention_mask) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{7, 8, 9, 10, 11});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = true;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -96,9 +102,10 @@ TEST(type_prop, scaled_dot_product_attention_static_5_inputs_extra_batch) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
 }
@@ -109,8 +116,9 @@ TEST(type_prop, scaled_dot_product_attention_static_4_inputs_extra_batch) {
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 1, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
 }
@@ -120,8 +128,9 @@ TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch) {
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 7, 5, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 7, 5, 6});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
 }
@@ -131,8 +140,9 @@ TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch_causal_
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 7, 5, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{7, 5, 6});
     auto causal = true;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
 }
@@ -144,9 +154,10 @@ TEST(type_prop, scaled_dot_product_attention_static_ignored_attention_mask_extra
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{7, 8, 9, 10, 11});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = true;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
 }
@@ -158,9 +169,10 @@ TEST(type_prop, scaled_dot_product_attention_5_inputs_dynamic_rank) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
@@ -173,9 +185,10 @@ TEST(type_prop, scaled_dot_product_attention_dynamic_3d) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
@@ -188,9 +201,10 @@ TEST(type_prop, scaled_dot_product_attention_dynamic_4d) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
@@ -210,9 +224,10 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f64, attention_mask_shape);
     const auto scale = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {4, 5}, {3, 7}}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
@@ -226,9 +241,10 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs_ignore_a
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{57, 3, {4, 7}, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{});
     auto causal = true;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {1, 5}, {3, 7}}));
 }
@@ -241,9 +257,10 @@ TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 5, 7});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
@@ -257,9 +274,10 @@ TEST(type_prop, scaled_dot_product_attention_infer_6_dynamic) {
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
@@ -270,8 +288,9 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
     const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{{2, 4}, 4, 5, {3, 7}});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{4, {4, 7}, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{2, 4}, 4, {4, 5}, {3, 7}}));
 }
@@ -283,9 +302,10 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_5_inputs) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{1, 3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -296,8 +316,9 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs) {
     const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -308,8 +329,9 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs_bool_attention)
     const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape{1, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
-    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -321,9 +343,10 @@ TEST(type_prop, scaled_dot_product_attention_static_broadcast_attention_L) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 8, 1, 48});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 8, 16, 64}));
 }
@@ -335,9 +358,10 @@ TEST(type_prop, scaled_dot_product_attention_dyn_broadcast_attention_L) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 8, 1, -1});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 8, {8, -1}, 64}));
 }
@@ -348,9 +372,10 @@ TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
-        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("Key input shape not compatible with other inputs."));
 }
@@ -360,9 +385,10 @@ TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
-        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("Value input shape not compatible with other inputs."));
 }
@@ -373,9 +399,10 @@ TEST(type_prop, scaled_dot_product_unsupported_attention_shape) {
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
-        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
 }
@@ -387,10 +414,11 @@ TEST(type_prop, scaled_dot_product_unsupported_scale_shape) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
         auto op =
-            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("Scale input must be scalar or have 1 element."));
 }
@@ -402,10 +430,11 @@ TEST(type_prop, scaled_dot_product_unsupported_dtype) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape{3, 3, 3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
         auto op =
-            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("The element type of the input tensor must be a floating-point."));
 }
@@ -417,10 +446,11 @@ TEST(type_prop, scaled_dot_product_unsupported_value_dtype_mixed) {
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{3, 3, 3, 5});
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
         auto op =
-            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("Mixed input types are not supported."));
 }
@@ -431,9 +461,10 @@ TEST(type_prop, scaled_dot_product_unsuported_attention_type) {
     const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3, 5});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(
-        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, gqa_mode, causal),
         AssertFailure,
         testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
 }
@@ -446,9 +477,10 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_correct_shape) {
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -461,9 +493,10 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_correct_dynamic_shape_4d
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, 3, -1});
     auto causal = true;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1, -1, -1}));
 }
@@ -476,9 +509,10 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_correct_shape_4d_causal_
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 3, 1});
     auto causal = true;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 4, 3, 6}));
 }
@@ -491,9 +525,10 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_broadcast_shape) {
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 1});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, gqa_mode, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
@@ -506,6 +541,7 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_rank) {
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4, 1});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query,
                                                                                    key,
@@ -513,6 +549,7 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_rank) {
                                                                                    attention_mask,
                                                                                    scale,
                                                                                    sink,
+                                                                                   gqa_mode,
                                                                                    causal),
                     AssertFailure,
                     testing::HasSubstr("The rank of sink input shape must be equal to the query input rank."));
@@ -526,6 +563,7 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_last_dim) {
     const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 2});
     auto causal = false;
+    auto gqa_mode = false;
 
     OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query,
                                                                                    key,
@@ -533,6 +571,7 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_last_dim) {
                                                                                    attention_mask,
                                                                                    scale,
                                                                                    sink,
+                                                                                   gqa_mode,
                                                                                    causal),
                     AssertFailure,
                     testing::HasSubstr("Sink input has not compatible shape."));
