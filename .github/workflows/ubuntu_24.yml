@@ -117,6 +117,7 @@ jobs:
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON

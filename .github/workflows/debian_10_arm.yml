@@ -117,6 +117,7 @@ jobs:
         -DENABLE_CONFORMANCE_PGQL=ON
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
+        -DENABLE_OV_GGUF_FRONTEND=ON
         -DENABLE_PYTHON=OFF
         -DTHREADING=SEQ
         -DCMAKE_TOOLCHAIN_FILE=cmake/arm.toolchain.cmake

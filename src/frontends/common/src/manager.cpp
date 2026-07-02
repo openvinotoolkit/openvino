@@ -58,6 +58,10 @@ public:
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
+            // Hidden frontends are not selectable by name through the generic API.
+            if (plugin.get_creator().m_hidden) {
+                continue;
+            }
             if (plugin.get_creator().m_name == framework) {
                 return make_frontend(plugin);
             }
@@ -72,6 +76,10 @@ public:
         for (auto& plugin_info : m_plugins) {
             if (!plugin_info.load()) {
                 OPENVINO_DEBUG("Frontend load failed: ", plugin_info.m_file_path, "\n");
+                continue;
+            }
+            // Hidden frontends are for direct linkage only; do not advertise them.
+            if (plugin_info.get_creator().m_hidden) {
                 continue;
             }
             names.push_back(plugin_info.get_creator().m_name);
@@ -89,6 +97,10 @@ public:
         // Step 2: Load and search from all available frontends
         for (auto& plugin : m_plugins) {
             if (!plugin.load()) {
+                continue;
+            }
+            // Hidden frontends are for direct linkage only; never auto-select them.
+            if (plugin.get_creator().m_hidden) {
                 continue;
             }
             auto fe = plugin.get_creator().m_creator();

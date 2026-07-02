@@ -277,6 +277,15 @@ macro(ov_cpack_settings)
         set(tensorflow_lite_copyright "generic")
     endif()
 
+    if(ENABLE_OV_GGUF_FRONTEND)
+        set(CPACK_COMPONENT_GGUF_DESCRIPTION "OpenVINO GGUF Frontend")
+        set(CPACK_RPM_GGUF_PACKAGE_NAME "libopenvino-gguf-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_GGUF_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_GGUF_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages gguf)
+        set(gguf_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #
