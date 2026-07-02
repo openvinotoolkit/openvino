@@ -4,6 +4,8 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+#define TO_OUTPUT_TYPE_SAT_RTE(v) CAT(CAT(convert_, OUTPUT_TYPE), _sat_rte)(v)
+
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
@@ -151,12 +153,13 @@ KERNEL(quantize_ref)(
     else
     {
 #if OUTPUT_IS_FP
-       output[output_offset] = TO_OUTPUT_TYPE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+       output[output_offset] = TO_OUTPUT_TYPE_SAT(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
 #else
-       // TODO: the outer round should be deleted once output range is correct
-        output[output_offset] = TO_OUTPUT_TYPE(round(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
-                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
+        output[output_offset] = TO_OUTPUT_TYPE_SAT_RTE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
 #endif
     }
 }
+
+#undef TO_OUTPUT_TYPE_SAT_RTE

@@ -345,7 +345,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
 
     if (params.outputs[0].Feature().v % vec_size != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));

@@ -20,6 +20,7 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 using namespace cldnn;
@@ -102,6 +103,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                                   std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
         using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
+        using bfloat16_mem_lock = mem_lock<ov::bfloat16, mem_lock_type::write>;
+        using locked_memory = std::tuple<std::shared_ptr<float_mem_lock>,
+                                         std::shared_ptr<float16_mem_lock>,
+                                         std::shared_ptr<bfloat16_mem_lock>>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
                 std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
@@ -112,7 +117,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
+                return locked_memory(data_lock_ptr, nullptr, nullptr);
             }
             case data_types::f16: {
                 std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
@@ -123,7 +128,18 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return static_cast<float>(data[idx]);
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
+                return locked_memory(nullptr, data_lock_ptr, nullptr);
+            }
+            case data_types::bf16: {
+                std::shared_ptr<bfloat16_mem_lock> data_lock_ptr = std::make_shared<bfloat16_mem_lock>(memory, stream);
+                ov::bfloat16* data = data_lock_ptr->data();
+                set_data = [data] (size_t idx, float value) {
+                    data[idx] = ov::bfloat16(value);
+                };
+                get_data = [data] (size_t idx) {
+                    return static_cast<float>(data[idx]);
+                };
+                return locked_memory(nullptr, nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -422,7 +438,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
     if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
-        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
+        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16 && reorder_node.get_output_layout().data_type != data_types::bf16) ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
         dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
