@@ -424,7 +424,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
 
     if (firstInference || commandListRecordingRequired) {
         _logger.debug("Reset command list to run with runtime");
-        // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+        // Reset commandLists since there are tensor with new shapes or it is the first execution, cannot reuse command
         // list with update
         for (auto& cmdList : commandLists) {
             zeCommandListReset(cmdList);
@@ -435,14 +435,14 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
             _logger.debug("Update command list and execute directly");
             if (params->executionContext == nullptr) {
                 OPENVINO_THROW(
-                    "Execution context is not created, can not reuse command list with UpdateMutableCommandList API");
+                    "Execution context is not created, cannot reuse command list with UpdateMutableCommandList API");
             }
 
             if (npuVMRuntimeUpdateMutableCommandList(_engine,
                                                      params,
                                                      const_cast<uint64_t*>(commandListIndexArray.data()),
                                                      commandListIndexArray.size()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                OPENVINO_THROW("Failed to execute VM runtime engine to update commandlist");
+                OPENVINO_THROW("Failed to update commandlist via VM runtime engine");
             }
         } else {
             _logger.debug("Reuse command list without update since no tensor change detected");

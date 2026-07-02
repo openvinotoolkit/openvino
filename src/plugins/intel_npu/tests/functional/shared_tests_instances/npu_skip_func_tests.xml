@@ -950,7 +950,7 @@ Example:
 
     <!-- E#218923 -->
     <skip_config>
-        <message>The tests crash when use FORCE_UPDATE_MUTABLE_COMMANDLIST mode</message>
+        <message>The tests crash when using FORCE_UPDATE_MUTABLE_COMMANDLIST mode</message>
         <enable_rules>
             <device>4000</device>
             <device>5010</device>
