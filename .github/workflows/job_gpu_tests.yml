@@ -39,7 +39,7 @@ permissions: read-all
 
 jobs:
   GPU:
-    timeout-minutes: 80
+    timeout-minutes: 250
     runs-on:
       group: ${{ inputs.runner-group }}
       labels: ${{ fromJSON(inputs.runner) }}
@@ -48,6 +48,7 @@ jobs:
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+        - /root/.cache:/root/.cache # Persistent cl_cache across runs
       options: ${{ inputs.options }}
     defaults:
       run:
@@ -58,6 +59,11 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+      NEO_CACHE_STATS: 1
+      NEO_CACHE_PERSISTENT: 1
+      BinaryCacheTrace: 1
+      PrintDebugMessages: 1
     steps:
 
       - name: Download OpenVINO artifacts (package)
@@ -91,9 +97,14 @@ jobs:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
+          NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+          NEO_CACHE_STATS: 1
+          NEO_CACHE_PERSISTENT: 1
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-
+          echo $NEO_CACHE_STATS
+          echo $NEO_CACHE_DIR
+          echo $NEO_CACHE_PERSISTENT
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
           echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
 
@@ -108,6 +119,8 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter
+          # add sleep for 1 hour to debug
+          sleep 4600
 
 
       - name: Upload Test Results
