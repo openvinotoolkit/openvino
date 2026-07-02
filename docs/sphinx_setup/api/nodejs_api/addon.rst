@@ -15,6 +15,7 @@ Property addon
    Core <./openvino-node/interfaces/Core>
    CoreConstructor <./openvino-node/interfaces/CoreConstructor>
    InferRequest <./openvino-node/interfaces/InferRequest>
+   AsyncInferQueue <./openvino-node/interfaces/AsyncInferQueue>
    InputInfo <./openvino-node/interfaces/InputInfo>
    InputModelInfo <./openvino-node/interfaces/InputModelInfo>
    InputTensorInfo <./openvino-node/interfaces/InputTensorInfo>
