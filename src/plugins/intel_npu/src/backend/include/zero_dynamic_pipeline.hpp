@@ -116,7 +116,6 @@ class DynamicPipeline final : public IPipeline {
                 _arguments->_inputs[arg_index].setArg(arg_value);
                 _arguments->_inputs[arg_index].setSize(shapes);
                 _arguments->_inputs[arg_index].setStrides(strides);
-            } else {
                 size_t output_index = static_cast<size_t>(arg_index) - _arguments->_inputs.size();
                 if (output_index < _arguments->_outputs.size()) {
                     _arguments->_outputs[output_index].setArg(arg_value);
@@ -124,9 +123,6 @@ class DynamicPipeline final : public IPipeline {
                     _arguments->_outputs[output_index].setStrides(strides);
                 }
             }
-        }
-
-        void resetCommandList() {
             for (auto& cmd_list : _commandLists) {
                 cmd_list->reset();
             }

@@ -180,7 +180,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
 
-    _logger.debug("DynamicPipeline - initialization started, batch size: %i", _batch_size);
+    _logger.debug("Initialization started, batch size: %zu", _batch_size);
 
     if (!_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
@@ -190,7 +190,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
         }
     }
-    _logger.debug("DynamicPipeline - event pool and command queue setup completed");
+    _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
 
@@ -210,7 +210,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     }
 
     for (size_t i = 0; i < _batch_size; i++) {
-        _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
+        _logger.debug("Set args for command list number: %zu", i);
 
         _command_lists.at(i)->initArguments(_graph->get_metadata());
         auto& dynamicArguments = _command_lists.at(i)->getArguments();
@@ -224,7 +224,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                             "' is a main-input weight)");
 
             if (input_tensors.at(io_index).size() > 1) {
-                _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
+                _logger.debug("Set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
                 size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
                 dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
@@ -235,7 +235,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                 continue;
             }
 
-            _logger.debug("DynamicPipeline - update tensor property for input desc index: %d", desc.indexUsedByDriver);
+            _logger.debug("Update tensor property for input desc index: %u", desc.indexUsedByDriver);
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
@@ -256,7 +256,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         io_index = 0;
         for (const auto& desc : _graph->get_metadata().outputs) {
-            _logger.debug("DynamicPipeline - update tensor property for output desc index: %d", desc.indexUsedByDriver);
+            _logger.debug("Update tensor property for output desc index: %u", desc.indexUsedByDriver);
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
@@ -275,7 +275,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             ++io_index;
         }
     }
-    _logger.debug("DynamicPipeline - initialization completed");
+    _logger.debug("Initialization completed");
 }
 
 void DynamicPipeline::push() {
