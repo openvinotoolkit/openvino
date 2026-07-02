@@ -7,8 +7,14 @@
 #include <intel_gpu/primitives/moe_gather.hpp>
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
-#include <limits>
 
+#include <array>
+#include <cstdlib>
+#include <filesystem>
+#include <limits>
+#include <unordered_map>
+
+#include "moe_legacy_xml_offset_resolver.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -16,9 +22,94 @@
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 
 namespace ov::intel_gpu {
 using namespace cldnn;
+
+// Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
+// MOE_OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
+// The number of GPU-resident LRU slots = num_expert * (100 - ratio) / 100.
+// ratio=0 means all resident (no OTD); ratio=100 means all on disk (invalid, disabled).
+// Returns true when OTD is enabled (lru_expert_num > 0).
+static bool prepare_moe_otd_params(ProgramBuilder& p,
+                                   const std::shared_ptr<ov::op::internal::MOECompressed>& op,
+                                   std::vector<size_t>& weight_bin_offsets,
+                                   std::string& weights_path,
+                                   size_t& lru_expert_num) {
+    using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
+    const auto& config = op->get_config();
+    const auto& model = p.get_model();
+    const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
+    // ratio=0  → all resident, no offload
+    // ratio=100 → all on disk, cannot run → treat as disabled
+    // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
+    if (otd_ratio > 0 && otd_ratio < 100) {
+        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+    } else {
+        lru_expert_num = 0;
+    }
+    const bool otd_enabled = lru_expert_num > 0;
+    if (otd_enabled) {
+        const auto& rt = model->get_rt_info();
+        auto it = rt.find("__weights_path");
+        OPENVINO_ASSERT(it != rt.end(), "Model rt_info is missing '__weights_path' required by OTD");
+        weights_path = it->second.as<std::string>();
+    }
+
+    // Lazy-initialized XML offset resolver (only used when WeightlessCacheAttribute is missing).
+    std::unique_ptr<moe_offload::MoeLegacyXmlOffsetResolver> xml_resolver;
+
+    auto get_const_offset = [&](size_t index, size_t offset_slot) -> size_t {
+        auto node = op->input_value(index).get_node_shared_ptr();
+        auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+        OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed");
+        const auto& rt_info = const_op->get_rt_info();
+        auto attr_it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+
+        if (attr_it != rt_info.end()) {
+            return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+        }
+
+        // Try buffer descriptor offset (works when constant data is mmap'd from bin file).
+        auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
+        if (source_buf) {
+            return ov::weight_sharing::Extension::get_constant_id(*const_op);
+        }
+
+        // Legacy fallback: parse offsets from the IR XML file.
+        if (!xml_resolver) {
+            xml_resolver = std::make_unique<moe_offload::MoeLegacyXmlOffsetResolver>(weights_path);
+        }
+        OPENVINO_ASSERT(xml_resolver->is_ready(),
+                        "Missing WeightlessCacheAttribute and failed to initialize xml-based offset lookup for "
+                        "MOE3GemmFusedCompressed constant input");
+
+        return xml_resolver->resolve(const_op, op->get_friendly_name(), offset_slot);
+    };
+
+    const std::array<size_t, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> const_input_idx_by_offset = {
+        static_cast<size_t>(input_idx::weight_0),
+        static_cast<size_t>(input_idx::weight_1),
+        static_cast<size_t>(input_idx::weight_2),
+        static_cast<size_t>(input_idx::scale_0),
+        static_cast<size_t>(input_idx::scale_1),
+        static_cast<size_t>(input_idx::scale_2),
+        static_cast<size_t>(input_idx::zp_0),
+        static_cast<size_t>(input_idx::zp_1),
+        static_cast<size_t>(input_idx::zp_2)
+    };
+
+    weight_bin_offsets.assign(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, 0);
+    // Serialized offsets are only needed for OTD path (weight-on-demand loading).
+    if (otd_enabled) {
+        for (size_t i = 0; i < const_input_idx_by_offset.size(); i++) {
+            weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i], i);
+        }
+    }
+    return otd_enabled;
+}
 
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
     auto inputs = p.GetInputInfo(op);
@@ -33,8 +124,14 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         const size_t expected_inputs = base_inputs + shared_inputs;
         validate_inputs_count(op, {expected_inputs});
 
+        // Resolve OTD (offload-to-disk) parameters; no-op when MOE_OFFLOAD_RATIO == 0.
+        std::vector<size_t> weight_bin_offsets;
+        std::string weights_path;
+        size_t lru_expert_num = 0;
+        prepare_moe_otd_params(p, op, weight_bin_offsets, weights_path, lru_expert_num);
+
         const std::string layerName = layer_type_name_ID(op);
-        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config);
+        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num);
         p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
