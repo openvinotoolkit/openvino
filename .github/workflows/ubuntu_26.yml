@@ -7,6 +7,15 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
+  # NOTE: 'pull_request' is enabled temporarily to validate the new workflow.
+  # Once the workflow is verified, remove the 'pull_request' block below and
+  # keep 'push' as the only automatic trigger.
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   push:
     branches:
       - master
