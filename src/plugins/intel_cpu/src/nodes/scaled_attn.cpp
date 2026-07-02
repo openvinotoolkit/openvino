@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -260,9 +261,9 @@ struct MHAKernel {
                 auto* q = query.ptr<T>(b, h, m, 0);
                 // how many key/values can be accessed causally
                 auto ncausal = kv_len;
-                // no causall mask is set and it's not fused into attention_mask
+                // no causal mask is set and it's not fused into attention_mask
                 if (auto_causal) {
-                    ncausal = kv_len - q_len + m + 1;
+                    ncausal = std::min<size_t>(m + 1, kv_len);
                 }
                 for (size_t n = 0; n < ncausal; n++) {
                     auto* k = &present_key.at<T>({b, h / h_each_group_len, n, 0}, true);
@@ -543,7 +544,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
                 auto* sink = sink_ptr(m);
                 auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
@@ -852,7 +853,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 };
 
                 for (size_t m = m_start; m < m_end; m++) {
-                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                     auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                     auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                     float* alibi_row_ptr = nullptr;
@@ -1015,7 +1016,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
                 for (size_t m = m_start; m < m_end; m++) {
                     // apply attention mask & sofmax
-                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                     auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                     auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                     float* alibi_row_ptr = nullptr;
@@ -1054,7 +1055,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             } else {
                 for (size_t m = m_start; m < m_end; m++) {
                     // apply attention mask & sofmax
-                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                     auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                     auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                     auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
@@ -1077,7 +1078,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
 #    else
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                 auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                 auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                 auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
@@ -1274,7 +1275,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                 auto* sink = sink_ptr(m);
                 auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                 auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
@@ -1541,32 +1542,58 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
         bool auto_causal = false;
         bool use_attn_mask = false;
+        const bool is_stateful_decode = fuse_concat && L0 > 0;
         if (fuse_causal_attn) {
             assert(attn_mask);
             attn_mask.assert_dims({B, 1, L1, L0 + L1});
             auto_causal = true;
             use_attn_mask = true;
-        } else {
-            if (is_causal) {
-                auto_causal = true;
+        } else if (is_causal && is_stateful_decode) {
+            if (L1 == 1) {
+                // Standard decode: the single new token is at absolute position L0, which is
+                // the last position in the cache — no future tokens exist. Full attention over
+                // all L0+1 keys is therefore correct and equal to the position-aware mask
+                // (every entry would be 0). Skip mask materialization entirely.
+                // Equivalent to PyTorch passing is_causal=False during decode.
+                auto_causal = false;
                 use_attn_mask = false;
             } else {
-                // no attn_mask but has scale, there is a 1-d fake attn_mask
-                if (input_num > 3 && attn_mask.m_rank > 1) {
-                    assert(attn_mask);
-                    // spec requires at least 3, but torch sl test does use rank 2
-                    if (attn_mask.m_rank == 2) {
-                        attn_mask = attn_mask.reshape({1, 1, attn_mask.m_dims[0], attn_mask.m_dims[1]});
-                    } else if (attn_mask.m_rank == 3) {
-                        attn_mask =
-                            attn_mask.reshape({1, attn_mask.m_dims[0], attn_mask.m_dims[1], attn_mask.m_dims[2]});
+                // Speculative decode / chunked prefill with history (L1 > 1, L0 > 0):
+                // query row m is at position L0+m, attends to K[0..L0+m].
+                // Materialize the position-aware mask: bias[m,n] = 0 if n<=L0+m else -inf.
+                attn_buf.resize<T>({1, 1, L1, L0 + L1});
+                T* p = attn_buf.ptr<T>();
+                const T zero = static_cast<T>(0);
+                const T neg_inf = static_cast<T>(-std::numeric_limits<float>::infinity());
+                for (size_t m = 0; m < L1; m++) {
+                    for (size_t n = 0; n < L0 + L1; n++) {
+                        p[m * (L0 + L1) + n] = (n <= L0 + m) ? zero : neg_inf;
                     }
-                    auto_causal = false;
-                    use_attn_mask = true;
-                } else {
-                    auto_causal = false;
-                    use_attn_mask = false;
                 }
+                attn_mask = attn_buf;
+                auto_causal = false;
+                use_attn_mask = true;
+            }
+        } else if (is_causal) {
+            // Pure v13 SDPA with is_causal — top-left, handled by kernels' auto_causal.
+            // (When L0 == 0, this also covers the square-Q/K fuse_concat case correctly.)
+            auto_causal = true;
+            use_attn_mask = false;
+        } else {
+            // no attn_mask but has scale, there is a 1-d fake attn_mask
+            if (input_num > 3 && attn_mask.m_rank > 1) {
+                assert(attn_mask);
+                // spec requires at least 3, but torch sl test does use rank 2
+                if (attn_mask.m_rank == 2) {
+                    attn_mask = attn_mask.reshape({1, 1, attn_mask.m_dims[0], attn_mask.m_dims[1]});
+                } else if (attn_mask.m_rank == 3) {
+                    attn_mask = attn_mask.reshape({1, attn_mask.m_dims[0], attn_mask.m_dims[1], attn_mask.m_dims[2]});
+                }
+                auto_causal = false;
+                use_attn_mask = true;
+            } else {
+                auto_causal = false;
+                use_attn_mask = false;
             }
         }
 
@@ -1785,7 +1812,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 scores[n] = sum;
                             }
 
-                            auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                            auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
                             auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
                             auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                             float* alibi_row_ptr = nullptr;
