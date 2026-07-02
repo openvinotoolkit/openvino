@@ -27,9 +27,6 @@ ov::npuw::EncoderEmbeddingInferRequest::EncoderEmbeddingInferRequest(
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
     }
-    for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
-        m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
-    }
 
     m_prefill_output = create_prefill_output_tensor();
 }
@@ -45,6 +42,16 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
 
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
+    // The compiled encoder is static [1, L]: reject batched inputs and mask/ids disagreements
+    // up front — the raw copies below would otherwise write past the static input tensors.
+    OPENVINO_ASSERT(input_ids->get_shape()[0] == 1,
+                    "Encoder embedding model expects batch size 1, got shape ",
+                    input_ids->get_shape());
+    OPENVINO_ASSERT(attention_mask->get_shape() == input_ids->get_shape(),
+                    "attention_mask shape ",
+                    attention_mask->get_shape(),
+                    " must match input_ids shape ",
+                    input_ids->get_shape());
 
     const auto prompt_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -69,9 +76,24 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
                 reinterpret_cast<uint8_t*>(input_ids_in->data()));
     std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), attn_mask_in->data<int64_t>());
 
-    // token_type_ids (single-segment) and any other auxiliary i64 inputs default to zero.
+    // token_type_ids: pad with zeros and pass the user's segment ids through (right-padded, like
+    // input_ids), so sentence-pair inputs keep their segment assignment. Single-segment callers
+    // pass all zeros anyway.
     if (auto it = m_prefill_in_ports.find(layer_names::token_type_ids); it != m_prefill_in_ports.end()) {
-        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(it->second), 0);
+        auto token_type_ids_in = m_prefill_request->get_tensor(it->second);
+        uu::fill_tensor<int64_t>(token_type_ids_in, 0);
+        if (auto port = uu::find_port_by_name(inputs, layer_names::token_type_ids)) {
+            auto token_type_ids = get_tensor(port.value());
+            OPENVINO_ASSERT(ov::element::i64 == token_type_ids->get_element_type());
+            OPENVINO_ASSERT(token_type_ids->get_shape() == input_ids->get_shape(),
+                            "token_type_ids shape ",
+                            token_type_ids->get_shape(),
+                            " must match input_ids shape ",
+                            input_ids->get_shape());
+            std::copy_n(token_type_ids->data<int64_t>(),
+                        token_type_ids->get_size(),
+                        token_type_ids_in->data<int64_t>());
+        }
     }
 
     m_prefill_request->infer();
