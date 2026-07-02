@@ -214,6 +214,9 @@ public:
 
 protected:
     bool match_permutation(const OutputVector& pattern_args, const OutputVector& args);
+    // Tries to match all permutations of commutative arguments, generating them with Heap's
+    // algorithm (one swap per permutation). Returns true as soon as a permutation matches.
+    bool match_permutations(OutputVector& pattern_args, const OutputVector& args, size_t k);
 
     std::string m_name{"unnamed"};
     bool m_strict_mode{false};
