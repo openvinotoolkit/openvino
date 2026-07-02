@@ -5,6 +5,7 @@
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -421,6 +422,60 @@ Output<Node> unpack_ct_zp(const Output<Node>& c, size_t out_features) {
 
 }  // namespace
 
+// Dequantize compressed-tensors pack-quantized weights to a dense [inner, rows] tensor
+// (converted to the element type of `like`). Shared by ct_gemm and ct_embedding.
+//   weight_packed:     [rows, inner//8]     int32
+//   scales:            [rows, n_groups]     float32
+//   weight_zero_point: [rows//8, n_groups]  int32  (asymmetric only)
+// For gemm: rows=out_features, inner=in_features → result [in_features, out_features].
+// For embedding: rows=num_embeddings, inner=embedding_dim → result [embedding_dim, num_embeddings].
+Output<Node> dequantize_ct_weight(const NodeContext& context,
+                                  const Output<Node>& weight_packed,
+                                  const Output<Node>& scales,
+                                  bool sym,
+                                  int64_t group_size,
+                                  const Output<Node>& like,
+                                  const Output<Node>& zero_point_packed) {
+    const auto wp_shape = weight_packed.get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(wp_shape.size() == 2, "weight_packed must be 2D.");
+    const size_t rows = wp_shape[0];
+    const size_t inner = wp_shape[1] * 8;
+    FRONT_END_OP_CONVERSION_CHECK(
+        group_size > 0 && static_cast<size_t>(group_size) <= inner && inner % static_cast<size_t>(group_size) == 0,
+        "CT group_size must divide the packed inner dimension.");
+    const size_t n_groups = inner / static_cast<size_t>(group_size);
+
+    // Unpack weights: [n_groups, group_size, rows] i4 (sym) or u4 (asym)
+    auto new_weight = unpack_ct_weight(weight_packed, sym, static_cast<size_t>(group_size));
+
+    // Scales: [rows, n_groups] → transpose to [n_groups, rows] → reshape to [n_groups, 1, rows]
+    FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "weight_scale must have a static shape.");
+    const auto scales_shape = scales.get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(scales_shape.size() == 2 && scales_shape[0] == rows && scales_shape[1] == n_groups,
+                                  "CT weight_scale shape must be [rows, n_groups].");
+    auto new_scales_shape =
+        v0::Constant::create(element::i32,
+                             {3},
+                             std::vector<int64_t>{static_cast<int64_t>(n_groups), 1, static_cast<int64_t>(rows)});
+    auto perm = v0::Constant::create(element::i32, {2}, std::vector<int32_t>{1, 0});
+    auto scales_T = context.mark_node(std::make_shared<v1::Transpose>(scales, perm));
+    auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales_T, new_scales_shape, false));
+
+    // Reshape dequantised weight to [inner, rows]
+    auto out_shape =
+        v0::Constant::create(element::i32,
+                             {2},
+                             std::vector<int32_t>{static_cast<int32_t>(inner), static_cast<int32_t>(rows)});
+
+    Output<Node> new_zp;
+    if (!sym) {
+        FRONT_END_OP_CONVERSION_CHECK(zero_point_packed.get_node_shared_ptr(),
+                                      "CT asymmetric quantization requires weight_zero_point.");
+        new_zp = unpack_ct_zp(zero_point_packed, rows);
+    }
+    return low_precision_subgraph(context, like, new_weight, new_zp, new_scales, out_shape);
+}
+
 OutputVector translate_linear_ct(const NodeContext& context) {
     // ov_ext::ct_gemm(input, weight_packed, weight_scale, group_size, sym,
     //                 weight_zero_point?, bias?)
@@ -431,44 +486,13 @@ OutputVector translate_linear_ct(const NodeContext& context) {
     const auto group_size = context.const_input<int64_t>(3);
     const auto sym = context.const_input<bool>(4);
 
-    const auto wp_shape = weight_packed.get_shape();
-    FRONT_END_OP_CONVERSION_CHECK(wp_shape.size() == 2, "weight_packed must be 2D.");
-    const size_t out_features = wp_shape[0];
-    const size_t in_features = wp_shape[1] * 8;
-    FRONT_END_OP_CONVERSION_CHECK(group_size > 0 && static_cast<size_t>(group_size) <= in_features &&
-                                      in_features % static_cast<size_t>(group_size) == 0,
-                                  "CT group_size must divide in_features.");
-    const size_t n_groups = in_features / static_cast<size_t>(group_size);
-
-    // Unpack weights: [n_groups, group_size, out] i4 (sym) or u4 (asym)
-    auto new_weight = unpack_ct_weight(weight_packed, sym, static_cast<size_t>(group_size));
-
-    // Scales: [out, n_groups] → transpose to [n_groups, out] → reshape to [n_groups, 1, out]
-    FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "weight_scale must have a static shape.");
-    const auto scales_shape = scales.get_shape();
-    FRONT_END_OP_CONVERSION_CHECK(
-        scales_shape.size() == 2 && scales_shape[0] == out_features && scales_shape[1] == n_groups,
-        "CT weight_scale shape must be [out_features, n_groups].");
-    auto new_scales_shape = v0::Constant::create(
-        element::i32,
-        {3},
-        std::vector<int64_t>{static_cast<int64_t>(n_groups), 1, static_cast<int64_t>(out_features)});
-    auto perm = v0::Constant::create(element::i32, {2}, std::vector<int32_t>{1, 0});
-    auto scales_T = context.mark_node(std::make_shared<v1::Transpose>(scales, perm));
-    auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales_T, new_scales_shape, false));
-
-    // Reshape dequantised weight to [in_features, out_features] for matmul
-    auto out_shape = v0::Constant::create(
-        element::i32,
-        {2},
-        std::vector<int32_t>{static_cast<int32_t>(in_features), static_cast<int32_t>(out_features)});
-
-    Output<Node> new_zp;
+    Output<Node> zp;
     if (!sym) {
         FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(5), "CT asymmetric gemm requires weight_zero_point.");
-        new_zp = unpack_ct_zp(context.get_input(5), out_features);
+        zp = context.get_input(5);
     }
-    auto weight = low_precision_subgraph(context, x, new_weight, new_zp, new_scales, out_shape);
+    // [in_features, out_features]
+    auto weight = dequantize_ct_weight(context, weight_packed, scales, sym, group_size, x, zp);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
     if (!context.input_is_none(6)) {
