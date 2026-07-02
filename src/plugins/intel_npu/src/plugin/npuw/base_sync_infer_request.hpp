@@ -97,7 +97,7 @@ protected:
     // in the next conversation, infer() may never run again, so this call drops all remaining
     // block tensor refs immediately on conversation reset.
     // Only LLMBlockKVCacheStrategy should call this (via friend declaration below).
-    void propagate_params_to_subrequests();
+    virtual void propagate_params_to_subrequests();
 
     // LLMBlockKVCacheStrategy calls propagate_params_to_subrequests() from on_reset() to drop
     // stale block tensor refs from sub-requests before block memory is freed.
