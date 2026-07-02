@@ -87,6 +87,22 @@ Output<Node> low_precision_subgraph(const NodeContext& context,
     return weight;
 }
 
+Output<Node> low_precision_subgraph_sym(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    const Output<Node>& weights,
+                                    const Output<Node>& scales,
+                                    const Output<Node>& out_shape) {
+    auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
+
+    auto weight = context.mark_node(std::make_shared<v1::Multiply>(new_qweight, scales));
+    auto weight_shape = weights.get_shape();
+    if (out_shape.get_node() != nullptr) {
+        weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
+    }
+    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+    return weight;
+}
+
 uint32_t rearrange_awq_bits(uint32_t num) {
     uint32_t result = 0;
     uint32_t mask = 0xF;
@@ -188,6 +204,84 @@ Output<Node> unpack_gptq_qzeros(const Output<Node>& c) {
     return new_const;
 }
 
+ov::element::Type getElementTypeForBits(uint32_t bits, bool sym) {
+    switch (bits) {
+    case 8:
+        return sym ? element::i8 : element::u8;
+    case 4:
+        return sym ? element::i4 : element::u4;
+    case 3:
+        return element::u3;
+    case 2:
+        return element::u2;
+    default:
+        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported bit width for quantized linear: ", bits);
+        return element::dynamic;  // Unreachable, but silences compiler warning.
+    }
+}
+
+Output<Node> rearrange_constant_nncf(const Output<Node>& c,
+                                     uint32_t group_size,
+                                     uint32_t dst_bits,
+                                     uint32_t src_bits,
+                                     bool sym) {
+    auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
+    FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
+    auto src = constant->get_data_ptr<uint8_t>();
+    auto initial_shape = constant->get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2 || initial_shape.size() == 3, "Only 2D or 3D constants are supported.");
+    // group_size == 0 means that weights are not grouped, so we can treat them as if group size is 1.
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % (group_size == 0 ? 1 : group_size) == 0,
+                                  "NNCF qweight first dimension must be divisible by group size.");
+    const size_t values_per_byte = src_bits == 8 ? 1 : 2;
+    auto new_shape = initial_shape.size() == 2 ? Shape{initial_shape[0], initial_shape[1] * values_per_byte}
+                                 : Shape{initial_shape[0], initial_shape[1], initial_shape[2] * values_per_byte};
+    if (group_size > 1) {
+         FRONT_END_OP_CONVERSION_CHECK(new_shape.back() == group_size, "Last dimension must match group size.");
+    }
+
+
+    auto element_type = getElementTypeForBits(dst_bits, sym);
+    const size_t packed_bytes_count = shape_size(initial_shape);
+    FRONT_END_OP_CONVERSION_CHECK(dst_bits == 8 || dst_bits == 4 || dst_bits == 3 || dst_bits == 2,
+                                  "Only 8, 4, 3 and 2 bit NNCF weights are supported.");
+
+    std::vector<int16_t> values(shape_size(new_shape));
+    FRONT_END_OP_CONVERSION_CHECK(src_bits == 8 || src_bits == 4 || src_bits == 3 || src_bits == 2,
+                                  "Only 8, 4, 3 and 2 bit source NNCF packing is supported.");
+    FRONT_END_OP_CONVERSION_CHECK(src_bits == 8 ? packed_bytes_count <= values.size() : 2 * packed_bytes_count <= values.size(),
+                                  "NNCF unpacking would overflow destination values buffer.");
+
+    int16_t zero_point = 0;
+    // for 3 bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
+    if (sym && (dst_bits != 3 && dst_bits != 2)) {
+        // For signed quantization we need to convert zero point to signed representation as well.
+        zero_point = static_cast<int16_t>(1 << (dst_bits - 1));
+    }
+
+    if (src_bits == 8) {
+        for (size_t i = 0; i < packed_bytes_count; ++i) {
+            values[i] = static_cast<int16_t>(src[i]) - zero_point;
+        }
+    } else {
+        const uint8_t value_mask = static_cast<uint8_t>((1u << dst_bits) - 1);
+        for (size_t i = 0; i < packed_bytes_count; ++i) {
+            const uint8_t byte_val = src[i];
+            values[2 * i] = static_cast<int16_t>(byte_val & value_mask) - zero_point;
+            values[2 * i + 1] = static_cast<int16_t>((byte_val >> 4) & value_mask) - zero_point;
+        }
+    }
+
+    // TODO debug
+    std::cout << "Rearranging constant with initial shape " << initial_shape << " to new shape " << new_shape
+              << " with group size " << group_size << " and sym " << sym << " zero point " << zero_point << std::endl;
+    std::cout << "Min max values: " << *std::min_element(values.begin(), values.end()) << ", "
+              << *std::max_element(values.begin(), values.end()) << std::endl;
+    std::cout << "Bits: " << src_bits << " to " << dst_bits << std::endl;
+    auto new_qweight = std::make_shared<v0::Constant>(element_type, new_shape, values);
+    new_qweight->set_friendly_name(constant->get_friendly_name());
+    return new_qweight;
+}
 }  // namespace
 
 OutputVector translate_linear_awq(const NodeContext& context) {
@@ -506,6 +600,61 @@ OutputVector translate_bmm_ext(const NodeContext& context) {
     }
     return {matmul};
 }
+
+OutputVector translate_linear_nncf(const NodeContext& context) {
+    num_inputs_check(context, 4, 8);
+    auto x = context.get_input(0);
+    auto qweight = context.get_input(1);
+    auto qzeros = context.get_input(2);
+    auto scales = context.get_input(3);
+    auto group_size = context.const_input<int64_t>(4);
+    auto bits = context.const_input<int64_t>(5);
+    bool sym = context.const_input<bool>(6);
+
+    FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
+                                  "Only {8, 4, 3, 2} bit NNCF is supported.");
+    if (sym) {
+        FRONT_END_OP_CONVERSION_CHECK(bits == 2 || bits == 3 || bits == 4 || bits == 8, "Only 2, 3, 4  or 8 bit NNCF is supported for symmetric quantization.");
+    }
+
+    auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(group_size),
+                                               static_cast<uint32_t>(bits), static_cast<uint32_t>(bits),
+                                               sym);
+
+    FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
+    auto scales_shape = scales.get_shape();
+    Output<Node> new_scales = scales;
+
+    auto out_shape =
+        v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
+
+    Output<Node> weight;
+    // we don not have i3 type, so for 3 bit symmetric compression we represent weights as u3 minus zero point, which is 4 (midpoint of u4 range).
+    // This allows us to use the same dequantization subgraph as for asymmetric quantization, just with zero point = 4.
+    if (sym && (bits  != 3 && bits != 2)) {
+        weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
+    } else {
+        Output<Node> new_qzeros;
+        if (sym && (bits == 3 || bits == 2)) {
+            // For 3-bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
+            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(bits == 3 ? element::u3 : element::u2, Shape{}, std::vector<uint8_t>{1 << (bits - 1)}));
+        } else {
+            new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
+        }
+        weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
+    }
+
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
+    if (!context.input_is_none(7)) {
+        auto bias = context.get_input(7);
+
+        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+};
 
 }  // namespace op
 }  // namespace pytorch
