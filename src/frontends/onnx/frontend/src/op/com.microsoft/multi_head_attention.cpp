@@ -18,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -38,26 +39,6 @@ namespace onnx {
 namespace com_microsoft {
 namespace detail {
 namespace {
-
-// Reshape 3D input (batch, seq, num_heads * head_size) to 4D (batch, num_heads, seq, head_size)
-ov::Output<ov::Node> reshape_3d_to_4d(const ov::Output<ov::Node>& input, int64_t num_heads) {
-    // Reshape to (batch, seq, num_heads, head_size)
-    auto reshape_pattern = v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{4}, {0, 0, num_heads, -1});
-    auto reshaped = std::make_shared<v1::Reshape>(input, reshape_pattern, true);
-    // Transpose to (batch, num_heads, seq, head_size)
-    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-    return std::make_shared<v1::Transpose>(reshaped, perm);
-}
-
-// Reshape 4D output (batch, num_heads, seq, head_size) back to 3D (batch, seq, num_heads * head_size)
-ov::Output<ov::Node> reshape_4d_to_3d(const ov::Output<ov::Node>& output) {
-    // Transpose from (batch, num_heads, seq, head_size) to (batch, seq, num_heads, head_size)
-    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-    auto transposed = std::make_shared<v1::Transpose>(output, perm);
-    // Reshape to (batch, seq, num_heads * head_size)
-    auto reshape_pattern = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, -1});
-    return std::make_shared<v1::Reshape>(transposed, reshape_pattern, true);
-}
 
 // Split bias into Q, K, V parts and reshape each to (1, num_heads, 1, head_size) for broadcasting.
 OutputVector split_bias(const Output<ov::Node>& bias,
@@ -300,7 +281,6 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node, num_inputs >= 1, "MultiHeadAttention expects at least 1 input, got: ", num_inputs);
 
-    // Attributes
     int64_t num_heads = node.get_attribute_value<int64_t>("num_heads");
     float mask_filter_value = node.get_attribute_value<float>("mask_filter_value", -10000.0f);
     bool unidirectional = static_cast<bool>(node.get_attribute_value<int64_t>("unidirectional", 0));
@@ -335,6 +315,8 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
                      !has_past_key || is_regular_QKV,
                      "past_key and past_value are only supported in unpacked 3D case");
 
+    const auto& compute_type = Q.get_element_type();
+
     if (has_bias) {
         auto bias_splits = detail::split_bias(inputs[3], Q, K, V, num_heads);
         Q = std::make_shared<v1::Add>(Q, bias_splits[0]);
@@ -342,7 +324,6 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         V = std::make_shared<v1::Add>(V, bias_splits[2]);
     }
 
-    // Handle KV cache
     ov::Output<ov::Node> present_key = K;
     ov::Output<ov::Node> present_value = V;
     if (has_past_key) {
@@ -353,7 +334,6 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         present_value = kv_cache_result[3];
     }
 
-    // Prepare attention mask
     ov::Output<ov::Node> attn_mask;
     if (has_key_padding_mask) {
         attn_mask = inputs[4];
@@ -361,14 +341,18 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         CHECK_VALID_NODE(node, attn_rank.is_static(), "Attention rank must be static, got rank: ", attn_rank);
 
         attn_mask = detail::build_mask(attn_mask, Q, K, mask_filter_value);
+    } else {
+        attn_mask = std::make_shared<v0::Constant>(compute_type, ov::Shape{}, 0.0f);
     }
 
-    // Build an explicit unidirectional mask instead of relying on SDPA's internal is_causal flag.
-    // SDPA's internal mask uses offset-based semantics (ncausal = kv_len - q_len + m + 1)
-    // which doesn't match the ONNX spec's np.tril(k=0) for non-square attention matrices
-    // (seq_q != seq_kv). For KV cache scenarios, use offset to account for past sequence.
+    // Build an explicit unidirectional mask rather than using the SDPA op's is_causal flag, because the flag
+    // is implemented inconsistently across backends (CPU: bottom-right offset, GPU: top-left).
+    // An explicit additive mask gives identical results on every backend. The mask uses
+    // offset = past_sequence_length when a KV cache is present and 0 otherwise — the bottom-right
+    // alignment according to the ONNX Attention spec (confirmed by onnx/onnx#8068).
     if (unidirectional) {
-        auto unidirectional_mask = build_causal_mask(Q, K, has_past_key);
+        auto kind = has_past_key ? CausalKind::PAST : CausalKind::NONE;
+        auto unidirectional_mask = build_causal_mask(Q, K, kind, mask_filter_value);
         if (has_key_padding_mask) {
             attn_mask = std::make_shared<v1::Add>(attn_mask, unidirectional_mask);
         } else {
@@ -392,42 +376,40 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         has_key_padding_mask = true;
     }
 
-    // Choose execution path
     ov::Output<ov::Node> Y;
     ov::Output<ov::Node> qk_debug_output;
 
-    // Determine number of requested outputs
     size_t num_outputs = node.get_outputs_size();
     const auto& output_names = node.get_output_names();
     bool needs_qk_output = output_names.size() > 3 && !output_names[3].get().empty();
 
     if (needs_qk_output) {
-        // Manual decomposition path (softcap or debug output)
+        // Manual decomposition path. Use ONNX Runtime MHA semantics: no fully-masked-row guard
+        // (masked positions carry a finite mask_filter_value, so softmax stays finite).
         auto results = build_manual_attention(Q,
                                               K,
                                               V,
-                                              has_key_padding_mask,
                                               attn_mask,
                                               scale_attr,
                                               0.0f /*softcap*/,
-                                              false,
-                                              0,
-                                              true);
+                                              0 /*qk_matmul_output_mode*/,
+                                              false /*include_safe_softmax*/);
         Y = results[0];
         qk_debug_output = results[1];
     } else {
-        // SDPA path (primary fast path)
-        Y = build_sdpa(Q, K, V, has_key_padding_mask, attn_mask, scale_attr, false);
+        ov::OutputVector inputs{Q, K, V, attn_mask};
+        if (scale_attr != 0.0f)
+            inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
+
+        Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, false)->output(0);
     }
 
-    Y = detail::reshape_4d_to_3d(Y);
+    Y = reshape_4d_to_3d(Y);
 
-    // Build output vector.
     // Output names from the ONNX graph determine which outputs are actually requested.
     // Empty names indicate unused optional outputs — push NullNode for those to avoid
     // creating shared input/output parameters that confuse port resolution.
-    ov::OutputVector results;
-    results.push_back(Y);
+    ov::OutputVector results{Y};
 
     if (num_outputs > 1) {
         if (!output_names[1].get().empty()) {
