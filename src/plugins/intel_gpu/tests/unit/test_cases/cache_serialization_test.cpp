@@ -372,5 +372,5 @@ TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
     // weights_memory / model_tensor_base are null: non-weightless, non-zero-copy
     // path, so mem is allocated from output_layout and the oversized read would
     // overflow it. The cross-check must reject the blob first.
-    ASSERT_ANY_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr));
+ASSERT_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr), ov::AssertFailure);
 }
