@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 #include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/primitives/vl_sdpa.hpp"
@@ -61,12 +62,24 @@ protected:
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)
                                << ", head_size=" << head_size << ", num_q_heads=" << num_q_heads << ", num_kv_heads=" << num_kv_heads << '\n';
 
+        // Detect whether Q/K/V share a packed buffer (in-place crop from
+        // TransposeSplitMatcher axis=1).  Any non-zero padding on an input means the
+        // SVM base pointer aliases the packed [L, 3*H, S] buffer, so the kernel must
+        // use the packed per-token stride instead of the contiguous one.  Use the
+        // layout padding predicate instead of a hard-coded feature-axis index so the
+        // check stays correct regardless of tensor rank (3D HLS vs 4D BHLS).
+        const bool is_qkv_fused =
+            static_cast<bool>(params.input_layouts[0].data_padding) ||
+            static_cast<bool>(params.input_layouts[1].data_padding) ||
+            static_cast<bool>(params.input_layouts[2].data_padding);
+
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("CMFLA_NUM_HEADS", num_q_heads),
             make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
             make_jit_constant("CMFLA_HEAD_SIZE", head_size),
             make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
+            make_jit_constant("CMFLA_IS_QKV_FUSED", is_qkv_fused ? 1 : 0),
         });
 
         return jit;
@@ -87,14 +100,16 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // need_wg_mapping
 
-        // token_offset_q and token_offset_kv: element-count offsets applied to the Q/K/V
-        // SVM pointers when an in-place crop (TransposeSplitMatcher axis=1 pattern) has
-        // propagated a dynamic padding offset into the input layout.  Without these the CM
-        // kernel would read from the base of the packed QKV buffer instead of the correct
-        // slice.  Each offset equals lower_pad[feature] * num_heads * head_size (elements).
+        // token_offset_q/k/v: per-slice base offsets applied to the Q/K/V SVM pointers
+        // when an in-place crop (TransposeSplitMatcher axis=1 pattern) has propagated a
+        // dynamic padding offset into the input layout.  Without these the CM kernel
+        // would read from the base of the packed QKV buffer instead of the correct
+        // slice.  Each offset equals lower_pad[feature] * head_size (elements); the
+        // packed per-token stride is selected separately via CMFLA_IS_QKV_FUSED.
         // When no crop optimization fires the padding is 0 and the offsets are 0.
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // token_offset_q
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_kv
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_k
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_offset_v
 
         return args;
     }
@@ -162,20 +177,18 @@ protected:
             // Compute element-count offsets arising from in-place crop dynamic padding
             // on Q/K (token_offset_q) and K/V (token_offset_kv) inputs.  These are set
             // when TransposeSplitMatcher replaces Transpose+Split(axis=0) with
-            // Split(axis=1): the crop optimization places lower_pad[feature_axis] in the
-            // layout padding, and this value encodes the QKV-slice index (0, 1, or 2).
-            // offset = lower_pad[feature] * num_[q|kv]_heads * head_size  (in elements).
-            const auto& q_pad  = params.input_layouts[0].data_padding;
-            const auto& kv_pad = params.input_layouts[1].data_padding;
-            // feature dimension is index 1 in the bfyx _lower_size array
-            int32_t token_offset_q  = static_cast<int32_t>(q_pad._lower_size[1])  *
-                                      static_cast<int32_t>(query_shape[query_shape.size() - 3]) *
-                                      static_cast<int32_t>(query_shape[query_shape.size() - 1]);
-            int32_t token_offset_kv = static_cast<int32_t>(kv_pad._lower_size[1]) *
-                                      static_cast<int32_t>(query_shape[query_shape.size() - 3]) *
-                                      static_cast<int32_t>(query_shape[query_shape.size() - 1]);
+            // Split(axis=1): the in-place crop propagates a padding offset into the
+            // input layout so Q starts at 0, K at H*S and V at 2*H*S inside the packed
+            // buffer.  layout::get_linear_offset() derives this element offset directly
+            // from the padded dims/strides, so it is correct for both 3D (HLS) and 4D
+            // (BHLS) layouts without a hard-coded feature-axis index or an explicit
+            // head_size multiplier.  The packed per-token stride is applied separately
+            // inside the kernel via CMFLA_IS_QKV_FUSED.
+            const int32_t token_offset_q = static_cast<int32_t>(params.input_layouts[0].get_linear_offset());
+            const int32_t token_offset_k = static_cast<int32_t>(params.input_layouts[1].get_linear_offset());
+            const int32_t token_offset_v = static_cast<int32_t>(params.input_layouts[2].get_linear_offset());
 
-            std::vector<int32_t> scalars{need_wg_mapping, token_offset_q, token_offset_kv};
+            std::vector<int32_t> scalars{need_wg_mapping, token_offset_q, token_offset_k, token_offset_v};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc desc;
