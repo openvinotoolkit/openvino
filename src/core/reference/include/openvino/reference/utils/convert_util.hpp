@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <functional>
 #include <type_traits>
 
@@ -35,7 +36,14 @@ struct Clamp {
     static constexpr bool enabled = true;
 
     // Generic implementation
-    static constexpr TO apply(const TI v) {
+    static TO apply(const TI v) {
+        // Preserve IEEE special values: ±inf and NaN pass through the native conversion
+        // (every OV float destination can represent them). Only finite out-of-range values
+        // are clamped to the destination's representable range. For integral TI std::isfinite
+        // is always true, so the clamping behavior is unchanged.
+        if (!std::isfinite(v)) {
+            return detail::convert<TI, TO>(v);
+        }
         return (v < std::numeric_limits<TO>::lowest())
                    ? std::numeric_limits<TO>::lowest()
                    : ((v > std::numeric_limits<TO>::max()) ? std::numeric_limits<TO>::max()

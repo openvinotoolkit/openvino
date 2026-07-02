@@ -39,6 +39,10 @@ inline const float kF16MinPos = ov::float16::from_bits(0x0001);
 inline const float kF16MinNeg = -ov::float16::from_bits(0x0001);
 
 inline constexpr uint32_t kAbsMaskVal = 0x7FFFFFFFu;
+// Bit pattern of FLT_MAX. A float is non-finite (±inf or NaN) iff its magnitude bits
+// exceed this value, i.e. (bits & kAbsMaskVal) > kFltMaxBits. Used by the clamp kernels
+// to preserve IEEE special values instead of clamping them to the f16 range.
+inline constexpr uint32_t kFltMaxBits = 0x7F7FFFFFu;
 
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
@@ -96,16 +100,23 @@ template <>
 void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
     const auto f32vec = gen.ymm4;
     const auto f16vec = gen.xmm3;
+    auto orig = gen.ymm7;
+    auto mask = gen.ymm2;
 
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
+    auto abs_mask = gen.ymm8;
+    auto nonfinite_thresh = gen.ymm9;
 
-    gen.vpmovzxwd(f32vec, gen.yword[src]);              // load bf16 into tmp
-    gen.vpslld(f32vec, f32vec, 16);                     // convert bf16->f32 by bit shift
-    gen.vminps(f32vec, f32vec, upper_bound);            // clamp f16 max
-    gen.vmaxps(f32vec, f32vec, lower_bound);            // clamp f16 lowest
-    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);  // convert f32 -> f16
-    gen.vmovdqu(gen.xword[dst], f16vec);                // move result to destination
+    gen.vpmovzxwd(orig, gen.yword[src]);                   // load bf16 into tmp
+    gen.vpslld(orig, orig, 16);                            // convert bf16->f32 by bit shift
+    gen.vandps(mask, orig, abs_mask);                      // |v| bits
+    gen.vpcmpgtd(mask, mask, nonfinite_thresh);            // 0xFFFFFFFF where element is ±inf/NaN
+    gen.vminps(f32vec, orig, upper_bound);                 // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);               // clamp f16 lowest
+    gen.vblendvps(f32vec, f32vec, orig, mask);             // restore ±inf/NaN over the clamped value
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);     // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);                   // move result to destination
 }
 
 template <>
@@ -121,17 +132,27 @@ template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
+    auto abs_mask = gen.ymm8;
+    auto nonfinite_thresh = gen.ymm9;
     auto addr = gen.r15;
 
     static const float upper_bounds[8] =
         {kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos};
     static const float lower_bounds[8] =
         {kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg};
+    static const uint32_t abs_masks[8] =
+        {kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal};
+    static const uint32_t nonfinite_threshs[8] =
+        {kFltMaxBits, kFltMaxBits, kFltMaxBits, kFltMaxBits, kFltMaxBits, kFltMaxBits, kFltMaxBits, kFltMaxBits};
 
     gen.mov(addr, reinterpret_cast<size_t>(upper_bounds));
     gen.vmovdqu(upper_bound, gen.yword[addr]);
     gen.mov(addr, reinterpret_cast<size_t>(lower_bounds));
     gen.vmovdqu(lower_bound, gen.yword[addr]);
+    gen.mov(addr, reinterpret_cast<size_t>(abs_masks));
+    gen.vmovdqu(abs_mask, gen.yword[addr]);
+    gen.mov(addr, reinterpret_cast<size_t>(nonfinite_threshs));
+    gen.vmovdqu(nonfinite_thresh, gen.yword[addr]);
 }
 
 template <>
@@ -143,12 +164,19 @@ template <>
 void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
     auto f16vec = gen.xmm3;
     auto f32vec = gen.ymm4;
+    auto orig = gen.ymm7;
+    auto mask = gen.ymm2;
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
+    auto abs_mask = gen.ymm8;
+    auto nonfinite_thresh = gen.ymm9;
 
-    gen.vmovups(f32vec, gen.yword[src]);
-    gen.vminps(f32vec, f32vec, upper_bound);
+    gen.vmovups(orig, gen.yword[src]);
+    gen.vandps(mask, orig, abs_mask);            // |v| bits
+    gen.vpcmpgtd(mask, mask, nonfinite_thresh);  // 0xFFFFFFFF where element is ±inf/NaN
+    gen.vminps(f32vec, orig, upper_bound);
     gen.vmaxps(f32vec, f32vec, lower_bound);
+    gen.vblendvps(f32vec, f32vec, orig, mask);   // restore ±inf/NaN over the clamped value
     gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
