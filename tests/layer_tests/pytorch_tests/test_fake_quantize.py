@@ -214,5 +214,5 @@ class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
             precision,
             ir_version,
             freeze_model=False,
-            fx_kind="aten::_fake_quantize_learnable_per_channel_affine"
+            fx_kind="aten._fake_quantize_learnable_per_channel_affine"
         )
