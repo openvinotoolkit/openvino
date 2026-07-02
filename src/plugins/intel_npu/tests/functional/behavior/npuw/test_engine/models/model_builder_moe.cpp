@@ -138,7 +138,7 @@ ov::Output<ov::Node> BatchedMoEFFN::weighted_expert_sum(const ov::Output<ov::Nod
     return output->output(0);
 }
 
-MoEFFN::MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf)
+GPTOSSMoEFFN::GPTOSSMoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf)
     : BatchedMoEFFN(hs, is, ne, k, prec, std::move(wf), concat_shape) {
     using C = ov::opset11::Constant;
     int32_t is_i = static_cast<int32_t>(is);
@@ -158,7 +158,7 @@ MoEFFN::MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec
     sl_axes = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 1});
 }
 
-ov::Output<ov::Node> MoEFFN::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+ov::Output<ov::Node> GPTOSSMoEFFN::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
     using C = ov::opset11::Constant;
     const auto prec = precision;
 

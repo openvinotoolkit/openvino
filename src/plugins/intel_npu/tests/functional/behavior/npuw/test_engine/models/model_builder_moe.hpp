@@ -19,7 +19,7 @@ namespace test {
 namespace npuw {
 
 /// Builds a MoE FFN from the params build_llm resolves out of LLMConfig, keeping the config the
-/// single source of truth. Empty = GPT-OSS MoEFFN; assign make_qwen3_moe_ffn for Qwen3.
+/// single source of truth. Empty = GPTOSSMoEFFN; assign make_qwen3_moe_ffn for Qwen3.
 using MoEFactoryFn = std::function<FFNFn(size_t hidden_size,
                                          size_t intermediate_size,
                                          size_t num_experts,
@@ -82,9 +82,9 @@ protected:
 
 /// GPT-OSS style batched MoE FFN matching NPUW's GPTOSSExpert + GPTOSSRouter patterns:
 /// fused gate_up MatMul with Slice/Minimum/Swish + Clamp branches and a TopK→Softmax router.
-struct MoEFFN : BatchedMoEFFN {
+struct GPTOSSMoEFFN : BatchedMoEFFN {
     /// Default weight_fn: CompressedWeight{i4, 0, SYMM_NO_ZP}.
-    MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf = {});
+    GPTOSSMoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf = {});
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 
@@ -96,7 +96,7 @@ private:
 };
 
 /// Qwen3 style batched MoE FFN matching NPUW's Qwen3Expert + Qwen3Router patterns
-/// (real Qwen3-30B-A3B). Differs from MoEFFN in two ways: the expert uses separate gate/up
+/// (real Qwen3-30B-A3B). Differs from GPTOSSMoEFFN in two ways: the expert uses separate gate/up
 /// MatMuls (SwiGLU = Swish(gate) * up, single-input Swish) instead of a fused gate_up with
 /// Clamp/Minimum branches, and the router is Softmax→TopK with an explicit ReduceSum→Divide
 /// renormalization over the K selected experts (vs GPT-OSS's TopK→Softmax). The expert weight
@@ -116,7 +116,7 @@ private:
 
 /// MoEFactoryFn for the GPT-OSS topology — build_llm's default when LLMConfig::moe_factory is empty.
 inline FFNFn make_gptoss_moe_ffn(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec) {
-    return MoEFFN(hs, is, ne, k, prec);
+    return GPTOSSMoEFFN(hs, is, ne, k, prec);
 }
 
 /// MoEFactoryFn for the Qwen3 topology. Assign to LLMConfig::moe_factory to select it.

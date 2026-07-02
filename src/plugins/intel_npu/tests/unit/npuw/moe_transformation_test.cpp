@@ -570,7 +570,7 @@ TEST_F(MoETransformationTest, AWQvsNonAWQComparison) {
 }
 
 // ============================================================================
-// MoEFFN + build_llm E2E Tests (uses build_moe_llm_test_model from llm_test_helpers.hpp)
+// GPTOSSMoEFFN + build_llm E2E Tests (uses build_moe_llm_test_model from llm_test_helpers.hpp)
 // ============================================================================
 
 TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
