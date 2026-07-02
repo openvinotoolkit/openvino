@@ -524,3 +524,4 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         }
     }
 }
+
