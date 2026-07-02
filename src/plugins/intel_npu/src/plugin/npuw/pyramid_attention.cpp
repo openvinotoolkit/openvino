@@ -14,6 +14,74 @@
 #include "openvino/op/util/op_types.hpp"
 #include "util.hpp"
 
+namespace {
+
+using ov::npuw::runtime::pyramid_attention::Selector;
+
+// Returns the last positive position ID value (used to determine current sequence length),
+// or nullopt when no positive position ID was found in the tensor.
+std::optional<int64_t> current_length_from_position_ids(const ov::SoPtr<ov::ITensor>& tensor, const ov::Shape& shape) {
+    const auto elem_type = tensor->get_element_type();
+
+    // Read a single position ID value, handling both i32 and i64 tensors
+    auto get_pos = [&](size_t i) -> int64_t {
+        if (elem_type == ov::element::i64) {
+            return tensor->data<int64_t>()[i];
+        } else if (elem_type == ov::element::i32) {
+            return static_cast<int64_t>(tensor->data<int32_t>()[i]);
+        } else {
+            OPENVINO_ASSERT(false, "Unsupported element type for position IDs: " + elem_type.get_type_name());
+        }
+
+        return -1;  // Should never reach here
+    };
+    // Read the last position ID value to determine current sequence length
+    // This assumes that position IDs are contiguous and start from 0
+    // TODO: we are not zeroing the position IDs during chunked prefill,
+    // so this logic is broken for left-aligned data case.
+    // Also need additional checks for eagle case where position IDs might not be contiguous at all.
+    // Return wrong value when PositionIDs are start from 1
+    for (int64_t idx = static_cast<int64_t>(shape.back()) - 1; idx >= 0; idx--) {
+        const auto pos = get_pos(idx);
+        if (pos > 0) {
+            return pos;
+        }
+    }
+
+    return std::nullopt;
+}
+
+int64_t get_past_length_for_case(Selector::Case c, int64_t current_length, int64_t pyramid_step) {
+    switch (c) {
+    case Selector::Case::GENERATE:
+        // In generate case, past length is equal to current length (since query length is 1)
+        return current_length;
+    case Selector::Case::PREFILL:
+        // In prefill case, past length is the largest multiple of pyramid_step that is less than current_length
+        // This ensures we select the correct pyramid model for the current sequence length
+        // For chunked prefill we have all the chunks full except maybe last one,
+        // so we can calculate past length directly from current length and pyramid step
+        return (current_length / pyramid_step) * pyramid_step;
+    default:
+        NPUW_ASSERT(false && "Reached the unreachable code");
+        return -1;
+    }
+}
+
+// Picks the smallest pyramid model whose context length can accommodate current_seq_length,
+// falling back to the largest model when the sequence length exceeds all models' capacity.
+// Shared by all position-id-based selectors so the pattern-specific past/current length
+// calculation stays the only thing that differs between them.
+std::size_t select_pyramid_id(const std::vector<std::size_t>& context_lengths, int64_t current_seq_length) {
+    for (std::size_t i = 0; i < context_lengths.size(); ++i) {
+        if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
+            return i;
+        }
+    }
+    return context_lengths.size() - 1;
+}
+}  // namespace
+
 namespace ov {
 namespace npuw {
 namespace function {
@@ -119,7 +187,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     } else {
         // PREFILL
         current_context_length = (model_idx + 1) * pyramid_step;
-        current_past_length = current_context_length - query_length;
+        current_past_length = current_context_length - pyramid_step;
     }
     // FIXME: Probably the generic formula for all cases is:
     // current_context_length = (model_idx + 1) * pyramid_step;
@@ -502,9 +570,16 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
+    // Remove this check as we moved to left-alignment
+    bool data_left_aligned = past_key_sequence_dims.begin()->second == 1 &&
+                             past_value_sequence_dims.begin()->second == 3 &&
+                             pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
+                             pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
+
     return PyramidValidationContiguousResult{query_length,
                                              full_context_length,
                                              past_kv_length,
+                                             data_left_aligned,
                                              std::move(past_key_sequence_dims),
                                              std::move(past_value_sequence_dims)};
 }
@@ -520,6 +595,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     size_t query_length = 0;
     size_t full_past_kv_length = 0;
     size_t full_context_length = 0;
+    bool is_left_aligned = false;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
     bool is_block_split = false;
@@ -535,6 +611,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                 full_past_kv_length = result.past_kv_length;
                 past_key_sequence_dims = result.past_key_sequence_dims;
                 past_value_sequence_dims = result.past_value_sequence_dims;
+                is_left_aligned = result.data_left_aligned;
             } else {
                 static_assert(std::is_same_v<T, PyramidValidationBlockResult>);
                 is_block_split = true;
@@ -550,7 +627,8 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     // FIXME: Make it configurable
     // FIXME: Handle the speculative case here (query_length > 1; << 1024)
     bool is_generate = query_length == 1;
-    size_t pyramid_step = is_generate ? 1024u : query_length;
+    size_t kv_step = full_context_length - full_past_kv_length;
+    size_t pyramid_step = is_generate ? 1024u : kv_step;
     // FIXME: Check all the right alignments
     size_t num_models = full_context_length / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
@@ -611,6 +689,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._full_context_length = full_context_length;
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
+    pyramid_attention._data_left_aligned = is_left_aligned;
     // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
     pyramid_attention.past_key_block_global_param_indices = std::move(block_key_global_indices);
     pyramid_attention.past_value_block_global_param_indices = std::move(block_val_global_indices);
@@ -686,6 +765,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         obj->query_size = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
+        obj->_data_left_aligned = func_pyramid._data_left_aligned;
         obj->_attention_infos.reserve(num_models);
         obj->_context_lengths.reserve(num_models);
 
@@ -787,11 +867,21 @@ Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::I
 
     const auto& inputs = rq.get_inputs();
     auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
-    if (pos_ids_iter != inputs.end()) {
-        const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
-        return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
+    if (pos_ids_iter == inputs.end()) {
+        return Selector::Ptr{};
     }
-    return Selector::Ptr{};
+
+    const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
+
+    // The KV update step (pyramid_step) matches the query length in the regular,
+    // contiguous case (e.g. SDPADecomposed). When it differs (e.g. QuantizedSDPAWithGlobalMask,
+    // where a large query is matched against a smaller-granularity KV cache update),
+    // GlobalPositionIDs is used instead.
+    const std::size_t pyramid_step = d._context_lengths.empty() ? d.query_size : d._context_lengths[0];
+    if (pyramid_step != d.query_size) {
+        return Selector::Ptr{new GlobalPositionIDs(param_idx, d, rq)};
+    }
+    return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
 }
 
 void PositionIDs::prepare(int64_t past_len) {
@@ -799,7 +889,13 @@ void PositionIDs::prepare(int64_t past_len) {
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
 
+    NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
+    const auto& context_lengths = m_pyramid_attention->_context_lengths;
+
     // Same logic as regular attention PositionIDs
+    // NOTE: assumes i64 position IDs, matching the original (master) implementation.
+    // TODO: models with i32 position IDs would need the i32/i64-aware read used by
+    // current_length_from_position_ids() (see GlobalPositionIDs::prepare()).
     auto* pos_data_ptr = in_tensor->data<int64_t>();
     for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
@@ -820,30 +916,16 @@ void PositionIDs::prepare(int64_t past_len) {
             }
 
             // Select the optimal pyramid model based on current sequence length
-            NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
-
-            const auto& context_lengths = m_pyramid_attention->_context_lengths;
-            const int64_t current_seq_length = m_query_size + m_past_length;
-
-            // Find the smallest pyramid model that can handle the current sequence length
-            for (std::size_t i = 0; i < context_lengths.size(); ++i) {
-                if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
-                    m_pyramid_id = i;
-                    return;
-                }
-            }
-
-            // If sequence length exceeds all models' capacity, use the largest model
-            m_pyramid_id = context_lengths.size() - 1;
+            const int64_t current_seq_length = static_cast<int64_t>(m_query_size) + m_past_length;
+            m_pyramid_id = select_pyramid_id(context_lengths, current_seq_length);
             return;
         }
     }
     LOG_WARN("Dynamic selector - no data found in the feature?");
     m_current_length = -1;
 
-    NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
     // Default to largest model if no data found (safest choice for unknown sequence length)
-    m_pyramid_id = m_pyramid_attention->_context_lengths.size() - 1;
+    m_pyramid_id = context_lengths.size() - 1;
 }
 
 int64_t PositionIDs::length() const {
@@ -851,6 +933,55 @@ int64_t PositionIDs::length() const {
 }
 
 int64_t PositionIDs::past_length() const {
+    return m_past_length;
+}
+
+// Pyramid Attention GlobalPositionIDs implementation
+GlobalPositionIDs::GlobalPositionIDs(std::size_t param_idx,
+                                     const compiled::PyramidAttention& d,
+                                     const ov::ISyncInferRequest& rq)
+    : m_position_ids_idx(param_idx),
+      m_query_size(d.query_size),
+      m_pyramid_step(d._context_lengths.empty() ? d.query_size : d._context_lengths[0]),
+      m_pyramid_attention(&d),
+      m_rq(rq) {
+    // FIXME: speculative decode is indistinguishable at this point!
+    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+void GlobalPositionIDs::prepare(int64_t past_len) {
+    const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
+    const auto in_tensor = m_rq.get_tensor(iport);
+    const auto in_dims = in_tensor->get_shape();
+
+    NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
+    const auto& context_lengths = m_pyramid_attention->_context_lengths;
+
+    const auto found_length = current_length_from_position_ids(in_tensor, in_dims);
+    if (!found_length) {
+        // Same fallback as PositionIDs: no positive position id found anywhere in the
+        // tensor - default to the largest model (safest choice for unknown sequence length).
+        LOG_WARN("Dynamic selector - no data found in the feature?");
+        m_current_length = -1;
+        m_pyramid_id = context_lengths.size() - 1;
+        return;
+    }
+
+    m_current_length = *found_length;
+    m_past_length = get_past_length_for_case(m_case, m_current_length, m_pyramid_step);
+
+    // Select the optimal pyramid model based on current sequence length
+    const int64_t query_contrib =
+        (m_case == Case::PREFILL) ? static_cast<int64_t>(m_pyramid_step) : static_cast<int64_t>(m_query_size);
+    const int64_t current_seq_length = query_contrib + m_past_length;
+    m_pyramid_id = select_pyramid_id(context_lengths, current_seq_length);
+}
+
+int64_t GlobalPositionIDs::length() const {
+    return m_current_length;
+}
+
+int64_t GlobalPositionIDs::past_length() const {
     return m_past_length;
 }
 

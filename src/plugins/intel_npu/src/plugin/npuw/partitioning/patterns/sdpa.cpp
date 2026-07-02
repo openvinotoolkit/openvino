@@ -4,7 +4,7 @@
 
 #include "sdpa.hpp"
 
-#include <iostream>
+#include <regex>
 
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
@@ -18,6 +18,70 @@
 namespace ov {
 namespace npuw {
 namespace patterns {
+
+namespace {
+namespace opp = ov::pass::pattern;
+
+// Predicate for opp::wrap_type: returns true when the Add node's second input
+// comes from a global attention mask path: Reshape(Tile(Convert(Parameter("..attention_mask_global..")))
+bool consumes_global_mask(const ov::Output<ov::Node>& output) {
+    auto node_ptr = output.get_node_shared_ptr();
+    if (!node_ptr) {
+        return false;
+    }
+    auto reshape = node_ptr->get_input_node_shared_ptr(1);
+    if (!reshape || !ov::is_type<ov::op::v1::Reshape>(reshape)) {
+        return false;
+    }
+    auto tile = reshape->get_input_node_shared_ptr(0);
+    if (!tile || !ov::is_type<ov::op::v0::Tile>(tile)) {
+        return false;
+    }
+    auto convert = tile->get_input_node_shared_ptr(0);
+    if (!convert || !ov::is_type<ov::op::v0::Convert>(convert)) {
+        return false;
+    }
+    auto mask_param = convert->get_input_node_shared_ptr(0);
+    if (!mask_param || !ov::is_type<ov::op::v0::Parameter>(mask_param)) {
+        return false;
+    }
+    return mask_param->get_friendly_name().find("attention_mask_global") != std::string::npos;
+}
+
+// Pattern nodes for the global-attention decomposed SDPA sub-graph shared by
+// QuantizedSDPAWithGlobalMask and SeparateKVCache. The Add node carries the consumes_global_mask
+// predicate, so this pattern only matches global-attention blocks -- which is exactly
+// what SeparateKVCache needs, since local attention is not isolated/folded.
+struct QuantizedSDPAWithGlobalMaskNodes {
+    std::shared_ptr<ov::Node> past_k, concat1, convert1, multiply1, transpose1, matmul1;
+    std::shared_ptr<ov::Node> add, softmax;
+    std::shared_ptr<ov::Node> past_v, concat2, convert2, multiply2;
+    std::shared_ptr<ov::Node> matmul2, reshape1, transpose, reshape2, fake_quantize;
+};
+
+inline QuantizedSDPAWithGlobalMaskNodes make_sdpa_decomposed1_pattern() {
+    QuantizedSDPAWithGlobalMaskNodes n;
+    n.past_k = opp::wrap_type<ov::op::v0::Parameter>();
+    n.concat1 = opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), n.past_k});
+    n.convert1 = opp::wrap_type<ov::op::v0::Convert>({n.concat1});
+    n.multiply1 = opp::wrap_type<ov::op::v1::Multiply>({n.convert1, opp::any_input()});
+    n.transpose1 = opp::wrap_type<ov::op::v1::Transpose>({n.multiply1, opp::any_input()});
+    n.matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), n.transpose1});
+    n.add = opp::wrap_type<ov::op::v1::Add>({n.matmul1, opp::any_input()}, consumes_global_mask);
+    n.softmax = opp::wrap_type<ov::op::v8::Softmax>({n.add});
+    n.past_v = opp::wrap_type<ov::op::v0::Parameter>();
+    n.concat2 = opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), n.past_v});
+    n.convert2 = opp::wrap_type<ov::op::v0::Convert>({n.concat2});
+    n.multiply2 = opp::wrap_type<ov::op::v1::Multiply>({n.convert2, opp::any_input()});
+    n.matmul2 = opp::wrap_type<ov::op::v0::MatMul>({n.softmax, n.multiply2});
+    n.reshape1 = opp::wrap_type<ov::op::v1::Reshape>({n.matmul2, opp::any_input()});
+    n.transpose = opp::wrap_type<ov::op::v1::Transpose>({n.reshape1, opp::any_input()});
+    n.reshape2 = opp::wrap_type<ov::op::v1::Reshape>({n.transpose, opp::any_input()});
+
+    return n;
+}
+}  // namespace
+
 namespace attn {
 
 namespace opp = ov::pass::pattern;
@@ -352,6 +416,68 @@ SDPACompressed::SDPACompressed(const std::shared_ptr<ov::npuw::online::Snapshot>
     register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPADecomposedDQ"), std::move(callback));
 }
 
+QuantizedSDPAWithGlobalMask::QuantizedSDPAWithGlobalMask(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                                         const std::string& isol_tag) {
+    // AttentionBroadcast4 pre-folds the shape sub-graph before this pass runs.
+    auto n = make_sdpa_decomposed1_pattern();
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        LOG_DEBUG("Decomposed1 SDPA pattern matched!");
+
+        auto& node_to_output = m.get_pattern_value_map();
+
+        // Helper lambda to extract and isolate matched nodes
+        auto isolate_matched = [&](const auto& pattern) {
+            auto optional_node = node_to_output.find(pattern);
+            if (optional_node != node_to_output.end()) {
+                auto matched_node = optional_node->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_node)->isolate(isol_tag);
+            }
+        };
+
+        auto concat_name = node_to_output.at(n.concat1).get_node()->get_friendly_name();
+        int block_index = 0;
+        std::regex pattern(R"(_module\.decoder\.blocks\.(\d+)\..*)");
+        std::smatch match;
+        if (std::regex_match(concat_name, match, pattern)) {
+            block_index = std::stoi(match[1].str());
+        } else {
+            // doesn't matter
+        }
+
+        node_to_output.at(n.past_k).get_node()->set_friendly_name("past_key_values." + std::to_string(block_index) +
+                                                                  ".key");
+        node_to_output.at(n.past_v).get_node()->set_friendly_name("past_key_values." + std::to_string(block_index) +
+                                                                  ".value");
+
+        isolate_matched(n.concat1);
+        isolate_matched(n.convert1);
+        isolate_matched(n.multiply1);
+        isolate_matched(n.transpose1);
+        isolate_matched(n.matmul1);
+
+        isolate_matched(n.add);
+
+        isolate_matched(n.softmax);
+
+        isolate_matched(n.concat2);
+        isolate_matched(n.convert2);
+        isolate_matched(n.multiply2);
+
+        isolate_matched(n.matmul2);
+        isolate_matched(n.reshape1);
+        isolate_matched(n.transpose);
+        isolate_matched(n.reshape2);
+
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "TagQuantizedSDPAWithGlobalMask"), std::move(callback));
+}
+
 }  // namespace attn
 
 namespace regularize {
@@ -502,6 +628,171 @@ ShapeOfParameter::ShapeOfParameter() {
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
 }
 
+// AttentionBroadcast4: folds the ShapeOf->Gather->Concat->Reshape chain that
+// appears on the attention mask path (originally part of QuantizedSDPAWithGlobalMask before
+// it was simplified). Running this before QuantizedSDPAWithGlobalMask allows that pattern
+// to use any_input() for the Add's second operand.
+AttentionBroadcast4::AttentionBroadcast4() {
+    // Pattern derived from the original QuantizedSDPAWithGlobalMask mask-shape sub-graph:
+    //   ShapeOf(kv) -> Gather
+    //                        Concat(any, any, any, Gather) -> Reshape -> Add
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>(multiply);
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat_gather =
+        opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), opp::any_input(), opp::any_input(), gather});
+    auto reshape_gather = opp::wrap_type<ov::op::v1::Reshape>({opp::any_input(), concat_gather});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_gather_out = node_to_output.at(gather);
+        if (matched_gather_out.get_target_inputs().size() > 1) {
+            // This pattern is for the Gather that feeds a single Concat.
+            return false;
+        }
+        auto matched_concat_out = node_to_output.at(concat_gather);
+        auto& matched_concat_tensor = matched_concat_out.get_tensor();
+        if (matched_concat_tensor.has_and_set_bound()) {
+            // Replace the dynamic shape calculation with a static constant
+            // This is bad but it in the current realm it is what it is
+            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_concat_tensor.get_upper_value());
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_concat_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_concat_out.get_target_inputs()) {
+                input.replace_source_output(new_const);
+            }
+
+            return true;  // root changed
+        }
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(reshape_gather, "AttentionBroadcast4"), std::move(callback));
+}
+
+// SeparateKVCache: OpenVINO's SharedOpOptimization (run by Model::reshape) merges the
+// identical K- and V-cache dequantization chains across global-attention blocks that
+// reuse the same KV cache, so a single K-transpose / V-multiply can feed several blocks'
+// MatMuls. The NPUW repeated-block partitioner cannot represent such a shared node -- it
+// leaks as an extra output of one block while being consumed by others, producing repeated
+// blocks with inconsistent output counts. This pass duplicates the shared cache chain per
+// consumer so each attention block owns an independent copy. The K side
+// (Concat->Convert->Multiply->Transpose) and the V side (Concat->Convert->Multiply) are
+// handled the same way.
+//
+// NB: This pass reuses the QuantizedSDPAWithGlobalMask pattern (with the consumes_global_mask
+// predicate), so it only fires for global-attention blocks. Local attention is not
+// isolated/folded here, so leaving its (also shared) KV chains untouched is fine.
+SeparateKVCache::SeparateKVCache() {
+    auto n = make_sdpa_decomposed1_pattern();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        // Clone a (possibly weight) constant so each duplicated chain owns its own node.
+        // Sharing one constant across multiple call-site subgraph models confuses the
+        // partitioner's propagateWeights bank-assignment, which expects exactly one
+        // constant per call site. Non-constant sources (e.g. a Parameter) are reused.
+        auto clone_source = [](const ov::Output<ov::Node>& src) -> ov::Output<ov::Node> {
+            if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src.get_node_shared_ptr())) {
+                return std::make_shared<ov::op::v0::Constant>(*c)->output(0);
+            }
+            return src;
+        };
+
+        // Duplicate the cache chain feeding `shared_node` for every consumer other than the
+        // one already matched in this pattern. `clone_chain` builds a fresh, independent copy
+        // of the chain. Returns true if any consumer was redirected.
+        auto unshare = [&](const std::shared_ptr<ov::Node>& shared_node,
+                           const ov::Node* pattern_consumer,
+                           auto&& clone_chain) -> bool {
+            if (!shared_node) {
+                return false;
+            }
+            auto targets = shared_node->output(0).get_target_inputs();
+            if (targets.size() <= 1) {
+                return false;  // only the matched consumer -- nothing to unshare.
+            }
+            bool changed = false;
+            for (auto& target_input : targets) {
+                if (target_input.get_node() == pattern_consumer) {
+                    continue;  // keep the matched consumer on the original chain.
+                }
+                if (!dynamic_cast<ov::op::v0::MatMul*>(target_input.get_node())) {
+                    continue;
+                }
+                target_input.replace_source_output(clone_chain());
+                changed = true;
+            }
+            return changed;
+        };
+
+        auto concat1_node =
+            std::dynamic_pointer_cast<ov::op::v0::Concat>(node_to_output.at(n.concat1).get_node_shared_ptr());
+        auto convert1_node =
+            std::dynamic_pointer_cast<ov::op::v0::Convert>(node_to_output.at(n.convert1).get_node_shared_ptr());
+        auto multiply1_node =
+            std::dynamic_pointer_cast<ov::op::v1::Multiply>(node_to_output.at(n.multiply1).get_node_shared_ptr());
+        auto transpose1_node =
+            std::dynamic_pointer_cast<ov::op::v1::Transpose>(node_to_output.at(n.transpose1).get_node_shared_ptr());
+        auto matmul1_node =
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(n.matmul1).get_node_shared_ptr());
+
+        auto concat2_node =
+            std::dynamic_pointer_cast<ov::op::v0::Concat>(node_to_output.at(n.concat2).get_node_shared_ptr());
+        auto convert2_node =
+            std::dynamic_pointer_cast<ov::op::v0::Convert>(node_to_output.at(n.convert2).get_node_shared_ptr());
+        auto multiply2_node =
+            std::dynamic_pointer_cast<ov::op::v1::Multiply>(node_to_output.at(n.multiply2).get_node_shared_ptr());
+        auto matmul2_node =
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(n.matmul2).get_node_shared_ptr());
+
+        auto concat1_inputs = concat1_node->inputs();
+        auto multiply1_inputs = multiply1_node->inputs();
+        auto transpose1_inputs = transpose1_node->inputs();
+        auto concat2_inputs = concat2_node->inputs();
+        auto multiply2_inputs = multiply2_node->inputs();
+
+        // K-cache chain clone: Concat -> Convert -> Multiply -> Transpose
+        auto clone_k = [&]() -> ov::Output<ov::Node> {
+            auto new_concat = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{concat1_inputs[0].get_source_output(), concat1_inputs[1].get_source_output()},
+                concat1_node->get_axis());
+            auto new_convert =
+                std::make_shared<ov::op::v0::Convert>(new_concat, convert1_node->get_convert_element_type());
+            auto new_multiply =
+                std::make_shared<ov::op::v1::Multiply>(new_convert,
+                                                       clone_source(multiply1_inputs[1].get_source_output()));
+            auto new_transpose =
+                std::make_shared<ov::op::v1::Transpose>(new_multiply,
+                                                        clone_source(transpose1_inputs[1].get_source_output()));
+            return new_transpose->output(0);
+        };
+
+        // V-cache chain clone: Concat -> Convert -> Multiply
+        auto clone_v = [&]() -> ov::Output<ov::Node> {
+            auto new_concat = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{concat2_inputs[0].get_source_output(), concat2_inputs[1].get_source_output()},
+                concat2_node->get_axis());
+            auto new_convert =
+                std::make_shared<ov::op::v0::Convert>(new_concat, convert2_node->get_convert_element_type());
+            auto new_multiply =
+                std::make_shared<ov::op::v1::Multiply>(new_convert,
+                                                       clone_source(multiply2_inputs[1].get_source_output()));
+            return new_multiply->output(0);
+        };
+
+        bool changed = false;
+        changed = unshare(transpose1_node, matmul1_node.get(), clone_k) || changed;
+        changed = unshare(multiply2_node, matmul2_node.get(), clone_v) || changed;
+        return changed;
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "SeparateKVCache"), std::move(callback));
+}
+
 bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
     if (m_run_broadcast_pattern) {
@@ -509,6 +800,8 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast4>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::SeparateKVCache>();
 
         model_changed |= rewr.run_on_model(model);
     }
