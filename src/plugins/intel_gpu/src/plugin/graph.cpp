@@ -771,6 +771,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     } else {
                         extPerfEntry.exec_type = pi.kernel_id;
                     }
+                    if (extPerfEntry.exec_type == "undef") {
+                        extPerfEntry.exec_type = get_network()->get_implementation_info(primId);
+                    }
 
                     extPerfEntry.node_type = getUpperCaseName(pi.type_id);
                     extPerfEntry.node_name = pi.original_id;

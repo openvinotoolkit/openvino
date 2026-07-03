@@ -75,6 +75,17 @@ public:
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
+    /**
+     * @brief Returns the compatibility descriptor of this graph, if any.
+     * @details The descriptor is determined when the graph is created (imported from blob metadata,
+     *          returned by the VCL/plugin compiler, or fetched from the driver on the
+     *          compiler-in-driver path when L0 API version >= 1.16) and is immutable thereafter.
+     *          The descriptor format is defined by the compiler and is opaque to the plugin.
+     * @return A view of the descriptor string if available, or std::nullopt if:
+     *         - The graph was compiled without generating a descriptor
+     *         - The driver does not support zeDeviceGetRuntimeRequirements (L0 < 1.16)
+     *         - This is a WeightlessGraph (not supported)
+     */
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
 protected:
