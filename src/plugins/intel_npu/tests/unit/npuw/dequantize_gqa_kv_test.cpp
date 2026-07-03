@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "openvino/core/model.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -39,18 +41,25 @@ std::shared_ptr<ov::op::internal::GroupQueryAttention> find_gqa(const std::share
     return nullptr;
 }
 
-// Build a GroupQueryAttention with an int8 PER_CHANNEL quantized KV cache: separate float Q/K/V, int8
-// past_key/past_value, and f32 per-channel k_scale/v_scale at inputs 12/13 (com.microsoft layout). Mirrors
-// the orca int8 op contract (num_heads=4, kv_num_heads=2, head_size=16 here for a small test).
-std::shared_ptr<ov::Model> build_int8_gqa_model() {
+// Build a GroupQueryAttention with a PER_CHANNEL quantized KV cache (int8 or int4): separate float Q/K/V,
+// quantized past_key/past_value, and f32 per-channel k_scale/v_scale at inputs 12/13 (com.microsoft layout).
+// Mirrors the orca quantized op contract (num_heads=4, kv_num_heads=2, head_size=16 here for a small test).
+//   * bit_width==8: past/present KV are i8 [.., head_size].
+//   * bit_width==4: past/present KV are u8-packed (two nibbles/byte) [.., head_size/2].
+std::shared_ptr<ov::Model> build_quant_gqa_model(int64_t bit_width) {
     constexpr int64_t num_heads = 4, kv_num_heads = 2, head_size = 16, seq = 1, past = 8;
+    const auto cache_type = (bit_width == 4) ? ov::element::u8 : ov::element::i8;
+    const int64_t stored_head = (bit_width == 4) ? head_size / 2 : head_size;  // int4 packs 2/byte
+
     auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, num_heads, seq, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, kv_num_heads, seq, head_size});
     auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, kv_num_heads, seq, head_size});
     auto past_key =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{1, kv_num_heads, past, head_size});
+        std::make_shared<ov::op::v0::Parameter>(cache_type,
+                                                ov::Shape{1, kv_num_heads, past, static_cast<size_t>(stored_head)});
     auto past_value =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{1, kv_num_heads, past, head_size});
+        std::make_shared<ov::op::v0::Parameter>(cache_type,
+                                                ov::Shape{1, kv_num_heads, past, static_cast<size_t>(stored_head)});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
 
@@ -82,7 +91,7 @@ std::shared_ptr<ov::Model> build_int8_gqa_model() {
                                                                        0.0f,   // scale (0 => default 1/sqrt(head))
                                                                        false,  // do_rotary
                                                                        false,  // rotary_interleaved
-                                                                       8,      // kv_cache_bit_width
+                                                                       bit_width,
                                                                        "PER_CHANNEL",
                                                                        "PER_CHANNEL");
 
@@ -90,7 +99,11 @@ std::shared_ptr<ov::Model> build_int8_gqa_model() {
                                 std::make_shared<ov::op::v0::Result>(gqa->output(1)),
                                 std::make_shared<ov::op::v0::Result>(gqa->output(2))};
     ov::ParameterVector params = {query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
-    return std::make_shared<ov::Model>(results, params, "int8_gqa_model");
+    return std::make_shared<ov::Model>(results, params, "quant_gqa_model");
+}
+
+std::shared_ptr<ov::Model> build_int8_gqa_model() {
+    return build_quant_gqa_model(8);
 }
 
 // Same head config but a plain FLOAT KV cache (no quant) — the pass must leave it untouched.
@@ -173,4 +186,36 @@ TEST(DequantizeGQAKVCache, LeavesFloatOpUntouched) {
     auto gqa = find_gqa(model);
     ASSERT_NE(gqa, nullptr);
     EXPECT_EQ(gqa->get_input_size(), 7u);
+}
+
+// int4 (u8-packed, 2 nibbles/byte) quantized op: same rewrite, but dequant unpacks nibbles
+// (BitwiseAnd/BitwiseRightShift + Subtract of the +8 bias) and requant repacks (BitwiseAnd/BitwiseOr).
+// The op becomes float; present KV is restored to the packed u8 cache type.
+TEST(DequantizeGQAKVCache, RewritesInt4QuantizedOpToFloatWithBitwiseUnpackRepack) {
+    auto model = build_quant_gqa_model(4);
+    auto src = find_gqa(model);
+    ASSERT_NE(src, nullptr);
+    ASSERT_TRUE(src->is_kv_quantized());
+    ASSERT_EQ(src->get_kv_cache_bit_width(), 4);
+
+    ov::npuw::DequantizeGQAKVCache pass;
+    const bool changed = pass.run_on_model(model);
+    EXPECT_TRUE(changed);
+
+    // Op is now float (quant metadata cleared, scale inputs dropped), KV inputs match Q.
+    auto gqa = find_gqa(model);
+    ASSERT_NE(gqa, nullptr);
+    EXPECT_FALSE(gqa->is_kv_quantized());
+    EXPECT_EQ(gqa->get_kv_cache_bit_width(), 0);
+    EXPECT_EQ(gqa->get_input_element_type(3), gqa->get_input_element_type(0));
+
+    // Requant restores the packed u8 cache type at the present-KV model outputs.
+    EXPECT_EQ(model->get_results()[1]->get_input_element_type(0), ov::element::u8);
+    EXPECT_EQ(model->get_results()[2]->get_input_element_type(0), ov::element::u8);
+
+    // int4-specific: Bitwise nibble unpack (dequant) + repack (requant) are present; Round/Clamp still there.
+    EXPECT_GT(count_ops<ov::op::v13::BitwiseAnd>(model), 0u);
+    EXPECT_GT(count_ops<ov::op::v13::BitwiseOr>(model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v5::Round>(model), 2u);
+    EXPECT_EQ(count_ops<ov::op::v0::Clamp>(model), 2u);
 }
