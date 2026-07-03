@@ -126,7 +126,7 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
 #if OV_GPU_WITH_ZE_RT
-        total_block_num = (block_num > 0) ? Align(total_block_num, block_num) : total_block_num; //align for ZE RT
+        total_block_num = Align(total_block_num, block_num); //align for ZE RT
         std::cout << "Total block num: " << total_block_num << std::endl;
 #endif
 
