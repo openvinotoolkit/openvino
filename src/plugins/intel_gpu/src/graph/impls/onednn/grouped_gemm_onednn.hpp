@@ -35,7 +35,6 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
 
         static const std::vector<ov::element::Type_t> supported_activation_types = {
             ov::element::f16,
-            ov::element::bf16,
         };
 
         static const std::vector<ov::element::Type_t> supported_compressed_weight_types = {

@@ -17,8 +17,7 @@ using ov::test::utils::DecompressionType;
 
 const std::vector<GroupedMatMulShapeParams> shapes_3d_3d = {
     // 3D x 3D: A:[G,M,K] x B:[G,N,K] -> [G,M,N], dynamic M dim.
-    // The GPU plugin lowers this case to a plain batched cldnn::gemm (see ops/grouped_matmul.cpp),
-    // so the runtime model reports it as "Gemm".
+    // The GPU plugin lowers this case to a fully_connected (see ops/grouped_matmul.cpp),
     {{ov::PartialShape{4, -1, 128}, {{4, 8, 128}, {4, 1, 128}, {4, 16, 128}}}, {4, 256, 128}, {}},
     {{ov::PartialShape{8, -1, 256}, {{8, 4, 256}, {8, 1, 256}}}, {8, 512, 256}, {}},
 };

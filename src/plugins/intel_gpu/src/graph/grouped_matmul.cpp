@@ -28,11 +28,9 @@ std::vector<layout> grouped_matmul_inst::calc_output_layouts(grouped_matmul_node
     const auto& b_pshape = weight_layout.get_partial_shape();
 
     OPENVINO_ASSERT(a_pshape.rank().is_static() && a_pshape.size() == 2,
-                    "grouped_matmul mat_a rank must be static and equal to 2, got ",
-                    a_pshape);
+                    "grouped_matmul mat_a rank must be equal to 2, got ", a_pshape);
     OPENVINO_ASSERT(b_pshape.rank().is_static() && b_pshape.size() == 3,
-                    "grouped_matmul mat_b rank must be static and equal to 3, got ",
-                    b_pshape);
+                    "grouped_matmul mat_b rank must be equal to 3, got ", b_pshape);
 
     const auto desc = impl_param.typed_desc<grouped_matmul>();
     const auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);

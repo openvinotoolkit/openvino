@@ -22,6 +22,21 @@ using GroupedMatMulCompressed = ov::intel_gpu::op::GroupedMatMulCompressed;
 
 namespace ov::intel_gpu {
 
+// onednn grouped_gemm impl requires i32 offsets; insert a reorder if the graph feeds i64.
+static void ensure_i32_offsets(ProgramBuilder& p,
+                               const std::shared_ptr<ov::Node>& op,
+                               std::vector<cldnn::input_info>& inputs,
+                               size_t offsets_idx) {
+    const auto offsets_dtype = cldnn::element_type_to_data_type(op->get_input_element_type(offsets_idx));
+    if (offsets_dtype == cldnn::data_types::i32)
+        return;
+    auto reorder_id = inputs[offsets_idx].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
+    auto fmt = cldnn::format::get_default_format(op->get_input_partial_shape(offsets_idx).size());
+    auto reorder_prim = cldnn::reorder(reorder_id, inputs[offsets_idx], fmt, cldnn::data_types::i32);
+    p.add_primitive(*op, reorder_prim);
+    inputs[offsets_idx] = cldnn::input_info(reorder_id);
+}
+
 static void CreateGroupedMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v17::GroupedMatMul>& op) {
     // GroupedMatMul-17 has two cases:
     //   2D x 3D: mat_a[T,K] x mat_b[G,N,K] + offsets[G] -> [T,N]  (MoE forward pass)
@@ -63,15 +78,7 @@ static void CreateGroupedMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     OPENVINO_ASSERT(inputs.size() == 3,
                     "[GPU] GroupedMatMul: 2D x 3D case requires 3 inputs (mat_a, mat_b, offsets)");
 
-    // onednn grouped_gemm impl requires i32 offsets; insert a reorder if the graph feeds i64.
-    const auto offsets_dtype = cldnn::element_type_to_data_type(op->get_input_element_type(2));
-    if (offsets_dtype == cldnn::data_types::i64) {
-        auto reorder_id = inputs[2].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
-        auto fmt = cldnn::format::get_default_format(op->get_input_partial_shape(2).size());
-        auto reorder_prim = cldnn::reorder(reorder_id, inputs[2], fmt, cldnn::data_types::i32);
-        p.add_primitive(*op, reorder_prim);
-        inputs[2] = cldnn::input_info(reorder_id);
-    }
+    ensure_i32_offsets(p, op, inputs, /*offsets_idx=*/2);
 
     const cldnn::grouped_matmul prim(layer_name, inputs, output_dt);
     p.add_primitive(*op, prim);
@@ -98,28 +105,20 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
     const auto output_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     const bool with_offsets = op->has_offsets();
 
-    if (with_offsets) {
-        // 2D x 3D compressed path.
-        OPENVINO_ASSERT(inputs.size() >= 4,
-                        "[GPU] GroupedMatMulCompressed 2Dx3D requires at least 4 inputs (mat_a, mat_b, offsets, scale)");
+    if (!with_offsets) {
+        // 3D x 3D compressed path: lower to a batched compressed fully_connected.
+        //   A:[G,M,K] x B:[G,N,K]  ==  A @ B.T  ->  [G,M,N] with weights_transposed=true.
+        OPENVINO_ASSERT(inputs.size() >= 3, "[GPU] GroupedMatMulCompressed 3Dx3D requires at least 3 inputs (mat_a, mat_b, scale)");
 
-        // onednn grouped_gemm impl requires i32 offsets; insert a reorder if the graph feeds i64.
-        const auto offsets_dtype = cldnn::element_type_to_data_type(op->get_input_element_type(2));
-        if (offsets_dtype == cldnn::data_types::i64) {
-            auto reorder_id = inputs[2].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
-            auto fmt = cldnn::format::get_default_format(op->get_input_partial_shape(2).size());
-            auto reorder_prim = cldnn::reorder(reorder_id, inputs[2], fmt, cldnn::data_types::i32);
-            p.add_primitive(*op, reorder_prim);
-            inputs[2] = cldnn::input_info(reorder_id);
-        }
+        const auto weights_pid = inputs[1].pid;
+        const auto scale_pid = inputs[2].pid;
 
-        const auto scale = inputs[3];
-        cldnn::input_info zp = {};
+        cldnn::primitive_id zp_pid = "";
         float zp_scalar_value = 0.0f;
         bool has_scalar_zp = false;
-        if (op->get_input_size() > 4) {
-            constexpr size_t zp_idx = 4;
-            zp = inputs[zp_idx];
+        if (op->get_input_size() > 3) {
+            constexpr size_t zp_idx = 3;
+            zp_pid = inputs[zp_idx].pid;
             auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(zp_idx));
             if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
                 has_scalar_zp = true;
@@ -127,30 +126,36 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
             }
         }
 
-        // base inputs are mat_a / mat_b / offsets; scale + zp are attached via primitive fields.
-        std::vector<cldnn::input_info> base_inputs{inputs[0], inputs[1], inputs[2]};
-        cldnn::grouped_matmul prim(layer_name, base_inputs, scale, zp, output_dt);
+        auto fc_prim = cldnn::fully_connected(layer_name,
+                                              inputs[0],
+                                              weights_pid /*weights=*/,
+                                              "" /*bias=*/,
+                                              scale_pid /*decompression_scale=*/,
+                                              zp_pid /*decompression_zero_point=*/,
+                                              output_dt,
+                                              3 /*input_size=*/,
+                                              3 /*weights_rank=*/,
+                                              true /*weights_transposed=*/);
         if (has_scalar_zp) {
-            prim.decompression_zero_point_scalar = zp_scalar_value;
+            fc_prim.decompression_zero_point_scalar = zp_scalar_value;
         }
-        p.add_primitive(*op, prim);
+        p.add_primitive(*op, fc_prim);
+
         return;
     }
 
-    // 3D x 3D compressed path: lower to a batched compressed fully_connected.
-    //   A:[G,M,K] x B:[G,N,K]  ==  A @ B.T  ->  [G,M,N] with weights_transposed=true.
-    OPENVINO_ASSERT(inputs.size() >= 3,
-                    "[GPU] GroupedMatMulCompressed 3Dx3D requires at least 3 inputs (mat_a, mat_b, scale)");
+    // 2D x 3D compressed path.
+    OPENVINO_ASSERT(inputs.size() >= 4, "[GPU] GroupedMatMulCompressed 2Dx3D requires at least 4 inputs (mat_a, mat_b, offsets, scale)");
 
-    const auto weights_pid = inputs[1].pid;
-    const auto scale_pid = inputs[2].pid;
+    ensure_i32_offsets(p, op, inputs, /*offsets_idx=*/2);
 
-    cldnn::primitive_id zp_pid = "";
+    const auto scale = inputs[3];
+    cldnn::input_info zp = {};
     float zp_scalar_value = 0.0f;
     bool has_scalar_zp = false;
-    if (op->get_input_size() > 3) {
-        constexpr size_t zp_idx = 3;
-        zp_pid = inputs[zp_idx].pid;
+    if (op->get_input_size() > 4) {
+        constexpr size_t zp_idx = 4;
+        zp = inputs[zp_idx];
         auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(zp_idx));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
@@ -158,20 +163,13 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
         }
     }
 
-    auto fc_prim = cldnn::fully_connected(layer_name,
-                                          inputs[0],
-                                          /*weights=*/weights_pid,
-                                          /*bias=*/"",
-                                          /*decompression_scale=*/scale_pid,
-                                          /*decompression_zero_point=*/zp_pid,
-                                          output_dt,
-                                          /*input_size=*/3,
-                                          /*weights_rank=*/3,
-                                          /*weights_transposed=*/true);
+    // base inputs are mat_a / mat_b / offsets; scale + zp are attached via primitive fields.
+    std::vector<cldnn::input_info> base_inputs{inputs[0], inputs[1], inputs[2]};
+    cldnn::grouped_matmul prim(layer_name, base_inputs, scale, zp, output_dt);
     if (has_scalar_zp) {
-        fc_prim.decompression_zero_point_scalar = zp_scalar_value;
+        prim.decompression_zero_point_scalar = zp_scalar_value;
     }
-    p.add_primitive(*op, fc_prim);
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(v17, GroupedMatMul);

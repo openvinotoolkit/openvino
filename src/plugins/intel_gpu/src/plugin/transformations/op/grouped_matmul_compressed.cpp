@@ -63,10 +63,6 @@ void GroupedMatMulCompressed::validate_and_infer_types() {
                           "GroupedMatMulCompressed expects at least 3 inputs, got: ",
                           input_size);
 
-    // Shape inference relies only on the base GroupedMatMul inputs (mat_a, mat_b,
-    // and optionally offsets). The compressed weight is dequantized at runtime,
-    // so the output element type is derived from mat_a (activation) rather than
-    // from mat_b.
     std::vector<ov::PartialShape> input_shapes{get_input_partial_shape(0), get_input_partial_shape(1)};
     if (has_offsets()) {
         input_shapes.push_back(get_input_partial_shape(2));

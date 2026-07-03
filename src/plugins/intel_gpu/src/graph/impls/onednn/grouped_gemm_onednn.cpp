@@ -26,6 +26,15 @@ struct grouped_gemm_onednn : typed_primitive_onednn_impl<grouped_matmul> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::grouped_gemm_onednn)
 
+    // Weights-quantization mask bits for oneDNN grouped matmul weights logical layout [G, K, N]:
+    //   bit 0 -> G (expert / batch), bit 1 -> K (reduction), bit 2 -> N (output channels).
+    // Weights zero-points/scales masks accepted by grouped_micro_gemm: only PER_OC or GROUPED.
+    static constexpr int WEI_MASK_G       = 1 << 0;
+    static constexpr int WEI_MASK_K       = 1 << 1;
+    static constexpr int WEI_MASK_N       = 1 << 2;
+    static constexpr int WEI_MASK_PER_OC  = WEI_MASK_G | WEI_MASK_N;              // mask 5
+    static constexpr int WEI_MASK_GROUPED = WEI_MASK_G | WEI_MASK_K | WEI_MASK_N; // mask 7
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<grouped_gemm_onednn>(*this);
@@ -61,20 +70,19 @@ protected:
             dnnl::memory::dims scale_dims;
             dnnl::memory::format_tag scale_fmt;
             if (scale_shape.size() == 2) {
-                // Per-OC: scale physical is [G, N]. oneDNN weights are logical [G, K, N], so we bind
-                // scale as [G, N] with format ab and mask over dims 0 and 2 of the weights tensor.
+                // Per-OC: scale is [G, N]. oneDNN weights are [G, K, N]
                 scale_dims = dnnl::memory::dims{G, N};
                 scale_fmt = dnnl::memory::format_tag::ab;
-            } else {
+            } else if (scale_shape.size() == 3) {
                 // Grouped: scale physical is [G, N, K/gs]; onednn expects logical [G, K/gs, N] fmt abc.
-                OPENVINO_ASSERT(scale_shape.size() == 3,
-                                "[GPU] Unexpected decompression scale rank ", scale_shape.size());
                 const dnnl::memory::dim num_groups = static_cast<dnnl::memory::dim>(scale_shape[2]);
                 OPENVINO_ASSERT(num_groups > 0 && K % num_groups == 0,
                                 "[GPU] grouped_matmul scale groups (", num_groups,
                                 ") must evenly divide K (", K, ")");
                 scale_dims = dnnl::memory::dims{G, num_groups, N};
                 scale_fmt = dnnl::memory::format_tag::abc;
+            } else {
+                OPENVINO_THROW("[GPU] grouped_matmul scale must be rank 2 or 3, got ", scale_shape.size());
             }
             dnnl::memory::desc scale_md(scale_dims, convert_data_type(scale_mem->get_layout().data_type), scale_fmt);
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(scale_md, 0)});
@@ -86,7 +94,7 @@ protected:
                 OPENVINO_ASSERT(zp_layout.count() > 1, "[GPU] grouped_matmul zero-point must be rank > 0");
                 const auto& zp_shape = zp_layout.get_shape();
                 OPENVINO_ASSERT(zp_shape == scale_shape,
-                                "[GPU] grouped_matmul zero-point shape ", zp_shape,
+                                "[GPU] OneDNN requires that grouped_matmul zero-point shape ", zp_shape,
                                 " must match scale shape ", scale_shape);
                 dnnl::memory::desc zp_md(scale_dims, zp_dt, scale_fmt);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(zp_md, 0)});
@@ -118,8 +126,7 @@ protected:
         const dnnl::memory::dim num_experts = static_cast<dnnl::memory::dim>(wei_shape[0]);
         const dnnl::memory::dim N = static_cast<dnnl::memory::dim>(wei_shape[1]);
         OPENVINO_ASSERT(static_cast<dnnl::memory::dim>(wei_shape[2]) == K,
-                        "grouped_gemm_onednn mat_b last dim (", wei_shape[2],
-                        ") must match mat_a last dim (", K, ")");
+                        "K must match between weight and input: ", wei_shape[2], " - ", K);
 
         // dnnl grouped matmul: src=[T,K] with variable dim 0, weights logical=[G,K,N] stored acb (=> physical [G,N,K]).
         auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K},
@@ -142,13 +149,6 @@ protected:
     }
 
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-    }
 
     static std::unique_ptr<primitive_impl> create(const grouped_matmul_node& arg,
                                                   const kernel_impl_params& impl_params) {
@@ -158,7 +158,6 @@ public:
 
         const auto& prim = impl_params.typed_desc<grouped_matmul>();
         if (prim->compressed_weights) {
-            // scale is the first extra dependency (after src/wei/offsets); zp (if any) is next.
             size_t idx = grouped_matmul::GroupedMatmulInputIdx::OFFSETS + 1;
 
             const auto& scale_layout = arg.get_dependency(idx++).get_output_layout();
@@ -170,16 +169,16 @@ public:
 
             // Mask 5 = bit0(G) | bit2(N) for per-OC. Mask 7 adds bit1(K) for grouped-K.
             if (scale_shape.size() == 2) {
-                attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, scale_dt);
-            } else {
-                OPENVINO_ASSERT(scale_shape.size() == 3,
-                                "[GPU] Unexpected decompression scale rank ", scale_shape.size());
+                attr->set_scales(DNNL_ARG_WEIGHTS, WEI_MASK_PER_OC, {}, scale_dt);
+            } else if (scale_shape.size() == 3) {
                 const int64_t num_groups = static_cast<int64_t>(scale_shape[2]);
                 OPENVINO_ASSERT(num_groups > 0 && K % num_groups == 0,
                                 "[GPU] grouped_matmul scale groups (", num_groups,
                                 ") must evenly divide K (", K, ")");
                 const dnnl::memory::dim group_size = K / num_groups;
-                attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, scale_dt);
+                attr->set_scales(DNNL_ARG_WEIGHTS, WEI_MASK_GROUPED, {group_size, 1}, scale_dt);
+            } else {
+                OPENVINO_THROW("[GPU] Unexpected decompression scale rank ", scale_shape.size());
             }
 
             if (prim->decompression_zero_point.is_valid()) {
@@ -188,19 +187,19 @@ public:
                 const auto& zp_shape = zp_layout.get_shape();
                 OPENVINO_ASSERT(zp_layout.count() > 1, "[GPU] grouped_matmul zero-point must be rank > 0");
                 if (zp_shape.size() == 2) {
-                    attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
-                } else {
-                    OPENVINO_ASSERT(zp_shape.size() == 3,
-                                    "[GPU] Unexpected decompression zero-point rank ", zp_shape.size());
+                    attr->set_zero_points(DNNL_ARG_WEIGHTS, WEI_MASK_PER_OC, {}, zp_dt);
+                } else if (zp_shape.size() == 3) {
                     const int64_t num_groups = static_cast<int64_t>(zp_shape[2]);
                     OPENVINO_ASSERT(num_groups > 0 && K % num_groups == 0,
                                     "[GPU] grouped_matmul zp groups (", num_groups,
                                     ") must evenly divide K (", K, ")");
                     const dnnl::memory::dim group_size = K / num_groups;
                     attr->set_zero_points(DNNL_ARG_WEIGHTS,
-                                          (1 << 0) | (1 << 1) | (1 << 2),
+                                          WEI_MASK_GROUPED,
                                           {group_size, 1},
                                           zp_dt);
+                } else {
+                    OPENVINO_THROW("[GPU] Unexpected decompression zero-point rank ", zp_shape.size());
                 }
             }
         }

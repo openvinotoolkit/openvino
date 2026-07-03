@@ -32,7 +32,6 @@
 #include "scatter_nd_update_inst.h"
 #include "scatter_update_inst.h"
 #include "gemm_inst.h"
-#include "grouped_matmul_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"

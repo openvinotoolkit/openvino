@@ -24,56 +24,34 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+
 #include "compressed_weights_pattern.hpp"
 
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
-namespace {
+ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed() {
+    auto data_m = any_input();
+    auto offsets_m = any_input();
 
-// Bundle of pattern nodes captured by the shared callback. Each matcher instantiates
-// its own copy of FC_COMPRESSED_WEIGHT_PATTERN (so the pattern node identities differ
-// between the with-offsets and no-offsets matchers), then hands them to this helper.
-struct GmmCompressedPatternNodes {
-    std::shared_ptr<ov::Node> gmm_m;
-    std::shared_ptr<ov::Node> mul_const_m;
-    std::shared_ptr<ov::Node> decompressed_weights_m;
-    std::shared_ptr<ov::Node> weights_const_m;
-    std::shared_ptr<ov::Node> weights_param_m;
-    std::shared_ptr<ov::Node> weights_reshape_m;
-    std::shared_ptr<ov::Node> sub_const_m;
-    std::shared_ptr<ov::Node> sub_with_convert_m;
-    std::shared_ptr<ov::Node> sub_no_convert_m;
-    std::shared_ptr<ov::Node> transpose_m;
-    std::shared_ptr<ov::Node> transpose_const_m;
-    std::shared_ptr<ov::Node> mul2_m;
-    std::shared_ptr<ov::Node> mul2_const_m;
-};
+    FC_COMPRESSED_WEIGHT_PATTERN
 
-ov::matcher_pass_callback make_gmm_compressed_callback(const GmmCompressedPatternNodes& pn,
-                                                      ov::pass::MatcherPass* self) {
-    return [pn, self](ov::pass::pattern::Matcher& m) {
+    // v17::GroupedMatMul has two legal input arities. Match both with a single Or root so
+    // one MatcherPass covers 2D x 3D (with offsets) and 3D x 3D (no offsets).
+    auto gmm_no_offsets_m =
+        wrap_type<ov::op::v17::GroupedMatMul>({data_m, compressed_weights_input_m});
+    auto gmm_with_offsets_m =
+        wrap_type<ov::op::v17::GroupedMatMul>({data_m, compressed_weights_input_m, offsets_m});
+    auto gmm_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{gmm_no_offsets_m, gmm_with_offsets_m});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& gmm_m = pn.gmm_m;
-        const auto& mul_const_m = pn.mul_const_m;
-        const auto& decompressed_weights_m = pn.decompressed_weights_m;
-        const auto& weights_const_m = pn.weights_const_m;
-        const auto& weights_param_m = pn.weights_param_m;
-        const auto& weights_reshape_m = pn.weights_reshape_m;
-        const auto& sub_const_m = pn.sub_const_m;
-        const auto& sub_with_convert_m = pn.sub_with_convert_m;
-        const auto& sub_no_convert_m = pn.sub_no_convert_m;
-        const auto& transpose_m = pn.transpose_m;
-        const auto& transpose_const_m = pn.transpose_const_m;
-        const auto& mul2_m = pn.mul2_m;
-        const auto& mul2_const_m = pn.mul2_const_m;
-
-        OPENVINO_ASSERT(pattern_map.count(gmm_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));
         OPENVINO_ASSERT(pattern_map.count(decompressed_weights_m));
 
-        auto gmm = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(pattern_map.at(gmm_m).get_node_shared_ptr());
-        if (!gmm || self->transformation_callback(gmm)) {
+        auto gmm = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(m.get_match_root());
+        if (!gmm || transformation_callback(gmm)) {
             return false;
         }
 
@@ -99,9 +77,14 @@ ov::matcher_pass_callback make_gmm_compressed_callback(const GmmCompressedPatter
         const auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         const bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0;
         const auto weight_shape = gmm->get_input_shape(1);
-        // v17::GroupedMatMul 2D x 3D expects weights [G, N, K] — rank 3 with G, N, K > 1 in practice.
-        const bool is_weight_3d =
-            std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3;
+        // GroupedMatMul-17 always has rank-3 mat_b ([G, N, K]); the callback runs only
+        // after that pattern matched, so treat it as an invariant rather than a runtime bool.
+        OPENVINO_ASSERT(weight_shape.size() == 3,
+                        "GroupedMatMul mat_b must be rank 3, got rank ", weight_shape.size());
+
+        // If the scale/zero-point has one extra dimension (rank 4), the K axis has been split
+        // into sub-groups that each share a scale
+        // e.g. shape [G, N, K/group_size, 1] or [G, K/group_size, group_size, N].
         const bool grouped = scale_shape.size() == weight_shape.size() + 1;
 
         std::shared_ptr<ov::Node> weight_ptr = pattern_map.count(weights_const_m)
@@ -110,70 +93,59 @@ ov::matcher_pass_callback make_gmm_compressed_callback(const GmmCompressedPatter
         const bool weight_u8 = weight_ptr->get_element_type() == ov::element::u8 ||
                                weight_ptr->get_element_type() == ov::element::i8;
 
-        auto reshape_const = [has_transpose, grouped, is_weight_3d](std::shared_ptr<ov::Node> node) {
+        auto reshape_const_to_3d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             const ov::Shape current_shape = constant->get_shape();
-            if (current_shape.size() <= 2)
+            // Rank <= 3 already matches the rank-3 weight; only rank-4 grouped scales/zp
+            // need flattening down to rank 3.
+            if (current_shape.size() <= 3)
                 return constant;
 
-            ov::Shape new_shape;
-            if (current_shape.size() == 3) {
-                if (is_weight_3d)
-                    return constant;
-                new_shape = (has_transpose || !grouped)
-                                ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
-                                : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
-            } else if (current_shape.size() == 4 && is_weight_3d) {
-                new_shape = (has_transpose || !grouped)
-                                ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
-                                : ov::Shape{current_shape[0], current_shape[1], current_shape[2] * current_shape[3]};
-            } else if (current_shape.size() == 4 && !is_weight_3d) {
-                new_shape =
-                    (has_transpose || !grouped)
-                        ? ov::Shape{current_shape[0] * current_shape[1] * current_shape[2], current_shape[3]}
-                        : ov::Shape{current_shape[0] * current_shape[1], current_shape[2] * current_shape[3]};
-            } else {
-                OPENVINO_THROW("Unexpected constant shape rank ",
-                               current_shape.size(),
-                               " with is_weight_3d=",
-                               is_weight_3d);
-            }
+            OPENVINO_ASSERT(current_shape.size() == 4,
+                            "Unexpected decompression constant rank ", current_shape.size());
+            const ov::Shape new_shape =
+                (has_transpose || !grouped)
+                    ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
+                    : ov::Shape{current_shape[0], current_shape[1], current_shape[2] * current_shape[3]};
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
             ov::copy_weightless_cache_attr(constant, new_constant);
             return new_constant;
         };
 
-        auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
+        auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-            std::shared_ptr<ov::Node> result = nullptr;
-            if (constant->get_element_type() == ov::element::u8)
-                result = constant;
-            else if (constant->get_element_type() == ov::element::u4)
-                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
-            else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed())
-                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
-            else
-                result = constant;
+            const auto elem_type = constant->get_element_type();
+            // Promote to u8 for:
+            //   - u4 zero-points (always widened),
+            //   - other sub-byte unsigned zero-points when the weight is (u|i)8 and the
+            //     subtract branch already inserts a Convert (matches FC-compressed behavior).
+            // u8 and signed types are passed through unchanged.
+            const bool promote_to_u8 =
+                elem_type == ov::element::u4 ||
+                (elem_type != ov::element::u8 && !elem_type.is_signed() && weight_u8 && sub_with_convert);
+            if (!promote_to_u8)
+                return node;
 
-            ov::copy_weightless_cache_attr(node, result);
-            return result;
+            auto converted = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
+            ov::copy_weightless_cache_attr(node, converted);
+            return converted;
         };
 
         const ov::Output<Node>& gmm_input_a = gmm->input(0).get_source_output();
 
-        const auto& scale = reshape_const(pattern_map.at(mul_const_m).get_node_shared_ptr());
+        const auto& scale = reshape_const_to_3d(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
         const bool with_zero_point =
             pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
         if (with_zero_point) {
             optional_zero_point =
-                convert_const_to_u8(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
+                convert_const_to_u8(reshape_const_to_3d(pattern_map.at(sub_const_m).get_node_shared_ptr()));
         }
 
         std::shared_ptr<ov::Node> gmm_input_b = pattern_map.count(weights_const_m)
-            ? reshape_const(pattern_map.at(weights_const_m).get_node_shared_ptr())
+            ? reshape_const_to_3d(pattern_map.at(weights_const_m).get_node_shared_ptr())
             : (pattern_map.count(weights_reshape_m)
                    ? pattern_map.at(weights_reshape_m).get_node_shared_ptr()
                    : pattern_map.at(weights_param_m).get_node_shared_ptr());
@@ -181,61 +153,20 @@ ov::matcher_pass_callback make_gmm_compressed_callback(const GmmCompressedPatter
         std::shared_ptr<ov::Node> gmm_input_zp = optional_zero_point;
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
-        if (gmm_input_b->get_output_partial_shape(0).size() != gmm_input_scale->get_shape().size()) {
-            OPENVINO_ASSERT(!pattern_map.count(weights_const_m));
-            ov::Shape weight_shape_final(gmm_input_scale->get_shape().size(), 1);
-            for (size_t i = weight_shape.size() - 1, idx = gmm_input_scale->get_shape().size() - 1;; --i) {
-                if (weight_shape[i] > 1) {
-                    weight_shape_final[idx--] = weight_shape[i];
-                }
-                if (i == 0) {
-                    break;
-                }
-            }
-            if (has_transpose) {
-                std::swap(weight_shape_final[weight_shape_final.size() - 1],
-                          weight_shape_final[weight_shape_final.size() - 2]);
-            }
-            std::shared_ptr<ov::Node> weight_shape_const = std::make_shared<ov::op::v0::Constant>(
-                ov::element::i32, ov::Shape{weight_shape_final.size()}, weight_shape_final);
-            gmm_input_b = std::make_shared<ov::op::v1::Reshape>(gmm_input_b, weight_shape_const, false);
-            result_nodes.push_back(weight_shape_const);
-            result_nodes.push_back(gmm_input_b);
-        }
+        // 3 conditions below are from convert_fc_to_compressed. It was not observed from grouped matmul compressed, yet.
+        OPENVINO_ASSERT(gmm_input_b->get_output_partial_shape(0).size() == gmm_input_scale->get_shape().size(),
+                        "GroupedMatMulCompressed expects the decompression scale to have the same rank as mat_b, "
+                        "got scale rank ",
+                        gmm_input_scale->get_shape().size(),
+                        " and mat_b rank ",
+                        gmm_input_b->get_output_partial_shape(0).size());
 
-        if (has_transpose) {
-            const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> transpose_const =
-                pattern_map.at(transpose_const_m).get_node_shared_ptr();
-            if (ov::shape_size(transpose_const->get_shape()) !=
-                gmm_input_b->get_output_partial_shape(0).size()) {
-                std::vector<int32_t> new_order(gmm_input_b->get_output_partial_shape(0).size());
-                std::iota(new_order.begin(), new_order.end(), 0);
-                std::swap(new_order[new_order.size() - 1], new_order[new_order.size() - 2]);
-                transpose_const = std::make_shared<ov::op::v0::Constant>(
-                    ov::element::i32, ov::Shape{new_order.size()}, new_order);
-            }
+        OPENVINO_ASSERT(!has_transpose,
+                        "GroupedMatMulCompressed does not support transposed weights, but the pattern matched a transpose.");
 
-            gmm_input_b = transpose->clone_with_new_inputs({gmm_input_b->output(0), transpose_const});
-            result_nodes.push_back(gmm_input_b);
-
-            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
-                gmm_input_scale = transpose->clone_with_new_inputs({scale->output(0), transpose_const});
-                result_nodes.push_back(gmm_input_scale);
-            }
-
-            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
-                gmm_input_zp =
-                    transpose->clone_with_new_inputs({optional_zero_point->output(0), transpose_const});
-                result_nodes.push_back(gmm_input_zp);
-            }
-        }
-
-        if (pattern_map.count(mul2_m)) {
-            auto mul2_op_const =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
-            gmm_input_scale = ov::op::util::make_try_fold<ov::op::v1::Multiply>(gmm_input_scale, mul2_op_const);
-        }
+        OPENVINO_ASSERT(pattern_map.count(mul2_m) == 0,
+                        "GroupedMatMulCompressed does not support a second multiply after the decompression scale, "
+                        "but the pattern matched a second multiply.");
 
         std::shared_ptr<ov::Node> new_gmm = nullptr;
         if (with_offsets) {
@@ -271,67 +202,10 @@ ov::matcher_pass_callback make_gmm_compressed_callback(const GmmCompressedPatter
         ov::replace_node(gmm, new_gmm);
         return true;
     };
-}
 
-}  // namespace
-
-ConvertGroupedMatMulWithOffsetsToCompressed::ConvertGroupedMatMulWithOffsetsToCompressed() {
-    auto data_m = any_input();
-    auto offsets_m = any_input();
-
-    FC_COMPRESSED_WEIGHT_PATTERN
-
-    auto gmm_m =
-        wrap_type<ov::op::v17::GroupedMatMul>({data_m, compressed_weights_input_m, offsets_m});
-
-    GmmCompressedPatternNodes pn{gmm_m,
-                                 mul_const_m,
-                                 decompressed_weights_m,
-                                 weights_const_m,
-                                 weights_param_m,
-                                 weights_reshape_m,
-                                 sub_const_m,
-                                 sub_with_convert_m,
-                                 sub_no_convert_m,
-                                 transpose_m,
-                                 transpose_const_m,
-                                 mul2_m,
-                                 mul2_const_m};
-
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(gmm_m,
-                                                                "ConvertGroupedMatMulWithOffsetsToCompressed");
-    this->register_matcher(matcher, make_gmm_compressed_callback(pn, this));
-}
-
-ConvertGroupedMatMulNoOffsetsToCompressed::ConvertGroupedMatMulNoOffsetsToCompressed() {
-    auto data_m = any_input();
-
-    FC_COMPRESSED_WEIGHT_PATTERN
-
-    auto gmm_m = wrap_type<ov::op::v17::GroupedMatMul>({data_m, compressed_weights_input_m});
-
-    GmmCompressedPatternNodes pn{gmm_m,
-                                 mul_const_m,
-                                 decompressed_weights_m,
-                                 weights_const_m,
-                                 weights_param_m,
-                                 weights_reshape_m,
-                                 sub_const_m,
-                                 sub_with_convert_m,
-                                 sub_no_convert_m,
-                                 transpose_m,
-                                 transpose_const_m,
-                                 mul2_m,
-                                 mul2_const_m};
-
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(gmm_m,
-                                                                "ConvertGroupedMatMulNoOffsetsToCompressed");
-    this->register_matcher(matcher, make_gmm_compressed_callback(pn, this));
-}
-
-ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed() {
-    add_matcher<ConvertGroupedMatMulWithOffsetsToCompressed>();
-    add_matcher<ConvertGroupedMatMulNoOffsetsToCompressed>();
+    auto matcher =
+        std::make_shared<ov::pass::pattern::Matcher>(gmm_m, "ConvertGroupedMatMulToGroupedMatMulCompressed");
+    this->register_matcher(matcher, callback);
 }
 
 }  // namespace ov::intel_gpu
