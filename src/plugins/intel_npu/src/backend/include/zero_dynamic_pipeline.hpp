@@ -7,8 +7,7 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/dynamic_arguments.hpp"
 #include "zero_pipeline.hpp"
-    ///add for PR35626, this is in compiler_adapter
-// #include "ze_graph_ext_wrappers.hpp"
+
 
 namespace intel_npu {
 
@@ -20,24 +19,9 @@ struct DynamicArguments {
     std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
 
-    // // Share runtime_execution_context during VM execution and forecasting  和OVPR35626 二选一
-    // npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
-
-    ///// ov PR35626
+    // Share runtime_execution_context in param during VM execution and forecasting
     npu_vm_runtime_execute_params_t _executeParams = {};
-    /////
 
-    // ///这个应该放在public中吗？
-    // //这行应该放在 dynamic_arguments.hpp 里吗？看上去是给ececute  executeGraph的使用的
-    // bool _useInterpreter = true;
-    // bool _optimizedDynamicStridesMode = false;
-    // ov::intel_npu::CommandListMode _bindingCommandListMode;
-    ////
-
-    // // Set by the caller after the first successful @c npuVMRuntimeExecute.
-    // bool _executedOnce = false;
-
-    ///add for PR35626
     ov::intel_npu::CommandListMode _bindingCommandListMode;
     bool _useInterpreter = false;
     bool _optimizedDynamicStridesMode = false;
@@ -56,7 +40,7 @@ struct DynamicArguments {
                                const void* argv,
                                const ov::Shape& shapes,
                                const std::vector<size_t>& strides);
-    ///add for PR35626
+    
     void setOptimizedDynamicStridesMode(bool enabled) {
         _optimizedDynamicStridesMode = enabled;
     }

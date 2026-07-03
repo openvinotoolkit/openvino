@@ -11,18 +11,14 @@
 #include "compiler_impl.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
-//// add by PR35626
 #include "intel_npu/npu_private_properties.hpp"
-///
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-//// add by PR35626
 #include "ze_graph_ext_wrappers.hpp"
-////
 
 namespace intel_npu {
 
@@ -191,12 +187,9 @@ void DynamicGraph::initialize_engine() {
     }
 }
 
-///这个应该放在public中吗？
-//这行应该放在 dynamic_arguments.hpp 里吗？看上去是给ececute  executeGraph的使用的
 void DynamicGraph::setOptimizedDynamicStridesMode(bool enabled) {
     _optimizedDynamicStridesMode = enabled;
 }
-////
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
@@ -215,12 +208,6 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
         return;
     }
     _bindingCommandListMode = config.get<COMMANDLIST_MODE>();
-
-    //这一部分在initialize_impl被调用似乎，不需要额外处理什么吧？
-    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
-    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
-    // descriptors
-    // initialize_engine();
 
     initialize(config);
 }
@@ -341,13 +328,10 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
 void* DynamicGraph::get_handle() const {
     return _engine;
 }
-//call by initialize(config)
+
 void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
-    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
-    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
-    // descriptors
     // initialize VM execution engine, metadata, input&output descriptors
     initialize_engine();
 
@@ -359,8 +343,6 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     _logger.debug("Graph initialize without graph handle");
     setOptimizedDynamicStridesMode(ZeGraphExtWrappers(_zeroInitStruct).isOptimizedDynamicStridesSupported());
-    /// where to update this????
-    // _impl->setOptimizedDynamicStridesMode(ZeGraphExtWrappers(_zeroInitStruct).isOptimizedDynamicStridesSupported());
 
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {

@@ -53,17 +53,12 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
-    ///这个应该放在public中吗？
-    //这行应该放在 dynamic_arguments.hpp 里吗？看上去是给ececute  executeGraph的使用的
     bool _useInterpreter = true;
     bool _optimizedDynamicStridesMode = false;
     ov::intel_npu::CommandListMode _bindingCommandListMode;
-    ////
 
 private:
-    /// 
     void setOptimizedDynamicStridesMode(bool mode);
-    ////
 
     void initialize_impl(const FilteredConfig& config) override;
 

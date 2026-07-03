@@ -333,7 +333,6 @@ void DynamicPipeline::push() {
     _logger.debug("push - completed");
 }
 
-/// 有dynmaic graph的内容，所以也可以获取一些信息
 void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                          DynamicArguments& args,
                                          std::vector<ze_command_list_handle_t>& commandLists,
@@ -346,17 +345,13 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     if(dynamicGraph == nullptr) {
         OPENVINO_THROW("Failed to cast to DynamicGraph");
     }
-    ///add for PR35626
+
     npu_vm_runtime_execute_params_t* params = &args._executeParams;
     bool firstInference = params->graphDdiTableExt == nullptr;
     // Force record commandlist for first execution or the mode is set to FORCE_COMMANDLIST_RECORDING_ONLY
     bool commandListRecordingRequired =
         firstInference || dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_COMMANDLIST_RECORDING_ONLY;
     std::vector<uint64_t> commandListIndexArray;
-    ////
-
-    // // _executedOnce is true only after a successful npuVMRuntimeExecute below
-    // const bool firstExecution = !args._executedOnce;
 
     auto processMemRefs = [&](auto& memRefs, auto& targetMemRefHandles) {
         targetMemRefHandles.clear();
@@ -372,11 +367,6 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
             impl->UpdateMemRefHandleStatus(memref);
             targetMemRefHandles.push_back(impl->_memRef);
 
-            // if (impl->_ptrUpdated || impl->_shapeUpdated || impl->_strideUpdated) {
-            //     noTensorChange = false;
-            // }
-
-            ///add for PR35626
             if (dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
                 if (!commandListRecordingRequired) {
                     if (impl->_shapeUpdated || impl->_strideUpdated) {
@@ -406,7 +396,6 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                     }
                 }
             }
-            /////
         }
     };
 
@@ -420,22 +409,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                   commandListRecordingRequired ? "true" : "false",
                   static_cast<int>(commandListIndexArray.size()),
                   dynamicGraph->_optimizedDynamicStridesMode ? "true" : "false");
-    ////
 
-    /////
-    // if (!firstExecution && !commandListRecordingRequired) {
     if (!firstInference && !commandListRecordingRequired) {
-    
-        // _logger.debug("Reuse command list without update since no tensor change detected");
-        // auto result = zeCommandQueueExecuteCommandLists(commandQueue,
-        //                                                 static_cast<uint32_t>(commandLists.size()),
-        //                                                 commandLists.data(),
-        //                                                 fence);
-        // if (result != ZE_RESULT_SUCCESS) {
-        //     OPENVINO_THROW("Failed to submit command lists");
-        // }
-
-        ///add for PR35626
         if (!commandListIndexArray.empty() ||
             dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
             _logger.debug("Update command list and execute directly");
@@ -460,7 +435,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                 OPENVINO_THROW("Failed to submit command lists");
             }
         }
-        ////
+
         return;
     }
 
@@ -477,7 +452,6 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     // Create the VM execution context (owned by args._impl, destroyed with it).
     args.ensureExecutionContext(vmRuntime);
 
-    // npu_vm_runtime_execute_params_t params{};
     params->executionContext = args._executeParams.executionContext;
     params->pInputs = args._inputMemRefHandles.data();
     params->numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
@@ -499,11 +473,9 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         _logger.debug("Execution runtime engine is created successfully.");
     }
 
-    // args._executedOnce = true;
-
     _logger.debug("Completed to execute graph with runtime engine");
 }
-/// 有dynmaic graph的内容，所以也可以获取一些信息
+
 void DynamicPipeline::predict_output_shape(const IGraph& graph,
                                            DynamicArguments& args,
                                            std::vector<MemRefType>& inputsMemRefs,
@@ -511,10 +483,8 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
-    /////        ///add for PR35626
     std::vector<std::shared_ptr<MemRefTypeImpl>> inputMemRefImpls;
     std::vector<std::shared_ptr<MemRefTypeImpl>> outputMemRefImpls;
-    /////
 
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(graph.get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
@@ -526,28 +496,17 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         destMemRefImpls.reserve(memRefs.size());
 
         for (auto& memref : memRefs) {
-            ////
             std::shared_ptr<MemRefTypeImpl> impl = std::make_shared<MemRefTypeImpl>();
-            ////
-
-            // auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
             if (impl == nullptr) {
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
             impl->UpdateMemRefHandleStatus(memref);
             destMemRefHandles.push_back(impl->_memRef); 
-            //保存在dynamic_arguments的_inputMemRefHandles和_outputMemRefHandles中，供后续predict_output_shape使用
             destMemRefImpls.push_back(impl);
-
-            // ////
-            // inputMemRefImpls.push_back(inImpl2);
-            // inputHandles.push_back(inImpl2->_memRef);
-            // ////
         }
     };
 
-    //  _inputMemRefHandles is  std::vector<npu_vm_runtime_mem_ref_handle_t> 
     processMemRefs(inputsMemRefs, args._inputMemRefHandles, inputMemRefImpls);
     processMemRefs(outputsMemRefs, args._outputMemRefHandles, outputMemRefImpls);
 
@@ -582,12 +541,10 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to predict output shape with VM runtime engine, error code: ", result);
     } else {
-        // for (auto& out : outputsMemRefs) {
         for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
             auto& out = outputsMemRefs[i];
             std::shared_ptr<MemRefTypeImpl> outImpl = outputMemRefImpls[i];
 
-            // std::shared_ptr<MemRefTypeImpl> outImpl = std::static_pointer_cast<MemRefTypeImpl>(out._impl);
             if (outImpl == nullptr) {
                 OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
             }
@@ -597,8 +554,9 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     }
 
     // Clear memref handles after shape prediction to avoid the next execution using wrong memref handles
-    args._inputMemRefHandles.clear();
-    args._outputMemRefHandles.clear();
+    // seems not need this part
+    // args._inputMemRefHandles.clear();
+    // args._outputMemRefHandles.clear();
 }
 
 void DynamicPipeline::pull() {

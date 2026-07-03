@@ -14,7 +14,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_al"
         "openvino::npu_logger_utils"
         "openvino_npu_common"
-    "openvino_npu_compiler_adapter"
+        "openvino_npu_compiler_adapter"
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
 )
