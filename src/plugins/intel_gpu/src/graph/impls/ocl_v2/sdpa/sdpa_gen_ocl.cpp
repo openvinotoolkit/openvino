@@ -440,6 +440,25 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // 2D block IO uses 16-bit reads and half-sized byte pitches for K/V, which are invalid
     // for i8 compressed KV-cache. Force the manual scalar load/dequant path in that case.
     jit.make("USE_2D_BLOCK_IO", !config.is_kv_compressed && (ldk % 16 == 0) && (ldv % 16 == 0) && (lda % 16 == 0));
+    // int8 compressed V uses an 8-bit VNNI-transform 2D block read
+    // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
+    // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
+    // uint packs 4 keys as bytes), which the kernel dequants (per-token scale cached per cp-block
+    // and broadcast) and repacks into the f16 VNNI operand — no subgroup shuffle needed. The value
+    // tiling keeps sv_sg_tile_values == 16 (one 16-value block per subgroup) for head 64 and 128,
+    // so the fixed 16-wide builtin geometry fits; the .cl loop is written in terms of
+    // sv_value_blocks/cd and d, with no head-size hardcoding. Measured on B580 (head=64 prefill):
+    // 26.3us scalar -> 21.7us (~18% faster), accuracy PASS. The matching K conversion was tried
+    // (8b block read for K) but measured SLOWER than scalar (its layout needs a subgroup shuffle),
+    // so K stays on the scalar path. Requires ldv%16==0 (pitch) and mem width = v_head_size bytes
+    // in [64,224]. Enabled by default for compressed KV; env SDPA_OCL_V_I8_2D=0 forces scalar.
+    int v_i8_2d = 0;
+    if (config.is_kv_compressed && (v_head_size == 64u || v_head_size == 128u) && (ldv % 16 == 0)) {
+        v_i8_2d = 1;
+        if (const char* env = std::getenv("SDPA_OCL_V_I8_2D"))
+            v_i8_2d = std::atoi(env);
+    }
+    jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
     jit.make("HEAD_SIZE", k_head_size);
