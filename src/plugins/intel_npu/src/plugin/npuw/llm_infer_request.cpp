@@ -4,8 +4,6 @@
 
 #include "llm_infer_request.hpp"
 
-#include <regex>
-
 #include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
@@ -15,6 +13,14 @@
 
 namespace {
 using ov::npuw::LLMInferRequest;
+
+std::optional<std::string> resolve_kv_input_name(
+    const std::string& output_name,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
+    return ov::npuw::util::resolveKVInputName(output_name, [&in_ports](const std::string& name) {
+        return in_ports.find(name) != in_ports.end();
+    });
+}
 
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
@@ -130,7 +136,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 .has_value());
         m_input_ids_name = layer_names::inputs_embeds;
     }
-
     // Create and initialize generate request variants with memory sharing
     create_generate_request_variants(compiled_model);
 
@@ -192,7 +197,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
         }
     }
-
     // FIXME: E-177589
     // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
     // Unclear how it's related. Previously fill_tensor()
@@ -205,13 +209,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             break;
         }
     }
-
     ov::Any kvcache_weight_bank_alloc =
         compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
     if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
         enable_cpu_wa = true;
     }
-
     if (enable_cpu_wa) {
         // Apply CPU workaround only for the largest variant since all variants share its past KV tensors
         auto& largest_kvcache_req = m_generate_requests.back();
@@ -257,7 +259,7 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
     // Only reuse KV cache related tensors (past_key_values)
     for (const auto& [input_name, prefill_in_port] : m_prefill_in_ports) {
         // Only process KV cache inputs (past_key_values)
-        if (input_name.find(layer_names::past_key_values) == std::string::npos) {
+        if (!ov::npuw::util::isKVCacheName(input_name)) {
             continue;
         }
 
@@ -293,7 +295,7 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_kv_tensors;
     for (const auto& input_port : largest_generate_request->get_compiled_model()->inputs()) {
         const auto& input_name = input_port.get_any_name();
-        if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
+        if (ov::npuw::util::isKVCacheName(input_name)) {
             largest_past_kv_tensors[input_name] = largest_generate_request->get_tensor(input_port);
         }
     }
@@ -320,19 +322,17 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
             // Share past KV tensors from the largest variant
             for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
                 const auto& input_name = input_port.get_any_name();
-                if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
-                    OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
-                                    "Unexpected input name: ",
-                                    input_name);
-                    auto largest_tensor = largest_past_kv_tensors[input_name];
-                    auto small_shape = input_port.get_shape();
+                if (ov::npuw::util::isKVCacheName(input_name)) {
+                    if (largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end()) {
+                        auto largest_tensor = largest_past_kv_tensors[input_name];
+                        auto small_shape = input_port.get_shape();
+                        // Wrap the largest tensor's data pointer with smaller shape
+                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
+                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
+                            nullptr);
 
-                    // Wrap the largest tensor's data pointer with smaller shape
-                    auto shared_tensor = ov::SoPtr<ov::ITensor>(
-                        ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
-                        nullptr);
-
-                    generate_request->set_tensor(input_port, shared_tensor);
+                        generate_request->set_tensor(input_port, shared_tensor);
+                    }
                 } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
                     OPENVINO_ASSERT(past_lin_tensors.find(input_name) != past_lin_tensors.end(),
                                     "Unexpected input name: ",
@@ -342,7 +342,6 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
                 }
             }
         }
-
         m_generate_requests.push_back(generate_request);
 
         // Build input/output ports mapping for this variant
@@ -532,16 +531,20 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
-        const auto& input_name = m_kvcache_past_names[out_idx];
-        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+        const auto& past_input_name = m_kvcache_past_names[out_idx];
 
-        const auto& output_name = std::regex_replace(input_name, std::regex(layer_names::past_key_values), "present");
+        const auto& output_name =
+            std::regex_replace(past_input_name, std::regex(layer_names::past_key_values), "present");
         OPENVINO_ASSERT(m_prefill_out_ports.find(output_name) != m_prefill_out_ports.end(),
                         "Incosistent input/output naming for KV cache: ",
                         output_name,
                         " not found in prefill model outputs.");
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-
+        const auto input_name = resolve_kv_input_name(output_name, m_kvcache_in_ports);
+        if (!input_name.has_value()) {
+            LOG_DEBUG("Output name " << output_name << " has no matching past kv-cache input. Skipping.");
+            return;
+        }
         const auto is_value_tensor = output_name.find("value") != std::string::npos;
         const auto kv_dim = [&](bool v_trans) -> uint32_t {
             return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
@@ -549,6 +552,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
         const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
+        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name.value()));
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
@@ -564,7 +568,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             if (tokens_in_past_chunks > 0) {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
-                auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+                auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name.value()));
                 ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
                 ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
                 if (m_past_kv_bound) {

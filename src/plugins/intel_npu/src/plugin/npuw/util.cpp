@@ -990,7 +990,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::strin
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
+    std::regex pattern("^" + std::string(constants::past_key_values) + R"(\.(\d+)(?:\.[^.]+)*\.key$)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1003,7 +1003,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
     // Match only the single contiguous past value param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
+    std::regex pattern("^" + std::string(constants::past_key_values) + R"(\.(\d+)(?:\.[^.]+)*\.value$)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1013,7 +1013,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
+    std::regex pattern("^" + std::string(constants::present) + R"(\.(\d+)(?:\.[^.]+)*\.key$)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1023,13 +1023,91 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str)
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
+    std::regex pattern("^" + std::string(constants::present) + R"(\.(\d+)(?:\.[^.]+)*\.value$)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
         return index;
     }
     return std::nullopt;
+}
+
+bool ov::npuw::util::isKVCacheName(const std::string& str) {
+    return isPastKeyValuesKey(str).has_value() ||
+           isPastKeyValuesValue(str).has_value() ||
+           isPresentKeyValuesKey(str).has_value() ||
+           isPresentKeyValuesValue(str).has_value() ||
+           str.find("/" + std::string(constants::past_key_values) + "/") != std::string::npos ||
+           str.find("/" + std::string(constants::present) + "/") != std::string::npos;
+}
+
+std::string ov::npuw::util::present_to_past_key_values_name(const std::string& output_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (output_name.rfind(present_prefix, 0) == 0) {
+        return past_prefix + output_name.substr(present_prefix.size());
+    }
+
+    auto mapped_name = output_name;
+    const auto pos = mapped_name.find(present_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, present_prefix.size(), past_prefix);
+    }
+    return mapped_name;
+}
+
+std::optional<std::string> ov::npuw::util::resolveKVInputName(
+    const std::string& output_name,
+    const std::function<bool(const std::string&)>& has_input_name) {
+    auto input_name = present_to_past_key_values_name(output_name);
+    if (has_input_name(input_name)) {
+        return input_name;
+    }
+
+    const auto marker = std::string(constants::past_key_values);
+    const auto marker_pos = input_name.find(marker);
+    if (marker_pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    auto canonical_name = input_name.substr(marker_pos);
+    if (has_input_name(canonical_name)) {
+        return canonical_name;
+    }
+
+    return std::nullopt;
+}
+
+namespace {
+
+std::string make_key_value_name(std::string_view prefix, std::string_view layer_id, std::string_view key_or_value) {
+    std::string name;
+    name.reserve(prefix.size() + layer_id.size() + key_or_value.size() + 2);
+    name.append(prefix);
+    name.push_back('.');
+    name.append(layer_id);
+    name.push_back('.');
+    name.append(key_or_value);
+    return name;
+}
+
+}  // namespace
+
+std::string ov::npuw::util::make_past_key_name(const std::size_t layer_id) {
+    return make_key_value_name(constants::past_key_values, std::to_string(layer_id), "key");
+}
+
+std::string ov::npuw::util::make_past_value_name(const std::size_t layer_id) {
+    return make_key_value_name(constants::past_key_values, std::to_string(layer_id), "value");
+}
+
+std::string ov::npuw::util::make_present_key_name(const std::size_t layer_id) {
+    return make_key_value_name(constants::present, std::to_string(layer_id), "key");
+}
+
+std::string ov::npuw::util::make_present_value_name(const std::size_t layer_id) {
+    return make_key_value_name(constants::present, std::to_string(layer_id), "value");
 }
 
 namespace {

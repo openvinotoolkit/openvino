@@ -464,7 +464,7 @@ void Eagle3Extension::trim_kvcache_by_sampling(
     // Iterate through all KV cache outputs.
     // Each "present.<layer>" output corresponds to a "past_key_values.<layer>" input.
     // Non-KV outputs (e.g. logits) are filtered out by the prefix check below.
-    static const std::string present_prefix = "present";
+    static const std::string present_prefix = ov::npuw::util::constants::present;
     for (const auto& output : compiled->outputs()) {
         const auto& output_name = output.get_any_name();
 
@@ -473,7 +473,7 @@ void Eagle3Extension::trim_kvcache_by_sampling(
         if (output_name.compare(0, present_prefix.size(), present_prefix) != 0) {
             continue;  // Not a present KV layer
         }
-        const std::string input_name = "past_key_values" + output_name.substr(present_prefix.size());
+        const std::string input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
 
         auto in_port_it = in_ports.find(input_name);
         OPENVINO_ASSERT(in_port_it != in_ports.end(),
