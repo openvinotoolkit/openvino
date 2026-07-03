@@ -794,10 +794,11 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     }
 
     if (name == ov::intel_npu::turbo.name()) {
-        // Fast path: if turbo is already supported by the driver, return immediately.
+        // Fast path: if turbo is already exposed and supported by the driver, return immediately.
         // Otherwise, fall through to compiler-based support check.
         const auto it = _properties.find(name);
-        if (it != _properties.end() && it->second.isPublic && it->second.isSupported()) {
+        if (_backend != nullptr && _backend->isCommandQueueExtSupported() && it != _properties.end() &&
+            it->second.isPublic) {
             return true;
         }
     }
