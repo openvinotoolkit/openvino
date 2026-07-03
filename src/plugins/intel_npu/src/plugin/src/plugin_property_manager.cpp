@@ -106,23 +106,6 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
             config.enable(key, isEnabled);
         }
     });
-
-    // Special cases
-    // NPU_TURBO which might not be supported by compiler, but driver will still use it
-    // if it exists in config = driver supports it
-    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
-    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
-    if (backend && backend->isCommandQueueExtSupported()) {
-        config.enable(ov::intel_npu::turbo.name(), true);
-    }
-
-    if (config.isAvailable(ov::intel_npu::enable_strides_for.name())) {
-        if (backend && backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
-            logger.info("Config option %s not supported by the driver! Requirements not met.",
-                        ov::intel_npu::enable_strides_for.name());
-            config.enable(ov::intel_npu::enable_strides_for.name(), false);
-        }
-    }
 }
 
 void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
@@ -137,12 +120,6 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
             config.enable(key, false);
         }
     });
-
-    // Special cases
-    // NPU_TURBO might be supported by the driver
-    if (backend && backend->isCommandQueueExtSupported()) {
-        config.enable(ov::intel_npu::turbo.name(), true);
-    }
 }
 
 void exclude_model_ptr_from_map(ov::AnyMap& properties) {
@@ -322,7 +299,6 @@ void PluginPropertyManager::registerProperties() {
     register_property<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type.name());
     register_property<BACKEND_COMPILATION_PARAMS>(_config, _properties, ov::intel_npu::backend_compilation_params.name());
     register_property<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode.name());
-    register_property<TURBO>(_config, _properties, ov::intel_npu::turbo.name());
     register_property<MODEL_PRIORITY>(_config, _properties, ov::hint::model_priority.name());
     register_property<BYPASS_UMD_CACHING>(_config, _properties, ov::intel_npu::bypass_umd_caching.name());
     register_property<DEFER_WEIGHTS_LOAD>(_config, _properties, ov::intel_npu::defer_weights_load.name());
@@ -336,7 +312,6 @@ void PluginPropertyManager::registerProperties() {
     register_property<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless.name());
     register_property<SEPARATE_WEIGHTS_VERSION>(_config, _properties, ov::intel_npu::separate_weights_version.name());
     register_property<MODEL_SERIALIZER_VERSION>(_config, _properties, ov::intel_npu::model_serializer_version.name());
-    register_property<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
     register_property<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
     register_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name());
     register_property<DISABLE_IDLE_MEMORY_PRUNING>(_config, _properties, ov::intel_npu::disable_idle_memory_prunning.name());
@@ -348,13 +323,44 @@ void PluginPropertyManager::registerProperties() {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
 
+    register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::enable_strides_for.name(),
+        [this]() {  // support predicate
+            // If this is already disabled in the config, do not perform extra checks and return false.
+            if (!_config.isAvailable(ov::intel_npu::enable_strides_for.name())) {
+                return false;
+            }
+            // Return true if the backend is not available, in case of offline compilation.
+            if (_backend == nullptr) {
+                return true;
+            }
+            // If a backend is present, check if the driver supports this property. If not, return false.
+            if (_backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+                _logger.info("Config option %s not supported by the driver! Requirements not met.", ov::intel_npu::enable_strides_for.name());
+                return false;
+            }
+            return true;
+        },
+        [this](const ov::AnyMap&) { // value getter
+            return _config.get<ENABLE_STRIDES_FOR>();
+        });
+    register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::turbo.name(),
+        [this]() {  // support predicate
+            // If this is already enabled in the config, do not perform extra checks and return true.
+            if (_config.isAvailable(ov::intel_npu::turbo.name())) {
+                return true;
+            }
+            // Otherwise, require backend support for this property.
+            return _backend != nullptr && _backend->isCommandQueueExtSupported();
+        },
+        [this](const ov::AnyMap&) { // value getter
+            return _config.get<TURBO>();
+        });
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
         [this, has_backend_and_valid_device]() {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
             if (!_config.isAvailable(ov::intel_npu::stepping.name())) {
                 return false;
             }
-
             // If enabled in the config, validate the configuration and check whether the expected device exists.
             return has_backend_and_valid_device();
         },
@@ -375,7 +381,6 @@ void PluginPropertyManager::registerProperties() {
             if (!_config.isAvailable(ov::intel_npu::max_tiles.name())) {
                 return false;
             }
-
             // If enabled in the config, validate the configuration and check whether the expected device exists.
             return has_backend_and_valid_device();
         },
@@ -472,11 +477,6 @@ void PluginPropertyManager::registerProperties() {
         std::vector<ov::PropertyName> caching_props{};
         for (auto prop : _cachingProperties) {
             if (_config.isAvailable(prop)) {
-                caching_props.emplace_back(prop);
-            }
-        }
-        for (auto prop : _cachingProperties) {
-            if (prop.find("NPUW") != prop.npos) {
                 caching_props.emplace_back(prop);
             }
         }
@@ -801,9 +801,9 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     if (name == ov::intel_npu::turbo.name()) {
         // Fast path: if turbo is already supported by the driver, return immediately.
         // Otherwise, fall through to compiler-based support check.
-        if (_backend != nullptr && _backend->isCommandQueueExtSupported()) {
-            const auto it = _properties.find(name);
-            return it != _properties.end() && it->second.isPublic;
+        const auto it = _properties.find(name);
+        if (it != _properties.end() && it->second.isPublic && it->second.isSupported()) {
+            return true;
         }
     }
 
