@@ -70,10 +70,6 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
-         jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
-    }
-
     if ( params.inputs[0].GetDType() == Datatype::INT4 ) {
          jit.AddConstant(MakeJitConstant("INT4_INPUT", true));
     }

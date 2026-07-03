@@ -1149,7 +1149,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         return jit_term;
     };
     auto to_type = [type_handler](const JitTerm& arg) -> JitTerm {
-        JitTerm jit_term{type_handler("TO_", "_TYPE") + "(" + arg.str() + ")"};
+        JitTerm jit_term{type_handler("TO_", "_COMPUTE_TYPE") + "(" + arg.str() + ")"};
         return jit_term;
     };
 
@@ -1630,6 +1630,9 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             to_compute_type = "convert_float(v)";
             decode_compute_type = "_convert_as_bfloat16_float(v)";
             decode_compute_vector_type = "CONVERT_AS_BFLOAT16_FLOAT(v, size)";
+            max_func = "fmax";
+            min_func = "fmin";
+            abs_func = "fabs";
             type_size = "2";
             is_fp = true;
             break;
