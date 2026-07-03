@@ -516,8 +516,11 @@ Example:
     register_property_with_support_custom_function_and_args(
         _properties,
         ov::compatibility_check.name(),
-        [this]() {
-            return _compatibilityCheckFiltered && _compatibilityCheckSupported;
+        [this, compatibilityCheckSupported = std::optional<bool>{}]() mutable {
+            if (!compatibilityCheckSupported.has_value()) {
+                compatibilityCheckSupported = isCompatibilityCheckSupported(_backend);
+            }
+            return compatibilityCheckSupported.value();
         },
         true,
         [this](const ov::AnyMap& arguments) {
