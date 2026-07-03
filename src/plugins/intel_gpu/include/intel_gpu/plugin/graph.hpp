@@ -47,10 +47,21 @@ public:
 
     bool is_loaded() const;
 
+    // True when this Graph was built for HW-free offline (compile-only) export: no cldnn::network
+    // is created and the model must not be executed. This is decided by the CONSTRUCTION PATH
+    // (compile vs import), NOT by get_config().get_offline_compile() -- the latter is re-derived
+    // from the OV_GPU_OFFLINE_COMPILE env at every finalize(), which pollutes the import/execute
+    // path too (import forces the property off but apply_env_options re-enables it). Runtime gates
+    // must key on this flag so that imported (executable) models behave correctly regardless of env.
+    bool is_compile_only() const { return m_compile_only; }
+
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
     void update_profiling_info();
 
-    cldnn::engine& get_engine() const { return m_context->get_engine(); }
+    // For the offline compile-only path, return the HW-free stub engine (fabricated device_info, no
+    // cl::Context) instead of the context's real engine, so the compile passes + blob export never
+    // depend on a real GPU. m_offline_engine is only ever set in the compile ctor (import leaves it null).
+    cldnn::engine& get_engine() const { return m_offline_engine ? *m_offline_engine : m_context->get_engine(); }
     const ExecutionConfig& get_config() const { return m_config; }
 
     const std::map<size_t, cldnn::layout>& get_input_layouts() const { return m_input_layouts; }
@@ -89,6 +100,15 @@ private:
     std::mutex m_infer_mutex;
 
     std::shared_ptr<cldnn::network> m_network;
+    // Offline (HW-free) compile: the built program is kept here and NO network is created
+    // (no GPU memory / weight upload). Used only for exporting the compiled blob. See Graph::build.
+    std::shared_ptr<cldnn::program> m_program;
+    // Set once at construction (see is_compile_only): true only for the offline compile-only path.
+    bool m_compile_only = false;
+    // HW-free stub engine (fabricated device_info, no cl::Context) used to build/export the offline
+    // compile-only program without touching a real GPU. Set only in the compile ctor when offline;
+    // owned here for the Graph's lifetime because program/export hold engine references. See get_engine.
+    std::shared_ptr<cldnn::engine> m_offline_engine;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
     std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;

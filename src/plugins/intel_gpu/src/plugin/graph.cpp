@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
+#include "runtime/ocl/offline_engine.hpp"
 
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "dynamic_quantize_inst.h"
@@ -29,6 +30,7 @@
 #include <list>
 #include <set>
 #include <unordered_set>
+#include <iostream>
 #include <sstream>
 #include <chrono>
 #include <cmath>
@@ -44,9 +46,25 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
+    // Offline compile-only (HW-free): build the program with a stub engine (fabricated
+    // device_info, no cl::Context) so the compile passes + blob export never touch a real GPU. Gated on
+    // config.get_offline_compile(), which is reliable here: this ctor runs only in the compiler process
+    // (compile_model); the import ctor is used by the inference process and leaves m_offline_engine null.
+    // Once set, get_engine() below (and at export) returns the stub instead of the context's real engine.
+    if (config.get_offline_compile()) {
+        auto dev = std::make_shared<cldnn::ocl::offline_device>(
+            cldnn::ocl::make_offline_device_info(config.get_offline_compile_device()));
+        m_offline_engine = std::make_shared<cldnn::ocl::offline_engine>(dev);
+        std::cerr << "[GPU offline] using stub device_info engine (" << dev->get_info().dev_name
+                  << ", no cl::Context) for compile-only program" << std::endl;
+    }
+
     auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
     m_config = program_builder->get_config();
 
+    // Compile path: honor the offline (compile-only) request. The import constructor leaves this
+    // false so imported models always build a network and run, regardless of the polluting env var.
+    m_compile_only = m_config.get_offline_compile();
     build(program_builder->get_compiled_program());
 
     primitiveIDs = program_builder->primitive_ids;
@@ -96,11 +114,23 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
+    // The blob may have been produced with GPU_OFFLINE_COMPILE=true; visit_attributes above restored
+    // that flag. Capture it now (before forcing it off): an offline compile-only blob skipped constant
+    // folding at compile time and must have it applied here at import, where a real GPU is present.
+    const bool blob_was_offline_compiled = m_config.get_offline_compile();
+    // Import must always build a real network (offline compile-only applies to the export path only),
+    // so force it off here.
+    m_config.set_user_property({ov::intel_gpu::offline_compile(false)});
     m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
     // Not passing MODEL_PTR through m_config because values in m_config are immutable after config finalization.
     imported_prog->load(ib, config.get_model(), config.get_weightless_attr());
+    if (blob_was_offline_compiled) {
+        // Deferred constant folding: fold the surviving constant nodes into data nodes before the
+        // executable network is built (see program::run_import_time_constant_folding).
+        imported_prog->run_import_time_constant_folding();
+    }
     build(imported_prog);
 }
 
@@ -177,6 +207,16 @@ Graph::~Graph() {
 
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
+
+    // Offline (HW-free) compile: keep the compiled program only, do NOT build a cldnn::network.
+    // The network constructor allocates GPU memory and uploads weights (allocate_primitives) which
+    // is pure waste when we only want to export the compiled blob.
+    // Gate on m_compile_only (construction-path), NOT get_offline_compile(): the env var re-enables
+    // the config flag on the import/execute path too, but imported models must always build a network.
+    if (m_compile_only) {
+        m_program = program;
+        return;
+    }
 
     auto external_queue = m_context->get_external_queue();
     if (external_queue) {
@@ -539,6 +579,14 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
     }
     OstreamAttributeVisitor<cldnn::BinaryOutputBuffer> visitor(ob);
     m_config.visit_attributes(visitor);
+
+    // Offline compile: no network was built; serialize the program directly using a scratch stream.
+    if (m_program) {
+        auto stream = get_engine().create_stream(m_config);
+        ob.set_stream(stream.get());
+        m_program->save(ob);
+        return;
+    }
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);

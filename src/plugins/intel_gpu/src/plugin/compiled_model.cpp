@@ -62,7 +62,10 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
-    for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
+    // Offline (HW-free) compile is compile-only (no inference): a single program-only graph is
+    // enough to export the blob; per-stream inference graphs would deref the (absent) network.
+    const uint16_t num_graphs = m_config.get_offline_compile() ? 1 : m_config.get_num_streams();
+    for (uint16_t n = 0; n < num_graphs; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
@@ -299,9 +302,17 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::create_sync_infer_request");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
+    // Offline (HW-free, compile-only) models build no cldnn::network (graph.cpp), so is_loaded()
+    // (== get_network() != nullptr) is false. We must still allow the request to be CONSTRUCTED:
+    // ORT's OpenVINO EP eagerly creates one infer request during CompileModel (ov_compute.cc
+    // InitFooter -> InferRequestPool) BEFORE exporting the EPContext blob. That request is never
+    // run (SyncInferRequest::infer() throws if offline); it just needs to construct so export can
+    // proceed. The real execution model is produced by import_model, which forces offline=false.
     for (auto& graph : m_graphs) {
         OPENVINO_ASSERT(graph != nullptr, "[GPU] Model not loaded: graph is nullptr");
-        OPENVINO_ASSERT(graph->is_loaded(), "[GPU] Model not loaded: invalid graph");
+        // Compile-only (offline) graphs have no network by design; allow the request to be constructed
+        // (see create_sync_infer_request comment). Executable graphs must be loaded.
+        OPENVINO_ASSERT(graph->is_compile_only() || graph->is_loaded(), "[GPU] Model not loaded: invalid graph");
     }
 
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
