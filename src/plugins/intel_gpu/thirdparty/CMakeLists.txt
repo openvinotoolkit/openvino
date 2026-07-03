@@ -14,6 +14,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
+        set(OV_ONEDNN_GPU_BUILD_ALWAYS OFF CACHE BOOL "Always run oneDNN GPU external build step (useful for local development)")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;MATMUL;REORDER;POOLING;REDUCTION;SDPA;RNN")
         set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XE2;XE3;XE3P")
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
@@ -168,6 +169,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 ${onednn_gpu_cache_args}
             # Build Step Options:
             BUILD_BYPRODUCTS ${ONEDNN_GPU_LIB_PATH}
+            BUILD_ALWAYS ${OV_ONEDNN_GPU_BUILD_ALWAYS}
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
