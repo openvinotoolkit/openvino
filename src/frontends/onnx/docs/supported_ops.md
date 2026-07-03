@@ -337,4 +337,10 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |org.pytorch.aten        |adaptive_avg_pool2d                                     |1                       |1                               |                                |
 |mmdeploy                |MMCVRoIAlignRotated                                     |1                       |1                               |                                |
 |mmdeploy                |NMSRotated                                              |1                       |1                               |                                |
+|ai.onnx.ml              |LabelEncoder                                            |                        |1                               |                                |
 |ai.onnx.ml              |Normalizer                                              |1                       |1                               |                                |
+|ai.onnx.contrib         |SentencepieceDecoder                                    |                        |1                               |                                |
+|ai.onnx.contrib         |SentencepieceTokenizer                                  |                        |1                               |                                |
+|ai.onnx.contrib         |StringJoin                                              |                        |1                               |                                |
+|ai.onnx.contrib         |StringSplit                                             |                        |1                               |                                |
+|ai.onnx.contrib         |VectorToString                                          |                        |1                               |                                |
