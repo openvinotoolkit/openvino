@@ -1138,16 +1138,16 @@ public:
 
     void test_3d_new_axis_preserves_linear_order(bool is_caching_test) {
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 3, 4 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 160, 256, 3 }, data_types::f32, format::bfyx });
 
-        std::vector<float> data(24);
+        std::vector<float> data(160*256*3);
         for (size_t i = 0; i < data.size(); i++) {
             data[i] = static_cast<float>(i);
         }
         set_values(input, data);
 
         std::vector<int64_t> begin_data = {0, 0, 0};
-        std::vector<int64_t> end_data = {2, 3, 4};
+        std::vector<int64_t> end_data = {1, 160, 256};
         std::vector<int64_t> strides_data = {1, 1, 1};
 
         topology topology;
@@ -1159,7 +1159,7 @@ public:
                                    strides_data,
                                    {},
                                    {},
-                                   {1, 0, 0, 0},
+                                   {1, 0, 0},
                                    {},
                                    {},
                                    {}));
