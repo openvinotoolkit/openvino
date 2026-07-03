@@ -3,11 +3,24 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+set -o errexit
+set -o errtrace
+set -o pipefail
+set -o nounset
+
 if [ $EUID -ne 0 ]; then
     echo "ERROR: this script must be run as root to install 3rd party packages." >&2
     echo "Please try again with \"sudo -E $0\", or as root." >&2
     exit 1
 fi
+
+cleanup() {
+    rm --force cmake.sh
+}
+
+trap cleanup EXIT
+
+cmake_packages=()
 
 # install dependencies
 if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
@@ -367,5 +380,4 @@ if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | h
     wget "${github_cmake_release}" --output-document=cmake.sh
     chmod +x "cmake.sh"
     ./cmake.sh --skip-license --prefix=/usr/local
-    rm -f "cmake.sh"
 fi
