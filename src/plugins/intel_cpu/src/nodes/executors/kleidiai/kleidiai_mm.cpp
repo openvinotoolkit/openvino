@@ -58,17 +58,15 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    bool returnValue = config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
+     VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+    return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
                        useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
-    return returnValue;
 }
 
 bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory) {
     auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims();
-    OPENVINO_ASSERT(scales.size() > 1,
-                    "Scales tensor to have at least 2 dimensions. Got ",
-                    scales.size(),
-                    " dimension(s).");
+    if (scales.size() == 1)
+        return false;
     return (scales[1] > 1);
 }
 
@@ -130,7 +128,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         if (weightsMemory->getDescPtr()->getPrecision() == element::i4) {
             isTransposed = attrs.weightsNonTransposed;
             if (isGroupQuantizationEnabled(memory)) {
-                if (hasInt8MMSupport()) {
+                if (hasArmISASupport(ArmISA::I8MM)) {
                     _kernel =
                         std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
                                                                                                            K,
@@ -144,7 +142,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                         memory);
                 }
             } else {
-                if (hasInt8MMSupport()) {
+                if (hasArmISASupport(ArmISA::I8MM)) {
                     _kernel =
                         std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM>>(N,
                                                                                                      K,
@@ -160,7 +158,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({rhsPackedSize}));
             rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
         } else {
-            if (hasInt8MMSupport()) {
+            if (hasArmISASupport(ArmISA::I8MM)) {
                 _kernel =
                     std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N, K, lhsPackedMem);
             } else {
@@ -220,10 +218,22 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     } else {
         M = outDims[0];
     }
+    size_t totalScratchpadSize = 0;
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto srcPrc = srcDesc->getPrecision();
+        const auto dstPrc = dstDesc->getPrecision();
+        m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
+        m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstPrc, Shape({M, N}));
+        auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto dstSize = rnd_up(m_tmpOutputDesc->getCurrentMemSize(), 64);
+        totalScratchpadSize = srcSize + dstSize;
+    }
     // Assign LHS memory using newer logic
-    size_t lhsPackedSize = _kernel->getLHSPackedSize(M);
-    if (lhsPackedSize != 0) {
-        auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({lhsPackedSize}));
+    lhsPackedSize = _kernel->getLHSPackedSize(M);
+    totalScratchpadSize = rnd_up(lhsPackedSize, 64) + totalScratchpadSize;
+    if (totalScratchpadSize > 0) {
+        auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({totalScratchpadSize}));
         lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
     return true;
@@ -232,8 +242,56 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
 void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     auto srcMem = memory.at(ARG_SRC);
     auto dstMem = memory.at(ARG_DST);
-    auto srcDims = normalizeDimsTo2D(srcMem->getDesc().getShape().getDims());
-    _kernel->execute(executorContext->getCpuParallel(), srcDims[0], dstMem, srcMem);
+    auto srcDims = srcMem->getDesc().getShape().getDims();
+    size_t M_value, K_value;
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        OPENVINO_ASSERT(!gather_idx.empty(), "gather_idx is not set");
+        M_value = srcDims[1];
+        K_value = srcDims[2];
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        auto* input_ptr = lhsPackedMem->getDataAs<uint8_t>() + lhsPackedSize;
+        auto* output_ptr =
+            input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto tmpInput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpInputDesc, input_ptr);
+        auto tmpOutput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpOutputDesc, output_ptr);
+        auto src_offset = OffsetHelper::createOffsetHelper(*srcMem);
+        auto tmp_input_offset = OffsetHelper::createOffsetHelper(*tmpInput);
+        executorContext->getCpuParallel()->parallel_for(gather_idx.size(), [&](size_t m) {
+            auto* dst_row = tmp_input_offset(m);
+            const auto row_id = gather_idx[m].first;
+            const auto batch_index = gather_idx[m].second;
+            const auto* src_data = src_offset(batch_index, row_id);
+            std::memcpy(dst_row, src_data, K * element_size);
+        });
+        // update M
+        M = gather_idx.size();
+        srcMem = tmpInput;
+        dstMem = tmpOutput;
+    } else {
+        srcDims = normalizeDimsTo2D(srcDims);
+        M_value = srcDims[0];
+        K_value = srcDims[1];
+    } 
+    _kernel->execute(executorContext->getCpuParallel(), M_value, K_value, dstMem, srcMem);
+
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        dstMem = memory.at(ARG_DST);
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        auto* input_ptr = lhsPackedMem->getDataAs<uint8_t>() + lhsPackedSize;
+        auto* output_ptr =
+            input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto tmpInput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpInputDesc, input_ptr);
+        auto tmpOutput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpOutputDesc, output_ptr);
+        auto dst_offset = OffsetHelper::createOffsetHelper(dstMem);
+        auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
+        executorContext->getCpuParallel()->parallel_for(gather_idx.size(), [&](size_t m) {
+            const auto* src_row = tmp_dst_offset(m);
+            const auto row_id = gather_idx[m].first;
+            const auto batch_index = gather_idx[m].second;
+            auto* dst_row = dst_offset(batch_index, row_id);
+            std::memcpy(dst_row, src_row, N * element_size);
+        });
+    }
 }
 
 void MatMulKleidiAIExecutor::moveMemToNumaNode([[maybe_unused]] int numaNodeID) {

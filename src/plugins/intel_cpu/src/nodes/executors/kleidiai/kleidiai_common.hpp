@@ -97,10 +97,12 @@ public:
     /// @brief Execute function to run matmul
     /// @param cpu_parallel
     /// @param M
+    /// @param K
     /// @param dstMem
     /// @param srcMem
     virtual void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                          ov::intel_cpu::Dim M,
+                         ov::intel_cpu::Dim K,
                          ov::intel_cpu::MemoryPtr dstMem,
                          ov::intel_cpu::MemoryPtr srcMem) = 0;
 
@@ -202,6 +204,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         auto _ukernel = std::get<kai_matmul_clamp_f32_f32_f32p_ukernel>(getuKernelInterface());
@@ -313,6 +316,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         auto _ukernel = std::get<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(getuKernelInterface());
@@ -446,6 +450,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         auto _ukernel = std::get<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(getuKernelInterface());
@@ -595,6 +600,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         kai_matmul_clamp_f32_qai8dxp_qsi4cxp_ukernel _ukernel =
@@ -742,6 +748,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         kai_matmul_clamp_f32_qai8dxp_qsi4cxp_ukernel _ukernel =
@@ -862,10 +869,8 @@ public:
         // Convert F32 scales to bf16 as KAI kernel accepts only BF16
         const size_t numScales = N * (K / group_size);
         std::vector<uint16_t> scalesBf16(numScales);
-        uint32_t bits = 0;
         for (size_t i = 0; i < numScales; i++) {
-            std::memcpy(&bits, &rhs_scales[i], sizeof(float));
-            scalesBf16[i] = static_cast<uint16_t>(bits >> 16);
+            scalesBf16[i] = ov::bfloat16(rhs_scales[i]).to_bits();
         }
 
         if (isTransposed) {
@@ -928,6 +933,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel _ukernel =
@@ -1051,10 +1057,8 @@ public:
         // Convert F32 scales to bf16 as KAI kernel accepts only BF16
         const size_t numScales = N * (K / group_size);
         std::vector<uint16_t> scalesBf16(numScales);
-        uint32_t bits = 0;
         for (size_t i = 0; i < numScales; i++) {
-            std::memcpy(&bits, &rhs_scales[i], sizeof(float));
-            scalesBf16[i] = static_cast<uint16_t>(bits >> 16);
+            scalesBf16[i] = ov::bfloat16(rhs_scales[i]).to_bits();
         }
 
         if (isTransposed) {
@@ -1105,7 +1109,7 @@ public:
     }
 
     KAIKernelTag getKernelTag() override {
-        return KAIKernelTag::I4_NEON_IMM_GROUP;
+        return KAIKernelTag::I4_NEON_DOTPROD_GROUP;
     }
 
     size_t getLHSPackedSize(size_t m) override {
@@ -1117,6 +1121,7 @@ public:
 
     void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
                  ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
         kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel _ukernel =

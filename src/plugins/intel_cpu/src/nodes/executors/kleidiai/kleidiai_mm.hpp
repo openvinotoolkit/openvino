@@ -35,6 +35,11 @@ public:
 
 private:
     static bool isGroupQuantizationEnabled(const MemoryArgs& memory);
+    //  IMPL_TYPE :: Default
+    //      [M, K] * [N, K] -> [M, N]
+    //  IMPL_TYPE :: GatherMatmul
+    //      [B, M, K] -> gather -> [M', K] * [N', K] -> scatter -> [B, N, K]
+    enum class IMPL_TYPE : uint8_t { Default, GatherMatmul };
     DnnlScratchPadPtr scratchPad;
     IMPL_TYPE KaiExecutorImpl = IMPL_TYPE::Default;
     std::vector<std::pair<int32_t, int32_t>> gather_idx;
