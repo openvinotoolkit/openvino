@@ -668,7 +668,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                               ov::intel_cpu::pass::aarch64::RepackMatMulWeights,
                                               context,
                                               cpu_config->input_repackers,
-                                              srcMemPtrs);
+                                              srcMemPtrs,
+                                              getConstantInputIndexes());
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);

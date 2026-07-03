@@ -5,10 +5,12 @@
 #pragma once
 
 #include <memory>
+#include <variant>
 
 #include "common/utils.hpp"
 #include "cpu_memory.h"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/snippets/input_repacker.hpp"
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
@@ -16,6 +18,7 @@
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -154,6 +157,27 @@ private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        GemmCopyBKernelKaiConfig& config) const override;
+};
+
+class GemmCopyBKernel : public InputRepackerKernel {
+public:
+    struct call_args {
+        const void* src = nullptr;
+        void* tr_src = nullptr;
+    };
+
+    explicit GemmCopyBKernel(const ov::element::Type& prc);
+
+    void update_by_config(const GemmCopyBKernelKaiConfig& config) const;
+    [[nodiscard]] const GemmCopyBKernelKaiConfig& get_config() const;
+
+    void operator()(const void* args) const override;
+
+private:
+    using Executor =
+        std::variant<std::shared_ptr<GemmCopyBF32KaiKernelExecutor>, std::shared_ptr<GemmCopyBF16KaiKernelExecutor>>;
+
+    Executor m_executor;
 };
 
 }  // namespace ov::intel_cpu::aarch64

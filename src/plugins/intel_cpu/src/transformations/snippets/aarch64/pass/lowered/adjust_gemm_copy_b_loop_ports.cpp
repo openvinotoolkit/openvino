@@ -8,11 +8,14 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -101,25 +104,45 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::Linea
 
     bool modified = false;
 
+    auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& gemm_expr) {
+        // Repacking may be extracted outside the snippets kernel. In this case, gemm parent expression is a
+        // parameter.
+        const auto& gemm_in1 = gemm_expr->get_input_port_connector(1)->get_source();
+        const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(gemm_in1.get_expr());
+        const auto source =
+            shape_infer_seq.empty() ? gemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
+        if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node())) {
+            return std::vector<size_t>{};
+        }
+        const auto repacking_expr = ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr(gemm_expr);
+        OPENVINO_ASSERT(repacking_expr, "GemmCopyB expression is not found");
+        return repacking_expr->get_loop_ids();
+    };
+
     for (const auto& expr : linear_ir) {
         const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node());
         if (!gemm) {
             continue;
         }
         const auto& gemm_loop_ids = expr->get_loop_ids();
-        if (gemm_loop_ids.empty()) {
+        const auto& repacking_loop_ids = get_repacking_loop_idces(expr);
+        // Continue if there is no blocking loop
+        if (gemm_loop_ids.empty() && repacking_loop_ids.empty()) {
             continue;
         }
-        const auto& loop_manager = linear_ir.get_loop_manager();
-        // only adjust inner most loop(N loop)
-        const auto& loop = loop_manager->get_loop_info(gemm_loop_ids.back());
-        auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-        if (!uni_loop) {
-            uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-        }
-        if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-            m_affected_loops.insert(uni_loop);
-            modified = true;
+
+        OPENVINO_ASSERT(gemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid GemmCopyB loop configuration");
+        const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
+        for (auto i = repacking_loop_ids.size(); i < gemm_loop_ids.size(); i++) {
+            const auto& loop = loop_manager->get_loop_info(gemm_loop_ids[i]);
+            auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
+            if (!uni_loop) {
+                uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
+            }
+            if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
+                m_affected_loops.insert(uni_loop);
+                modified = true;
+            }
         }
     }
 

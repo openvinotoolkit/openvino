@@ -67,6 +67,10 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto consumer = consumers.cbegin()->get_node()->shared_from_this();
 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
+        if (!should_repack(i, consumer)) {
+            continue;
+        }
+
         const auto repacked = repack(consumer, get_weights_source(consumer, orig_src_mem_ptr), orig_src_mem_ptr);
         if (!repacked) {
             OPENVINO_ASSERT(supports_runtime_repacking(),
