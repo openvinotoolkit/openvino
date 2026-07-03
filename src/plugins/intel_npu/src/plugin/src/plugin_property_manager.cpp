@@ -215,6 +215,21 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     registerProperties();
 }
 
+void PluginPropertyManager::refreshCompilerPropertiesIfNeeded(const ICompilerAdapter* compiler,
+                                                              ov::intel_npu::CompilerType compilerType,
+                                                              std::string compilationPlatform) {
+    if (compiler == nullptr || (_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
+                                compilationPlatform == _currentlyUsedPlatform)) {
+        return;
+    }
+
+    filterPropertiesByCompilerSupport(_config, compiler, _backend, _logger);
+
+    _compilerConfigsFilteredByCompiler = true;
+    _currentlyUsedCompiler = compilerType;
+    _currentlyUsedPlatform = std::move(compilationPlatform);
+}
+
 void PluginPropertyManager::registerProperties() {
     _properties.clear();
 
@@ -598,21 +613,8 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
 
         // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
-        compiler = factory.getCompiler(_backend,
-                                       compilerType,
-                                       compilationPlatform,
-                                       _compilerOptionSupportHelper->getOptionSupportCache());
-
-        if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
-              compilationPlatform == _currentlyUsedPlatform)) {
-            // In case properties are not initialized or the compiler/platform was changed since last call -
-            // filter out options again
-            filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
-
-            _compilerConfigsFilteredByCompiler = true;
-            _currentlyUsedCompiler = compilerType;
-            _currentlyUsedPlatform = std::move(compilationPlatform);
-        }
+        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        refreshCompilerPropertiesIfNeeded(compiler.get(), compilerType, std::move(compilationPlatform));
     }
 
     std::map<std::string, std::string> cfgs_to_set;
@@ -720,17 +722,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
                             name.c_str(),
                             ex.what());
         }
-
-        if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
-                                     compilationPlatform == _currentlyUsedPlatform)) {
-            // In case properties are not initialized or the compiler/platform was changed since last call -
-            // filter out options again
-            filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
-
-            _compilerConfigsFilteredByCompiler = true;
-            _currentlyUsedCompiler = compilerType;
-            _currentlyUsedPlatform = std::move(compilationPlatform);
-        }
+        refreshCompilerPropertiesIfNeeded(compiler.get(), compilerType, std::move(compilationPlatform));
     }
 
     auto&& configIterator = _properties.find(name);
@@ -822,17 +814,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
                         name.c_str(),
                         ex.what());
     }
-
-    if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
-                                 compilationPlatform == _currentlyUsedPlatform)) {
-        // In case properties are not initialized or the compiler/platform was changed since last call -
-        // filter out options again
-        filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
-
-        _compilerConfigsFilteredByCompiler = true;
-        _currentlyUsedCompiler = compilerType;
-        _currentlyUsedPlatform = std::move(compilationPlatform);
-    }
+    refreshCompilerPropertiesIfNeeded(compiler.get(), compilerType, std::move(compilationPlatform));
 
     const auto it = _properties.find(name);
     return it != _properties.end() && it->second.isPublic && it->second.isSupported();
