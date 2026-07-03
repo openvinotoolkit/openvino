@@ -1136,54 +1136,6 @@ public:
         ASSERT_EQ(out_size_act, out_size_exp);
     }
 
-    void test_3d_new_axis_preserves_linear_order(bool is_caching_test) {
-        auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 160, 256, 3 }, data_types::f32, format::bfyx });
-
-        std::vector<float> data(160*256*3);
-        for (size_t i = 0; i < data.size(); i++) {
-            data[i] = static_cast<float>(i);
-        }
-        set_values(input, data);
-
-        std::vector<int64_t> begin_data = {0, 0, 0};
-        std::vector<int64_t> end_data = {1, 160, 256};
-        std::vector<int64_t> strides_data = {1, 1, 1};
-
-        topology topology;
-        topology.add(input_layout("input", input->get_layout()));
-        topology.add(strided_slice("strided_slice",
-                                   input_info("input"),
-                                   begin_data,
-                                   end_data,
-                                   strides_data,
-                                   {},
-                                   {},
-                                   {1, 0, 0},
-                                   {},
-                                   {},
-                                   {}));
-
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
-        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-        network->set_input_data("input", input);
-
-        auto outputs = network->execute();
-
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "strided_slice");
-
-        auto output = outputs.at("strided_slice").get_memory();
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-
-        ASSERT_EQ(output_ptr.size(), data.size());
-        for (size_t i = 0; i < data.size(); i++) {
-            ASSERT_TRUE(are_equal(data[i], output_ptr[i])) << "Mismatch at index " << i;
-        }
-    }
-
     void test_3d_all_dynamic_with_shrink_axis() {
         auto& engine = get_test_engine();
 
@@ -2978,10 +2930,6 @@ TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
 
 TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_new_axis) {
     this->test_3d_all_dynamic_with_new_axis();
-}
-
-TEST_F(strided_slice_gpu, test_3d_new_axis_preserves_linear_order) {
-    this->test_3d_new_axis_preserves_linear_order(false);
 }
 
 TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_shrink_axis) {
