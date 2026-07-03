@@ -100,6 +100,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* block_indices [[type("svmptr_t")]],
     int* block_indices_begins [[type("svmptr_t")]],
     int* subsequence_begins [[type("svmptr_t")]],
+#if HAS_QQ_BIAS
+    // qq_bias is stored as u8 row-major [spec_num, spec_num], 0 = masked.
+    uchar* qq_bias [[type("svmptr_t")]],
+    int32_t* qq_bias_begins [[type("svmptr_t")]],
+#endif
     int* selected_q_mapping [[type("svmptr_t")]],
     float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
@@ -134,6 +139,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint past_q_lens         = (uint)past_lens[orig_seq_idx];
     const uint kv_len_max          = past_q_lens + q_start + valid_count;       // tile-wide upper bound
     const uint seq_kv_partition_num = (kv_len_max + KV_PARTITION_SIZE - 1) / KV_PARTITION_SIZE;
+
+#if HAS_QQ_BIAS
+    // Per-subsequence qq_bias slice: row-major [spec_num, spec_num] over speculative tokens.
+    const int qq_bias_num_subseq = qq_bias_begins[orig_seq_idx + 1] - qq_bias_begins[orig_seq_idx];
+    const int qq_bias_off_subseq = qq_bias_begins[orig_seq_idx];
+    int qq_bias_spec_num = 0;
+    {
+        int s = 0;
+        while ((s + 1) * (s + 1) <= qq_bias_num_subseq) ++s;
+        qq_bias_spec_num = s;
+    }
+    uchar* qq_bias_subseq_ptr = qq_bias + qq_bias_off_subseq;
+#endif
 
     const uint block_begin = block_indices_begins[orig_seq_idx];
     const uint block_end   = block_indices_begins[orig_seq_idx + 1];
@@ -523,6 +541,45 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                 }
             }
+
+#if HAS_QQ_BIAS
+            // Speculative tree mask on the "new token" K-range only.
+            // key_spec  = key_local - past_q_lens
+            // query_spec = q_start + t
+            if (qq_bias_num_subseq > 0 && qq_bias_spec_num > 0) {
+                #pragma unroll
+                for (int t = 0; t < TILE_Q; ++t) {
+                    if (t >= (int)valid_count) {
+                        continue;
+                    }
+                    const int query_spec = (int)q_start + t;
+                    if (query_spec < 0 || query_spec >= qq_bias_spec_num) {
+                        continue;
+                    }
+                    #pragma unroll
+                    for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
+                        const int row = t * Q_head_chunk_size + qi;
+                        auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
+                        #pragma unroll
+                        for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
+                            const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
+                            #pragma unroll
+                            for (int c = 0; c < REG_N; ++c) {
+                                const int key_local = kv_global_start + blk_lo + c;
+                                const int key_spec = key_local - (int)past_q_lens;
+                                if (key_spec < 0 || key_spec >= qq_bias_spec_num) {
+                                    continue;
+                                }
+                                const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+                                if (qq_bias_subseq_ptr[qq_off] == 0) {
+                                    rs_row(b, c) = NEG_INF;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+#endif
 
             // Also mask columns beyond kv_pos_end for the last tile
             {

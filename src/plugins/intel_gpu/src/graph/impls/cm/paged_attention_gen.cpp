@@ -646,10 +646,8 @@ JitConstants PagedAttentionGeneratorSmallQ::get_jit_constants(const kernel_impl_
         }
     }
 
-    // NOTE: qq_bias temporarily disabled during online-softmax kernel rewrite.
-    // Kernel doesn't accept the qq_bias args; force HAS_QQ_BIAS=0 so the tree-mask
-    // path is inactive at both jit level and argument list level.
-    jit.make("HAS_QQ_BIAS", 0);
+    // Small-q kernel supports qq_bias speculative tree mask (u8 row-major [spec,spec]).
+    jit.make("HAS_QQ_BIAS", desc->has_qq_bias ? 1 : 0);
     return jit;
 }
 
@@ -666,17 +664,14 @@ Arguments PagedAttentionGeneratorSmallQ::get_arguments_desc(const kernel_impl_pa
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+    if (desc->has_qq_bias) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});
+    }
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_SELECTED_MAPPING});
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_PARTITIONOUT});
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_EXPSUMS});
-
-    // qq_bias temporarily disabled — kernel doesn't accept these args in current
-    // online-softmax rewrite. Matches HAS_QQ_BIAS=0 jit constant above.
-    // if (desc->has_qq_bias) {
-    //     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});
-    //     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});
-    // }
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len_unused (kept for ABI parity with single-token)
     args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // selected_token_count
