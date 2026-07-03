@@ -84,8 +84,8 @@ static void initFCAttrs(const FCAttrs& attrs,
 
 ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
                                                              const MemoryArgs& memory,
-                                                             const ExecutorContext::CPtr& context) {
-    dequantizationScales = attrs.dqScales;
+                                                             const ExecutorContext::CPtr& context)
+    : dequantizationScales(attrs.dqScales) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo);
 
     hasQuantizedDst = any_of(memory.at(ARG_DST)->getPrecision(), ov::element::i8, ov::element::u8);
