@@ -2779,8 +2779,8 @@ INSTANTIATE_TEST_SUITE_P(resample_cubic_bfyx_smoke,
                             }
                         ));
 
-// Test bugfix for identity resample with BILINEAR_PILLOW / BICUBIC_PILLOW. when input spatial size
-//  equals output spatial size on both axes, the pil_ref kernel previously emitted zero passes and crashed. 
+// Test bugfix for identity resample with BILINEAR_PILLOW / BICUBIC_PILLOW. When input spatial size
+// equals output spatial size on both axes, the pil_ref kernel previously emitted zero passes and crashed.
 TEST(resample_gpu, pillow_identity_resample_no_crash) {
     auto& engine = get_test_engine();
 
