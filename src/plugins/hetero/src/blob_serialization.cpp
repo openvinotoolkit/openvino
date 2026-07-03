@@ -247,12 +247,18 @@ void read_ir_payload(std::istream& model,
                      ov::SoPtr<ov::ICompiledModel>& compiled_model) {
     std::string xmlString;
     auto dataSize = read_size(model, "IR XML size");
-    xmlString.resize(dataSize);
+    OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<std::string::size_type>::max()),
+                    "HETERO compiled blob IR XML size is too large: ",
+                    dataSize);
+    xmlString.resize(static_cast<std::string::size_type>(dataSize));
     read_bytes(model, xmlString.data(), dataSize, "IR XML content");
 
     ov::Tensor weights;
     dataSize = read_size(model, "IR weights size");
     if (dataSize != 0) {
+        OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<ov::Shape::size_type>::max()),
+                        "HETERO compiled blob IR weights size is too large: ",
+                        dataSize);
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         read_bytes(model, weights.data<char>(), dataSize, "IR weights content");
     }
