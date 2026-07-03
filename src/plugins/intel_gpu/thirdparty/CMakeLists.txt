@@ -75,6 +75,11 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND onednn_gpu_cache_args "-DCMAKE_FIND_ROOT_PATH:STRING=${CMAKE_FIND_ROOT_PATH}")
         endif()
 
+        # pass OpenCL flags for static build.
+        if(NOT BUILD_SHARED_LIBS)
+            string(APPEND CMAKE_CXX_FLAGS " -DNGEN_LINK_OPENCL")
+        endif()
+
         # pass compilation flags
         foreach(lang IN ITEMS C CXX)
             foreach(build_type IN ITEMS "" "_DEBUG" "_MINSIZEREL" "_RELEASE" "_RELWITHDEBINFO")
@@ -195,11 +200,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
                             DNNL_ENABLE_MAX_CPU_ISA
                             DNNL_X64=1
                             NGEN_CONFIG)
+
+        if(NOT BUILD_SHARED_LIBS)
+            list(APPEND LIB_DEFINITIONS NGEN_LINK_OPENCL)
+        endif()
+
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
-            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${LIB_INCLUDE_DIRS}"
+            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
             INTERFACE_COMPILE_DEFINITIONS "${LIB_DEFINITIONS}"
         )
         add_dependencies(onednn_gpu_tgt onednn_gpu_build)
