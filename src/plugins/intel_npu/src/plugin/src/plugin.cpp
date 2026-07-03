@@ -7,6 +7,7 @@
 #include <fstream>
 #include <numeric>
 
+#include "blob_format_handlers.hpp"
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -626,6 +627,20 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
+bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
+    const bool skipCompatibility = (properties.find(DISABLE_VERSION_CHECK::key().data()) != properties.end())
+                                       ? properties.at(DISABLE_VERSION_CHECK::key().data()).as<bool>()
+                                       : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
+    if (skipCompatibility) {
+        return true;
+    }
+
+    const bool importRawBlob = (properties.find(IMPORT_RAW_BLOB::key().data()) != properties.end())
+                                   ? properties.at(IMPORT_RAW_BLOB::key().data()).as<bool>()
+                                   : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
+    return importRawBlob;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     update_log_level(properties);
@@ -647,18 +662,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     try {
-        const bool skipCompatibility =
-            (npuPluginProperties.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
 
-        if (!importRawBlob && !skipCompatibility) {
+        if (!should_import_raw_blob(npuPluginProperties)) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
             metadata = read_metadata_from(stream);
@@ -713,18 +720,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-        const bool skipCompatibility =
-            (npuPluginProperties.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiledBlob.get_byte_size();
 
-        if (!importRawBlob && !skipCompatibility) {
+        if (!should_import_raw_blob(npuPluginProperties)) {
             metadata = read_metadata_from(compiledBlob);
             blobSize = metadata->get_blob_size();
         } else {
