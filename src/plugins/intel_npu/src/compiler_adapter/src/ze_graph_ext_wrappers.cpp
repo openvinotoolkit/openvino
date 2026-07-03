@@ -401,8 +401,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     }
     if (secureCompile) {
         if (_graphExtVersion < ZE_MAKE_VERSION(1, 17)) {
-            _logger.warning("Secure compilation was requested, but the current driver version does not support it. "
-                            "Ignoring the flag.");
+            OPENVINO_THROW("Secure compilation was requested, but the current driver version does not support it.");
         } else {
             _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_SECURE_COMPILE");
             flags |= ZE_GRAPH_FLAG_SECURE_COMPILE;
@@ -560,6 +559,55 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
     }
 }
 
+std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const {
+    if (_zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        return std::nullopt;
+    }
+
+    ze_runtime_requirements_graph_desc_t requirementsDesc = {};
+    requirementsDesc.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_GRAPH_DESC;
+    requirementsDesc.pNext = nullptr;
+    requirementsDesc.requirementsSrc = graphHandle;
+
+    size_t size = 0;
+    ze_result_t result =
+        zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, nullptr);
+    if (result != ZE_RESULT_SUCCESS) {
+        _logger.warning("zeDeviceGetRuntimeRequirements (size query) returned error: 0x%x",
+                        static_cast<uint32_t>(result));
+        return std::nullopt;
+    }
+    if (size == 0) {
+        return std::nullopt;
+    }
+
+    // The driver writes a null-terminated string; size includes the terminator
+    std::string descriptor(size, '\0');
+    result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, descriptor.data());
+    if (result != ZE_RESULT_SUCCESS) {
+        _logger.warning("zeDeviceGetRuntimeRequirements (data query) returned error: 0x%x",
+                        static_cast<uint32_t>(result));
+        return std::nullopt;
+    }
+
+    if (size > descriptor.size()) {
+        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu > %zu",
+                        size,
+                        descriptor.size());
+        return std::nullopt;
+    }
+
+    size_t outSize = size;
+    if (outSize > 0 && descriptor[outSize - 1] == '\0') {
+        --outSize;
+    }
+    descriptor.resize(outSize);
+
+    _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
+
+    return descriptor;
+}
+
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor) const {
     ze_graph_properties_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
@@ -624,8 +672,8 @@ std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() con
     return "";
 }
 
-std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
-                                                          std::optional<std::string> optValue) const {
+std::optional<bool> ZeGraphExtWrappers::isOptionSupported(const std::string& optName,
+                                                          const std::optional<std::string>& optValue) const {
     // Early exit if api is not supported
     if (!_isCompilerOptionQuerySupported) {
         _logger.debug("Compiler option query is not supported by the driver - skipping!");

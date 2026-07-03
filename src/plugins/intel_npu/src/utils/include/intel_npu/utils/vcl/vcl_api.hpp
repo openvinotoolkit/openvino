@@ -28,7 +28,8 @@ namespace intel_npu {
     vcl_symbol_statement(vclProfilingDestroy)               \
     vcl_symbol_statement(vclProfilingGetProperties)         \
     vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate3)     \
+    vcl_symbol_statement(vclAllocatedExecutableCreate4)     \
+    vcl_symbol_statement(vclExecutableGetCompatibilityString) \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
 
@@ -42,13 +43,13 @@ namespace intel_npu {
 
 class VCLApi {
 public:
-    VCLApi();
+    VCLApi(const std::string& library_dir);
     VCLApi(const VCLApi& other) = delete;
     VCLApi(VCLApi&& other) = delete;
     void operator=(const VCLApi&) = delete;
     void operator=(VCLApi&&) = delete;
 
-    static const std::shared_ptr<VCLApi> getInstance();
+    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir = std::string());
     std::shared_ptr<void> getLibrary() const {
         return lib;
     }

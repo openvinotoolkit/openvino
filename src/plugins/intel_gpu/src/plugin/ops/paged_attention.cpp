@@ -126,6 +126,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_qq_bias = true;
     }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    prim.write_kv_cache = op->get_write_kv_cache();
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
