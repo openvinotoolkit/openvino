@@ -574,6 +574,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
+    const auto normalize_index = [this, data_dim_size](int64_t idx_value) -> int64_t {
+        CPU_NODE_ASSERT(idx_value >= -data_dim_size && idx_value < data_dim_size,
+                        "have indices value that points to non-existing output tensor element");
+        return idx_value < 0 ? idx_value + data_dim_size : idx_value;
+    };
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
@@ -598,11 +603,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
             for (size_t worker = start; worker < end; worker++) {
                 auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -620,11 +621,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
             for (size_t worker = start; worker < end; worker++) {
                 auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -643,11 +640,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
             size_t* ptr_dst_offset = dst_offsets.data();
             size_t* ptr_indices_offset = indices_offsets.data();
             for (size_t worker = start; worker < end; worker++) {  // idx = 0
-                int64_t idxValue = getIndicesValue(indicesPtr, *ptr_indices_offset);
-                if (idxValue < 0) {
-                    idxValue += data_dim_size;
-                }
-                assert(idxValue < data_dim_size && idxValue >= 0);
+                const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, *ptr_indices_offset));
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel(dst, src);
@@ -662,11 +655,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 ptr_dst_offset = dst_offsets.data();
                 for (size_t worker = start; worker < end; worker++) {
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -703,6 +692,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
+    const auto normalize_index = [this, data_dim_size](int64_t idx_value) -> int64_t {
+        CPU_NODE_ASSERT(idx_value >= -data_dim_size && idx_value < data_dim_size,
+                        "have indices value that points to non-existing output tensor element");
+        return idx_value < 0 ? idx_value + data_dim_size : idx_value;
+    };
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
@@ -727,11 +721,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
             for (size_t worker = start; worker < end; worker++) {
                 auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -751,11 +741,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
                 auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -786,11 +772,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
             size_t* ptr_dst_offset = dst_offsets.data();
             size_t* ptr_indices_offset = indices_offsets.data();
             for (size_t worker = start; worker < end; worker++) {  // idx = 0
-                int64_t idxValue = getIndicesValue(indicesPtr, *ptr_indices_offset);
-                if (idxValue < 0) {
-                    idxValue += data_dim_size;
-                }
-                assert(idxValue < data_dim_size && idxValue >= 0);
+                const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, *ptr_indices_offset));
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel(dst, src);
@@ -807,11 +789,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 ptr_dst_offset = dst_offsets.data();
                 for (size_t worker = start; worker < end; worker++) {
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
-                    if (idxValue < 0) {
-                        idxValue += data_dim_size;
-                    }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    const int64_t idxValue = normalize_index(getIndicesValue(indicesPtr, indices_offset));
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -880,6 +858,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* pindices = reinterpret_cast<int32_t*>(indicesPtr);
             auto* pupdate = reinterpret_cast<int32_t*>(updatePtr);
             for (size_t i = 0; i < updateCnt; i++) {
+                CPU_NODE_ASSERT(pindices[i] >= 0 && static_cast<size_t>(pindices[i]) < srcLength,
+                                "have indices value that points to non-existing output tensor element");
                 pdst[pindices[i]] = pupdate[i];
             }
             return;
@@ -910,9 +890,13 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
-                CPU_NODE_ASSERT(idxValue < static_cast<int64_t>(srcDimAxis) &&
-                                    (idxValue >= 0 || scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate),
-                                "have indices value that points to non-existing output tensor element");
+                const int64_t upper_bound = static_cast<int64_t>(srcDimAxis);
+                const int64_t lower_bound =
+                    scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate ? -upper_bound : 0;
+                if (scatterUpdateMode != ScatterUpdateMode::ScatterUpdate) {
+                    CPU_NODE_ASSERT(idxValue >= lower_bound && idxValue < upper_bound,
+                                    "have indices value that points to non-existing output tensor element");
+                }
             }
         });
 
@@ -1009,6 +993,10 @@ void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, u
 
     cpu_parallel->parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
         int64_t idxValue = getIndicesValue(indices, idx);
+        if (idxValue < 0 || idxValue >= static_cast<int64_t>(srcDataDim[axis])) {
+            // Skip out-of-range updates for tolerant execution in cache-update style models.
+            return;
+        }
         uint8_t* dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
         uint8_t* updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
         cpu_memcpy(dstEntry, updateEntry, blockToUpdateSize);
