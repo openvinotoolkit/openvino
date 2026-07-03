@@ -410,11 +410,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             #if USE_2D_BLOCK_IO_V_I8
-                // int8 V uses the 8-bit VNNI-transform read below, which dequants each byte with a
-                // per-token scale. Per-token V scale/zp depend only on the key (not the value/head
-                // index), so load this cp-block's SUBGROUP_SIZE keys once (lane L -> key k0+cp*16+L)
-                // and broadcast the needed key's value in the dequant loop, instead of re-reading
-                // them from global memory per (value, key).
+                // int8 V uses the 8-bit VNNI-transform read below. Per-token V scale depends only
+                // on the key (not the value/head index), and pA (the score operand just read above)
+                // is already lane=key — same layout as vs_c below — so the scale is folded into pA
+                // directly with a per-lane multiply (no broadcast) instead of into V, which would
+                // require broadcasting vs_c across the value/head-dim lanes in the dequant loop.
+                // zp is a subtraction, not a scalar factor, so it stays on the V side (still needs
+                // its per-key value broadcast into the value/head-dim lanes there).
                 const int vs_key = k0 + cp * SUBGROUP_SIZE + lane;
                 const uint vs_co = VAL_COMP_OFF(b1, b0_kv, vs_key, 0);
                 // Keep scale/zp in half: V_scales/V_zp are already half, and the dequant is
@@ -424,6 +426,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 #if VAL_ZERO_POINTS
                     const half vz_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
                 #endif
+
+                #pragma unroll
+                for (int r = 0; r < sv_score_blocks; ++r)
+                    pA[r] = as_short8(as_half8(pA[r]) * vs_c);
             #endif
 
             int8 vb[sv_value_blocks];
@@ -442,27 +448,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             (global void *)V, VD_w, VD_h, VD_p,
                             (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
                         // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
-                        // Unpack each uint's 4 bytes as a signed char4 and dequant per-uint with
-                        // half vector ops: convert_half4 replaces 4 scalar converts, and the
-                        // per-key scale/zp (key-specific, gathered via broadcast into a half4) are
-                        // applied with a single vector mul/fma — no f32 intermediate. as_char4(.s0)
-                        // ==byte0==key u*4+0, matching the previous shift-and-mask order.
+                        // Unpack each uint's 4 bytes as a signed char4; scale is folded into pA
+                        // above (score side), so only zp subtraction remains here — its per-key
+                        // value (key-specific, gathered via broadcast into a half4) is applied
+                        // with a single vector sub. as_char4(.s0)==byte0==key u*4+0, matching the
+                        // previous shift-and-mask order.
                         #pragma unroll
                         for (int u = 0; u < 4; ++u) {
                             const half4 raw4 = convert_half4(as_char4(vt[u]));
                             const int k0r = u * 4;
-                            const half4 sc4 = (half4)(sub_group_broadcast(vs_c, k0r + 0),
-                                                      sub_group_broadcast(vs_c, k0r + 1),
-                                                      sub_group_broadcast(vs_c, k0r + 2),
-                                                      sub_group_broadcast(vs_c, k0r + 3));
                             #if VAL_ZERO_POINTS
                                 const half4 zp4 = (half4)(sub_group_broadcast(vz_c, k0r + 0),
                                                           sub_group_broadcast(vz_c, k0r + 1),
                                                           sub_group_broadcast(vz_c, k0r + 2),
                                                           sub_group_broadcast(vz_c, k0r + 3));
-                                const half4 deq4 = (raw4 - zp4) * sc4;
+                                const half4 deq4 = raw4 - zp4;
                             #else
-                                const half4 deq4 = raw4 * sc4;
+                                const half4 deq4 = raw4;
                             #endif
                             // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
                             // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
