@@ -74,6 +74,13 @@ describe("Tests for reading model.", () => {
       assert.equal(model.inputs.length, 1);
     });
 
+    it("readModel(xmlPath) rejects on invalid path", async () => {
+      await assert.rejects(
+        async () => await core.readModel("not_exists"),
+        /Could not open the file/,
+      );
+    });
+
     it("readModel(xmlPath, weightsPath) ", async () => {
       const model = await core.readModel(testModelFP32.xml, testModelFP32.bin);
       assert.equal(model.inputs.length, 1);
