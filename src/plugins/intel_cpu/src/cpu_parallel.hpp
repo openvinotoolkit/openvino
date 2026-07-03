@@ -45,6 +45,7 @@ public:
     void activate() const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
+        dnnl_threadpool_interop_set_scratchpad_concurrency(get_num_worker_threads());
 #endif
     }
 
