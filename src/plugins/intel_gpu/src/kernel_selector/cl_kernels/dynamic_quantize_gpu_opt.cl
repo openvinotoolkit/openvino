@@ -147,11 +147,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
 {
     const uint b = (uint)get_global_id(2);
     const uint gid1 = (uint)get_global_id(1);
+    const uint f_grp = get_global_id(1) * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
     const uint sglid = get_sub_group_local_id();
+    const uint blockid = gid1 % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
     const bool valid_block = gid1 < TOTAL_BLOCK_NUM;
-    const uint safe_gid1 = min(gid1, (uint)(TOTAL_BLOCK_NUM - 1));
-    const uint f_grp = safe_gid1 * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
-    const uint blockid = safe_gid1 % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
+    if (valid_block) {
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
@@ -179,7 +179,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half grp_min = ACT_MIN_VAL;
     half max_value = 0.0h;
     half min_value = 0.0h;
-    // Unconditional load: safe_gid1 guarantees the address is always within bounds.
     val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
 
 #if ASYMMETRIC_QUANTIZATION
@@ -237,8 +236,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
-    int precomputed_reduction = 0;
-
 #if IS_F8
     val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
@@ -255,11 +252,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if GENERATE_PRECOMPUTED_REDUCTION
     // TODO: Optimize this part
     // Calculate local reduction for this work-item
-    if (valid_block) {
-        MAKE_VECTOR_TYPE(OUTPUT2_TYPE, VEC_SIZE) val_int = CAT(CONVERT_INT_N, _rte)(val);
-        unroll_for (int j = 0; j < VEC_SIZE; j++) {
-            precomputed_reduction += val_int[j];
-        }
+    int precomputed_reduction = 0;
+    MAKE_VECTOR_TYPE(OUTPUT2_TYPE, VEC_SIZE) val_int = CAT(CONVERT_INT_N, _rte)(val);
+    unroll_for (int j = 0; j < VEC_SIZE; j++) {
+        precomputed_reduction += val_int[j];
     }
     // Reduce within subgroup
     precomputed_reduction = sub_group_reduce_add(precomputed_reduction);
@@ -282,7 +278,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 #endif
 
-    if (valid_block && sglid == 0 && blockid == 0) {
+    if (sglid == 0 && blockid == 0) {
 #if OUTPUT_DIMS == 2
         const int output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
 #else
@@ -297,6 +293,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 #endif
     }
+}
 }
 
 // ***********************************************
