@@ -4,9 +4,12 @@
 
 #include "compiled_model.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <sstream>
 
 #include "async_infer_request.hpp"
+#include "blob_serialization.hpp"
 #include "graph_debug_dump.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
@@ -98,6 +101,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = get_str_attr(heteroNode, "name");
+    const bool is_framed_blob = heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1) >=
+                                HETERO_BLOB_FORMAT_VERSION;
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
@@ -119,26 +124,39 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         ov::SoPtr<ov::ICompiledModel> compiled_model;
         std::shared_ptr<ov::Model> ov_model;
 
-        if (get_plugin()->get_core()->device_supports_model_caching(device)) {
-            compiled_model = plugin->get_core()->import_model(model, device, loadConfig);
-        } else {
-            // read XML content
-            std::string xmlString;
-            std::uint64_t dataSize = 0;
-            model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            xmlString.resize(dataSize);
-            model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+        const auto& core = plugin->get_core();
+        if (is_framed_blob) {
+            const auto payloadHeader = read_payload_header(model);
 
-            /// read blob content
-            ov::Tensor weights;
-            model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            if (0 != dataSize) {
-                weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-                model.read(weights.data<char>(), dataSize);
+            if (payloadHeader.type == COMPILED_BLOB_PAYLOAD && device == "CPU" &&
+                payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
+                std::string payload(payloadHeader.size, '\0');
+                model.read(payload.data(), static_cast<std::streamsize>(payloadHeader.size));
+                std::stringstream payloadStream(std::move(payload));
+                compiled_model = core->import_model(payloadStream, device, loadConfig);
+            } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD &&
+                       payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
+                ov::Tensor payload(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(payloadHeader.size)});
+                model.read(payload.data<char>(), static_cast<std::streamsize>(payloadHeader.size));
+                compiled_model = core->import_model(payload, device, loadConfig);
+            } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD || payloadHeader.type == IR_PAYLOAD) {
+                BoundedStreamBuffer buffer{model, payloadHeader.size};
+                std::istream payloadStream{&buffer};
+
+                if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
+                    compiled_model = core->import_model(payloadStream, device, loadConfig);
+                } else {
+                    read_ir_payload(payloadStream, core, device, loadConfig, ov_model, compiled_model);
+                }
+                model.clear();
+                model.seekg(buffer.end_pos());
+            } else {
+                OPENVINO_THROW("Unsupported HETERO compiled submodel payload type: ", payloadHeader.type);
             }
-
-            ov_model = plugin->get_core()->read_model(xmlString, weights);
-            compiled_model = plugin->get_core()->compile_model(ov_model, device, loadConfig);
+        } else if (core->device_supports_model_caching(device)) {
+            compiled_model = core->import_model(model, device, loadConfig);
+        } else {
+            read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model);
         }
 
         m_compiled_submodels.emplace_back(ov::hetero::CompiledModel::CompiledModelDesc{
@@ -325,6 +343,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(m_name.c_str());
+    heteroNode.append_attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).set_value(HETERO_BLOB_FORMAT_VERSION);
 
     auto inputs_map_node = heteroNode.append_child("inputs_to_submodels_inputs");
     for (const auto& it : m_mapping_info._inputs_to_submodels_inputs) {
@@ -368,32 +387,29 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     for (const auto& comp_model_desc : m_compiled_submodels) {
         OPENVINO_ASSERT(comp_model_desc.compiled_model);
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
+            PayloadFrame payloadFrame = start_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD);
+            FramedPayloadOutputBuffer payloadBuffer(model_stream);
+            std::ostream payloadStream(&payloadBuffer);
             try {
                 // Batch plugin reports property of low level plugin
                 // If we use Batch plugin inside hetero, we won't be able to call export
                 // Auto batch plugin will throw NOT_IMPLEMENTED
-                comp_model_desc.compiled_model->export_model(model_stream);
+                comp_model_desc.compiled_model->export_model(payloadStream);
+                payloadStream.flush();
+                finish_framed_payload(model_stream, payloadFrame, payloadBuffer.written_size());
                 continue;
             } catch (ov::NotImplemented&) {
+                OPENVINO_ASSERT(payloadBuffer.written_size() == 0,
+                                "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
+                model_stream.seekp(payloadFrame.type_pos);
             }
+            payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
+            write_ir_payload(model_stream, comp_model_desc.model);
+            finish_framed_payload(model_stream, payloadFrame);
+            continue;
         }
-        auto& model = comp_model_desc.model;
-        if (!model)
-            OPENVINO_THROW("OpenVINO Model is empty");
-
-        std::stringstream xmlFile, binFile;
-        ov::pass::Serialize serializer(xmlFile, binFile);
-        serializer.run_on_model(model);
-
-        auto constants = binFile.str();
-        auto model_str = xmlFile.str();
-
-        auto dataSize = static_cast<std::uint64_t>(model_str.size());
-        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-        model_stream.write(model_str.c_str(), dataSize);
-
-        dataSize = static_cast<std::uint64_t>(constants.size());
-        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-        model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
+        const auto payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
+        write_ir_payload(model_stream, comp_model_desc.model);
+        finish_framed_payload(model_stream, payloadFrame);
     }
 }
