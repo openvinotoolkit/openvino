@@ -257,10 +257,12 @@ jobs:
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: E2E of openvino-node package
+        if: fromJSON(env.NODE_VERSION) >= 22
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
+        if: fromJSON(env.NODE_VERSION) >= 22
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e
