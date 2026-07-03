@@ -725,7 +725,7 @@ You **MUST** always call at least one safe output tool before finishing:
 
 **Valid call combinations:**
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
-- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue, **or** any `workflow_dispatch` test run (comment on PR akashchi/openvino#157 per the testing override).
+- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
 - Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
 - `noop` alone — no investigation needed.
