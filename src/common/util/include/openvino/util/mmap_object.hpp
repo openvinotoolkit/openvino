@@ -47,7 +47,7 @@ public:
      * @param size   Number of bytes to prefetch. Defaults to the rest of the
      *               mapping when set to auto_size.
      */
-    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size);
+    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

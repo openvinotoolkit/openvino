@@ -61,7 +61,6 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
     return {aligned, raw_len + gap, gap};
 }
 
-
 /**
  * @brief Allocates @p size bytes of uninitialized memory on the specified @p alignment boundary.
  *

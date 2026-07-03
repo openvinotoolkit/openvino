@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <thread>
 #include <tuple>
 
 #include "openvino/util/common_util.hpp"
@@ -37,25 +38,23 @@ inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
 }
 
 /**
- * @brief Computes a page-aligned sub-region of a mapping for madvise, clamped to its bounds.
+ * @brief Creates a memory region for madvise operations.
  *
- * Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result. Returns an empty
- * region (m_length == 0) for a null/empty mapping, an offset at or past the end, or a sub-page request.
- *
- * @param data         Base address of the mapped region.
- * @param mapping_size Total size of the mapped region in bytes.
- * @param offset       Offset within the mapping where the sub-region starts.
- * @param size         Size of the sub-region (auto_size for the rest of the mapping).
- * @return AlignedRegion Page-aligned sub-region, or an empty region when there is nothing to do.
+ * @param data         The base address of the mapped memory region.
+ * @param mapping_size The size of the mapped memory region.
+ * @param offset       The offset within the mapped memory region.
+ * @param size         The size of the region.
+ * @return AlignedRegion The aligned memory region.
  */
 inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
     if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
         return {};
+    } else {
+        const auto available = mapping_size - offset;
+        const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+        return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
     }
-    const auto available = mapping_size - offset;
-    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-    return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
 }
 }  // namespace util
 
@@ -169,6 +168,16 @@ public:
             if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
+        }
+    }
+
+    void hint_prefetch(size_t offset, size_t size) override {
+        constexpr size_t one_mb = 1024 * 1024;
+        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
         }
     }
 };
