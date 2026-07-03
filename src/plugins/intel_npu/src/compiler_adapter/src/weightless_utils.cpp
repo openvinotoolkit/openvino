@@ -7,6 +7,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace intel_npu {
@@ -21,6 +22,8 @@ bool isInitMetadata(const NetworkMetadata& networkMetadata) {
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
+
+    OPENVINO_ASSERT(model != nullptr, "Model is required to extract constants in topological order.");
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
     for (auto&& node : model->get_ops()) {
@@ -59,7 +62,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
     for (const auto& initMetadata : initNetworkMetadata) {
         for (const IODescriptor& descriptor : initMetadata.inputs) {
             const auto& opt = ov::util::view_to_number<size_t>(descriptor.nameFromCompiler);
-            OPENVINO_ASSERT(opt.has_value(), "Failed parse id for constant: ", descriptor.nameFromCompiler);
+            OPENVINO_ASSERT(opt.has_value(), "Failed to parse id for constant: ", descriptor.nameFromCompiler);
 
             const size_t id = opt.value();
             const size_t byte_size =
