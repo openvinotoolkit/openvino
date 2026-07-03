@@ -15,6 +15,9 @@ namespace ov::util {
 /** @brief One mebibyte (1024 * 1024 bytes). */
 inline constexpr size_t one_mib = 1024 * 1024;
 
+/** @brief Minimum guaranteed page alignment on all supported platforms (x86, ARM, RISC-V). */
+inline constexpr size_t min_page_alignment = 4096;
+
 /**
  * @brief Rounds @p size up to the nearest multiple of @p alignment.
  *
