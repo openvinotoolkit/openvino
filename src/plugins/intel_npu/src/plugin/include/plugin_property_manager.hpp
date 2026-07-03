@@ -55,6 +55,9 @@ private:
     explicit PluginPropertyManager(CopyState&& state);
 
     void registerProperties();
+    void refreshCompilerPropertiesIfNeeded(const ICompilerAdapter* compiler,
+                                           ov::intel_npu::CompilerType compilerType,
+                                           std::string compilationPlatform);
     bool isPropertyRegistered(const std::string& propertyName) const;
 
     FilteredConfig _config;
