@@ -81,7 +81,7 @@ KERNEL(permute_xy_swap)(
             FUSED_OPS;
             output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = FUSED_OPS_RESULT;
 #else
-            output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = ACTIVATION(val, ACTIVATION_PARAMS);
+            output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(val), ACTIVATION_PARAMS));
 #endif
         }
     }

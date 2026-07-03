@@ -214,6 +214,8 @@ public:
 #define CASE_PERMUTE_XY_SWAP_F32_2 { 2, 4, 32, 16 }, { 2, 4, 16, 32 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_XY_SWAP_F16_0 { 1, 8, 16, 16 }, { 1, 8, 16, 16 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::f16, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_XY_SWAP_F16_1 { 1, 4, 32, 32 }, { 1, 4, 32, 32 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::f16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_XY_SWAP_BF16_0 { 1, 8, 16, 16 }, { 1, 8, 16, 16 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::bf16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_XY_SWAP_BF16_1 { 1, 4, 32, 32 }, { 1, 4, 32, 32 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::bf16, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_XY_SWAP_S8_0 { 1, 8, 16, 16 }, { 1, 8, 16, 16 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_XY_SWAP_U8_0 { 1, 8, 16, 16 }, { 1, 8, 16, 16 }, { 0, 1, 3, 2 }, tensor{ 0 }, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
@@ -343,6 +345,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_activation_scale_eltwise, ::testin
     permute_params{ CASE_PERMUTE_XY_SWAP_F32_2, 2, 5 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_0, 2, 5 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_1, 2, 5 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_0, 2, 5 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_1, 2, 5 },
     permute_params{ CASE_PERMUTE_XY_SWAP_S8_0, 2, 5 },
     permute_params{ CASE_PERMUTE_XY_SWAP_U8_0, 2, 5 }
 }));
@@ -385,6 +389,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_quant_u8, ::testing::ValuesIn(std:
     permute_params{ CASE_PERMUTE_XY_SWAP_F32_2, 2, 3 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_0, 2, 3 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_1, 2, 3 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_0, 2, 3 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_1, 2, 3 },
 }));
 
 class permute_scale_actv_eltw_scale_actv_quant_i8: public PermuteFusingTest {};
@@ -484,6 +490,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i
     permute_params{ CASE_PERMUTE_XY_SWAP_F32_2, 2, 8 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_0, 2, 8 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_1, 2, 8 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_0, 2, 8 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_1, 2, 8 },
     permute_params{ CASE_PERMUTE_XY_SWAP_S8_0, 2, 8 },
     permute_params{ CASE_PERMUTE_XY_SWAP_U8_0, 2, 8 },
 }));
@@ -610,6 +618,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv, ::t
     permute_params{ CASE_PERMUTE_XY_SWAP_F32_2, 2, 7 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_0, 2, 7 },
     permute_params{ CASE_PERMUTE_XY_SWAP_F16_1, 2, 7 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_0, 2, 7 },
+    permute_params{ CASE_PERMUTE_XY_SWAP_BF16_1, 2, 7 },
     permute_params{ CASE_PERMUTE_XY_SWAP_S8_0, 2, 7 },
     permute_params{ CASE_PERMUTE_XY_SWAP_U8_0, 2, 7 },
 }));
