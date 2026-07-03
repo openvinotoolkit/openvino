@@ -211,7 +211,7 @@ void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-void sync_vm_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
+void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
     constexpr size_t chunk_size = 128 * util::one_mib;
@@ -315,7 +315,7 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
             runs);
         r.t_hint_prefetch = bench(
             [&]() {
-                strategy::sync_vm_prefetch_then_memcpy(tf.path, tf.size_bytes());
+                strategy::parallel_loop_sync_then_memcpy(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -325,10 +325,10 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MiB)", "sync vm prefetch", "default mmap", "ifstream");
-    printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
+    printf("%-10s | %18s | %13s | %13s\n", "Size (MiB)", "parallel loop sync", "default mmap", "ifstream");
+    printf("%-10s-|-%18s-|-%13s-|-%13s\n", "----------", "------------------", "-------------", "-------------");
     for (const auto& r : results) {
-        printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
+        printf("%-10zu | %15lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
 }
 
@@ -377,18 +377,18 @@ TEST_F(FileLoadBenchmark, strategies_memory_lock) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync vm prefetch", "loop touch");
-    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    printf("%-10s | %18s | %13s\n", "Size (MiB)", "parallel loop sync", "loop touch");
+    printf("%-10s-|-%18s-|-%13s\n", "----------", "------------------", "-------------");
     for (const auto& r : results) {
-        printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
+        printf("%-10zu | %15lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
     }
 
     printf("\n--- Throughput (MiB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync vm prefetch", "loop touch");
-    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    printf("%-10s | %18s | %13s\n", "Size (MiB)", "parallel loop sync", "loop touch");
+    printf("%-10s-|-%18s-|-%13s\n", "----------", "------------------", "-------------");
 
     for (const auto& r : results) {
-        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s\n",
+        printf("%-10zu | %13.0f MiB/s | %8.0f MiB/s\n",
                r.mib,
                throughput_mibs(r.mib, r.t_prefetch_mlock),
                throughput_mibs(r.mib, r.t_mlock));
