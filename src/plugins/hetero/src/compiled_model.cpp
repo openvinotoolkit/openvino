@@ -5,6 +5,7 @@
 #include "compiled_model.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <sstream>
 
@@ -21,6 +22,20 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "properties.hpp"
+
+namespace {
+
+void read_payload_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName) {
+    const auto streamSize = static_cast<std::streamsize>(size);
+    if (streamSize == 0) {
+        return;
+    }
+
+    stream.read(data, streamSize);
+    OPENVINO_ASSERT(stream.gcount() == streamSize && !stream.bad(), "Failed to read HETERO compiled blob ", fieldName);
+}
+
+}  // namespace
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::vector<ov::hetero::SubmodelInfo>& submodels,
@@ -101,8 +116,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = get_str_attr(heteroNode, "name");
-    const bool is_framed_blob = heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1) >=
-                                HETERO_BLOB_FORMAT_VERSION;
+    const bool is_framed_blob =
+        heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1) >= HETERO_BLOB_FORMAT_VERSION;
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
@@ -131,13 +146,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
             if (payloadHeader.type == COMPILED_BLOB_PAYLOAD && device == "CPU" &&
                 payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
                 std::string payload(payloadHeader.size, '\0');
-                model.read(payload.data(), static_cast<std::streamsize>(payloadHeader.size));
+                read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
                 std::stringstream payloadStream(std::move(payload));
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
             } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD &&
                        payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
                 ov::Tensor payload(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(payloadHeader.size)});
-                model.read(payload.data<char>(), static_cast<std::streamsize>(payloadHeader.size));
+                read_payload_bytes(model, payload.data<char>(), payloadHeader.size, "compiled submodel payload");
                 compiled_model = core->import_model(payload, device, loadConfig);
             } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD || payloadHeader.type == IR_PAYLOAD) {
                 BoundedStreamBuffer buffer{model, payloadHeader.size};
@@ -399,8 +414,10 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
                 finish_framed_payload(model_stream, payloadFrame, payloadBuffer.written_size());
                 continue;
             } catch (ov::NotImplemented&) {
-                OPENVINO_ASSERT(payloadBuffer.written_size() == 0,
-                                "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
+                OPENVINO_ASSERT(
+                    payloadBuffer.written_size() == 0,
+                    "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
+                model_stream.clear();
                 model_stream.seekp(payloadFrame.type_pos);
             }
             payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);

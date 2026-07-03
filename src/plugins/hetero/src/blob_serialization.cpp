@@ -26,6 +26,15 @@ std::streamsize checked_stream_size(std::uint64_t size, const char* fieldName) {
     return static_cast<std::streamsize>(size);
 }
 
+std::streamoff checked_stream_offset(std::uint64_t offset, const char* fieldName) {
+    OPENVINO_ASSERT(offset <= static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max()),
+                    "HETERO compiled blob ",
+                    fieldName,
+                    " size is too large: ",
+                    offset);
+    return static_cast<std::streamoff>(offset);
+}
+
 void read_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName) {
     const auto streamSize = checked_stream_size(size, fieldName);
     if (streamSize == 0) {
@@ -57,10 +66,11 @@ BoundedStreamBuffer::BoundedStreamBuffer(std::istream& stream, std::uint64_t siz
       _start(stream.tellg()),
       _size(size) {
     OPENVINO_ASSERT(_start != std::streampos(-1), "HETERO compiled blob input stream is not seekable");
+    checked_stream_offset(_size, "payload");
 }
 
 std::streampos BoundedStreamBuffer::end_pos() const {
-    return _start + static_cast<std::streamoff>(_size);
+    return _start + checked_stream_offset(_size, "payload");
 }
 
 std::streamsize BoundedStreamBuffer::xsgetn(char* data, std::streamsize count) {
@@ -70,7 +80,7 @@ std::streamsize BoundedStreamBuffer::xsgetn(char* data, std::streamsize count) {
 
     const auto bytesToRead = std::min(static_cast<std::uint64_t>(count), _size - _pos);
     _stream.clear();
-    _stream.seekg(_start + static_cast<std::streamoff>(_pos));
+    _stream.seekg(_start + checked_stream_offset(_pos, "payload position"));
     _stream.read(data, static_cast<std::streamsize>(bytesToRead));
 
     const auto bytesRead = _stream.gcount();
@@ -89,7 +99,7 @@ BoundedStreamBuffer::int_type BoundedStreamBuffer::underflow() {
     }
 
     _stream.clear();
-    _stream.seekg(_start + static_cast<std::streamoff>(_pos));
+    _stream.seekg(_start + checked_stream_offset(_pos, "payload position"));
     _stream.read(&_current, 1);
     return _stream.gcount() == 1 ? traits_type::to_int_type(_current) : traits_type::eof();
 }
@@ -130,9 +140,7 @@ BoundedStreamBuffer::pos_type BoundedStreamBuffer::seekpos(pos_type pos, std::io
     return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
 }
 
-FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream)
-    : _stream(stream),
-      _start(stream.tellp()) {
+FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream) : _stream(stream), _start(stream.tellp()) {
     OPENVINO_ASSERT(_start != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
 }
 
@@ -205,7 +213,7 @@ PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType) 
 }
 
 void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame, std::uint64_t payloadSize) {
-    const auto payloadEndPos = payloadFrame.payload_start_pos + static_cast<std::streamoff>(payloadSize);
+    const auto payloadEndPos = payloadFrame.payload_start_pos + checked_stream_offset(payloadSize, "payload");
     model_stream.seekp(payloadFrame.size_pos);
     write_size(model_stream, payloadSize, "payload size");
     model_stream.seekp(payloadEndPos);
