@@ -24,6 +24,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root${SUFFIX}")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;MATMUL;REORDER;POOLING;REDUCTION;RNN")
+        set(ONEDNN_GPU_BUILD_ALWAYS ON CACHE BOOL "Always run oneDNN GPU external build step. It allows incremental build of oneDNN when it is changed.")
         set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XE2;XE3;XE3P")
         set(onednn_lib_name "${DNNL_GPU_LIBRARY_NAME}${SUFFIX}")
 
@@ -198,6 +199,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 ${onednn_gpu_cache_args}
             # Build Step Options:
             BUILD_BYPRODUCTS ${onednn_lib_path}
+            BUILD_ALWAYS ${ONEDNN_GPU_BUILD_ALWAYS}
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
