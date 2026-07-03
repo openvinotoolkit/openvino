@@ -522,7 +522,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int r = 0; r < sv_score_blocks; ++r)
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
-                    A_tile[r][cd](pA[r], vb[cd], A_tile[r][cd]);
+                    A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
         }
     }
 
