@@ -648,34 +648,20 @@ public:
         }
         init(node.as<moe_3gemm_fused_compressed>().get_primitive());
 
-        auto use_micro_gemm_prefill_str = std::getenv("MOE_USE_MICRO_GEMM_PREFILL");
-        if (use_micro_gemm_prefill_str) {
-            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
-            use_micro_gemm_prefill = std::stoi(use_micro_gemm_prefill_str);
-        } else {
-            // micro_gemm is better than gemm, default to use it
-            use_micro_gemm_prefill = true;
-        }
+        const auto& config = params.get_program().get_config();
 
-        auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
-        if (use_gpu_mask_gen_prefill_str) {
-            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
-            use_gpu_mask_gen_prefill = std::stoi(use_gpu_mask_gen_prefill_str);
-        } else {
-            // gpu mask gen kernel performace is worse than cpu mask gen, default is off
-            use_gpu_mask_gen_prefill = false;
-        }
+        // micro_gemm is better than gemm, default to use it
+        use_micro_gemm_prefill = config.get_moe_use_micro_gemm_prefill();
+        // gpu mask gen kernel performance is worse than cpu mask gen, default is off
+        use_gpu_mask_gen_prefill = config.get_moe_use_gpu_mask_gen_prefill();
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
         if (info.arch < gpu_arch::xe2) {
             use_micro_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                                   << ", arch=" << static_cast<int>(info.arch) << std::endl;
-        } else {
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                                   << ", arch=" << static_cast<int>(info.arch) << std::endl;
         }
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
+                               << ", arch=" << static_cast<int>(info.arch) << std::endl;
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
@@ -685,13 +671,7 @@ public:
 
         // grouped_gemm path: single OneDNN grouped matmul per GEMM layer (all experts at once).
         // micro_gemm takes priority; grouped_gemm falls back to onednn loop by default.
-        auto use_grouped_gemm_prefill_str = std::getenv("MOE_USE_GROUPED_GEMM_PREFILL");
-        if (use_grouped_gemm_prefill_str) {
-            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GROUPED_GEMM_PREFILL = " << use_grouped_gemm_prefill_str << std::endl;
-            use_grouped_gemm_prefill = std::stoi(use_grouped_gemm_prefill_str) != 0;
-        } else {
-            use_grouped_gemm_prefill = true;
-        }
+        use_grouped_gemm_prefill = config.get_moe_use_grouped_gemm_prefill();
         // grouped_gemm supersedes micro_gemm
         if (use_grouped_gemm_prefill) {
             use_micro_gemm_prefill = false;
@@ -699,14 +679,11 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
 
-        auto batched_gemv_threshold_str = std::getenv("MOE_BATCHED_GEMV_THRESHOLD");
-        if (batched_gemv_threshold_str) {
-            batched_gemv_threshold = std::stoul(batched_gemv_threshold_str);
-            if (batched_gemv_threshold <= 0) {
-                batched_gemv_threshold = 1;
-            }
-            GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
+        batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
+        if (batched_gemv_threshold == 0) {
+            batched_gemv_threshold = 1;
         }
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): batched_gemv_threshold=" << batched_gemv_threshold << std::endl;
 
         // Don't change the order of stages
         add_stage(gather, params);
@@ -1140,14 +1117,13 @@ public:
         }
     }
 
-    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask, size_t actual_token_num) {
         // shape: [token_num, topk]
         auto layout = mem->get_layout();
-        const auto& shape = layout.get_shape();
 
         int max_expert_num = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
-        int max_tokens = static_cast<int>(shape[0]);
+        int max_tokens = static_cast<int>(actual_token_num);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
         expert_mask.batch.resize(max_expert_num, {});
@@ -1442,7 +1418,7 @@ public:
         } else {
             ret_event = events.empty() ? nullptr : events[0];
             expert_mask_cpu expert_mask_cpu;
-            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
+            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu, token_num);
 
             auto token_size = token_num;
             auto max_topk = static_cast<int>(cur_moe->_config.top_k);
@@ -1891,8 +1867,9 @@ public:
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
+        auto token_num = get_seq_len(hidden_states_layout);
         expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
+        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask, token_num);
 
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
             if (expert_no >= expert_mask.pred_flag.size()) {
@@ -2001,7 +1978,7 @@ public:
         // ----------------------------------------------------------------
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
         expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask);
+        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
 
         // Flat list of source token indices per expert – input for prefill_gather
         std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);

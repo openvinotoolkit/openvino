@@ -122,7 +122,8 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     return ev;
 }
 
-shared_mem_params gpu_buffer::get_internal_params() const {
+shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] Can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
@@ -366,7 +367,8 @@ void gpu_image2d::unlock(const stream& stream) {
 }
 
 
-shared_mem_params gpu_image2d::get_internal_params() const {
+shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_image2d can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
@@ -445,7 +447,8 @@ gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
     surface(params.surface),
     plane(params.plane) { }
 
-shared_mem_params gpu_media_buffer::get_internal_params() const {
+shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_media_buffer can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_vasurface, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), surface, plane };
@@ -460,7 +463,8 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
     device(params.user_device),
     resource(params.mem) { }
 
-shared_mem_params gpu_dx_buffer::get_internal_params() const {
+shared_mem_params gpu_dx_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_dx_buffer can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_dxbuffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), resource, 0 };
@@ -687,7 +691,8 @@ dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const m
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_usm can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type

@@ -8,18 +8,10 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
-    ov_add_compiler_flags(/wd4018)
-    ov_add_compiler_flags(/wd4267)
-    ov_add_compiler_flags(/wd4244)
-    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
-    ov_add_compiler_flags(/wd4334)
-    # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
-    ov_add_compiler_flags(/wd4146)
-elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+if (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
+
 if(NOT BUILD_SHARED_LIBS)
     # Symbols are located in both src and include folders
     file(GLOB_RECURSE onednn_files
@@ -181,6 +173,10 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
+endif()
+
+if(X86_64 OR AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
 endif()
 
 if(NOT (AARCH64 OR ARM))
