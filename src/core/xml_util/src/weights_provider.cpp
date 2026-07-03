@@ -15,12 +15,17 @@ namespace ov::util {
 
 namespace {
 
-class FileRegionBuffer : public ov::AlignedBuffer {
+class FileRegionBuffer : public ov::LazyBuffer {
 public:
-    FileRegionBuffer(size_t size, size_t source_id, size_t offset, std::shared_ptr<ov::AlignedBuffer> source_handle)
-        : ov::AlignedBuffer(size),
+    FileRegionBuffer(std::filesystem::path file_path,
+                     size_t size,
+                     size_t source_id,
+                     size_t offset,
+                     std::shared_ptr<ov::AlignedBuffer> source_handle)
+        : ov::LazyBuffer(std::move(file_path), offset, size),
           m_source_handle(std::move(source_handle)),
-          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {}
+          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {
+    }
 
     std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
         return m_descriptor;
