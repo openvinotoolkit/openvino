@@ -25,11 +25,7 @@ describe("Tests for reading model.", () => {
 
   beforeEach(() => {
     core = new ov.Core();
-    weightsTensor = new ov.Tensor(
-      ov.element.u8,
-      [weightsFile.length],
-      new Uint8Array(weightsFile),
-    );
+    weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.length], new Uint8Array(weightsFile));
   });
 
   describe("Core.readModeSync", () => {
@@ -59,10 +55,7 @@ describe("Tests for reading model.", () => {
     });
 
     it("readModelSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ", () => {
-      const model = core.readModelSync(
-        new Uint8Array(modelFile),
-        new Uint8Array(weightsFile),
-      );
+      const model = core.readModelSync(new Uint8Array(modelFile), new Uint8Array(weightsFile));
       assert.ok(model instanceof ov.Model);
       assert.equal(model.inputs.length, 1);
     });
@@ -93,10 +86,7 @@ describe("Tests for reading model.", () => {
     });
 
     it("readModel(Uint8ArrayBuffer, Uint8ArrayBuffer) ", async () => {
-      const model = await core.readModel(
-        new Uint8Array(modelFile),
-        new Uint8Array(weightsFile),
-      );
+      const model = await core.readModel(new Uint8Array(modelFile), new Uint8Array(weightsFile));
       assert.equal(model.inputs.length, 1);
     });
   });
