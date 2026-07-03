@@ -6,7 +6,7 @@ import pytest
 import torch
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from openvino import convert_model
+from openvino import convert_model, PartialShape
 
 
 def flattenize_tuples(list_input):
@@ -63,10 +63,21 @@ class TestTorchConvertModel(TestConvertModel):
         else:
             return flattenize_structure(inputs)
 
+    def npu_static_input(self):
+        # NPU has no runtime for dynamic shapes and the PyTorch frontend keeps input
+        # dims dynamic even when traced with a concrete example. Declare static input
+        # shapes (derived from the traced example) so the compiler-in-plugin can compile.
+        example = self.example
+        tensors = list(example.values()) if isinstance(example, dict) else flattenize_tuples(example)
+        return [PartialShape(list(t.shape)) for t in tensors]
+
     def convert_model_impl(self, model_obj):
+        is_npu = 'NPU' in (getattr(self, "ie_device", "") or '')
         if hasattr(self, "mode") and self.mode == "export":
             export_kwargs = {}
-            if getattr(self, "dynamo_input", None):
+            if is_npu:
+                export_kwargs["input"] = self.npu_static_input()
+            elif getattr(self, "dynamo_input", None):
                 export_kwargs["input"] = self.dynamo_input
             ov_model = convert_model(model_obj,
                                      example_input=self.example,
@@ -75,9 +86,13 @@ class TestTorchConvertModel(TestConvertModel):
                                      **export_kwargs,
                                      )
         else:
+            convert_kwargs = {}
+            if is_npu:
+                convert_kwargs["input"] = self.npu_static_input()
             ov_model = convert_model(model_obj,
                                      example_input=self.example,
-                                     verbose=True
+                                     verbose=True,
+                                     **convert_kwargs,
                                      )
         return ov_model
 
