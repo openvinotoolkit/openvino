@@ -31,6 +31,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include "utils/arm_isa_support.h"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -1002,8 +1003,13 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     // reference model does not implement f16, hence skip the test for now
-    if (inType == ElementType::f16)
+    if (inType == ElementType::f16) {
         GTEST_SKIP();
+    }
+    // If not SVE machine skip the test
+    if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
+        GTEST_SKIP();
+    }
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices, false);
     // reference model doesn't support sage attention, disable it

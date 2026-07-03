@@ -788,22 +788,22 @@ inline void transpose_8x8_kernel(float* src, size_t ld_src, float* dst, size_t l
 }
 
 inline void transpose_4x4_kernel(float* src, size_t ld_src, float* dst, size_t ld_dst) {
-     // load from src to registers
+    // load from src to registers
     svfloat32_t a = svld1_f32(svptrue_b8(), &src[0 * ld_src]);
     svfloat32_t b = svld1_f32(svptrue_b8(), &src[1 * ld_src]);
     svfloat32_t c = svld1_f32(svptrue_b8(), &src[2 * ld_src]);
     svfloat32_t d = svld1_f32(svptrue_b8(), &src[3 * ld_src]);
-  // unpacking and interleaving 32-bit elements
+    // unpacking and interleaving 32-bit elements
     svfloat32_t ta = svtrn1_f32(a, b);
     svfloat32_t tb = svtrn2_f32(a, b);
     svfloat32_t tc = svtrn1_f32(c, d);
     svfloat32_t td = svtrn2_f32(c, d);
-  // unpacking and interleaving 64-bit elements
+    // unpacking and interleaving 64-bit elements
     a = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(ta), svreinterpret_f64_f32(tc)));
     b = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(ta), svreinterpret_f64_f32(tc)));
     c = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(tb), svreinterpret_f64_f32(td)));
     d = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(tb), svreinterpret_f64_f32(td)));
-  // store to memory
+    // store to memory
     svst1_f32(svptrue_b8(), &dst[0 * ld_dst], a);
     svst1_f32(svptrue_b8(), &dst[1 * ld_dst], c);
     svst1_f32(svptrue_b8(), &dst[2 * ld_dst], b);
@@ -813,8 +813,8 @@ inline void transpose_4x4_kernel(float* src, size_t ld_src, float* dst, size_t l
 inline void transpose_16x16_kernel(float* dst, float* src, size_t dst_stride, size_t src_stride) {
     // For SVE-256 machine - 16x16 kernel would take 4 iterations of 8x8 kernel to fully transpose
     // For SVE-128 machine - 16x16 kernel would take 16 iterations of 4x4 kernel to fully transpose
-    // For any other SVE machine reference implementation will be used 
-    
+    // For any other SVE machine reference implementation will be used
+
     if (svcnth() == 16) {
         transpose_8x8_kernel(src, src_stride, dst, dst_stride);
         transpose_8x8_kernel(src + 8, src_stride, dst + 8 * dst_stride, dst_stride);
@@ -824,10 +824,10 @@ inline void transpose_16x16_kernel(float* dst, float* src, size_t dst_stride, si
         auto t8x8kernel = [&](float* src, size_t src_stride, float* dst, size_t dst_stride) {
             transpose_4x4_kernel(src, src_stride, dst, dst_stride);
             transpose_4x4_kernel(src + 4, src_stride, dst + 4 * dst_stride, dst_stride);
-            transpose_4x4_kernel(src + 4 * src_stride , src_stride, dst + 4, dst_stride);
+            transpose_4x4_kernel(src + 4 * src_stride, src_stride, dst + 4, dst_stride);
             transpose_4x4_kernel(src + 4 * src_stride + 4, src_stride, dst + 4 * dst_stride + 4, dst_stride);
         };
-        
+
         t8x8kernel(src, src_stride, dst, dst_stride);
         t8x8kernel(src + 8, src_stride, dst + 8 * dst_stride, dst_stride);
         t8x8kernel(src + 8 * src_stride, src_stride, dst + 8, dst_stride);
