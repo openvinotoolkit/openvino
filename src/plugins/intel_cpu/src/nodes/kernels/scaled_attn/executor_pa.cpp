@@ -464,9 +464,12 @@ struct MHAHelper {
     std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
     // Precompute image group boundaries from token_type_ids.
+    // The arrays are indexed by the global batched-token index, while the stored values are expressed
+    // in KV-cache coordinates (i.e. already offset by past_len - seq_begin) so they can be compared
+    // directly against ncausal / cur_kv_len during attention.
     // For each image token:
-    //   _image_group_end[i] = index past the last contiguous image token in the same group
-    //   _image_group_begin[i] = index of the first contiguous image token in the same group
+    //   _image_group_end[i] = KV coordinate past the last contiguous image token in the same group
+    //   _image_group_begin[i] = KV coordinate of the first contiguous image token in the same group
     // For text tokens, both are -1.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
@@ -481,6 +484,7 @@ struct MHAHelper {
         for (int32_t seq = 0; seq < seq_count; seq++) {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
+            const int32_t kv_offset = past_lens.ptr<int32_t>()[seq] - seq_begin;
 
             // Record both boundaries for each contiguous image group
             for (int32_t i = seq_begin; i < seq_end;) {
@@ -495,8 +499,8 @@ struct MHAHelper {
                     }
                     const int32_t group_end = i;
                     for (int32_t j = group_begin; j < group_end; ++j) {
-                        _image_group_begin[j] = group_begin;
-                        _image_group_end[j] = group_end;
+                        _image_group_begin[j] = group_begin + kv_offset;
+                        _image_group_end[j] = group_end + kv_offset;
                     }
                 }
             }
@@ -890,8 +894,16 @@ struct MHAHelper {
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
-        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
+
+        const size_t seq_kv_len = past_len + q_len;
+        size_t cur_kv_len_ext = cur_kv_len;
+        if (_has_image_tokens) {
+            for (size_t m = q_start; m < q_end; m++) {
+                cur_kv_len_ext = std::max(cur_kv_len_ext, get_ncausal(q_token_start + m, cur_kv_len, seq_kv_len));
+            }
+        }
+        const auto cur_kv_len_ext_blocks = div_up(cur_kv_len_ext, _block_size);
 
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
@@ -925,7 +937,7 @@ struct MHAHelper {
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
             // map runtime (block_size) indices to mask (xt_block_size) indices
-            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+            for (size_t k_blk = 0; k_blk < cur_kv_len_ext_blocks; k_blk++) {
                 // sparse attention mask filtering
                 if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
@@ -966,7 +978,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
-                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, seq_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (query_to_query_info_ptr != nullptr) {
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
@@ -1009,7 +1021,7 @@ struct MHAHelper {
                                                nullptr,
                                                false,
                                                new_causal,
-                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               rnd_up(cur_kv_len_ext, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                sink,
@@ -1039,7 +1051,7 @@ struct MHAHelper {
                                                nullptr,
                                                false,
                                                ncausal,
-                                               rnd_up(cur_kv_len, _block_size),
+                                               rnd_up(cur_kv_len_ext, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                sink,
@@ -1067,7 +1079,7 @@ struct MHAHelper {
                 q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
             // for each weight block, loop through all value block
-            for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
+            for (size_t v_blk = 0; v_blk < cur_kv_len_ext_blocks; v_blk++) {
                 // sparse attention mask filtering for value blocks
                 if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, v_m] = map_to_mask_idx(q_blk, v_blk);
@@ -1146,7 +1158,16 @@ struct MHAHelper {
         auto q_cnt = q_end - q_start;
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        // Bidirectional image-group attention may require attending to keys beyond the causal range
+        // (future image tokens of the same group); extend the kv length to cover them.
+        const size_t seq_kv_len = past_len + q_len;
+        size_t cur_kv_len_ext = cur_kv_len;
+        if (_has_image_tokens) {
+            for (size_t m = q_start; m < q_end; m++) {
+                cur_kv_len_ext = std::max(cur_kv_len_ext, get_ncausal(q_token_start + m, cur_kv_len, seq_kv_len));
+            }
+        }
+        const auto cur_kv_len_ext_blocks = div_up(cur_kv_len_ext, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
         PlainTensor bias_wv, bias_qk;
         bias_wv.resize<float16_t>({SV});
@@ -1162,7 +1183,7 @@ struct MHAHelper {
             // 1 1 0 0 ...
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
-            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+            for (size_t k_blk = 0; k_blk < cur_kv_len_ext_blocks; k_blk++) {
                 auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
                 auto* qk_out_ptr =
                     c_ptr +
@@ -1181,7 +1202,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply softmax in f32 precision
                 const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
-                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, seq_kv_len);
                 auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
 
@@ -1195,10 +1216,10 @@ struct MHAHelper {
                 }
                 PlainTensor f32_cvt;
                 if (q_is_xf16) {
-                    f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
+                    f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len_ext, _block_size)}});
                     sve_utils::cvt_copy(f32_cvt.ptr<float>(0),
                                         reinterpret_cast<DATA_TYPE*>(score),
-                                        rnd_up(cur_kv_len, _block_size));
+                                        rnd_up(cur_kv_len_ext, _block_size));
                     soft_in = f32_cvt.ptr<float>(0);
                 }
                 if (_sliding_window) {
@@ -1213,7 +1234,7 @@ struct MHAHelper {
                                                nullptr,
                                                false,
                                                new_causal,
-                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               rnd_up(cur_kv_len_ext, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                nullptr);
@@ -1235,7 +1256,7 @@ struct MHAHelper {
                                                nullptr,
                                                false,
                                                ncausal,
-                                               rnd_up(cur_kv_len, _block_size),
+                                               rnd_up(cur_kv_len_ext, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                nullptr,
@@ -1262,7 +1283,7 @@ struct MHAHelper {
             DATA_TYPE* v_ptr;
             v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, 0);
             PlainTensor packedB;
-            KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_blocks, _score_stride, SV, H * SV);
+            KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_ext_blocks, _score_stride, SV, H * SV);
             packedB.resize<float16_t>({wvKernel.get_packed_rhs_size()});
             wvKernel.packB(reinterpret_cast<float16_t*>(v_ptr), bias_wv.ptr<float16_t>(0), packedB.ptr<float16_t>(0));
             wvKernel.executeGemm(reinterpret_cast<float16_t*>(w_ptr), packedB.ptr<float16_t>(0), out_ptr);

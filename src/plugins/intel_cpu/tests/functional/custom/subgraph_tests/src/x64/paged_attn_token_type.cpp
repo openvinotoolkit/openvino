@@ -242,6 +242,127 @@ public:
         output.copy_to(output_copy);
         return {output_copy};
     }
+
+    // Process the sequence in two chunks that share a single KV cache (chunked
+    // prefill / prefix caching, i.e. the second call runs with past_len > 0).
+    // Returns the output rows produced by the SECOND chunk. This is the scenario
+    // that exercises the KV-cache-coordinate offset (past_len - seq_begin) applied
+    // to the image-group boundaries: with past_len == 0 the offset is a no-op, so
+    // it can only be validated when past_len > 0.
+    RunResult run_pa_chunked(std::shared_ptr<ov::Model> model,
+                             ov::element::Type data_type,
+                             size_t seq_len,
+                             size_t head_size,
+                             size_t head_num,
+                             const std::vector<int32_t>& token_types,
+                             size_t chunk1_len) {
+        OPENVINO_ASSERT(token_types.size() == seq_len);
+        OPENVINO_ASSERT(chunk1_len > 0 && chunk1_len < seq_len);
+
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        function = model;
+        compile_model();
+        auto infer_request = compiledModel.create_infer_request();
+
+        // KV cache is allocated once and shared across both infer calls so the
+        // keys/values written by chunk 1 are visible to chunk 2.
+        ov::Tensor key_cache_tensor, value_cache_tensor;
+        for (const auto& input : compiledModel.inputs()) {
+            for (auto& name : input.get_names()) {
+                auto cache_precision = input.get_element_type();
+                const size_t block_nums = 1024 / 32;
+                ov::PartialShape pshape;
+                if (name.find("key_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    key_cache_tensor = ov::Tensor(cache_precision, pshape.get_shape());
+                } else if (name.find("value_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    value_cache_tensor = ov::Tensor(cache_precision, pshape.get_shape());
+                }
+            }
+        }
+        std::memset(key_cache_tensor.data(), 0, key_cache_tensor.get_byte_size());
+        std::memset(value_cache_tensor.data(), 0, value_cache_tensor.get_byte_size());
+
+        auto params = model->get_parameters();
+        const size_t hidden_dim = head_num * head_size;
+
+        // Full-sequence q/k/v, generated identically to run_pa_with_token_types so
+        // that each chunk's rows are exactly the corresponding single-shot rows.
+        auto fill_tensor = [](ov::Tensor& t, float base, float stride) {
+            auto* p = t.data<float>();
+            for (size_t i = 0; i < t.get_size(); i++) {
+                p[i] = base + stride * static_cast<float>(i % 17);
+            }
+        };
+        ov::Tensor q_full(data_type, {seq_len, hidden_dim});
+        ov::Tensor k_full(data_type, {seq_len, hidden_dim});
+        ov::Tensor v_full(data_type, {seq_len, hidden_dim});
+        fill_tensor(q_full, 0.1f, 0.01f);
+        fill_tensor(k_full, 0.2f, 0.01f);
+        fill_tensor(v_full, 0.3f, 0.01f);
+
+        const int32_t total_blocks = static_cast<int32_t>((seq_len + 31) / 32);
+        ov::Tensor block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
+        for (int32_t i = 0; i < total_blocks; i++)
+            block_indices.data<int32_t>()[i] = i;
+
+        auto slice_rows = [&](const ov::Tensor& src, size_t row0, size_t nrows) {
+            ov::Tensor dst(src.get_element_type(), {nrows, hidden_dim});
+            std::memcpy(dst.data<float>(), src.data<float>() + row0 * hidden_dim,
+                        nrows * hidden_dim * sizeof(float));
+            return dst;
+        };
+
+        auto run_chunk = [&](size_t row0, size_t nrows, int32_t past_len, int32_t nblocks) {
+            ov::Tensor q = slice_rows(q_full, row0, nrows);
+            ov::Tensor k = slice_rows(k_full, row0, nrows);
+            ov::Tensor v = slice_rows(v_full, row0, nrows);
+
+            ov::Tensor past_lens(ov::element::i32, {1});
+            ov::Tensor subsequence_begins(ov::element::i32, {2});
+            ov::Tensor block_indices_begins(ov::element::i32, {2});
+            past_lens.data<int32_t>()[0] = past_len;
+            subsequence_begins.data<int32_t>()[0] = 0;
+            subsequence_begins.data<int32_t>()[1] = static_cast<int32_t>(nrows);
+            block_indices_begins.data<int32_t>()[0] = 0;
+            block_indices_begins.data<int32_t>()[1] = nblocks;
+
+            ov::Tensor token_type_tensor(ov::element::i32, {nrows});
+            std::memcpy(token_type_tensor.data<int32_t>(), token_types.data() + row0,
+                        nrows * sizeof(int32_t));
+
+            for (auto& param : params) {
+                auto name = param->get_friendly_name();
+                if (name == "q") infer_request.set_tensor(param, q);
+                else if (name == "k") infer_request.set_tensor(param, k);
+                else if (name == "v") infer_request.set_tensor(param, v);
+                else if (name == "key_cache.0") infer_request.set_tensor(param, key_cache_tensor);
+                else if (name == "value_cache.0") infer_request.set_tensor(param, value_cache_tensor);
+                else if (name == "past_lens") infer_request.set_tensor(param, past_lens);
+                else if (name == "subsequence_begins") infer_request.set_tensor(param, subsequence_begins);
+                else if (name == "block_indices") infer_request.set_tensor(param, block_indices);
+                else if (name == "block_indices_begins") infer_request.set_tensor(param, block_indices_begins);
+                else if (name == "token_type_ids") infer_request.set_tensor(param, token_type_tensor);
+            }
+
+            infer_request.infer();
+            auto output = infer_request.get_output_tensor(0);
+            ov::Tensor out_copy{output.get_element_type(), output.get_shape()};
+            output.copy_to(out_copy);
+            return out_copy;
+        };
+
+        const int32_t nblocks1 = static_cast<int32_t>((chunk1_len + 31) / 32);
+        // Chunk 1: leading tokens, past_len = 0.
+        run_chunk(0, chunk1_len, 0, nblocks1);
+        // Chunk 2: remaining tokens, past_len = chunk1_len (prefix already cached).
+        ov::Tensor chunk2_out = run_chunk(chunk1_len, seq_len - chunk1_len,
+                                          static_cast<int32_t>(chunk1_len), total_blocks);
+        return {chunk2_out};
+    }
 };
 
 // With all-zero token_type_ids (text-only), causal masking must hold:
@@ -451,6 +572,41 @@ TEST_P(PagedAttnTokenTypeTest, ImageTokensWithSlidingWindowDifferFromCausal) {
         << ": expected image tokens (bidir) to differ from causal baseline, but they were identical.\n"
         << "This indicates the sliding window is incorrectly clipping the image group "
         << "[" << first_image << ", " << last_image << "].\n";
+}
+
+TEST_P(PagedAttnTokenTypeTest, ChunkedPrefillMatchesSingleShot) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, head_size, head_num, pattern] = this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    targetDevice = ov::test::utils::DEVICE_CPU;
+
+    const size_t seq_len = pattern.types.size();
+
+    size_t first_image_pos = seq_len;
+    for (size_t i = 0; i < seq_len; ++i) {
+        if (pattern.types[i] == 1) { first_image_pos = i; break; }
+    }
+    ASSERT_GT(first_image_pos, 0u) << "Pattern must start with a text token";
+    ASSERT_LT(first_image_pos, seq_len) << "Pattern must contain an image token";
+    const size_t chunk1_len = first_image_pos;
+
+    auto model_single = get_pa_model(inType, head_size, head_num);
+    auto result_single =
+        run_pa_with_token_types(model_single, inType, seq_len, head_size, head_num, pattern.types);
+
+    auto model_chunked = get_pa_model(inType, head_size, head_num);
+    auto result_chunked =
+        run_pa_chunked(model_chunked, inType, seq_len, head_size, head_num, pattern.types, chunk1_len);
+
+    // Chunk-2 rows [chunk1_len, seq_len) must match the single-shot output.
+    const size_t hidden_dim = head_num * head_size;
+    const size_t chunk2_len = seq_len - chunk1_len;
+    ov::Tensor single_tail(result_single.output.get_element_type(),
+                           ov::Shape{chunk2_len, hidden_dim},
+                           result_single.output.data<float>() + chunk1_len * hidden_dim);
+    ov::test::utils::compare(single_tail, result_chunked.output, 1e-4);
 }
 
 namespace {
