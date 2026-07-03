@@ -242,6 +242,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
             patterns.push_back(std::regex(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)"));
             patterns.push_back(std::regex(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed*)"));
         } else {
             // CVS-172342
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));

@@ -29,7 +29,7 @@ const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::
 const std::vector<ov::element::Type> decompression_precisions = {ov::element::f16};
 const std::vector<DecompressionType> subtract_types = {DecompressionType::full, DecompressionType::empty};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16,
                          GroupedMatMulLayerTest,
                          ::testing::Combine(::testing::ValuesIn(shapes),
                                             ::testing::Values(ov::element::f16),
