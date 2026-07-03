@@ -153,10 +153,15 @@ std::streamsize FramedPayloadOutputBuffer::xsputn(const char* data, std::streams
         return 0;
     }
 
+    const auto newPos = _pos + static_cast<std::uint64_t>(count);
+    checked_stream_offset(newPos, "payload position");
+
     _stream.clear();
-    _stream.seekp(_start + static_cast<std::streamoff>(_pos));
+    _stream.seekp(_start + checked_stream_offset(_pos, "payload position"));
     _stream.write(data, count);
-    _pos += static_cast<std::uint64_t>(count);
+    OPENVINO_ASSERT(_stream, "Failed to write HETERO compiled blob payload data");
+
+    _pos = newPos;
     _writtenSize = std::max(_writtenSize, _pos);
     return count;
 }
