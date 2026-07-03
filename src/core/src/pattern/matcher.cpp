@@ -5,6 +5,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <regex>
 
 #include "openvino/core/log_util.hpp"
@@ -147,34 +148,39 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
-bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector& args, size_t k) {
+bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector& args) {
     // Heap's algorithm: visits every permutation of pattern_args exactly once, performing a single
     // swap between successive permutations. Enumeration order is irrelevant since matching only needs
-    // some permutation to match. The base case (k <= 1) covers the empty and single-argument cases by
-    // running the match attempt once.
-    if (k <= 1) {
-        OPENVINO_LOG_MATCHER6(this);
-        auto saved = start_match();
-        if (match_permutation(pattern_args, args)) {
-            auto res = saved.finish(true);
-            OPENVINO_LOG_MATCHER7(this);
-            return res;
+    // some permutation to match. k is the length of the still-unfixed prefix; it starts at the full
+    // argument count and shrinks by one per level of recursion. The base case (k <= 1) covers the
+    // empty and single-argument cases by running the match attempt once.
+    const std::function<bool(size_t)> permute = [&](size_t k) -> bool {
+        if (k <= 1) {
+            OPENVINO_LOG_MATCHER6(this);
+            auto saved = start_match();
+            if (match_permutation(pattern_args, args)) {
+                auto res = saved.finish(true);
+                OPENVINO_LOG_MATCHER7(this);
+                return res;
+            }
+            OPENVINO_LOG_MATCHER8(this);
+            return false;
         }
-        OPENVINO_LOG_MATCHER8(this);
-        return false;
-    }
 
-    for (size_t i = 0; i < k; ++i) {
-        if (match_permutations(pattern_args, args, k - 1)) {
-            return true;
+        for (size_t i = 0; i < k; ++i) {
+            if (permute(k - 1)) {
+                return true;
+            }
+            if (k % 2 == 0) {
+                std::swap(pattern_args[i], pattern_args[k - 1]);
+            } else {
+                std::swap(pattern_args[0], pattern_args[k - 1]);
+            }
         }
-        if (k % 2 == 0) {
-            std::swap(pattern_args[i], pattern_args[k - 1]);
-        } else {
-            std::swap(pattern_args[0], pattern_args[k - 1]);
-        }
-    }
-    return false;
+        return false;
+    };
+
+    return permute(pattern_args.size());
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
@@ -187,7 +193,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     }
 
     if (ov::op::util::is_commutative(graph_node)) {
-        if (match_permutations(pattern_args, args, pattern_args.size())) {
+        if (match_permutations(pattern_args, args)) {
             return true;
         }
     } else {

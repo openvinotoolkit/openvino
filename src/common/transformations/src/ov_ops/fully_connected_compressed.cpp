@@ -58,19 +58,21 @@ void FullyConnectedCompressed::validate_and_infer_types() {
                           "weight_zero_points). Got: ",
                           input_size);
 
-    // Scales are floating-point; weight zero-points are integral quantization offsets.
-    // An absent zero-points input is passed as an empty (element::dynamic) constant, so a dynamic
-    // element type is always accepted; types may also be unresolved during partial propagation.
+    // weight_scales is a mandatory input, so it must carry a concrete floating-point element type.
+    // Weight zero-points are usually integral quantization offsets, but compression schemes may also
+    // carry a real (e.g. f32) zero-point that is subtracted before scaling, so any numeric type is
+    // accepted; an absent zero-points input is passed as an empty (element::dynamic) constant, which
+    // is why a dynamic element type is accepted there.
     const auto& scales_et = get_input_element_type(3);
     NODE_VALIDATION_CHECK(this,
-                          scales_et.is_real() || scales_et.is_dynamic(),
+                          scales_et.is_real(),
                           "weight_scales (input 3) must have a floating-point element type. Got: ",
                           scales_et);
 
     const auto& zp_et = get_input_element_type(4);
     NODE_VALIDATION_CHECK(this,
-                          zp_et.is_integral_number() || zp_et.is_dynamic(),
-                          "weight_zero_points (input 4) must have an integral element type. Got: ",
+                          zp_et.is_real() || zp_et.is_integral_number() || zp_et.is_dynamic(),
+                          "weight_zero_points (input 4) must have a numeric element type. Got: ",
                           zp_et);
 
     FullyConnected::validate_and_infer_types();

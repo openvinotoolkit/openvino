@@ -1692,3 +1692,38 @@ TEST(pattern, wrap_type_with_output_index_constraint) {
     ASSERT_FALSE(tm.match(pattern_reshape_out2, reshape1));
     ASSERT_TRUE(tm.match(pattern_reshape_out2, reshape2));
 }
+
+// A wrap_type pattern over a sequence of commutative ops that distinguishes the two operands of each
+// op (a Parameter-typed input vs a Constant-typed input) must match regardless of the operand order
+// used when the model was built. This exercises Matcher::match_permutations, the Heap's-algorithm
+// permutation search over commutative arguments: a successful match also proves the operands were
+// told apart, since the Parameter slot only accepts Parameters and the scale slots only Constants.
+TEST(pattern, commutative_arguments_permutations) {
+    // Pattern: (param * scale0) * scale1, two chained commutative Multiplies.
+    auto p_param = pattern::wrap_type<op::v0::Parameter>();
+    auto p_scale0 = pattern::wrap_type<op::v0::Constant>();
+    auto p_mul0 = pattern::wrap_type<op::v1::Multiply>({p_param, p_scale0});
+    auto p_scale1 = pattern::wrap_type<op::v0::Constant>();
+    auto p_mul1 = pattern::wrap_type<op::v1::Multiply>({p_mul0, p_scale1});
+
+    const Shape shape{2, 3};
+    auto make_model = [&](bool swap0, bool swap1) -> std::shared_ptr<Node> {
+        auto x = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        auto c0 = op::v0::Constant::create(element::f32, shape, {2.0f});
+        auto c1 = op::v0::Constant::create(element::f32, shape, {3.0f});
+        auto mul0 = swap0 ? std::make_shared<op::v1::Multiply>(c0, x) : std::make_shared<op::v1::Multiply>(x, c0);
+        return swap1 ? std::make_shared<op::v1::Multiply>(c1, mul0) : std::make_shared<op::v1::Multiply>(mul0, c1);
+    };
+
+    // Every operand-order permutation of the two commutative Multiplies must match.
+    for (bool swap0 : {false, true}) {
+        for (bool swap1 : {false, true}) {
+            TestMatcher tm;
+            auto model = make_model(swap0, swap1);
+            EXPECT_TRUE(tm.match(p_mul1, model)) << "no match for swap0=" << swap0 << " swap1=" << swap1;
+            EXPECT_TRUE(ov::as_type_ptr<op::v0::Parameter>(tm.get_pattern_map()[p_param]));
+            EXPECT_TRUE(ov::as_type_ptr<op::v0::Constant>(tm.get_pattern_map()[p_scale0]));
+            EXPECT_TRUE(ov::as_type_ptr<op::v0::Constant>(tm.get_pattern_map()[p_scale1]));
+        }
+    }
+}

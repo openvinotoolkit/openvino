@@ -5,6 +5,8 @@
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <tuple>
+#include <unordered_set>
+#include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -34,6 +36,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -64,13 +67,15 @@ using ov::OutputVector;
 using ov::pass::paged_attention::PaParams;
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
-    // Optional pattern to capture alibi slopes (based on pattern from bloom)
-    auto general_alibi = any_input();
-    auto general_sdpa_mask = wrap_type<v1::Multiply>({any_input(), general_alibi});  // apply input position_ids
-    general_sdpa_mask = wrap_type<v1::Reshape>({general_sdpa_mask, any_input()});
+    // Optional pattern to capture alibi slopes (based on pattern from bloom). The Multiply combines the
+    // (constant) alibi slopes with a position tensor and is commutative, so capture the Multiply node
+    // itself and select the slopes operand in the callback (see pick_general_alibi_slopes) rather than
+    // relying on which operand the matcher binds -- commutative-argument order is not guaranteed.
+    auto general_alibi_mul = wrap_type<v1::Multiply>({any_input(), any_input()});  // slopes * position_ids
+    auto general_sdpa_mask = wrap_type<v1::Reshape>({general_alibi_mul, any_input()});
     general_sdpa_mask = wrap_type<v1::Reshape>({general_sdpa_mask, any_input()});
     general_sdpa_mask = wrap_type<v1::Select>({any_input(), any_input(), general_sdpa_mask});
-    return {general_alibi, general_sdpa_mask};
+    return {general_alibi_mul, general_sdpa_mask};
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
@@ -105,6 +110,38 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan
     auto mul = wrap_type<v1::Multiply>({any_input(), any_input()});
     alibi_path = wrap_type<v8::Slice>({alibi_path, mul, any_input(), any_input(), any_input()});
     return {baichuan2_alibi, alibi_path};
+}
+
+// Bloom-style alibi is `slopes * position`, where the slopes are static (constant-foldable) and the
+// position operand is derived from the attention-mask Parameter. Returns true if `value`'s producing
+// subgraph reaches a Parameter; used to tell the two commutative Multiply operands apart regardless of
+// the matcher's argument order.
+static bool depends_on_parameter(const ov::Output<ov::Node>& value) {
+    std::vector<std::shared_ptr<ov::Node>> stack{value.get_node_shared_ptr()};
+    std::unordered_set<const ov::Node*> visited;
+    while (!stack.empty()) {
+        const auto node = stack.back();
+        stack.pop_back();
+        if (!node || !visited.insert(node.get()).second) {
+            continue;
+        }
+        if (ov::op::util::is_parameter(node)) {
+            return true;
+        }
+        for (const auto& input : node->input_values()) {
+            stack.push_back(input.get_node_shared_ptr());
+        }
+    }
+    return false;
+}
+
+// Pick the alibi-slopes operand of the (commutative) alibi Multiply: the slopes are static while the
+// sibling position operand depends on the attention-mask Parameter. Falls back to the second operand
+// when the check is inconclusive (both or neither depend on a Parameter).
+static ov::Output<ov::Node> pick_general_alibi_slopes(const std::shared_ptr<ov::Node>& alibi_mul) {
+    const auto lhs = alibi_mul->input_value(0);
+    const auto rhs = alibi_mul->input_value(1);
+    return (depends_on_parameter(rhs) && !depends_on_parameter(lhs)) ? lhs : rhs;
 }
 
 static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::Node>& matched_general_alibi_slopes) {
@@ -379,8 +416,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{v_concat, v_shaped}), v_order});
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
-    std::shared_ptr<ov::Node> general_alibi, general_alibi_mask;
-    std::tie(general_alibi, general_alibi_mask) = general_alibi_pattern();
+    std::shared_ptr<ov::Node> general_alibi_mul, general_alibi_mask;
+    std::tie(general_alibi_mul, general_alibi_mask) = general_alibi_pattern();
 
     // For Jais (Jais-13b has a different pattern and handling of alibi slopes)
     std::shared_ptr<ov::Node> jais_13b_alibi, jais_alibi_mask;
@@ -577,8 +614,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.count(general_alibi)) {
-            alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
+        if (pattern_map.count(general_alibi_mul)) {
+            const auto general_alibi_slopes =
+                pick_general_alibi_slopes(pattern_map.at(general_alibi_mul).get_node_shared_ptr());
+            alibi_slopes = handle_general_alibi(general_alibi_slopes.get_node_shared_ptr());
         } else if (pattern_map.count(jais_13b_alibi)) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
         } else if (pattern_map.count(baichuan2_13b_alibi)) {

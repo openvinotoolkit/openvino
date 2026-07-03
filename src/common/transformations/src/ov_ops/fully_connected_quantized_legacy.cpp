@@ -57,12 +57,13 @@ void FullyConnectedQuantizedLegacy::validate_and_infer_types() {
                           "deq_zero_points). Got: ",
                           input_size);
 
-    // Dequantization scales are floating-point. Legacy dequant zero-points may be either integral
-    // offsets or a real value subtracted before scaling, so the type is only required to be numeric.
-    // An absent input is passed as an empty (element::dynamic) constant and is always accepted.
+    // deq_scales is a mandatory input, so it must carry a concrete floating-point element type.
+    // Legacy dequant zero-points may be either integral offsets or a real value subtracted before
+    // scaling, so the type is only required to be numeric; an absent zero-points input is passed as
+    // an empty (element::dynamic) constant, which is why a dynamic element type is accepted there.
     const auto& scales_et = get_input_element_type(3);
     NODE_VALIDATION_CHECK(this,
-                          scales_et.is_real() || scales_et.is_dynamic(),
+                          scales_et.is_real(),
                           "deq_scales (input 3) must have a floating-point element type. Got: ",
                           scales_et);
 

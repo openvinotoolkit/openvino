@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <tuple>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/constant.hpp"
@@ -56,29 +57,31 @@ TEST(type_prop_fc_compressed, valid_output_type_and_shape) {
 }
 
 TEST(type_prop_fc_compressed, absent_zero_points_accepted) {
-    // 4-argument constructor fills weight_zero_points with an empty dynamic constant.
+    // The 4-argument delegating constructor calls the main constructor with an element::dynamic
+    // placeholder at the weight_zero_points position, so it must validate cleanly.
     auto op = std::make_shared<FullyConnectedCompressed>(data(), weights(), empty_dyn(), num_const(element::f32));
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
 }
 
 TEST(type_prop_fc_compressed, integral_scales_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedCompressed>(data(),
-                                                               weights(),
-                                                               empty_dyn(),
-                                                               num_const(element::i32),
-                                                               num_const(element::u8)),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<FullyConnectedCompressed>(data(),
+                                                                             weights(),
+                                                                             empty_dyn(),
+                                                                             num_const(element::i32),
+                                                                             num_const(element::u8)),
                     NodeValidationFailure,
                     HasSubstr("weight_scales (input 3) must have a floating-point"));
 }
 
-TEST(type_prop_fc_compressed, float_zero_points_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedCompressed>(data(),
-                                                               weights(),
-                                                               empty_dyn(),
-                                                               num_const(element::f32),
-                                                               num_const(element::f32)),
-                    NodeValidationFailure,
-                    HasSubstr("weight_zero_points (input 4) must have an integral"));
+TEST(type_prop_fc_compressed, real_zero_points_accepted) {
+    // Weight compression may carry a real (e.g. f32) zero-point that is subtracted before scaling,
+    // as real 4-bit-compressed MatMul models emit. A floating-point zero-points type must be accepted.
+    auto op = std::make_shared<FullyConnectedCompressed>(data(),
+                                                         weights(),
+                                                         empty_dyn(),
+                                                         num_const(element::f32),
+                                                         num_const(element::f32));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
 }
 
 // ---------------------------------------------------------------------------
@@ -100,31 +103,47 @@ TEST(type_prop_fc_quantized, valid_output_type_and_shape) {
 }
 
 TEST(type_prop_fc_quantized, integral_input_scales_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedQuantized>(data(),
-                                                              weights(),
-                                                              empty_dyn(),
-                                                              num_const(element::f32),
-                                                              num_const(element::u8),
-                                                              num_const(element::i32),
-                                                              num_const(element::u8),
-                                                              num_const(element::f32),
-                                                              num_const(element::u8)),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<FullyConnectedQuantized>(data(),
+                                                                            weights(),
+                                                                            empty_dyn(),
+                                                                            num_const(element::f32),
+                                                                            num_const(element::u8),
+                                                                            num_const(element::i32),
+                                                                            num_const(element::u8),
+                                                                            num_const(element::f32),
+                                                                            num_const(element::u8)),
                     NodeValidationFailure,
                     HasSubstr("input_scales (input 5) must have a floating-point"));
 }
 
-TEST(type_prop_fc_quantized, float_output_zero_points_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedQuantized>(data(),
-                                                              weights(),
-                                                              empty_dyn(),
-                                                              num_const(element::f32),
-                                                              num_const(element::u8),
-                                                              num_const(element::f32),
-                                                              num_const(element::u8),
-                                                              num_const(element::f32),
-                                                              num_const(element::f32)),
+TEST(type_prop_fc_quantized, float_output_zero_points_accepted) {
+    // Zero-points may be real (subtracted before scaling), so a floating-point output_zero_points
+    // type must be accepted for the quantized op as well.
+    auto op = std::make_shared<FullyConnectedQuantized>(data(),
+                                                        weights(),
+                                                        empty_dyn(),
+                                                        num_const(element::f32),
+                                                        num_const(element::u8),
+                                                        num_const(element::f32),
+                                                        num_const(element::u8),
+                                                        num_const(element::f32),
+                                                        num_const(element::f32));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop_fc_quantized, boolean_weight_zero_points_throw) {
+    // boolean is neither real nor an integral *number*, so it fails the numeric zero-points check.
+    OV_EXPECT_THROW(std::ignore = std::make_shared<FullyConnectedQuantized>(data(),
+                                                                            weights(),
+                                                                            empty_dyn(),
+                                                                            num_const(element::f32),
+                                                                            num_const(element::boolean),
+                                                                            num_const(element::f32),
+                                                                            num_const(element::u8),
+                                                                            num_const(element::f32),
+                                                                            num_const(element::u8)),
                     NodeValidationFailure,
-                    HasSubstr("output_zero_points (input 8) must have an integral"));
+                    HasSubstr("weight_zero_points (input 4) must have a numeric"));
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +160,13 @@ TEST(type_prop_fc_quantized_legacy, integral_zero_points_accepted) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 5}));
 }
 
+TEST(type_prop_fc_quantized_legacy, absent_zero_points_accepted) {
+    // The 4-argument delegating constructor calls the main constructor with an element::dynamic
+    // placeholder at the deq_zero_points position, so it must validate cleanly.
+    auto op = std::make_shared<FullyConnectedQuantizedLegacy>(data(), weights(), empty_dyn(), num_const(element::f32));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
 TEST(type_prop_fc_quantized_legacy, real_zero_points_accepted) {
     // Legacy dequant may subtract a real zero-point, so a floating-point type is allowed here.
     auto op = std::make_shared<FullyConnectedQuantizedLegacy>(data(),
@@ -152,21 +178,21 @@ TEST(type_prop_fc_quantized_legacy, real_zero_points_accepted) {
 }
 
 TEST(type_prop_fc_quantized_legacy, integral_scales_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedQuantizedLegacy>(data(),
-                                                                    weights(),
-                                                                    empty_dyn(),
-                                                                    num_const(element::i32),
-                                                                    num_const(element::u8)),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<FullyConnectedQuantizedLegacy>(data(),
+                                                                                  weights(),
+                                                                                  empty_dyn(),
+                                                                                  num_const(element::i32),
+                                                                                  num_const(element::u8)),
                     NodeValidationFailure,
                     HasSubstr("deq_scales (input 3) must have a floating-point"));
 }
 
 TEST(type_prop_fc_quantized_legacy, boolean_zero_points_throw) {
-    OV_EXPECT_THROW(std::make_shared<FullyConnectedQuantizedLegacy>(data(),
-                                                                    weights(),
-                                                                    empty_dyn(),
-                                                                    num_const(element::f32),
-                                                                    num_const(element::boolean)),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<FullyConnectedQuantizedLegacy>(data(),
+                                                                                  weights(),
+                                                                                  empty_dyn(),
+                                                                                  num_const(element::f32),
+                                                                                  num_const(element::boolean)),
                     NodeValidationFailure,
                     HasSubstr("deq_zero_points (input 4) must have a numeric"));
 }

@@ -55,13 +55,14 @@ void FullyConnectedQuantized::validate_and_infer_types() {
                           "output_zero_points). Got: ",
                           input_size);
 
-    // Scales are floating-point; zero-points are integral quantization offsets. An absent input is
-    // passed as an empty (element::dynamic) constant, so a dynamic element type is always accepted;
-    // types may also be unresolved during partial propagation.
+    // Scales are mandatory inputs, so each must carry a concrete floating-point element type.
+    // Zero-points are usually integral quantization offsets but may also be real (subtracted before
+    // scaling), so any numeric type is accepted; an absent zero-points input is passed as an empty
+    // (element::dynamic) constant, which is why a dynamic element type is accepted there.
     const auto check_scales = [this](size_t idx, const char* name) {
         const auto& et = get_input_element_type(idx);
         NODE_VALIDATION_CHECK(this,
-                              et.is_real() || et.is_dynamic(),
+                              et.is_real(),
                               name,
                               " (input ",
                               idx,
@@ -71,11 +72,11 @@ void FullyConnectedQuantized::validate_and_infer_types() {
     const auto check_zero_points = [this](size_t idx, const char* name) {
         const auto& et = get_input_element_type(idx);
         NODE_VALIDATION_CHECK(this,
-                              et.is_integral_number() || et.is_dynamic(),
+                              et.is_real() || et.is_integral_number() || et.is_dynamic(),
                               name,
                               " (input ",
                               idx,
-                              ") must have an integral element type. Got: ",
+                              ") must have a numeric element type. Got: ",
                               et);
     };
 
