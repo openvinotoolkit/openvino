@@ -364,7 +364,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 
     return results;
 }
-ONNX_OP("Attention", OPSET_RANGE(23, 23), ai_onnx::opset_23::attention);
+ONNX_OP("Attention", OPSET_RANGE(1, 23), ai_onnx::opset_23::attention);
 }  // namespace opset_23
 
 namespace opset_24 {
