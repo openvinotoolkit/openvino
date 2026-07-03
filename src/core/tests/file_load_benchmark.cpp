@@ -16,6 +16,7 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -195,13 +196,13 @@ double throughput_mibs(size_t size_mib, long long ms) {
 namespace strategy {
 
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
-void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
+void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();         // synchronous for regions > 4 MiB (parallel touch + join)
+    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
+void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
     for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
@@ -210,9 +211,9 @@ void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
+void sync_vm_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();
+    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
     constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
@@ -314,7 +315,7 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
             runs);
         r.t_hint_prefetch = bench(
             [&]() {
-                strategy::mmap_prefetch_then_memcpy(tf.path, tf.size_bytes());
+                strategy::sync_vm_prefetch_then_memcpy(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -324,14 +325,14 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MiB)", "prefetch+memcpy", "mmap+memcpy", "ifstream");
+    printf("%-10s | %17s | %13s | %13s\n", "Size (MiB)", "sync vm prefetch", "default mmap", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
 }
 
-TEST_F(FileLoadBenchmark, strategies_mlock) {
+TEST_F(FileLoadBenchmark, strategies_memory_lock) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -345,7 +346,7 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {mmap_prefetch_mlock, mmap_touch_mlock}
+    // Collect results: [file_idx] -> {mmap_vm_prefetch_mem_lock, loop_touch_mem_lock}
     struct Row {
         size_t mib;
         long long t_prefetch_mlock;
@@ -358,7 +359,7 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
         r.mib = tf.size_mib;
         r.t_mlock = bench(
             [&]() {
-                strategy::mmap_touch_mlock(tf.path, tf.size_bytes());
+                strategy::loop_touch_mem_lock(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -366,7 +367,7 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
             runs);
         r.t_prefetch_mlock = bench(
             [&]() {
-                strategy::mmap_prefetch_mlock(tf.path, tf.size_bytes());
+                strategy::sync_vm_prefetch_mem_lock(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -376,14 +377,14 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s\n", "Size (MiB)", "prefetch+mlock", "mmap+mlock");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync vm prefetch", "loop touch");
     printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
     }
 
     printf("\n--- Throughput (MiB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MiB)", "prefetch+mlock", "mmap+mlock");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync vm prefetch", "loop touch");
     printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
 
     for (const auto& r : results) {
