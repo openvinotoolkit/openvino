@@ -1162,7 +1162,7 @@ struct MHAHelper {
                 cur_kv_len_ext = std::max(cur_kv_len_ext, get_ncausal(q_token_start + m, cur_kv_len, seq_kv_len));
             }
         }
-        const auto cur_kv_len_ext_blocks = div_up(cur_kv_len_ext, _block_size);
+        const auto cur_kv_len_blocks = div_up(cur_kv_len_ext, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
         PlainTensor bias_wv, bias_qk;
         bias_wv.resize<float16_t>({SV});
@@ -1178,7 +1178,7 @@ struct MHAHelper {
             // 1 1 0 0 ...
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
-            for (size_t k_blk = 0; k_blk < cur_kv_len_ext_blocks; k_blk++) {
+            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
                 auto* qk_out_ptr =
                     c_ptr +
@@ -1278,7 +1278,7 @@ struct MHAHelper {
             DATA_TYPE* v_ptr;
             v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, 0);
             PlainTensor packedB;
-            KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_ext_blocks, _score_stride, SV, H * SV);
+            KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_blocks, _score_stride, SV, H * SV);
             packedB.resize<float16_t>({wvKernel.get_packed_rhs_size()});
             wvKernel.packB(reinterpret_cast<float16_t*>(v_ptr), bias_wv.ptr<float16_t>(0), packedB.ptr<float16_t>(0));
             wvKernel.executeGemm(reinterpret_cast<float16_t*>(w_ptr), packedB.ptr<float16_t>(0), out_ptr);
