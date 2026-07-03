@@ -155,6 +155,21 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// Qwen3-style MoE: separate gate/up expert MatMuls (SwiGLU) and a Softmax->TopK router
+/// with ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router
+/// patterns (real Qwen3-30B-A3B). Contrast build_moe_llm_test_model, which emits the
+/// GPT-OSS topology (fused gate_up, TopK->Softmax router). Stateful (KV cache) like the
+/// real model; consumers that need static shapes run StatefulToStateless + reshape, the
+/// same way production prepares an LLM.
+inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_qwen3_moe_ffn;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
                                                                   size_t sliding_to_full_ratio = 0,
                                                                   const SlidingMaskFn& sliding_mask_fn = {},
