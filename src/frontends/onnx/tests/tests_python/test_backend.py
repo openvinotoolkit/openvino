@@ -113,6 +113,45 @@ skip_tests_general = [
 for test in skip_tests_general:
     backend_test.exclude(test)
 
+# Attention op (ONNX opset 23/24) — enable whenb ONNX 1.23 is supported.
+# Tests below pass locally with ONNX 1.23, but fail in CI with ONNX 1.18
+skip_tests_attention = [
+    "test_attention_3d_attn_mask",
+    "test_attention_3d_causal",
+    "test_attention_3d_cpu",
+    "test_attention_3d_diff_heads_sizes_attn_mask",
+    "test_attention_3d_diff_heads_sizes_causal",
+    "test_attention_3d_diff_heads_sizes_cpu",
+    "test_attention_3d_diff_heads_sizes_scaled",
+    "test_attention_3d_diff_heads_sizes_softcap",
+    "test_attention_3d_diff_heads_with_past_and_present",
+    "test_attention_3d_gqa_attn_mask",
+    "test_attention_3d_gqa_causal",
+    "test_attention_3d_gqa_cpu",
+    "test_attention_3d_gqa_scaled",
+    "test_attention_3d_gqa_softcap",
+    "test_attention_3d_gqa_with_past_and_present",
+    "test_attention_3d_scaled",
+    "test_attention_3d_softcap",
+    "test_attention_3d_with_past_and_present",
+    "test_attention_3d_with_past_and_present_qk_matmul_bias",
+    "test_attention_3d_with_past_and_present_qk_matmul_cpu",
+    "test_attention_3d_with_past_and_present_qk_matmul_softcap",
+    "test_attention_3d_with_past_and_present_qk_matmul_softmax",
+    "test_attention_4d_gqa_attn_mask",
+    "test_attention_4d_gqa_causal",
+    "test_attention_4d_gqa_cpu",
+    "test_attention_4d_gqa_scaled",
+    "test_attention_4d_gqa_softcap",
+    "test_attention_4d_gqa_with_past_and_present",
+    "test_attention_4d_with_past_and_present_qk_matmul_bias",
+    "test_attention_4d_with_qk_matmul_bias",
+    "test_attention_4d_with_qk_matmul_softcap",
+]
+
+for test in skip_tests_attention:
+    backend_test.exclude(test)
+
 # NOTE: ALL backend_test.exclude CALLS MUST BE PERFORMED BEFORE THE CALL TO globals().update
 
 OnnxBackendNodeModelTest = None
