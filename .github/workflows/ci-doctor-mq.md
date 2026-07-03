@@ -48,6 +48,7 @@ network: defaults
 imports:
   - shared/ci-doctor-mq/notify-teams.md
   - shared/ci-doctor-mq/notify-teams-recurring.md
+  - shared/ci-doctor-mq/rerun-failed-jobs.md
 
 safe-outputs:
   add-comment:
@@ -458,6 +459,7 @@ ELSE:
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
    - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
+   - When the investigation concludes the failure is transient and a plain restart is likely to clear it, request a re-run of only the failed jobs of the analysed run (see `rerun_failed_jobs` decision guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -531,6 +533,7 @@ Post a concise, actionable remediation comment on the affected merge-queue PR so
 
 **Pipeline**: [<failed_workflow name>](<pipeline_url>)
 **Failure**: <one-line summary, same as notify_teams.title>
+**Automatic restart**: <one of: `✅ Re-run of failed jobs requested (reason: <reason>)` when you called `rerun_failed_jobs`; `❌ Not triggered — <short reason, e.g. deterministic code failure>` otherwise>
 
 #### Possible remedy
 
@@ -604,6 +607,12 @@ Provide all required fields and include the optional PR-related fields whenever 
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: merge_group
 
+### Automatic Restart
+
+State whether an automatic re-run of the failed jobs was triggered:
+- If you called `rerun_failed_jobs`: `✅ Re-run of failed jobs requested` followed by the one-line `reason` you passed.
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
+
 ### Root Cause Analysis
 
 Write this as a single, consolidated section. Do NOT add a separate "Investigation Findings", "Deep Analysis", or standalone "Failed Jobs and Errors" section — they duplicate this one. Use the following fixed sub-structure with `####` headings, in this order; omit a sub-heading only if there is genuinely nothing to say.
@@ -669,6 +678,24 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 - **`affected_prs`** — Markdown bullet list of PRs affected by this failure in the last 12 hours (up to 10, e.g., `- [#1234](url)`). If no PRs can be identified, write "No PR information available."
 - **`recent_run_urls`** — Markdown bullet list of failure run URLs from the last 12 hours (up to 10, e.g., `- [Run 56789](url)`).
 
+### `rerun_failed_jobs` decision guidance
+
+Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Analysis concludes the failure is transient and a plain restart is likely to clear it — typically the `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories (runner hiccups, network timeouts, cancelled jobs, transient download/registry errors, downstream service outages).
+
+**Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
+
+Only the **failed** jobs of the analysed run are restarted; passing jobs are untouched. The job also refuses to re-run a run that already has more than one attempt, to avoid restart loops.
+
+Provide:
+
+- **`run_id`** (required) — Numeric ID of the analysed run: `${{ github.event.workflow_run.id }}` for merge-queue triggers, or the `run_id` input for `workflow_dispatch`. Pass as a numeric string.
+- **`repository`** (optional) — `owner/repo` of the analysed run. Omit to default to the current repository.
+- **`reason`** (required) — One-line justification for the restart, matching the transient cause identified in the investigation.
+
+This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. A re-run request does not replace the investigation report.
+
+Whenever you decide about a restart (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Restart` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic restart**` line of the `add_comment` body. Keep both consistent with the actual `rerun_failed_jobs` call.
+
 ## Important Guidelines
 
 - **Be Thorough**: Don't just report the error - investigate the underlying cause
@@ -692,13 +719,15 @@ You **MUST** always call at least one safe output tool before finishing:
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
+- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient and a restart is likely to remedy it (see `rerun_failed_jobs` decision guidance). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
 **Valid call combinations:**
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
-- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
+- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue, **or** any `workflow_dispatch` test run (comment on PR akashchi/openvino#157 per the testing override).
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
+- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 
