@@ -38,6 +38,13 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
             ov::element::bf16,
         };
 
+        static const std::vector<ov::element::Type_t> supported_compressed_weight_types = {
+            ov::element::u8,
+            ov::element::i8,
+            ov::element::u4,
+            ov::element::i4,
+        };
+
         static const std::vector<ov::element::Type_t> supported_offset_types = {
             ov::element::i32,
         };
@@ -47,18 +54,28 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
         const auto& off = node.get_input_layout(grouped_matmul::GroupedMatmulInputIdx::OFFSETS);
         const auto& out = node.get_output_layout(0);
 
+        const auto* desc = node.as<grouped_matmul>().get_primitive().get();
+        const bool compressed = desc && desc->compressed_weights;
+
         if (!one_of(in0.format, supported_fmts) || !one_of(in0.data_type, supported_activation_types))
             return false;
-        if (!one_of(in1.format, supported_fmts) || !one_of(in1.data_type, supported_activation_types))
+        if (!one_of(in1.format, supported_fmts))
             return false;
+        if (compressed) {
+            if (!one_of(in1.data_type, supported_compressed_weight_types))
+                return false;
+        } else if (!one_of(in1.data_type, supported_activation_types)) {
+            return false;
+        }
         if (!one_of(off.format, supported_fmts) || !one_of(off.data_type, supported_offset_types))
             return false;
         if (!one_of(out.format, supported_fmts) || !one_of(out.data_type, supported_activation_types))
             return false;
 
         // oneDNN does not support mixed fp16 x bf16 configurations
-        if ((in0.data_type == data_types::f16 && in1.data_type == data_types::bf16) ||
-            (in0.data_type == data_types::bf16 && in1.data_type == data_types::f16))
+        if (!compressed &&
+            ((in0.data_type == data_types::f16 && in1.data_type == data_types::bf16) ||
+             (in0.data_type == data_types::bf16 && in1.data_type == data_types::f16)))
             return false;
 
         return true;

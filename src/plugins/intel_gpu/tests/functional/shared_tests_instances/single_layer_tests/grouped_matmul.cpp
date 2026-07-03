@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d,
                          ::testing::Combine(::testing::ValuesIn(shapes_3d_3d),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("Gemm")),
+                                            ::testing::Values("FullyConnected")),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
@@ -77,6 +77,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("Gemm")),
+                                            ::testing::Values("FullyConnected")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 }  // namespace

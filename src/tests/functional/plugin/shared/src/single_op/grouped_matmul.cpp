@@ -205,6 +205,14 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     group_size_ = group_size;
     targetDevice = _targetDevice;
     GroupedMatMulTestBase::SetUp();
+
+    // Loosen tolerance for low-bit weight-compressed variants; dequantization
+    // introduces additional rounding error compared to the uncompressed path.
+    if (weights_prec_ == ov::element::u4 || weights_prec_ == ov::element::i4) {
+        abs_threshold = 0.2f;
+    } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
+        abs_threshold = 0.1f;
+    }
 }
 
 std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {

@@ -47,6 +47,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
@@ -82,6 +83,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -238,6 +240,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
                                                           ov::op::internal::MOE::get_type_info_static(),
                                                           ov::op::v8::Gather::get_type_info_static(),
+                                                          ov::op::v17::GroupedMatMul::get_type_info_static(),
                                                           ov::op::v1::Convolution::get_type_info_static(),
                                                           ov::opset1::Convolution::get_type_info_static(),
                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
@@ -1558,6 +1561,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        if (device_info.supports_immad && config.get_use_onednn()) {
+            manager.register_pass<ov::intel_gpu::ConvertGroupedMatMulToGroupedMatMulCompressed>();
+        }
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
