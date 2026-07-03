@@ -93,7 +93,7 @@ safe-outputs:
           required: true
           type: string
         occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
+          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
           required: true
           type: string
         statistics:
@@ -332,6 +332,83 @@ tools:
     max-patch-size: 1048576 # 1MB max
     max-file-count: 500
 
+steps:
+  - name: Download CI failure logs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+      REPO: ${{ github.repository }}
+    run: |
+      set -e
+      LOG_DIR="/tmp/gh-aw/agent/ci-doctor/logs"
+      FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
+      mkdir -p "$LOG_DIR" "$FILTERED_DIR"
+
+      echo "=== CI Doctor: Pre-downloading logs for run $RUN_ID ==="
+
+      # Get failed jobs and their failed steps
+      gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
+        --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
+        > "$LOG_DIR/failed-jobs.json"
+
+      FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-jobs.json")
+      echo "Found $FAILED_COUNT failed job(s)"
+
+      if [ "$FAILED_COUNT" -eq 0 ]; then
+        echo "No failed jobs found, skipping log download"
+        exit 0
+      fi
+
+      echo "Failed jobs:"
+      cat "$LOG_DIR/failed-jobs.json"
+
+      # Download logs for each failed job and apply generic error heuristics
+      jq -r '.[].id' "$LOG_DIR/failed-jobs.json" | while read -r JOB_ID; do
+        LOG_FILE="$LOG_DIR/job-${JOB_ID}.log"
+        echo "Downloading log for job $JOB_ID..."
+        gh api "repos/$REPO/actions/jobs/$JOB_ID/logs" > "$LOG_FILE" 2>/dev/null \
+          || echo "(log download failed)" > "$LOG_FILE"
+        echo "  -> Saved $(wc -l < "$LOG_FILE") lines to $LOG_FILE"
+
+        # Apply generic heuristics: find lines with common error indicators
+        HINTS_FILE="$FILTERED_DIR/job-${JOB_ID}-hints.txt"
+        grep -n -m 30 -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
+          "$LOG_FILE" > "$HINTS_FILE" 2>/dev/null || true
+
+        if [ -s "$HINTS_FILE" ]; then
+          echo "  -> Pre-located $(wc -l < "$HINTS_FILE") hint line(s) in $HINTS_FILE"
+        else
+          echo "  -> No error hints found in $LOG_FILE"
+        fi
+      done
+
+      # Write summary for the agent
+      SUMMARY_FILE="/tmp/gh-aw/agent/ci-doctor/summary.txt"
+      {
+        echo "=== CI Doctor Pre-Analysis ==="
+        echo "Run ID: $RUN_ID"
+        echo ""
+        echo "Failed jobs (details in $LOG_DIR/failed-jobs.json):"
+        jq -r '.[] | "  Job \(.id): \(.name)\n    Failed steps: \(.failed_steps | join(", "))"' \
+          "$LOG_DIR/failed-jobs.json"
+        echo ""
+        echo "Downloaded log files ($LOG_DIR):"
+        for LOG_FILE in "$LOG_DIR"/job-*.log; do
+          [ -f "$LOG_FILE" ] || continue
+          echo "  $LOG_FILE ($(wc -l < "$LOG_FILE") lines)"
+        done
+        echo ""
+        echo "Filtered hint files ($FILTERED_DIR):"
+        for HINTS_FILE in "$FILTERED_DIR"/*-hints.txt; do
+          [ -s "$HINTS_FILE" ] || continue
+          echo "  $HINTS_FILE ($(wc -l < "$HINTS_FILE") matches)"
+          head -3 "$HINTS_FILE" | sed 's/^/    /'
+        done
+      } | tee "$SUMMARY_FILE"
+
+      echo ""
+      echo "✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE"
+
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
     if: always()
@@ -361,6 +438,17 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 - **Head SHA**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger Event**: ${{ github.event.workflow_run.event }}
 
+## Pre-Analysis Data
+
+Logs have been pre-downloaded before this session started:
+
+- **Summary**: `/tmp/gh-aw/agent/ci-doctor/summary.txt` — failed jobs, failed steps, all file locations, and pre-located error hints
+- **Job metadata**: `/tmp/gh-aw/agent/ci-doctor/logs/failed-jobs.json` — structured list of failed jobs and their failed steps
+- **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log` — full job logs downloaded from GitHub Actions
+- **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/*-hints.txt` — pre-located error lines (from logs) via generic grep heuristics
+
+**Start here**: Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` first — it lists every file location and the first few hint matches. Then examine the relevant hint files to jump directly to error locations (read ~50 lines around each hinted line number before loading the full log).
+
 ## Investigation Protocol
 
 **Trigger detection:**
@@ -383,15 +471,19 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
 ### Phase 2: Deep Log Analysis
 
-1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**
-2. **Pattern Recognition**: Analyze logs for:
+1. **Use Pre-Downloaded Logs**: Start with the files in `/tmp/gh-aw/agent/ci-doctor/`:
+   - Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` and the hint files first (minimal context load).
+   - Read ~50 lines around each hinted line number in the full log file.
+   - Only load the full log content if the hints are insufficient.
+2. **Fallback Log Retrieval**: If the pre-downloaded files are unavailable, use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**
+3. **Pattern Recognition**: Analyze logs for:
    - Error messages and stack traces
    - Dependency installation failures
    - Test failures with specific patterns
    - Infrastructure or runner issues
    - Timeout patterns
    - Memory or resource constraints
-3. **Extract Key Information**:
+4. **Extract Key Information**:
    - Primary error messages
    - File paths and line numbers where failures occurred
    - Test names that failed
@@ -411,13 +503,13 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 ### Phase 4: Root Cause Investigation
 
 1. **Categorize Failure Type**:
-   - **Code Issues**: Syntax errors, logic bugs, test failures
+   - **Code Issue**: Syntax errors, logic bugs, test failures
    - **Infrastructure**: Runner issues, network problems, resource constraints
    - **Dependencies**: Version conflicts, missing packages, outdated libraries
    - **Configuration**: Workflow configuration, environment variables
-   - **Flaky Tests**: Intermittent failures, timing issues
-   - **External Services**: Third-party API failures, downstream dependencies
-   - **Network-related**: unreachable network/services, exceeded max retries
+   - **Flaky Test**: Intermittent failures, timing issues
+   - **External Service**: Third-party API failures, downstream dependencies
+   - **Network**: unreachable network/services, exceeded max retries
 
 2. **Deep Dive Analysis**:
    - For test failures: Identify specific test methods and assertions
@@ -465,44 +557,55 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
 ### Phase 5: Pattern Storage and Knowledge Building
 
+**Artefact schemas (MANDATORY — read before writing anything):**
+Every JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:
+
+- **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/investigation.schema.json`
+  Applies to every file under `investigations/` **except** `index.json`.
+- **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`
+  Applies to every `<signature-hash>.json` file under `patterns/`.
+
+Rules that apply to both artefact types:
+
+- Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout — the previous lack of a schema is the reason older investigation/pattern files had inconsistent structures.
+- Set `"schema_version": "1.0"` on every artefact you write.
+- Both schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
+- Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.
+- Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.
+
+**Validation procedure (run immediately after writing each artefact — MANDATORY):**
+
+1. Read the artefact back from disk and parse it as JSON (this also confirms it is well-formed).
+2. Read the matching schema file.
+3. Validate the parsed object against the schema. If a JSON Schema validator is available in the run environment (e.g., Python with the `jsonschema` package — `python3 -c "import jsonschema, json, sys; jsonschema.validate(json.load(open(sys.argv[1])), json.load(open(sys.argv[2])))" <artefact> <schema>`), use it. Otherwise perform an explicit conformance check covering: every `required` field present; each field's `type`/`enum`/`format` honoured; **no** field outside the schema's `properties` (because `additionalProperties` is `false`); and array `minItems`/`maxItems` limits respected.
+4. If validation fails, fix the artefact and repeat until it validates. **Never leave an invalid artefact on disk**, and do not proceed to the next phase with an unvalidated artefact.
+
 1. **Store Investigation**: Save structured investigation data to files in the persistent repo-memory directory:
    - **Persistent path**: `/tmp/gh-aw/repo-memory/default/` is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch (`memory/ci-doctor-mq`). Files written here survive across runs permanently. Files written elsewhere are **not** persisted and will be lost.
    - **MQ-specific subdirectory**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` to keep merge-queue investigations isolated from any other workflows using repo-memory.
    - Create the subdirectory if needed: `mkdir -p /tmp/gh-aw/repo-memory/default/mq/investigations /tmp/gh-aw/repo-memory/default/mq/patterns`.
    - Write the investigation report to `/tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json`
+     - The file content MUST conform to the **investigation schema** (`investigation.schema.json`) described in the "Artefact schemas" block above, and MUST be validated with the validation procedure right after writing.
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
-   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`)
+   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
    - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
 
-   **Schema:**
-
-   ~~~json
-   {
-     "signature": "<stable string>",
-     "title": "<short human-readable title>",
-     "category": "<Code Issue | Infrastructure | Dependencies | Configuration | Flaky Test | External Service | Network>",
-     "count": 4,
-     "first_seen": "2026-05-10T08:00:00Z",
-     "last_seen": "2026-05-12T14:30:00Z",
-     "recent_run_urls": ["https://...run4", "https://...run3", "https://...run2", "https://...run1"],
-     "affected_prs": ["https://...pr4", "https://...pr3"],
-     "recent_timestamps": ["2026-05-12T14:30:00Z", "2026-05-12T10:15:00Z", "2026-05-11T22:00:00Z", "2026-05-10T08:00:00Z"]
-   }
-   ~~~
+   **Schema:** the authoritative definition is `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`. Read that file for the exact field list, types, and constraints, and validate the record against it (see the validation procedure in the "Artefact schemas" block above).
 
    **Step-by-step procedure (follow EXACTLY in this order):**
 
    **Step A — Compute signature hash:**
-   Derive a stable `<signature-hash>` from ONLY these inputs (which do NOT change between reruns of the same failure):
-   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs
-   - Failed job name (exact string from the workflow run)
-   - Failure category (one of the 7 categories above)
+   Derive a stable `<signature-hash>` from ONLY inputs that do NOT change between reruns of the same failure **and that do NOT depend on which job the error occurred in** — the same underlying error frequently surfaces in several different jobs (e.g., the same test failing on Linux and Windows, or across shards), and those MUST collapse into a single pattern:
+   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and any embedded job / runner / OS / shard names or indices
+   - Failure category — MUST be exactly one of the values from the `category` `enum` defined in `pattern.schema.json` (identical to the `category` enum in `investigation.schema.json`). Use the schema's spelling verbatim (e.g., `Code Issue`, `Flaky Test`, `External Service`, `Network`); do **not** invent a category or use the looser prose labels from Phase 4.
 
-   Concatenate these three strings with `|` separator, then compute a hash (e.g., first 16 chars of SHA-256). Two reruns of the same failure MUST produce the same hash.
+   Do **NOT** include the failed job name in the hash. Keying on the job name would split one underlying error into a separate pattern for every job that hits it, inflating the database and breaking recurrence counting. Treat the job name(s) as descriptive metadata only (record them in `title` / the investigation, not in the hash).
+
+   Concatenate the two inputs as `<normalized-error>|<category>`, then compute a hash (e.g., first 16 chars of SHA-256). The same normalized error in the same category MUST always produce the same hash regardless of which job(s) it occurred in, and two reruns of the same failure MUST produce the same hash.
 
    **Step B — Read existing file:**
    Attempt to read `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -517,7 +620,9 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    CURRENT_PR_URL = the PR URL (or null if no PR)
 
    IF existing != null:
+       record.schema_version = "1.0"
        record.signature   = existing.signature
+       record.signature_hash = existing.signature_hash
        record.title       = title from investigation (refresh always)
        record.category    = category from investigation (refresh always)
        record.count       = existing.count + 1          ← MUST increment
@@ -530,7 +635,9 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
        record.recent_timestamps = [NOW] + existing.recent_timestamps
            → keep only entries where timestamp >= (NOW - 24 hours)
    ELSE:
-       record.signature   = the computed signature string
+       record.schema_version = "1.0"
+       record.signature   = the <normalized-error>|<category> signature string from Step A
+       record.signature_hash = <signature-hash>
        record.title       = title from investigation
        record.category    = category from investigation
        record.count       = 1
@@ -546,6 +653,8 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
    **Step E — MANDATORY verification (read-back check):**
    Immediately after writing, read the file back and verify:
+   - the record validates against `pattern.schema.json` (run the validation procedure from the "Artefact schemas" block)
+   - `schema_version` equals `"1.0"` and `signature_hash` matches the file name
    - `count` equals the value you just computed (NOT 1 unless this is genuinely the first occurrence)
    - `recent_timestamps` contains the current timestamp `NOW` as the first entry
    - `last_seen` equals `NOW`

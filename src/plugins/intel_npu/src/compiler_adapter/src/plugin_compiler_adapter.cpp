@@ -16,7 +16,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
@@ -28,22 +27,23 @@
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ov_lib_path);
+        auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    } catch (const std::exception& vcl_exception) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vcl_exception.what());
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
     }
 
     if (_zeroInitStruct == nullptr) {
@@ -120,9 +120,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
                  SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
-    int64_t compile_model_mem_start = 0;
+    int64_t compileModelMemStart = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
-        compile_model_mem_start = get_peak_memory_usage();
+        compileModelMemStart = get_peak_memory_usage();
     }
 
     std::vector<ov::Tensor> tensorsInits;
@@ -224,11 +224,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
-        auto compile_model_mem_end = get_peak_memory_usage();
-        _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
-        _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+        auto compileModelMemEnd = get_peak_memory_usage();
+        _logger.debug("Start of compilation memory usage: Peak %lld KB", compileModelMemStart);
+        _logger.debug("End of compilation memory usage: Peak %lld KB", compileModelMemEnd);
         // Note: Following log is parsed by CI. Take care when modifying it.
-        _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
+        _logger.info("Compilation memory usage: Peak %lld KB", compileModelMemEnd - compileModelMemStart);
     }
 
     _logger.debug("compile end");
@@ -285,45 +285,6 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    if (optname == COMPATIBILITY_CHECK::key()) {
-        if (_zeroInitStruct == nullptr || _zeroInitStruct->getDevice() == nullptr) {
-            _logger.warning("No device is found, compatibility check is not available");
-            return false;
-        }
-
-        ze_device_properties_t device_properties = {};
-        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
-
-        if (result == ZE_RESULT_SUCCESS) {
-            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
-                                          device_properties.deviceId,
-                                          static_cast<uint16_t>(device_properties.subdeviceId),
-                                          device_properties.numSlices};
-
-            _logger.info("Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
-                         vcl_desc.deviceID,
-                         vcl_desc.tileCount);
-
-            const bool hasValue = optValue.has_value();
-            const std::string value = hasValue ? optValue.value() : "";
-            if (_compiler->is_option_supported(&vcl_desc, optname, optValue)) {
-                _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
-                              optname.c_str(),
-                              hasValue ? value.c_str() : "null");
-                return true;
-            } else {
-                _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
-                              optname.c_str(),
-                              hasValue ? value.c_str() : "null");
-                return false;
-            }
-        } else {
-            _logger.warning("Can not get device properties, compatibility check is not available");
-            return false;
-        }
-    }
-
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
