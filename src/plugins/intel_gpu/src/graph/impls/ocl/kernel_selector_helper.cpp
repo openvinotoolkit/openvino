@@ -127,6 +127,38 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     return cache.at(device);
 }
 
+// Mirrors oneDNN's dnnl::impl::gpu::intel::compute::mayiuse_microkernels() fast path
+// (thirdparty/onednn_gpu/.../gpu/intel/compute/ukernels.cpp). Driver/runtime versions at or
+// above runtime_version_t(24, 22, 29735) are known to support the vISA features required by
+// microkernels, so the igc_check probe build can be skipped. The parsing follows
+// xpu::runtime_version_t::set_from_string() (integer value of the first three dot-separated
+// fields); keeping it identical to oneDNN guarantees OpenVINO's decision matches oneDNN's own
+// microkernel acceptance. Versions below the threshold, or strings without at least two dot
+// separators, return false and fall back to the authoritative igc_check build below.
+static bool driver_version_supports_microkernels(const std::string& driver_version) {
+    const auto dot1 = driver_version.find('.');
+    if (dot1 == std::string::npos)
+        return false;
+    const auto dot2 = driver_version.find('.', dot1 + 1);
+    if (dot2 == std::string::npos)
+        return false;
+    int major = 0, minor = 0, build = 0;
+    try {
+        major = std::stoi(driver_version.substr(0, dot1));
+        minor = std::stoi(driver_version.substr(dot1 + 1, dot2 - dot1 - 1));
+        build = std::stoi(driver_version.substr(dot2 + 1));
+    } catch (const std::exception&) {
+        return false;
+    }
+
+    // Lexicographic comparison against oneDNN's threshold runtime_version_t(24, 22, 29735).
+    if (major != 24)
+        return major > 24;
+    if (minor != 22)
+        return minor > 22;
+    return build >= 29735;
+}
+
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
 
@@ -135,6 +167,15 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     static std::map<cldnn::device*, bool> cache;
     if (cache.find(device) != cache.end()) {
         return cache.at(device);
+    }
+
+    // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
+    // known to support microkernels, skip building the igc_check probe kernel (~100 ms during the
+    // first compilation of a session). Older or unparseable versions fall through to the
+    // authoritative igc_check build below, so behavior is unchanged on drivers that need probing.
+    if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
+        cache[device] = true;
+        return true;
     }
 
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
