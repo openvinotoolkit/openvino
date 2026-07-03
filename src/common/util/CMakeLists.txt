@@ -69,6 +69,7 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/file_path.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/memory.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_stream.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
