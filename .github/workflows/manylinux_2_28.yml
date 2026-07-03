@@ -330,14 +330,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - nodejs-version: 20
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
-          - nodejs-version: 22
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+        nodejs-version: [21, 22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ matrix.image }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       nodejs-version: ${{ matrix.nodejs-version }}
 
   Overall_Status:

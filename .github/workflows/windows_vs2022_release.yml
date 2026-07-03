@@ -199,6 +199,10 @@ jobs:
   JS_API:
     name: JS API
     needs: [ Build, Smart_CI ]
+    strategy:
+      fail-fast: false
+      matrix:
+        nodejs-version: [21, 22, 24, 26]
     defaults:
       run:
         shell: pwsh
@@ -206,7 +210,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-      NODE_VERSION: 21
+      NODE_VERSION: ${{ matrix.nodejs-version }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
