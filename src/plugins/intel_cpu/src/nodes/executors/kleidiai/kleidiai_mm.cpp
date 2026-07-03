@@ -32,7 +32,6 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -58,15 +57,16 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-     VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
-                       useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
+           useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
 
 bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory) {
     auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims();
-    if (scales.size() == 1)
+    if (scales.size() == 1) {
         return false;
+    }
     return (scales[1] > 1);
 }
 
@@ -243,7 +243,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     auto srcMem = memory.at(ARG_SRC);
     auto dstMem = memory.at(ARG_DST);
     auto srcDims = srcMem->getDesc().getShape().getDims();
-    size_t M_value, K_value;
+    size_t M_value = 0, K_value = 0;
     if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
         OPENVINO_ASSERT(!gather_idx.empty(), "gather_idx is not set");
         M_value = srcDims[1];
@@ -271,7 +271,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         srcDims = normalizeDimsTo2D(srcDims);
         M_value = srcDims[0];
         K_value = srcDims[1];
-    } 
+    }
     _kernel->execute(executorContext->getCpuParallel(), M_value, K_value, dstMem, srcMem);
 
     if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
