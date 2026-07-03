@@ -440,7 +440,7 @@ QuantizedSDPAWithGlobalMask::QuantizedSDPAWithGlobalMask(const std::shared_ptr<o
 
         auto concat_name = node_to_output.at(n.concat1).get_node()->get_friendly_name();
         int block_index = 0;
-        std::regex pattern(R"(_module\.decoder\.blocks\.(\d+)\..*)");
+        std::regex pattern(R"(__module\.decoder\.blocks\.(\d+).*)");
         std::smatch match;
         if (std::regex_match(concat_name, match, pattern)) {
             block_index = std::stoi(match[1].str());

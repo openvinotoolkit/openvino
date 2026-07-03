@@ -839,11 +839,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            const auto present_len = pyramid->get_context_length(pyramid_id) - past_len;
                             if (pyramid->_data_left_aligned) {
-                                copy_mask_segment(0, 0, past_len);
-                                copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM], present_len);
+                                copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
                             } else {
+                                const auto present_len = pyramid->get_context_length(pyramid_id) - past_len;
                                 copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
                                 copy_mask_segment(0, 0, past_len);
                             }
