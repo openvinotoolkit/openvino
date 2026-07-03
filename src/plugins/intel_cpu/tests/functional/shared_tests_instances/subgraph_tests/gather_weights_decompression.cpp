@@ -28,10 +28,16 @@ const std::vector<GatherDecompressionShapeParams> input_shapes_basic = {
     {{2, 5}, {{}, {{2, 3}}}, 1, -1},
     {{15, 16, 2}, {{-1, -1}, {{2, 3}}}, 0, 0},
 };
-const std::vector<bool> add_decompression_sub = {true, false};
+const std::vector<ov::test::utils::DecompressionType> decompression_multiply_types = {
+    ov::test::utils::DecompressionType::scalar,
+    ov::test::utils::DecompressionType::full,
+};
+const std::vector<ov::test::utils::DecompressionType> decompression_subtract_types = {
+    ov::test::utils::DecompressionType::empty,
+    ov::test::utils::DecompressionType::scalar,
+    ov::test::utils::DecompressionType::full,
+};
 const std::vector<bool> reshape_on_decompression = {true, false};
-const std::vector<bool> per_tensor_zp = {true, false};
-const std::vector<bool> per_tensor_scale = {true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                          GatherWeightsDecompression,
@@ -39,10 +45,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                                             ::testing::ValuesIn(input_shapes_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(output_precisions),
-                                            ::testing::ValuesIn(add_decompression_sub),
-                                            ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(per_tensor_zp),
-                                            ::testing::ValuesIn(per_tensor_scale)),
+                                            ::testing::ValuesIn(decompression_multiply_types),
+                                            ::testing::ValuesIn(decompression_subtract_types),
+                                            ::testing::ValuesIn(reshape_on_decompression)),
                          GatherWeightsDecompression::get_test_case_name);
 
 // fp16/bf16 constant + convert(16bit to f32) + gather to gather(f16/bf16 input and f32 output)
