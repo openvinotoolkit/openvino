@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
