@@ -17,7 +17,7 @@
 
 ## Test location and build target
 
-Test files live in `src/common/transformations/tests/` with subdirectories by category (e.g., `common_optimizations/`, `utils/`). Build and run all transformation tests with:
+Test files live in [src/common/transformations/tests/](../tests/) with subdirectories by category (e.g., `common_optimizations/`, `utils/`). Build and run all transformation tests with:
 
 ```bash
 cmake --build build --target ov_transformations_tests -j$(nproc)
@@ -136,7 +136,7 @@ Do **not** explicitly enable flags already on by default in `TransformationTests
 ## Node builders
 
 Use `node_builders/` helpers instead of constructing ops directly when a builder exists and improves test readability.
-Headers live in `src/tests/test_utils/common_test_utils/include/common_test_utils/node_builders/`.
+Headers live in [src/tests/test_utils/common_test_utils/include/common_test_utils/node_builders/](../../../tests/test_utils/common_test_utils/include/common_test_utils/node_builders/).
 
 Import example:
 ```cpp
