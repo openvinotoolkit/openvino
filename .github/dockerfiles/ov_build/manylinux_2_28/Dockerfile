@@ -40,6 +40,5 @@ RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 # Install custom cmake
 ARG CMAKE_VERSION="3.26.0"
-RUN wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh --output-document=cmake.sh && \
-    sh cmake.sh --skip-license --prefix=/usr/local && \
-    rm cmake.sh
+COPY scripts/install_dependencies/install_cmake.sh /tmp/install_cmake.sh
+RUN chmod +x /tmp/install_cmake.sh && /tmp/install_cmake.sh "${CMAKE_VERSION}"
