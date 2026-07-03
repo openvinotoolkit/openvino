@@ -150,8 +150,10 @@ function(ov_add_onednn)
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
-    # 3rd-party code: don't fail the build on its warnings, but don't hide them either
-    ov_disable_all_warnings(dnnl)
+    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    if(WIN32)
+        target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+    endif()
 
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
@@ -181,8 +183,10 @@ endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas EXCLUDE_FROM_ALL)
-    # 3rd-party code: don't fail the build on its warnings, but don't hide them either
-    ov_disable_all_warnings(mlas)
+    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    if(WIN32)
+        target_compile_options(mlas PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+    endif()
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
