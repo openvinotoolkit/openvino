@@ -79,13 +79,16 @@ protected:
             dnnl::memory::desc scale_md(scale_dims, convert_data_type(scale_mem->get_layout().data_type), scale_fmt);
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(scale_md, 0)});
 
-            if (prim->decompression_zero_point.is_valid() && !prim->decompression_zero_point_scalar.has_value()) {
+            if (prim->decompression_zero_point.is_valid()) {
                 auto zp_mem = instance.dep_memory_ptr(idx++);
-                const auto& zp_shape = zp_mem->get_layout().get_shape();
+                const auto& zp_layout = zp_mem->get_layout();
+                const auto zp_dt = convert_data_type(zp_layout.data_type);
+                OPENVINO_ASSERT(zp_layout.count() > 1, "[GPU] grouped_matmul zero-point must be rank > 0");
+                const auto& zp_shape = zp_layout.get_shape();
                 OPENVINO_ASSERT(zp_shape == scale_shape,
                                 "[GPU] grouped_matmul zero-point shape ", zp_shape,
                                 " must match scale shape ", scale_shape);
-                dnnl::memory::desc zp_md(scale_dims, convert_data_type(zp_mem->get_layout().data_type), scale_fmt);
+                dnnl::memory::desc zp_md(scale_dims, zp_dt, scale_fmt);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(zp_md, 0)});
             }
         }
@@ -179,13 +182,20 @@ public:
                 attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, scale_dt);
             }
 
-            if (prim->decompression_zero_point.is_valid() && !prim->decompression_zero_point_scalar.has_value()) {
+            if (prim->decompression_zero_point.is_valid()) {
                 const auto& zp_layout = arg.get_dependency(idx++).get_output_layout();
                 const auto zp_dt = convert_data_type(zp_layout.data_type);
-                if (scale_shape.size() == 2) {
+                const auto& zp_shape = zp_layout.get_shape();
+                OPENVINO_ASSERT(zp_layout.count() > 1, "[GPU] grouped_matmul zero-point must be rank > 0");
+                if (zp_shape.size() == 2) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
                 } else {
-                    const int64_t num_groups = static_cast<int64_t>(scale_shape[2]);
+                    OPENVINO_ASSERT(zp_shape.size() == 3,
+                                    "[GPU] Unexpected decompression zero-point rank ", zp_shape.size());
+                    const int64_t num_groups = static_cast<int64_t>(zp_shape[2]);
+                    OPENVINO_ASSERT(num_groups > 0 && K % num_groups == 0,
+                                    "[GPU] grouped_matmul zp groups (", num_groups,
+                                    ") must evenly divide K (", K, ")");
                     const dnnl::memory::dim group_size = K / num_groups;
                     attr->set_zero_points(DNNL_ARG_WEIGHTS,
                                           (1 << 0) | (1 << 1) | (1 << 2),
