@@ -246,7 +246,8 @@ void PluginPropertyManager::registerProperties() {
         return hasBackend;
     };
 
-    auto hasBackendAndValidDeviceCache = std::make_shared<std::optional<std::pair<std::string, bool>>>();
+    using DeviceValidationCache = std::optional<std::pair<std::string, bool>>;
+    auto hasBackendAndValidDeviceCache = std::make_shared<DeviceValidationCache>();
     const auto has_backend_and_valid_device = [this, hasBackend, hasBackendAndValidDeviceCache]() {
         if (!hasBackend) {
             return false;
@@ -317,17 +318,6 @@ void PluginPropertyManager::registerProperties() {
     register_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(), [this](const ov::AnyMap&) {
-        if (!_config.has<STEPPING>()) {
-            try {
-                const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
-                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
-            } catch (...) {
-                _logger.warning("getSteppingNumber failed to get value from device.");
-            }
-        }
-        return _config.get<STEPPING>();
-    });
 
     register_property_with_custom_function(_config, _properties, ov::intel_npu::compile_log_level.name(), [this](const ov::AnyMap&) -> ov::Any { 
         return COMPILE_LOG_LEVEL::resolve(_config); 
@@ -336,10 +326,31 @@ void PluginPropertyManager::registerProperties() {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
 
+    register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
+        [this, has_backend_and_valid_device]() {  // support predicate
+            // If this is already disabled in the config, do not perform extra checks and return false.
+            if (!_config.isAvailable(ov::intel_npu::stepping.name())) {
+                return false;
+            }
+
+            // If enabled in the config, validate the configuration and check whether the expected device exists.
+            return has_backend_and_valid_device();
+        },
+        [this](const ov::AnyMap&) { // value getter
+            if (!_config.has<STEPPING>()) {
+                try {
+                    const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
+                    return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
+                } catch (...) {
+                    _logger.warning("GetSteppingNumber failed to get value from device.");
+                }
+            }
+            return _config.get<STEPPING>();
+        });
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
         [this, has_backend_and_valid_device]() {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
-            if (_config.isAvailable(ov::intel_npu::max_tiles.name()) == false) {
+            if (!_config.isAvailable(ov::intel_npu::max_tiles.name())) {
                 return false;
             }
 
@@ -352,7 +363,7 @@ void PluginPropertyManager::registerProperties() {
                     const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
                     return static_cast<int64_t>(utils::getMaxTiles(_backend, specifiedDeviceName));
                 } catch (...) {
-                    _logger.warning("Metrics GetMaxTiles failed to get value from device.");
+                    _logger.warning("GetMaxTiles failed to get value from device.");
                 }
             }
             return _config.get<MAX_TILES>();
@@ -704,8 +715,8 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
                 OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
             }
 
-            _logger.warning("Failed to create compiler for getting property %s with error: %s."
-                            "Returning only runtime properties and metrics that do not require compiler support.",
+            _logger.warning("Failed to create compiler for getting property %s with error: %s. Returning only "
+                            "properties that do not require compiler support.",
                             name.c_str(),
                             ex.what());
         }
@@ -806,8 +817,8 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
             return false;
         }
 
-        _logger.warning("Failed to create compiler to query property %s with error: %s. "
-                        "Registering only runtime properties and metrics that do not require compiler support.",
+        _logger.warning("Failed to create compiler to query property %s with error: %s. Registering only properties "
+                        "that do not require compiler support.",
                         name.c_str(),
                         ex.what());
     }
