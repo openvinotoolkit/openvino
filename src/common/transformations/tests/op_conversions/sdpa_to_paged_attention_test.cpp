@@ -20,6 +20,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -273,8 +274,8 @@ public:
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& past_seq_len_2,
                                        const std::shared_ptr<Node>& total_seq_len_2,
                                        const std::shared_ptr<Node>& rope_Q) {
-        auto _const = makeConst(element::f32, {1, 32767, 1, 1}, MOCK_VALUE);
-        auto slice = makeOP<v8::Slice>({_const, past_seq_len_2, total_seq_len_2, {1}, {1}});
+        auto const_ = makeConst(element::f32, {1, 32767, 1, 1}, MOCK_VALUE);
+        auto slice = makeOP<v8::Slice>({const_, past_seq_len_2, total_seq_len_2, {1}, {1}});
         auto mul = makeOP<v1::Multiply>({rope_Q, slice}, {numpy_broadcast});
         return makeOP<v1::Transpose>({mul, {0, 2, 1, 3}});
     }
@@ -484,6 +485,381 @@ public:
         return makeOP<v1::Reshape>({transpose_2, {0, -1}}, {special_zero_true});
     }
 };
+
+// ─── General parameterized building blocks for SDPA source models ───────────────────────────────
+
+// Fake RoPE: minimal subgraph that maintains position_ids dependency.
+// Real RoPE is ~20 nodes; we just need the data-flow edge for the pass to handle position_ids.
+static std::shared_ptr<Node> gen_fake_rope(const std::shared_ptr<Node>& input,
+                                           const std::shared_ptr<Node>& position_ids) {
+    auto pos_f32 = makeOP<v0::Convert>({position_ids}, {dest_type_f32});
+    auto pos_unsq = makeOP<v0::Unsqueeze>({pos_f32, -1});
+    return makeOP<v1::Add>({input, pos_unsq}, {numpy_broadcast});
+}
+
+struct CacheInfo {
+    std::shared_ptr<Node> past_gathered;
+    std::shared_ptr<ov::op::util::Variable> variable;
+};
+
+struct KVNodes {
+    std::shared_ptr<Node> concat;
+    std::shared_ptr<v6::Assign> assign;
+};
+
+// KV cache init + beam gather.  Shape: [batch, num_heads, seq, head_size]
+static CacheInfo gen_cache(const std::shared_ptr<Node>& input_ids,
+                           const std::shared_ptr<Node>& beam_idx,
+                           const std::string& name,
+                           int num_heads,
+                           int head_size) {
+    auto shape_of = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+    auto gather = makeOP<v8::Gather>({shape_of, {0}, 0}, {{"batch_dims", 0}});
+    auto concat =
+        makeOP<v0::Concat>({gather, {static_cast<long long>(num_heads)}, {0ll}, {static_cast<long long>(head_size)}},
+                           {{"axis", 0}});
+    auto init_to_read = makeOP<v1::Broadcast>({0.000000f, concat}, {{"mode", "numpy"}});
+    auto var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape{DYN, num_heads, DYN, head_size}, element::f32, name});
+    std::shared_ptr<Node> cache = std::make_shared<v6::ReadValue>(init_to_read, var);
+    auto past = makeOP<v8::Gather>({cache, beam_idx, 0}, {{"batch_dims", 0}});
+    return CacheInfo{past, var};
+}
+
+// Q path: optional scale multiply → Reshape[B,S,H,D] → Transpose[B,H,S,D]
+static std::shared_ptr<Node> gen_Q(const Output<Node>& q_proj, int num_heads, int head_size, bool has_scale = false) {
+    Output<Node> input = q_proj;
+    if (has_scale) {
+        auto scale = makeConst(element::f32, {1, 1, 1}, MOCK_VALUE);
+        input = makeOP<v1::Multiply>({input, scale}, {numpy_broadcast});
+    }
+    auto reshape = makeOP<v1::Reshape>({input, {0, 0, num_heads, head_size}}, {special_zero_true});
+    return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+}
+
+// KV path: Reshape → Transpose → [fake_rope if position_ids] → Concat(past, new) + Assign
+static KVNodes gen_KV(const CacheInfo& cache,
+                      const Output<Node>& proj,
+                      int num_heads,
+                      int head_size,
+                      const std::shared_ptr<Node>& position_ids = nullptr) {
+    auto reshape = makeOP<v1::Reshape>({proj, {0, 0, num_heads, head_size}}, {special_zero_true});
+    auto transpose = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    std::shared_ptr<Node> to_concat = transpose;
+    if (position_ids) {
+        to_concat = gen_fake_rope(transpose, position_ids);
+    }
+    std::shared_ptr<Node> concat = makeOP<v0::Concat>({cache.past_gathered, to_concat}, {{"axis", -2}});
+    auto assign = std::make_shared<v6::Assign>(concat, cache.variable);
+    return KVNodes{concat, assign};
+}
+
+class Opt125mSDPA {
+public:
+    static std::shared_ptr<Node> gen_embeddings(const std::shared_ptr<Node>& input_ids,
+                                                const std::shared_ptr<Node>& position_ids) {
+        // Token embeddings: embed_tokens(input_ids)
+        auto embed_weight = makeConst(element::f16, {50272, 768}, MOCK_VALUE);
+        auto embed_weight_f32 = makeOP<v0::Convert>({embed_weight}, {dest_type_f32});
+        auto ids_reshaped = makeOP<v1::Reshape>({input_ids, {-1, 0}}, {special_zero_true});
+        auto ids_i32 = makeOP<v0::Convert>({ids_reshaped}, {{"destination_type", "i32"}});
+        auto token_embed = makeOP<v8::Gather>({embed_weight_f32, ids_i32, 0}, {{"batch_dims", 0}});
+
+        // Positional embeddings: embed_positions(position_ids + 2)
+        auto pos_weight = makeConst(element::f32, {2050, 768}, MOCK_VALUE);
+        auto pos_offset = makeConst(element::i64, {1, 1}, MOCK_VALUE);
+        auto pos_ids_offset = makeOP<v1::Add>({position_ids, pos_offset}, {numpy_broadcast});
+        auto pos_ids_i32 = makeOP<v0::Convert>({pos_ids_offset}, {{"destination_type", "i32"}});
+        auto pos_embed = makeOP<v8::Gather>({pos_weight, pos_ids_i32, 0}, {{"batch_dims", 0}});
+
+        // token_embed + pos_embed
+        auto sum = makeOP<v1::Add>({token_embed, pos_embed}, {numpy_broadcast});
+
+        // LayerNorm: MVN + scale + bias
+        auto mvn = makeOP<v6::MVN>({sum, {-1}},
+                                   {{"eps", 0.000010}, {"normalize_variance", true}, {"eps_mode", "INSIDE_SQRT"}});
+        auto gamma = makeConst(element::f32, {1, 1, 768}, MOCK_VALUE);
+        auto scaled = makeOP<v1::Multiply>({mvn, gamma}, {numpy_broadcast});
+        auto beta = makeConst(element::f32, {1, 1, 768}, MOCK_VALUE);
+        return makeOP<v1::Add>({scaled, beta}, {numpy_broadcast});
+    }
+
+    static std::shared_ptr<Node> gen_proj(const std::shared_ptr<Node>& input) {
+        auto weight = makeConst(element::f16, {768, 768}, MOCK_VALUE);
+        auto weight_f32 = makeOP<v0::Convert>({weight}, {dest_type_f32});
+        auto matmul = makeOP<v0::MatMul>({input, weight_f32}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto bias = makeConst(element::f16, {768}, MOCK_VALUE);
+        auto bias_f32 = makeOP<v0::Convert>({bias}, {dest_type_f32});
+        return makeOP<v1::Add>({matmul, bias_f32}, {numpy_broadcast});
+    }
+
+    static CacheInfo gen_cache(const std::shared_ptr<Node>& input_ids,
+                               const std::shared_ptr<Node>& beam_idx,
+                               const std::string& name) {
+        return ::gen_cache(input_ids, beam_idx, name, 12, 64);
+    }
+
+    static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& q_proj) {
+        return ::gen_Q(q_proj, 12, 64, /*has_scale=*/true);
+    }
+
+    static KVNodes gen_KV(const CacheInfo& cache, const Output<Node>& proj) {
+        return ::gen_KV(cache, proj, 12, 64);
+    }
+
+    static std::shared_ptr<Node> gen_past_len(const std::shared_ptr<Node>& k_cache) {
+        auto shape_of = makeOP<v3::ShapeOf>({k_cache}, {{"output_type", "i64"}});
+        auto idx = makeConst(element::i64, {}, {2});
+        auto axis = makeConst(element::i64, {}, {0});
+        return makeOP<v8::Gather>({shape_of, idx, axis}, {{"batch_dims", 0}});
+    }
+
+    static std::shared_ptr<Node> gen_cur_len(const std::shared_ptr<Node>& input_ids) {
+        auto shape_of = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+        auto idx = makeConst(element::i64, {}, {1});
+        auto axis = makeConst(element::i64, {}, {0});
+        return makeOP<v8::Gather>({shape_of, idx, axis}, {{"batch_dims", 0}});
+    }
+
+    static std::shared_ptr<Node> gen_total_len(const std::shared_ptr<Node>& past_len,
+                                               const std::shared_ptr<Node>& cur_len) {
+        return makeOP<v1::Add>({past_len, cur_len}, {numpy_broadcast});
+    }
+
+    static std::shared_ptr<Node> gen_attention_mask(const std::shared_ptr<Node>& attention_mask_in,
+                                                    const std::shared_ptr<Node>& past_len,
+                                                    const std::shared_ptr<Node>& total_len) {
+        // Causal mask: Range(0, total_len) and Range(past_len, total_len)
+        auto kv_range = makeOP<v4::Range>({0, total_len, 1}, {{"output_type", "i64"}});
+        auto q_range = makeOP<v4::Range>({past_len, total_len, 1}, {{"output_type", "i64"}});
+
+        // kv_idx: [1, 1, 1, total_seq_len]
+        auto kv_unsq0 = makeOP<v0::Unsqueeze>({kv_range, 0});
+        auto kv_unsq1 = makeOP<v0::Unsqueeze>({kv_unsq0, 1});
+        auto kv_idx = makeOP<v0::Unsqueeze>({kv_unsq1, 2});
+
+        // q_idx: [1, 1, cur_seq_len, 1]
+        auto q_unsq0 = makeOP<v0::Unsqueeze>({q_range, 0});
+        auto q_unsq1 = makeOP<v0::Unsqueeze>({q_unsq0, 1});
+        auto q_idx = makeOP<v0::Unsqueeze>({q_unsq1, 3});
+
+        // causal_mask = LessEqual(kv_idx, q_idx) → [1, 1, cur_seq, total_seq]
+        auto causal_mask = makeOP<v1::LessEqual>({kv_idx, q_idx}, {numpy_broadcast});
+        auto true_const = makeConst(element::boolean, {}, MOCK_VALUE);
+        causal_mask = makeOP<v13::BitwiseAnd>({true_const, causal_mask}, {numpy_broadcast});
+
+        // Padding mask: attention_mask → bool → reshape to [batch, 1, 1, total_seq]
+        auto attn_mask_bool = makeOP<v0::Convert>({attention_mask_in}, {{"destination_type", "boolean"}});
+        auto padding_mask = makeOP<v0::Unsqueeze>({attn_mask_bool, 1});
+        padding_mask = makeOP<v0::Unsqueeze>({padding_mask, 1});
+
+        // Combine: causal AND padding → [batch, 1, cur_seq, total_seq]
+        auto combined = makeOP<v13::BitwiseAnd>({causal_mask, padding_mask}, {numpy_broadcast});
+
+        // Broadcast to final shape
+        auto shape_of_q = makeOP<v3::ShapeOf>({q_range}, {{"output_type", "i64"}});
+        auto cur_len = makeOP<v8::Gather>({shape_of_q, {0}, 0}, {{"batch_dims", 0}});
+        auto shape_of_am = makeOP<v3::ShapeOf>({attention_mask_in}, {{"output_type", "i64"}});
+        auto batch = makeOP<v8::Gather>({shape_of_am, {0}, 0}, {{"batch_dims", 0}});
+        auto total_len_1d = makeOP<v0::Unsqueeze>({total_len, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch, {1ll}, cur_len, total_len_1d}, {{"axis", 0}});
+        return makeOP<v3::Broadcast>({combined, bcast_shape}, {{"mode", "bidirectional"}});
+    }
+};
+
+class Opt125mPA {
+public:
+    static std::shared_ptr<Node> gen_embeddings(const std::shared_ptr<Node>& input_ids_unsqueezed,
+                                                const std::shared_ptr<Node>& position_ids_unsqueezed) {
+        return Opt125mSDPA::gen_embeddings(input_ids_unsqueezed, position_ids_unsqueezed);
+    }
+
+    static std::shared_ptr<Node> gen_proj(const std::shared_ptr<Node>& input) {
+        return Opt125mSDPA::gen_proj(input);
+    }
+
+    // Q path: scale → Reshape[B,S,H,D] → Transpose[B,H,S,D] → PA-Transpose[B,S,H,D] → Reshape[0,-1]
+    static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& q_proj) {
+        auto q = Opt125mSDPA::gen_Q(q_proj);
+        auto transpose_pa = makeOP<v1::Transpose>({q, {0, 2, 1, 3}});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
+    }
+
+    // K path: Reshape → Transpose → PA-Transpose → Reshape[0,-1]
+    static std::shared_ptr<Node> gen_K(const std::shared_ptr<Node>& k_proj) {
+        auto reshape = makeOP<v1::Reshape>({k_proj, {0, 0, 12, 64}}, {special_zero_true});
+        auto transpose_orig = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+        auto transpose_pa = makeOP<v1::Transpose>({transpose_orig, {0, 2, 1, 3}});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
+    }
+
+    // V path: same as K but also extracts head_size for align_pa_layout
+    static std::shared_ptr<Node> gen_V(const std::shared_ptr<Node>& v_proj, std::shared_ptr<Node>& head_size) {
+        auto reshape = makeOP<v1::Reshape>({v_proj, {0, 0, 12, 64}}, {special_zero_true});
+        auto transpose_orig = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+        auto transpose_pa = makeOP<v1::Transpose>({transpose_orig, {0, 2, 1, 3}});
+        // head_size = ShapeOf(v_target_layout)[-1] → Unsqueeze(0)
+        auto shape_of = makeOP<v3::ShapeOf>({transpose_pa}, {{"output_type", "i64"}});
+        auto gather_dim = makeOP<v8::Gather>({shape_of, -1ll, 0ll}, {{"batch_dims", 0}});
+        head_size = makeOP<v0::Unsqueeze>({gather_dim, 0});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
+    }
+
+    // PA output → Reshape[0, 1, -1, head_size] → Transpose[0, 2, 1, 3]
+    static std::shared_ptr<Node> align_pa_layout(const std::shared_ptr<Node>& pa,
+                                                 const std::shared_ptr<Node>& head_size) {
+        auto shape = makeOP<v0::Concat>({{0ll}, {1ll}, {-1ll}, head_size}, {{"axis", 0}});
+        auto reshaped = makeOP<v1::Reshape>({pa->output(0), shape}, {special_zero_true});
+        return makeOP<v1::Transpose>({reshaped, {0, 2, 1, 3}});
+    }
+};
+
+static std::shared_ptr<Node> wrap_fake_convert(const std::shared_ptr<Node>& input) {
+    auto scale = makeConst(element::f32, {}, {1.0f});
+    auto shift = makeConst(element::f32, {}, {0.0f});
+    return makeOP<v13::FakeConvert>({input, scale, shift}, {{"destination_type", "f8e4m3"}});
+}
+
+TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
+    {
+        auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+        auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+        ParameterVector params = nodes_to_params({position_ids, input_ids, attention_mask, beam_idx});
+
+        // Embeddings + LayerNorm:
+        auto embeddings = Opt125mSDPA::gen_embeddings(input_ids, position_ids);
+
+        auto q_proj = Opt125mSDPA::gen_proj(embeddings);
+        auto k_proj = Opt125mSDPA::gen_proj(embeddings);
+        auto v_proj = Opt125mSDPA::gen_proj(embeddings);
+
+        auto k_cache = Opt125mSDPA::gen_cache(input_ids, beam_idx, "K_cache");
+        auto v_cache = Opt125mSDPA::gen_cache(input_ids, beam_idx, "V_cache");
+
+        auto past_len = Opt125mSDPA::gen_past_len(k_cache.past_gathered);
+        auto cur_len = Opt125mSDPA::gen_cur_len(input_ids);
+        auto total_len = Opt125mSDPA::gen_total_len(past_len, cur_len);
+
+        auto Q = Opt125mSDPA::gen_Q(q_proj);
+        auto [k_concat, k_assign] = Opt125mSDPA::gen_KV(k_cache, k_proj);
+        auto [v_concat, v_assign] = Opt125mSDPA::gen_KV(v_cache, v_proj);
+
+        // Wrap Q, K, V with FakeConvert to test optional_fake_convert pattern matching
+        auto Q_fc = wrap_fake_convert(Q);
+        auto K_fc = wrap_fake_convert(k_concat);
+        auto V_fc = wrap_fake_convert(v_concat);
+
+        auto mask = Opt125mSDPA::gen_attention_mask(attention_mask, past_len, total_len);
+
+        auto scale = makeConst(element::f32, {}, {1.0f});
+        auto sdpa = makeOP<v13::ScaledDotProductAttention>({Q_fc, K_fc, V_fc, mask, scale}, {{"causal", false}});
+        auto res = makeOP<v0::Result>({sdpa});
+
+        model = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{k_assign, v_assign}, params);
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    }
+    {
+        auto max_context_len = makeOP<v0::Parameter>({}, {{"shape", PartialShape{}}, el_type_i32});
+        auto block_indices_begins = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto block_indices = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto subsequence_begins = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto past_lens = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
+        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+
+        auto rotated_block_indices = makeConst(element::i32, Shape{0}, {0});
+        auto rotation_deltas = makeConst(element::i32, Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, Shape{0}, {0});
+        auto xattention_threshold = makeConst(element::f32, Shape{0}, {0});
+        auto xattention_block_size = makeConst(element::i32, Shape{}, MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, Shape{}, MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, Shape{}, MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, Shape{0}, {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, Shape{0}, {0});
+        auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, Shape{0}, {0});
+
+        auto params = nodes_to_params({score_aggregation_window,
+                                       max_context_len,
+                                       block_indices_begins,
+                                       block_indices,
+                                       subsequence_begins,
+                                       past_lens,
+                                       value_cache_0,
+                                       key_cache_0,
+                                       input_ids,
+                                       position_ids});
+
+        auto input_ids_unsqueezed = makeOP<v0::Unsqueeze>({input_ids, 1});
+        auto position_ids_unsqueezed = makeOP<v0::Unsqueeze>({position_ids, -1});
+
+        // Embeddings + LayerNorm
+        auto embeddings = Opt125mPA::gen_embeddings(input_ids_unsqueezed, position_ids_unsqueezed);
+
+        auto q_proj = Opt125mPA::gen_proj(embeddings);
+        auto k_proj = Opt125mPA::gen_proj(embeddings);
+        auto v_proj = Opt125mPA::gen_proj(embeddings);
+
+        auto Q = Opt125mPA::gen_Q(q_proj);
+        auto K = Opt125mPA::gen_K(k_proj);
+        std::shared_ptr<Node> head_size;
+        auto V = Opt125mPA::gen_V(v_proj, head_size);
+
+        Q = wrap_fake_convert(Q);
+        K = wrap_fake_convert(K);
+        V = wrap_fake_convert(V);
+
+        auto scale = makeConst(element::f32, {}, {1.0f});
+        auto sliding_window = makeConst(element::i32, Shape{}, {0});
+        auto alibi_slopes = makeConst(element::f32, Shape{0}, std::vector<float>{});
+        auto score_agg_const = makeConst(element::i32, Shape{0}, {0});
+        auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
+
+        auto pa =
+            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
+                                                                       K,
+                                                                       V,
+                                                                       key_cache_0,
+                                                                       value_cache_0,
+                                                                       past_lens,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       scale,
+                                                                       sliding_window,
+                                                                       alibi_slopes,
+                                                                       max_context_len,
+                                                                       score_agg_const,
+                                                                       rotated_block_indices,
+                                                                       rotation_deltas,
+                                                                       rotation_trig_lut,
+                                                                       xattention_threshold,
+                                                                       xattention_block_size,
+                                                                       xattention_stride,
+                                                                       sinks,
+                                                                       adaptive_rkv_start_size,
+                                                                       adaptive_rkv_evictable_sizes,
+                                                                       adaptive_rkv_diversity_block_set_indices,
+                                                                       adaptive_rkv_diversity_block_set_indices_begins,
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
+
+        auto pa_aligned = Opt125mPA::align_pa_layout(pa, head_size);
+        auto result = makeOP<v0::Result>({pa_aligned});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, params);
+    }
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
 
 }  // namespace
 

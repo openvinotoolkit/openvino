@@ -12,6 +12,9 @@
 
 namespace ov::util {
 
+/** @brief Minimum guaranteed page alignment on all supported platforms (x86, ARM, RISC-V). */
+inline constexpr size_t min_page_alignment = 4096;
+
 /**
  * @brief Rounds @p size up to the nearest multiple of @p alignment.
  *
