@@ -27,10 +27,8 @@ if(POLICY CMP0177)
 endif()
 
 if(POLICY CMP0194)
-    # MSVC cl.exe is not a valid ASM compiler; use ml64.exe instead.
-    # CMAKE_POLICY_DEFAULT_CMP0194 ensures this propagates into subdirectories
-    # that call cmake_minimum_required() with a version older than 4.1 (when
-    # CMP0194 was introduced), which would otherwise reset the policy to unset.
+    # NOTE: Keeping the policy "OLD" in order to retain custom assembler search (icpx/icx/icx.exe)
+    # Making it "NEW" would result in (incorrect) usage of cl64.exe in certain contexts on Windows
     set(CMAKE_POLICY_DEFAULT_CMP0194 OLD)
     # NOTE: Some CMake versions have a typo in the policy number, so we set both to be safe
     set(CMAKE_POLICY_DEFAULT_CMP194 OLD)
