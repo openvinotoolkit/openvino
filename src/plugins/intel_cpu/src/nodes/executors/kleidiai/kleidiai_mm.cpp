@@ -28,16 +28,17 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/common/offset_helper.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/arm_isa_support.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN (-3.4028235e38f)
@@ -58,7 +59,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
+    if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
 
@@ -66,6 +67,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
@@ -142,7 +144,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         MemoryPtr weightsMemory = memory.at(ARG_WEI);
         INT4_IMPL = weightsMemory->getDescPtr()->getPrecision() == element::i4;
         if (INT4_IMPL) {
-            ukernel_i4 = hasInt8MMSupport() ? &ukernel_i4_imm : &ukernel_i4_dotprod;
+            ukernel_i4 = hasArmISASupport(ArmISA::I8MM) ? &ukernel_i4_imm : &ukernel_i4_dotprod;
             BLOCK_SIZE_M_LOWP = ukernel_i4->get_m_step();
 
             mr = ukernel_i4->get_mr();
@@ -192,7 +194,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             }
 
         } else {
-            ukernel_i8 = hasInt8MMSupport() ? &ukernel_i8_imm : &ukernel_i8_dotprod;
+            ukernel_i8 = hasArmISASupport(ArmISA::I8MM) ? &ukernel_i8_imm : &ukernel_i8_dotprod;
             BLOCK_SIZE_M_LOWP = 16;
             if (!attrs.weightsNonTransposed) {
                 auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);

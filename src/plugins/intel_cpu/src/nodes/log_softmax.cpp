@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -56,9 +57,9 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (dimsSize == 0) {
         dimsSize += 1;
     }
-    axis = static_cast<int>(logSoftMax->get_axis());
+    axis = logSoftMax->get_axis();
     if (axis < 0) {
-        axis += dimsSize;
+        axis += static_cast<int64_t>(dimsSize);
     }
 
     CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,

@@ -12,6 +12,7 @@
 #include "model_builder_attention.hpp"
 #include "model_builder_ffn.hpp"
 #include "model_builder_masks.hpp"
+#include "model_builder_moe.hpp"
 #include "model_builder_norm.hpp"
 #include "model_builder_rope.hpp"
 #include "model_builder_types.hpp"
@@ -179,6 +180,7 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+    MoEFactoryFn moe_factory;  ///< MoE topology (num_experts>0). Empty = GPT-OSS; make_qwen3_moe_ffn for Qwen3.
 
     size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
     /// 0 = uniform: every layer gets the same mask (all sliding if sliding_window_size > 0,
