@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-03-09-30-28-553-28648021149",
+  "timestamp": "2026-07-03T09:30:28Z",
+  "run_id": "28648021149",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28648021149",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36681",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36681",
+  "author": "p-wysocki",
+  "category": "Infrastructure",
+  "title": "throughput_benchmark_py sample crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+  "signature": "Inconsistency detected by ld.so dl-sort-maps.c _dl_sort_maps_dfs Assertion maps_head == maps failed|Infrastructure",
+  "signature_hash": "505ffe872b32b761",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "Test_throughput_benchmark_py fails: ld.so dl-sort-maps DFS assertion maps_head == maps"
+    }
+  ],
+  "key_errors": [
+    "Inconsistency detected by ld.so: dl-sort-maps.c: 272: _dl_sort_maps_dfs: Assertion `maps_head == maps' failed!",
+    "FAILED install/tests/smoke_tests/test_throughput_benchmark.py::Test_throughput_benchmark_py::test - AssertionError: Sample execution failed",
+    "1 failed, 189 passed, 12 skipped in 227.11s (0:03:47)"
+  ],
+  "root_cause": "The Linux dynamic linker (ld.so) triggered an internal DFS assertion failure while sorting shared library load maps. This is a non-deterministic, environment-level issue that occurs when glibc's dynamic linker encounters an inconsistency in the dependency graph of loaded shared objects. On ARM64 runners, this can arise from concurrent library loading across threads or conflicting library versions. The assertion 'maps_head == maps' in dl-sort-maps.c indicates the DFS traversal found an unexpected head node, suggesting a race condition or corrupted library dependency map. This is unrelated to the PR code changes.",
+  "reproduction_steps": "N/A - This is a non-deterministic ld.so infrastructure issue on ARM64 runners that cannot be reliably reproduced locally.",
+  "recommended_actions": [
+    "Re-run the failed CI job to confirm the failure is intermittent (flaky) and not deterministic.",
+    "If it fails consistently, check whether the PR changes any library linking order or adds new shared library dependencies.",
+    "Check if glibc or LD_PRELOAD settings changed on the ARM64 runner image.",
+    "Consider adding a retry mechanism in the test runner for known ld.so flaky failures."
+  ],
+  "prevention_strategies": "Monitor ARM64 runner image updates. If the same ld.so assertion appears consistently across multiple unrelated PRs, escalate to the infrastructure team to update or refresh the runner image. Consider implementing test retry for intermittent ld.so failures.",
+  "historical_context": "A very similar failure occurred on 2026-06-30 (run 28446416608) where hello_classification_c crashed with a different ld.so dl-sort-maps DFS assertion (rpo_head == rpo) on ARM64. Both indicate the same class of infrastructure instability with the dynamic linker on ARM64 runners."
+}

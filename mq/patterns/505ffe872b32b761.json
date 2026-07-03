@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Inconsistency detected by ld.so dl-sort-maps.c _dl_sort_maps_dfs Assertion maps_head == maps failed|Infrastructure",
+  "signature_hash": "505ffe872b32b761",
+  "title": "throughput_benchmark_py sample crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-03T09:30:28Z",
+  "last_seen": "2026-07-03T09:30:28Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28648021149"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36681"
+  ],
+  "recent_timestamps": [
+    "2026-07-03T09:30:28Z"
+  ]
+}
