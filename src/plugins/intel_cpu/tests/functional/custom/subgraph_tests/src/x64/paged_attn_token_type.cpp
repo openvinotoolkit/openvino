@@ -244,11 +244,7 @@ public:
     }
 
     // Process the sequence in two chunks that share a single KV cache (chunked
-    // prefill / prefix caching, i.e. the second call runs with past_len > 0).
-    // Returns the output rows produced by the SECOND chunk. This is the scenario
-    // that exercises the KV-cache-coordinate offset (past_len - seq_begin) applied
-    // to the image-group boundaries: with past_len == 0 the offset is a no-op, so
-    // it can only be validated when past_len > 0.
+    // prefill / prefix caching, the second call runs with past_len > 0)
     RunResult run_pa_chunked(std::shared_ptr<ov::Model> model,
                              ov::element::Type data_type,
                              size_t seq_len,
@@ -289,8 +285,6 @@ public:
         auto params = model->get_parameters();
         const size_t hidden_dim = head_num * head_size;
 
-        // Full-sequence q/k/v, generated identically to run_pa_with_token_types so
-        // that each chunk's rows are exactly the corresponding single-shot rows.
         auto fill_tensor = [](ov::Tensor& t, float base, float stride) {
             auto* p = t.data<float>();
             for (size_t i = 0; i < t.get_size(); i++) {
@@ -600,7 +594,7 @@ TEST_P(PagedAttnTokenTypeTest, ChunkedPrefillMatchesSingleShot) {
     auto result_chunked =
         run_pa_chunked(model_chunked, inType, seq_len, head_size, head_num, pattern.types, chunk1_len);
 
-    // Chunk-2 rows [chunk1_len, seq_len) must match the single-shot output.
+    // Chunk-2 rows [chunk1_len, seq_len) must match the single-shot output
     const size_t hidden_dim = head_num * head_size;
     const size_t chunk2_len = seq_len - chunk1_len;
     ov::Tensor single_tail(result_single.output.get_element_type(),

@@ -464,9 +464,6 @@ struct MHAHelper {
     std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
     // Precompute image group boundaries from token_type_ids.
-    // The arrays are indexed by the global batched-token index, while the stored values are expressed
-    // in KV-cache coordinates (i.e. already offset by past_len - seq_begin) so they can be compared
-    // directly against ncausal / cur_kv_len during attention.
     // For each image token:
     //   _image_group_end[i] = KV coordinate past the last contiguous image token in the same group
     //   _image_group_begin[i] = KV coordinate of the first contiguous image token in the same group
@@ -1158,8 +1155,6 @@ struct MHAHelper {
         auto q_cnt = q_end - q_start;
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        // Bidirectional image-group attention may require attending to keys beyond the causal range
-        // (future image tokens of the same group); extend the kv length to cover them.
         const size_t seq_kv_len = past_len + q_len;
         size_t cur_kv_len_ext = cur_kv_len;
         if (_has_image_tokens) {
