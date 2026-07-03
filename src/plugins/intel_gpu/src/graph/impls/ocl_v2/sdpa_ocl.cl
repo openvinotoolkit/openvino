@@ -35,7 +35,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
-        const global half *Q,
+        const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
         global half *A,
 #if WITH_ATTN_MASK
@@ -71,10 +71,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const size_t sg_i0_kq = sg_i_kq * kq_sg_tile_keys;
     const size_t sg_j0_kq = sg_j_kq * kq_sg_tile_queries;
 
-    const size_t sv_sg_values = sg_ij % sv_sg_per_wg_values;
-    const size_t sv_sg_scores = sg_ij / sv_sg_per_wg_values;
-    const size_t sv_value0 = sv_sg_values * sv_sg_tile_values;
-    const size_t sv_score0 = sv_sg_scores * sv_sg_tile_scores;
+    const size_t sg_i_sv = sg_ij / sv_sg_per_wg_values;
+    const size_t sg_j_sv = sg_ij % sv_sg_per_wg_values;
+    const size_t sg_i0_sv = sg_i_sv * sv_sg_tile_scores;
+    const size_t sg_j0_sv = sg_j_sv * sv_sg_tile_values;
 
     const float LOG2E = 1.4426950408889634f;
 
@@ -102,19 +102,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 
-    // float iscale = native_recip(scale);
     scale *= LOG2E;
 
-    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
+    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
 
-    const int KD_w = d * (int)sizeof(half), KD_h = k, KD_p = KEY_S2 * (int)sizeof(half);
-    const int VD_w = d * (int)sizeof(half), VD_h = k, VD_p = VAL_S2 * (int)sizeof(half);
+    const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = KEY_S2 * (int)sizeof(KEY_DATA_T);
+    const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = VAL_S2 * (int)sizeof(VAL_DATA_T);
     const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = DST_S2 * (int)sizeof(half);
     local uint  Q_slm[DKS * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
     local uint  S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
@@ -205,20 +204,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int key_offset = 0; key_offset < 8; ++key_offset) {
                     const int key = key_base + mb * 8 + key_offset;
                     if (head < d && key < k) {
-#ifdef KV_COMPRESSED
-                        // i8 compressed K: per-token (per-kv-head) asymmetric dequant.
-                        // Scale/zp are shared across the head dim, so they are indexed by
-                        // token only: KEY_COMP_OFF(b1, b0_kv, key, 0).
-                        const uint k_comp_off = KEY_COMP_OFF(b1, b0_kv, key, 0);
-#if KEY_ZERO_POINTS
-                        const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - convert_float(K_zp[k_comp_off])) * convert_float(K_scales[k_comp_off]);
-#else
-                        const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * convert_float(K_scales[k_comp_off]);
-#endif
-                        k_raw[mb][key_offset] = as_ushort((half)deq_k);
-#else
-                        k_raw[mb][key_offset] = as_ushort(K[(size_t)key * KEY_S2 + head]);
-#endif
+                        #ifdef KV_COMPRESSED
+                            // i8 compressed K: per-token (per-kv-head) asymmetric dequant.
+                            // Scale/zp are shared across the head dim, so they are indexed by
+                            // token only: KEY_COMP_OFF(b1, b0_kv, key, 0).
+                            const uint k_comp_off = KEY_COMP_OFF(b1, b0_kv, key, 0);
+                            #if KEY_ZERO_POINTS
+                                const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - convert_float(K_zp[k_comp_off])) * convert_float(K_scales[k_comp_off]);
+                            #else
+                                const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * convert_float(K_scales[k_comp_off]);
+                            #endif
+                            k_raw[mb][key_offset] = as_ushort((half)deq_k);
+                        #else
+                            k_raw[mb][key_offset] = as_ushort(K[(size_t)key * KEY_S2 + head]);
+                        #endif
                     }
                 }
             }
@@ -242,7 +241,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int cd = 0; cd < sv_value_blocks; ++cd) {
                 intel_sub_group_2d_block_prefetch_16b_16r16x1c(
                     (const global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
+                    (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
             }
         }
 #endif
@@ -386,7 +385,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r) {
                 float8 av;
-                const int rel_query = sv_score0 + r * 8 - sg_j0_kq;
+                const int rel_query = sg_i0_sv + r * 8 - sg_j0_kq;
                 const int alpha_qb = rel_query / SUBGROUP_SIZE;
                 const int alpha_lane0 = rel_query - alpha_qb * SUBGROUP_SIZE;
                 #pragma unroll
@@ -405,65 +404,125 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             short8 pA[sv_score_blocks];
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r) {
-                const int query0 = sv_score0 + r * 8;
+                const int query0 = sg_i0_sv + r * 8;
                 pA[r] = as_short8(intel_sub_group_block_read_us8(
                     (local void *)&S_slm[((cp * kq_wg_tile_queries + query0) * SUBGROUP_SIZE) >> 1]));
             }
 
+            #if USE_2D_BLOCK_IO_V_I8
+                // int8 V uses the 8-bit VNNI-transform read below, which dequants each byte with a
+                // per-token scale. Per-token V scale/zp depend only on the key (not the value/head
+                // index), so load this cp-block's SUBGROUP_SIZE keys once (lane L -> key k0+cp*16+L)
+                // and broadcast the needed key's value in the dequant loop, instead of re-reading
+                // them from global memory per (value, key).
+                const int vs_key = k0 + cp * SUBGROUP_SIZE + lane;
+                const uint vs_co = VAL_COMP_OFF(b1, b0_kv, vs_key, 0);
+                // Keep scale/zp in half: V_scales/V_zp are already half, and the dequant is
+                // stored as half — half arithmetic is bit-identical to the float path over the
+                // int8 range (verified), so this avoids the half->float->half round trips.
+                const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
+                #if VAL_ZERO_POINTS
+                    const half vz_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
+                #endif
+            #endif
+
             int8 vb[sv_value_blocks];
             #pragma unroll
             for (int cd = 0; cd < sv_value_blocks; ++cd) {
-#if USE_2D_BLOCK_IO
-                intel_sub_group_2d_block_read_transform_16b_16r16x1c(
-                    (global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
-#else
-                vb[cd] = (int8)0;
-                const int value = sv_value0 + cd * SUBGROUP_SIZE + lane;
-                if (value < d) {
-                    #pragma unroll
-                    for (int key_pair = 0; key_pair < 8; ++key_pair) {
-                        const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
-                        const int key1 = key0 + 1;
-                        half2 vv = (half2)0.0h;
-                        if (key0 < k) {
-#ifdef KV_COMPRESSED
-                            // i8 compressed V: per-token (per-kv-head) asymmetric dequant.
-                            // Scale/zp vary per key (token), so they must be indexed by
-                            // key0/key1 here, not by the value (head-dim) index.
-                            const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
-#if VAL_ZERO_POINTS
-                            vv[0] = (half)((convert_float(V[(size_t)key0 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
-#else
-                            vv[0] = (half)(convert_float(V[(size_t)key0 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off0]));
-#endif
-#else
-                            vv[0] = V[(size_t)key0 * VAL_S2 + value];
-#endif
+                #if USE_2D_BLOCK_IO_V_I8
+                    // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
+                    // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
+                    // need this cp-block's 16 keys, which are uints 0..3 (keys cp*16 .. +15 when read
+                    // at row k0+cp*16). Dequant each byte (per-key scale via the cached vs_c
+                    // broadcast) and repack into the f16 VNNI operand (2 half-keys per int), matching
+                    // the scalar vb layout with no subgroup shuffle.
+                    {
+                        uint vt[8];
+                        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                            (global void *)V, VD_w, VD_h, VD_p,
+                            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
+                        // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
+                        // Unpack each uint's 4 bytes as a signed char4 and dequant per-uint with
+                        // half vector ops: convert_half4 replaces 4 scalar converts, and the
+                        // per-key scale/zp (key-specific, gathered via broadcast into a half4) are
+                        // applied with a single vector mul/fma — no f32 intermediate. as_char4(.s0)
+                        // ==byte0==key u*4+0, matching the previous shift-and-mask order.
+                        #pragma unroll
+                        for (int u = 0; u < 4; ++u) {
+                            const half4 raw4 = convert_half4(as_char4(vt[u]));
+                            const int k0r = u * 4;
+                            const half4 sc4 = (half4)(sub_group_broadcast(vs_c, k0r + 0),
+                                                      sub_group_broadcast(vs_c, k0r + 1),
+                                                      sub_group_broadcast(vs_c, k0r + 2),
+                                                      sub_group_broadcast(vs_c, k0r + 3));
+                            #if VAL_ZERO_POINTS
+                                const half4 zp4 = (half4)(sub_group_broadcast(vz_c, k0r + 0),
+                                                          sub_group_broadcast(vz_c, k0r + 1),
+                                                          sub_group_broadcast(vz_c, k0r + 2),
+                                                          sub_group_broadcast(vz_c, k0r + 3));
+                                const half4 deq4 = (raw4 - zp4) * sc4;
+                            #else
+                                const half4 deq4 = raw4 * sc4;
+                            #endif
+                            // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
+                            // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
+                            // are exactly the two key_pairs (u*2, u*2+1) for this u — store
+                            // straight into vb instead of round-tripping through an array.
+                            vb[cd][u * 2 + 0] = as_int(deq4.lo);
+                            vb[cd][u * 2 + 1] = as_int(deq4.hi);
                         }
-                        if (key1 < k) {
-#ifdef KV_COMPRESSED
-                            const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
-#if VAL_ZERO_POINTS
-                            vv[1] = (half)((convert_float(V[(size_t)key1 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
-#else
-                            vv[1] = (half)(convert_float(V[(size_t)key1 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off1]));
-#endif
-#else
-                            vv[1] = V[(size_t)key1 * VAL_S2 + value];
-#endif
-                        }
-                        vb[cd][key_pair] = as_int(vv);
                     }
-                }
-#endif
+                #elif USE_2D_BLOCK_IO
+                    intel_sub_group_2d_block_read_transform_16b_16r16x1c(
+                        (global void *)V, VD_w, VD_h, VD_p,
+                        (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
+                #else
+                    vb[cd] = (int8)0;
+                    const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
+                    if (value < d) {
+                        #pragma unroll
+                        for (int key_pair = 0; key_pair < 8; ++key_pair) {
+                            const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
+                            const int key1 = key0 + 1;
+                            half2 vv = (half2)0.0h;
+                            if (key0 < k) {
+                                #ifdef KV_COMPRESSED
+                                    // i8 compressed V: per-token (per-kv-head) asymmetric dequant.
+                                    // Scale/zp vary per key (token), so they must be indexed by
+                                    // key0/key1 here, not by the value (head-dim) index.
+                                    const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
+                                    #if VAL_ZERO_POINTS
+                                        vv[0] = (half)((convert_float(V[(size_t)key0 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
+                                    #else
+                                        vv[0] = (half)(convert_float(V[(size_t)key0 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off0]));
+                                    #endif
+                                #else
+                                    vv[0] = V[(size_t)key0 * VAL_S2 + value];
+                                #endif
+                            }
+                            if (key1 < k) {
+                                #ifdef KV_COMPRESSED
+                                    const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
+                                    #if VAL_ZERO_POINTS
+                                        vv[1] = (half)((convert_float(V[(size_t)key1 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
+                                    #else
+                                        vv[1] = (half)(convert_float(V[(size_t)key1 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off1]));
+                                    #endif
+                                #else
+                                    vv[1] = V[(size_t)key1 * VAL_S2 + value];
+                                #endif
+                            }
+                            vb[cd][key_pair] = as_int(vv);
+                        }
+                    }
+                #endif
             }
 
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r)
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
-                    A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
+                    A_tile[r][cd](pA[r], vb[cd], A_tile[r][cd]);
         }
     }
 
@@ -472,7 +531,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         float8 inv_l;
         #pragma unroll
         for (int rr = 0; rr < 8; ++rr) {
-            const int query = sv_score0 + r * 8 + rr;
+            const int query = sg_i0_sv + r * 8 + rr;
             float l = S_sum_slm[query * kq_sg_per_wg_keys + 0];
             #pragma unroll
             for (int p = 1; p < kq_sg_per_wg_keys; ++p)
@@ -489,8 +548,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd) {
             half8 out = convert_half8(A_tile[r][cd]);
-            const int col = sv_value0 + cd * SUBGROUP_SIZE;
-            const int row = wg_j0 + sv_score0 + r * 8;
+            const int col = sg_j0_sv + cd * SUBGROUP_SIZE;
+            const int row = wg_j0 + sg_i0_sv + r * 8;
 #if USE_2D_BLOCK_IO
             if (row + 7 < q && col + SUBGROUP_SIZE <= d) {
                 intel_sub_group_2d_block_write_16b_8r16x1c(
