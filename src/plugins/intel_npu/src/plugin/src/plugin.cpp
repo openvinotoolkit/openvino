@@ -729,6 +729,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::shared_ptr<IBlobFormatHandler>& blobFormatHandler,
                                                          ov::AnyMap& properties) const {
+    auto originalModel = get_model_ptr_from_map(properties);
+
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
+
+    if (_backend == nullptr || device == nullptr) {
+        OPENVINO_THROW("Device not found.");
+    }
+
+    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
+    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
+
+    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
+    if (!loadedFromCache) {  // TODO rewrite
+        _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
+    }
+
     return nullptr;
 }
 
