@@ -481,7 +481,7 @@ struct MHAHelper {
         for (int32_t seq = 0; seq < seq_count; seq++) {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
-            const int32_t kv_offset = past_lens.ptr<int32_t>()[seq] - seq_begin;
+            const auto kv_offset = past_lens.ptr<int32_t>()[seq] - seq_begin;
 
             // Record both boundaries for each contiguous image group
             for (int32_t i = seq_begin; i < seq_end;) {
@@ -891,6 +891,7 @@ struct MHAHelper {
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
+        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
 
         const size_t seq_kv_len = past_len + q_len;
@@ -899,8 +900,8 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 cur_kv_len_ext = std::max(cur_kv_len_ext, get_ncausal(q_token_start + m, cur_kv_len, seq_kv_len));
             }
+            cur_kv_len_blocks = div_up(cur_kv_len_ext, _block_size);
         }
-        const auto cur_kv_len_ext_blocks = div_up(cur_kv_len_ext, _block_size);
 
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
@@ -934,7 +935,7 @@ struct MHAHelper {
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
             // map runtime (block_size) indices to mask (xt_block_size) indices
-            for (size_t k_blk = 0; k_blk < cur_kv_len_ext_blocks; k_blk++) {
+            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 // sparse attention mask filtering
                 if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
@@ -1076,7 +1077,7 @@ struct MHAHelper {
                 q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
             // for each weight block, loop through all value block
-            for (size_t v_blk = 0; v_blk < cur_kv_len_ext_blocks; v_blk++) {
+            for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
                 // sparse attention mask filtering for value blocks
                 if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, v_m] = map_to_mask_idx(q_blk, v_blk);
@@ -1155,14 +1156,15 @@ struct MHAHelper {
         auto q_cnt = q_end - q_start;
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         const size_t seq_kv_len = past_len + q_len;
         size_t cur_kv_len_ext = cur_kv_len;
         if (_has_image_tokens) {
             for (size_t m = q_start; m < q_end; m++) {
                 cur_kv_len_ext = std::max(cur_kv_len_ext, get_ncausal(q_token_start + m, cur_kv_len, seq_kv_len));
             }
+            cur_kv_len_blocks = div_up(cur_kv_len_ext, _block_size);
         }
-        const auto cur_kv_len_blocks = div_up(cur_kv_len_ext, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
         PlainTensor bias_wv, bias_qk;
         bias_wv.resize<float16_t>({SV});
