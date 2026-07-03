@@ -10,8 +10,6 @@ namespace intel_npu {
 
 class IBlobFormatHandler {
 public:
-    explicit IBlobFormatHandler(const ov::Tensor& npu_formatted_blob);
-
     virtual std::shared_ptr<ov::Model> create_dummy_model() = 0;
 
     virtual std::shared_ptr<IGraph> create_graph() = 0;
@@ -26,21 +24,36 @@ private:
     virtual ov::Tensor decrypt_schedules() = 0;
 
     virtual ov::Tensor create_weights_map() = 0;
-
-    ov::Tensor m_npu_formatted_blob;
 };
 
-// class RawBlobFormatHandler : public IBlobFormatHandler {
-// }
+class RawBlobHandler : public IBlobFormatHandler {
+public:
+    explicit RawBlobHandler(std::istream& compiler_main_schedule);
 
-// class BlobFormatV1Handler : public IBlobFormatHandler {
-// }
+    explicit RawBlobHandler(const ov::Tensor& compiler_main_schedule);
+
+private:
+    ov::Tensor m_compiler_main_schedule;
+};
+
+class BlobFormatV1Handler : public IBlobFormatHandler {
+public:
+    explicit BlobFormatV1Handler(std::istream& npu_formatted_blob);
+
+    explicit BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob);
+
+private:
+    ov::Tensor m_compiler_payload;
+    std::unique_ptr<MetadataBase> m_metadata;
+};
 
 namespace blob_format_handler_factory {
 
-std::shared_ptr<IBlobFormatHandler> create(std::istream npu_formatted_blob);
+std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob, const bool raw_blob, const Logger& logger);
 
-std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob);
+std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
+                                           const bool raw_blob,
+                                           const Logger& logger);
 
 }  // namespace blob_format_handler_factory
 

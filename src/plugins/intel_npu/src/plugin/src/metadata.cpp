@@ -569,18 +569,10 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string blobMagicBytes;
-    blobMagicBytes.resize(magicBytesSize);
 
     std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
-    stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
-    stream.read(blobMagicBytes.data(), magicBytesSize);
-    if (MAGIC_BYTES != blobMagicBytes) {
-        OPENVINO_THROW("Blob is missing NPU metadata!");
-    }
-
     uint64_t blobDataSize;
-    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::cur);
+    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::end);
     stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(blobDataSize));
     stream.seekg(-stream.tellg() + currentStreamPos + blobDataSize, std::ios::cur);
 

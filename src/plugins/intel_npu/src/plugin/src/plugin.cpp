@@ -662,25 +662,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     try {
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = MetadataBase::getFileSize(stream);
+        std::shared_ptr<IBlobFormatHandler> blobFormatHandler =
+            blob_format_handler_factory::create(stream, should_import_raw_blob(npuPluginProperties));
 
-        if (!should_import_raw_blob(npuPluginProperties)) {
-            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
-            // passes compatibility checks.
-            metadata = read_metadata_from(stream);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
-        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
-        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-        }
-        stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        return parse(tensor, std::move(metadata), npuPluginProperties);
+        return import_model(blobFormatHandler, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -720,20 +705,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = compiledBlob.get_byte_size();
+        // TODO make unique?
+        std::shared_ptr<IBlobFormatHandler> blobFormatHandler =
+            blob_format_handler_factory::create(compiledBlob, should_import_raw_blob(npuPluginProperties));
 
-        if (!should_import_raw_blob(npuPluginProperties)) {
-            metadata = read_metadata_from(compiledBlob);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
-        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
-        const ov::Tensor roiTensor(compiledBlob,
-                                   ov::Coordinate{0},
-                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, std::move(metadata), npuPluginProperties);
+        return import_model(blobFormatHandler, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -749,6 +725,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     }
     return import_model(compiledBlob, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::shared_ptr<IBlobFormatHandler>& blobFormatHandler,
+                                                         ov::AnyMap& properties) const {
+    return nullptr;
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
