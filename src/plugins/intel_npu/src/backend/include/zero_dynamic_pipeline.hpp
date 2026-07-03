@@ -8,7 +8,6 @@
 #include "intel_npu/utils/vm/dynamic_arguments.hpp"
 #include "zero_pipeline.hpp"
 
-
 namespace intel_npu {
 
 struct DynamicArguments {
@@ -40,7 +39,7 @@ struct DynamicArguments {
                                const void* argv,
                                const ov::Shape& shapes,
                                const std::vector<size_t>& strides);
-    
+
     void setOptimizedDynamicStridesMode(bool enabled) {
         _optimizedDynamicStridesMode = enabled;
     }

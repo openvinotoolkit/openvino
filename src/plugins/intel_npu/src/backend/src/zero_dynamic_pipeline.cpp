@@ -3,13 +3,13 @@
 //
 
 #include "zero_dynamic_pipeline.hpp"
-#include "dynamic_graph.hpp"
 
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <sstream>
 
+#include "dynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -164,7 +164,8 @@ void DynamicArguments::ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime)
     if (_executeParams.executionContext != nullptr) {
         return;
     }
-    if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_executeParams.executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_executeParams.executionContext) !=
+        NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create a VM execution context");
     }
 }
@@ -194,7 +195,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
-
     _command_lists.reserve(_batch_size);
     if (batch_size > 1) {
         _logger.debug("Batch size %zu greater than 1, use new graph arguments for each batch", batch_size);
@@ -225,11 +225,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
-            // DynamicPipeline does not currently support weightless model, just thrown exception.
-            OPENVINO_ASSERT(!desc.isMainInputWeights,
-                            "DynamicPipeline does not support weightless graphs (input '",
-                            desc.nameFromCompiler,
-                            "' is a main-input weight)");
+            if (desc.isMainInputWeights) {
+                // These values were set while running the "WeightlessGraph::init" method
+                continue;
+            }
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Set args for input index: %zu", io_index);
@@ -342,7 +341,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("Start to execute graph with runtime engine");
 
     std::shared_ptr<DynamicGraph> dynamicGraph = std::dynamic_pointer_cast<DynamicGraph>(_graph);
-    if(dynamicGraph == nullptr) {
+    if (dynamicGraph == nullptr) {
         OPENVINO_THROW("Failed to cast to DynamicGraph");
     }
 
@@ -350,7 +349,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     bool firstInference = params->graphDdiTableExt == nullptr;
     // Force record commandlist for first execution or the mode is set to FORCE_COMMANDLIST_RECORDING_ONLY
     bool commandListRecordingRequired =
-        firstInference || dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_COMMANDLIST_RECORDING_ONLY;
+        firstInference ||
+        dynamicGraph->commandlist_mode() == ov::intel_npu::CommandListMode::FORCE_COMMANDLIST_RECORDING_ONLY;
     std::vector<uint64_t> commandListIndexArray;
 
     auto processMemRefs = [&](auto& memRefs, auto& targetMemRefHandles) {
@@ -358,40 +358,41 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         targetMemRefHandles.reserve(memRefs.size());
         for (size_t i = 0; i < memRefs.size(); ++i) {
             auto& memref = memRefs[i];
-        // for (auto& memref : memRefs) {
+            // for (auto& memref : memRefs) {
             auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
             if (impl == nullptr) {
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
             impl->UpdateMemRefHandleStatus(memref);
-            targetMemRefHandles.push_back(impl->_memRef);
-
-            if (dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
+            if (firstInference) {
+                targetMemRefHandles.push_back(impl->_memRef);
+            } else if (dynamicGraph->commandlist_mode() ==
+                       ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
                 if (!commandListRecordingRequired) {
                     if (impl->_shapeUpdated || impl->_strideUpdated) {
                         // If shape or stride change, need recording commandlist
                         commandListRecordingRequired = true;
                     } else {
-                        // If force update commandlist, then pass all index infoExpand commentComment on lines R351 to R352Resolved
+                        // If force update commandlist, then pass all index info
                         commandListIndexArray.push_back(i);
                     }
                 }
             } else if (!commandListRecordingRequired) {
                 if (impl->_shapeUpdated || impl->_strideUpdated) {
                     // If shape or stride change, need recording commandlist
-                    _logger.debug("Input tensor %zu shape or stride change detected, trigger command list recording", i);
+                    _logger.debug("Tensor %zu shape or stride change detected, trigger command list recording", i);
                     commandListRecordingRequired = true;
                 } else if (impl->_ptrUpdated) {
-                    if (!dynamicGraph->_optimizedDynamicStridesMode || dynamicGraph->_useInterpreter) {
+                    if (!dynamicGraph->optimized_dynamic_strides_enabled() || dynamicGraph->uses_interpreter()) {
                         _logger.debug(
-                            "Input tensor pointer change detected for index %zu, and optimized dynamic stride is not "
+                            "Tensor pointer change detected for index %zu, and optimized dynamic stride is not "
                             "supported or "
                             "interpreter is used, which requires recording a new command list.",
                             i);
                         commandListRecordingRequired = true;
                     } else {
-                        _logger.debug("Input tensor %zu added to index array.", i);
+                        _logger.debug("Tensor %zu added to index array.", i);
                         commandListIndexArray.push_back(i);
                     }
                 }
@@ -402,17 +403,16 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     processMemRefs(args._inputsMemRef, args._inputMemRefHandles);
     processMemRefs(args._outputsMemRef, args._outputMemRefHandles);
 
-    ///add for PR35626
     _logger.debug("Use interpreter: %s, command list recording required: %s, number of index to update with "
                   "UpdateMutableCommandList API: %d, optimized dynamic stride supported: %s",
-                  dynamicGraph->_useInterpreter ? "true" : "false",
+                  dynamicGraph->uses_interpreter() ? "true" : "false",
                   commandListRecordingRequired ? "true" : "false",
                   static_cast<int>(commandListIndexArray.size()),
-                  dynamicGraph->_optimizedDynamicStridesMode ? "true" : "false");
+                  dynamicGraph->optimized_dynamic_strides_enabled() ? "true" : "false");
 
     if (!firstInference && !commandListRecordingRequired) {
         if (!commandListIndexArray.empty() ||
-            dynamicGraph->_bindingCommandListMode == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
+            dynamicGraph->commandlist_mode() == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
             _logger.debug("Update command list and execute directly");
             if (params->executionContext == nullptr) {
                 OPENVINO_THROW(
@@ -427,7 +427,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
             }
         } else {
             _logger.debug("Reuse command list without update since no tensor change detected");
-                        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+            auto result = zeCommandQueueExecuteCommandLists(commandQueue,
                                                             static_cast<uint32_t>(commandLists.size()),
                                                             commandLists.data(),
                                                             fence);
@@ -497,12 +497,8 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
 
         for (auto& memref : memRefs) {
             std::shared_ptr<MemRefTypeImpl> impl = std::make_shared<MemRefTypeImpl>();
-            if (impl == nullptr) {
-                impl = std::make_shared<MemRefTypeImpl>();
-                memref._impl = impl;
-            }
             impl->UpdateMemRefHandleStatus(memref);
-            destMemRefHandles.push_back(impl->_memRef); 
+            destMemRefHandles.push_back(impl->_memRef);
             destMemRefImpls.push_back(impl);
         }
     };
@@ -552,11 +548,6 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         }
         logger.debug("Output shape prediction is done successfully.");
     }
-
-    // Clear memref handles after shape prediction to avoid the next execution using wrong memref handles
-    // seems not need this part
-    // args._inputMemRefHandles.clear();
-    // args._outputMemRefHandles.clear();
 }
 
 void DynamicPipeline::pull() {

@@ -10,11 +10,11 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "intel_npu/npu_private_properties.hpp"
 
 namespace intel_npu {
 class DynamicGraph final : public IGraph {
@@ -53,9 +53,17 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
-    bool _useInterpreter = true;
-    bool _optimizedDynamicStridesMode = false;
-    ov::intel_npu::CommandListMode _bindingCommandListMode;
+    bool uses_interpreter() const {
+        return _useInterpreter;
+    }
+
+    bool optimized_dynamic_strides_enabled() const {
+        return _optimizedDynamicStridesMode;
+    }
+
+    ov::intel_npu::CommandListMode commandlist_mode() const {
+        return _bindingCommandListMode;
+    }
 
 private:
     void setOptimizedDynamicStridesMode(bool mode);
@@ -77,9 +85,6 @@ private:
     // change, keep the same workload type to avoid creating a queue with an unexpected workload.
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
-
-
-
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
@@ -105,6 +110,10 @@ private:
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
     bool _engineInitialized = false;
+
+    bool _useInterpreter = true;
+    bool _optimizedDynamicStridesMode = false;
+    ov::intel_npu::CommandListMode _bindingCommandListMode = ov::intel_npu::CommandListMode::DEFAULT;
 };
 
 }  // namespace intel_npu
