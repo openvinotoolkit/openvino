@@ -323,11 +323,13 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
-    # NOTE: Current CMake version required for OpenVINO dropped support for versions below 3.5
-    # This requires suppressing requirements imposed by gflags CMakeLists.txt
-    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-    unset(CMAKE_POLICY_VERSION_MINIMUM)
+    block()
+        # Current gflags declares CMake policy version older than 3.5, which is rejected by CMake 4.x.
+        # Raise its effective policy version without patching third-party CMakeLists.txt.
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    endblock()
+
     ov_developer_package_export_targets(
         TARGET gflags
         INSTALL_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags"
@@ -543,11 +545,12 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/WX-)
             endif()
 
-            # NOTE: Current CMake version required for OpenVINO dropped support for versions below 3.5
-            # This requires suppressing requirements imposed by gflags CMakeLists.txt
-            set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-            add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
-            unset(CMAKE_POLICY_VERSION_MINIMUM)
+            block()
+                # Current snappy declares CMake policy version older than 3.5, which is rejected by CMake 4.x.
+                # Raise its effective policy version without patching third-party CMakeLists.txt.
+                set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+                add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
+            endblock()
 
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)
@@ -589,16 +592,21 @@ endif()
 #
 
 # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-find_package(nlohmann_json 3.9.0 QUIET)
-unset(CMAKE_POLICY_VERSION_MINIMUM)
+
+block()
+    # Current nlohmann_json declares CMake policy version older than 3.5, which is rejected by CMake 4.x.
+    # Raise its effective policy version without patching third-party CMakeLists.txt.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+    find_package(nlohmann_json 3.9.0 QUIET)
+endblock()
 
 if(nlohmann_json_FOUND)
     # conan and vcpkg create imported target nlohmann_json::nlohmann_json
 else()
-    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
-    unset(CMAKE_POLICY_VERSION_MINIMUM)
+    block()
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+    endblock()
 
     # this is required only because of NPU plugin reused this: export & install
     ov_developer_package_export_targets(TARGET nlohmann_json
