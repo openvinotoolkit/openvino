@@ -678,6 +678,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn) {
         if (config.num_experts > 0) {
+            // Build the FFN from the config's MoE fields; moe_factory selects the topology (empty = GPT-OSS).
             size_t moe_inter = config.moe_intermediate_size > 0
                                    ? config.moe_intermediate_size
                                    : config.intermediate_size;
@@ -687,8 +688,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
             OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
                             "Invalid MoE config: num_experts_per_tok (",
                             moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
-            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts,
-                                moe_k, config.precision);
+            if (!config.moe_factory) {
+                config.moe_factory = make_gptoss_moe_ffn;
+            }
+            config.ffn = config.moe_factory(config.hidden_size, moe_inter, config.num_experts, moe_k, config.precision);
         } else {
             config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
         }
