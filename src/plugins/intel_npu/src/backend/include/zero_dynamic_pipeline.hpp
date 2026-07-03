@@ -18,10 +18,8 @@ struct DynamicArguments {
     std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
 
-    // Share runtime_execution_context during VM execution and forecasting
-    npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
-    // Set by the caller after the first successful @c npuVMRuntimeExecute.
-    bool _executedOnce = false;
+    // Share runtime_execution_context in param during VM execution and forecasting
+    npu_vm_runtime_execute_params_t _executeParams = {};
 
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;
