@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <sstream>
 
@@ -156,7 +157,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
                     compiled_model = core->import_model(payloadStream, device, loadConfig);
                 } else {
-                    read_ir_payload(payloadStream, core, device, loadConfig, ov_model, compiled_model);
+                    read_ir_payload(payloadStream, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
                 }
                 model.clear();
                 model.seekg(buffer.end_pos());
@@ -166,7 +167,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         } else if (core->device_supports_model_caching(device)) {
             compiled_model = core->import_model(model, device, loadConfig);
         } else {
-            read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model);
+            read_ir_payload(model,
+                            core,
+                            device,
+                            loadConfig,
+                            ov_model,
+                            compiled_model,
+                            std::numeric_limits<std::uint64_t>::max());
         }
 
         m_compiled_submodels.emplace_back(ov::hetero::CompiledModel::CompiledModelDesc{

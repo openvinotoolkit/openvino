@@ -91,7 +91,8 @@ void read_ir_payload(std::istream& model,
                      const std::string& device,
                      const ov::AnyMap& loadConfig,
                      std::shared_ptr<ov::Model>& ov_model,
-                     ov::SoPtr<ov::ICompiledModel>& compiled_model);
+                     ov::SoPtr<ov::ICompiledModel>& compiled_model,
+                     std::uint64_t payloadSize);
 
 void write_ir_payload(std::ostream& model_stream, const std::shared_ptr<ov::Model>& model);
 

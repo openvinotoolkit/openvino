@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -35,6 +36,18 @@ TestPayloadHeader read_test_payload_header(std::istream& model_stream) {
         throw std::runtime_error("Failed to read HETERO test payload header");
     }
     return payload_header;
+}
+
+void append_test_size(std::string& blob, std::uint64_t size) {
+    blob.append(reinterpret_cast<const char*>(&size), sizeof(size));
+}
+
+std::string make_framed_ir_blob(const std::string& hetero_xml_header, const std::string& payload) {
+    auto blob = hetero_xml_header;
+    blob.push_back(IR_PAYLOAD);
+    append_test_size(blob, payload.size());
+    blob += payload;
+    return blob;
 }
 
 std::string remove_blob_format_version(std::string header) {
@@ -138,6 +151,33 @@ TEST_F(HeteroTests, import_truncated_framed_cpu_payload_throws) {
     blob.pop_back();
 
     std::stringstream model_stream(blob);
+    EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
+}
+
+TEST_F(HeteroTests, import_framed_ir_payload_with_oversized_xml_size_throws) {
+    auto model = create_model_with_reshape();
+    const auto compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
+    const auto hetero_xml_header = get_hetero_xml_header(export_compiled_model(compiled_model));
+
+    std::string payload;
+    append_test_size(payload, std::numeric_limits<std::uint64_t>::max());
+    std::stringstream model_stream(make_framed_ir_blob(hetero_xml_header, payload));
+
+    EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
+}
+
+TEST_F(HeteroTests, import_framed_ir_payload_with_oversized_weights_size_throws) {
+    auto model = create_model_with_reshape();
+    const auto compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
+    const auto hetero_xml_header = get_hetero_xml_header(export_compiled_model(compiled_model));
+
+    std::string payload;
+    append_test_size(payload, 0);
+    append_test_size(payload, std::numeric_limits<std::uint64_t>::max());
+    std::stringstream model_stream(make_framed_ir_blob(hetero_xml_header, payload));
+
     EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
 }
 

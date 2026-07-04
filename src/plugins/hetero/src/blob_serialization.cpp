@@ -55,6 +55,41 @@ std::uint64_t read_size(std::istream& stream, const char* fieldName) {
     return size;
 }
 
+void consume_payload_bytes(std::uint64_t& remainingPayloadSize, std::uint64_t size, const char* fieldName) {
+    if (remainingPayloadSize == std::numeric_limits<std::uint64_t>::max()) {
+        return;
+    }
+
+    OPENVINO_ASSERT(size <= remainingPayloadSize,
+                    "HETERO compiled blob ",
+                    fieldName,
+                    " size exceeds remaining IR payload: ",
+                    size,
+                    " > ",
+                    remainingPayloadSize);
+    remainingPayloadSize -= size;
+}
+
+std::uint64_t remaining_stream_bytes(std::istream& stream) {
+    const auto currentPos = stream.tellg();
+    if (currentPos == std::streampos(-1)) {
+        return std::numeric_limits<std::uint64_t>::max();
+    }
+
+    stream.clear();
+    stream.seekg(0, std::ios_base::end);
+    const auto endPos = stream.tellg();
+    stream.clear();
+    stream.seekg(currentPos);
+
+    if (endPos == std::streampos(-1) || endPos < currentPos || !stream) {
+        stream.clear();
+        return std::numeric_limits<std::uint64_t>::max();
+    }
+
+    return static_cast<std::uint64_t>(endPos - currentPos);
+}
+
 void write_size(std::ostream& stream, std::uint64_t size, const char* fieldName) {
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     OPENVINO_ASSERT(stream, "Failed to write HETERO compiled blob ", fieldName);
@@ -245,9 +280,15 @@ void read_ir_payload(std::istream& model,
                      const std::string& device,
                      const ov::AnyMap& loadConfig,
                      std::shared_ptr<ov::Model>& ov_model,
-                     ov::SoPtr<ov::ICompiledModel>& compiled_model) {
+                     ov::SoPtr<ov::ICompiledModel>& compiled_model,
+                     std::uint64_t payloadSize) {
+    const auto hasPayloadBoundary = payloadSize != std::numeric_limits<std::uint64_t>::max();
+    auto remainingPayloadSize = hasPayloadBoundary ? payloadSize : remaining_stream_bytes(model);
+
     std::string xmlString;
+    consume_payload_bytes(remainingPayloadSize, sizeof(std::uint64_t), "IR XML size");
     auto dataSize = read_size(model, "IR XML size");
+    consume_payload_bytes(remainingPayloadSize, dataSize, "IR XML content");
     OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<std::string::size_type>::max()),
                     "HETERO compiled blob IR XML size is too large: ",
                     dataSize);
@@ -255,7 +296,9 @@ void read_ir_payload(std::istream& model,
     read_bytes(model, xmlString.data(), dataSize, "IR XML content");
 
     ov::Tensor weights;
+    consume_payload_bytes(remainingPayloadSize, sizeof(std::uint64_t), "IR weights size");
     dataSize = read_size(model, "IR weights size");
+    consume_payload_bytes(remainingPayloadSize, dataSize, "IR weights content");
     if (dataSize != 0) {
         OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<ov::Shape::size_type>::max()),
                         "HETERO compiled blob IR weights size is too large: ",
@@ -263,6 +306,10 @@ void read_ir_payload(std::istream& model,
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         read_bytes(model, weights.data<char>(), dataSize, "IR weights content");
     }
+
+    OPENVINO_ASSERT(!hasPayloadBoundary || remainingPayloadSize == 0,
+                    "HETERO compiled blob IR payload has unexpected trailing data: ",
+                    remainingPayloadSize);
 
     ov_model = core->read_model(xmlString, weights);
     compiled_model = core->compile_model(ov_model, device, loadConfig);
