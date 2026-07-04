@@ -326,9 +326,12 @@ bool is_output_stream_seekable(std::ostream& model_stream) {
         return false;
     }
 
+    const auto state = model_stream.rdstate();
     model_stream.clear();
     model_stream.seekp(pos);
-    return static_cast<bool>(model_stream);
+    const bool seekable = static_cast<bool>(model_stream);
+    model_stream.clear(state);
+    return seekable;
 }
 
 PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType) {
