@@ -30,7 +30,7 @@ std::streamoff checked_stream_offset(std::uint64_t offset, const char* fieldName
     OPENVINO_ASSERT(offset <= static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max()),
                     "HETERO compiled blob ",
                     fieldName,
-                    " size is too large: ",
+                    " offset is too large: ",
                     offset);
     return static_cast<std::streamoff>(offset);
 }
@@ -41,7 +41,7 @@ void read_bytes(std::istream& stream, char* data, std::uint64_t size, const char
         return;
     }
     stream.read(data, streamSize);
-    OPENVINO_ASSERT(stream.gcount() == streamSize, "Failed to read HETERO compiled blob ", fieldName);
+    OPENVINO_ASSERT(stream.gcount() == streamSize && !stream.bad(), "Failed to read HETERO compiled blob ", fieldName);
 }
 
 void write_bytes(std::ostream& stream, const char* data, std::uint64_t size, const char* fieldName) {
@@ -176,96 +176,10 @@ BoundedStreamBuffer::pos_type BoundedStreamBuffer::seekpos(pos_type pos, std::io
     return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
 }
 
-FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream) : _stream(stream), _start(stream.tellp()) {
-    OPENVINO_ASSERT(_start != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
-}
-
-std::uint64_t FramedPayloadOutputBuffer::written_size() const {
-    return _writtenSize;
-}
-
-std::streamsize FramedPayloadOutputBuffer::xsputn(const char* data, std::streamsize count) {
-    if (count <= 0) {
-        return 0;
-    }
-
-    const auto newPos = _pos + static_cast<std::uint64_t>(count);
-    checked_stream_offset(newPos, "payload position");
-
-    _stream.clear();
-    _stream.seekp(_start + checked_stream_offset(_pos, "payload position"));
-    _stream.write(data, count);
-    OPENVINO_ASSERT(_stream, "Failed to write HETERO compiled blob payload data");
-
-    _pos = newPos;
-    _writtenSize = std::max(_writtenSize, _pos);
-    return count;
-}
-
-FramedPayloadOutputBuffer::int_type FramedPayloadOutputBuffer::overflow(int_type ch) {
-    if (traits_type::eq_int_type(ch, traits_type::eof())) {
-        return traits_type::not_eof(ch);
-    }
-
-    const char c = traits_type::to_char_type(ch);
-    return xsputn(&c, 1) == 1 ? ch : traits_type::eof();
-}
-
-FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekoff(off_type off,
-                                                                       std::ios_base::seekdir dir,
-                                                                       std::ios_base::openmode which) {
-    if ((which & std::ios_base::out) == 0) {
-        return pos_type(off_type(-1));
-    }
-
-    off_type base = 0;
-    if (dir == std::ios_base::cur) {
-        base = static_cast<off_type>(_pos);
-    } else if (dir == std::ios_base::end) {
-        base = static_cast<off_type>(_writtenSize);
-    } else if (dir != std::ios_base::beg) {
-        return pos_type(off_type(-1));
-    }
-
-    const auto newPos = base + off;
-    if (newPos < 0) {
-        return pos_type(off_type(-1));
-    }
-
-    _pos = static_cast<std::uint64_t>(newPos);
-    return pos_type(static_cast<off_type>(_pos));
-}
-
-FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekpos(pos_type pos, std::ios_base::openmode which) {
-    return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
-}
-
-PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType) {
-    const auto typePos = model_stream.tellp();
-    OPENVINO_ASSERT(typePos != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
-    model_stream.write(&payloadType, sizeof(payloadType));
-    const auto sizePos = model_stream.tellp();
-    OPENVINO_ASSERT(sizePos != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
-    std::uint64_t payloadSize = 0;
-    model_stream.write(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
-    const auto payloadStartPos = model_stream.tellp();
-    OPENVINO_ASSERT(payloadStartPos != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
-    return {typePos, sizePos, payloadStartPos};
-}
-
-void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame, std::uint64_t payloadSize) {
-    const auto payloadEndPos = payloadFrame.payload_start_pos + checked_stream_offset(payloadSize, "payload");
-    model_stream.seekp(payloadFrame.size_pos);
-    write_size(model_stream, payloadSize, "payload size");
-    model_stream.seekp(payloadEndPos);
-}
-
-std::uint64_t finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame) {
-    const auto payloadEndPos = model_stream.tellp();
-    OPENVINO_ASSERT(payloadEndPos != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
-    const auto payloadSize = static_cast<std::uint64_t>(payloadEndPos - payloadFrame.payload_start_pos);
-    finish_framed_payload(model_stream, payloadFrame, payloadSize);
-    return payloadSize;
+void write_framed_payload(std::ostream& model_stream, char payloadType, const std::string& payload) {
+    write_bytes(model_stream, &payloadType, sizeof(payloadType), "payload type");
+    write_size(model_stream, static_cast<std::uint64_t>(payload.size()), "payload size");
+    write_bytes(model_stream, payload.data(), payload.size(), "payload data");
 }
 
 PayloadHeader read_payload_header(std::istream& model_stream) {
@@ -304,10 +218,7 @@ void read_ir_payload(std::istream& model,
                         "HETERO compiled blob IR weights size is too large: ",
                         dataSize);
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-        read_bytes(model,
-                    reinterpret_cast<char*>(weights.data<std::uint8_t>()),
-                    dataSize,
-                    "IR weights content");
+        read_bytes(model, reinterpret_cast<char*>(weights.data<std::uint8_t>()), dataSize, "IR weights content");
     }
 
     OPENVINO_ASSERT(!hasPayloadBoundary || remainingPayloadSize == 0,

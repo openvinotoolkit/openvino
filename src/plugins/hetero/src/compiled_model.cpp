@@ -154,7 +154,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
                 std::istringstream payloadStream(std::move(payload));
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
-            }
             } else if (payloadHeader.type == IR_PAYLOAD) {
                 read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
             } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
@@ -205,8 +204,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                                   get_uint64_attr(xml_node, "out_node_idx")};
         m_mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
-    // clang-format on
-    set_inputs_and_outputs();
+// clang-format on
+set_inputs_and_outputs();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
@@ -408,31 +407,26 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     for (const auto& comp_model_desc : m_compiled_submodels) {
         OPENVINO_ASSERT(comp_model_desc.compiled_model);
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
-            PayloadFrame payloadFrame = start_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD);
-            FramedPayloadOutputBuffer payloadBuffer(model_stream);
-            std::ostream payloadStream(&payloadBuffer);
+            std::stringstream payloadStream;
             try {
                 // Batch plugin reports property of low level plugin
                 // If we use Batch plugin inside hetero, we won't be able to call export
                 // Auto batch plugin will throw NOT_IMPLEMENTED
                 comp_model_desc.compiled_model->export_model(payloadStream);
                 payloadStream.flush();
-                finish_framed_payload(model_stream, payloadFrame, payloadBuffer.written_size());
+                write_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD, payloadStream.str());
                 continue;
             } catch (ov::NotImplemented&) {
-                OPENVINO_ASSERT(
-                    payloadBuffer.written_size() == 0,
-                    "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
-                model_stream.clear();
-                model_stream.seekp(payloadFrame.type_pos);
             }
-            payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
-            write_ir_payload(model_stream, comp_model_desc.model);
-            finish_framed_payload(model_stream, payloadFrame);
+
+            std::stringstream irPayloadStream;
+            write_ir_payload(irPayloadStream, comp_model_desc.model);
+            write_framed_payload(model_stream, IR_PAYLOAD, irPayloadStream.str());
             continue;
         }
-        const auto payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
-        write_ir_payload(model_stream, comp_model_desc.model);
-        finish_framed_payload(model_stream, payloadFrame);
+
+        std::stringstream payloadStream;
+        write_ir_payload(payloadStream, comp_model_desc.model);
+        write_framed_payload(model_stream, IR_PAYLOAD, payloadStream.str());
     }
 }

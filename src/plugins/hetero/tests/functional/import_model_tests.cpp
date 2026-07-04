@@ -22,6 +22,41 @@ struct TestPayloadHeader {
     std::uint64_t size = 0;
 };
 
+class NonSeekableOutputBuffer : public std::streambuf {
+public:
+    const std::string& str() const {
+        return _data;
+    }
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize count) override {
+        if (count <= 0) {
+            return 0;
+        }
+        _data.append(data, static_cast<std::string::size_type>(count));
+        return count;
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+        _data.push_back(traits_type::to_char_type(ch));
+        return ch;
+    }
+
+    pos_type seekoff(off_type, std::ios_base::seekdir, std::ios_base::openmode) override {
+        return pos_type(off_type(-1));
+    }
+
+    pos_type seekpos(pos_type, std::ios_base::openmode) override {
+        return pos_type(off_type(-1));
+    }
+
+private:
+    std::string _data;
+};
+
 std::string export_compiled_model(ov::CompiledModel compiled_model) {
     std::stringstream model_stream;
     compiled_model.export_model(model_stream);
@@ -110,6 +145,22 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     EXPECT_GT(payload_header.size, 0);
 
     std::stringstream import_stream(blob);
+    auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
+    EXPECT_EQ(1, imported_model.inputs().size());
+    EXPECT_EQ(1, imported_model.outputs().size());
+}
+
+TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
+    auto model = create_model_with_reshape();
+    const auto compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
+
+    NonSeekableOutputBuffer output_buffer;
+    std::ostream model_stream(&output_buffer);
+    compiled_model.export_model(model_stream);
+    EXPECT_TRUE(model_stream);
+
+    std::stringstream import_stream(output_buffer.str());
     auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
     EXPECT_EQ(1, imported_model.inputs().size());
     EXPECT_EQ(1, imported_model.outputs().size());
