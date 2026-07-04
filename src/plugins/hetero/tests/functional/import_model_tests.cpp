@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cctype>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -86,13 +87,33 @@ std::string make_framed_ir_blob(const std::string& hetero_xml_header, const std:
 }
 
 std::string remove_blob_format_version(std::string header) {
-    const std::string blob_format_attr =
-        std::string{" "} + HETERO_BLOB_FORMAT_VERSION_ATTR + "=\"" + std::to_string(HETERO_BLOB_FORMAT_VERSION) + "\"";
-    const auto attr_pos = header.find(blob_format_attr);
-    if (attr_pos == std::string::npos) {
+    const auto key_pos = header.find(HETERO_BLOB_FORMAT_VERSION_ATTR);
+    if (key_pos == std::string::npos) {
         throw std::runtime_error("Failed to find HETERO blob format version attribute");
     }
-    header.erase(attr_pos, blob_format_attr.size());
+
+    auto erase_begin = key_pos;
+    if (erase_begin > 0 && std::isspace(static_cast<unsigned char>(header[erase_begin - 1]))) {
+        --erase_begin;
+    }
+
+    const auto eq_pos = header.find('=', key_pos + std::char_traits<char>::length(HETERO_BLOB_FORMAT_VERSION_ATTR));
+    if (eq_pos == std::string::npos) {
+        throw std::runtime_error("Failed to parse HETERO blob format version attribute");
+    }
+
+    const auto value_begin = header.find_first_not_of(" \t", eq_pos + 1);
+    if (value_begin == std::string::npos || (header[value_begin] != '"' && header[value_begin] != '\'')) {
+        throw std::runtime_error("Failed to parse HETERO blob format version attribute value");
+    }
+
+    const auto quote = header[value_begin];
+    const auto value_end = header.find(quote, value_begin + 1);
+    if (value_end == std::string::npos) {
+        throw std::runtime_error("Failed to parse HETERO blob format version attribute value");
+    }
+
+    header.erase(erase_begin, value_end - erase_begin + 1);
     return header;
 }
 
@@ -152,8 +173,7 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
 
 TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
     auto model = create_model_with_reshape();
-    const auto compiled_model =
-        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
 
     NonSeekableOutputBuffer output_buffer;
     std::ostream model_stream(&output_buffer);

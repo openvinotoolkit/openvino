@@ -160,10 +160,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 BoundedStreamBuffer buffer{model, payloadHeader.size};
                 std::istream payloadStream{&buffer};
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
-                model.clear();
-                model.seekg(buffer.end_pos());
-                OPENVINO_ASSERT(model,
-                               "Failed to advance HETERO compiled blob stream to the end of the submodel payload");
+                buffer.consume_remaining_payload();
             } else {
                 OPENVINO_THROW("Unsupported HETERO compiled submodel payload type: ", payloadHeader.type);
             }
@@ -404,14 +401,39 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     doc.reset();
     model_stream << std::endl;
 
+    const bool seekable_output = is_output_stream_seekable(model_stream);
+
     for (const auto& comp_model_desc : m_compiled_submodels) {
         OPENVINO_ASSERT(comp_model_desc.compiled_model);
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
+            if (seekable_output) {
+                const auto payloadFrame = start_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD);
+                try {
+                    // Batch plugin reports property of low level plugin
+                    // If we use Batch plugin inside hetero, we won't be able to call export
+                    // Auto batch plugin will throw NOT_IMPLEMENTED
+                    comp_model_desc.compiled_model->export_model(model_stream);
+                    finish_framed_payload(model_stream, payloadFrame);
+                    continue;
+                } catch (ov::NotImplemented&) {
+                    const auto currentPos = model_stream.tellp();
+                    OPENVINO_ASSERT(
+                        currentPos == payloadFrame.payload_start_pos,
+                        "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
+                    model_stream.clear();
+                    model_stream.seekp(payloadFrame.frame_start_pos);
+                    OPENVINO_ASSERT(model_stream,
+                                    "Failed to rewind HETERO compiled blob output stream for IR fallback");
+                }
+
+                const auto irPayloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
+                write_ir_payload(model_stream, comp_model_desc.model);
+                finish_framed_payload(model_stream, irPayloadFrame);
+                continue;
+            }
+
             std::stringstream payloadStream;
             try {
-                // Batch plugin reports property of low level plugin
-                // If we use Batch plugin inside hetero, we won't be able to call export
-                // Auto batch plugin will throw NOT_IMPLEMENTED
                 comp_model_desc.compiled_model->export_model(payloadStream);
                 payloadStream.flush();
                 write_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD, payloadStream.str());
@@ -422,6 +444,13 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             std::stringstream irPayloadStream;
             write_ir_payload(irPayloadStream, comp_model_desc.model);
             write_framed_payload(model_stream, IR_PAYLOAD, irPayloadStream.str());
+            continue;
+        }
+
+        if (seekable_output) {
+            const auto payloadFrame = start_framed_payload(model_stream, IR_PAYLOAD);
+            write_ir_payload(model_stream, comp_model_desc.model);
+            finish_framed_payload(model_stream, payloadFrame);
             continue;
         }
 

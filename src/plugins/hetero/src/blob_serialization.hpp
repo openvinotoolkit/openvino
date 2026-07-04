@@ -34,6 +34,7 @@ public:
     BoundedStreamBuffer(std::istream& stream, std::uint64_t size);
 
     std::streampos end_pos() const;
+    void consume_remaining_payload();
 
 protected:
     std::streamsize xsgetn(char* data, std::streamsize count) override;
@@ -46,9 +47,11 @@ protected:
 private:
     std::istream& _stream;
     std::streampos _start;
+    bool _seekable = false;
     std::uint64_t _size = 0;
     std::uint64_t _pos = 0;
     char _current = 0;
+    bool _has_current = false;
 };
 
 struct PayloadHeader {
@@ -56,6 +59,15 @@ struct PayloadHeader {
     std::uint64_t size = 0;
 };
 
+struct PayloadFrame {
+    std::streampos frame_start_pos;
+    std::streampos size_pos;
+    std::streampos payload_start_pos;
+};
+
+bool is_output_stream_seekable(std::ostream& model_stream);
+PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType);
+void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame);
 void write_framed_payload(std::ostream& model_stream, char payloadType, const std::string& payload);
 PayloadHeader read_payload_header(std::istream& model_stream);
 
