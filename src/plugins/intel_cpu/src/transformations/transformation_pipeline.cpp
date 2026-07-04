@@ -1177,7 +1177,11 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
+    CPU_REGISTER_PASS_X64(postLPTPassManager,
+                          ov::pass::RMSFusion,
+                          false /* force_tail_convert */,
+                          false /* enable_div_x */,
+                          true /* enable_without_gamma */);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

@@ -37,7 +37,6 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         }
         auto data = node->input_value(0);
         auto data_precision = node->get_input_element_type(0);
-        auto scale = node->input_value(1);
 
         auto power_const = ov::op::v0::Constant::create(data_precision, {}, std::vector<float>{2.F});
         auto power = std::make_shared<ov::op::v1::Power>(data, power_const);
@@ -48,10 +47,12 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
         auto div_const = ov::op::v0::Constant::create(data_precision, {}, {-1});
         auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
-        auto mul1 = std::make_shared<ov::op::v1::Multiply>(data, div);
-        auto mul2 = std::make_shared<ov::op::v1::Multiply>(scale, mul1);
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v1::Multiply>(data, div);
+        if (node->get_input_size() > 1) {
+            result = std::make_shared<ov::op::v1::Multiply>(node->input_value(1), result);
+        }
 
-        ov::replace_node(node, mul2);
+        ov::replace_node(node, result);
         return true;
     };
 
