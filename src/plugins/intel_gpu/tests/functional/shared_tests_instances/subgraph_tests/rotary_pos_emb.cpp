@@ -119,5 +119,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLtxVideo,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestLtxVideo::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestCohere,
+                         RoPETestCohere,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16, ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RoPETestCohere::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov

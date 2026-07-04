@@ -229,5 +229,21 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
+class RoPETestCohere : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_Cohere(int batch,
+                                                int seq_length,
+                                                int num_head,
+                                                int rotary_dims,
+                                                ov::element::Type element_type);
+
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+};
+
 }  // namespace test
 }  // namespace ov
