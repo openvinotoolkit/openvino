@@ -2944,7 +2944,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                                                                           cpu_parallel);
         } else {
             OPENVINO_THROW(
-                "make_pa_executor: key_cache_type and value_cache_type of u8 is only supportde for f16 datatype");
+                "make_pa_executor: key_cache_type and value_cache_type of u8 is only supported for f16 datatype");
         }
     }
 
