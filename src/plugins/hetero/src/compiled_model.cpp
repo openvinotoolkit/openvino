@@ -204,8 +204,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                                   get_uint64_attr(xml_node, "out_node_idx")};
         m_mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
-// clang-format on
-set_inputs_and_outputs();
+    // clang-format on
+    set_inputs_and_outputs();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
