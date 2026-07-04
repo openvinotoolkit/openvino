@@ -115,6 +115,20 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     EXPECT_EQ(1, imported_model.outputs().size());
 }
 
+TEST_F(HeteroTests, import_large_compiled_payload_uses_bounded_stream_and_throws) {
+    auto model = create_model_with_reshape();
+    const auto compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
+    const auto hetero_xml_header = get_hetero_xml_header(export_compiled_model(compiled_model));
+
+    std::string blob = hetero_xml_header;
+    blob.push_back(COMPILED_BLOB_PAYLOAD);
+    append_test_size(blob, MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE + 1);
+
+    std::stringstream model_stream(blob);
+    EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
+}
+
 TEST_F(HeteroTests, import_single_plugin_legacy_unframed_blob_without_format_version) {
     auto model = create_model_with_reshape();
     const auto hetero_compiled_model =
