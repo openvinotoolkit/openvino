@@ -54,6 +54,25 @@ private:
     bool _has_current = false;
 };
 
+class FramedPayloadOutputBuffer : public std::streambuf {
+public:
+    explicit FramedPayloadOutputBuffer(std::ostream& stream);
+
+    std::uint64_t written_size() const;
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize count) override;
+    int_type overflow(int_type ch) override;
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override;
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override;
+
+private:
+    std::ostream& _stream;
+    std::streampos _start;
+    std::uint64_t _pos = 0;
+    std::uint64_t _writtenSize = 0;
+};
+
 struct PayloadHeader {
     char type = 0;
     std::uint64_t size = 0;
@@ -67,6 +86,7 @@ struct PayloadFrame {
 
 bool is_output_stream_seekable(std::ostream& model_stream);
 PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType);
+void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame, std::uint64_t payloadSize);
 void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame);
 void write_framed_payload(std::ostream& model_stream, char payloadType, const std::string& payload);
 PayloadHeader read_payload_header(std::istream& model_stream);

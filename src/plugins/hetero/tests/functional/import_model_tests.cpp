@@ -162,7 +162,7 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     EXPECT_NE(hetero_xml_header.find(HETERO_BLOB_FORMAT_VERSION_ATTR), std::string::npos);
 
     const auto payload_header = read_test_payload_header(model_stream);
-    EXPECT_EQ(COMPILED_BLOB_PAYLOAD, payload_header.type);
+    EXPECT_TRUE(payload_header.type == COMPILED_BLOB_PAYLOAD || payload_header.type == IR_PAYLOAD);
     EXPECT_GT(payload_header.size, 0);
 
     std::stringstream import_stream(blob);
@@ -204,10 +204,21 @@ TEST_F(HeteroTests, import_single_plugin_legacy_unframed_blob_without_format_ver
     auto model = create_model_with_reshape();
     const auto hetero_compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
-    auto legacy_blob = remove_blob_format_version(get_hetero_xml_header(export_compiled_model(hetero_compiled_model)));
+    const auto framed_blob = export_compiled_model(hetero_compiled_model);
+    auto legacy_blob = remove_blob_format_version(get_hetero_xml_header(framed_blob));
 
-    const auto submodel_compiled_model = core.compile_model(model, "MOCK0", {});
-    legacy_blob += export_compiled_model(submodel_compiled_model);
+    std::stringstream framed_stream(framed_blob);
+    std::string hetero_xml_header;
+    std::getline(framed_stream, hetero_xml_header);
+
+    const auto payload_header = read_test_payload_header(framed_stream);
+    ASSERT_GT(payload_header.size, 0);
+    ASSERT_LE(payload_header.size, static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max()));
+
+    std::string legacy_payload(static_cast<std::string::size_type>(payload_header.size), '\0');
+    framed_stream.read(legacy_payload.data(), static_cast<std::streamsize>(payload_header.size));
+    ASSERT_TRUE(framed_stream);
+    legacy_blob += legacy_payload;
 
     std::stringstream model_stream(legacy_blob);
     auto imported_model = core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {});

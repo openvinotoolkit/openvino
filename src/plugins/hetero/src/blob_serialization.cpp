@@ -251,6 +251,75 @@ BoundedStreamBuffer::pos_type BoundedStreamBuffer::seekpos(pos_type pos, std::io
     return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
 }
 
+FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream) : _stream(stream), _start(stream.tellp()) {
+    OPENVINO_ASSERT(_start != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
+}
+
+std::uint64_t FramedPayloadOutputBuffer::written_size() const {
+    return _writtenSize;
+}
+
+std::streamsize FramedPayloadOutputBuffer::xsputn(const char* data, std::streamsize count) {
+    if (count <= 0) {
+        return 0;
+    }
+
+    const auto newPos = _pos + static_cast<std::uint64_t>(count);
+    checked_stream_offset(newPos, "payload position");
+
+    _stream.clear();
+    _stream.seekp(_start + checked_stream_offset(_pos, "payload position"));
+    _stream.write(data, count);
+    OPENVINO_ASSERT(_stream, "Failed to write HETERO compiled blob payload data");
+
+    _pos = newPos;
+    _writtenSize = std::max(_writtenSize, _pos);
+    return count;
+}
+
+FramedPayloadOutputBuffer::int_type FramedPayloadOutputBuffer::overflow(int_type ch) {
+    if (traits_type::eq_int_type(ch, traits_type::eof())) {
+        return traits_type::not_eof(ch);
+    }
+
+    const char c = traits_type::to_char_type(ch);
+    return xsputn(&c, 1) == 1 ? ch : traits_type::eof();
+}
+
+FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekoff(off_type off,
+                                                                       std::ios_base::seekdir dir,
+                                                                       std::ios_base::openmode which) {
+    if ((which & std::ios_base::out) == 0) {
+        return pos_type(off_type(-1));
+    }
+
+    off_type base = 0;
+    if (dir == std::ios_base::cur) {
+        base = static_cast<off_type>(_pos);
+    } else if (dir == std::ios_base::end) {
+        base = static_cast<off_type>(_writtenSize);
+    } else if (dir != std::ios_base::beg) {
+        return pos_type(off_type(-1));
+    }
+
+    const auto newPos = base + off;
+    if (newPos < 0) {
+        return pos_type(off_type(-1));
+    }
+
+    OPENVINO_ASSERT(static_cast<std::uint64_t>(newPos) <= _writtenSize,
+                    "HETERO compiled blob payload output does not support forward seeking beyond written data");
+
+    const auto uNewPos = static_cast<std::uint64_t>(newPos);
+    checked_stream_offset(uNewPos, "payload position");
+    _pos = uNewPos;
+    return pos_type(static_cast<off_type>(_pos));
+}
+
+FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekpos(pos_type pos, std::ios_base::openmode which) {
+    return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
+}
+
 bool is_output_stream_seekable(std::ostream& model_stream) {
     const auto pos = model_stream.tellp();
     if (pos == std::streampos(-1)) {
@@ -284,6 +353,12 @@ void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& paylo
                     "HETERO compiled blob payload end position is before payload start");
 
     const auto payloadSize = static_cast<std::uint64_t>(payloadEndPos - payloadFrame.payload_start_pos);
+
+    finish_framed_payload(model_stream, payloadFrame, payloadSize);
+}
+
+void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame, std::uint64_t payloadSize) {
+    const auto payloadEndPos = payloadFrame.payload_start_pos + checked_stream_offset(payloadSize, "payload");
 
     model_stream.clear();
     model_stream.seekp(payloadFrame.size_pos);
