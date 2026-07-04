@@ -304,7 +304,10 @@ void read_ir_payload(std::istream& model,
                         "HETERO compiled blob IR weights size is too large: ",
                         dataSize);
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-        read_bytes(model, weights.data<char>(), dataSize, "IR weights content");
+        read_bytes(model,
+                    reinterpret_cast<char*>(weights.data<std::uint8_t>()),
+                    dataSize,
+                    "IR weights content");
     }
 
     OPENVINO_ASSERT(!hasPayloadBoundary || remainingPayloadSize == 0,
