@@ -117,8 +117,14 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = get_str_attr(heteroNode, "name");
-    const bool is_framed_blob =
-        heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1) >= HETERO_BLOB_FORMAT_VERSION;
+    const auto blob_format_version = heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1);
+    OPENVINO_ASSERT(blob_format_version == 1 || blob_format_version == HETERO_BLOB_FORMAT_VERSION,
+                    "Unsupported HETERO compiled blob format version: ",
+                    blob_format_version,
+                    ". Supported versions are 1 (legacy unframed) and ",
+                    HETERO_BLOB_FORMAT_VERSION,
+                    " (framed).");
+    const bool is_framed_blob = blob_format_version == HETERO_BLOB_FORMAT_VERSION;
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
@@ -408,17 +414,20 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
             if (seekable_output) {
                 const auto payloadFrame = start_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD);
+                FramedPayloadOutputBuffer payloadBuffer(model_stream);
+                std::ostream payloadStream(&payloadBuffer);
                 try {
                     // Batch plugin reports property of low level plugin
                     // If we use Batch plugin inside hetero, we won't be able to call export
                     // Auto batch plugin will throw NOT_IMPLEMENTED
-                    comp_model_desc.compiled_model->export_model(model_stream);
-                    finish_framed_payload(model_stream, payloadFrame);
+                    comp_model_desc.compiled_model->export_model(payloadStream);
+                    OPENVINO_ASSERT(payloadStream,
+                                    "Failed to export HETERO compiled blob compiled submodel payload");
+                    finish_framed_payload(model_stream, payloadFrame, payloadBuffer.written_size());
                     continue;
                 } catch (ov::NotImplemented&) {
-                    const auto currentPos = model_stream.tellp();
                     OPENVINO_ASSERT(
-                        currentPos == payloadFrame.payload_start_pos,
+                        payloadBuffer.written_size() == 0,
                         "Cannot fall back to IR serialization after partially writing a compiled submodel blob");
                     model_stream.clear();
                     model_stream.seekp(payloadFrame.frame_start_pos);

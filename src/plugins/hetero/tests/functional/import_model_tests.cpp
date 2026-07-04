@@ -186,6 +186,38 @@ TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
     EXPECT_EQ(1, imported_model.outputs().size());
 }
 
+TEST_F(HeteroTests, framed_payload_output_buffer_rejects_forward_seek_beyond_written_data) {
+    std::stringstream model_stream;
+    const auto payload_frame = start_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD);
+
+    FramedPayloadOutputBuffer payload_buffer(model_stream);
+    std::ostream payload_stream(&payload_buffer);
+
+    payload_stream.write("abc", 3);
+    ASSERT_TRUE(payload_stream);
+
+    payload_stream.seekp(10, std::ios::beg);
+    EXPECT_TRUE(payload_stream.fail());
+
+    payload_stream.clear();
+    payload_stream.seekp(0, std::ios::end);
+    ASSERT_TRUE(payload_stream);
+    payload_stream.write("d", 1);
+    ASSERT_TRUE(payload_stream);
+
+    finish_framed_payload(model_stream, payload_frame, payload_buffer.written_size());
+
+    std::stringstream verify_stream(model_stream.str());
+    const auto payload_header = read_test_payload_header(verify_stream);
+    ASSERT_EQ(COMPILED_BLOB_PAYLOAD, payload_header.type);
+    ASSERT_EQ(4, payload_header.size);
+
+    std::string payload(static_cast<std::string::size_type>(payload_header.size), '\0');
+    verify_stream.read(payload.data(), static_cast<std::streamsize>(payload_header.size));
+    ASSERT_TRUE(verify_stream);
+    EXPECT_EQ("abcd", payload);
+}
+
 TEST_F(HeteroTests, import_large_compiled_payload_uses_bounded_stream_and_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
