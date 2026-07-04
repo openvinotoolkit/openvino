@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-04-10-21-49-000-28700822021",
+  "timestamp": "2026-07-04T10:21:49Z",
+  "run_id": "28700822021",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28700822021",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "35018",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35018",
+  "author": "intelgaoxiong",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called twice unsatisfied and active|Flaky Test",
+  "signature_hash": "5f5789b1a8659a47",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: import_model expected 3 times but called twice"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 3 times\n           Actual: called twice - unsatisfied and active",
+    "caching_test.cpp(312): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2053 ms)"
+  ],
+  "root_cause": "The test CachingTest.LoadMultiWithConfig_race is a race-condition stress test that repeatedly loads models via the MULTI device to exercise caching concurrency. The ByModelName_testCache variant ran 128 iterations over 2 seconds before failing because the import_model mock expectation (set to 3 calls) was only satisfied twice. This is a timing-dependent intermittent failure: the test races between cache-hit reads and cache-write completions, and on a loaded Windows CI runner the timing did not align to produce the expected 3 imports. The PR being merged (#35018, NPUW block-based KV cache) modifies only NPUW LLM pipeline code and is unrelated to the inference-level caching code tested here.",
+  "reproduction_steps": "Run on Windows with a loaded system: cd build && ctest -R CachingTest/CachingTest.LoadMultiWithConfig_race --repeat until-fail:200",
+  "recommended_actions": [
+    "Re-run the failed job - this is a transient flaky test unrelated to the merged PR",
+    "Consider marking CachingTest.LoadMultiWithConfig_race as GTEST_FLAG_SET(death_test_style, threadsafe) or wrapping with retry logic in the test fixture",
+    "File a GitHub issue to track this flaky test and add it to the known-flaky list"
+  ],
+  "prevention_strategies": "Add CachingTest.LoadMultiWithConfig_race to the known-flaky test list so failures don't block unrelated PRs. Consider using a dedicated flaky-test detection pipeline rather than blocking merge queue on known-intermittent tests.",
+  "historical_context": "A very similar failure (CachingTest LoadMulti_race import_model call count mismatch) was recorded twice before: run 28366156201 (2026-06-29, PR #36592) and run 28507710758 (2026-07-01, PR #35805), both on Windows C++ unit tests. This confirms it is a pre-existing, recurring flaky test."
+}
