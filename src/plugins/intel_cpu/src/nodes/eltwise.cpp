@@ -645,6 +645,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // Initialize attributes
     m_attrs.data.algo = getAlgorithm();
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (m_attrs.data.algo == Algorithm::EltwiseSwish) {
+        m_attrs.data.onednnAlgorithm = dnnl::algorithm::undef;
+    }
+#endif
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
 
@@ -670,7 +675,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // Prepare memory descriptor arguments for a factory
     MemoryDescArgs descs;
-    for (int i = 0; i < static_cast<int>(srcDescs.size()); i++) {
+    for (size_t i = 0; i < srcDescs.size(); i++) {
         descs[ARG_SRC + i] = srcDescs[i];
     }
     descs[ARG_DST] = dstDesc;
@@ -687,7 +692,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         const auto& outputDesc = nodeDescriptors.at(ARG_DST);
         const auto outputPrecision = outputDesc->getPrecision();
 
-        for (int i = 0; i < static_cast<int>(srcDescs.size()); i++) {
+        for (size_t i = 0; i < srcDescs.size(); i++) {
             if (auto it = nodeDescriptors.find(ARG_SRC + i); it != nodeDescriptors.end()) {
                 const auto& [_, desc] = *it;
                 const int isInPlace =
@@ -840,7 +845,7 @@ ov::element::Type Eltwise::getRuntimePrecision() const {
 }
 
 void Eltwise::createPrimitive() {
-    for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
         m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
     }
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
@@ -997,8 +1002,8 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         m_depthwiseDataSize = 2 * channelSize;
 
         // always align for legacy scale/shift post ops
-        constexpr size_t bufferAlignment = 16;
-        size_t bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+        constexpr int bufferAlignment = 16;
+        int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
         m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
     }
 
