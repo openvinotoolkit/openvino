@@ -46,6 +46,7 @@ void read_bytes(std::istream& stream, char* data, std::uint64_t size, const char
 
 void write_bytes(std::ostream& stream, const char* data, std::uint64_t size, const char* fieldName) {
     stream.write(data, checked_stream_size(size, fieldName));
+    OPENVINO_ASSERT(stream, "Failed to write HETERO compiled blob ", fieldName);
 }
 
 std::uint64_t read_size(std::istream& stream, const char* fieldName) {

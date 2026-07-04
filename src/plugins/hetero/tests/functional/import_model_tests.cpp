@@ -16,10 +16,25 @@ namespace tests {
 
 namespace {
 
+struct TestPayloadHeader {
+    char type = 0;
+    std::uint64_t size = 0;
+};
+
 std::string export_compiled_model(ov::CompiledModel compiled_model) {
     std::stringstream model_stream;
     compiled_model.export_model(model_stream);
     return model_stream.str();
+}
+
+TestPayloadHeader read_test_payload_header(std::istream& model_stream) {
+    TestPayloadHeader payload_header;
+    model_stream.read(&payload_header.type, sizeof(payload_header.type));
+    model_stream.read(reinterpret_cast<char*>(&payload_header.size), sizeof(payload_header.size));
+    if (!model_stream) {
+        throw std::runtime_error("Failed to read HETERO test payload header");
+    }
+    return payload_header;
 }
 
 std::string remove_blob_format_version(std::string header) {
@@ -77,7 +92,7 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     std::getline(model_stream, hetero_xml_header);
     EXPECT_NE(hetero_xml_header.find(HETERO_BLOB_FORMAT_VERSION_ATTR), std::string::npos);
 
-    const auto payload_header = read_payload_header(model_stream);
+    const auto payload_header = read_test_payload_header(model_stream);
     EXPECT_EQ(COMPILED_BLOB_PAYLOAD, payload_header.type);
     EXPECT_GT(payload_header.size, 0);
 
