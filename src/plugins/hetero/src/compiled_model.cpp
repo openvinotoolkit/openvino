@@ -421,8 +421,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
                     // If we use Batch plugin inside hetero, we won't be able to call export
                     // Auto batch plugin will throw NOT_IMPLEMENTED
                     comp_model_desc.compiled_model->export_model(payloadStream);
-                    OPENVINO_ASSERT(payloadStream,
-                                    "Failed to export HETERO compiled blob compiled submodel payload");
+                    OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob compiled submodel payload");
                     finish_framed_payload(model_stream, payloadFrame, payloadBuffer.written_size());
                     continue;
                 } catch (ov::NotImplemented&) {

@@ -307,9 +307,9 @@ FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekoff(off_type 
         return pos_type(off_type(-1));
     }
 
-    OPENVINO_ASSERT(static_cast<std::uint64_t>(newPos) <= _writtenSize,
-                    "HETERO compiled blob payload output does not support forward seeking beyond written data");
-
+    if (static_cast<std::uint64_t>(newPos) > _writtenSize) {
+        return pos_type(off_type(-1));
+    }
     const auto uNewPos = static_cast<std::uint64_t>(newPos);
     checked_stream_offset(uNewPos, "payload position");
     _pos = uNewPos;
