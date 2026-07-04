@@ -158,7 +158,9 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
                 model.clear();
                 model.seekg(buffer.end_pos());
-                OPENVINO_ASSERT(model, "Failed to advance HETERO compiled blob stream to the end of the submodel payload");
+                OPENVINO_ASSERT(model,
+                               "Failed to advance HETERO compiled blob stream to the end of the submodel payload");
+            } else {
                 OPENVINO_THROW("Unsupported HETERO compiled submodel payload type: ", payloadHeader.type);
             }
         } else if (core->device_supports_model_caching(device)) {
