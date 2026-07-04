@@ -69,6 +69,7 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTOSS>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCohere>();
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
@@ -1322,6 +1323,93 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
         return true;
     };
 
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+RoPEFusionCohere::RoPEFusionCohere() {
+    MATCHER_SCOPE(RoPEFusionCohere);
+
+    // Cohere style: full-rotation interleaved RoPE with independent cos/sin tensors.
+    // Input x: [B, H, L, C]  (RoPEFusionPreprocess absorbs any preceding Transpose and sets
+    //                          input_trans0213 = true on the resulting RoPE node)
+    // cos/sin: independent 4-D tensors [B, 1, L, C]
+    //
+    // Rotation:
+    //   x_odd  = x[..., 1::2],  x_even = x[..., 0::2]
+    //   x_rotate = stack([-x_odd, x_even], dim=-1).flatten(-2)
+    // Output:  Add(x * cos, x_rotate * sin)   -- full rotation, no residual Concat
+
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto cos_input = pattern::any_input(pattern::rank_equals(4));
+    auto sin_input = pattern::any_input(pattern::rank_equals(4));
+
+    // Accept both i32 (INT_MAX) and i64 (INT64_MAX) stop values so that models
+    // exported via OVModelForCausalLM (which uses sys.maxsize = INT64_MAX) are covered.
+    auto x_odd_i32  = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
+    auto x_odd_i64  = op_util::NewGenSlice(x, (int64_t)1, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
+    auto x_odd      = x_odd_i32 | x_odd_i64;
+
+    auto x_even_i32 = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
+    auto x_even_i64 = op_util::NewGenSlice(x, (int64_t)0, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
+    auto x_even     = x_even_i32 | x_even_i64;
+
+    auto neg_x_odd      = pattern::wrap_type<opset1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_x_odd_unsq = pattern::wrap_type<opset1::Unsqueeze>({neg_x_odd, -1});
+    auto x_even_unsq    = pattern::wrap_type<opset1::Unsqueeze>({x_even, -1});
+    auto stack = pattern::wrap_type<opset1::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
+
+    // Flatten the last two dims of `stack` back to head_size.  Two variants:
+    //   (a) dynamic: Reshape(stack, Concat([ShapeOf(stack)[0:3], [-1]], axis=0))
+    //   (b) static:  Reshape(stack, any,  special_zero=true)
+    auto ShapeOf_stack    = pattern::wrap_type<opset1::ShapeOf>({stack});
+    auto flatten_Slice    = op_util::NewGenSlice(ShapeOf_stack, 0, 3, 1, 0);
+    auto flatten_Concat   = pattern::wrap_type<opset1::Concat>({flatten_Slice, {-1}}, {{"axis", 0}});
+    auto flatten_Reshape_dyn  = pattern::wrap_type<opset1::Reshape>({stack, flatten_Concat});
+    auto flatten_Reshape_zero = pattern::wrap_type<opset1::Reshape>({stack, pattern::any_input()}, {{"special_zero", true}});
+    auto x_rotate = flatten_Reshape_dyn | flatten_Reshape_zero;
+
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>({x, cos_input}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate, sin_input}, {{"auto_broadcast", "numpy"}});
+    auto result  = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+
+        // rotary_ndims equals the full head dimension (full rotation; no partial slice).
+        const auto& x_shape = pattern_map.at(x).get_partial_shape();
+        if (x_shape.rank().is_dynamic() || !x_shape[3].is_static())
+            return false;
+        config.rotary_ndims = static_cast<size_t>(x_shape[3].get_length());
+
+        NodeVector rt_from = {pattern_map.at(neg_x_odd).get_node_shared_ptr(),
+                              pattern_map.at(neg_x_odd_unsq).get_node_shared_ptr(),
+                              pattern_map.at(x_even_unsq).get_node_shared_ptr(),
+                              pattern_map.at(stack).get_node_shared_ptr(),
+                              pattern_map.at(mul_cos).get_node_shared_ptr(),
+                              pattern_map.at(mul_sin).get_node_shared_ptr(),
+                              pattern_map.at(result).get_node_shared_ptr()};
+        for (const auto& np : {x_odd_i32, x_odd_i64, x_even_i32, x_even_i64})
+            if (pattern_map.count(np))
+                rt_from.push_back(pattern_map.at(np).get_node_shared_ptr());
+        if (pattern_map.count(flatten_Reshape_dyn))
+            rt_from.push_back(pattern_map.at(flatten_Reshape_dyn).get_node_shared_ptr());
+        if (pattern_map.count(flatten_Reshape_zero))
+            rt_from.push_back(pattern_map.at(flatten_Reshape_zero).get_node_shared_ptr());
+
+        OutputVector new_args = {pattern_map.at(x), pattern_map.at(cos_input), pattern_map.at(sin_input)};
+
+        auto old_node = m.get_match_root();
+        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::copy_runtime_info(rt_from, new_node);
+        ov::replace_node(old_node, new_node);
+        register_new_node(new_node);
+        return true;
+    };
     auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
