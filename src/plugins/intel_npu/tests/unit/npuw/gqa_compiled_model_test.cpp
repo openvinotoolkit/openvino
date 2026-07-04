@@ -20,6 +20,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -351,6 +352,20 @@ TEST_F(GQACompiledModelTest, PassesGqaModelThroughWithoutDecomposition) {
     // isolation and folding of GQA blocks via the NPUW_FOLD_ONLY=attn path.
     const auto& call = recorder.only_call();
     EXPECT_GT(count_ops<ov::op::internal::GroupQueryAttention>(call.model), 0u);
+}
+
+TEST_F(GQACompiledModelTest, DecomposesManagedGqaBeforeInnerCompilation) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_group_query_attention_model(),
+                                                     {{"NPUW_GQA_MANAGED", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(count_ops<ov::op::internal::GroupQueryAttention>(call.model), 0u);
+    EXPECT_GT(count_ops<ov::op::v3::ScatterUpdate>(call.model), 0u);
 }
 
 TEST_F(GQACompiledModelTest, RunsUNQDQBeforeInnerCompilation) {
