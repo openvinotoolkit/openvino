@@ -79,6 +79,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -557,6 +558,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
+        // mark rope angles before they are converted to f16
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::DisableFP16CompForLtxVideoRopePattern);
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
@@ -1191,6 +1194,10 @@ void Transformations::PostLpt() {
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
+    }
+    // f16 is marked before ConvertPrecision (PreLpt); bf16 is enforced per node after transformations
+    if (config.inferencePrecision == ov::element::bf16) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableFP16CompForLtxVideoRopePattern);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
