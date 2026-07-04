@@ -146,10 +146,15 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
             if (payloadHeader.type == COMPILED_BLOB_PAYLOAD &&
                 payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
-                std::string payload(payloadHeader.size, '\0');
+                OPENVINO_ASSERT(payloadHeader.size <=
+                                    static_cast<std::uint64_t>(std::numeric_limits<std::string::size_type>::max()),
+                                "HETERO compiled blob compiled submodel payload size is too large: ",
+                                payloadHeader.size);
+                std::string payload(static_cast<std::string::size_type>(payloadHeader.size), '\0');
                 read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
                 std::istringstream payloadStream(std::move(payload));
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
+            }
             } else if (payloadHeader.type == IR_PAYLOAD) {
                 read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
             } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
