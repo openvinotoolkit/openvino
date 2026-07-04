@@ -145,17 +145,10 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
             if (payloadHeader.type == COMPILED_BLOB_PAYLOAD &&
                 payloadHeader.size <= MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE) {
-                if (device == "CPU") {
-                    std::string payload(payloadHeader.size, '\0');
-                    read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
-                    std::stringstream payloadStream(std::move(payload));
-                    compiled_model = core->import_model(payloadStream, device, loadConfig);
-                } else {
-                    ov::Tensor payload(ov::element::u8,
-                                       ov::Shape{static_cast<ov::Shape::size_type>(payloadHeader.size)});
-                    read_payload_bytes(model, payload.data<char>(), payloadHeader.size, "compiled submodel payload");
-                    compiled_model = core->import_model(payload, device, loadConfig);
-                }
+                ov::Tensor payload(ov::element::u8,
+                                   ov::Shape{static_cast<ov::Shape::size_type>(payloadHeader.size)});
+                read_payload_bytes(model, payload.data<char>(), payloadHeader.size, "compiled submodel payload");
+                compiled_model = core->import_model(payload, device, loadConfig);
             } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD || payloadHeader.type == IR_PAYLOAD) {
                 BoundedStreamBuffer buffer{model, payloadHeader.size};
                 std::istream payloadStream{&buffer};
