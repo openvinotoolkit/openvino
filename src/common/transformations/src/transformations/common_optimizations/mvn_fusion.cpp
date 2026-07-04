@@ -76,7 +76,8 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
     auto const_2 = wrap_type<v0::Constant>(value_is_equal_to<float>({2.0}));
-    auto powerof2_square = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
+    auto opt_convert_const_2 = ov::pass::pattern::optional<v0::Convert>(const_2);
+    auto powerof2_square = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, opt_convert_const_2});
     auto self_multiply_square = pattern::wrap_type<ov::op::v1::Multiply>({optionalConvert, optionalConvert});
     const auto squareOperation = std::make_shared<pattern::op::Or>(OutputVector{powerof2_square, self_multiply_square});
 
@@ -87,6 +88,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
     auto const_0_5 = wrap_type<v0::Constant>(value_is_equal_to<float>({0.5}));
     auto eps = wrap_type<v0::Constant>();
+    auto opt_convert_eps = ov::pass::pattern::optional<v0::Convert>(eps);
     // ------------------- OUTSIDE_SQRT ----------------------
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
@@ -97,13 +99,13 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `----------------------------------------------Add---'
-    auto add_eps_os = wrap_type<v1::Add>({powerOrSqrt_os, eps});
+    auto add_eps_os = wrap_type<v1::Add>({powerOrSqrt_os, opt_convert_eps});
 
     // ------------------- INSIDE_SQRT ----------------------
 
     // (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps))
     // `-----------------------------------------------Add---'
-    auto add_eps_is = wrap_type<v1::Add>({mean3, eps});
+    auto add_eps_is = wrap_type<v1::Add>({mean3, opt_convert_eps});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
@@ -119,7 +121,14 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto div = wrap_type<v1::Multiply>({sub1, power_div});
 
     auto div_alt = wrap_type<v1::Divide>({sub1, outsideOrInside});
-    const auto powerMulOrDiv = std::make_shared<Or>(OutputVector{div, div_alt});
+
+    // rsqrt decomposition: (x - mean) * (1 / sqrt(...))
+    auto const_1_rsqrt = wrap_type<v0::Constant>(value_is_equal_to<float>({1.0}));
+    auto opt_convert_const_1_rsqrt = ov::pass::pattern::optional<v0::Convert>(const_1_rsqrt);
+    auto rsqrt_div = wrap_type<v1::Divide>({opt_convert_const_1_rsqrt, outsideOrInside});
+    auto mul_rsqrt = wrap_type<v1::Multiply>({sub1, rsqrt_div});
+
+    const auto powerMulOrDiv = std::make_shared<Or>(OutputVector{div, div_alt, mul_rsqrt});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -200,6 +209,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
         if (pattern_to_output.count(div_alt)) {
             nodes_to_copy_info.push_back(pattern_to_output.at(div_alt).get_node_shared_ptr());
+        } else if (pattern_to_output.count(mul_rsqrt) && pattern_to_output.count(rsqrt_div)) {
+            nodes_to_copy_info.push_back(pattern_to_output.at(rsqrt_div).get_node_shared_ptr());
+            nodes_to_copy_info.push_back(pattern_to_output.at(mul_rsqrt).get_node_shared_ptr());
         } else if (pattern_to_output.count(power_div) && pattern_to_output.count(div)) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_div).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(div).get_node_shared_ptr());
