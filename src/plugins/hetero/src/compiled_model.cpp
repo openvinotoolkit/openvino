@@ -150,15 +150,12 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
                 std::istringstream payloadStream(std::move(payload));
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
-            } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD || payloadHeader.type == IR_PAYLOAD) {
+            } else if (payloadHeader.type == IR_PAYLOAD) {
+                read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
+            } else if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
                 BoundedStreamBuffer buffer{model, payloadHeader.size};
                 std::istream payloadStream{&buffer};
-
-                if (payloadHeader.type == COMPILED_BLOB_PAYLOAD) {
-                    compiled_model = core->import_model(payloadStream, device, loadConfig);
-                } else {
-                    read_ir_payload(payloadStream, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
-                }
+                compiled_model = core->import_model(payloadStream, device, loadConfig);
                 model.clear();
                 model.seekg(buffer.end_pos());
             } else {
