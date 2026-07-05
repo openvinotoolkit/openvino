@@ -31,6 +31,16 @@ IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<ov::Model>& origina
       m_config(config),
       m_logger(logger) {}
 
+std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {}
+
+std::shared_ptr<IGraph> IBlobFormatHandler::create_graph() const {}
+
+void IBlobFormatHandler::decrypt_schedules() {}
+
+ov::Tensor IBlobFormatHandler::decrypt_schedule(const ov::Tensor& schedule) const {}
+
+std::unordered_map<size_t, ov::Constant> IBlobFormatHandler::create_weights_map() const {}
+
 RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
                                const std::shared_ptr<ov::Model>& original_model,
                                const FilteredConfig& config)
