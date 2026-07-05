@@ -660,6 +660,13 @@ uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 
+uint64_t MetadataBase::get_main_schedule_size() const {
+    size_t accumulator = 0;
+    const auto initSizes = get_init_sizes();
+    return initSizes.has_value() ? get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                                 : get_blob_size();
+}
+
 std::optional<std::vector<uint64_t>> MetadataBase::get_init_sizes() const {
     return std::nullopt;
 }

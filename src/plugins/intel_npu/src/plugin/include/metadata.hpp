@@ -63,6 +63,8 @@ public:
 
     virtual uint64_t get_blob_size() const;
 
+    virtual uint64_t get_main_schedule_size() const;
+
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */

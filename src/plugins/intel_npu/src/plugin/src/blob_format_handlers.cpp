@@ -96,6 +96,48 @@ BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
     m_compiler_payload = ov::Tensor(npu_formatted_blob, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
 
+ov::Tensor BlobFormatV1Handler::extract_main_schedule() const {
+    const uint64_t main_size = metadata->get_main_schedule_size();
+
+    return ov::Tensor(m_compiler_payload, ov::Coordinate{0}, ov::Coordinate{mainSize});
+}
+
+std::optional<std::vector<ov::Tensor>> BlobFormatV1Handler::extract_init_schedules() const {
+    const std::optional<std::vector<uint64_t>> init_sizes = metadata->get_init_sizes();
+    if (!init_sizes.has_value()) {
+        return std::nullopt;
+    }
+
+    std::vector<ov::Tensor> init_schedules;
+    size_t cursor_position = metadata->get_main_schedule_size();
+
+    for (const uint64_t init_size : init_sizes.value()) {
+        init_schedules.push_back(ov::Tensor(m_compiler_payload,
+                                            ov::Coordinate{cursor_position},
+                                            ov::Coordinate{cursor_position + init_size}));
+        cursor_position += initSize;
+    }
+
+    return init_schedules;
+}
+
+std::optional<int> BlobFormatV1Handler::extract_batch_size() const {
+    return metadata->get_batch_size();
+}
+
+std::optional<std::pair<std::vector<ov::Layout>>> BlobFormatV1Handler::extract_layouts() const {
+    std::optional<std::vector<ov::Layout>> input_layouts = metadata->get_input_layouts();
+    if (!input_layouts.has_value()) {
+        return std::nullopt;
+    }
+    std::optional<std::vector<ov::Layout>> output_layouts = metadata->get_output_layouts();
+    OPENVINO_ASSERT(output_layouts.has_value(),
+                    "The metadata version received at import supports input layouts, but it doesn't support output "
+                    "layouts. Either both or none should be supported")
+
+    return std::make_pair<>(input_layouts.value(), output_layouts.value());
+}
+
 namespace blob_format_handler_factory {
 
 std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
