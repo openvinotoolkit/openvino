@@ -93,12 +93,12 @@ private:
 namespace blob_format_handler_factory {
 
 std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
-                                           const bool raw_blob,
+                                           const bool is_raw_blob,
                                            const std::shared_ptr<ov::Model>& original_model,
                                            const FilteredConfig& config);
 
 std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
-                                           const bool raw_blob,
+                                           const bool is_raw_blob,
                                            const std::shared_ptr<ov::Model>& original_model,
                                            const FilteredConfig& config);
 

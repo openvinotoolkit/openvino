@@ -52,6 +52,22 @@ RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
     m_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
 
+ov::Tensor RawBlobHandler::extract_main_schedule() const {
+    return m_main_schedule;
+}
+
+std::optional<std::vector<ov::Tensor>> RawBlobHandler::extract_init_schedules() const {
+    return std::nullopt;
+}
+
+std::optional<int> RawBlobHandler::extract_batch_size() const {
+    return std::nullopt;
+}
+
+std::optional<std::pair<std::vector<ov::Layout>>> RawBlobHandler::extract_layouts() const {
+    return std::nullopt;
+}
+
 BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,
                                          const std::shared_ptr<ov::Model>& original_model,
                                          const FilteredConfig& config)
@@ -83,11 +99,11 @@ BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
 namespace blob_format_handler_factory {
 
 std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
-                                           const bool raw_blob,
+                                           const bool is_raw_blob,
                                            const std::shared_ptr<ov::Model>& original_model,
                                            const FilteredConfig& config) {
     const Logger logger("blob_format_handler_factory", config.get<LOG_LEVEL>());
-    if (raw_blob) {
+    if (is_raw_blob) {
         logger.info("Blob compatibility check skipped.");
 
         return std::make_shared<RawBlobHandler>(npu_formatted_blob, original_model, config);
@@ -111,11 +127,11 @@ std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
 }
 
 std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
-                                           const bool raw_blob,
+                                           const bool is_raw_blob,
                                            const std::shared_ptr<ov::Model>& original_model,
                                            const FilteredConfig& config) {
     const Logger logger("blob_format_handler_factory", config.get<LOG_LEVEL>());
-    if (raw_blob) {
+    if (is_raw_blob) {
         logger.info("Blob compatibility check skipped.");  // TODO string views
 
         return std::make_shared<RawBlobHandler>(npu_formatted_blob, original_model, config);
