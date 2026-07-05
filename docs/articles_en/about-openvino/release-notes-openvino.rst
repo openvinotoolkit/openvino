@@ -117,7 +117,7 @@ ONNX Framework Support
 ---------------------------------------------------------------------------------------------
 
 * Scan, Loop, and If operations have been improved to correctly handle models using graph initializers as direct outputs of control flow subgraphs, resolving conversion failures and incorrect results. Scan operation now validates ``num_scan_inputs`` and properly handles models where the loop body has fewer outputs than initial state values. 
-* Tokenizer operation support has been added via openvino-tokenizers integration, enabling conversion of ONNX models using StringNormalizer, LabelEncoder, Tokenizer, and TfIdfVectorizer operations when openvino-tokenizers is installed. Users receive guidance to install the package if missing. 
+* Tokenizer operation support has been added via openvino-tokenizers integration, enabling conversion of ONNX models using StringNormalizer, LabelEncoder, Tokenizer, and TfIdfVectorizer operations when openvino-tokenizers is installed. Users receive guidance to install the package if missing.  
 
 OpenVINO™ Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
