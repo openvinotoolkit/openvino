@@ -12,6 +12,7 @@
 #include "model_builder_attention.hpp"
 #include "model_builder_ffn.hpp"
 #include "model_builder_masks.hpp"
+#include "model_builder_moe.hpp"
 #include "model_builder_norm.hpp"
 #include "model_builder_rope.hpp"
 #include "model_builder_types.hpp"
@@ -183,10 +184,19 @@ struct LLMConfig : public BaseModelConfig {
     bool pre_norm = true;
     bool force_gqa_broadcast = false;  ///< force 5-input SDPA (needed for SDPA isolation pattern matching)
 
+    /// Qwen3.5-style gated attention: q_proj is 2x wide ([q | gate] per head) and
+    /// Sigmoid(gate) scales the flattened SDPA output before o_proj.
+    bool attn_output_gate = false;
+
+    /// Partial RoPE: rotate only the first rotary_dim of each head (0 = full head_dim).
+    /// Only applies when build_llm auto-creates the RoPE functor.
+    size_t rotary_dim = 0;
+
     // MoE configuration (num_experts=0 means dense, no MoE)
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+    MoEFactoryFn moe_factory;  ///< MoE topology (num_experts>0). Empty = GPT-OSS; make_qwen3_moe_ffn for Qwen3.
 
     size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
     /// 0 = uniform: every layer gets the same mask (all sliding if sliding_window_size > 0,
@@ -204,6 +214,14 @@ struct LLMConfig : public BaseModelConfig {
     /// false = expose LoRA tensors as Parameters (NPUW stateless form).
     /// true = expose LoRA tensors as ReadValue/Assign states (GenAI dynamic form before NPUW conversion).
     bool lora_stateful = false;
+
+    /// Hybrid scheduling. Empty predicate (or null linear_mixer) = pure attention. Layers where it
+    /// returns true use linear_mixer, the rest use full SDPA. Hybrid models require use_kv_cache = true.
+    std::function<bool(size_t /*layer_idx*/)> is_linear_layer;
+
+    /// Token mixer for linear layers (e.g. GatedDeltaNetMixer or ShortConvMixer). build_llm wires
+    /// its seq_source/beam_idx. A new mixer type needs no build_llm change.
+    std::shared_ptr<LinearMixer> linear_mixer;
 };
 
 struct WhisperConfig : public BaseModelConfig {
