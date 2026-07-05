@@ -38,8 +38,8 @@ RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
     const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
     OPENVINO_ASSERT(blob_size > 0, "The blob provided for import is empty");
 
-    m_compiler_main_schedule = allocate_aligned_tensor(blob_size);
-    compiler_main_schedule.read(m_compiler_main_schedule.data<char>(), static_cast<std::streamsize>(blob_size));
+    m_main_schedule = allocate_aligned_tensor(blob_size);
+    compiler_main_schedule.read(m_main_schedule.data<char>(), static_cast<std::streamsize>(blob_size));
 }
 
 RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
@@ -49,7 +49,7 @@ RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
     const size_t blob_size = compiler_main_schedule.get_byte_size();
     OPENVINO_ASSERT(blob_size > 0, "The blob provided for import is empty");
 
-    m_compiler_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
+    m_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
 
 BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,

@@ -15,24 +15,36 @@ public:
                        const FilteredConfig& config,
                        const Logger& logger);
 
-    virtual std::shared_ptr<ov::Model> create_dummy_model() = 0;
+    std::shared_ptr<ov::Model> create_dummy_model() const;
 
-    virtual std::shared_ptr<IGraph> create_graph() = 0;
+    std::shared_ptr<IGraph> create_graph() const;
 
     virtual ~IBlobFormatHandler() = default;
 
 private:
-    virtual ov::Tensor extract_main_schedule() = 0;
+    virtual ov::Tensor extract_main_schedule() const = 0;
 
-    virtual ov::Tensor extract_init_schedules() = 0;
+    virtual std::optional<std::vector<ov::Tensor>> extract_init_schedules() const = 0;
 
-    virtual ov::Tensor decrypt_schedules() = 0;
+    virtual std::optional<int> extract_batch_size() const = 0;
 
-    virtual ov::Tensor create_weights_map() = 0;
+    virtual std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const = 0;
 
-    std::shared_ptr<ov::Model> m_original_model;
+    void decrypt_schedules();
+
+    ov::Tensor decrypt_schedule(const ov::Tensor& schedule) const;
+
+    std::unordered_map<size_t, ov::Constant> create_weights_map() const;
+
+    std::optional<std::shared_ptr<ov::Model>> m_original_model;
     FilteredConfig m_config;
     Logger m_logger;
+
+    ov::Tensor m_main_schedule;
+    std::optional<std::vector<ov::Tensor>> m_init_schedules;
+    std::optional<int> m_batch_size;
+    std::optional<std::vector<ov::Layout>> m_input_layouts;
+    std::optional<std::vector<ov::Layout>> m_output_layouts;
 };
 
 class RawBlobHandler : public IBlobFormatHandler {
@@ -46,7 +58,13 @@ public:
                             const FilteredConfig& config);
 
 private:
-    ov::Tensor m_compiler_main_schedule;
+    ov::Tensor extract_main_schedule() const override;
+
+    std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override;
+
+    std::optional<int> extract_batch_size() const override;
+
+    std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
 };
 
 class BlobFormatV1Handler : public IBlobFormatHandler {
@@ -60,6 +78,14 @@ public:
                                  const FilteredConfig& config);
 
 private:
+    ov::Tensor extract_main_schedule() const override;
+
+    std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override;
+
+    std::optional<int> extract_batch_size() const override;
+
+    std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
+
     ov::Tensor m_compiler_payload;
     std::unique_ptr<MetadataBase> m_metadata;
 };
