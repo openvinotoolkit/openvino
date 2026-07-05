@@ -434,7 +434,7 @@ CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_, ov::intel_c
 CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
-    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
+    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target->clone());
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
     return std::make_shared<CPUGenerator>(cpu_target_machine);
