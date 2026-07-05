@@ -1762,7 +1762,7 @@ inline VectorDims getBlockND(const VectorDims& shape) {
 
 template <typename T>
 T convertTo5D(const T& src, const std::vector<int>& dimMap, int initValue = 1) {
-    T dst(5, initValue);
+    T dst(5, static_cast<typename T::value_type>(initValue));
     for (size_t i = 0; i < dimMap.size(); ++i) {
         dst[dimMap[i]] = src[i];
     }

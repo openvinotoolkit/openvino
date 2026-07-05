@@ -214,23 +214,70 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         // Weights normalization
-        bool can_reuse_transpose = false;
-        if (!matmul->get_transpose_b()) {
-            if (transpose_node && transpose_node->get_input_size() == 2) {
-                auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-                if (order_constant) {
-                    std::vector<size_t> order = order_constant->cast_vector<size_t>();
+        bool is_small_matmul = true;
+        if (shape_a.is_static() && shape_b.is_static()) {
+             auto output_shape = matmul->get_output_shape(0);
+             size_t k = 0;
+             if (matmul->get_transpose_a())
+                 k = shape_a[shape_a.rank().get_length() - 2].get_length();
+             else
+                 k = shape_a[shape_a.rank().get_length() - 1].get_length();
+             // M is the row/token dimension and N the output dimension of the matmul.
+             size_t m = output_shape.size() >= 2 ? output_shape[output_shape.size() - 2] : 1;
+             size_t n = output_shape.size() >= 1 ? output_shape[output_shape.size() - 1] : 1;
+             // Empirical benchdnn study (f16 GPU matmul, see
+             // temp/gemm_transpose_study): the non-transposed weight layout
+             // (onednn abc) wins for matmuls with a large reduction dimension
+             // that stay memory-bound, i.e. thin in at least one output
+             // dimension. When both M and N are large the GEMM becomes
+             // compute-bound and the transposed layout (acb) is faster (the
+             // non-transposed kernel can regress by up to ~1.3x there). Restrict
+             // the non-transposed path to K >= 8192 and (M <= 512 or N <= 4096)
+             // to keep the wins while avoiding those regressions.
+             if (k >= 8192 && (m <= 512 || n <= 4096) &&
+                 matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
+                 is_small_matmul = false;
+             }
+        }
 
-                    std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
-                    std::iota(expected_order.begin(), expected_order.end(), 0);
-                    std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+        if (is_small_matmul) {
+            // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
+            bool can_reuse_transpose = false;
+            if (!matmul->get_transpose_b()) {
+                if (transpose_node && transpose_node->get_input_size() == 2) {
+                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                    if (order_constant) {
+                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
 
-                    can_reuse_transpose = order == expected_order;
+                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
+                        std::iota(expected_order.begin(), expected_order.end(), 0);
+                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+
+                        can_reuse_transpose = order == expected_order;
+                    }
                 }
-            }
 
-            fc_input_b = can_reuse_transpose ? transpose_node
-                                             : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                fc_input_b = can_reuse_transpose ? transpose_node
+                                                 : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+            }
+        } else {
+            if (!matmul->get_transpose_b()) {
+                if (transpose_node && transpose_node->get_input_size() == 2) {
+                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                    if (order_constant) {
+                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
+
+                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
+                        std::iota(expected_order.begin(), expected_order.end(), 0);
+                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+
+                        if (order == expected_order)
+                            fc_input_b = transpose_node;
+                    }
+                }
+            } else {
+                fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+            }
         }
 
         // Input normalization
@@ -250,7 +297,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto no_bias = std::make_shared<op::Placeholder>();
 
         // Create FullyConnected
-        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0));
+        const bool transpose_b = is_small_matmul;
+        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0), transpose_b);
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);

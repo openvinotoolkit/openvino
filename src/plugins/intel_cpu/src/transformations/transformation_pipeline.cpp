@@ -1596,8 +1596,7 @@ void Transformations::MainSnippets() {
         }
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
-        // KleidiAI matmul primitives do not support transposed B input
-        return false;
+        return true;
 #elif defined(OPENVINO_ARCH_X86_64)
         return true;
 #else
