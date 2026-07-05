@@ -45,6 +45,8 @@ private:
     std::optional<int> m_batch_size;
     std::optional<std::vector<ov::Layout>> m_input_layouts;
     std::optional<std::vector<ov::Layout>> m_output_layouts;
+
+    std::shared_ptr<IGraph> m_graph;
 };
 
 class RawBlobHandler : public IBlobFormatHandler {

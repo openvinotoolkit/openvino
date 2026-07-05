@@ -20,6 +20,89 @@ ov::Tensor allocate_aligned_tensor(const size_t blobSize) {
     return tensor;
 }
 
+/**
+ * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
+ * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
+ * This path allows making use of the already written functions/attributes for handling the I/O information.
+ *
+ * Note that a stored compiled model does not hold the original IR model within it. The only related information
+ * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
+ * starting from these fields in order to satisfy the API.
+ *
+ * @param inputDescriptors Describes the input nodes.
+ * @param outputDescriptors Describes the output nodes.
+ * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
+ */
+std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
+                                              const std::vector<IODescriptor>& outputDescriptors,
+                                              const std::optional<int64_t> batchSize,
+                                              const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                              const std::optional<std::vector<ov::Layout>>& outputLayouts) {
+    ov::ParameterVector parameters;
+    ov::ResultVector results;
+
+    for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
+        const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+            continue;
+        }
+
+        auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                                  : inputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
+
+        std::shared_ptr<ov::op::v0::Parameter> parameter =
+            std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, shape);
+
+        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
+        if (inputLayouts.has_value()) {
+            parameter->set_layout(inputLayouts->at(inputIndex));
+        }
+        parameters.push_back(std::move(parameter));
+    }
+
+    // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
+    // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
+    // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
+    // potentially dynamic, output shape.
+    for (size_t outputIndex = 0; outputIndex < outputDescriptors.size(); ++outputIndex) {
+        const IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+            outputDescriptor.isInitOutputWeights) {
+            continue;
+        }
+
+        std::shared_ptr<ov::Node> constantDummy =
+            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+        auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                                   : outputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                     shape,
+                                                     outputDescriptor.outputTensorNames);
+
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+        result->output(0).set_tensor_ptr(tensorDummy);
+        if (outputLayouts.has_value()) {
+            result->set_layout(outputLayouts->at(outputIndex));
+        }
+        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
+    }
+
+    return std::make_shared<ov::Model>(results, parameters);
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -31,7 +114,14 @@ IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<ov::Model>& origina
       m_config(config),
       m_logger(logger) {}
 
-std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {}
+std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
+    OPENVINO_ASSERT(m_graph != nullptr, "Invalid state")
+    return create_dummy_model(m_graph->get_metadata().inputs,
+                              m_graph->get_metadata().outputs,
+                              m_batch_size,
+                              m_input_layouts,
+                              m_output_layouts);
+}
 
 std::shared_ptr<IGraph> IBlobFormatHandler::create_graph() const {}
 
