@@ -4,10 +4,15 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstring>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 #include "openvino/openvino.hpp"
@@ -38,6 +43,92 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     auto result = std::make_shared<ov::op::v0::Result>(maxpool);
     result->set_friendly_name("output");
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
+    // making input and output to be NHWC
+    auto preProc = ov::preprocess::PrePostProcessor(model);
+    preProc.input(0).tensor().set_layout("NHWC");
+    preProc.input(0).model().set_layout("NCHW");
+    preProc.output(0).tensor().set_layout("NHWC");
+    preProc.output(0).model().set_layout("NCHW");
+
+    model = preProc.build();
+
+    return model;
+}
+
+inline std::shared_ptr<ov::Model> createCustomNetModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+    input->set_friendly_name("Parameter_59");
+
+    auto make_conv_add = [](const ov::Output<ov::Node>& data,
+                            const std::string& convName,
+                            const std::string& addName,
+                            float weightValue,
+                            float biasValue) -> ov::Output<ov::Node> {
+        const std::vector<float> weightValues(16 * 16, weightValue);
+        const std::vector<float> biasValues(16, biasValue);
+
+        auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{16, 16, 1, 1}, weightValues);
+        auto conv = std::make_shared<ov::op::v1::Convolution>(data,
+                                                              weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1},
+                                                              ov::op::PadType::EXPLICIT);
+        conv->set_friendly_name(convName);
+
+        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, biasValues);
+        auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
+        add->set_friendly_name(addName);
+        return add;
+    };
+
+    auto x = make_conv_add(input, "Convolution_61", "Add_63", 0.01f, 0.001f);
+    x = make_conv_add(x, "Convolution_65", "Add_67", 0.011f, 0.001f);
+
+    auto relu68 = std::make_shared<ov::op::v0::Relu>(x);
+    relu68->set_friendly_name("Relu_68");
+    x = relu68;
+
+    x = make_conv_add(x, "Convolution_70", "Add_72", 0.012f, 0.001f);
+    auto relu73 = std::make_shared<ov::op::v0::Relu>(x);
+    relu73->set_friendly_name("Relu_73");
+    x = relu73;
+
+    x = make_conv_add(x, "Convolution_75", "Add_77", 0.013f, 0.001f);
+    auto relu78 = std::make_shared<ov::op::v0::Relu>(x);
+    relu78->set_friendly_name("Relu_78");
+    x = relu78;
+
+    x = make_conv_add(x, "Convolution_82", "Add_84", 0.014f, 0.001f);
+    auto relu85 = std::make_shared<ov::op::v0::Relu>(x);
+    relu85->set_friendly_name("Relu_85");
+    x = relu85;
+
+    x = make_conv_add(x, "Convolution_87", "Add_89", 0.015f, 0.001f);
+    auto relu90 = std::make_shared<ov::op::v0::Relu>(x);
+    relu90->set_friendly_name("Relu_90");
+    x = relu90;
+
+    x = make_conv_add(x, "Convolution_92", "Add_94", 0.016f, 0.001f);
+    auto relu95 = std::make_shared<ov::op::v0::Relu>(x);
+    relu95->set_friendly_name("Relu_95");
+    x = relu95;
+
+    auto multiplyScale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, {0.5f});
+    auto multiply97 = std::make_shared<ov::op::v1::Multiply>(x, multiplyScale);
+    multiply97->set_friendly_name("Multiply_97");
+
+    auto add98 = std::make_shared<ov::op::v1::Add>(multiply97, multiply97);
+    add98->set_friendly_name("Add_98");
+
+    x = make_conv_add(add98, "Convolution_100", "Add_102", 0.017f, 0.001f);
+
+    auto result = std::make_shared<ov::op::v0::Result>(x);
+    result->set_friendly_name("Result_104");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "CustomNet");
 
     // making input and output to be NHWC
     auto preProc = ov::preprocess::PrePostProcessor(model);
@@ -52,7 +143,8 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
 }
 
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
-                                              ov::AnyMap    // Config
+                                              ov::AnyMap,   // Config
+                                              std::string   // Model name
                                               >;
 
 // These tests are required by the NPU plugin to verify the support of dynamic shape during
@@ -97,7 +189,8 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InferWithHostCompileParams> obj) {
         std::string target_device;
         ov::AnyMap configuration;
-        std::tie(target_device, configuration) = obj.param;
+        std::string modelName;
+        std::tie(target_device, configuration, modelName) = obj.param;
         std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << target_device << "_";
@@ -108,6 +201,7 @@ public:
                 result << "_";
             }
         }
+        result << "model=" << modelName;
         return result.str();
     }
 
@@ -115,7 +209,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        std::tie(target_device, configuration) = this->GetParam();
+        std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
@@ -151,11 +245,14 @@ public:
 
     static bool logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry);
 
+    static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName);
+
     RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
+    std::string selectedModelName;
     bool isTargetDevice = false;
     ov::log::Level originalLogLevel = ov::log::Level::ERR;
 };
@@ -217,6 +314,17 @@ bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, 
     return logCapture.str().find(expectedEntry) != std::string::npos;
 }
 
+std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
+    if (modelName == "CustomNet") {
+        return createCustomNetModel();
+    }
+    if (modelName == "MaxPool") {
+        return createMaxPoolModel();
+    }
+
+    OPENVINO_THROW("Unknown model name for InferWithHostCompileTests: ", modelName);
+}
+
 InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::prepareRuntimeCompareContext(
     const std::shared_ptr<ov::Model>& model) {
     RuntimeCompareSetupResult result;
@@ -241,19 +349,18 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     try {
         result.context.reqDynamic = result.context.compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
-            result.status = RuntimeCompareStatus::fail;
-            result.message =
-                std::string("Expected exception message to contain 'Cannot load library', but got: ") + e.what();
-            return result;
-        }
-
-        result.status = RuntimeCompareStatus::skip;
-        result.message = "Cannot load library, skip test.";
+        result.status = RuntimeCompareStatus::fail;
+        result.message = std::string("Failed to create dynamic infer request: ") + e.what();
         return result;
     }
 
-    result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+    try {
+        result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        result.status = RuntimeCompareStatus::fail;
+        result.message = std::string("Failed to create reference infer request: ") + e.what();
+        return result;
+    }
     return result;
 }
 
@@ -263,27 +370,19 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    auto model = createMaxPoolModel();
+    auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     ov::InferRequest reqDynamic;
-    try {
-        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
-        reqDynamic = importedModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
-            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        } else {
-            GTEST_SKIP() << "Cannot load library, skip test.";
-        }
-    }
-
+    ov::CompiledModel importedModel;
+    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
+    OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
@@ -296,7 +395,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createMaxPoolModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
@@ -366,7 +465,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createMaxPoolModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
@@ -436,7 +535,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createMaxPoolModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));

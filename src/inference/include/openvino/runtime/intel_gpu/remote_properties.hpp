@@ -30,7 +30,7 @@ using os_handle_param = void*;
 enum class ContextType {
     OCL = 0,        //!< Pure OpenCL context
     VA_SHARED = 1,  //!< Context shared with a video decoding device
-    ZE = 2,         //!< Pure Level0 context
+    ZE = 2,         //!< Pure Level Zero context
 };
 
 /** @cond INTERNAL */
@@ -52,10 +52,10 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     is >> str;
     if (str == "OCL") {
         context_type = ContextType::OCL;
-    } else if (str == "ZE") {
-        context_type = ContextType::ZE;
     } else if (str == "VA_SHARED") {
         context_type = ContextType::VA_SHARED;
+    } else if (str == "ZE") {
+        context_type = ContextType::ZE;
     } else {
         OPENVINO_THROW("Unsupported context type: ", str);
     }
