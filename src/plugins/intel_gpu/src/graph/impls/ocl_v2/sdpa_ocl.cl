@@ -180,6 +180,29 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int qb = 0; qb < kq_query_blocks; ++qb)
                 S_tile[mb][qb] = (float8)0.0f;
 
+#ifdef KV_COMPRESSED
+        // Per-token K scale/zp depend only on the key (shared across the head dim), so load them
+        // ONCE per k0-tile with a subgroup-cooperative wide load (lane L -> key key_base+L) and
+        // keep them in registers. The old code fetched K_scales[KEY_COMP_OFF(...)]/K_zp[...] inside
+        // the db x mb x key_offset dequant loop; since that offset is key-only (db-independent) and
+        // lane-uniform, IGC emitted a per-key SIMD-1 (1|M0) scalar load, reloaded every db -> ~128
+        // such loads per k0 iter (measured in the GEN ISA). This collapses them to one 16-wide load
+        // each (mirrors the V vs_c/vz_c pattern and the k_mask lane=key layout below).
+        float k_scale_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
+        #if KEY_ZERO_POINTS
+        float k_zp_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
+        #endif
+        #pragma unroll
+        for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
+            const int sc_key = key_base + ii * SUBGROUP_SIZE + lane;
+            const uint sc_off = KEY_COMP_OFF(b1, b0_kv, sc_key, 0);
+            k_scale_lane[ii] = (sc_key < k) ? convert_float(K_scales[sc_off]) : 0.0f;
+            #if KEY_ZERO_POINTS
+            k_zp_lane[ii] = (sc_key < k) ? convert_float(K_zp[sc_off]) : 0.0f;
+            #endif
+        }
+#endif
+
         #pragma unroll
         for (int db = 0; db < DKS; ++db) {
             int8 qB[kq_query_blocks];
@@ -191,7 +214,41 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             ushort8 k_raw[kq_key_blocks];
-#if USE_2D_BLOCK_IO
+#if USE_2D_BLOCK_IO_K_I8
+            // int8 K via the 8-bit VNNI-transform read (same builtin as V). Reading K's row-major
+            // [key, head] memory at (x=db*DPAS_K head-col, y=key_base) gives lane=head with each
+            // uint packing 4 consecutive keys as bytes (GPU-probed: lane==head exactly, key order
+            // u*4+b linear -> no subgroup shuffle, unlike the earlier non-transform K attempt).
+            // One read spans 32 keys; this subgroup uses the first kq_sg_tile_keys (16) = uints 0..3.
+            // Dequant reuses the hoisted per-key scale/zp broadcasts (Step 1); result is the f16
+            // A operand k_raw[mb][key_offset], mb=krel/8, key_offset=krel%8.
+            {
+                uint kt[8];
+                intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                    (global void *)K, KD_w, KD_h, KD_p,
+                    (int2)(db * DPAS_K, key_base), (private uint *)&kt[0]);
+                #pragma unroll
+                for (int mb = 0; mb < kq_key_blocks; ++mb)
+                    k_raw[mb] = (ushort8)0;
+                // kq_sg_tile_keys keys = kq_sg_tile_keys/4 uints. head=64/128 => 16 keys => uints 0..3.
+                #pragma unroll
+                for (int u = 0; u < kq_sg_tile_keys / 4; ++u) {
+                    const char4 raw4 = as_char4(kt[u]);
+                    #pragma unroll
+                    for (int bb = 0; bb < 4; ++bb) {
+                        const int krel = u * 4 + bb;           // key's subgroup-local index 0..kq_sg_tile_keys-1
+                        const float k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                        #if KEY_ZERO_POINTS
+                            const float k_zp = sub_group_broadcast(k_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                            const float deq_k = (convert_float(raw4[bb]) - k_zp) * k_sc;
+                        #else
+                            const float deq_k = convert_float(raw4[bb]) * k_sc;
+                        #endif
+                        k_raw[krel / 8][krel % 8] = as_ushort((half)deq_k);
+                    }
+                }
+            }
+#elif USE_2D_BLOCK_IO
             intel_sub_group_2d_block_read_16b_16r16x1c(
                 (global void *)K, KD_w, KD_h, KD_p,
                 (int2)(db * DPAS_K, key_base), (private ushort *)&k_raw[0]);
@@ -203,16 +260,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 #pragma unroll
                 for (int key_offset = 0; key_offset < 8; ++key_offset) {
                     const int key = key_base + mb * 8 + key_offset;
+                    #ifdef KV_COMPRESSED
+                        // i8 compressed K: per-token (per-kv-head) asymmetric dequant. Scale/zp
+                        // are the hoisted per-key values (lane=key wide load above); recover this
+                        // key's scalar with a subgroup broadcast. krel is the key's subgroup-local
+                        // index (compile-time constant here), so the broadcast folds to a register
+                        // move. It is a subgroup collective, so it MUST run on all lanes -> keep it
+                        // OUTSIDE the per-lane-divergent (head < d) guard below.
+                        const int krel = mb * 8 + key_offset;
+                        const float k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                        #if KEY_ZERO_POINTS
+                            const float k_zp = sub_group_broadcast(k_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                        #endif
+                    #endif
                     if (head < d && key < k) {
                         #ifdef KV_COMPRESSED
-                            // i8 compressed K: per-token (per-kv-head) asymmetric dequant.
-                            // Scale/zp are shared across the head dim, so they are indexed by
-                            // token only: KEY_COMP_OFF(b1, b0_kv, key, 0).
-                            const uint k_comp_off = KEY_COMP_OFF(b1, b0_kv, key, 0);
                             #if KEY_ZERO_POINTS
-                                const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - convert_float(K_zp[k_comp_off])) * convert_float(K_scales[k_comp_off]);
+                                const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - k_zp) * k_sc;
                             #else
-                                const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * convert_float(K_scales[k_comp_off]);
+                                const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * k_sc;
                             #endif
                             k_raw[mb][key_offset] = as_ushort((half)deq_k);
                         #else
