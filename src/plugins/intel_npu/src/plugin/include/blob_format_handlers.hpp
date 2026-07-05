@@ -17,7 +17,7 @@ public:
 
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
-    std::shared_ptr<IGraph> create_graph() const;
+    std::shared_ptr<IGraph> create_graph(const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs) const;
 
     virtual ~IBlobFormatHandler() = default;
 
@@ -29,6 +29,8 @@ private:
     virtual std::optional<int> extract_batch_size() const = 0;
 
     virtual std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const = 0;
+
+    virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
     void decrypt_schedules();
 
@@ -67,6 +69,8 @@ private:
     std::optional<int> extract_batch_size() const override;
 
     std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
+
+    std::optional<std::string> extract_compiler_compatibility_descriptor() const override;
 };
 
 class BlobFormatV1Handler : public IBlobFormatHandler {
@@ -87,6 +91,8 @@ private:
     std::optional<int> extract_batch_size() const override;
 
     std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
+
+    std::optional<std::string> extract_compiler_compatibility_descriptor() const override;
 
     ov::Tensor m_compiler_payload;
     std::unique_ptr<MetadataBase> m_metadata;

@@ -4,6 +4,7 @@
 
 #include "blob_format_handlers.hpp"
 
+#include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/allocator.hpp"
@@ -123,7 +124,18 @@ std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
                               m_output_layouts);
 }
 
-std::shared_ptr<IGraph> IBlobFormatHandler::create_graph() const {}
+std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
+    const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs) const {
+    ParserFactory parserFactory;
+    auto parser = parserFactory.getParser(zero_init_structs);
+
+    const bool weights_separation_enabled = m_init_schedules.has_value();
+    return parser->parse(m_main_schedule,
+                         m_config,
+                         m_init_schedules,
+                         weights_separation_enabled ? m_original_model : std::nullopt,
+                         get_compiler_compatibility_descriptor());
+}
 
 void IBlobFormatHandler::decrypt_schedules() {}
 
@@ -165,6 +177,10 @@ std::optional<int> RawBlobHandler::extract_batch_size() const {
 }
 
 std::optional<std::pair<std::vector<ov::Layout>>> RawBlobHandler::extract_layouts() const {
+    return std::nullopt;
+}
+
+std::optional<std::string> RawBlobHandler::extract_compiler_compatibility_descriptor() const {
     return std::nullopt;
 }
 
@@ -236,6 +252,10 @@ std::optional<std::pair<std::vector<ov::Layout>>> BlobFormatV1Handler::extract_l
                     "layouts. Either both or none should be supported")
 
     return std::make_pair<>(input_layouts.value(), output_layouts.value());
+}
+
+std::optional<std::string> BlobFormatV1Handler::extract_compiler_compatibility_descriptor() const {
+    return metadata->get_compatibility_descriptor();
 }
 
 namespace blob_format_handler_factory {
