@@ -15,7 +15,7 @@ import tensorflow_hub as hub
 #import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
 from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list, model_list_path
 from openvino import convert_model
 
 from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
@@ -37,16 +37,6 @@ def get_keras_application_model_by_name(model_name):
         return model_class
     except AttributeError:
         raise ValueError(f"Model '{model_name}' not found in tf.keras.applications")
-
-
-def model_list_path(list_name):
-    # NPU runs in compile-only mode and uses a dedicated list
-    # CPU/GPU keep the original list.
-    if 'NPU' in os.environ.get("TEST_DEVICE", ""):
-        npu_list = os.path.join(os.path.dirname(__file__), "model_lists", "npu_" + list_name)
-        if os.path.isfile(npu_list):
-            return npu_list
-    return os.path.join(os.path.dirname(__file__), "model_lists", list_name)
 
 
 class TestTFHubConvertModel(TestConvertModel):
@@ -177,7 +167,7 @@ class TestTFHubConvertModel(TestConvertModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(model_list_path("precommit_convert_model")))
+                             get_models_list(model_list_path(os.path.join(os.path.dirname(__file__), "model_lists"), "precommit_convert_model")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
