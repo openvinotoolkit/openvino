@@ -448,10 +448,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // tiling keeps sv_sg_tile_values == 16 (one 16-value block per subgroup) for head 64 and 128,
     // so the fixed 16-wide builtin geometry fits; the .cl loop is written in terms of
     // sv_value_blocks/cd and d, with no head-size hardcoding. Measured on B580 (head=64 prefill):
-    // 26.3us scalar -> 21.7us (~18% faster), accuracy PASS. The matching K conversion was tried
-    // (8b block read for K) but measured SLOWER than scalar (its layout needs a subgroup shuffle),
-    // so K stays on the scalar path. Requires ldv%16==0 (pitch) and mem width = v_head_size bytes
-    // in [64,224]. Enabled by default for compressed KV; env SDPA_OCL_V_I8_2D=0 forces scalar.
+    // 26.3us scalar -> 21.7us (~18% faster), accuracy PASS. Requires ldv%16==0 (pitch) and mem
+    // width = v_head_size bytes in [64,224]. Enabled by default for compressed KV; env
+    // SDPA_OCL_V_I8_2D=0 forces scalar.
     int v_i8_2d = 0;
     if (config.is_kv_compressed && (v_head_size == 64u || v_head_size == 128u) && (ldv % 16 == 0)) {
         v_i8_2d = 1;
@@ -459,6 +458,22 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             v_i8_2d = std::atoi(env);
     }
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
+    // int8 compressed K via the SAME 8-bit VNNI-transform read (intel_sub_group_2d_block_read_
+    // transform_8b_32r16x1c). Reading K memory (row-major [key, head]) at (x=head, y=key) yields
+    // lane=head, each uint packing 4 consecutive keys as bytes -- GPU-probed to match the DPAS-A
+    // operand layout (lane=head, elems=keys) with NO subgroup shuffle. This is why the transform
+    // read succeeds where the earlier non-transform _8b_16r16x4c K attempt failed (that one needed
+    // a shuffle and lost to scalar). Prerequisite: Step-1 scale/zp hoist (per-key scale/zp loaded
+    // once, broadcast in dequant) so the K dequant reduces to the same shuffle-free byte->half path
+    // as V. Requires ldk%16==0. Enabled by default for compressed KV head 64/128; SDPA_OCL_K_I8_2D=0
+    // forces scalar (used for A/B measurement and regression guard).
+    int k_i8_2d = 0;
+    if (config.is_kv_compressed && (k_head_size == 64u || k_head_size == 128u) && (ldk % 16 == 0)) {
+        k_i8_2d = 1;
+        if (const char* env = std::getenv("SDPA_OCL_K_I8_2D"))
+            k_i8_2d = std::atoi(env);
+    }
+    jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
     jit.make("HEAD_SIZE", k_head_size);
