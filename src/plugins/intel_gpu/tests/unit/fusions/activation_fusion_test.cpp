@@ -357,6 +357,19 @@ TEST_F(ActivationFusingTest, reorder_activation_i16) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
+    bool abs_fused = false;
+    for (const auto& pi : network.get_primitives_info()) {
+        for (const auto& fused_id : pi.c_fused_ids) {
+            if (fused_id == "abs") {
+                abs_fused = true;
+                break;
+            }
+        }
+        if (abs_fused)
+            break;
+    }
+    EXPECT_TRUE(abs_fused) << "Expected 'abs' to be fused when optimize_data(true)";
+
     auto input_mem = engine.allocate_memory(in_layout);
     set_values(input_mem, { -5.0f, 10.0f, -15.0f, 20.0f });
     network.set_input_data("input", input_mem);
