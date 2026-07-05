@@ -746,58 +746,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::shared_ptr<I
     if (_backend == nullptr || device == nullptr) {
         OPENVINO_THROW("Device not found.");
     }
-
-    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
-
-    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
-    if (!loadedFromCache) {  // TODO rewrite
+    if (!localConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
     }
 
     return nullptr;
-}
-
-ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                        const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    update_log_level(properties);
-
-    auto localProperties = properties;
-
-    if (_backend != nullptr) {
-        _backend->updateInfo(localProperties);
-    }
-
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
-
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
-
-    const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? std::move(deviceId) : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-    CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
-
-    localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
-    if (!compilationPlatform.empty()) {
-        localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
-    }
-
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
-    ov::SupportedOpsMap supportedOpsMap;
-    try {
-        supportedOpsMap = compiler->query(model->clone(), localConfig);
-    } catch (const std::runtime_error& e) {
-        OPENVINO_THROW(e.what());
-    } catch (...) {
-        OPENVINO_THROW("NPU query_model got unexpected error from compiler");
-    }
-
-    return supportedOpsMap;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
@@ -982,6 +935,48 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+}
+
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
+                                        const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
+    update_log_level(properties);
+
+    auto localProperties = properties;
+
+    if (_backend != nullptr) {
+        _backend->updateInfo(localProperties);
+    }
+
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
+    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
+
+    const auto compilationPlatform =
+        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+    CompilerAdapterFactory factory;
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+    localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
+    if (!compilationPlatform.empty()) {
+        localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
+    }
+
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    ov::SupportedOpsMap supportedOpsMap;
+    try {
+        supportedOpsMap = compiler->query(model->clone(), localConfig);
+    } catch (const std::runtime_error& e) {
+        OPENVINO_THROW(e.what());
+    } catch (...) {
+        OPENVINO_THROW("NPU query_model got unexpected error from compiler");
+    }
+
+    return supportedOpsMap;
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
