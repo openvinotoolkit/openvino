@@ -132,6 +132,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
+            --numprocesses auto \
             -v -ra \
             -o log_cli=true --log-cli-level=DEBUG \
             --timeout=300 \
@@ -158,4 +159,5 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
             ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests.log
+            ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests_gw*.log
           if-no-files-found: 'warn'

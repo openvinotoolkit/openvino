@@ -201,6 +201,7 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
             ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests.log
+            ${{ env.INSTALL_TEST_DIR }}/samples_smoke_tests_gw*.log
           if-no-files-found: 'warn'
 
       # Test .bat scripts for samples building
