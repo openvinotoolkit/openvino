@@ -17,6 +17,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <cstdint>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -239,6 +240,11 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
 }
 
 memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size);
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
+                    "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
+    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
+                    "[GPU] shared buffer size must be a multiple of ", minimal_alignment, " bytes");
     auto tracker = std::make_shared<MemoryTracker>(this,
                                                    const_cast<void*>(cpu_address),
                                                    data_size,
