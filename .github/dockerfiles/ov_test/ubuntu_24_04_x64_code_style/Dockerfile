@@ -39,7 +39,7 @@ RUN apt-get update && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
 
-# Install CMake 3.26 from tarball
+# Install CMake 3.26.4 using the Kitware installer script
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh && \
     sh cmake-3.26.4-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     rm cmake-3.26.4-linux-x86_64.sh

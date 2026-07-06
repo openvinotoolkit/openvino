@@ -36,7 +36,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Install CMake 3.26 from tarball
+# Install CMake 3.26.4 using the Kitware installer script
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh && \
     sh cmake-3.26.4-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     rm cmake-3.26.4-linux-x86_64.sh

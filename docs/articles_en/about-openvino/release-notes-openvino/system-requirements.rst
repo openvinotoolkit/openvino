@@ -119,7 +119,7 @@ Operating systems and developer environment
       * GNU Compiler Collection and CMake are needed for building from source:
 
         * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
-      * `CMake <https://cmake.org/download/>`__ 3.26 or higher
+        * `CMake <https://cmake.org/download/>`__ 3.26 or higher
 
       Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors and above,
       Intel® Core™ Ultra Processors, 4th Gen Intel® Xeon® Scalable Processors and above
