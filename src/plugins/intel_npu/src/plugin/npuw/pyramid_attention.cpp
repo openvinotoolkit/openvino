@@ -8,9 +8,14 @@
 #include <utility>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "util.hpp"
 
@@ -159,6 +164,59 @@ static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model
             out.push_back(static_cast<size_t>(model->get_parameter_index(param)));
         }
     }
+}
+
+// Determine, for `concat_node`, the input index carrying the past KV cache.
+//
+// The past input traces back (through the usual dequant / layout ops) to a
+// past_key_values Parameter; the present input is computed from the current tokens and
+// never reaches such a Parameter. Returns nullopt when no past input is found.
+static std::optional<size_t> find_past_concat_input_index(const std::shared_ptr<ov::Node>& concat_node, bool is_key) {
+    auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+    if (!concat_op) {
+        return std::nullopt;
+    }
+
+    auto reaches_past_param = [is_key](std::shared_ptr<ov::Node> node) -> bool {
+        // Walk back along the data input (input 0) through dequant / layout ops until a
+        // Parameter (or an unrecognized op) is reached.
+        while (node) {
+            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+                const auto& name = param->get_friendly_name();
+                return is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value()
+                              : ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
+            }
+            if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
+                ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
+                ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v3::Broadcast>(node)) {
+                if (node->get_input_size() == 0) {
+                    break;
+                }
+                node = node->get_input_node_shared_ptr(0);
+                continue;
+            }
+            break;
+        }
+        return false;
+    };
+
+    const size_t n = concat_op->get_input_size();
+    for (size_t i = 0; i < n; ++i) {
+        if (reaches_past_param(concat_op->get_input_node_shared_ptr(i))) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+// True when, for `concat_node`, the freshly-computed present KV input precedes the past
+// KV cache input (Concat order [present | past], i.e. the past cache is appended last).
+// This encodes the left-aligned KV layout independently of tensor dtype or seq-dim index.
+static bool concat_present_before_past(const std::shared_ptr<ov::Node>& concat_node, bool is_key) {
+    const auto past_idx = find_past_concat_input_index(concat_node, is_key);
+    // "present before past" means the past input is not the first input (a present input
+    // precedes it). For the contiguous 2-input case this is simply past_idx == 1.
+    return past_idx.has_value() && *past_idx > 0;
 }
 
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
@@ -570,11 +628,21 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
-    // Remove this check as we moved to left-alignment
-    bool data_left_aligned = past_key_sequence_dims.begin()->second == 1 &&
-                             past_value_sequence_dims.begin()->second == 3 &&
-                             pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
-                             pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
+    // Left-aligned KV layout is defined structurally: for both K and V the freshly-computed
+    // present KV is concatenated *before* the past KV cache (Concat order [present | past],
+    // i.e. the past cache is appended last).
+    const bool present_before_past =
+        concat_present_before_past(pattern_nodes.past_key_concat_node, /*is_key=*/true) &&
+        concat_present_before_past(pattern_nodes.past_value_concat_node, /*is_key=*/false);
+
+    // Additional guard: the specific quantized layout this path was validated against
+    // (i8 KV, key sequence dim 1, value sequence dim 3).
+    const bool matches_quantized_layout =
+        past_key_sequence_dims.begin()->second == 1 && past_value_sequence_dims.begin()->second == 3 &&
+        pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
+        pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
+
+    const bool data_left_aligned = present_before_past && matches_quantized_layout;
 
     return PyramidValidationContiguousResult{query_length,
                                              full_context_length,
@@ -873,12 +941,12 @@ Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::I
 
     const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
 
-    // The KV update step (pyramid_step) matches the query length in the regular,
-    // contiguous case (e.g. SDPADecomposed). When it differs (e.g. QuantizedSDPAWithGlobalMask,
-    // where a large query is matched against a smaller-granularity KV cache update),
-    // GlobalPositionIDs is used instead.
-    const std::size_t pyramid_step = d._context_lengths.empty() ? d.query_size : d._context_lengths[0];
-    if (pyramid_step != d.query_size) {
+    // Reuse the same structural signal as the mask/left-alignment decision: a left-aligned
+    // KV layout (present concatenated before past, quantized i8 KV) corresponds to the
+    // QuantizedSDPAWithGlobalMask pattern, where a large query is matched against a
+    // smaller-granularity KV cache update and GlobalPositionIDs is required. The regular
+    // contiguous case (e.g. SDPADecomposed) is not left-aligned and uses PositionIDs.
+    if (d._data_left_aligned) {
         return Selector::Ptr{new GlobalPositionIDs(param_idx, d, rq)};
     }
     return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
