@@ -6604,8 +6604,8 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
         std::shared_ptr<v6::Assign> assign;
     };
     auto make_kv_cache = [&](const std::shared_ptr<ov::Node>& cur, const std::string& var_id) -> KVCache {
-        auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{
-            ov::PartialShape{DYN, num_kv_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_kv_heads, DYN, head_dim}, ov::element::f32, var_id});
         auto init_shape =
             makeOP<v0::Concat>({batch_dim, {(int64_t)num_kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
         auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
