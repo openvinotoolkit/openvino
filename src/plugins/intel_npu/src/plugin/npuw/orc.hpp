@@ -35,6 +35,14 @@ using Version = std::uint16_t;
 using SectionFlags = std::uint64_t;
 using SchemaUUID = std::array<std::uint8_t, 16>;
 
+// Reserved cross-schema type ID for the metadata leaf of any container section.
+// Every container that carries its own serialized fields before child sections
+// wraps those fields in a META leaf child (type = META_SECTION_TYPE, LEAF flag
+// set).  The container's own deserializer knows what fields to read; the type
+// ID is schema-neutral so all containers share the same reserved slot.
+// Type IDs 1–19 are reserved for future ORC infrastructure use.
+constexpr TypeId META_SECTION_TYPE = 20u;
+
 enum class SectionFlag : SectionFlags {
     OPTIONAL = 1ull << 0,
     LEAF = 1ull << 1,  // payload contains raw bytes only, no child sections
@@ -180,6 +188,30 @@ void serialize(Stream& stream, std::map<K, V>& value) {
         auto size = value.size();
         stream & size;
         for (auto& el : value) {
+            auto pair = el;
+            stream & pair;
+        }
+        return;
+    }
+
+    value.clear();
+    std::size_t size = 0u;
+    stream & size;
+    for (std::size_t idx = 0u; idx < size; ++idx) {
+        std::pair<K, V> elem{};
+        stream & elem;
+        value[elem.first] = std::move(elem.second);
+    }
+}
+
+template <typename K, typename V>
+void serialize(Stream& stream, std::unordered_map<K, V>& value) {
+    if (stream.output()) {
+        auto size = value.size();
+        stream & size;
+        // Iterate in sorted key order for deterministic blob output.
+        std::map<K, V> ordered(value.begin(), value.end());
+        for (auto& el : ordered) {
             auto pair = el;
             stream & pair;
         }
