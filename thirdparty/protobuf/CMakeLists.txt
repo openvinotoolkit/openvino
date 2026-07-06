@@ -33,7 +33,9 @@ set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to depen
 unset(HAVE_ZLIB CACHE)
 
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
-if(CMAKE_CROSSCOMPILING OR
+# Emscripten builds must use a native host `protoc` for code generation.
+# A wasm-target `protoc` binary cannot run on the build host.
+if(CMAKE_CROSSCOMPILING OR EMSCRIPTEN OR
     (APPLE AND (HOST_X86_64 AND AARCH64)) OR
     (MSVC AND (HOST_X86_64 AND (AARCH64 OR ARM))))
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
