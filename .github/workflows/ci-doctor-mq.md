@@ -45,282 +45,15 @@ engine:
 
 network: defaults
 
+imports:
+  - shared/ci-doctor-mq/notify-teams.md
+  - shared/ci-doctor-mq/notify-teams-recurring.md
+  - shared/ci-doctor-mq/rerun-failed-jobs.md
+
 safe-outputs:
   add-comment:
     max: 1              # at most one remediation comment per investigation
     target: "*"         # workflow_run trigger has no PR context; agent supplies the PR number
-  jobs:
-    notify-teams:
-      description: "Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure."
-      runs-on: ubuntu-latest
-      output: "Notification sent to Microsoft Teams."
-      permissions:
-        contents: read
-      inputs:
-        title:
-          description: "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers."
-          required: true
-          type: string
-        failed_workflow:
-          description: "Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor MQ workflow name."
-          required: true
-          type: string
-        pipeline_url:
-          description: "URL of the failed GitHub Actions workflow run."
-          required: true
-          type: string
-        description:
-          description: "Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions."
-          required: true
-          type: string
-        pr_number:
-          description: "Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        pr_url:
-          description: "Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        author:
-          description: "GitHub login of the PR author or commit author, if known. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        db_entries:
-          description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
-          required: true
-          type: string
-        occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
-          required: true
-          type: string
-        statistics:
-          description: "Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/repo-memory/default/mq/investigations/ and /tmp/gh-aw/repo-memory/default/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
-          required: true
-          type: string
-        statistics_json:
-          description: "Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\"generated_at\": <ISO8601 UTC>, \"total_patterns\": <int>, \"total_investigations\": <int>, \"patterns\": [{\"signature\": <str>, \"title\": <str>, \"category\": <str>, \"count\": <int>, \"first_seen\": <ISO8601 UTC>, \"last_seen\": <ISO8601 UTC>, \"recent_run_urls\": [<str>, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis."
-          required: true
-          type: string
-      steps:
-        - name: Send Teams notification
-          env:
-            TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-            RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            PR_NUMBER=$(echo "$ITEM"        | jq -r '.pr_number // ""')
-            PR_URL=$(echo "$ITEM"           | jq -r '.pr_url // ""')
-            AUTHOR=$(echo "$ITEM"           | jq -r '.author // ""')
-            DB_ENTRIES=$(echo "$ITEM"       | jq -r '.db_entries // ""')
-            OCCURRENCES=$(echo "$ITEM"      | jq -r '.occurrence_count // ""')
-            STATISTICS=$(echo "$ITEM"       | jq -r '.statistics // ""')
-            STATISTICS_JSON=$(echo "$ITEM"  | jq -r '.statistics_json // ""')
-
-            # Persist the full statistics database as a workflow artifact for offline review.
-            STATS_DIR="${RUNNER_TEMP:-/tmp}/ci-doctor-mq-stats"
-            mkdir -p "$STATS_DIR"
-            if [ -n "$STATISTICS_JSON" ]; then
-              # Validate and pretty-print; fall back to raw on parse error.
-              if echo "$STATISTICS_JSON" | jq '.' > "$STATS_DIR/ci-doctor-mq-statistics.json" 2>/dev/null; then
-                echo "Wrote validated statistics JSON ($(wc -c < "$STATS_DIR/ci-doctor-mq-statistics.json") bytes)"
-              else
-                echo "Warning: statistics_json failed jq parse; storing raw payload" >&2
-                printf '%s' "$STATISTICS_JSON" > "$STATS_DIR/ci-doctor-mq-statistics.json"
-              fi
-            fi
-            if [ -n "$STATISTICS" ]; then
-              printf '%s\n' "$STATISTICS" > "$STATS_DIR/ci-doctor-mq-statistics.md"
-            fi
-            echo "stats_dir=$STATS_DIR" >> "$GITHUB_OUTPUT"
-
-            # Build Adaptive Card facts conditionally (only include PR/author when present).
-            FACTS=$(jq -nc \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg pr_number       "$PR_NUMBER" \
-              --arg pr_url          "$PR_URL" \
-              --arg author          "$AUTHOR" \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg db_entries      "$DB_ENTRIES" \
-              --arg occurrences     "$OCCURRENCES" '
-                [
-                  ( $failed_workflow | select(length > 0) | { title: "Workflow",    value: . } ),
-                  ( $pipeline_url    | select(length > 0) | { title: "Pipeline",    value: ("[Open run](" + . + ")") } ),
-                  ( $pr_number       | select(length > 0) | { title: "PR",          value: (if ($pr_url | length) > 0 then ("[#" + . + "](" + $pr_url + ")") else ("#" + .) end) } ),
-                  ( $author          | select(length > 0) | { title: "Author",      value: ("@" + .) } ),
-                  ( $occurrences     | select(length > 0) | { title: "Occurrences", value: (. + "×") } ),
-                  ( $db_entries      | select(length > 0) | { title: "DB entries",  value: . } )
-                ] | map(select(. != null))')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg statistics "$STATISTICS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: ([
-                        { type: "TextBlock", text: ("\ud83d\udd34 [MQ] " + $title), weight: "Bolder", size: "Medium", color: "Attention", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" }
-                      ] + (if ($statistics | length) > 0 then [
-                        { type: "TextBlock", text: "Pattern Database Statistics", weight: "Bolder", size: "Medium", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $statistics, wrap: true, spacing: "Small" }
-                      ] else [] end))
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
-
-        - name: Upload statistics artifact
-          if: always()
-          uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-          with:
-            name: ci-doctor-mq-statistics
-            path: ${{ runner.temp }}/ci-doctor-mq-stats
-            if-no-files-found: ignore
-            retention-days: 90
-
-    notify-teams-recurring:
-      description: "Send a recurring merge-queue failure escalation alert to Microsoft Teams. Call this ONLY when the same failure pattern has 3 or more occurrences in the last 12 hours. Do NOT call this for every failure."
-      runs-on: ubuntu-latest
-      output: "Recurring failure escalation sent to Microsoft Teams."
-      permissions:
-        contents: read
-      inputs:
-        title:
-          description: "Short, searchable description of the recurring failure pattern (same as notify_teams.title)."
-          required: true
-          type: string
-        failed_workflow:
-          description: "Name of the GitHub Actions workflow with the recurring failure."
-          required: true
-          type: string
-        pipeline_url:
-          description: "URL of the current (latest) failed workflow run."
-          required: true
-          type: string
-        recent_count:
-          description: "Number of times this failure pattern has occurred in the last 12 hours, including the current run. Report as a positive integer encoded as a string (e.g., '3', '5')."
-          required: true
-          type: string
-        description:
-          description: "Concise markdown gist of the recurring problem: what keeps failing, suspected root cause, and recommended escalation actions. Use Teams-safe markdown only (no raw HTML)."
-          required: true
-          type: string
-        affected_prs:
-          description: "Markdown-formatted list of affected PR numbers/links from the merge queue that hit this failure in the last 12 hours. One PR per line, e.g. '- [#1234](https://github.com/org/repo/pull/1234)'. Include up to 10 most recent PRs."
-          required: true
-          type: string
-        recent_run_urls:
-          description: "Markdown-formatted list of workflow run URLs that exhibited this failure in the last 12 hours. One URL per line, e.g. '- [Run 12345](https://github.com/org/repo/actions/runs/12345)'. Include up to 10 most recent runs."
-          required: true
-          type: string
-      steps:
-        - name: Send recurring failure escalation to Teams
-          env:
-            TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams_recurring")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams_recurring item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            RECENT_COUNT=$(echo "$ITEM"     | jq -r '.recent_count // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            AFFECTED_PRS=$(echo "$ITEM"     | jq -r '.affected_prs // ""')
-            RECENT_RUNS=$(echo "$ITEM"      | jq -r '.recent_run_urls // ""')
-
-            FACTS=$(jq -nc \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg recent_count    "$RECENT_COUNT" '
-                [
-                  { title: "Workflow",           value: $failed_workflow },
-                  { title: "Pipeline",           value: ("[Latest run](" + $pipeline_url + ")") },
-                  { title: "Hits (last 12 hrs)", value: ($recent_count + " occurrences") }
-                ]')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg affected_prs "$AFFECTED_PRS" \
-              --arg recent_runs "$RECENT_RUNS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: [
-                        { type: "TextBlock", text: ("\ud83d\udd01 [MQ] Recurring Failure: " + $title), weight: "Bolder", size: "Medium", color: "Warning", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" },
-                        { type: "TextBlock", text: "### Affected PRs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $affected_prs, wrap: true, spacing: "Small" },
-                        { type: "TextBlock", text: "### Recent Failure Runs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $recent_runs, wrap: true, spacing: "Small" }
-                      ]
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
 
 tools:
   github:
@@ -726,6 +459,7 @@ ELSE:
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
    - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
+   - When the investigation concludes the failure is transient and a plain restart is likely to clear it, request a re-run of only the failed jobs of the analysed run (see `rerun_failed_jobs` decision guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -799,6 +533,7 @@ Post a concise, actionable remediation comment on the affected merge-queue PR so
 
 **Pipeline**: [<failed_workflow name>](<pipeline_url>)
 **Failure**: <one-line summary, same as notify_teams.title>
+**Automatic restart**: <one of: `✅ Re-run of failed jobs requested (reason: <reason>)` when you called `rerun_failed_jobs`; `❌ Not triggered — <short reason, e.g. deterministic code failure>` otherwise>
 
 #### Possible remedy
 
@@ -872,6 +607,12 @@ Provide all required fields and include the optional PR-related fields whenever 
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: merge_group
 
+### Automatic Restart
+
+State whether an automatic re-run of the failed jobs was triggered:
+- If you called `rerun_failed_jobs`: `✅ Re-run of failed jobs requested` followed by the one-line `reason` you passed.
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
+
 ### Root Cause Analysis
 
 Write this as a single, consolidated section. Do NOT add a separate "Investigation Findings", "Deep Analysis", or standalone "Failed Jobs and Errors" section — they duplicate this one. Use the following fixed sub-structure with `####` headings, in this order; omit a sub-heading only if there is genuinely nothing to say.
@@ -937,6 +678,24 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 - **`affected_prs`** — Markdown bullet list of PRs affected by this failure in the last 12 hours (up to 10, e.g., `- [#1234](url)`). If no PRs can be identified, write "No PR information available."
 - **`recent_run_urls`** — Markdown bullet list of failure run URLs from the last 12 hours (up to 10, e.g., `- [Run 56789](url)`).
 
+### `rerun_failed_jobs` decision guidance
+
+Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Analysis concludes the failure is transient and a plain restart is likely to clear it — typically the `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories (runner hiccups, network timeouts, cancelled jobs, transient download/registry errors, downstream service outages).
+
+**Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
+
+Only the **failed** jobs of the analysed run are restarted; passing jobs are untouched. The job also refuses to re-run a run that already has more than one attempt, to avoid restart loops.
+
+Provide:
+
+- **`run_id`** (required) — Numeric ID of the analysed run: `${{ github.event.workflow_run.id }}` for merge-queue triggers, or the `run_id` input for `workflow_dispatch`. Pass as a numeric string.
+- **`repository`** (optional) — `owner/repo` of the analysed run. Omit to default to the current repository.
+- **`reason`** (required) — One-line justification for the restart, matching the transient cause identified in the investigation.
+
+This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. A re-run request does not replace the investigation report.
+
+Whenever you decide about a restart (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Restart` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic restart**` line of the `add_comment` body. Keep both consistent with the actual `rerun_failed_jobs` call.
+
 ## Important Guidelines
 
 - **Be Thorough**: Don't just report the error - investigate the underlying cause
@@ -960,6 +719,7 @@ You **MUST** always call at least one safe output tool before finishing:
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
+- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient and a restart is likely to remedy it (see `rerun_failed_jobs` decision guidance). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
@@ -967,6 +727,7 @@ You **MUST** always call at least one safe output tool before finishing:
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
 - `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
+- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 
