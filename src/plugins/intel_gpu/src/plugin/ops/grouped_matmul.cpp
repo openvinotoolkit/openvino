@@ -4,21 +4,13 @@
 
 #include "intel_gpu/primitives/grouped_matmul.hpp"
 
-#include "intel_gpu/op/grouped_matmul_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
-
-namespace ov {
-namespace op {
-namespace internal {
-using GroupedMatMulCompressed = ov::intel_gpu::op::GroupedMatMulCompressed;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+#include "ov_ops/grouped_matmul_compressed.hpp"
 
 namespace ov::intel_gpu {
 
@@ -85,7 +77,7 @@ static void CreateGroupedMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 }
 
 static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
-                                            const std::shared_ptr<op::GroupedMatMulCompressed>& op) {
+                                            const std::shared_ptr<ov::op::internal::GroupedMatMulCompressed>& op) {
     // Two layouts, distinguished by the presence of the offsets input:
     //   2D x 3D: [mat_a, mat_b(compressed), offsets, scale, (zp)]
     //            -> cldnn::grouped_matmul (specialized primitive)

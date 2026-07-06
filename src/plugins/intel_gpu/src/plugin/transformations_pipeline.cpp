@@ -83,7 +83,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/convert_grouped_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -1562,7 +1562,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         if (device_info.supports_immad && config.get_use_onednn()) {
-            manager.register_pass<ov::intel_gpu::ConvertGroupedMatMulToGroupedMatMulCompressed>();
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>();
         }
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 

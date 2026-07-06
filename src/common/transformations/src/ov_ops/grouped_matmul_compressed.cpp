@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/grouped_matmul_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 
 #include "grouped_matmul_shape_inference.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
 GroupedMatMulCompressed::GroupedMatMulCompressed(const ov::Output<Node>& mat_a,
                                                  const ov::Output<Node>& mat_b,
@@ -98,4 +98,4 @@ std::shared_ptr<ov::Node> GroupedMatMulCompressed::clone_with_new_inputs(const o
                    ")");
 }
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_grouped_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 
 #include <cstddef>
 #include <memory>
 #include <set>
 #include <vector>
 
-#include "intel_gpu/op/grouped_matmul_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -19,13 +18,14 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
-namespace ov::intel_gpu {
-using namespace ov::pass::pattern;
+ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed() {
+    using namespace ov::pass::pattern;
+    using ov::op::internal::GroupedMatMulCompressed;
 
-ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed() {
     const std::vector<ov::element::Type> supported_weights_types = {
         ov::element::u8,
         ov::element::i8,
@@ -109,27 +109,27 @@ ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatM
         if (with_offsets) {
             const ov::Output<ov::Node>& gmm_input_offsets = gmm->input(2).get_source_output();
             if (with_zero_point) {
-                new_gmm = std::make_shared<op::GroupedMatMulCompressed>(pattern_map.at(data_m),
-                                                                        gmm_input_b,
-                                                                        gmm_input_offsets,
-                                                                        gmm_input_scale,
-                                                                        gmm_input_zp);
+                new_gmm = std::make_shared<GroupedMatMulCompressed>(pattern_map.at(data_m),
+                                                                    gmm_input_b,
+                                                                    gmm_input_offsets,
+                                                                    gmm_input_scale,
+                                                                    gmm_input_zp);
             } else {
-                new_gmm = std::make_shared<op::GroupedMatMulCompressed>(pattern_map.at(data_m),
-                                                                        gmm_input_b,
-                                                                        gmm_input_offsets,
-                                                                        gmm_input_scale);
+                new_gmm = std::make_shared<GroupedMatMulCompressed>(pattern_map.at(data_m),
+                                                                    gmm_input_b,
+                                                                    gmm_input_offsets,
+                                                                    gmm_input_scale);
             }
         } else {
             if (with_zero_point) {
-                new_gmm = op::GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
-                                                               gmm_input_b,
-                                                               gmm_input_scale,
-                                                               gmm_input_zp);
+                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
+                                                           gmm_input_b,
+                                                           gmm_input_scale,
+                                                           gmm_input_zp);
             } else {
-                new_gmm = op::GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
-                                                               gmm_input_b,
-                                                               gmm_input_scale);
+                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
+                                                           gmm_input_b,
+                                                           gmm_input_scale);
             }
         }
 
@@ -144,5 +144,3 @@ ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatM
         std::make_shared<ov::pass::pattern::Matcher>(gmm_m, "ConvertGroupedMatMulToGroupedMatMulCompressed");
     this->register_matcher(matcher, callback);
 }
-
-}  // namespace ov::intel_gpu

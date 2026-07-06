@@ -5,17 +5,18 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "transformations_visibility.hpp"
 
-namespace ov::intel_gpu {
+namespace ov::pass {
 
 // Matches v17::GroupedMatMul in both legal input arities:
 //   - 2 inputs (3D x 3D form):  GroupedMatMul(data, compressed_weights)
 //   - 3 inputs (2D x 3D form):  GroupedMatMul(data, compressed_weights, offsets)
-// and rewrites it into intel_gpu::op::GroupedMatMulCompressed.
-class ConvertGroupedMatMulToGroupedMatMulCompressed : public ov::pass::MatcherPass {
+// and rewrites it into ov::op::internal::GroupedMatMulCompressed.
+class TRANSFORMATIONS_API ConvertGroupedMatMulToGroupedMatMulCompressed : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupedMatMulToGroupedMatMulCompressed");
     ConvertGroupedMatMulToGroupedMatMulCompressed();
 };
 
-}  // namespace ov::intel_gpu
+}  // namespace ov::pass

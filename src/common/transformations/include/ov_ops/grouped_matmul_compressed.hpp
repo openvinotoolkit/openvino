@@ -4,9 +4,14 @@
 
 #pragma once
 
-#include "openvino/op/grouped_matmul.hpp"
+#include <memory>
 
-namespace ov::intel_gpu::op {
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/grouped_matmul.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov::op::internal {
 
 /// @brief Internal op mirroring ov::op::v17::GroupedMatMul with extra inputs
 ///        carrying the weight decompression scale (and optional zero-point).
@@ -24,9 +29,9 @@ namespace ov::intel_gpu::op {
 ///    2 : decompression scale
 ///    3 : (optional) decompression zero-point
 ///
-class GroupedMatMulCompressed : public ov::op::v17::GroupedMatMul {
+class TRANSFORMATIONS_API GroupedMatMulCompressed : public ov::op::v17::GroupedMatMul {
 public:
-    OPENVINO_OP("GroupedMatMulCompressed", "gpu_opset", ov::op::v17::GroupedMatMul);
+    OPENVINO_OP("GroupedMatMulCompressed", "", ov::op::v17::GroupedMatMul);
 
     GroupedMatMulCompressed() = default;
 
@@ -60,4 +65,4 @@ public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal
