@@ -44,7 +44,10 @@ public:
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
-    OffloadExpertWeightProvider(size_t capacity, const cldnn::MOECompressed::Config& config, std::vector<size_t> weight_bin_offsets, std::filesystem::path weights_path);
+    OffloadExpertWeightProvider(size_t capacity,
+                                const cldnn::MOECompressed::Config& config,
+                                std::vector<size_t> weight_bin_offsets,
+                                std::filesystem::path weights_path);
 
     size_t resident_capacity() const override {
         return _capacity;
