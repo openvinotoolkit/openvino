@@ -71,14 +71,11 @@ public:
 private:
     void check_tensors() const override;
 
-    // Lazily allocate the reserved (null) host tensor for a deferred input slot. Idempotent and
-    // safe from the const get_tensor(); takes m_user_inputs_mutex exclusively (double-checked).
-    void ensure_input_allocated(const ov::Output<const ov::Node>& port, size_t input_idx) const;
+    // Materializes a deferred (lazy) input slot on first access. Const-safe; takes
+    // m_user_inputs_mutex exclusively.
+    void ensure_input_allocated(size_t input_idx) const;
 
-    // Mutable because the lazy-allocation path reachable from the const get_tensor() mutates it.
-    // All accesses to m_user_inputs must be guarded by m_user_inputs_mutex (shared lock for reads,
-    // exclusive for the deferred allocation) so a const get_tensor() can be called concurrently
-    // with infer()/check_tensors() without a data race.
+    // Mutable: lazily allocated from the const get_tensor(). Guarded by m_user_inputs_mutex.
     mutable std::unordered_map<size_t, TensorWrapper> m_user_inputs;
     mutable std::shared_mutex m_user_inputs_mutex;
     std::unordered_map<size_t, TensorWrapper> m_user_outputs;
@@ -123,7 +120,7 @@ private:
     void allocate_inputs();
     void allocate_outputs();
     void allocate_states();
-    void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
+    void allocate_input(size_t input_idx);
     void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
