@@ -601,6 +601,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
         if (device_info.supports_immad && config.get_use_onednn()) {
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>();
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
@@ -1561,9 +1562,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-        if (device_info.supports_immad && config.get_use_onednn()) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>();
-        }
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
