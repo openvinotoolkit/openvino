@@ -108,15 +108,13 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     ib >> m_runtime_requirements;
 
     // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
-    // The descriptor is device-deterministic, so a mismatch means the cached kernels can't run here.
-    const std::string current_runtime_requirements =
-        build_runtime_requirements(m_context->get_engine().get_device_info());
-    if (m_runtime_requirements != current_runtime_requirements) {
+    const auto& device_info = m_context->get_engine().get_device_info();
+    if (!is_runtime_requirements_compatible(m_runtime_requirements, device_info)) {
         OPENVINO_THROW("[GPU] Cannot import compiled blob: it was built for a different runtime "
                        "configuration (OpenVINO version/driver mismatch) and cannot be executed on "
                        "this device.\n"
                        "  blob:    ", m_runtime_requirements, "\n"
-                       "  current: ", current_runtime_requirements);
+                       "  current: ", build_runtime_requirements(device_info));
     }
 
     {
@@ -298,6 +296,13 @@ std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& 
        << ";eus=" << info.execution_units_count << "]";
     return ss.str();
 }
+
+bool CompiledModel::is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info) {
+    // v1 policy: exact match of the full, device-deterministic descriptor. Change this single
+    // function to adjust the policy (e.g. OpenVINO-version-only) for both import and compatibility_check.
+    return requirements == build_runtime_requirements(info);
+}
+
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {
     return m_graphs;
 }
