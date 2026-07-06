@@ -408,3 +408,38 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
         op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
         assert "ReduceMax" in op_types, f"expected the dynamic-kernel ReduceMax branch; ops: {op_types}"
         assert "MaxPool" not in op_types, f"static MaxPool must not be present; ops: {op_types}"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_static_input_uses_maxpool(self, ie_device, precision, ir_version):
+        # The kernel decision is deferred to a post-shape-propagation pass. Converting the module with
+        # the input shape specified (convert_model(model, input=...)) traces it against that shape, so
+        # x.size(3) folds to a constant after propagation and the deferred resolver lowers to the
+        # ordinary static MaxPool -- NOT the ReduceMax fallback. This is the "specify the shape and
+        # dynamic max_pool is not needed" path. The complementary dynamic case (no static last axis ->
+        # ReduceMax) is covered by the test above.
+        if ie_device != "CPU":
+            pytest.skip("structural + numeric assertion is checked on CPU")
+
+        class aten_max_pool_dyn(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3)])
+
+        example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
+        model = aten_max_pool_dyn().eval()
+        # Pass the module (not a pre-traced ScriptModule) with a fully static input so the shape
+        # propagates to x.size(3); the deferred resolver must then produce a plain MaxPool.
+        ov_model = ov.convert_model(model, example_input=example,
+                                    input=[ov.PartialShape([1, 128, 40, 64])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "MaxPool" in op_types, f"expected the folded static MaxPool; ops: {op_types}"
+        assert "ReduceMax" not in op_types, f"ReduceMax fallback must not be present; ops: {op_types}"
+        assert not any("FrameworkNode" in t for t in op_types), \
+            f"deferred placeholder must be resolved; ops: {op_types}"
+
+        # Numeric check against the PyTorch reference (framework golden, per project rule).
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+        with torch.no_grad():
+            ref = model(example).numpy()
+        ov_out = compiled((example.numpy(),))[compiled.outputs[0]]
+        assert np.max(np.abs(ov_out.astype(np.float64) - ref.astype(np.float64))) < 1e-4
