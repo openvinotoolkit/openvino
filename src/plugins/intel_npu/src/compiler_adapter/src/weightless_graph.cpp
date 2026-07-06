@@ -343,6 +343,11 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     set_weights_inputs();
 }
 
+std::optional<std::string_view> WeightlessGraph::get_compatibility_descriptor() const {
+    _logger.warning("Compatibility descriptor is not supported for WeightlessGraph");
+    return std::nullopt;
+}
+
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
