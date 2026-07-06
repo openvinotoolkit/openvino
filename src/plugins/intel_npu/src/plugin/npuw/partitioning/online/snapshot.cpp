@@ -1412,7 +1412,9 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
             break;
         }
     }
-    NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) { return g->isolatedTag() == isolate_tag; }));
+    NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) {
+        return g->isolatedTag() == isolate_tag;
+    }));
 
     const bool keep_by_size = block_layer_size >= m_ctx.keep_block_size;
     const bool keep_by_isolate_tag = !isolate_tag.empty() && isolate_tag == "attn";
