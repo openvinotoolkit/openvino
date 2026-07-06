@@ -7808,7 +7808,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mha_4d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -7834,7 +7834,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mha_4d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mha_3d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_3d) {
     auto model = convert_model("attention_mha_3d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 4, 6)
@@ -7860,7 +7860,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mha_3d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_gqa_4d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_4d) {
     auto model = convert_model("attention_gqa_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 4, 4, 3)
@@ -7892,7 +7892,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_gqa_4d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mqa_4d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mqa_4d) {
     auto model = convert_model("attention_mqa_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 4, 4, 3)
@@ -7940,7 +7940,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mqa_4d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_gqa_3d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_3d) {
     auto model = convert_model("attention_gqa_3d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 3, 32)
@@ -7988,7 +7988,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_gqa_3d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_causal) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_causal) {
     auto model = convert_model("attention_causal.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -8014,7 +8014,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_causal) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mask_float) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_float) {
     auto model = convert_model("attention_mask_float.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -8057,7 +8057,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mask_float) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mask_bool) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_bool) {
     auto model = convert_model("attention_mask_bool.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -8086,7 +8086,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mask_bool) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_custom_scale) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_custom_scale) {
     auto model = convert_model("attention_custom_scale.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -8112,7 +8112,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_custom_scale) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_kv_cache) {
     auto model = convert_model("attention_kv_cache.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 1, 3)
@@ -8177,7 +8177,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap) {
     auto model = convert_model("attention_softcap.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3)
@@ -8203,7 +8203,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_causal_softcap) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_causal_softcap) {
     auto model = convert_model("attention_causal_softcap.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3) — same inputs as attention_causal test
@@ -8229,7 +8229,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_causal_softcap) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mqa_3d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mqa_3d) {
     auto model = convert_model("attention_mqa_3d.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 3, 32) — 3D MQA with q_num_heads=4, kv_num_heads=1
@@ -8271,7 +8271,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_mqa_3d) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache_causal) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_kv_cache_causal) {
     auto model = convert_model("attention_kv_cache_causal.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 1, 3) — single token with KV cache + causal masking
@@ -8336,7 +8336,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache_causal) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache_gqa) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_kv_cache_gqa) {
     auto model = convert_model("attention_kv_cache_gqa.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 4, 1, 3) — GQA with KV cache, q_num_heads=4, kv_num_heads=2
@@ -8423,7 +8423,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_kv_cache_gqa) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_diff_seq_len) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_diff_seq_len) {
     auto model = convert_model("attention_diff_seq_len.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 2, 3) — seq_q=2, seq_kv=6 (cross-attention-like)
@@ -8468,7 +8468,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_diff_seq_len) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap_mask_float) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap_mask_float) {
     auto model = convert_model("attention_softcap_mask_float.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3) — softcap=2.0 with float mask (manual decomposition path)
@@ -8512,7 +8512,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap_mask_float)
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap_mask_bool) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap_mask_bool) {
     auto model = convert_model("attention_softcap_mask_bool.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3) — softcap=2.0 with boolean mask (manual path, bool->float conversion)
@@ -8542,7 +8542,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_softcap_mask_bool) 
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_batch2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_batch2) {
     auto model = convert_model("attention_batch2.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (2, 2, 4, 3) — batch_size=2
@@ -8581,7 +8581,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_batch2) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_present_no_past) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_present_no_past) {
     auto model = convert_model("attention_present_no_past.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 2, 4, 3) — 3 outputs without past (present = current K/V)
@@ -8620,7 +8620,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_present_no_past) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_attention_gqa_causal) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_causal) {
     auto model = convert_model("attention_gqa_causal.onnx");
     auto test_case = test::TestCase(model, s_device);
     // Q: (1, 4, 4, 3) — GQA with causal masking, q_num_heads=4, kv_num_heads=2
