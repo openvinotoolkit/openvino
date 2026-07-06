@@ -12,8 +12,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
-// Included after utils.hpp: op/max_poolnd.hpp opens ns ov::frontend::pytorch::op, and utils.hpp uses
-// unqualified op:: expecting ov::op, so utils.hpp must be parsed before that namespace is visible.
+// After utils.hpp: op/max_poolnd.hpp opens ns ...::pytorch::op, but utils.hpp uses unqualified
+// op:: (== ov::op).
 #include "op/max_poolnd.hpp"
 
 namespace ov {
@@ -25,8 +25,8 @@ using namespace ov::op;
 
 namespace {
 
-// The deferred max_pool op-type strings emitted as PtFrameworkNode by translate_max_pool_base
-// (mirrors the op_table entries for TorchScript and FX).
+// Deferred max_pool op-types emitted as PtFrameworkNode by translate_max_pool_base (mirrors the
+// TorchScript and FX op_table entries).
 const std::initializer_list<std::string> MAX_POOL_TYPES = {"aten::max_pool1d",
                                                            "aten::max_pool1d_with_indices",
                                                            "aten::max_pool2d",
@@ -45,20 +45,17 @@ int dims_from_op_type(const std::string& op_type) {
     return 3;
 }
 
-// True when input `index` is absent (the node has fewer than index+1 inputs) or is an explicit
-// `none` node (an omitted optional argument).
+// True when input `index` is absent or an explicit `none` node (an omitted optional argument).
 bool input_is_none_or_missing(const std::shared_ptr<ov::op::util::FrameworkNode>& fw, size_t index) {
     if (index >= fw->get_input_size())
         return true;
     return is_none_node(fw->input_value(index));
 }
 
-// Fold an optional list-valued attribute input (stride/padding/dilation) to i64 values. Returns an
-// empty vector when the input is absent/None/empty (meaning "use the default"). Raises
-// OpConversionFailure when the input is present but not constant-foldable: a runtime-computed
-// stride/padding/dilation cannot be honored by the static MaxPool attributes or the ReduceMax
-// decomposition, and silently treating it as the default would miscompute. `attr_name` names the
-// attribute in the message.
+// Fold an optional list attribute (stride/padding/dilation) to i64. Empty vector when the input is
+// absent/None/empty ("use the default"). Raises OpConversionFailure when present but not
+// constant-foldable: a runtime stride/padding/dilation fits neither lowering, and treating it as
+// the default would miscompute. `attr_name` names the attribute in the message.
 std::vector<int64_t> fold_optional_list(const std::shared_ptr<ov::op::util::FrameworkNode>& fw,
                                         size_t index,
                                         int dims,
@@ -78,9 +75,8 @@ std::vector<int64_t> fold_optional_list(const std::shared_ptr<ov::op::util::Fram
     return folded->cast_vector<int64_t>();
 }
 
-// Fold the optional ceil_mode flag. Returns false (the default) when the input is absent/None;
-// raises OpConversionFailure when it is present but not constant-foldable (a runtime ceil_mode has
-// no safe conversion-time interpretation for either lowering).
+// Fold the optional ceil_mode flag. False (the default) when absent/None; raises OpConversionFailure
+// when present but not constant-foldable (a runtime ceil_mode fits neither lowering).
 bool fold_ceil_mode(const std::shared_ptr<ov::op::util::FrameworkNode>& fw, size_t index, int dims) {
     if (input_is_none_or_missing(fw, index))
         return false;
@@ -108,8 +104,8 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
         const int dims = dims_from_op_type(op_type);
         const bool return_indices = fw_node->get_output_size() == 2;
 
-        // Re-probe the kernel_size list now that shapes have propagated. get_list_as_outputs handles
-        // both the SequenceMark form and a list already lowered to elementwise outputs.
+        // Re-probe the kernel_size now that shapes have propagated. get_list_as_outputs handles both
+        // the SequenceMark form and a list already lowered to elementwise outputs.
         std::vector<bool> elem_is_const;
         std::vector<int64_t> elem_const_val;
         std::vector<Output<Node>> elem_runtime_val;
@@ -128,9 +124,8 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                 kernel_is_static = false;
             }
         }
-        // A scalar kernel_size applies to every spatial axis in PyTorch. Copy element 0 into locals
-        // first: assign(dims, elem_runtime_val[0]) would read a reference into the same vector while
-        // it reallocates (grows 1 -> dims), which is UB for a self-aliased value.
+        // A scalar kernel_size applies to every axis. Copy element 0 into locals first:
+        // assign(dims, elem_runtime_val[0]) would alias into the vector as it reallocates (UB).
         if (elem_is_const.size() == 1 && dims > 1) {
             const bool c0 = elem_is_const[0];
             const int64_t v0 = elem_const_val[0];
@@ -143,13 +138,12 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
         ov::pass::NodeRegistry rg;
         OutputVector new_outputs;
 
-        // Folding the optional stride/padding/dilation/ceil_mode inputs, and the ReduceMax guards,
-        // raise OpConversionFailure for a configuration neither lowering can honor (a non-constant
-        // attribute, a strided/padded/return_indices dynamic pool, ...). Route that to the standard
-        // unconverted-ops reporter instead of letting it escape run_passes.
+        // Folding the optional attributes and the ReduceMax guards raise OpConversionFailure for a
+        // config neither lowering can honor. Route it to the standard unconverted-ops reporter
+        // instead of letting it escape run_passes.
         try {
             if (kernel_is_static) {
-                // The kernel is now fully constant -> build the ordinary static MaxPool.
+                // Kernel now fully constant -> build the static MaxPool.
                 Shape kernel;
                 for (auto v : elem_const_val)
                     kernel.push_back(static_cast<size_t>(v));
@@ -189,7 +183,7 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                                                         dilations,
                                                         rounding_type);
             } else {
-                // The kernel is still dynamic -> the ReduceMax full-extent decomposition (with guards).
+                // Kernel still dynamic -> the ReduceMax full-extent decomposition (with guards).
                 bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
                 auto pads = fold_optional_list(fw_node, 3, dims, "padding");
                 auto dilations = fold_optional_list(fw_node, 4, dims, "dilation");
@@ -207,8 +201,7 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                                                                 ceil_mode);
             }
         } catch (const std::exception& e) {
-            // Unsupported configuration (non-constant/strided/padded/return_indices/...). Annotate the
-            // placeholder so the standard unconverted-ops reporter surfaces a clear message.
+            // Unsupported config: annotate the placeholder so the unconverted-ops reporter surfaces it.
             add_exception_to_fw_node(fw_node, e.what());
             return false;
         }

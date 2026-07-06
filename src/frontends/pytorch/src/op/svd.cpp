@@ -38,17 +38,15 @@ constexpr int SVD_SWEEPS = 6;
 // Column index pairs swept by one-sided Jacobi.
 constexpr int PAIRS[3][2] = {{0, 1}, {0, 2}, {1, 2}};
 
-// SVD of batched 3x3 matrices via ONE-SIDED JACOBI. Unlike normal equations (A^T A
-// eigendecomposition), it operates on A directly and stays fp32-accurate for rank-deficient
-// matrices (the 3-point Weighted-Procrustes / Kabsch matrices in SAM-6D pose estimation): it
-// orthogonalizes A's columns over a fixed number of rotation sweeps (accumulated into V); the
-// singular values are then the column norms and U = A_col / sigma, sorted descending like torch.
+// SVD of batched 3x3 matrices via ONE-SIDED JACOBI. Operating on A directly (not on A^T A) stays
+// fp32-accurate for rank-deficient matrices (the 3-point Kabsch matrices in SAM-6D pose). It
+// orthogonalizes A's columns over a fixed number of sweeps (accumulated into V); the singular
+// values are then the column norms and U = A_col / sigma, sorted descending like torch.
 class JacobiSvd3x3 {
 public:
     JacobiSvd3x3(const NodeContext& context, element::Type et) : m_ctx(context), m_et(et), m_tiny(cf(1e-30f)) {}
 
-    // Returns {U, S, V} with shapes U:(...,3,3), S:(...,3) descending, V:(...,3,3).
-    // Each column of U/V is a (...,3) singular vector; V holds the right singular
+    // Returns {U, S, V}: U (...,3,3), S (...,3) descending, V (...,3,3) with the right singular
     // vectors as columns (the torch.svd convention).
     std::tuple<Output<Node>, Output<Node>, Output<Node>> build(const Output<Node>& A_in) {
         // Working columns of A and of V (V starts as identity columns).
@@ -68,8 +66,7 @@ public:
             u[k] = div(a[k], add(sig[k], m_tiny));
         }
 
-        // Sort columns by descending singular value with a 3-element sorting
-        // network of compare-exchanges: (0,1),(1,2),(0,1).
+        // Sort columns by descending singular value (3-element sorting network): (0,1),(1,2),(0,1).
         cmp_exchange(sig[0], sig[1], u[0], u[1], v[0], v[1]);
         cmp_exchange(sig[1], sig[2], u[1], u[2], v[1], v[2]);
         cmp_exchange(sig[0], sig[1], u[0], u[1], v[0], v[1]);
@@ -114,18 +111,16 @@ private:
         return m_ctx.mark_node(std::make_shared<v1::Select>(c, a, b));
     }
 
-    // Column k of a (...,3,3) matrix as a (...,3,1) keepdim vector (so the
-    // trailing reduce/broadcast ops keep their last axis = vector component).
+    // Column k of a (...,3,3) matrix as a (...,3,1) keepdim vector (trailing axis = component).
     Output<Node> mcol(const Output<Node>& m, int64_t k) {
         return m_ctx.mark_node(std::make_shared<v8::Gather>(m, ci(k), ci_s(-1)));  // (...,3,1)
     }
-    // Same as mcol but for the V columns of an identity-like start. We build the
-    // identity columns from constants broadcast to the batch of `like`.
+    // Identity column k, broadcast to the batch of `like`, as a (...,3,1) vector.
     Output<Node> ident_col(const Output<Node>& like, int64_t k) {
         std::vector<float> e(3, 0.0f);
         e[static_cast<size_t>(k)] = 1.0f;
         auto col = m_ctx.mark_node(v0::Constant::create(m_et, Shape{3, 1}, e));
-        // Broadcast to batch via add with 0*like-column (keeps the (...,3,1) shape).
+        // Broadcast to batch via add with 0*like-column (keeps (...,3,1)).
         auto zero_like = mul(mcol(like, 0), cf(0.0f));
         return add(col, zero_like);
     }
@@ -134,27 +129,25 @@ private:
         return m_ctx.mark_node(std::make_shared<v1::ReduceSum>(mul(a, b), ci_s(-2), true));
     }
 
-    // One Jacobi rotation that orthogonalizes columns (ap, aq); the same rotation
-    // is applied to (vp, vq). All operands are (...,3,1) vectors.
+    // One Jacobi rotation orthogonalizing columns (ap, aq); the same rotation is applied to
+    // (vp, vq). All operands are (...,3,1) vectors.
     void jacobi_rotate(Output<Node>& ap, Output<Node>& aq, Output<Node>& vp, Output<Node>& vq) {
         auto alpha = dot(ap, ap);  // (...,1,1)
         auto beta = dot(aq, aq);
         auto gamma = dot(ap, aq);
         auto denom = mul(cf(2.0f), gamma);
-        // zeta = (beta - alpha) / (2 gamma); guard the divide and clamp to keep
-        // zeta*zeta finite in fp32.
+        // zeta = (beta - alpha) / (2 gamma); guard the divide and clamp so zeta*zeta stays fp32-finite.
         auto zeta = div(sub(beta, alpha), add(denom, m_tiny));
         zeta = m_ctx.mark_node(std::make_shared<v0::Clamp>(zeta, -1e18, 1e18));
         auto azeta = absval(zeta);
         // t = sign(zeta) / (|zeta| + sqrt(1 + zeta^2)); |t| <= 1 (overflow-free).
         auto t_mag = div(cf(1.0f), add(azeta, sqrt(add(cf(1.0f), mul(zeta, zeta)))));
         auto t = mul(signum(zeta), t_mag);
-        // If the columns are already orthogonal (gamma ~ 0), use t = 0 (identity).
+        // Columns already orthogonal (gamma ~ 0) -> t = 0 (identity).
         auto orthogonal = m_ctx.mark_node(std::make_shared<v1::Less>(absval(gamma), m_tiny));
         t = sel(orthogonal, cf(0.0f), t);
         auto c = div(cf(1.0f), sqrt(add(cf(1.0f), mul(t, t))));
         auto s = mul(c, t);
-        // Apply the rotation to A columns and V columns.
         rotate_pair(ap, aq, c, s);
         rotate_pair(vp, vq, c, s);
     }
@@ -166,8 +159,8 @@ private:
         q = nq;
     }
 
-    // Compare-exchange so that sig_p >= sig_q after the call, swapping the
-    // associated U and V columns accordingly. sig_* are (...,1,1); cols are (...,3,1).
+    // Compare-exchange so sig_p >= sig_q after the call, swapping the U and V columns to match.
+    // sig_* are (...,1,1); cols are (...,3,1).
     void cmp_exchange(Output<Node>& sp,
                       Output<Node>& sq,
                       Output<Node>& up,
@@ -175,7 +168,7 @@ private:
                       Output<Node>& vp,
                       Output<Node>& vq) {
         auto swap = m_ctx.mark_node(std::make_shared<v1::Less>(sp, sq));  // swap if sp < sq
-        // swap broadcast for (...,3,1) vectors uses the same (...,1,1) mask.
+        // The (...,1,1) mask broadcasts over the (...,3,1) vectors.
         auto nsp = sel(swap, sq, sp);
         auto nsq = sel(swap, sp, sq);
         auto nup = sel(swap, uq, up);
@@ -194,9 +187,9 @@ private:
         return m_ctx.mark_node(std::make_shared<v0::Abs>(x));
     }
     Output<Node> signum(const Output<Node>& x) {
-        // sign(x) with sign(0) = +1. v0::Sign(0) = 0 would set t = 0 and skip the +-45 degree
-        // rotation exactly when two equal-norm columns are non-orthogonal (zeta == 0), leaving
-        // rank-deficient columns un-orthogonalized. Force +1 at 0 so the rotation still fires.
+        // sign(x) forcing sign(0) = +1: v0::Sign(0) = 0 would zero t and skip the +-45 degree
+        // rotation when two equal-norm columns are non-orthogonal (zeta == 0), leaving
+        // rank-deficient columns un-orthogonalized.
         auto s = m_ctx.mark_node(std::make_shared<v0::Sign>(x));
         auto is_zero = m_ctx.mark_node(std::make_shared<v1::Equal>(x, cf(0.0f)));
         return sel(is_zero, cf(1.0f), s);
@@ -215,8 +208,8 @@ private:
 OutputVector svd_common(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    // The Jacobi decomposition below is written for 3x3; ensure_trailing_square validates/guards
-    // the trailing axes to 3x3 (a non-3x3 input fails at conversion or loudly at runtime).
+    // The Jacobi decomposition is 3x3-only; guard the trailing axes (non-3x3 fails at conversion
+    // or loudly at runtime).
     x = ensure_trailing_square(context, x, 3, "aten::svd");
 
     auto in_et = x.get_element_type();
@@ -231,8 +224,8 @@ OutputVector svd_common(const NodeContext& context) {
     Output<Node> U, S, V;
     std::tie(U, S, V) = builder.build(A);
 
-    // Cast outputs back to the input type. ConvertLike resolves it from `x` even when it is
-    // dynamic at conversion time (a direct Convert to a dynamic type would fail).
+    // Cast outputs back to the input type. ConvertLike resolves it from `x` even when `x`'s type
+    // is dynamic at conversion time (a direct Convert would fail).
     if (in_et != compute_et) {
         U = context.mark_node(std::make_shared<v1::ConvertLike>(U, x));
         S = context.mark_node(std::make_shared<v1::ConvertLike>(S, x));
@@ -245,9 +238,8 @@ OutputVector svd_common(const NodeContext& context) {
 
 OutputVector translate_svd(const NodeContext& context) {
     // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
-    // PyTorch returns zero-filled U/V when compute_uv=False; this translator always produces real
-    // U/V, so compute_uv must be a constant true. A constant false, or a non-constant flag that
-    // could be false at runtime, is rejected -- otherwise a caller expecting zeros gets real vectors.
+    // PyTorch zero-fills U/V when compute_uv=False, but this translator always produces real U/V,
+    // so reject a constant-false (or non-constant, possibly-false) compute_uv.
     if (context.get_input_size() > 2 && !context.input_is_none(2)) {
         const auto c = ov::util::get_constant_from_source(context.get_input(2));
         PYTORCH_OP_CONVERSION_CHECK(c, "aten::svd with a non-constant compute_uv is not supported.");

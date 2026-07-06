@@ -269,9 +269,8 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // ord=None: Frobenius (two dims) and vector L2 (otherwise) are both sqrt(sum(x^2)) over `dim`
-    // for the real inputs supported here, so the L2 reduction is correct and rank-agnostic --
-    // needing neither the static rank nor a foldable `dim`.
+    // ord=None: Frobenius and vector L2 are both sqrt(sum(x^2)) over `dim` for the real inputs here,
+    // so a single L2 reduction is correct and rank-agnostic -- no static rank or foldable `dim` needed.
     if (context.input_is_none(1)) {
         result = norm_vector(context, x, dim, 2, keep_dim);
     } else {
