@@ -185,9 +185,9 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
 }
 
 // import_model must reject a blob whose descriptor content doesn't match this device (a different
-// OpenVINO version or GPU driver) -- the CVS-189661 guard, mirroring NPU. A single descriptor byte
-// is altered in place (same length, so the blob layout and page-aligned graph are untouched), so
-// the failure comes from the content mismatch, not the structural magic/version guard.
+// OpenVINO version or GPU driver) -- the CVS-189661 guard. A single descriptor byte is altered in
+// place (same length, so the blob layout and page-aligned graph are untouched), so the failure
+// comes from the content mismatch, not the structural magic/version guard.
 TEST_F(CompatibilityStringGPU, ImportRejectsMismatchedRuntimeRequirements) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;

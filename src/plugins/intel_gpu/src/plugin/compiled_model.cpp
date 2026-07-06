@@ -106,8 +106,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     ib >> m_runtime_requirements;
 
     // Reject a blob compiled for a different runtime (OpenVINO version/driver). The descriptor is
-    // device-deterministic, so a mismatch means the cached kernels cannot run here. Mirrors NPU:
-    // throwing lets the caller (cache layer / OV EP) recompile instead of consuming a bad blob.
+    // device-deterministic, so a mismatch means the cached kernels cannot run here. Throwing lets
+    // the caller (cache layer / OV EP) recompile instead of consuming a bad blob.
     const std::string current_runtime_requirements =
         build_runtime_requirements(m_context->get_engine().get_device_info());
     OPENVINO_ASSERT(m_runtime_requirements == current_runtime_requirements,
