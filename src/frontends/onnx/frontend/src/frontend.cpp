@@ -182,7 +182,6 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         enable_mmap = variants[1].as<bool>();
 
     const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
-        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(model_path);
