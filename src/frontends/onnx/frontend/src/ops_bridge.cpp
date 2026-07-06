@@ -46,7 +46,6 @@ const char* PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 const char* MMDEPLOY_DOMAIN = "mmdeploy";
 const char* AIONNX_ML_DOMAIN = "ai.onnx.ml";
 const char* AIONNX_CONTRIB_DOMAIN = "ai.onnx.contrib";
-// The default ONNX opset ("ai.onnx") is registered/looked up under an empty domain string.
 const char* AIONNX_DOMAIN = "";
 
 // Central storage of supported translators for operations
