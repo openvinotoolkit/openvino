@@ -15,6 +15,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -916,5 +917,36 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
 
     ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
+}
+TEST_F(SerializePassTest, constant_data_pointers_are_aligned) {
+    // bool (1 B), i32 (4 B), i64 (8 B) serialised consecutively.
+    // Without alignment padding the i64 lands at offset 5, which is UB.
+    auto param = std::make_shared<Parameter>(element::f32, Shape{1});
+
+    auto bc = std::make_shared<Constant>(element::boolean, Shape{}, std::vector<char>{0});
+    auto ic4 = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{1});
+    auto ic8 = std::make_shared<Constant>(element::i64, Shape{}, std::vector<int64_t>{2});
+
+    auto cvt_b = std::make_shared<op::v0::Convert>(bc, element::f32);
+    auto cvt_i4 = std::make_shared<op::v0::Convert>(ic4, element::f32);
+    auto cvt_i8 = std::make_shared<op::v0::Convert>(ic8, element::f32);
+
+    auto a1 = std::make_shared<op::v1::Add>(param, cvt_b);
+    auto a2 = std::make_shared<op::v1::Add>(a1, cvt_i4);
+    auto a3 = std::make_shared<op::v1::Add>(a2, cvt_i8);
+
+    m_model = std::make_shared<Model>(OutputVector{a3}, ParameterVector{param});
+    pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model);
+
+    auto reloaded = test::readModel(m_out_xml_path, m_out_bin_path);
+    for (auto& node : reloaded->get_ops()) {
+        auto c = std::dynamic_pointer_cast<Constant>(node);
+        if (!c || c->get_element_type() == element::string)
+            continue;
+        auto alignment = c->get_element_type().size();
+        auto ptr = c->get_data_ptr();
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alignment, 0)
+            << "Constant " << c->get_friendly_name() << " data pointer is not aligned to " << alignment << " bytes";
+    }
 }
 }  // namespace ov::test
