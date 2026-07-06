@@ -4,7 +4,7 @@ This article describes how to build OpenVINO for Android operating systems.
 
 ## Software requirements
 
-- [CMake](https://cmake.org/download/) 3.13 or higher
+- [CMake](https://cmake.org/download/) 3.29 or higher
 - [SCons](https://scons.org/pages/download.html) 4.6.0 or higher
 - [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) (this guide has been validated with the 35.0.0 release)
 - [Android NDK](https://developer.android.com/ndk/downloads) (this guide has been validated with r28c release)

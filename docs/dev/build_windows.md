@@ -8,7 +8,7 @@ Supported configurations:
 
 ## Software requirements
 
-- [CMake](https://cmake.org/download/) 3.13 or higher
+- [CMake](https://cmake.org/download/) 3.29 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
 - Python 3.10 - 3.14 for OpenVINO Runtime Python API
