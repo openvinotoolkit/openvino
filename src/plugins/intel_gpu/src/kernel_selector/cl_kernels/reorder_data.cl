@@ -16,6 +16,7 @@
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
+#define INPUT_COMPUTE_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_COMPUTE_TYPE, 4)
 #define OUTPUT_COMPUTE_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_COMPUTE_TYPE, 4)
 
 KERNEL (reorder_data)(
@@ -125,10 +126,10 @@ KERNEL (reorder_data)(
     const uint input_idx_G  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 1, v, u, w, z, y, x);
     const uint input_idx_B  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 2, v, u, w, z, y, x);
 #if OUTPUT_FEATURE_NUM == 3
-    INPUT_TYPE4 colorRGBA = { input[input_idx_R], input[input_idx_G], input[input_idx_B], TO_INPUT_REORDER_TYPE(0.f) };
+    INPUT_COMPUTE_TYPE4 colorRGBA = { DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_R]), DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_G]), DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_B]), TO_INPUT_REORDER_COMPUTE_TYPE(0.f) };
 #else
     const uint input_idx_A  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 3, v, u, w, z, y, x);
-    INPUT_TYPE4 colorRGBA = { input[input_idx_R], input[input_idx_G], input[input_idx_B], input[input_idx_A] };
+    INPUT_COMPUTE_TYPE4 colorRGBA = { DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_R]), DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_G]), DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_B]), DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx_A]) };
 #endif
 #else
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, v, u, w, z, y, x);
@@ -155,12 +156,12 @@ KERNEL (reorder_data)(
 #else
     #ifdef INT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res_tmp = TO_OUTPUT_REORDER_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
+        OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res_tmp = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+        OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
     #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
-            OUTPUT_TYPE res_tmp = TO_OUTPUT_REORDER_TYPE(_convert_float(input[input_idx]));
+            OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(input[input_idx]));
     #else
         CALC_TYPE res_tmp = TO_CALC_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     #endif

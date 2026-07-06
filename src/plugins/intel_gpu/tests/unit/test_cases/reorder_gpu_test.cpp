@@ -2970,6 +2970,45 @@ TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
     }
 }
 
+TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding_bf16)
+{
+    auto& engine = get_test_engine();
+
+    memory::ptr in = engine.allocate_memory({ data_types::bf16, format::bfyx, tensor{ 1, 4, 4, 1 } });
+    layout r2_output(data_types::f32, format::b_fs_yx_fsv16, { 1, 4, 4, 1 });
+    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    set_values(scale_mem, { 2.0f });
+
+    topology tpl{
+        input_layout("in", in->get_layout()),
+        data("scale_data", scale_mem),
+        eltwise("eltwise", { input_info("in"), input_info("scale_data") }, eltwise_mode::prod),
+        reorder("r1", input_info("eltwise"), format::bfyx, data_types::f32, std::vector<float>{0, 0, 0, 1}),
+        reorder("r2", input_info("r1"), r2_output.with_padding(padding({ 0, 0, 1, 1 }, 0.f))),
+        eltwise("output", { input_info("r2"), input_info("scale_data") }, eltwise_mode::prod)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, tpl, config);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto executed_primitives = net.get_executed_primitives();
+
+    ASSERT_EQ(executed_primitives.count("r1"), 1);
+
+    // r2 would be removed, but the padding value should be remained at the input primitive of r2.
+    std::vector<int32_t> gt = {0, 0, 1, 1};
+    auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
+    const auto& upper_padding = r1_output_data_padding._upper_size;
+    const auto& lower_padding = r1_output_data_padding._lower_size;
+    for (int32_t i = 0 ; i < 4; i++) {
+        ASSERT_EQ(upper_padding[i], gt[i]);
+        ASSERT_EQ(lower_padding[i], gt[i]);
+    }
+}
+
 TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
 {
     auto& engine = get_test_engine();
@@ -4065,6 +4104,52 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
 
 }
 
+TEST(reorder_image2d_rgba_to_bfyx_gpu, basic_bf16)
+{
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 } });
+    layout output_layout(data_types::bf16, format::bfyx, { 1, 3, 2, 2 });
+
+    set_values<unsigned char>(input, {
+        1, 0, 5, 7,
+        2, 111, 123, 8,
+        124, 125, 50, 9,
+        251, 252, 253, 210
+        });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), output_layout));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[12] = {
+        1.0f,  2.0f,
+        124.0f,  251.0f,
+
+        0.0f,  111.0f,
+        125.0f,  252.0f,
+
+        5.0f,  123.0f,
+        50.0f, 253.0f,
+    };
+
+    cldnn::mem_lock<ov::bfloat16> output_ptr (output, get_test_stream());
+    for (int i = 0; i < 12; i++)
+    {
+        ASSERT_NEAR(ov::bfloat16(answers[i] / 255.f), output_ptr[i], 1e-2f);
+    }
+
+}
+
 TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
 {
     auto& engine = get_test_engine();
@@ -4107,6 +4192,52 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
     for (int i = 0; i < 16; i++)
     {
         ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+
+}
+
+TEST(reorder_bfyx_to_image2d_rgba_gpu, basic_bf16)
+{
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::bf16, format::bfyx, { 1, 3, 2, 2 } });
+    layout output_layout(data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 });
+
+    set_values<ov::bfloat16>(input, {
+        ov::bfloat16(1.0f / 255.f),  ov::bfloat16(2.0f / 255.f),
+        ov::bfloat16(124.0f / 255.f),  ov::bfloat16(251.0f / 255.f),
+
+        ov::bfloat16(0.0f / 255.f),  ov::bfloat16(111.0f / 255.f),
+        ov::bfloat16(125.0f / 255.f),  ov::bfloat16(252.0f / 255.f),
+
+        ov::bfloat16(5.0f / 255.f),  ov::bfloat16(123.0f / 255.f),
+        ov::bfloat16(50.0f / 255.f), ov::bfloat16(253.0f / 255.f),
+        });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), output_layout));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    unsigned char answers[16] = {
+        1, 0, 5, 0,
+        2, 111, 123, 0,
+        124, 125, 50, 0,
+        251, 252, 253, 0
+    };
+
+    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 16; i++)
+    {
+        ASSERT_NEAR(answers[i], output_ptr[i], 1);
     }
 
 }
@@ -4315,6 +4446,9 @@ public:
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
             VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bf16) {
+            VF<ov::bfloat16> rnd_vec = rg.generate_random_1d<ov::bfloat16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
@@ -4591,6 +4725,62 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal, testing_removal_feature
                                                                 data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
                                             }));
 
+class testing_removal_feature_aligned_reorder_bf16 : public ReorderTest<redundant_reorder_test_param> {};
+TEST_P(testing_removal_feature_aligned_reorder_bf16, removal_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::bf16),
+                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::bf16),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::bf16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), p.opt_out);
+}
+
+// Negative : reorder is padded
+TEST_P(testing_removal_feature_aligned_reorder_bf16, padded_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    layout reorder_layout(data_types::bf16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::bf16),
+                reorder("reorder_input", input_info("input"), reorder_layout),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::bf16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal_bf16, testing_removal_feature_aligned_reorder_bf16,
+                        ::testing::ValuesIn(std::vector<redundant_reorder_test_param>{
+                                            redundant_reorder_test_param{{1, 32, 8, 8}, {1, 32, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::bf16, format::byxf, data_types::bf16, format::goiyx, data_types::bf16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 32, 1, 1}, {1, 32, 1, 1}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::bf16, format::byxf, data_types::bf16, format::goiyx, data_types::bf16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 64, 8, 8}, {1, 64, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::bf16, format::byxf, data_types::bf16, format::goiyx, data_types::bf16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::bf16, format::byxf, data_types::bf16, format::goiyx, data_types::bf16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::bf16, format::b_fs_yx_fsv16, data_types::bf16, format::goiyx, data_types::bf16, format::b_fs_yx_fsv16, false},
+                                            }));
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_test_engine();
@@ -4664,10 +4854,12 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::bf16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
     // i32 -> other types
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::bf16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32_cached) {
@@ -4692,11 +4884,13 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::bf16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     // i32 -> other types
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::bf16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
 }
 
@@ -4764,6 +4958,7 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv3
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype_cached) {
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::bf16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i8, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
 }
@@ -4934,6 +5129,7 @@ TEST(reorder_weight_gpu_i4, reorder_for_padding_4d)
     run_reorder_weight_int4({2, 2, 2, 7}, {0, 0, 0, 1});
 }
 
+template <typename T>
 static void run_reorder_uint4(const ov::Shape in_shape) {
     auto& engine = get_test_engine();
 
@@ -4949,7 +5145,7 @@ static void run_reorder_uint4(const ov::Shape in_shape) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
+        reorder("reorder", input_info("input"), format::bfyx, element_type_to_data_type(ov::element::from<T>())));
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -4964,14 +5160,14 @@ static void run_reorder_uint4(const ov::Shape in_shape) {
 
     auto output = outputs.begin()->second.get_memory();
 
-    std::vector<ov::float16> expected_data  = {
+    std::vector<T> expected_data  = {
         0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
         0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x1,
         0x5, 0x2, 0x3, 0x8, 0xa, 0x2, 0xd, 0x7,
         0xf, 0x9, 0x8, 0xe, 0x1, 0x5, 0x3, 0xa
     };
 
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(expected_data.size(), output_ptr.size());
     for (size_t idx = 0; idx < output_ptr.size(); idx++)
@@ -4981,7 +5177,12 @@ static void run_reorder_uint4(const ov::Shape in_shape) {
 
 TEST(reorder_gpu_i4, basic_uint4)
 {
-    run_reorder_uint4({32, 1, 1, 1});
+    run_reorder_uint4<ov::float16>({32, 1, 1, 1});
+}
+
+TEST(reorder_gpu_i4, basic_uint4_bf16)
+{
+    run_reorder_uint4<ov::bfloat16>({32, 1, 1, 1});
 }
 
 static uint8_t pack_int4(int8_t a, int8_t b) {
@@ -4990,13 +5191,14 @@ static uint8_t pack_int4(int8_t a, int8_t b) {
     return packed_a | packed_b;
 }
 
+template <typename T>
 static void run_reorder_int4(const ov::Shape in_shape) {
     auto& engine = get_test_engine();
 
     layout in_layout({in_shape, data_types::i4, format::bfyx});
     auto input = engine.allocate_memory(in_layout);
 
-    std::vector<ov::float16> expected_data  = {
+    std::vector<T> expected_data  = {
          1,  2,  3,  4,  5,  6,  7, -6,
         -7, -6, -5, -4, -3, -2, -1,  0,
         -1,  2, -3,  4, -5,  6, -7,  6,
@@ -5014,7 +5216,7 @@ static void run_reorder_int4(const ov::Shape in_shape) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
+        reorder("reorder", input_info("input"), format::bfyx, element_type_to_data_type(ov::element::from<T>())));
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -5030,7 +5232,7 @@ static void run_reorder_int4(const ov::Shape in_shape) {
     auto output = outputs.begin()->second.get_memory();
 
 
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(expected_data.size(), output_ptr.size());
     for (size_t idx = 0; idx < output_ptr.size(); idx++)
@@ -5040,7 +5242,12 @@ static void run_reorder_int4(const ov::Shape in_shape) {
 
 TEST(reorder_gpu_i4, basic_int4)
 {
-    run_reorder_int4({32, 1, 1, 1});
+    run_reorder_int4<ov::float16>({32, 1, 1, 1});
+}
+
+TEST(reorder_gpu_i4, basic_int4_bf16)
+{
+    run_reorder_int4<ov::bfloat16>({32, 1, 1, 1});
 }
 
 template <typename T>
@@ -5089,4 +5296,14 @@ TEST(reorder_gpu_i4, fp16_to_i4) {
 TEST(reorder_gpu_i4, fp16_to_u4) {
     std::vector<ov::float16> input_data = {ov::float16(-8.5f), ov::float16(7.2f), ov::float16(0.0f), ov::float16(6.0f)};
     run_reorder_test_i4(data_types::f16, data_types::u4, input_data, {0x70, 0x60});
+}
+
+TEST(reorder_gpu_i4, bf16_to_i4) {
+    std::vector<ov::bfloat16> input_data = {ov::bfloat16(-8.5f), ov::bfloat16(7.2f), ov::bfloat16(0.0f), ov::bfloat16(6.0f)};
+    run_reorder_test_i4(data_types::bf16, data_types::i4, input_data, {0x78, 0x60});
+}
+
+TEST(reorder_gpu_i4, bf16_to_u4) {
+    std::vector<ov::bfloat16> input_data = {ov::bfloat16(-8.5f), ov::bfloat16(7.2f), ov::bfloat16(0.0f), ov::bfloat16(6.0f)};
+    run_reorder_test_i4(data_types::bf16, data_types::u4, input_data, {0x70, 0x60});
 }
