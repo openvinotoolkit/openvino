@@ -938,7 +938,7 @@ TEST_F(SerializePassTest, constant_data_pointers_are_aligned) {
     m_model = std::make_shared<Model>(OutputVector{a3}, ParameterVector{param});
     pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model);
 
-    auto reloaded = test::readModel(m_out_xml_path, m_out_bin_path);
+    auto reloaded = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
     for (auto& node : reloaded->get_ops()) {
         auto c = std::dynamic_pointer_cast<Constant>(node);
         if (!c || c->get_element_type() == element::string)
