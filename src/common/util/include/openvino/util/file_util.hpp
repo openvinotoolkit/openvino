@@ -295,7 +295,8 @@ void save_binary(const std::filesystem::path& path, const void* binary, size_t b
 const char* trim_file_name(const char* const fname);
 
 inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
-    return util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+    return util::u64_hash_combine(static_cast<uint64_t>(std::hash<std::filesystem::path::string_type>{}(path.native())),
+                                  {offset, size});
 }
 
 /**
