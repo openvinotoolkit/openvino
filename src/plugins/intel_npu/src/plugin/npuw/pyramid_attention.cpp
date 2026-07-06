@@ -631,16 +631,15 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     // Left-aligned KV layout is defined structurally: for both K and V the freshly-computed
     // present KV is concatenated *before* the past KV cache (Concat order [present | past],
     // i.e. the past cache is appended last).
-    const bool present_before_past =
-        concat_present_before_past(pattern_nodes.past_key_concat_node, /*is_key=*/true) &&
-        concat_present_before_past(pattern_nodes.past_value_concat_node, /*is_key=*/false);
+    const bool present_before_past = concat_present_before_past(pattern_nodes.past_key_concat_node, /*is_key=*/true) &&
+                                     concat_present_before_past(pattern_nodes.past_value_concat_node, /*is_key=*/false);
 
     // Additional guard: the specific quantized layout this path was validated against
     // (i8 KV, key sequence dim 1, value sequence dim 3).
-    const bool matches_quantized_layout =
-        past_key_sequence_dims.begin()->second == 1 && past_value_sequence_dims.begin()->second == 3 &&
-        pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
-        pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
+    const bool matches_quantized_layout = past_key_sequence_dims.begin()->second == 1 &&
+                                          past_value_sequence_dims.begin()->second == 3 &&
+                                          pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
+                                          pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
 
     const bool data_left_aligned = present_before_past && matches_quantized_layout;
 
