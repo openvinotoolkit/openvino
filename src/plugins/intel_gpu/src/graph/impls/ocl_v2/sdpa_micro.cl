@@ -745,6 +745,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         }
     #endif
+    #endif
 #endif
 
 #if HAS_QQ_BIAS && IS_PAGED_ATTENTION && (IS_PREFILL == 0)
