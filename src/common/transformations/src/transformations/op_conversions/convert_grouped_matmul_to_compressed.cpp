@@ -53,11 +53,11 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
             return false;
         }
 
-        // GroupedMatMulCompressed does not support transposed weights. If the
-        // CompressedWeightsBlock matched a Transpose, bail out so a later pass can handle it.
-        if (weights_block->get_anchor("transpose", pattern_map).has_value()) {
-            return false;
-        }
+        // If the CompressedWeightsBlock matched a Transpose on the weights branch, the
+        // original graph is producing [G, N, K] mat_b from a differently-laid-out constant.
+        // The shared helper bakes that Transpose into the weights/scale/zp constants when
+        // `has_transpose=true`, so the emitted GroupedMatMulCompressed still sees [G, N, K].
+        const bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
 
         const auto& a_pshape = gmm->get_input_partial_shape(0);
         if (a_pshape.rank().is_dynamic()) {
@@ -78,8 +78,7 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         }
 
         const auto& weights_shape = gmm->get_input_shape(1);
-        // GroupedMatMul-17 always has rank-3 mat_b ([G, N, K]); the callback runs only
-        // after that pattern matched, so treat it as an invariant rather than a runtime bool.
+        // GroupedMatMul-17 always has rank-3 mat_b ([G, N, K])
         OPENVINO_ASSERT(weights_shape.size() == 3,
                         "GroupedMatMul mat_b must be rank 3, got rank ",
                         weights_shape.size());
@@ -91,13 +90,13 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
 
         ov::NodeVector result_nodes;
         // `batched_weights=true` selects a final weights rank of 3 in the shared helper, which
-        // matches the rank-3 mat_b of GroupedMatMul; `has_transpose=false` is enforced above.
+        // matches the rank-3 mat_b of GroupedMatMul.
         const auto [gmm_input_b, gmm_input_scale, gmm_input_zp] =
             ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                 weights_block,
                 pattern_map,
                 /*convert_u4zp_to_u8=*/true,
-                /*has_transpose=*/false,
+                has_transpose,
                 grouped,
                 /*batched_weights=*/true,
                 result_nodes);

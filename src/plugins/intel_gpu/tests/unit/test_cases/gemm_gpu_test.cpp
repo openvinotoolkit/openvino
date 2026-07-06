@@ -15,6 +15,8 @@
 #include "openvino/reference/reshape.hpp"
 #include "openvino/reference/grouped_matmul.hpp"
 
+ #include <numeric>
+
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
 #include "permute_inst.h"
