@@ -57,11 +57,10 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 /// \brief Ensures the trailing two axes of `x` form an n x n matrix.
 ///
-/// Statically-known trailing dims that are not n x n are rejected with a clear conversion-time
-/// message (`op_label` names the op). When they are dynamic -- the common TorchScript case, where
-/// the decoder forces all dims dynamic -- a runtime guard pins each trailing axis to n with its
-/// own Reshape (so the element-count check runs per axis; a single [n, n] reshape would let e.g.
-/// [1, 9] pass as 3x3). A genuine n x n is an identity; any other size fails loudly at runtime.
+/// Static trailing dims that are not n x n are rejected at conversion (`op_label` names the op).
+/// When they are dynamic (the common TorchScript case) a runtime guard pins each trailing axis to
+/// n with its own Reshape -- the per-axis check catches e.g. [1, 9] that a single [n, n] reshape
+/// would accept as 3x3. A genuine n x n is an identity; any other size fails loudly at runtime.
 /// \param context Node context for marking nodes.
 /// \param x Batched matrix whose trailing two axes are validated/guarded.
 /// \param n Expected square matrix size.

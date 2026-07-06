@@ -19,8 +19,8 @@ using namespace ov::op;
 
 namespace detail {
 
-// Element x[..., i, j] of a batched matrix (trailing singleton axes removed). Positional
-// indexing works for both static and dynamic shapes.
+// Element x[..., i, j] of a batched matrix (trailing singleton axes removed); positional indexing
+// works for static and dynamic shapes.
 Output<Node> matrix_element(const NodeContext& context, const Output<Node>& x, int64_t i, int64_t j) {
     auto row_idx = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {i}));
     auto col_idx = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {j}));
@@ -55,8 +55,8 @@ Output<Node> det_3x3(const NodeContext& context, const Output<Node>& x) {
     return context.mark_node(std::make_shared<v1::Add>(sub(t0, t1), t2));
 }
 
-// Determinant for 3x3 matrices (the rigid-transform / Kabsch use case): ensure_trailing_square
-// validates/guards the trailing axes to 3x3, then the cofactor expansion is applied.
+// 3x3 determinant (the rigid-transform / Kabsch use case): guard the trailing axes to 3x3, then
+// apply the cofactor expansion.
 Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
     return det_3x3(context, ensure_trailing_square(context, x, 3, "aten::det/linalg_det"));
 }

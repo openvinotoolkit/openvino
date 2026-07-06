@@ -19,11 +19,10 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-// Build the ordinary static-kernel max pool (v14::MaxPool) for an already-resolved kernel/strides/
-// pads/dilations. Shared by the translator (constant kernel at translation time) and the deferred
-// resolver (kernel that became constant only after shape propagation). Nodes are added to `rg` so
-// the caller can mark them / copy runtime info; the returned OutputVector is the pool result
-// (2 outputs when `return_indices`).
+// Build the static-kernel max pool (v14::MaxPool) for an already-resolved kernel/strides/pads/
+// dilations. Shared by the translator (constant kernel) and the deferred resolver (kernel that
+// became constant after shape propagation). Nodes go into `rg`; returns the pool result (2 outputs
+// when `return_indices`).
 OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
                                    Output<Node> input,
                                    int dims,
@@ -34,11 +33,10 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
                                    const ov::Strides& dilations,
                                    ov::op::RoundingType rounding_type);
 
-// Build the ReduceMax decomposition for a max pool whose kernel is only known at runtime (a
-// full-extent / global pool over the dynamic axes). Guards (default stride, zero padding, dilation
-// 1, ceil_mode=False, no return_indices, no static-window>1 mixed with a dynamic axis) are enforced
-// here and raise OpConversionFailure. `pads`/`dilations` are empty when the corresponding input is
-// absent. Nodes are added to `rg`.
+// Build the ReduceMax decomposition for a max pool whose kernel is only known at runtime (a global
+// pool over the dynamic axes). Guards (default stride, no pad, dilation 1, ceil_mode=False, no
+// return_indices, no static-window>1) raise OpConversionFailure. `pads`/`dilations` are empty when
+// the corresponding input is absent. Nodes go into `rg`.
 OutputVector build_dynamic_kernel_max_pool(ov::pass::NodeRegistry& rg,
                                            int dims,
                                            bool return_indices,
