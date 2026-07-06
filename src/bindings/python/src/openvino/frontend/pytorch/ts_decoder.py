@@ -68,6 +68,9 @@ class TorchScriptPythonDecoder(Decoder):
                     self.config = pt_module.config
                 elif hasattr(pt_module.config, "to_dict"):
                     self.config = pt_module.config.to_dict()
+                # remove nncf quantization config from model to avoid issues with lm_eval
+                if self.config and self.config.get("quantization_config", None) and self.config["quantization_config"].get("quant_method", None) == "nncf":
+                    self.config["quantization_config"] = {}  # type: ignore
             try:
                 pt_module = self._get_scripted_model(
                     pt_module, example_input, skip_freeze, trace_kwargs)

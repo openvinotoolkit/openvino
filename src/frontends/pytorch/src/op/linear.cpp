@@ -615,7 +615,8 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     if (!sym || (bits  == 3 || bits == 2)) {
         if (sym && (bits == 3 || bits == 2)) {
             // For 3-bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
-            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(bits == 3 ? element::u3 : element::u2, Shape{}, std::vector<uint8_t>{1 << (bits - 1)}));
+            uint8_t zero_point = static_cast<uint8_t>(1 << (bits - 1));
+            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(bits == 3 ? element::u3 : element::u2, Shape{}, std::vector<uint8_t>{zero_point}));
         } else {
             new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
         }
