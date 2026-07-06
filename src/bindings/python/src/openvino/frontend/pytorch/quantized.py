@@ -130,7 +130,7 @@ def _build_quantized_extensions(
         return None
     elif quant_type == "nncf":
         try:
-            from nncf.experimental.torch.qlinear import NNCFQLinear
+            from nncf.torch import NNCFQLinear
             extensions[NNCFQLinear] = ModuleExtension(
                 NNCFQLinear, "ov_ext::nncf_qlinear",
                 convert=lambda module, target_op, *args, **kwargs: target_op(

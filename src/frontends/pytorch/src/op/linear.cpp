@@ -6,6 +6,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
@@ -84,22 +85,6 @@ Output<Node> low_precision_subgraph(const NodeContext& context,
     auto weight = ov::decomposition::low_precision_dequantize(reg, weights, scales, zero_points, out_shape);
     weight = reg.make<v1::ConvertLike>(weight, x);
     context.mark_nodes(reg.get());
-    return weight;
-}
-
-Output<Node> low_precision_subgraph_sym(const NodeContext& context,
-                                    const Output<Node>& x,
-                                    const Output<Node>& weights,
-                                    const Output<Node>& scales,
-                                    const Output<Node>& out_shape) {
-    auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
-
-    auto weight = context.mark_node(std::make_shared<v1::Multiply>(new_qweight, scales));
-    auto weight_shape = weights.get_shape();
-    if (out_shape.get_node() != nullptr) {
-        weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
-    }
-    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
     return weight;
 }
 
@@ -272,12 +257,6 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
         }
     }
 
-    // TODO debug
-    std::cout << "Rearranging constant with initial shape " << initial_shape << " to new shape " << new_shape
-              << " with group size " << group_size << " and sym " << sym << " zero point " << zero_point << std::endl;
-    std::cout << "Min max values: " << *std::min_element(values.begin(), values.end()) << ", "
-              << *std::max_element(values.begin(), values.end()) << std::endl;
-    std::cout << "Bits: " << src_bits << " to " << dst_bits << std::endl;
     auto new_qweight = std::make_shared<v0::Constant>(element_type, new_shape, values);
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
@@ -629,20 +608,19 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
         v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
 
     Output<Node> weight;
-    // we don not have i3 type, so for 3 bit symmetric compression we represent weights as u3 minus zero point, which is 4 (midpoint of u4 range).
+    Output<Node> new_qzeros;
+
+    // we don not have i2/i3 type, so for 2-3 bit symmetric compression we represent weights as u2/u3 minus zero point, which is 2 and 4 (midpoint of u4 range).
     // This allows us to use the same dequantization subgraph as for asymmetric quantization, just with zero point = 4.
-    if (sym && (bits  != 3 && bits != 2)) {
-        weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
-    } else {
-        Output<Node> new_qzeros;
+    if (!sym || (bits  == 3 || bits == 2)) {
         if (sym && (bits == 3 || bits == 2)) {
             // For 3-bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
             new_qzeros = context.mark_node(std::make_shared<v0::Constant>(bits == 3 ? element::u3 : element::u2, Shape{}, std::vector<uint8_t>{1 << (bits - 1)}));
         } else {
             new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
         }
-        weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
     }
+    weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
     if (!context.input_is_none(7)) {
