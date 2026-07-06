@@ -184,6 +184,40 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
     }
 }
 
+// import_model must reject a blob whose descriptor content doesn't match this device (a different
+// OpenVINO version or GPU driver) -- the CVS-189661 guard, mirroring NPU. A single descriptor byte
+// is altered in place (same length, so the blob layout and page-aligned graph are untouched), so
+// the failure comes from the content mismatch, not the structural magic/version guard.
+TEST_F(CompatibilityStringGPU, ImportRejectsMismatchedRuntimeRequirements) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+    const auto requirements = compiled_model.get_property(ov::runtime_requirements);
+    ASSERT_FALSE(requirements.empty());
+
+    std::stringstream good_blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(good_blob));
+    std::string data = good_blob.str();
+
+    // Descriptor string bytes follow [ ov::CacheMode ][ uint64 magic ][ uint32 version ][ size_t len ].
+    const size_t descriptor_offset =
+        sizeof(ov::CacheMode) + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
+    ASSERT_GT(data.size(), descriptor_offset);
+
+    // Sanity: the untouched blob imports cleanly.
+    {
+        std::stringstream blob(data);
+        ov::CompiledModel imported;
+        OV_ASSERT_NO_THROW(imported = core.import_model(blob, ov::test::utils::DEVICE_GPU));
+    }
+
+    // Alter one descriptor byte in place so the persisted requirements no longer match the device.
+    data[descriptor_offset] ^= 0x01;
+    std::stringstream blob(data);
+    EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+}
+
 // Mirror of the ONNX Runtime OrtCompiledModelCompatibility states that the GPU plugin
 // can actually produce. OpenVINO's ov::CompatibilityCheck has 3 states and the GPU
 // plugin never reports a "runs but suboptimal" outcome, so the ORT
