@@ -34,6 +34,7 @@ def detect_quantized_model(model: torch.nn.Module) -> str | None:
         return detect_quantized_model(model.model)  # type: ignore[arg-type]
     return None
 
+
 def patch_quantized(model: torch.nn.Module) -> None:
     """Patches a model based on its quantization type ("awq" or "gptq").
 
