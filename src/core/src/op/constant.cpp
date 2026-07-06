@@ -143,10 +143,6 @@ bool in_t_range(const U& v) {
             return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
         }
     } else {
-        // ±inf is a valid IEEE 754 value in all standard float formats. Accept it unconditionally
-        // EXCEPT for f8e4m3, which repurposes the infinity bit-pattern as an additional NaN
-        // encoding and therefore has no representation for ±inf
-        // (Micikevicius et al., "FP8 Formats for Deep Learning", arXiv:2209.05433, 2022).
         return (std::isinf(v) && ET != element::f8e4m3) ||
                (std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max());
     }
