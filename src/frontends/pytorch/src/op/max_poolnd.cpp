@@ -197,16 +197,8 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
         input = rg.make<v1::Reshape>(input, reshape_pattern, true);
     }
 
-    auto res = rg.make<v14::MaxPool>(input,
-                                     strides,
-                                     dilations,
-                                     pads,
-                                     pads,
-                                     kernel,
-                                     rounding_type,
-                                     PadType::EXPLICIT,
-                                     element::i64,
-                                     2);
+    auto res = rg.make<
+        v14::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type, PadType::EXPLICIT, element::i64, 2);
     if (is_static) {
         if (no_batch_dim) {
             if (return_indices) {
