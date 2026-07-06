@@ -117,7 +117,10 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
                 inject(1, -1.0f);
                 inject(2,  2.0f);
                 inject(3, -1.5f);
-            } else if ((activationType == utils::ActivationTypes::IsFinite) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 5) {
+            } else if ((activationType == utils::ActivationTypes::IsFinite ||
+                        activationType == utils::ActivationTypes::IsInf ||
+                        activationType == utils::ActivationTypes::IsNaN) &&
+                       funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 5) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN(); // nan
                 static_cast<float*>(tensor.data())[1] = std::numeric_limits<float>::signaling_NaN(); // nan
                 static_cast<float*>(tensor.data())[2] = std::sqrt(-1); // -nan
@@ -277,6 +280,10 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     run();
+    const auto enforceSnippets = std::get<7>(this->GetParam());
+    if (enforceSnippets) {
+        CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
+    }
     CheckPluginRelatedResults(compiledModel, "Eltwise");
 }
 
@@ -344,6 +351,11 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sqrt,                  {{}}},
         {RoundHalfToEven,       {{}}},
         {RoundHalfAwayFromZero, {{}}},
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+        {IsFinite,              {{}}},
+        {IsInf,                 {{false, false}, {false, true}, {true, false}, {true, true}}},
+        {IsNaN,                 {{}}},
+#endif
 #if defined(OPENVINO_ARCH_ARM64)
         {Mish,                  {{}}},
 #endif
