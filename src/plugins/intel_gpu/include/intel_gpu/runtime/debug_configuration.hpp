@@ -100,7 +100,6 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
-
 #ifndef GPU_DEBUG_SET_ACTIVE_LUID
 #define GPU_DEBUG_SET_ACTIVE_LUID(luid)
 #endif
