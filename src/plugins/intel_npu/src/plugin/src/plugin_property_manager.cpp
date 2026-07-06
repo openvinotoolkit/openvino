@@ -464,7 +464,7 @@ void PluginPropertyManager::registerProperties() {
         return utils::getDeviceLUID(_backend, _config.get<intel_npu::DEVICE_ID>());
     });
 
-    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
         return std::vector<std::string>{"NPU"};
     });
     register_property_with_custom_function( _properties, ov::device::capabilities.name(), true, [this](const ov::AnyMap&) {
@@ -485,7 +485,7 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [this](const ov::AnyMap&) {
         return _internalSupportedProperties;
     });
-    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [](const ov::AnyMap&) {
         return utils::STANDARD_PAGE_SIZE;
     });
     register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, [this](const ov::AnyMap&) {
