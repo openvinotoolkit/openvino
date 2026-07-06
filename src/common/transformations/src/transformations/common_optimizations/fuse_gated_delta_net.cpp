@@ -442,9 +442,6 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src, c
                 auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
 
                 auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
-                if (!reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
-                    return {};
-                }
 
                 ov::copy_runtime_info(src.get_node_shared_ptr(), {ref_shape, updated_shape, reshaped});
                 return reshaped;
