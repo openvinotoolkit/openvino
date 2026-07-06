@@ -64,7 +64,7 @@ public:
         // Singular values = column norms; left singular vectors = normalized columns.
         Output<Node> sig[3], u[3];
         for (int k = 0; k < 3; ++k) {
-            sig[k] = sqrt(dot(a[k], a[k]));  // (...,1)
+            sig[k] = sqrt(dot(a[k], a[k]));  // (...,1,1)
             u[k] = div(a[k], add(sig[k], m_tiny));
         }
 
