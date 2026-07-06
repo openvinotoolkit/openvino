@@ -28,6 +28,7 @@ void ZeroDynamicInferRequest::create_pipeline_impl() {
                                           _config,
                                           _levelZeroInputTensors,
                                           _levelZeroOutputTensors,
+                                          _binding,
                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("create_pipeline_impl - completed");
@@ -219,12 +220,20 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
     // bool reCreatePipeline = false;
     // Predict output shapes based on current inputs
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
-    if (dynamicGraph && _isTensorChanged) {
-        IDynamicGraph::GraphArguments graphArgs;
-        // Need change to use arguments in pipeline
-        dynamicGraph->getBinding(graphArgs);
-        std::vector<IDynamicGraph::MemRefType> inputPros = graphArgs._inputs;
-        outputProps = graphArgs._outputs;
+    if (dynamicGraph == nullptr) {
+        OPENVINO_THROW("Failed to cast IGraph to IDynamicGraph, please check if the graph is created successfully and "
+                       "supports dynamic shape.");
+    }
+    if (_binding == nullptr) {
+        _binding = std::make_shared<IDynamicGraph::GraphArguments>();
+        dynamicGraph->getBinding(*_binding);
+    }
+
+    if (_isTensorChanged) {
+        IDynamicGraph::GraphArguments& binding = *_binding;
+        // Use copy instead of reference to not pollute current graph arguments
+        std::vector<IDynamicGraph::MemRefType> inputPros = binding._inputs;
+        outputProps = binding._outputs;
 
         // TODO: Support Batch later
         // Update input Info
@@ -274,7 +283,7 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
 
         auto originalOutputProps = outputProps;
 
-        dynamicGraph->predict_output_shape(inputPros, outputProps);
+        dynamicGraph->predict_output_shape(binding, inputPros, outputProps);
 
         for (size_t i = 0; i < outputProps.size(); i++) {
             if (!originalOutputProps[i].compare(outputProps[i])) {

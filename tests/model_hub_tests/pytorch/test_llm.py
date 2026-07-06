@@ -22,6 +22,71 @@ def is_quantized_model(config):
     return quantization_config and quantization_config["quant_method"] in ["gptq", "awq"]
 
 
+def is_compressed_tensors_model(config):
+    config_dict = config.to_dict() if not isinstance(config, dict) else config
+    quantization_config = config_dict.get("quantization_config", None)
+    return bool(quantization_config and quantization_config.get("quant_method") == "compressed-tensors")
+
+
+def patch_compressed_tensors():
+    """Stop CompressedTensorsHfQuantizer from decompressing so weight_packed survives loading.
+
+    In compressed-tensors >= 0.17 both ``_process_model_after_weight_loading`` and the
+    ``add_decompress_hook`` forward pre-hook would dequantize before conversion, so we no-op
+    both. Returns the originals for ``unpatch_compressed_tensors``.
+    """
+    try:
+        from transformers.quantizers.quantizer_compressed_tensors import (
+            CompressedTensorsHfQuantizer)
+        orig = CompressedTensorsHfQuantizer._process_model_after_weight_loading
+        CompressedTensorsHfQuantizer._process_model_after_weight_loading = (
+            lambda self, model, **kwargs: model)
+    except ImportError:
+        return None, None
+
+    orig_add_decompress_hook = None
+    try:
+        from compressed_tensors import ModelCompressor
+        orig_add_decompress_hook = ModelCompressor.add_decompress_hook
+        ModelCompressor.add_decompress_hook = lambda self, model: None
+    except ImportError:
+        pass
+
+    return orig, orig_add_decompress_hook
+
+
+def unpatch_compressed_tensors(orig):
+    orig_process, orig_add_decompress_hook = orig
+    if orig_process is not None:
+        try:
+            from transformers.quantizers.quantizer_compressed_tensors import (
+                CompressedTensorsHfQuantizer)
+            CompressedTensorsHfQuantizer._process_model_after_weight_loading = orig_process
+        except ImportError:
+            pass
+
+    if orig_add_decompress_hook is not None:
+        try:
+            from compressed_tensors import ModelCompressor
+            ModelCompressor.add_decompress_hook = orig_add_decompress_hook
+        except ImportError:
+            pass
+
+
+def decompress_compressed_tensors_model(model):
+    """Decompress a CT model in-place to get a framework reference forward.
+
+    Called only after OV conversion; pack-quantized CT modules have no working CPU forward
+    of their own, so this is the only way to a valid baseline once decompression is suppressed.
+    """
+    try:
+        from compressed_tensors import ModelCompressor
+    except ImportError:
+        return
+    compressor = ModelCompressor.from_compression_config(model.config.quantization_config)
+    compressor.decompress_model(model)
+
+
 def patch_gptq():
     orig_cuda_is_available = torch.cuda.is_available
     orig_cuda_is_bf16_supported = torch.cuda.is_bf16_supported
@@ -376,6 +441,8 @@ class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
         self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = None, None, None, None, None
+        self.ct_postinit = None
+        self.is_ct = False
         self.export_mode = False
 
     @retry(3, exceptions=(OSError,), delay=1)
@@ -389,9 +456,16 @@ class TestLLMModel(TestTorchConvertModel):
         except Exception:
             config = {}
         model_kwargs = {}
-        is_quant = is_quantized_model(config)
+        is_ct = is_compressed_tensors_model(config)
+        is_gptq_awq = is_quantized_model(config)
+        is_quant = is_ct or is_gptq_awq
 
-        if is_quant:
+        if is_ct:
+            self.ct_postinit = patch_compressed_tensors()
+            self.is_ct = True
+            model_kwargs["dtype"] = torch.float32
+            self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
+        elif is_gptq_awq:
             self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = patch_gptq()
             model_kwargs["dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
@@ -404,6 +478,11 @@ class TestLLMModel(TestTorchConvertModel):
         # dequantized weights) before any forward pass, to prevent gptqmodel
         # from repacking weights and to keep bitwise ops out of the graph.
         _replace_awq_with_linear(self.model)
+        if is_ct:
+            # CT has no packed forward; patch to ov_ext::ct_gemm before any forward so
+            # weight_packed survives to tracing. Restored in teardown_method.
+            from openvino.frontend.pytorch.quantized import patch_quantized
+            patch_quantized(self.model)
         if is_quant:
             model = self.model
         else:
@@ -520,6 +599,12 @@ class TestLLMModel(TestTorchConvertModel):
             ovm = super().convert_model_impl(self.model)
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
+        if self.is_ct:
+            # Undo the ov_ext::ct_gemm trampolines (which return placeholders), then
+            # decompress so infer_fw_model gets a real reference forward.
+            from openvino.frontend.pytorch.quantized import unpatch_quantized
+            unpatch_quantized(self.model)
+            decompress_compressed_tensors_model(self.model)
         return ovm
 
     def _convert_model_export(self, model_obj):
@@ -575,6 +660,15 @@ class TestLLMModel(TestTorchConvertModel):
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype)
             self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = None, None, None, None, None
+        # restore after compressed-tensors patching
+        if self.ct_postinit is not None:
+            unpatch_compressed_tensors(self.ct_postinit)
+            self.ct_postinit = None
+        if self.is_ct and getattr(self, "model", None) is not None:
+            # Safety net in case conversion raised before the decoder's own unpatch ran.
+            from openvino.frontend.pytorch.quantized import unpatch_quantized
+            unpatch_quantized(self.model)
+        self.is_ct = False
         super().teardown_method()
 
     @staticmethod
@@ -599,6 +693,8 @@ class TestLLMModel(TestTorchConvertModel):
                 ("opt_gptq", "katuni4ka/opt-125m-gptq"),
                 ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
                 ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+                ("llama_compressed_tensors",
+                 "optimum-intel-internal-testing/tiny-random-llama-compressed-tensors"),
             ])
         return models
 
@@ -620,7 +716,9 @@ class TestLLMModel(TestTorchConvertModel):
         ("bloom_gptq", "sbolouki/bloom-1b7-gptq"),
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
         ("mbart_gptq", "Shivam098/opt-translation"),
-        ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ")
+        ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ"),
+        ("qwen3_compressed_tensors",
+         "cyankiwi/Qwen3.5-4B-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
