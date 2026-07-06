@@ -36,15 +36,13 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
     auto data_m = any_input();
     auto offsets_m = any_input();
     auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types,
-                                                                        std::set<size_t>{3});
+        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
 
     // v17::GroupedMatMul has two legal input arities. Match both with a single Or root so
     // one MatcherPass covers 2D x 3D (with offsets) and 3D x 3D (no offsets).
     auto gmm_no_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_m, weights_block});
     auto gmm_with_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_m, weights_block, offsets_m});
-    auto gmm_m =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{gmm_no_offsets_m, gmm_with_offsets_m});
+    auto gmm_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{gmm_no_offsets_m, gmm_with_offsets_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -126,9 +124,7 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
                                                            gmm_input_scale,
                                                            gmm_input_zp);
             } else {
-                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
-                                                           gmm_input_b,
-                                                           gmm_input_scale);
+                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m), gmm_input_b, gmm_input_scale);
             }
         }
 
@@ -139,7 +135,6 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         return true;
     };
 
-    auto matcher =
-        std::make_shared<ov::pass::pattern::Matcher>(gmm_m, "ConvertGroupedMatMulToGroupedMatMulCompressed");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(gmm_m, "ConvertGroupedMatMulToGroupedMatMulCompressed");
     this->register_matcher(matcher, callback);
 }

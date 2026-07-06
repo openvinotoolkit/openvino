@@ -27,10 +27,9 @@ GroupedMatMulCompressed::GroupedMatMulCompressed(const ov::Output<Node>& mat_a,
     validate_and_infer_types();
 }
 
-std::shared_ptr<GroupedMatMulCompressed> GroupedMatMulCompressed::make_3d(
-    const ov::Output<Node>& mat_a,
-    const ov::Output<Node>& mat_b,
-    const ov::Output<Node>& decompression_scale) {
+std::shared_ptr<GroupedMatMulCompressed> GroupedMatMulCompressed::make_3d(const ov::Output<Node>& mat_a,
+                                                                          const ov::Output<Node>& mat_b,
+                                                                          const ov::Output<Node>& decompression_scale) {
     auto op = std::make_shared<GroupedMatMulCompressed>();
     op->set_arguments(ov::OutputVector{mat_a, mat_b, decompression_scale});
     op->validate_and_infer_types();
@@ -76,7 +75,10 @@ std::shared_ptr<ov::Node> GroupedMatMulCompressed::clone_with_new_inputs(const o
 
     const bool with_offsets = has_offsets();
     if (with_offsets && new_args.size() == 4) {
-        return std::make_shared<GroupedMatMulCompressed>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+        return std::make_shared<GroupedMatMulCompressed>(new_args.at(0),
+                                                         new_args.at(1),
+                                                         new_args.at(2),
+                                                         new_args.at(3));
     }
     if (with_offsets && new_args.size() == 5) {
         return std::make_shared<GroupedMatMulCompressed>(new_args.at(0),
