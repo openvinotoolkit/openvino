@@ -25,8 +25,11 @@ OutputVector translate_bincount(const NodeContext& context) {
     Output<Node> weights;
     if (!context.input_is_none(1)) {
         weights = context.get_input(1);
-    } else {
-        weights = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+        auto weights_type = weights.get_element_type();
+        // torch.bincount accumulates weights as float64, except float32 weights which keep their type
+        if (weights_type != element::f32 && weights_type != element::f64) {
+            weights = context.mark_node(std::make_shared<v0::Convert>(weights, element::f64));
+        }
     }
 
     Output<Node> minlength;

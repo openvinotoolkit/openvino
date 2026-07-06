@@ -30,7 +30,7 @@ OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>&
 OutputVector translate_bincount_common(const NodeContext& context,
                                        const Output<Node>& arr,
                                        const Output<Node>& size,
-                                       const Output<Node>& weights);
+                                       const Output<Node>& weights = Output<Node>());
 
 }  // namespace common_translators
 }  // namespace frontend

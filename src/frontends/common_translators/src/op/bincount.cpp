@@ -4,6 +4,7 @@
 
 #include "common_translators.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/multiply.hpp"
@@ -16,7 +17,6 @@ namespace ov {
 namespace frontend {
 namespace common_translators {
 
-using namespace std;
 using namespace ov::op;
 
 OutputVector translate_bincount_common(const NodeContext& context,
@@ -25,23 +25,30 @@ OutputVector translate_bincount_common(const NodeContext& context,
                                        const Output<Node>& weights) {
     auto start = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto step = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto range = context.mark_node(make_shared<v4::Range>(start, size, step, element::i32));
+    auto range = context.mark_node(std::make_shared<v4::Range>(start, size, step, element::i32));
 
     auto flatten_shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    auto arr_flat = context.mark_node(make_shared<v1::Reshape>(arr, flatten_shape, false));
-    auto weights_flat = context.mark_node(make_shared<v1::Reshape>(weights, flatten_shape, false));
+    auto arr_flat = context.mark_node(std::make_shared<v1::Reshape>(arr, flatten_shape, false));
 
     auto axis_zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto axis_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-    auto range_col = context.mark_node(make_shared<v0::Unsqueeze>(range, axis_one));
-    auto arr_row = context.mark_node(make_shared<v0::Unsqueeze>(arr_flat, axis_zero));
-    auto weights_row = context.mark_node(make_shared<v0::Unsqueeze>(weights_flat, axis_zero));
+    auto range_col = context.mark_node(std::make_shared<v0::Unsqueeze>(range, axis_one));
+    auto arr_row = context.mark_node(std::make_shared<v0::Unsqueeze>(arr_flat, axis_zero));
 
-    auto mask = context.mark_node(make_shared<v1::Equal>(range_col, arr_row));
-    auto mask_cast = context.mark_node(make_shared<v1::ConvertLike>(mask, weights_row));
-    auto weighted = context.mark_node(make_shared<v1::Multiply>(mask_cast, weights_row));
+    auto mask = context.mark_node(std::make_shared<v1::Equal>(range_col, arr_row));
+
+    Output<Node> weighted;
+    if (weights.get_node_shared_ptr()) {
+        auto weights_flat = context.mark_node(std::make_shared<v1::Reshape>(weights, flatten_shape, false));
+        auto weights_row = context.mark_node(std::make_shared<v0::Unsqueeze>(weights_flat, axis_zero));
+        auto mask_cast = context.mark_node(std::make_shared<v1::ConvertLike>(mask, weights_row));
+        weighted = context.mark_node(std::make_shared<v1::Multiply>(mask_cast, weights_row));
+    } else {
+        weighted = context.mark_node(std::make_shared<v0::Convert>(mask, element::i64));
+    }
+
     auto reduce_axis = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto result = context.mark_node(make_shared<v1::ReduceSum>(weighted, reduce_axis));
+    auto result = context.mark_node(std::make_shared<v1::ReduceSum>(weighted, reduce_axis));
 
     return {result};
 }

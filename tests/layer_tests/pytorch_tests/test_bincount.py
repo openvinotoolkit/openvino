@@ -58,6 +58,7 @@ class TestBincount(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
+            trace_model=True,
             dynamic_shapes=False,
             kwargs_to_prepare_input={
                 "input_data": input_data,
