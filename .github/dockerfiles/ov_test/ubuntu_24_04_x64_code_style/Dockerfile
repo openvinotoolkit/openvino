@@ -24,7 +24,6 @@ RUN apt-get update && \
         git \
         ca-certificates \
         wget \
-        cmake \
         lsb-release \
         gnupg \
         build-essential \

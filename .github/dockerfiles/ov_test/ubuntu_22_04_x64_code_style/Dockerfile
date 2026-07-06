@@ -23,7 +23,6 @@ RUN apt-get update && \
         curl \
         git \
         ca-certificates \
-        cmake \
         wget \
         build-essential \
         shellcheck \
