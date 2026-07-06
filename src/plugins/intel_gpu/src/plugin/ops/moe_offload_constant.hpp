@@ -25,7 +25,7 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
 struct PartialUploadDesc {
     bool enabled = false;
     cldnn::memory::ptr memory = nullptr;
-    ov::Shape upload_shape;
+    ov::Shape upload_shape{};
     size_t upload_bytes = 0;
 };
 

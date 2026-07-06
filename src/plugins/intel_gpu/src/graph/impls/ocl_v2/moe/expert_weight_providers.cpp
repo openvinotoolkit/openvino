@@ -9,9 +9,8 @@
 
 // moe_otd_runtime.hpp is not self-contained: it relies on cldnn graph/runtime
 // types (typed_primitive_inst, data_type_traits) being visible at include time.
-// primitive_ocl_base.hpp is the established prelude that brings them in, matching
-// how moe_3gemm_swiglu_opt.cpp includes the runtime header.
-#include "../primitive_ocl_base.hpp"
+// primitive_ocl_base.hpp is the established prelude that brings them in.
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
 #include "moe_otd_runtime.hpp"
 
 namespace ov::intel_gpu::ocl::moe {

@@ -62,8 +62,7 @@ public:
     // Binds device-resident weight buffers. Must be called once before any acquire.
     // For resident providers this is a no-op. For offload providers this stores the
     // buffer pointers used for streaming.
-    virtual void bind(cldnn::moe_weights& weights) {
-        (void)weights;
+    virtual void bind(cldnn::moe_weights& /*weights*/) {
     }
 
     // Returns true once bind() has been called (offloaded) or always true (resident).
