@@ -63,6 +63,13 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
 
     auto upload_layout = cldnn::layout(desc.upload_shape, out_dtype, const_format);
     auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
+    // Reinterpret the smaller physical allocation as the full constant layout.
+    // This is safe because only the first `upload_bytes` bytes are ever accessed:
+    // - The partial_upload path in constant.cpp skips the host→device memcpy.
+    // - At runtime, OTD loads on-demand into the first `resident_expert_num` slots only.
+    OPENVINO_ASSERT(upload_layout.bytes_count() <= const_layout.bytes_count(),
+                    "Partial upload layout (", upload_layout.bytes_count(),
+                    " bytes) exceeds full constant layout (", const_layout.bytes_count(), " bytes)");
     desc.memory = p.get_engine().reinterpret_buffer(*upload_mem, const_layout);
     desc.upload_bytes = upload_layout.bytes_count();
 

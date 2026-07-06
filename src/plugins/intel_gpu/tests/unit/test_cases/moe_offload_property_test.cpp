@@ -5,8 +5,10 @@
 #include "test_utils/test_utils.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
 
-using namespace cldnn;
-using namespace tests;
+namespace ov::test {
+
+using ::tests::get_test_default_config;
+using ::tests::get_test_engine;
 
 TEST(moe_offload_property_test, execution_config_roundtrip) {
     auto config = get_test_default_config(get_test_engine());
@@ -17,3 +19,5 @@ TEST(moe_offload_property_test, execution_config_roundtrip) {
 
     ASSERT_EQ(config.get_moe_offload_ratio(), 37U);
 }
+
+}  // namespace ov::test

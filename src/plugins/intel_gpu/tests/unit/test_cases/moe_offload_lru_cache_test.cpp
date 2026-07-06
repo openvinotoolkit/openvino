@@ -23,7 +23,6 @@ TEST(moe_lru_cache, initial_state) {
     LRUCache cache(4);
 
     ASSERT_EQ(cache.size(), 0U);
-    ASSERT_EQ(cache.size(), 0U);
     ASSERT_FALSE(cache.is_initialized());
 }
 

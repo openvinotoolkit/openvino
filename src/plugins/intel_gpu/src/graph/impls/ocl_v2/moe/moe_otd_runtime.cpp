@@ -46,7 +46,7 @@ OtdPerfCounters* get_perf_counters() {
     return &counters;
 }
 
-ParallelWeightReader& get_thread_local_weight_reader(const std::string& weights_path) {
+ParallelWeightReader& get_thread_local_weight_reader(const std::filesystem::path& weights_path) {
     thread_local std::unique_ptr<ParallelWeightReader> reader;
     if (!reader || reader->path() != weights_path) {
         reader = std::make_unique<ParallelWeightReader>(weights_path);
@@ -149,7 +149,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
-                         const std::string& weights_path,
+                         const std::filesystem::path& weights_path,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts) {

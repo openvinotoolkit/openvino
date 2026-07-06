@@ -39,9 +39,9 @@ OtdPerfCounters* get_perf_counters();
 
 class ParallelWeightReader {
 public:
-    explicit ParallelWeightReader(const std::string& weights_path) : _weights_path(weights_path) {
+    explicit ParallelWeightReader(const std::filesystem::path& weights_path) : _weights_path(weights_path) {
         std::streamoff file_size = 0;
-        ov::util::get_file_handle_and_size(std::filesystem::path(weights_path), 0, _shared_handle, file_size);
+        ov::util::get_file_handle_and_size(weights_path, 0, _shared_handle, file_size);
         _file_size = static_cast<size_t>(file_size);
     }
 
@@ -49,7 +49,7 @@ public:
         ov::util::close_file_handle(_shared_handle);
     }
 
-    const std::string& path() const {
+    const std::filesystem::path& path() const {
         return _weights_path;
     }
 
@@ -64,12 +64,12 @@ public:
     }
 
 private:
-    std::string _weights_path;
+    std::filesystem::path _weights_path;
     ov::FileHandle _shared_handle{};
     size_t _file_size = 0;
 };
 
-ParallelWeightReader& get_thread_local_weight_reader(const std::string& weights_path);
+ParallelWeightReader& get_thread_local_weight_reader(const std::filesystem::path& weights_path);
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const char* tensor_name,
@@ -80,7 +80,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
-                         const std::string& weights_path,
+                         const std::filesystem::path& weights_path,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts);

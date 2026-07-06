@@ -10,11 +10,9 @@
 
 #include <array>
 #include <cstdlib>
-#include <filesystem>
 #include <limits>
 #include <unordered_map>
 
-#include "moe_legacy_xml_offset_resolver.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -52,16 +50,13 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     }
     const bool otd_enabled = lru_expert_num > 0;
     if (otd_enabled) {
-        const auto& rt = model->get_rt_info();
-        auto it = rt.find("__weights_path");
-        OPENVINO_ASSERT(it != rt.end(), "Model rt_info is missing '__weights_path' required by OTD");
-        weights_path = it->second.as<std::string>();
+        weights_path = p.get_config().get_weights_path();
+        OPENVINO_ASSERT(!weights_path.empty(),
+                        "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
+                        "Please set ov::weights_path when compiling the model.");
     }
 
-    // Lazy-initialized XML offset resolver (only used when WeightlessCacheAttribute is missing).
-    std::unique_ptr<moe_offload::MoeLegacyXmlOffsetResolver> xml_resolver;
-
-    auto get_const_offset = [&](size_t index, size_t offset_slot) -> size_t {
+    auto get_const_offset = [&](size_t index, size_t /*offset_slot*/) -> size_t {
         auto node = op->input_value(index).get_node_shared_ptr();
         auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
         OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed");
@@ -72,21 +67,12 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
             return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
         }
 
-        // Try buffer descriptor offset (works when constant data is mmap'd from bin file).
+        // Buffer descriptor offset (works when constant data is mmap'd from bin file).
         auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
-        if (source_buf) {
-            return ov::weight_sharing::Extension::get_constant_id(*const_op);
-        }
-
-        // Legacy fallback: parse offsets from the IR XML file.
-        if (!xml_resolver) {
-            xml_resolver = std::make_unique<moe_offload::MoeLegacyXmlOffsetResolver>(weights_path);
-        }
-        OPENVINO_ASSERT(xml_resolver->is_ready(),
-                        "Missing WeightlessCacheAttribute and failed to initialize xml-based offset lookup for "
-                        "MOE3GemmFusedCompressed constant input");
-
-        return xml_resolver->resolve(const_op, op->get_friendly_name(), offset_slot);
+        OPENVINO_ASSERT(source_buf,
+                        "OTD: Cannot determine bin offset for MOE weight constant. "
+                        "Neither WeightlessCacheAttribute nor mmap source buffer is available.");
+        return ov::weight_sharing::Extension::get_constant_id(*const_op);
     };
 
     const std::array<size_t, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> const_input_idx_by_offset = {

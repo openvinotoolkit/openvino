@@ -28,7 +28,7 @@ size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream&
 OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
                                                          const cldnn::MOECompressed::Config& config,
                                                          std::vector<size_t> weight_bin_offsets,
-                                                         std::string weights_path)
+                                                         std::filesystem::path weights_path)
     : _capacity(capacity),
       _config(config),
       _weight_bin_offsets(std::move(weight_bin_offsets)),
