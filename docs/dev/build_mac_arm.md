@@ -27,7 +27,7 @@ The software was validated on:
   ```sh
   % xcode-select --install
   ```
-- [CMake](https://cmake.org/download/) 3.29 or higher and other build dependencies:
+- [CMake](https://cmake.org/download/) 3.26 or higher and other build dependencies:
   ```sh
   % brew install cmake scons fdupes git-lfs ninja
   ```

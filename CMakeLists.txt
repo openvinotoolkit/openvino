@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# 3.29 is required by the bundled ONNX version.
-cmake_minimum_required(VERSION 3.29)
+# 3.26 is required by the bundled ONNX version.
+cmake_minimum_required(VERSION 3.26)
 
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
