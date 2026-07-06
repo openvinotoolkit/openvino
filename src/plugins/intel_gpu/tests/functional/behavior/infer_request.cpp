@@ -106,8 +106,7 @@ static std::shared_ptr<ov::Model> makeStaticInputModel(ov::Shape& shape_out) {
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
 }
 
-// Regression: a static input must be inferable when set_tensor() is never called. The reserved
-// (null) slot is materialized lazily in enqueue(), and check_tensors() must not fail for it.
+// Static input must be inferable when set_tensor() is never called.
 TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
     ov::Shape shape;
     auto model = makeStaticInputModel(shape);
@@ -116,10 +115,8 @@ TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
 
-    // Do NOT set any input tensor: the slot stays reserved until enqueue() allocates it.
     OV_ASSERT_NO_THROW(request.infer());
 
-    // The lazily-allocated input tensor must now be valid and correctly shaped.
     ov::Tensor in;
     OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
     ASSERT_EQ(in.get_shape(), shape);
@@ -127,9 +124,7 @@ TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
     OV_ASSERT_NO_THROW(request.get_output_tensor(0));
 }
 
-// Regression: accessing the input via get_tensor() before infer() must materialize the reserved
-// slot on the const get_tensor() path (a different entry point than enqueue()), and inference
-// must still work afterwards.
+// get_tensor() before infer() must also materialize the lazy slot.
 TEST(TensorTest, smoke_lazyAllocStaticInputGetTensorBeforeInfer) {
     ov::Shape shape;
     auto model = makeStaticInputModel(shape);
@@ -138,13 +133,62 @@ TEST(TensorTest, smoke_lazyAllocStaticInputGetTensorBeforeInfer) {
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
 
-    // First access via get_tensor() must materialize the reserved slot.
     ov::Tensor in;
     OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
     ASSERT_EQ(in.get_shape(), shape);
     ASSERT_NE(in.data(), nullptr);
 
     OV_ASSERT_NO_THROW(request.infer());
+}
+
+// AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
+// by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
+TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
+    constexpr int kBatch = 4;
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    // Non-zero timeout so requests are actually batched together (same value used in
+    // auto_batch/tests/functional/behavior/ov_plugin/auto_batching_tests.cpp).
+    auto compiled_model = core.compile_model(model,
+                                             "BATCH:" + std::string(ov::test::utils::DEVICE_GPU) +
+                                                 "(" + std::to_string(kBatch) + ")",
+                                             ov::auto_batch_timeout(1000));
+
+    std::vector<ov::InferRequest> requests;
+    for (int i = 0; i < kBatch; ++i) {
+        requests.push_back(compiled_model.create_infer_request());
+    }
+
+    // Distinct value per slot: an offset bug would mix these together.
+    for (int i = 0; i < kBatch; ++i) {
+        ov::Tensor in;
+        OV_ASSERT_NO_THROW(in = requests[i].get_input_tensor(0));
+        ASSERT_EQ(in.get_shape(), shape);
+        auto* in_data = in.data<float>();
+        ASSERT_NE(in_data, nullptr);
+        std::fill_n(in_data, in.get_size(), static_cast<float>(i + 1));
+    }
+
+    for (auto& req : requests) {
+        OV_ASSERT_NO_THROW(req.start_async());
+    }
+    for (auto& req : requests) {
+        OV_ASSERT_NO_THROW(req.wait());
+    }
+
+    // Relu(i+1) == i+1; a corrupted shared buffer would mix values across slots.
+    for (int i = 0; i < kBatch; ++i) {
+        ov::Tensor out;
+        OV_ASSERT_NO_THROW(out = requests[i].get_output_tensor(0));
+        ASSERT_EQ(out.get_shape(), shape);
+        const auto* data = out.data<float>();
+        ASSERT_NE(data, nullptr);
+        for (size_t j = 0; j < out.get_size(); ++j) {
+            ASSERT_FLOAT_EQ(data[j], static_cast<float>(i + 1)) << "slot " << i << " element " << j;
+        }
+    }
 }
 
 static std::shared_ptr<ov::Model> makeDynamicInputModel() {
@@ -177,11 +221,8 @@ TEST(TensorTest, smoke_eagerAllocDynamicInputInfer) {
     ASSERT_EQ(out.get_shape(), concrete);
 }
 
-// Data-race guard for the lazy input path: many threads race on the first get_tensor() of a fresh
-// request, all hitting the reserved-null slot at once. The double-checked lock in
-// ensure_input_allocated() must collapse them into one allocation, so every thread must observe the
-// same backing buffer. A fresh request per iteration re-arms the race. Run under TSan for full
-// coverage (TSan is Linux-only; on Windows this still catches divergent-buffer/crash regressions).
+// Many threads race on the first get_tensor() of a fresh request; ensure_input_allocated()'s
+// lock must collapse them into a single allocation so all threads observe the same buffer.
 TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
     ov::Shape shape;
     auto model = makeStaticInputModel(shape);
@@ -195,8 +236,7 @@ TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
     std::atomic<bool> failed{false};
 
     for (int iter = 0; iter < kIterations && !failed.load(); ++iter) {
-        // Fresh request: input slot starts reserved (null), so the first get_tensor() from any
-        // thread races to materialize it. No infer() runs, so the async BUSY gate does not serialize.
+        // Fresh request re-arms the race for each iteration.
         auto request = compiled_model.create_infer_request();
 
         std::atomic<int> ready{0};
@@ -208,7 +248,6 @@ TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
         for (int t = 0; t < kThreads; ++t) {
             threads.emplace_back([&, t] {
                 ready.fetch_add(1, std::memory_order_acq_rel);
-                // yield-spin until released: all threads hit get_tensor() at nearly the same instant.
                 while (!go.load(std::memory_order_acquire)) {
                     std::this_thread::yield();
                 }
@@ -225,7 +264,7 @@ TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
             });
         }
 
-        // Release all threads at once to maximize contention on the reserved-null slot.
+        // Release all threads at once to maximize contention.
         while (ready.load(std::memory_order_acquire) < kThreads) {
             std::this_thread::yield();
         }
@@ -235,8 +274,7 @@ TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
             th.join();
         }
 
-        // Every racer must have been handed the SAME buffer; a divergent pointer means the
-        // double-checked lock failed to collapse duplicate allocations (a real race).
+        // All racers must observe the same buffer.
         const void* first = observed[0];
         for (int t = 1; t < kThreads; ++t) {
             if (observed[t] != first) {
