@@ -360,7 +360,7 @@ public:
         OPENVINO_ASSERT(memory_type == MemType::CPU_VA,
                         "Only CPU_POINTER memory type is supported for CPU pointer overload");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
-                         {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
+                         {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 

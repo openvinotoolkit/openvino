@@ -184,7 +184,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
             } else if (ov::intel_gpu::SharedMemType::CPU_VA == mem_type) {
                 tensor_type = TensorType::BT_CPU_VA;
-                mem = extract_object(params, ov::intel_gpu::mem_handle);
+                mem = extract_object(params, ov::intel_gpu::cpu_va);
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
