@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -24,8 +25,7 @@ public:
                      std::shared_ptr<ov::AlignedBuffer> source_handle)
         : ov::LazyBuffer(std::move(file_path), offset, size),
           m_source_handle(std::move(source_handle)),
-          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {
-    }
+          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {}
 
     std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
         return m_descriptor;
@@ -71,22 +71,8 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
         return found->second;
     }
 
-    std::ifstream weights_stream(m_weights_path, std::ios::binary);
-    OPENVINO_ASSERT(weights_stream.is_open(), m_weights_path, " cannot be opened");
-
-    weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
-    OPENVINO_ASSERT(weights_stream.good(), "Failed to seek weights file ", m_weights_path, " to offset ", offset);
-
-    auto buffer = std::make_shared<FileRegionBuffer>(size, m_weights_source_id, offset, m_weights_source_handle);
-
-    weights_stream.read(buffer->get_ptr<char>(), static_cast<std::streamsize>(size));
-    OPENVINO_ASSERT(static_cast<size_t>(weights_stream.gcount()) == size,
-                    "Failed to read ",
-                    size,
-                    " bytes from weights file ",
-                    m_weights_path,
-                    " at offset ",
-                    offset);
+    auto buffer =
+        std::make_shared<FileRegionBuffer>(m_weights_path, size, m_weights_source_id, offset, m_weights_source_handle);
 
     m_loaded_weights_regions.emplace(key, buffer);
 
