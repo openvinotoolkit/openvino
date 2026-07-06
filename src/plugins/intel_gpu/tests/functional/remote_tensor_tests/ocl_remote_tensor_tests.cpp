@@ -2959,8 +2959,6 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     const ov::Shape shape{cacheline_size/float_size};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
-    
-    
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
     void* input_ptr = ov::util::aligned_alloc(byte_size, byte_size);
     void* output_ptr = ov::util::aligned_alloc(byte_size, byte_size);

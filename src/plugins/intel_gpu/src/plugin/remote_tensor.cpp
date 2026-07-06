@@ -13,18 +13,17 @@
 #include <memory>
 
 namespace ov::intel_gpu {
-constexpr size_t minimal_alignment_no_copy = 64;
 
 namespace {
-static bool is_no_copy_aligned_ptr(const void* ptr) {
+static bool is_aligned_ptr(const void* ptr, size_t alignment) {
     if (ptr == nullptr)
         return false;
 
-    return (reinterpret_cast<std::uintptr_t>(ptr) % minimal_alignment_no_copy) == 0;
+    return (reinterpret_cast<std::uintptr_t>(ptr) % alignment) == 0;
 }
 
-static bool is_no_copy_aligned_size(size_t size) {
-    return (size % minimal_alignment_no_copy) == 0;
+static bool is_aligned_size(size_t size, size_t alignment) {
+    return (size % alignment) == 0;
 }
 
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
@@ -366,10 +365,11 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         // definition: repo compute-runtime\opencl\source\mem_obj\buffer.cpp Buffer::checkMemory zero copy conditions
-        OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
-                        "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
-        OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
-                        "[GPU] shared buffer size must be a multiple of ", minimal_alignment_no_copy, " bytes");
+        const size_t minimal_alignment = static_cast<size_t>(engine.get_device_info().cacheline_size);
+        OPENVINO_ASSERT(is_aligned_ptr(m_mem, minimal_alignment),
+                        "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
+        OPENVINO_ASSERT(is_aligned_size(m_layout.bytes_count(), minimal_alignment),
+                        "[GPU] shared buffer size must be a multiple of ", minimal_alignment, " bytes");
 
         m_memory_object = engine.create_hostbuffer(m_mem,
                                         m_layout.bytes_count(),
