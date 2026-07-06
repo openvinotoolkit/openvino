@@ -180,7 +180,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.cacheline_size = 0;
     OV_ZE_EXPECT(ze::zeDeviceGetCacheProperties(device, &count, &devCacheProps));
     if (count > 0) {
-        info.cacheline_size = devCacheLineSize.cacheLineSize;
+        info.cacheline_size = static_cast<int32_t>(devCacheLineSize.cacheLineSize);
     }
     
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
