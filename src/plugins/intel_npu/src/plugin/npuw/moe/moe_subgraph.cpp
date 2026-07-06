@@ -90,22 +90,27 @@ const T* get_compiled_state(const ov::npuw::v1::subgraphs::Context& context) {
     return state == nullptr ? nullptr : state->get();
 }
 
-std::shared_ptr<ov::Model> find_router_model(ov::npuw::v1::subgraphs::Context& ctx) {
+static std::optional<size_t> find_moe_k_value(ov::npuw::v1::subgraphs::Context& ctx) {
     auto* callbacks = ctx.get_if<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
-    if (callbacks == nullptr || !callbacks->find_tagged_model) {
-        return nullptr;
+    if (callbacks == nullptr || !callbacks->find_node_with_rt_info) {
+        return std::nullopt;
     }
-    return callbacks->find_tagged_model(ov::npuw::patterns::moe::ROUTER_TAG);
+    auto node = callbacks->find_node_with_rt_info(ov::npuw::patterns::moe::RT_INFO_MOE_K);
+    if (!node) {
+        return std::nullopt;
+    }
+    return node->get_rt_info().at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>();
 }
 
 void transform_experts(ov::npuw::Function& function,
                        ov::npuw::v1::subgraphs::Context& ctx,
                        const std::size_t moe_chunk_size) {
-    auto router_model = find_router_model(ctx);
-    if (!router_model) {
+    auto k_value = find_moe_k_value(ctx);
+    if (!k_value.has_value()) {
+        LOG_WARN("MoE K value not found in context; skipping expert transformation");
         return;
     }
-    auto experts = ov::npuw::function::MoEExperts::from(function._model, router_model, moe_chunk_size);
+    auto experts = ov::npuw::function::MoEExperts::from(function._model, k_value.value(), moe_chunk_size);
     if (experts.has_value()) {
         ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
     }
@@ -153,11 +158,12 @@ void configure_expert_compile(ov::npuw::v1::subgraphs::CompiledPipeline& compile
 }
 
 void transform_downstream(ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
-    auto router_model = find_router_model(ctx);
-    if (!router_model) {
+    auto k_value = find_moe_k_value(ctx);
+    if (!k_value.has_value()) {
+        LOG_WARN("MoE K value not found in context; skipping downstream transformation");
         return;
     }
-    auto downstream = ov::npuw::function::create_moe_downstream(function._model, router_model);
+    auto downstream = ov::npuw::function::create_moe_downstream(function._model, k_value.value());
     if (downstream.has_value()) {
         ctx.put<ov::npuw::function::MoEDownstream>(std::move(downstream.value()));
     }
@@ -336,12 +342,24 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::size_t moe_chunk_size) {
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
-    registrations.reserve(3);
+    registrations.reserve(5);
 
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Router>().scoped());
 
     registrations.emplace_back(
         registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
+            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
+                transform_experts(function, ctx, moe_chunk_size);
+            })
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                           ov::npuw::v1::subgraphs::Context& compiled_context) {
+                configure_expert_compile(compiled_pipeline, compiled_context);
+            })
+            .scoped());
+
+    registrations.emplace_back(
+        registry.on<ov::npuw::patterns::moe::Qwen3Expert>()
             .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
                 transform_experts(function, ctx, moe_chunk_size);
             })

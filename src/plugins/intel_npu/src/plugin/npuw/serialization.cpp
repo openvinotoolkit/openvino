@@ -80,22 +80,55 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
     stream & var.idx & var.dim;
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
     stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
+    // Output only — dynamic_cast dispatch; input path handled by make_pyramid_from_stream.
+    if (auto* c = dynamic_cast<ov::npuw::compiled::PyramidAttentionContiguous*>(&var)) {
+        serialize(stream, *c);
+    } else if (auto* b = dynamic_cast<ov::npuw::compiled::PyramidAttentionBlock*>(&var)) {
+        serialize(stream, *b);
+    }
+}
+
+std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyramid_from_stream(Stream& stream,
+                                                                                              uint8_t tag) {
+    if (tag == 0u) {
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
+        serialize(stream, *obj);
+        return obj;
+    } else {
+        NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
+        serialize(stream, *obj);
+        return obj;
+    }
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
     stream & var.params & var.mask_idx & var.query_size & var.context_length;
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
     stream & var.idx & var.dim;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
+    stream & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
+        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
-        info._sdpa_indices.past_key & info._sdpa_indices.past_value & info._sdpa_indices.present_key &
+        info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &

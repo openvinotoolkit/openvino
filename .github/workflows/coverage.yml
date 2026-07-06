@@ -24,7 +24,6 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
@@ -180,8 +179,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -471,8 +470,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -663,8 +662,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -801,8 +800,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -992,7 +991,7 @@ jobs:
           upload-file: ${{ matrix.upload.file }}
 
       - name: Upload Codecov (${{ matrix.upload.name }})
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ steps.upload_files.outputs.files }}

@@ -70,11 +70,16 @@ on:
         type: boolean
         required: false
         default: false
+      install-frontend-test-deps:
+        description: 'Whether to install TensorFlow/TFLite/Paddle frontend unit test requirements (no Python 3.14 wheels yet)'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -115,6 +120,8 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
       COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
+      PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
+      PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -194,14 +201,18 @@ jobs:
           # For running ONNX frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+          if [[ "${INSTALL_FE_TEST_DEPS}" == "true" ]]; then
+            # For running TensorFlow frontend unit tests
+            python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
 
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
+            # For running TensorFlow Lite frontend unit tests
+            python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
 
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+            # For running Paddle frontend unit tests
+            python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          fi
+        env:
+          INSTALL_FE_TEST_DEPS: ${{ inputs.install-frontend-test-deps }}
 
       #
       # Build
@@ -290,9 +301,9 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
-          # Ubuntu 24 does not allow using the system Python directly so
+          # Ubuntu 24+ does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
-          [[ "${OS}" == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          [[ "${OS}" == "ubuntu_24_04" || "${OS}" == "ubuntu_26_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \

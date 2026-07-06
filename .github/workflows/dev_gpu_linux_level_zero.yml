@@ -13,6 +13,10 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-level-zero-dev
@@ -46,7 +50,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -123,7 +127,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      test_filter: '*fully_connected*'
+      test_filter: '*smoke*fully_connected*:*convolution_gpu_bfyx_f16*:*convolution_f16_fw_gpu*:*smoke*convolution*:-*deconvolution*:-*DISABLED*:'
 
   Arc_B50_dGPU_func:
       name: Arc B50 dGPU Functional Tests Level Zero

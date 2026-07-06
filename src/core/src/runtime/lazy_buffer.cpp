@@ -37,13 +37,16 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
                     " for file: ",
                     m_file_path);
 
-    m_aligned_buffer = static_cast<char*>(util::reserve_buffer(m_byte_size));
-    OPENVINO_ASSERT(m_aligned_buffer != nullptr, "Failed to reserve memory for LazyBuffer");
+    std::error_code ec;
+    m_aligned_buffer = static_cast<char*>(util::vm_reserve(m_byte_size, ec));
+    OPENVINO_ASSERT(m_aligned_buffer != nullptr, "Failed to reserve memory for LazyBuffer. Error: ", ec.message());
 }
 
 LazyBuffer::~LazyBuffer() {
-    util::release_buffer(m_aligned_buffer, m_byte_size);
-    m_aligned_buffer = nullptr;
+    if (m_aligned_buffer) {
+        util::vm_release(m_aligned_buffer, m_byte_size);
+        m_aligned_buffer = nullptr;
+    }
     m_byte_size = 0;
 }
 
@@ -70,11 +73,9 @@ void LazyBuffer::hint_prefetch() const {
             return;
         }
 
-        std::string error;
-        util::acquire_buffer(m_aligned_buffer, m_byte_size, &error);
-        if (!error.empty()) {
-            OPENVINO_THROW("Failed to acquire memory for LazyBuffer. Error: ", error);
-        }
+        std::error_code ec;
+        util::vm_commit(m_aligned_buffer, m_byte_size, ec);
+        OPENVINO_ASSERT(!ec, "Failed to commit memory for LazyBuffer. Error: ", ec.message());
 
         try {
             util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(m_offset));
@@ -84,7 +85,7 @@ void LazyBuffer::hint_prefetch() const {
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
             m_loaded.store(true, std::memory_order_release);
         } catch (...) {
-            util::evict_buffer(m_aligned_buffer, m_byte_size);
+            util::vm_decommit(m_aligned_buffer, m_byte_size);
             throw;
         }
     }
@@ -99,7 +100,7 @@ void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
         try {
             std::lock_guard lock{m_loading};
             if (m_loaded.load(std::memory_order_relaxed)) {
-                util::evict_buffer(m_aligned_buffer, m_byte_size);
+                util::vm_decommit(m_aligned_buffer, m_byte_size);
                 m_loaded.store(false, std::memory_order_release);
             }
         } catch (...) {

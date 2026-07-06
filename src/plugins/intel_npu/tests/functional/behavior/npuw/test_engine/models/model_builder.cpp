@@ -654,7 +654,12 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
     }
     // config.rope set without position_ids means RoPE was pre-built with position_ids baked in
     if (position_ids_output.get_node() && !config.rope) {
-        config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        if (config.rotary_dim > 0 && config.rotary_dim < config.head_dim) {
+            config.rope =
+                PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
+        } else {
+            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        }
     }
 
     return position_ids_output;
@@ -674,10 +679,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
     LLMConfig config = config_in;
+    OPENVINO_ASSERT(!config.is_linear_layer || config.use_kv_cache,
+                    "Hybrid models require use_kv_cache — SSM/conv states are inherently stateful");
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn) {
         if (config.num_experts > 0) {
+            // Build the FFN from the config's MoE fields; moe_factory selects the topology (empty = GPT-OSS).
             size_t moe_inter = config.moe_intermediate_size > 0
                                    ? config.moe_intermediate_size
                                    : config.intermediate_size;
@@ -687,8 +695,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
             OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
                             "Invalid MoE config: num_experts_per_tok (",
                             moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
-            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts,
-                                moe_k, config.precision);
+            if (!config.moe_factory) {
+                config.moe_factory = make_gptoss_moe_ffn;
+            }
+            config.ffn = config.moe_factory(config.hidden_size, moe_inter, config.num_experts, moe_k, config.precision);
         } else {
             config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
         }
@@ -720,7 +730,36 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         beam_idx_output = beam_idx->output(0);
     }
 
-    auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+    ov::Output<ov::Node> token_type_ids_output;
+    if (config.use_token_type_ids) {
+        auto tti = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "token_type_ids");
+        token_type_ids_output = tti->output(0);
+    }
+
+    const bool has_sliding = config.sliding_window_size > 0;
+    const bool has_full_layers = !has_sliding || config.sliding_to_full_ratio > 0;
+
+    ov::Output<ov::Node> full_mask;
+    ov::Output<ov::Node> sliding_mask;
+
+    if (has_full_layers) {
+        full_mask = config.boolean_causal_mask ? make_causal_mask_boolean(seq_source, attention_mask->output(0), prec)
+                                               : make_causal_mask(seq_source, attention_mask->output(0), prec);
+    }
+    if (has_sliding) {
+        const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
+        sliding_mask = mask_fn(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
+    }
+
+    // Apply VLM bidirectional modifier for image tokens
+    if (token_type_ids_output.get_node()) {
+        if (full_mask.get_node())
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
+        if (sliding_mask.get_node())
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, seq_source, prec);
+    }
+
+    auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
@@ -744,10 +783,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.bias_fn = config.attn_bias;
     attn.qk_norm = config.qk_norm;
     attn.rope_fn = config.rope;
-    attn.sdpa_mask = sdpa_mask;
+    attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
+    attn.output_gate = config.attn_output_gate;
 
-    if (config.use_kv_cache) {
+    // Non-hybrid: standard past_key_values naming. Hybrid full-attention layers get
+    // per-attn-layer cache_params naming (set below inside build_full_attn_layer).
+    if (config.use_kv_cache && !config.is_linear_layer) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
@@ -772,30 +814,68 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         };
     }
 
+    // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
+    if (config.is_linear_layer) {
+        OPENVINO_ASSERT(config.linear_mixer, "Hybrid models require config.linear_mixer to be set");
+        config.linear_mixer->seq_source = seq_source;
+        config.linear_mixer->beam_idx = beam_idx_output;
+    }
+
+    size_t linear_layer_count = 0;
+    size_t attn_layer_count = 0;
+
+    auto build_full_attn_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+        // Local copy so per-layer kv_cache_fn wiring never mutates the shared `attn`.
+        Attention layer_attn = attn;
+        if (config.use_kv_cache && config.is_linear_layer) {
+            // Hybrid attention layers use per-attn-layer cache_params naming (separate from conv/ssm).
+            auto attn_idx = attn_layer_count;
+            layer_attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                                   const ov::Output<ov::Node>& v_proj,
+                                                   size_t /*layer*/) {
+                auto idx_str = std::to_string(attn_idx);
+                auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("key", idx_str), prec);
+                auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("value", idx_str), prec);
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+                return std::pair{k_cache.concatenated, v_cache.concatenated};
+            };
+        }
+        ++attn_layer_count;
+        auto fn = [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            return layer_attn(normed, {}, pfx, layer);
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
+    auto build_linear_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t /*layer*/) {
+        auto lin_idx = linear_layer_count++;
+        auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            MixerResult r = config.linear_mixer->build(normed, pfx, lin_idx);
+            m_sinks.insert(m_sinks.end(), r.sinks.begin(), r.sinks.end());
+            return r.output;
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
-                                    if (config.pre_norm) {
-                                        return make_pre_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-                                                return attn(normed, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    } else {
-                                        return make_post_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
-                                                return attn(inp, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
+                                    if (config.is_linear_layer && config.is_linear_layer(layer)) {
+                                        return build_linear_layer(input, prefix, layer);
                                     }
+                                    // Per-layer mask: N sliding layers then 1 full, repeating.
+                                    if (has_sliding && config.sliding_to_full_ratio > 0) {
+                                        const size_t cycle = config.sliding_to_full_ratio + 1;
+                                        attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
+                                    }
+                                    return build_full_attn_layer(input, prefix, layer);
                                 });
 
     auto final_norm = config.norm(current, "model.norm");
@@ -936,7 +1016,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.");
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", config.boolean_causal_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};

@@ -38,6 +38,9 @@ protected:
     void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
 
     bool _isTensorChanged = false;
+
+private:
+    std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
 };
 
 }  //  namespace intel_npu
