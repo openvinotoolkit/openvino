@@ -91,9 +91,6 @@ public:
         auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
         auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
-        // Empty (not a baked scalar) so the model works for batched requests: a
-        // per-sequence input sized [1] would be asserted against B_seq and fail
-        // for B_seq > 1. Empty means "no score aggregation" and is simply skipped.
         auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
         auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
