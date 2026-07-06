@@ -87,6 +87,10 @@ async function main() {
   // Compile the model for a device: "CPU", "GPU", or "NPU"
   const compiledModel = await core.compileModel(model, "CPU");
 
+  // Allocate an input tensor (fill it with real input data for your model)
+  const input = compiledModel.inputs[0];
+  const inputTensor = new ov.Tensor(ov.element.f32, input.shape);
+
   // Create an infer request, set input, and run inference
   const inferRequest = compiledModel.createInferRequest();
   inferRequest.setInputTensor(inputTensor);
