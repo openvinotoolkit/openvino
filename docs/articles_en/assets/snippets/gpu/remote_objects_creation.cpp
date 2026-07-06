@@ -52,8 +52,8 @@ int main() {
     // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
     // and the allocation size must be a multiple of cache line size.
     const size_t size = input_size * in_element_type.size();
-    std::string target_device = "GPU";
-    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    const std::string target_device = "GPU";
+    const uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
     void* cpu_pointer = ov::util::aligned_alloc(size, cacheline_size);
     // end of optimal Allocation part
     {
