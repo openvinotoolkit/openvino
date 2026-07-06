@@ -179,6 +179,11 @@ xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
 xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")
 
+# ONNX 1.20.1
+xfail_issue_176099 = pytest.mark.skip(reason="Unsupported data types INT2/UINT2 in Cast, CastLike, QuantizeLinear, DequantizeLinear")
+xfail_issue_176100 = pytest.mark.skip(reason="Unsupported element type: FLOAT8E8M0")
+xfail_issue_176101 = pytest.mark.skip(reason="TensorScatter-24 operation is not supported")
+
 # Attention op (ONNX opset 23/24) -- requires ONNX >= 1.23; CI uses ONNX 1.18.
 # Tests pass locally when ONNX >= 1.23 is installed.
 xfail_attention_onnx_version = pytest.mark.skip(reason="Attention op tests require ONNX >= 1.23; CI uses ONNX 1.18")
