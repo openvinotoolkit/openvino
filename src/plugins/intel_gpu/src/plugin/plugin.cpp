@@ -754,8 +754,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::cacheline_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
         ov::PropertyName{ov::compatibility_check.name(), PropertyMutability::RO},
 

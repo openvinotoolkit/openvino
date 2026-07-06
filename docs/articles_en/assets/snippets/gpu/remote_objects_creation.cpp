@@ -55,7 +55,7 @@ int main() {
     const std::string target_device = "GPU";
     const uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
     void* cpu_pointer = ov::util::aligned_alloc(size, cacheline_size);
-    // end of optimal Allocation part
+    // end of Allocation part
     {
         // real wrapping cpu pointer to remote tensor
         auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
