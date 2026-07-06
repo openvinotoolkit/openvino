@@ -23,7 +23,7 @@
                                         INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx)); \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
@@ -35,19 +35,19 @@
                                         } \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
 #define FUNC_VSTORE(loop)           unroll_for (uint lw = 0; lw < loop; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
-                                        VSTORE(TO_OUTPUTVTYPE(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(transpose_buf[local_buf_offset + lw], TILE_SIZE)), 0, output + output_idx); \
+                                        VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx); \
                                     }
 
 #define FUNC_WRITE(inner, outer)    unroll_for (uint lw = 0; lw < outer; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
                                         unroll_for (uint i = 0; i < inner; ++i) { \
-                                            output[output_idx + i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS)); \
+                                            output[output_idx + i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS)); \
                                         } \
                                     }
 
@@ -115,7 +115,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 #endif
 
     // get local buf offset
-    __local INPUTVTYPE transpose_buf[TRANS_BUF_SIZE];
+    __local OUTPUTVTYPE transpose_buf[TRANS_BUF_SIZE];
     const uint local_id = GET_LOCAL_ID(0) * GET_LOCAL_SIZE(2) * GET_LOCAL_SIZE(1)
                     + GET_LOCAL_ID(1) * GET_LOCAL_SIZE(2)
                     + GET_LOCAL_ID(2);

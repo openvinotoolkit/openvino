@@ -141,11 +141,11 @@ KERNEL (reorder_data)(
     res_tmp = MEAN_OP(res_tmp, VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE]);
 #elif defined MEAN_SUBTRACT_IN_BUFFER
 #if defined MEAN_PER_FEATURE
-    MEAN_SUBTRACT_TYPE res_tmp = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
+    MEAN_SUBTRACT_COMPUTE_TYPE res_tmp = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     res_tmp = MEAN_OP(res_tmp, DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[f]));
 #else
     // TODO Add support for 6D mean
-    MEAN_SUBTRACT_TYPE res_tmp = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
+    MEAN_SUBTRACT_COMPUTE_TYPE res_tmp = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, v, u, w, z, y, x);
     res_tmp = MEAN_OP(res_tmp, DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, /*msv.s2, msv.s3, msv.s4,msv.s5,*/ msv.s6, msv.s7)]));
 #endif
