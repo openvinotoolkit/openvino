@@ -361,6 +361,10 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, offset);
             ov::Tensor t(type, shape);
 
+            const auto wsz = ctx.weights->size(); 
+            OPENVINO_ASSERT(offset <= wsz && byte_size <= wsz - offset, "[NPU] ORC weight offset/size out of range");
+            OPENVINO_ASSERT(byte_size == t.get_byte_size(), "[NPU] ORC weight byte_size does not match tensor shape");
+
             if (ctx.weights) {
                 if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
                     NPUW_ASSERT(type == ov::element::f16);
