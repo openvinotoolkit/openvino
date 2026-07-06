@@ -1929,8 +1929,9 @@ TEST(constant, float16_vector_broadcast) {
 
 TEST(constant, float16_inf_values) {
     // ±inf are valid IEEE 754 values; Constant::create must not throw for them regardless of
-    // the element type (f16, bf16, f32, f64, f8e5m2).  f8e4m3 has no inf encoding and is not
-    // tested here.
+    // the element type (f16, bf16, f32, f64, f8e5m2).
+    // f8e4m3 is the only exception: it repurposes the infinity bit-pattern as an additional NaN
+    // encoding so ±inf must be rejected for that type.
     const auto neg_inf = -std::numeric_limits<float>::infinity();
     const auto pos_inf = std::numeric_limits<float>::infinity();
 
@@ -1945,7 +1946,10 @@ TEST(constant, float16_inf_values) {
     EXPECT_NO_THROW(ov::op::v0::Constant::create(element::f8e5m2, Shape{}, {neg_inf}));
     EXPECT_NO_THROW(ov::op::v0::Constant::create(element::f8e5m2, Shape{}, {pos_inf}));
 
-    // Verify the stored value is actually ±inf
+    EXPECT_THROW(ov::op::v0::Constant::create(element::f8e4m3, Shape{}, {neg_inf}), ov::Exception);
+    EXPECT_THROW(ov::op::v0::Constant::create(element::f8e4m3, Shape{}, {pos_inf}), ov::Exception);
+
+    // Verify the stored value is actually ±inf (spot-check f16 and f64).
     auto c_f16 = ov::op::v0::Constant::create(element::f16, Shape{}, {neg_inf});
     EXPECT_TRUE(std::isinf(static_cast<float>(c_f16->get_vector<float16>()[0])));
     EXPECT_LT(static_cast<float>(c_f16->get_vector<float16>()[0]), 0.0f);
