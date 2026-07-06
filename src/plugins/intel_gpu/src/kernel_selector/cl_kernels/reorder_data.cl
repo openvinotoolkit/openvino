@@ -232,8 +232,10 @@ KERNEL (reorder_data)(
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE_SAT(res)
     #endif
+	    #define __TO_OUTPUT_REORDER_COMPUTE_TYPE(res) __TO_OUTPUT_REORDER_TYPE(res)
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(res)
+		#define __TO_OUTPUT_REORDER_COMPUTE_TYPE(res) TO_OUTPUT_REORDER_COMPUTE_TYPE(res)
     #endif
 
     #if HAS_FUSED_OPS
@@ -262,9 +264,10 @@ KERNEL (reorder_data)(
         atomic_and(&output_u32[main_idx], ~(0x0F << shift));
         atomic_or(&output_u32[main_idx], (val_u32 << shift));
     #else
-        output[output_idx] = __TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_COMPUTE_TYPE(res_tmp), ACTIVATION_PARAMS_TYPED));
+        output[output_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_COMPUTE_TYPE(res_tmp), ACTIVATION_PARAMS_TYPED));
     #endif
 #undef __TO_OUTPUT_REORDER_TYPE
+#undef __TO_OUTPUT_REORDER_COMPUTE_TYPE
 #endif
 }
 
