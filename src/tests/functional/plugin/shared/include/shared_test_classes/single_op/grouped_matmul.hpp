@@ -74,7 +74,8 @@ using GroupedMatMulCompressedParams = std::tuple<
     bool,                                    // reshape_on_decompression
     int,                                     // decompression_group_size (-1 = per-OC)
     std::string,                             // target device
-    std::string                              // expected primitive type (empty = skip check)
+    std::string,                             // expected primitive type for plugin (empty = skip check)
+    std::string                              // expected primitive type after transformation (empty = skip check)
 >;
 
 class GroupedMatMulCompressedLayerTest
@@ -85,6 +86,7 @@ public:
 
 protected:
     void SetUp() override;
+    void validate() override;
     std::shared_ptr<ov::Node> build_weights() override;
 
 private:
@@ -95,6 +97,7 @@ private:
     ov::test::utils::DecompressionType subtract_type_;
     bool reshape_on_decomp_;
     int group_size_;
+    std::string expected_node_type_;
 };
 
 }  // namespace test

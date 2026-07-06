@@ -61,7 +61,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("grouped_matmul")),
+                                            ::testing::Values("grouped_matmul"),
+                                            ::testing::Values("GroupedMatMulCompressed")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
@@ -76,6 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("FullyConnected")),
+                                            ::testing::Values("FullyConnected"),
+                                            ::testing::Values("GroupedMatMulCompressed")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 }  // namespace

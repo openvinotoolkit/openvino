@@ -13,6 +13,7 @@
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -169,7 +170,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 target_device, expected_primitive] = obj.param;
+                 target_device, expected_primitive, expected_node_type] = obj.param;
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
@@ -191,7 +192,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
 void GroupedMatMulCompressedLayerTest::SetUp() {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 _targetDevice, expected_primitive] = GetParam();
+                 _targetDevice, expected_primitive, expected_node_type] = GetParam();
     shape_params_ = shape_params;
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
@@ -203,7 +204,13 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     subtract_type_ = subtract_type;
     reshape_on_decomp_ = reshape_on_decomp;
     group_size_ = group_size;
+    expected_node_type_ = expected_node_type;
     targetDevice = _targetDevice;
+    if (!expected_node_type_.empty()) {
+        // Populate ov::ProfilingInfo::node_type at inference time; this is what
+        // validate() inspects to confirm the compressed op is what actually ran.
+        configuration[ov::enable_profiling.name()] = true;
+    }
     GroupedMatMulTestBase::SetUp();
 
     // Loosen tolerance for low-bit weight-compressed variants; dequantization
@@ -213,6 +220,34 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
         abs_threshold = 0.1f;
     }
+}
+
+void GroupedMatMulCompressedLayerTest::validate() {
+    GroupedMatMulTestBase::validate();
+
+    // Confirm that the executed network contains the expected compressed ov op.
+    //
+    // This check is opt-in (`expected_node_type_` non-empty) because the plugin
+    // pipelines that trigger the rewrite differ between devices, and even within
+    // GPU the resulting op type differs by case (2D x 3D → GroupedMatMulCompressed,
+    // 3D x 3D → FullyConnectedCompressed).
+    //
+    // We consult ProfilingInfo directly: the GPU plugin records each executed
+    // primitive's origin ov op type in ov::ProfilingInfo::node_type (see
+    // program_builder.cpp: prim->origin_op_type_name = op.get_type_name()), so a
+    // matching entry proves the plugin observed that op after its transformation
+    // pipeline ran.
+    if (expected_node_type_.empty()) {
+        return;
+    }
+
+    const auto profiling = inferRequest.get_profiling_info();
+    auto it = std::find_if(profiling.begin(), profiling.end(), [this](const ov::ProfilingInfo& pi) {
+        return pi.node_type == expected_node_type_;
+    });
+    EXPECT_TRUE(it != profiling.end())
+        << "Executed network does not contain a '" << expected_node_type_
+        << "' node — the expected transformation did not fire on this test's model.";
 }
 
 std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {
