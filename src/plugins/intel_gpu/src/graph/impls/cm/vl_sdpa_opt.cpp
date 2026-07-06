@@ -20,6 +20,21 @@ constexpr auto get_vlsdpa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
+constexpr size_t round_up_to_tile(size_t value, size_t tile_size) {
+    return (value + tile_size - 1) / tile_size * tile_size;
+}
+
+constexpr size_t get_default_kv_blk(size_t head_size) {
+    const size_t padded_head_size = round_up_to_tile(head_size, 16);
+    const size_t tail_size = padded_head_size - head_size;
+
+    if (padded_head_size <= 64 || tail_size <= 1) {
+        return 2;
+    }
+
+    return 1;
+}
+
 class VLSDPAGenerator : public KernelGenerator {
 public:
     VLSDPAGenerator() : KernelGenerator("cm_sdpa_vlen") {}
@@ -52,8 +67,7 @@ protected:
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0f / std::sqrt(static_cast<float>(head_size));
-        // tradeoff between register usage and parallelism: blk=1 allows more flexible scheduling and better parallelism
-        const size_t CMFLA_KV_BLK = head_size <= 64 ? 2 : 1; 
+        const size_t cmfla_kv_blk = get_default_kv_blk(head_size);
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)
@@ -65,7 +79,7 @@ protected:
             make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
             make_jit_constant("CMFLA_HEAD_SIZE", head_size),
             make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
-            make_jit_constant("CMFLA_KV_BLK", CMFLA_KV_BLK),
+            make_jit_constant("CMFLA_KV_BLK", cmfla_kv_blk),
         });
 
         return jit;

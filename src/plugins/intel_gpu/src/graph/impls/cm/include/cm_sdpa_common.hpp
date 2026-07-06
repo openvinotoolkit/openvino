@@ -19,7 +19,7 @@
 // sdpa_kernel_lsc_prefetch. Larger amortizes the rO rescale + softmax bookkeeping over
 // more DPAS work at the cost of GRF pressure. Overridable via -DCMFLA_KV_BLK=N.
 #ifndef CMFLA_KV_BLK
-#define CMFLA_KV_BLK 2
+#define CMFLA_KV_BLK 1
 #endif
 
 // online_softmax_update_tree and transpose_St_to_P_half are defined in cm_attention_common.hpp
@@ -303,6 +303,7 @@ void sdpa_kernel_lsc(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0.0f;  // Zero the accumulator: the first softmax block scales rO by max_comp==0, and 0*NaN==NaN if the GRF holds stale NaN/Inf bits.
 
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
@@ -463,6 +464,7 @@ void sdpa_kernel_lsc_prefetch(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0.0f;
 
     auto q_tokens_left = q_len;// - q_start;
     static_assert(q_step == REG_N);
@@ -573,14 +575,30 @@ void sdpa_kernel_lsc_prefetch(
         // ---- one online-softmax update over the whole block ----
         auto max_comp = online_softmax_update_tree(St, cur_max, cur_sum);
 
-        // ---- rescale rO ONCE for the whole block (amortized over KV_BLK tiles) ----
-        // For kv_base=0 cur_max was -3e38 so max_comp=exp(-inf)=0 -> zeroes rO (== acc=0).
-        #pragma unroll
-        for(int t = 0; t < padded_head_size/REG_N*num_P_tiles; t++) {
-            auto cO = rO[t].format<float, REG_M, REG_N>();
+        // ---- rescale rO (skip first iter only when KV blocking amortizes the branch) ----
+        // The kv_base=0 rescale is mathematically redundant for every head size: max_comp=0
+        // and rO is still zero.  The skip, however, adds a runtime kv_base branch to every
+        // outer KV block.  Enable it only for KV_BLK>=2, where fewer outer iterations make
+        // the branch cost small enough to be profitable; KV_BLK=1 paths such as Omni HD=72
+        // keep the straight-line rescale because forcing the branch measured as a regression.
+        if constexpr (KV_BLK >= 2) {
+            if (kv_base > 0) {
+                #pragma unroll
+                for(int t = 0; t < padded_head_size/REG_N*num_P_tiles; t++) {
+                    auto cO = rO[t].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + (t % num_P_tiles)*REG_M]);
+                }
+            }
+        } else {
             #pragma unroll
-            for(int r = 0; r < REG_M; r++)
-                cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + (t % num_P_tiles)*REG_M]);
+            for(int t = 0; t < padded_head_size/REG_N*num_P_tiles; t++) {
+                auto cO = rO[t].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < REG_M; r++)
+                    cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + (t % num_P_tiles)*REG_M]);
+            }
         }
 
         // ---- transpose each sub-tile and accumulate P@V into rO ----
@@ -662,6 +680,8 @@ void sdpa_kernel_lsc_prefetch_q2(
     // Two rO halves
     matrix<float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO_a;
     matrix<float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO_b;
+    rO_a = 0.0f;  // See rO note above: avoid 0*NaN from stale GRF bits.
+    rO_b = 0.0f;  // See rO note above: avoid 0*NaN from stale GRF bits.
 
     int q_len_a = q_len;
     if (q_len_a < 0) q_len_a = 0;
@@ -926,6 +946,7 @@ void sdpa_kernel(
 
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0.0f;    // Zero the accumulator: the first softmax block scales rO by max_comp==0, and 0*NaN==NaN if the GRF holds stale NaN/Inf bits.
     int causal_left = q_start;
 
     constexpr uint slm_buff_size = kv_step * padded_head_size * sizeof(half);
