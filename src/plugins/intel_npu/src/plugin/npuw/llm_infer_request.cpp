@@ -132,8 +132,9 @@ size_t count_visual_tokens_before(const ov::SoPtr<ov::ITensor>& mask, size_t seq
 // visual-token sequence positions described by visual_pos_masks.
 //
 // After the DeepStack gather/scatter cluster is replaced in the graph by a plain
-// dense residual add (see densify_deepstack_visual_embeds in llm_compiled_model.cpp),
-// the destination tensor must hold deepstack values at the visual positions and zeros
+// dense residual add (see ov::npuw::ReplaceDeepstackScatterWithAdd in
+// npuw_transformations/replace_deepstack_scatter_with_add.cpp), the destination tensor
+// must hold deepstack values at the visual positions and zeros
 // everywhere else, so that "hidden + deepstack" reproduces the original per-position
 // injection.
 //
@@ -178,7 +179,9 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
 
     const size_t mask_total = mask->get_size();
     OPENVINO_ASSERT(mask_total <= dst_seq);
-    const size_t seq_right_pad = dst_seq - mask_total;
+    // Real tokens are right-aligned in the static window, i.e. left-padded, so this is the
+    // amount of left padding (offset of the first real/masked position in dst).
+    const size_t seq_left_pad = dst_seq - mask_total;
 
     const size_t elem_size = src->get_element_type().size();
     const size_t row_bytes = emb * elem_size;
@@ -193,7 +196,7 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
             continue;
         }
         OPENVINO_ASSERT(src_row_offset + k < src_seq, "More visual tokens in mask than rows in deepstack source");
-        const size_t dst_pos = linear_idx + seq_right_pad;
+        const size_t dst_pos = linear_idx + seq_left_pad;
         for (size_t l = 0; l < num_layers; ++l) {
             const auto* src_row = src_ptr + (l * src_seq + src_row_offset + k) * row_bytes;
             auto* dst_row = dst_ptr + (l * dst_seq + dst_pos) * row_bytes;
@@ -856,7 +859,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     // DeepStack (Qwen3-VL): the deepstack injection is scattered per chunk inside the loop
     // below, the same way attention_mask / input_ids are sliced for the current chunk.
-    const auto deepstack_it = m_prefill_in_ports.find("deepstack_visual_embeds");
+    const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
     const bool has_deepstack = deepstack_it != m_prefill_in_ports.end();
     if (has_deepstack) {
         OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
@@ -1077,7 +1080,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
         ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
 
-        if (const auto deepstack_it = m_prefill_in_ports.find("deepstack_visual_embeds");
+        if (const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
             deepstack_it != m_prefill_in_ports.end()) {
             OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
                             "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
@@ -1184,9 +1187,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
                                                ov::SoPtr<ov::ITensor> token_type_ids,
-                                               ov::SoPtr<ov::ITensor> per_layer_inputs,
-                                               ov::SoPtr<ov::ITensor> visual_pos_masks,
-                                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds) {
+                                               ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -1238,7 +1239,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             OPENVINO_THROW("KV-Cache is full.");
         }
 
-        if (const auto deepstack_it = m_kvcache_in_ports.find("deepstack_visual_embeds");
+        if (const auto deepstack_it = m_kvcache_in_ports.find(layer_names::deepstack_visual_embeds);
             deepstack_it != m_kvcache_in_ports.end()) {
             auto deepstack_local = m_kvcache_request->get_tensor(deepstack_it->second);
             // No visual tokens are generated during the generate stage
@@ -1378,20 +1379,19 @@ void ov::npuw::LLMInferRequest::infer() {
     }
 
     auto token_type_ids = ov::npuw::util::TensorPtr();
+    if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids);
+        type_ids_port.has_value()) {
+        token_type_ids = get_tensor(type_ids_port.value());
+    }
 
     auto visual_pos_masks = ov::npuw::util::TensorPtr();
-    if (auto port = ov::npuw::util::find_port_by_name(inputs, "visual_pos_masks"); port.has_value()) {
+    if (auto port = ov::npuw::util::find_port_by_name(inputs, layer_names::visual_pos_masks); port.has_value()) {
         visual_pos_masks = get_tensor(port.value());
     }
 
     auto deepstack_visual_embeds = ov::npuw::util::TensorPtr();
-    if (auto port = ov::npuw::util::find_port_by_name(inputs, "deepstack_visual_embeds"); port.has_value()) {
+    if (auto port = ov::npuw::util::find_port_by_name(inputs, layer_names::deepstack_visual_embeds); port.has_value()) {
         deepstack_visual_embeds = get_tensor(port.value());
-    }
-
-    if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids);
-        type_ids_port.has_value()) {
-        token_type_ids = get_tensor(type_ids_port.value());
     }
 
     // Gemma4: Extract per_layer_inputs if present
@@ -1461,13 +1461,7 @@ void ov::npuw::LLMInferRequest::infer() {
         if (position_ids->get_shape().size() < 3) {
             trim_kvcache_for_speculative_decoding(position_ids);
         }
-        infer_generate(input_ids,
-                       attention_mask,
-                       position_ids,
-                       token_type_ids,
-                       per_layer_inputs,
-                       visual_pos_masks,
-                       deepstack_visual_embeds);
+        infer_generate(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
     }
 
     if (!position_ids_opt.has_value()) {

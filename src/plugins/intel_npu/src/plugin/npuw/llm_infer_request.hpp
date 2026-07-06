@@ -80,9 +80,7 @@ protected:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> token_type_ids,
-                        ov::SoPtr<ov::ITensor> per_layer_inputs,
-                        ov::SoPtr<ov::ITensor> visual_pos_masks,
-                        ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+                        ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;

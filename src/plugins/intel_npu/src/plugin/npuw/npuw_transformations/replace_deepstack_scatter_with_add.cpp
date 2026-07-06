@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../llm_compiled_model_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
@@ -108,7 +109,8 @@ public:
 
             // The Add/GatherND/ScatterNDUpdate shape is generic; only accept it when the gathered
             // parameter is really deepstack_visual_embeds.
-            if (!is_named(pattern_map.at(deepstack).get_node_shared_ptr(), "deepstack_visual_embeds")) {
+            if (!is_named(pattern_map.at(deepstack).get_node_shared_ptr(),
+                          ov::npuw::util::kDeepstackVisualEmbedsParamName)) {
                 return false;
             }
 
@@ -131,7 +133,7 @@ public:
             // visual-token positions (zeros elsewhere), so a plain broadcasted add reproduces the
             // original per-position injection.
             auto residual = std::make_shared<ov::op::v1::Add>(base, select_node->output(0));
-            residual->set_friendly_name(select_node->get_friendly_name() + "/deepstack_residual_add");
+            residual->set_friendly_name(select_node->get_friendly_name() + "/npuw_deepstack_residual_add");
             ov::copy_runtime_info(cluster_out.get_node_shared_ptr(), residual);
 
             for (auto& target : cluster_out.get_target_inputs()) {
@@ -166,7 +168,8 @@ bool ReplaceDeepstackScatterWithAdd::run_on_model(const std::shared_ptr<ov::Mode
 
     // The visual_pos_masks input now only feeds the dead gather/scatter cluster; drop it.
     for (const auto& param : model->get_parameters()) {
-        if (is_named(param, "visual_pos_masks") && !is_reachable_from_outputs(model, param.get())) {
+        if (is_named(param, ov::npuw::util::kVisualPosMasksParamName) &&
+            !is_reachable_from_outputs(model, param.get())) {
             model->remove_parameter(param);
             break;
         }
