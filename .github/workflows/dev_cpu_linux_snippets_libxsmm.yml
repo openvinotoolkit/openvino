@@ -130,7 +130,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
