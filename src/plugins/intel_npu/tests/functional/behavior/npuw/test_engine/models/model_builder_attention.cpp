@@ -61,18 +61,17 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
                                     const std::string& name,
                                     const ov::Output<ov::Node>& shared_broadcast_shape) {
     const size_t actual_kv_heads = (num_kv_heads == 0) ? num_heads : num_kv_heads;
-    const size_t n_rep = num_heads / actual_kv_heads;
-
-    if (!shared_broadcast_shape.get_node() && n_rep == 1) {
-        return kv;
-    }
-
     OPENVINO_ASSERT(num_heads % actual_kv_heads == 0,
                     "num_heads (",
                     num_heads,
                     ") must be divisible by num_kv_heads (",
                     actual_kv_heads,
                     ")");
+    const size_t n_rep = num_heads / actual_kv_heads;
+
+    if (!shared_broadcast_shape.get_node() && n_rep == 1) {
+        return kv;
+    }
 
     ov::Output<ov::Node> broadcast_shape_output;
     if (shared_broadcast_shape.get_node()) {
@@ -148,9 +147,9 @@ KVCacheReadState make_kv_cache_read(const ov::Output<ov::Node>& batch_source,
                                                         std::vector<int64_t>{static_cast<int64_t>(head_dim)});
 
     auto init_shape = std::make_shared<ov::opset11::Concat>(ov::OutputVector{batch_dim->output(0),
-                                                                              num_heads_const->output(0),
-                                                                              zero_seq->output(0),
-                                                                              head_dim_const->output(0)},
+                                                                             num_heads_const->output(0),
+                                                                             zero_seq->output(0),
+                                                                             head_dim_const->output(0)},
                                                             0);
     init_shape->set_friendly_name(name + "_init_shape");
 

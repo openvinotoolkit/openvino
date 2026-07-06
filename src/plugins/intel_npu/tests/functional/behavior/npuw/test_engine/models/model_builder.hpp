@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "model_builder_attention.hpp"
+#include "model_builder_eagle3.hpp"
 #include "model_builder_ffn.hpp"
 #include "model_builder_masks.hpp"
 #include "model_builder_moe.hpp"
@@ -157,6 +158,24 @@ struct BaseModelConfig {
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
+
+    /// Project the config's attention-relevant fields into an Attention functor.
+    /// Model-specific wiring (sdpa_mask, kv_cache_fn, o_proj_name, ...) stays at
+    /// the call site; a derived config with extra attention knobs shadows this
+    /// and extends the base projection (see LLMConfig).
+    Attention make_attention() const {
+        Attention attn{};
+        attn.hidden_size = hidden_size;
+        attn.num_heads = num_heads;
+        attn.num_kv_heads = get_kv_heads();
+        attn.head_dim = head_dim;
+        attn.precision = precision;
+        attn.weight_fn = weight;
+        attn.bias_fn = attn_bias;
+        attn.qk_norm = qk_norm;
+        attn.rope_fn = rope;
+        return attn;
+    }
 };
 
 /// Sliding-window mask construction. Inputs: seq_source (input_ids/inputs_embeds),
@@ -204,6 +223,43 @@ struct LLMConfig : public BaseModelConfig {
     /// Token mixer for linear layers (e.g. GatedDeltaNetMixer or ShortConvMixer). build_llm wires
     /// its seq_source/beam_idx. A new mixer type needs no build_llm change.
     std::shared_ptr<LinearMixer> linear_mixer;
+
+    /// Eagle3 target: capture these layers' outputs (residual stream after each
+    /// listed layer), concat + fc them into an extra "last_hidden_state" output
+    /// marked "manually_added_output". Empty = no capture. GenAI's default pick
+    /// is {2, num_layers / 2, num_layers - 3}.
+    std::vector<size_t> eagle3_capture_layers;
+
+    /// Extends the base projection with the LLM-only attention knobs.
+    Attention make_attention() const {
+        Attention attn = BaseModelConfig::make_attention();
+        attn.output_gate = attn_output_gate;
+        return attn;
+    }
+};
+
+/// Eagle3 draft model ("midlayer" decoder). Combines token embeddings with the
+/// target-provided "hidden_states" input and emits draft-vocab "logits" plus a
+/// "last_hidden_state" output. vocab_size is the *target* vocab (embedding
+/// table); lm_head uses draft_vocab_size.
+struct Eagle3DraftConfig : public BaseModelConfig {
+    size_t draft_vocab_size = 320;
+
+    /// Number of target layers whose hidden states are concatenated into the
+    /// "hidden_states" input, i.e. its feature width is num_captured_layers *
+    /// hidden_size. When > 1 the draft carries an "model.fc" projection back to
+    /// hidden_size (as in the real NPU export); when 1 the hidden state feeds the
+    /// midlayer directly. GenAI captures 3.
+    size_t num_captured_layers = 3;
+
+    /// Leave "hidden_states"' feature dim dynamic (as in the raw export) so
+    /// ReshapeToStatic must recover it from the "last_hidden_state" output via
+    /// Eagle3Extension::get_static_input. Only valid with num_captured_layers==1,
+    /// where that fallback width (hidden_size) matches the input.
+    bool dynamic_hidden_states = false;
+
+    bool use_tree_mask = false;  ///< Add the optional "eagle_tree_mask" input (topk pipeline).
+    bool with_d2t = false;       ///< Emit the raw-export "d2t" output (GenAI removes it before NPUW).
 };
 
 struct WhisperConfig : public BaseModelConfig {
@@ -264,6 +320,7 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
+    std::shared_ptr<ov::Model> build_eagle3_draft(const Eagle3DraftConfig& config);
     std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
@@ -271,8 +328,24 @@ public:
     void clear();
 
 private:
-    /// May auto-create HalfRotationRoPE on config.rope (hence non-const ref).
-    ov::Output<ov::Node> setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source);
+    /// May auto-create a RoPE functor on config.rope (hence non-const ref):
+    /// HalfRotationRoPE, or PartialRotationRoPE when 0 < rotary_dim < head_dim.
+    ov::Output<ov::Node> setup_position_ids(BaseModelConfig& config,
+                                            const ov::Output<ov::Node>& seq_source,
+                                            bool internal_position_ids = false,
+                                            size_t rotary_dim = 0);
+
+    /// Standard per-layer KV cache read/concat/assign closure shared by decoder
+    /// builders. Captures by value; registers Assign sinks on this builder.
+    KVCacheFn make_decoder_kv_cache_fn(const ov::Output<ov::Node>& batch_source,
+                                       const ov::Output<ov::Node>& beam_idx,
+                                       size_t kv_heads,
+                                       size_t head_dim,
+                                       ov::element::Type precision);
+
+    /// Queue an extra Result for the next make_model() call (e.g. Eagle3
+    /// "last_hidden_state"). Consumed and cleared by make_model().
+    void add_output(const std::shared_ptr<ov::op::v0::Result>& result);
 
     std::shared_ptr<ov::Model> make_model(const ov::Output<ov::Node>& output,
                                           const std::string& result_name,
@@ -283,6 +356,7 @@ private:
 
     std::vector<std::shared_ptr<ov::Node>> m_nodes;
     ov::SinkVector m_sinks;
+    ov::ResultVector m_extra_results;
     size_t m_name_idx = 0;
 };
 

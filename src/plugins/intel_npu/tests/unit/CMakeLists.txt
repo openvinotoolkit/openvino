@@ -118,6 +118,7 @@ ov_add_test_target(
             # model builder (test utility)
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_attention.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_eagle3.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_ffn.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_moe.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_masks.cpp

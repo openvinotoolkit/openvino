@@ -5,8 +5,8 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
-#include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "model_builder_internal.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -58,7 +58,6 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
 
     return matmul->output(0);
 }
-
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -127,7 +126,6 @@ ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
     return add->output(0);
 }
 
-
 ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial,
                                              size_t num_layers,
                                              const std::string& prefix_base,
@@ -139,8 +137,6 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
     }
     return current;
 }
-
-
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
@@ -333,12 +329,6 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
     return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
 }
 
-// Builds a model with N identical repeated blocks (using get_block(), same structure as
-// get_model_with_repeated_blocks_and_results) where "head" blocks additionally expose
-// their output via a MatMul to a separate Parameter-weighted projection group, mimicking
-// Gemma4's KV-sharing pattern:
-//   - Non-head blocks: block_output → next_block (only internal consumer)
-//   - Head blocks:     block_output → next_block  (internal)
 // Builds a model with N identical repeated blocks where "head" blocks additionally
 // expose their interior Relu via a cross-group MatMul, reproducing the Gemma4
 // KV-sharing asymmetry pattern.
@@ -625,15 +615,19 @@ std::shared_ptr<ov::op::v0::Parameter> ModelBuilder::parameter(ov::element::Type
 void ModelBuilder::clear() {
     m_nodes.clear();
     m_sinks.clear();
+    m_extra_results.clear();
     m_name_idx = 0;
 }
 
-ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source) {
-    OPENVINO_ASSERT(!(config.internal_position_ids && config.position_ids.get_node()),
+ov::Output<ov::Node> ModelBuilder::setup_position_ids(BaseModelConfig& config,
+                                                      const ov::Output<ov::Node>& seq_source,
+                                                      bool internal_position_ids,
+                                                      size_t rotary_dim) {
+    OPENVINO_ASSERT(!(internal_position_ids && config.position_ids.get_node()),
                     "internal_position_ids and position_ids are mutually exclusive");
     ov::Output<ov::Node> position_ids_output;
 
-    if (config.internal_position_ids) {
+    if (internal_position_ids) {
         auto shape = std::make_shared<ov::opset11::ShapeOf>(seq_source, ov::element::i64);
         auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -654,15 +648,48 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
     }
     // config.rope set without position_ids means RoPE was pre-built with position_ids baked in
     if (position_ids_output.get_node() && !config.rope) {
-        if (config.rotary_dim > 0 && config.rotary_dim < config.head_dim) {
-            config.rope =
-                PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
+        if (rotary_dim > 0 && rotary_dim < config.head_dim) {
+            config.rope = PartialRotationRoPE(config.head_dim, rotary_dim, config.precision, position_ids_output);
         } else {
             config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
         }
     }
 
     return position_ids_output;
+}
+
+KVCacheFn ModelBuilder::make_decoder_kv_cache_fn(const ov::Output<ov::Node>& batch_source,
+                                                 const ov::Output<ov::Node>& beam_idx,
+                                                 size_t kv_heads,
+                                                 size_t head_dim,
+                                                 ov::element::Type precision) {
+    return [this, batch_source, beam_idx, kv_heads, head_dim, precision](
+               const ov::Output<ov::Node>& k,
+               const ov::Output<ov::Node>& v,
+               size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
+        auto layer_str = std::to_string(layer);
+        auto k_cache = make_kv_cache_concat(k,
+                                            batch_source,
+                                            beam_idx,
+                                            kv_heads,
+                                            head_dim,
+                                            make_kv_var_id(layer_str, ".", "key"),
+                                            precision);
+        auto v_cache = make_kv_cache_concat(v,
+                                            batch_source,
+                                            beam_idx,
+                                            kv_heads,
+                                            head_dim,
+                                            make_kv_var_id(layer_str, ".", "value"),
+                                            precision);
+        m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+        m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+        return {k_cache.concatenated, v_cache.concatenated};
+    };
+}
+
+void ModelBuilder::add_output(const std::shared_ptr<ov::op::v0::Result>& result) {
+    m_extra_results.push_back(result);
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& output,
@@ -672,7 +699,13 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     res->set_friendly_name(result_name);
     res->output(0).set_names({result_name});
 
-    return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
+    ov::OutputVector outputs{res->output(0)};
+    for (const auto& extra : m_extra_results) {
+        outputs.push_back(extra->output(0));
+    }
+    m_extra_results.clear();
+
+    return std::make_shared<ov::Model>(outputs, m_sinks, model_name);
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
@@ -722,7 +755,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         seq_source = input_ids->output(0);
     }
 
-    setup_position_ids(config, seq_source);
+    setup_position_ids(config, seq_source, config.internal_position_ids, config.rotary_dim);
 
     ov::Output<ov::Node> beam_idx_output;
     if (config.use_kv_cache) {
@@ -770,48 +803,16 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                                      config.head_dim);
     }
 
-    const auto hs = config.hidden_size;
     const auto kv_heads = config.get_kv_heads();
 
-    Attention attn{};
-    attn.hidden_size = hs;
-    attn.num_heads = config.num_heads;
-    attn.num_kv_heads = kv_heads;
-    attn.head_dim = config.head_dim;
-    attn.precision = prec;
-    attn.weight_fn = config.weight;
-    attn.bias_fn = config.attn_bias;
-    attn.qk_norm = config.qk_norm;
-    attn.rope_fn = config.rope;
+    Attention attn = config.make_attention();
     attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
-    attn.output_gate = config.attn_output_gate;
 
     // Non-hybrid: standard past_key_values naming. Hybrid full-attention layers get
     // per-attn-layer cache_params naming (set below inside build_full_attn_layer).
     if (config.use_kv_cache && !config.is_linear_layer) {
-        attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
-                               const ov::Output<ov::Node>& v,
-                               size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
-            auto layer_str = std::to_string(layer);
-            auto k_cache = make_kv_cache_concat(k,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "key"),
-                                                prec);
-            auto v_cache = make_kv_cache_concat(v,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "value"),
-                                                prec);
-            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
-            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
-            return {k_cache.concatenated, v_cache.concatenated};
-        };
+        attn.kv_cache_fn = make_decoder_kv_cache_fn(seq_source, beam_idx_output, kv_heads, config.head_dim, prec);
     }
 
     // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
@@ -862,21 +863,46 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
     };
 
+    std::vector<ov::Output<ov::Node>> layer_outputs;
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+                                    ov::Output<ov::Node> out;
                                     if (config.is_linear_layer && config.is_linear_layer(layer)) {
-                                        return build_linear_layer(input, prefix, layer);
+                                        out = build_linear_layer(input, prefix, layer);
+                                    } else {
+                                        // Per-layer mask: N sliding layers then 1 full, repeating.
+                                        if (has_sliding && config.sliding_to_full_ratio > 0) {
+                                            const size_t cycle = config.sliding_to_full_ratio + 1;
+                                            attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
+                                        }
+                                        out = build_full_attn_layer(input, prefix, layer);
                                     }
-                                    // Per-layer mask: N sliding layers then 1 full, repeating.
-                                    if (has_sliding && config.sliding_to_full_ratio > 0) {
-                                        const size_t cycle = config.sliding_to_full_ratio + 1;
-                                        attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
+                                    if (!config.eagle3_capture_layers.empty()) {
+                                        layer_outputs.push_back(out);
                                     }
-                                    return build_full_attn_layer(input, prefix, layer);
+                                    return out;
                                 });
+
+    if (!config.eagle3_capture_layers.empty()) {
+        OPENVINO_ASSERT(config.lm_head_weight,
+                        "eagle3_capture_layers requires an LM head (lm_head_weight): without one the model's "
+                        "primary output is already named \"last_hidden_state\", clashing with the Eagle3 capture");
+        ov::OutputVector captured;
+        for (size_t idx : config.eagle3_capture_layers) {
+            OPENVINO_ASSERT(idx < layer_outputs.size(),
+                            "eagle3_capture_layers index (",
+                            idx,
+                            ") must be < num_layers (",
+                            layer_outputs.size(),
+                            ")");
+            captured.push_back(layer_outputs[idx]);
+        }
+        auto hidden = make_eagle3_hidden_capture(captured, config.hidden_size, prec, config.weight);
+        add_output(make_manually_added_result(hidden, "last_hidden_state"));
+    }
 
     auto final_norm = config.norm(current, "model.norm");
 
@@ -934,14 +960,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
     auto embedded = std::make_shared<ov::opset11::Add>(transposed, pos_embed);
     embedded->set_friendly_name("model.encoder.pos_embed_add");
 
-    Attention enc_attn{};
-    enc_attn.hidden_size = d;
-    enc_attn.num_heads = config.num_heads;
-    enc_attn.num_kv_heads = config.num_heads;
-    enc_attn.head_dim = config.head_dim;
-    enc_attn.precision = prec;
-    enc_attn.weight_fn = config.weight;
-    enc_attn.bias_fn = config.attn_bias;
+    Attention enc_attn = config.make_attention();
     enc_attn.o_proj_name = "self_attn.out_proj";
 
     auto current =
@@ -971,7 +990,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
 
     return make_model(encoder_output, "last_hidden_state", "synthetic_whisper_encoder");
 }
-
 
 std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
@@ -1019,14 +1037,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", config.boolean_causal_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
-    Attention self_attn{};
-    self_attn.hidden_size = d;
-    self_attn.num_heads = heads;
-    self_attn.num_kv_heads = heads;
-    self_attn.head_dim = hd;
-    self_attn.precision = prec;
-    self_attn.weight_fn = config.weight;
-    self_attn.bias_fn = config.attn_bias;
+    Attention self_attn = config.make_attention();
     self_attn.o_proj_name = "self_attn.out_proj";
     self_attn.sdpa_mask = shared_mask;
 
@@ -1064,14 +1075,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     };
 
     // Cross-attention (store-only encoder KV cache)
-    Attention cross_attn{};
-    cross_attn.hidden_size = d;
-    cross_attn.num_heads = heads;
-    cross_attn.num_kv_heads = heads;
-    cross_attn.head_dim = hd;
-    cross_attn.precision = prec;
-    cross_attn.weight_fn = config.weight;
-    cross_attn.bias_fn = config.attn_bias;
+    Attention cross_attn = config.make_attention();
     cross_attn.o_proj_name = "encoder_attn.out_proj";
     cross_attn.attn_prefix = "encoder_attn.";
 
@@ -1154,14 +1158,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfi
 
     auto sdpa_mask = make_padding_mask(attention_mask->output(0), prec);
 
-    Attention bert_attn{};
-    bert_attn.hidden_size = hs;
-    bert_attn.num_heads = config.num_heads;
-    bert_attn.num_kv_heads = config.num_heads;
-    bert_attn.head_dim = config.head_dim;
-    bert_attn.precision = prec;
-    bert_attn.weight_fn = config.weight;
-    bert_attn.bias_fn = config.attn_bias;
+    Attention bert_attn = config.make_attention();
     bert_attn.sdpa_mask = sdpa_mask;
 
     auto current =

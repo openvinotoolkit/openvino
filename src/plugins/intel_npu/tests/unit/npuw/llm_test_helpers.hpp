@@ -69,8 +69,7 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
         const auto& pshape = input.get_partial_shape();
-        if (name.find("input_ids") != std::string::npos ||
-            name.find("token_type_ids") != std::string::npos) {
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq};
         } else if (name.find("attention_mask") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
@@ -113,8 +112,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
         auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
             auto fake_convert_1 =
                 std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
-            auto fake_convert_2 =
-                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            auto fake_convert_2 = std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
             fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
             fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
             sdpa->input(input_idx).replace_source_output(fake_convert_2);
@@ -168,6 +166,42 @@ inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());
+}
+
+/// Eagle3 target: regular LLM whose captured layer outputs feed the extra
+/// "last_hidden_state" output (concat of 3 layers -> fc, GenAI NPU form).
+inline std::shared_ptr<ov::Model> build_eagle3_target_test_model() {
+    auto cfg = make_test_model_config<LLMConfig>();
+    cfg.num_layers = 8;
+    cfg.eagle3_capture_layers = {2, 4, 5};  // GenAI default pick: {2, N/2, N-3}
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+/// Eagle3 draft: single-"midlayer" decoder taking a target "hidden_states" input
+/// and emitting draft-vocab logits. Captures 3 layers (feature width 3*hidden)
+/// with an "model.fc" projection, matching the real NPU export. GQA keeps it
+/// close to real Eagle3 draft heads.
+inline std::shared_ptr<ov::Model> build_eagle3_draft_test_model(bool use_tree_mask = false) {
+    auto cfg = make_test_model_config<Eagle3DraftConfig>();
+    cfg.num_kv_heads = 2;
+    cfg.draft_vocab_size = 128;
+    cfg.use_tree_mask = use_tree_mask;
+    ModelBuilder mb;
+    return mb.build_eagle3_draft(cfg);
+}
+
+/// Eagle3 draft variant with a single captured layer and a dynamic
+/// "hidden_states" feature dim, so ReshapeToStatic must recover the width from
+/// the "last_hidden_state" output (Eagle3Extension::get_static_input fallback).
+inline std::shared_ptr<ov::Model> build_eagle3_draft_dynamic_hidden_test_model() {
+    auto cfg = make_test_model_config<Eagle3DraftConfig>();
+    cfg.num_kv_heads = 2;
+    cfg.draft_vocab_size = 128;
+    cfg.num_captured_layers = 1;
+    cfg.dynamic_hidden_states = true;
+    ModelBuilder mb;
+    return mb.build_eagle3_draft(cfg);
 }
 
 inline std::shared_ptr<ov::Model> build_embedding_test_model() {
@@ -316,8 +350,8 @@ public:
 };
 
 struct CompileCall {
-    std::string                friendly_name;
-    ov::AnyMap                 props;
+    std::string friendly_name;
+    ov::AnyMap props;
     std::shared_ptr<ov::Model> model;
 };
 
