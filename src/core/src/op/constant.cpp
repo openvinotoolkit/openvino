@@ -143,7 +143,9 @@ bool in_t_range(const U& v) {
             return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
         }
     } else {
-        return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+        // ±inf is a valid IEEE 754 value for all floating-point element types (f16, bf16, f32, f64).
+        // The finite-range check below would incorrectly reject them, so allow them explicitly.
+        return std::isinf(v) || (std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max());
     }
 }
 

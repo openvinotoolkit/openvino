@@ -14,12 +14,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -329,6 +331,13 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
             inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
 
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
+        if (has_attn_mask) {
+            // Fully-masked rows (all keys masked out) yield NaN after softmax inside SDPA.
+            // Replace NaN with zeros to match opset-23 semantics.
+            auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
+            auto is_nan = std::make_shared<v10::IsNaN>(Y);
+            Y = std::make_shared<v1::Select>(is_nan, zero, Y);
+        }
     }
 
     // Reshape output back to 3D if Q was 3D
@@ -487,6 +496,12 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
             inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
 
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
+        if (has_attn_mask) {
+            // Replace NaN with zeros to match opset-23/24 semantics.
+            auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
+            auto is_nan = std::make_shared<v10::IsNaN>(Y);
+            Y = std::make_shared<v1::Select>(is_nan, zero, Y);
+        }
     }
 
     if (q_is_3d) {

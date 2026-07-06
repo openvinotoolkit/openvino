@@ -12,13 +12,12 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
@@ -175,13 +174,9 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
         }
 
         if (non_empty_attn_mask) {
-            auto finite_threshold =
-                v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<float>::lowest()});
-            auto reduce_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-            auto row_max = std::make_shared<v1::ReduceMax>(masked, reduce_axis, true);
-            auto row_valid = std::make_shared<v1::Greater>(row_max, finite_threshold);
             auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
-            softmax_out = std::make_shared<v1::Select>(row_valid, softmax_out, zero);
+            auto is_nan = std::make_shared<v10::IsNaN>(softmax_out);
+            softmax_out = std::make_shared<v1::Select>(is_nan, zero, softmax_out);
         }
     }
 
