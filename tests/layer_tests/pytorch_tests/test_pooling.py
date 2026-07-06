@@ -365,6 +365,27 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_dynamic_stride_unsupported(self, ie_device, precision, ir_version):
+        # A stride derived from a runtime size (here x.size(3)) is not a full-extent global pool the
+        # ReduceMax decomposition can represent, and it cannot become a MaxPool constructor attribute.
+        # The deferred resolver must reject it at conversion (via the stride_is_default guard) rather
+        # than silently treating the non-constant stride as the default. Convert directly like the
+        # sliding-window negative test above.
+        class aten_max_pool_dyn_stride(torch.nn.Module):
+            def forward(self, x):
+                k = x.size(3)
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, k], stride=[1, k])
+
+        example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_dyn_stride(), example)
+        # Dynamic last axis keeps both the kernel and the stride runtime values, so the non-default
+        # dynamic stride reaches the frontend and the conversion guard fires.
+        with pytest.raises(ov.frontend.OpConversionFailure):
+            ov.convert_model(scripted, example_input=(example,),
+                             input=[ov.PartialShape([1, 8, 15, -1])])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_max_pool_dynamic_partial_kernel_fails_at_runtime(self, ie_device, precision, ir_version):
         # A runtime kernel that does not span the full axis extent is a strided pool the ReduceMax
         # decomposition can't represent; the runtime guard must fail loudly instead of returning a
