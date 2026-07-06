@@ -1412,9 +1412,10 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
             break;
         }
     }
+    NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) { return g->isolatedTag() == isolate_tag; }));
 
     const bool keep_by_size = block_layer_size >= m_ctx.keep_block_size;
-    const bool keep_by_isolate_tag = !isolate_tag.empty();
+    const bool keep_by_isolate_tag = !isolate_tag.empty() && isolate_tag == "attn";
     if (gptrs.size() >= m_ctx.keep_blocks && (keep_by_size || keep_by_isolate_tag)) {
         LOG_VERB("Keeping a repeated block of "
                  << gptrs.size() << " groups with " << block_layer_size << " layers"
