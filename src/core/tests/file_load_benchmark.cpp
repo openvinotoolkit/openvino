@@ -38,6 +38,13 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
+// These benchmarks measure wall-clock timing and are meaningless (and extremely slow for
+// multi-GB files) in a Debug (-O0) build.
+#ifndef NDEBUG
+#    error \
+        "file_load_benchmark.cpp must be built in Release mode: rebuild with -DCMAKE_BUILD_TYPE=Release, or delete this #error to build in Debug anyway."
+#endif
+
 namespace ov::test {
 
 namespace {
@@ -245,6 +252,47 @@ void ifstream_read(const std::filesystem::path& path, size_t file_size) {
     (void)sink;
 }
 
+// --- "compute" scenario -----------------------------------------------------------------
+// Instead of a raw memcpy or mlock(), run a std::transform pass over the mapped bytes (e.g.
+// mimicking a dequantization/dtype-conversion pass over model weights). Unlike memcpy this
+// reads AND writes, but the output buffer is small and reused across chunks, so the region
+// mapped from the file is still only ever read once.
+//
+// NOTE: operates 8 bytes (uint64_t) at a time rather than byte-by-byte. In this Debug
+// (-O0) build a per-byte std::transform lambda call is prohibitively slow for
+// multi-GB files (billions of unoptimized function-call iterations); word-at-a-time
+// cuts the iteration count (and wall-clock cost) by ~8x while still reading every byte
+// of the mapped region and doing real arithmetic on it.
+void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
+    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    const size_t file_size = mapped->size();
+    std::vector<uint64_t> out(std::min(chunk_size, file_size) / sizeof(uint64_t));
+    uint64_t acc = 0;
+    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
+        const size_t n = std::min(chunk_size, file_size - offset);
+        const size_t n_words = n / sizeof(uint64_t);
+        const auto* first = reinterpret_cast<const uint64_t*>(mapped->data() + offset);
+        std::transform(first, first + n_words, out.begin(), [](uint64_t v) {
+            return v * 3u + 7u;
+        });
+        if (n_words > 0)
+            acc += out[0] + out[n_words / 2] + out[n_words - 1];  // prevents optimization
+    }
+    volatile uint64_t sink = acc;
+    (void)sink;
+}
+
+void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
+    auto mapped = load_mmap_object(path);
+    compute_over_mapped(mapped);
+}
+
+void mmap_prefetch_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
+    auto mapped = load_mmap_object(path);
+    mapped->hint_prefetch();
+    compute_over_mapped(mapped);
+}
+
 void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
                                        size_t /*file_size*/,
                                        size_t offset,
@@ -392,6 +440,71 @@ TEST_F(FileLoadBenchmark, test_speed_load_data_into_mmap_region) {
                r.mib,
                throughput_mibs(r.mib, r.t_prefetch_mlock),
                throughput_mibs(r.mib, r.t_mlock));
+    }
+}
+
+TEST_F(FileLoadBenchmark, strategies_compute) {
+    // Same size range/replicate count as strategies_mlock, but the consumer is a std::transform
+    // pass over the mapped bytes (e.g. mimicking a dequantization/dtype-conversion pass) instead
+    // of mlock() or memcpy().
+    const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
+
+    // Generate all test files
+    std::vector<TestFile> files;
+    for (size_t mb : sizes_mb) {
+        TestFile tf{mb, mb * 1024 * 1024, {}};
+        tf.path = generate_test_file(tf);
+        evict_cache(tf.path, tf.size_bytes);
+        files.push_back(tf);
+    }
+
+    // Collect results: [file_idx] -> {no hint, sync prefetch}
+    struct Row {
+        size_t mb;
+        long long t_no_hint;
+        long long t_sync_prefetch;
+    };
+    std::vector<Row> results;
+
+    for (const auto& tf : files) {
+        Row r{};
+        r.mb = tf.size_mb;
+        r.t_no_hint = bench(
+            [&]() {
+                strategy::mmap_then_compute(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        r.t_sync_prefetch = bench(
+            [&]() {
+                strategy::mmap_prefetch_then_compute(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        results.push_back(r);
+    }
+
+    printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %14lld ms | %10lld ms\n", r.mb, r.t_sync_prefetch, r.t_no_hint);
+    }
+
+    printf("\n--- Throughput (MB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
+               r.mb,
+               throughput_mbs(r.mb, r.t_sync_prefetch),
+               throughput_mbs(r.mb, r.t_no_hint));
     }
 }
 
