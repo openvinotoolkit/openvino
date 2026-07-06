@@ -353,6 +353,7 @@ fi
 
 current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.26.0
+cmake_install_ver=3.26.4
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     arch=$(uname -m)
 
@@ -364,8 +365,8 @@ if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | h
         zypper in -y wget
     fi
 
-    cmake_install_bin="cmake-${required_cmake_ver}-linux-${arch}.sh"
-    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${required_cmake_ver}/${cmake_install_bin}"
+    cmake_install_bin="cmake-${cmake_install_ver}-linux-${arch}.sh"
+    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${cmake_install_ver}/${cmake_install_bin}"
     wget "${github_cmake_release}" -O "${cmake_install_bin}"
     chmod +x "${cmake_install_bin}"
     "./${cmake_install_bin}" --skip-license --prefix=/usr/local
