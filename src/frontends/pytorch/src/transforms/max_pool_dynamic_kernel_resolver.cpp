@@ -190,8 +190,7 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                                                         rounding_type);
             } else {
                 // The kernel is still dynamic -> the ReduceMax full-extent decomposition (with guards).
-                bool stride_is_default =
-                    input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
+                bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
                 auto pads = fold_optional_list(fw_node, 3, dims, "padding");
                 auto dilations = fold_optional_list(fw_node, 4, dims, "dilation");
                 bool ceil_mode = fold_ceil_mode(fw_node, 5, dims);
@@ -221,9 +220,8 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        fw_pattern,
-        "ov::frontend::pytorch::pass::MaxPoolDynamicKernelResolver");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(fw_pattern,
+                                                          "ov::frontend::pytorch::pass::MaxPoolDynamicKernelResolver");
     this->register_matcher(m, callback);
 }
 
