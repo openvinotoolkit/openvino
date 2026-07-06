@@ -140,7 +140,7 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
     };
 
     cl_int errcode = CL_SUCCESS;
-    auto cl_ctx = static_cast<cl_context>(get_user_context());
+    auto cl_ctx = static_cast<cl_context>(get_user_context(runtime_types::ocl));
     OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
     const auto byte_size = layout.bytes_count();
     cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
@@ -350,7 +350,9 @@ bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                 reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
 }
 
-void* ocl_engine::get_user_context() const {
+void* ocl_engine::get_user_context(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl,
+        "[GPU] OCL engine can only provide OCL context but requested context for ", rt_type);
     auto& cl_device = downcast<ocl_device>(*_device);
     return static_cast<void*>(cl_device.get_context().get());
 }
