@@ -168,6 +168,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global QQ_BIAS_DATA_T *qq_bias,
         const global QQ_BIAS_BEGINS_DATA_T *qq_bias_begins,
 #endif
+#if HAS_TOKEN_TYPE_IDS
+        const __global int* token_type_ids,
+#endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
 #else
@@ -697,6 +700,28 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
+        /* Apply causal mask with bidirectional exception for image tokens */
+        {
+            const int k_base = k0 + sg_i0_kq;
+            for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
+                const int offset_k = k_base + j;
+                for (int i0 = 0; i0 < (ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0); i0 += SUBGROUP_SIZE) {
+                    int i = i0 + get_sub_group_local_id();
+                    const int offset_q = col_offset + i;
+                    if (greater_than(offset_k, offset_q)) {
+                        bool is_bidirectional = (offset_k < q && offset_q < q &&
+                                                 token_type_ids[offset_k] == 1 &&
+                                                 token_type_ids[offset_q] == 1);
+                        if (!is_bidirectional) {
+                            tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                        ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                        }
+                    }
+                }
+            }
+        }
+    #else
         /* Apply causal mask */
         const int causal_k_begin = k0 + sg_i0_kq;
         const int causal_k_end = causal_k_begin

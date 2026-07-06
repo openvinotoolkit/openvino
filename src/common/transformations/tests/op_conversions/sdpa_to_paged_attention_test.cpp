@@ -6520,6 +6520,144 @@ TEST(SDPAToPA, SingleLayerSlidingWindow) {
     EXPECT_EQ(offset_node->cast_vector<int64_t>()[0], sliding_window_offset);
 }
 
+TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
+    // Gemma4 model with 2 layers: one sliding (sw=1024), one global (sw=0).
+    // Verifies that gemma4_sliding_window_pattern() correctly extracts per-layer sliding window values.
+
+    const int num_heads = 4;
+    const int head_dim = 128;
+    const int hidden_size = num_heads * head_dim;
+    const int64_t sliding_window_size = 1024;
+
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto params = nodes_to_params({input_ids, attention_mask, position_ids, beam_idx});
+
+    auto embed_weight = makeConst(element::f32, ov::Shape{32000, (size_t)hidden_size}, MOCK_VALUE);
+    auto embeddings = makeOP<v8::Gather>({embed_weight, input_ids, 0}, {{"batch_dims", 0}});
+
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+    // Gemma4 sliding layer mask: Slice(Select(_, _, Select(Unsqueeze(Unsqueeze(GreaterEqual(Subtract, sw_const))))), ...)
+    auto make_gemma4_sliding_mask = [&](std::shared_ptr<ov::Node> pos_ids, int64_t sw_size) {
+        auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+        auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+
+        // q_idx and kv_idx ranges
+        auto q_range = makeOP<v4::Range>({0, cur_len, 1}, {{"output_type", "i64"}});
+        auto q_unsq = makeOP<v0::Unsqueeze>({q_range, 1});
+        auto kv_range = makeOP<v4::Range>({0, cur_len, 1}, {{"output_type", "i64"}});
+        auto kv_unsq = makeOP<v0::Unsqueeze>({kv_range, 0});
+
+        // distance = q_idx - kv_idx
+        auto subtract = makeOP<v1::Subtract>({q_unsq, kv_unsq}, {numpy_broadcast});
+
+        // GreaterEqual(distance, sw_const) -> true where distance >= sw (out of window)
+        auto sw_const = makeConst(element::i64, ov::Shape({}), {sw_size});
+        auto ge = makeOP<v1::GreaterEqual>({subtract, sw_const}, {numpy_broadcast});
+
+        // Unsqueeze twice to get [1, 1, seq, seq] shape
+        auto unsq_0 = makeOP<v0::Unsqueeze>({ge, 0});
+        auto unsq_1 = makeOP<v0::Unsqueeze>({unsq_0, 0});
+
+        // inner Select: where(ge, -inf, 0) -> mask out tokens outside window
+        auto inner_select = makeOP<v1::Select>({unsq_1, -65504.0f, 0.0f}, {numpy_broadcast});
+
+        // outer Select: combine with causal mask
+        auto causal = makeConst(element::boolean, ov::Shape({}), {1});
+        auto outer_select = makeOP<v1::Select>({causal, 0.0f, inner_select}, {numpy_broadcast});
+
+        // Slice (identity slice to match pattern)
+        auto cur_len_unsq = makeOP<v0::Unsqueeze>({cur_len, 0});
+        return makeOP<v8::Slice>({outer_select, {0}, cur_len_unsq, {1}, {3}});
+    };
+
+    // Gemma4 global layer mask: Slice(Broadcast(...)) - no GreaterEqual pattern
+    auto make_gemma4_global_mask = [&](std::shared_ptr<ov::Node> pos_ids,
+                                       std::shared_ptr<ov::Node> attn_mask) {
+        auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+        auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+        auto batch = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+        auto attn_bool = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "boolean"}});
+        auto cur_len_unsq = makeOP<v0::Unsqueeze>({cur_len, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch, {1l}, cur_len_unsq, cur_len_unsq}, {{"axis", 0}});
+        auto bcast = makeOP<v3::Broadcast>({attn_bool, bcast_shape}, {{"mode", "bidirectional"}});
+        return makeOP<v8::Slice>({bcast, {0}, cur_len_unsq, {1}, {3}});
+    };
+
+    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur, const std::string& var_id) {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_dim, {(int64_t)num_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return std::make_pair(concat, assign);
+    };
+
+    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // Layer 0: Sliding window (sw=1024)
+    auto Q_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto K_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto V_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto [k_concat_0, k_assign_0] = make_kv_cache(K_0, "past_key_values.0.key");
+    auto [v_concat_0, v_assign_0] = make_kv_cache(V_0, "past_key_values.0.value");
+    auto mask_0 = make_gemma4_sliding_mask(position_ids, sliding_window_size);
+    auto sdpa_0 = makeOP<v13::ScaledDotProductAttention>({Q_0, k_concat_0, v_concat_0, mask_0, 1.0f}, {{"causal", false}});
+
+    // Layer 1: Global attention (sw=0)
+    auto Q_1 = make_projection(sdpa_0, hidden_size, num_heads);
+    auto K_1 = make_projection(sdpa_0, hidden_size, num_heads);
+    auto V_1 = make_projection(sdpa_0, hidden_size, num_heads);
+    auto [k_concat_1, k_assign_1] = make_kv_cache(K_1, "past_key_values.1.key");
+    auto [v_concat_1, v_assign_1] = make_kv_cache(V_1, "past_key_values.1.value");
+    auto mask_1 = make_gemma4_global_mask(position_ids, attention_mask);
+    auto sdpa_1 = makeOP<v13::ScaledDotProductAttention>({Q_1, k_concat_1, v_concat_1, mask_1, 1.0f}, {{"causal", false}});
+
+    auto res = std::make_shared<v0::Result>(sdpa_1);
+    auto model = std::make_shared<ov::Model>(
+        OutputVector{res},
+        SinkVector{k_assign_0, v_assign_0, k_assign_1, v_assign_1},
+        params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    // Find all PagedAttention nodes
+    std::vector<std::shared_ptr<ov::op::PagedAttentionExtension>> pa_nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa_nodes.push_back(node);
+        }
+    }
+    ASSERT_EQ(pa_nodes.size(), 2u) << "Expected 2 PA nodes (sliding + global)";
+
+    // PA input port 10 is sliding_window
+    // Layer 0 (sliding): should be Constant(1024)
+    auto sw_0 = ov::as_type_ptr<v0::Constant>(pa_nodes[0]->input_value(10).get_node_shared_ptr());
+    ASSERT_NE(sw_0, nullptr) << "Layer 0 sliding_window should be a Constant";
+    EXPECT_EQ(sw_0->cast_vector<int32_t>()[0], (int32_t)sliding_window_size);
+
+    // Layer 1 (global): should be Constant(0)
+    auto sw_1 = ov::as_type_ptr<v0::Constant>(pa_nodes[1]->input_value(10).get_node_shared_ptr());
+    ASSERT_NE(sw_1, nullptr) << "Layer 1 sliding_window should be a Constant";
+    EXPECT_EQ(sw_1->cast_vector<int32_t>()[0], 0);
+}
+
 TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
     {
         auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");

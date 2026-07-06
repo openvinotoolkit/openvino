@@ -272,8 +272,6 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
         jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)));
         jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)) + scales_zp_size);
 
-        // Dual-nibble V-cache optimization: each lane reads 1 packed byte (2 nibbles) via BLOCK_READN
-        // Only applicable when PACKED_V_HEAD_SIZE is divisible by SUBGROUP_SIZE (no padding lanes needed)
         if (is_v_head_aligned_for_dual_nibble(desc->v_head_size)) {
             jit.make("USE_DUAL_NIBBLE_V_OPT", 1);
         }
@@ -1497,7 +1495,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage) && desc->has_token_type_ids == false;
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1678,7 +1676,7 @@ public:
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
             can_use_micro_sdpa = rt_params->use_micro_sdpa;
         } else {
-            can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && desc->has_token_type_ids == false;
+            can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
             if (stage == PagedAttentionStage::GENERATE) {
                 can_use_micro_sdpa = false;
             }
