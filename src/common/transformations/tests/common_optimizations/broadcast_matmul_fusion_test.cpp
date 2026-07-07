@@ -43,9 +43,9 @@ std::shared_ptr<ov::Model> getModel(const Shape& const_shape,
     auto data = make_const(const_shape);
     auto target_shape = v0::Constant::create(element::i64, Shape{target.size()}, target);
     auto broadcast = std::make_shared<v3::Broadcast>(data, target_shape, op::BroadcastType::BIDIRECTIONAL);
-    std::shared_ptr<Node> matmul =
-        broadcast_on_lhs ? std::make_shared<v0::MatMul>(broadcast, other, false, transpose_b)
-                         : std::make_shared<v0::MatMul>(other, broadcast, false, transpose_b);
+    std::shared_ptr<Node> matmul = broadcast_on_lhs
+                                       ? std::make_shared<v0::MatMul>(broadcast, other, false, transpose_b)
+                                       : std::make_shared<v0::MatMul>(other, broadcast, false, transpose_b);
     auto result = std::make_shared<v0::Result>(matmul);
     return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{other});
 }
@@ -57,9 +57,8 @@ std::shared_ptr<ov::Model> getModelRef(const Shape& const_shape,
                                        bool transpose_b = false) {
     auto other = std::make_shared<v0::Parameter>(element::f32, other_shape);
     auto data = make_const(const_shape);
-    std::shared_ptr<Node> matmul =
-        broadcast_on_lhs ? std::make_shared<v0::MatMul>(data, other, false, transpose_b)
-                         : std::make_shared<v0::MatMul>(other, data, false, transpose_b);
+    std::shared_ptr<Node> matmul = broadcast_on_lhs ? std::make_shared<v0::MatMul>(data, other, false, transpose_b)
+                                                    : std::make_shared<v0::MatMul>(other, data, false, transpose_b);
     auto result = std::make_shared<v0::Result>(matmul);
     return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{other});
 }
@@ -124,28 +123,27 @@ TEST_F(BroadcastMatMulFusionTest, RemovesBroadcastWhenOtherBatchDynamic) {
         auto batch = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(other, element::i64),
                                                   v0::Constant::create(element::i64, Shape{1}, {0}),
                                                   v0::Constant::create(element::i64, Shape{}, {0}));
-        auto target = std::make_shared<v0::Concat>(
-            OutputVector{batch,
-                         v0::Constant::create(element::i64, Shape{1}, {32}),
-                         v0::Constant::create(element::i64, Shape{1}, {8})},
-            0);
+        auto target = std::make_shared<v0::Concat>(OutputVector{batch,
+                                                                v0::Constant::create(element::i64, Shape{1}, {32}),
+                                                                v0::Constant::create(element::i64, Shape{1}, {8})},
+                                                   0);
         auto broadcast = std::make_shared<v3::Broadcast>(data, target, op::BroadcastType::BIDIRECTIONAL);
         auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
-        model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)},
-                                            ParameterVector{other});
+        model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
     }
 
     auto other_ref = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 8, 16});
     auto data_ref = make_const(Shape{1, 32, 8});
     auto matmul_ref = std::make_shared<v0::MatMul>(data_ref, other_ref);
-    model_ref = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul_ref)},
-                                            ParameterVector{other_ref});
+    model_ref =
+        std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul_ref)}, ParameterVector{other_ref});
 }
 
 TEST_F(BroadcastMatMulFusionTest, RemovesBroadcastWithTransposedMatMul) {
     // transpose_b only reinterprets the (unchanged) matrix dims, so removal is still valid.
     comparator.enable(FunctionsComparator::ATTRIBUTES);
-    model = getModel(Shape{1, 32, 8}, {4, 32, 8}, PartialShape{4, 16, 8}, /*broadcast_on_lhs=*/true, /*transpose_b=*/true);
+    model =
+        getModel(Shape{1, 32, 8}, {4, 32, 8}, PartialShape{4, 16, 8}, /*broadcast_on_lhs=*/true, /*transpose_b=*/true);
     model_ref = getModelRef(Shape{1, 32, 8}, PartialShape{4, 16, 8}, /*broadcast_on_lhs=*/true, /*transpose_b=*/true);
 }
 

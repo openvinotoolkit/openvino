@@ -76,9 +76,9 @@ BroadcastMatMulFusion::BroadcastMatMulFusion() {
 
     // Match Constant -> Broadcast -> MatMul with the Broadcast on either MatMul input.
     auto data = pattern::wrap_type<v0::Constant>(pattern::has_static_rank());
-    auto broadcast = pattern::wrap_type<ov::op::util::BroadcastBase>(
-        {data, pattern::any_input()},
-        pattern::consumers_count(1) && pattern::has_static_rank());
+    auto broadcast =
+        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input()},
+                                                        pattern::consumers_count(1) && pattern::has_static_rank());
     auto other = pattern::any_input(pattern::has_static_rank());
     auto matmul_lhs = pattern::wrap_type<v0::MatMul>({broadcast, other});
     auto matmul_rhs = pattern::wrap_type<v0::MatMul>({other, broadcast});
