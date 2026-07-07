@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
-
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
@@ -32,22 +29,6 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
                                    const ov::Shape& pads,
                                    const ov::Strides& dilations,
                                    ov::op::RoundingType rounding_type);
-
-// Build the ReduceMax decomposition for a max pool whose kernel is only known at runtime (a global
-// pool over the dynamic axes). Guards (default stride, no pad, dilation 1, ceil_mode=False, no
-// return_indices, no static-window>1) raise OpConversionFailure. `pads`/`dilations` are empty when
-// the corresponding input is absent. Nodes go into `rg`.
-OutputVector build_dynamic_kernel_max_pool(ov::pass::NodeRegistry& rg,
-                                           int dims,
-                                           bool return_indices,
-                                           const Output<Node>& input,
-                                           const std::vector<bool>& elem_is_const,
-                                           const std::vector<int64_t>& elem_const_val,
-                                           const std::vector<Output<Node>>& elem_runtime_val,
-                                           bool stride_is_default,
-                                           const std::vector<int64_t>& pads,
-                                           const std::vector<int64_t>& dilations,
-                                           bool ceil_mode);
 
 }  // namespace op
 }  // namespace pytorch
