@@ -44,7 +44,11 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.25";
+// GQA = 0x47,0x51,0x41 + CMO = 0x43,0x4d,0x4f
+const constexpr ov::npuw::s11n::IndicatorType NPUW_GQA_COMPILED_MODEL_INDICATOR =
+    {char{0x47}, char{0x51}, char{0x41}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.27";
 
 // Forward declaration
 namespace intel_npu {
@@ -89,6 +93,8 @@ namespace compiled {
 struct Spatial;
 struct Attention;
 struct PyramidAttention;
+struct PyramidAttentionContiguous;
+struct PyramidAttentionBlock;
 struct HostFlashAttention;
 struct MoEExperts;
 struct MoEDownstream;
@@ -246,8 +252,12 @@ void serialize(Stream& stream, ov::npuw::compiled::Spatial::Param& var);
 void serialize(Stream& stream, ov::npuw::compiled::Attention& var);
 void serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var);
-void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var);
-void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var);
+std::shared_ptr<ov::npuw::compiled::PyramidAttention> make_pyramid_from_stream(Stream& stream, uint8_t tag);
 void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var);

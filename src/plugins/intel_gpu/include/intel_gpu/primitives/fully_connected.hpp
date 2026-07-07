@@ -46,12 +46,14 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& weights,
                     const primitive_id& bias = "",
                     const size_t input_size = 2,
-                    const size_t weights_rank = 2)
+                    const size_t weights_rank = 2,
+                    const bool weights_transposed = true)
         : primitive_base(id, {input}),
           weights(weights),
           bias(bias),
           input_size(input_size),
-          weights_rank(weights_rank)
+          weights_rank(weights_rank),
+          weights_transposed(weights_transposed)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -65,12 +67,14 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias,
                     const data_types data_type,
                     const size_t input_size = 2,
-                    const size_t weights_rank = 2)
+                    const size_t weights_rank = 2,
+                    const bool weights_transposed = true)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           input_size(input_size),
-          weights_rank(weights_rank)
+          weights_rank(weights_rank),
+          weights_transposed(weights_transposed)
     {}
 
     /// @brief Constructs fully connected compressed layer.
@@ -88,7 +92,8 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& decompression_zero_point,
                     const data_types data_type,
                     const size_t input_size = 2,
-                    const size_t weights_rank = 2)
+                    const size_t weights_rank = 2,
+                    const bool weights_transposed = true)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -98,7 +103,8 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation(false),
           dynamic_quantized_activation_zp(false),
           input_size(input_size),
-          weights_rank(weights_rank) {
+          weights_rank(weights_rank),
+          weights_transposed(weights_transposed) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
@@ -123,7 +129,8 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const input_info& activation_precomputed_reduction,
                     const data_types data_type,
                     const size_t input_size = 2,
-                    const size_t weights_rank = 2)
+                    const size_t weights_rank = 2,
+                    const bool weights_transposed = true)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -136,7 +143,8 @@ struct fully_connected : public primitive_base<fully_connected> {
           activation_zero_point(activation_zero_point),
           activation_precomputed_reduction(activation_precomputed_reduction),
           input_size(input_size),
-          weights_rank(weights_rank) {
+          weights_rank(weights_rank),
+          weights_transposed(weights_transposed) {
         if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
         if (activation_zero_point.is_valid())
@@ -167,11 +175,15 @@ struct fully_connected : public primitive_base<fully_connected> {
     size_t input_size = 2;
     /// @brief Primitive weights rank.
     size_t weights_rank = 2;
+    /// @brief Weights transposed.
+    bool weights_transposed = true;
+
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, input_size);
         seed = hash_combine(seed, weights_rank);
+        seed = hash_combine(seed, weights_transposed);
         seed = hash_combine(seed, bias.is_valid());
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.is_valid());
@@ -192,6 +204,7 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
+               weights_transposed == rhs_casted.weights_transposed &&
                bias.is_valid() == rhs_casted.bias.is_valid() &&
                compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
@@ -214,6 +227,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << activation_precomputed_reduction;
         ob << input_size;
         ob << weights_rank;
+        ob << weights_transposed;
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
         ob << dynamic_quantized_precomputed_reduction;
@@ -239,6 +253,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> activation_precomputed_reduction;
         ib >> input_size;
         ib >> weights_rank;
+        ib >> weights_transposed;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
