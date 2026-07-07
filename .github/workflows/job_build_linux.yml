@@ -79,7 +79,7 @@ on:
         description: 'Whether to store build artifacts on a shared drive'
         type: boolean
         required: false
-        default: false
+        default: true
       install-frontend-test-deps:
         description: 'Whether to install TensorFlow/TFLite/Paddle frontend unit test requirements (no Python 3.14 wheels yet)'
         type: boolean
