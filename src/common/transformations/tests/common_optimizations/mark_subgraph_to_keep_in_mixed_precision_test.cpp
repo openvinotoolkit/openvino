@@ -1388,34 +1388,41 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 }
 
 TEST(TransformationTests, MarkRMS_keeps_rms_in_fp32) {
-    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
-    auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
-    auto matmul = std::make_shared<v0::MatMul>(input, weight, false, true);
-    matmul->set_friendly_name("matmul_producer");
-
-    auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
-    auto rms = std::make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
-    rms->set_friendly_name("rms_node");
-
-    auto model = std::make_shared<Model>(OutputVector{rms}, ParameterVector{input});
-
+    shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    precisions_map fp_convert_precision_map = {{element::f32, element::f16}};
-    type_to_fuse_map empty_fuse_map;
-    manager.register_pass<pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false);
-    manager.run_passes(model);
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
 
-    bool found_rms = false;
-    for (const auto& op : model->get_ops()) {
-        if (op->get_friendly_name() == "rms_node") {
-            found_rms = true;
-            ASSERT_TRUE(ov::is_conversion_disabled(op, element::f16))
-                << "RMS must be marked as precision-sensitive";
-            ASSERT_EQ(op->get_output_element_type(0), element::f32)
-                << "RMS output must stay in FP32";
-            ASSERT_EQ(op->get_input_element_type(0), element::f32)
-                << "RMS input must be FP32";
-        }
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        model = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
     }
-    ASSERT_TRUE(found_rms) << "RMS node not found after passes";
+
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        disable_conversion(rms, element::f16);
+        disable_conversion(gamma, element::f16);
+
+        model_ref = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
 }
