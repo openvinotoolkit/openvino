@@ -1507,6 +1507,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool is_dynamic_batch_onednn_conv = false;
+    size_t dynamic_batch_onednn_conv_count = 0;
+    bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
@@ -1535,6 +1537,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+                if (is_dynamic_batch_onednn_conv)
+                    dynamic_batch_onednn_conv_count++;
             } else {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
@@ -1700,6 +1704,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
+        if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
+            has_sdpa = true;
+        }
 #endif
     }
 
@@ -1763,7 +1770,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
-    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+
+    // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
+    constexpr size_t max_byxf_onednn_conv_count = 5;
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
+            (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif

@@ -574,6 +574,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
+    attrs.dqScales = getDQScales();
+
     attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();

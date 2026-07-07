@@ -1146,6 +1146,54 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
+    // This ensures ShapeOf nodes are already regularized before transformation
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        OPENVINO_ASSERT(!m_enable_prefix_caching,
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
+                        "cannot be enabled simultaneously — this combination is not yet supported. "
+                        "Please disable one of the two options.");
+        if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid)) {
+            const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
+
+            LOG_DEBUG("Applying SplitKVCacheIntoBlocks (block_size=" << block_size << ")");
+            LOG_BLOCK();
+
+            bool all_transformed = true;
+            auto apply_block_kv_transform =
+                [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
+                    ov::pass::Manager mgr(tag);
+                    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
+                    if (mgr.run_passes(model)) {
+                        LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                    } else {
+                        LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                        all_transformed = false;
+                    }
+                };
+
+            apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+
+            for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+                apply_block_kv_transform(generate_model_variants[i],
+                                         m_kvcache_desc.v_tensors_transposed_gen,
+                                         "generate_" + std::to_string(i));
+            }
+
+            if (!all_transformed) {
+                OPENVINO_THROW("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES: "
+                               "SplitKVCacheIntoBlocks had no effect on one or more models. "
+                               "Ensure the model uses HFA or Pyramid attention pattern.");
+            }
+            m_is_block_kv_cache = true;
+        } else {
+            LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
+                     "Block-based KV cache requires: chunk prefill enabled, "
+                     "HFA or Pyramid attention, and a non-embedding model. "
+                     "Falling back to monolithic (continuous) KV cache.");
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1264,7 +1312,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding;
+            m_is_embedding & m_is_block_kv_cache;
 
         // Write config
         stream & m_cfg;
@@ -1484,7 +1532,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
-            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding;
+            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding & compiled->m_is_block_kv_cache;
 
         // Deserialize config
         stream & compiled->m_cfg;
@@ -1606,6 +1654,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
+                          BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
