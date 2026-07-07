@@ -100,6 +100,22 @@ macro(ov_frontend_group_files root_dir rel_path file_mask)
 endmacro()
 
 #
+# ov_suppress_version_dependent_warnings(TARGET_NAME)
+# 
+# Suppress version dependent warnings in third-party libraries for specific compilers
+#
+function(ov_suppress_version_dependent_warnings target_name)
+    # Required for abseil lts_20230802 and GCC 14
+    # Remove once abseil is updated to a newer version
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(${target_name} PRIVATE
+            -Wno-error=array-bounds
+            -Wno-error=stringop-overflow
+        )
+    endif()
+endfunction()
+
+#
 # ov_add_frontend(NAME <IR|ONNX|...>
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
@@ -312,12 +328,14 @@ macro(ov_add_frontend)
                 absl::variant
             )
         endif()
+
         if(ENABLE_SYSTEM_PROTOBUF)
             # use imported target name with namespace
             set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+	ov_suppress_version_dependent_warnings(${TARGET_NAME})
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -334,7 +352,9 @@ macro(ov_add_frontend)
                 set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
 
                 foreach(protobuf_dependency IN LISTS protobuf_dependencies)
-                    ov_install_static_lib(${protobuf_dependency} ${OV_CPACK_COMP_CORE})
+                    if (TARGET ${protobuf_dependency})
+                        ov_install_static_lib(${protobuf_dependency} ${OV_CPACK_COMP_CORE})
+                    endif()
                 endforeach()
             endif()
         endif()
