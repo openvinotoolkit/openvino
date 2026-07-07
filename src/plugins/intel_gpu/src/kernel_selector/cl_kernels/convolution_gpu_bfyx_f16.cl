@@ -190,6 +190,7 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
+                        const int in_x = input_x + xb;
                         if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= input_spatial_size_x)
                             line_cache[xb] = 0;
                         else
@@ -243,7 +244,7 @@ KERNEL(convolution_bfyx_f16)(
                                                                  xb * input_x_pitch);
                     }
                     for (int i = 0; i < x_out_of_bounds; i++){
-                        line_cache[xb + 1] = 0;
+                        line_cache[xb + i] = 0;
                     }
                 }
 
