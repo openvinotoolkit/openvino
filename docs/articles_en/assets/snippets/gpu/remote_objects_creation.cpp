@@ -63,7 +63,7 @@ int main() {
         // real wrapping cpu pointer to remote tensor
         auto remote_tensor = gpu_context.create_tensor(in_element_type,
                                                        in_shape,
-                                                       ov::intel_gpu::VirtualAdressMemory(cpu_pointer));
+                                                       ov::intel_gpu::VirtualAdressMemory(cpu_pointer, size));
     }
     ov::util::aligned_free(cpu_pointer); 
     //! [wrap_cpu_pointer]
