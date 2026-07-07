@@ -445,6 +445,14 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_k
     const auto safe_scale = register_new_node<v1::Select>(is_zero_scale, one, scale_ct);
     const auto inv_scale = register_new_node<v1::Divide>(one, safe_scale);
     const auto scaled = register_new_node<v1::Multiply>(current, inv_scale);
+
+    if (cache_type == ov::element::f8e4m3) {
+        // f8e4m3 cache: no integer Round (Convert rounds to the f8e4m3 grid). Clamp to +/-448 (f8e4m3 max)
+        // first: Convert to f8e4m3 maps out-of-range magnitudes to NaN, not saturation.
+        const auto clamped = register_new_node<v0::Clamp>(scaled, -448.0, 448.0);
+        return register_new_node<v0::Convert>(clamped, cache_type);
+    }
+
     const auto rounded = register_new_node<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN);
 
     if (kv_cache_bit_width == 4) {
