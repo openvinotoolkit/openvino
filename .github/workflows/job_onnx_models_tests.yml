@@ -50,6 +50,8 @@ jobs:
       LOGS_FOLDER: ${{ github.workspace }}/onnx_models_tests_logs"
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
+      PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
+      PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       # checkout action cleans up the workspace and have to be the first step

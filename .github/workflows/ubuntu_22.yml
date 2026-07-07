@@ -32,7 +32,7 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
@@ -63,7 +63,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -165,9 +165,14 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        nodejs-version: [21, 22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      nodejs-version: ${{ matrix.nodejs-version }}
 
   Conformance:
     needs: [ Docker, Build, Smart_CI ]
@@ -237,8 +242,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
 
       - name: Install Dependencies
         run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
@@ -632,25 +638,28 @@ jobs:
     # if: ${{ github.event_name == 'schedule' }}
     if: ${{ 'false' }} # Ticket: 143677
 
-  # Ticket: CVS-182443 — iGPU runners cannot install pip packages from PyPI, need to whitelist pypi.org and download.pytorch.org
-  # iGPU_RoPE_Tests:
-  #   name: iGPU RoPE Tests
-  #   needs: [ Build, Smart_CI, Openvino_tokenizers ]
-  #   uses: ./.github/workflows/job_gpu_tests.yml
-  #   with:
-  #     device: 'igpu'
-  #     test_type: 'rope'
-  #     runner: "[ 'self-hosted', 'igpu' ]"
-  #     runner-group: 'Intel-GPU'
-  #     image: ubuntu:22.04
-  #     options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128 -e HF_TOKEN"
-  #   if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+  iGPU_RoPE_Tests:
+    name: iGPU RoPE Tests
+    needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_gpu_rope_tests.yml
+    with:
+      device: 'igpu'
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      # Custom ACR test image (same one the iGPU job above uses): it already
+      # ships git, ca-certificates, clinfo, python3.11 and the Intel iGPU
+      # compute-runtime drivers, so the rope flow installs none of them at
+      # runtime (per review feedback). See the image's Dockerfile under
+      # .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu.
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
-            Keras3_OpenVINO_Backend]
+            Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

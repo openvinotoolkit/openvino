@@ -43,10 +43,9 @@ inline bool can_use_usm_host(cldnn::engine& engine, const uint64_t total_output_
     const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
 
     const auto& device_info = engine.get_device_info();
-    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
+    if ((device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
         (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
-        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
+        // WA: Disable USM host memory for infer request`s tensors for dGPUs, as kernel access
         // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
         // Driver tickets with additional details: 6155, 10054
         GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;

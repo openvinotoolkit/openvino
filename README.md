@@ -6,7 +6,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
- <a href="https://docs.openvino.ai/2026/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2026/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2026/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2026/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
+ <a href="https://docs.openvino.ai/2026/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2026/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2026/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2026/about-openvino/openvino-ecosystem/openvino-integrations.html"><b>Integrations</b></a> • <a href="https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
@@ -35,13 +35,22 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2026/_static/downl
 pip install -U openvino
 ```
 
+### Verify Installation
+
+After installation, you can verify OpenVINO is installed correctly by running:
+
+```python
+import openvino as ov
+print(ov.__version__)
+```
+
 Check [system requirements](https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2026/documentation/compatibility-and-support/supported-devices.html) for detailed information.
 
 ## Tutorials and Examples
 
 [OpenVINO Quickstart example](https://docs.openvino.ai/2026/get-started.html) will walk you through the basics of deploying your first model.
 
-Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)📚:
+Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](https://github.com/openvinotoolkit/openvino_notebooks) 📚:
 - [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb)
 - [YOLOv11 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/yolov11-optimization/yolov11-object-detection.ipynb)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/text-to-image-genai/text-to-image-genai.ipynb)
@@ -100,7 +109,7 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2026/
 
 ## Generative AI with OpenVINO
 
-Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2026/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2026/openvino-workflow-generative/inference-with-genai.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering).
 

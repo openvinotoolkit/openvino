@@ -35,7 +35,6 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
   NODEJS_VERSION: '21'
 
@@ -86,8 +85,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
           self-hosted-runner: 'true'
 
       - name: Setup NodeJS
@@ -198,8 +196,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.10'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -208,8 +206,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.12'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -218,8 +216,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.13'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -228,8 +226,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Build additional Python wheels
@@ -244,10 +242,6 @@ jobs:
             $pythonExecutablePath = & cmd /c $pythonCommand
 
             Write-Host "Building Python wheels for Python $pyVersion located at $pythonExecutablePath"
-
-            $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
-            Write-Host "Using pip version: $pipVersion for $pyVersion"
-            $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
@@ -274,8 +268,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14t'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
 
@@ -290,10 +284,6 @@ jobs:
           $pythonExecutablePath = & cmd /c $pythonCommand
 
           Write-Host "Building Python wheels for Python $pyVersion located at $pythonExecutablePath"
-
-          $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
-          Write-Host "Using pip version: $pipVersion for $pyVersion"
-          $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
           & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
@@ -348,8 +338,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: CMake configure, build and install - OpenVINO JS API

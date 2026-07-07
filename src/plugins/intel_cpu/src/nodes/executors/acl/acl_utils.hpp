@@ -3,12 +3,14 @@
 //
 #pragma once
 
+#include <algorithm>
 #include <vector>
 
 #include "arm_compute/core/QuantizationInfo.h"
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "utils/arm_isa_support.h"
 
 namespace ov::intel_cpu {
 
@@ -167,6 +169,23 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
     default:
         return arm_compute::DataType::UNKNOWN;
     }
+}
+
+/**
+ * @brief Preconditions common to every ACL executor, independent of the op/config type. ACL kernels
+ * run on the ARMv8-A NEON baseline (ASIMD) and can only operate on ACL-representable precisions
+ * (precisionToAclDataType != UNKNOWN; e.g. u4/i4/nf4/string must never reach an ACL kernel), so an
+ * executor must not be selected when either is unmet. Op-specific checks (exact precisions, ranks,
+ * post ops, layouts, ...) stay in each executor's own supports()/isSupported(). Pass the executor's
+ * tensor descriptors; empty ones (e.g. an absent optional bias) are ignored. Usage:
+ *   VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+ *   if (!aclSupported({srcDescs[0], dstDescs[0]})) { return false; }
+ * @return whether the current core and the tensor precisions meet the common ACL preconditions
+ */
+inline bool aclSupported(const std::vector<MemoryDescPtr>& descs) {
+    return hasArmISASupport(ArmISA::ASIMD) && std::all_of(descs.begin(), descs.end(), [](const MemoryDescPtr& desc) {
+               return desc->empty() || precisionToAclDataType(desc->getPrecision()) != arm_compute::DataType::UNKNOWN;
+           });
 }
 
 /**

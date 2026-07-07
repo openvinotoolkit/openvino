@@ -12,6 +12,9 @@
 
 namespace ov::util {
 
+/** @brief Minimum guaranteed page alignment on all supported platforms (x86, ARM, RISC-V). */
+inline constexpr size_t min_page_alignment = 4096;
+
 /**
  * @brief Rounds @p size up to the nearest multiple of @p alignment.
  *
@@ -110,5 +113,18 @@ void vm_decommit(void* ptr, size_t size) noexcept;
  * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
 void vm_release(void* ptr, size_t size) noexcept;
+
+/**
+ * @brief Pre-fetch a committed VM range into physical memory.
+ *
+ * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
+ *
+ * @param ptr         Base address of the range. Must be page-aligned.
+ * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param num_threads Strategy selector:
+ *                    - @c 0 (default) → OS advisory hint (async, low overhead).
+ *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ */
+void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
 
 }  // namespace ov::util

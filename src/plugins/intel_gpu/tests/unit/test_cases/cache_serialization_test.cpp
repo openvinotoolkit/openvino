@@ -302,3 +302,75 @@ TEST(cache_serialization, moe_prefill_flags_all_true_round_trip) {
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, true);
     ASSERT_EQ(loaded.use_grouped_gemm_prefill, true);
 }
+
+// --------------------------------------------------------------------------
+// data::load_weights — data_size / output_layout cross-validation
+// --------------------------------------------------------------------------
+// Regression test for a heap buffer overflow in data::load_weights.
+//
+// output_layout (which sizes the destination buffer) and data_size (how many
+// bytes are read into that buffer) are deserialized independently from the
+// cache blob. A corrupted/malicious blob can declare a data_size far larger
+// than the layout, and on the host-accessible path the bytes are read straight
+// into a buffer allocated solely from output_layout
+// (ib >> make_data(mem->buffer_ptr(), data_size)), overflowing it.
+namespace {
+// Build a blob in exactly the byte order that data::load_weights expects, with
+// a data_size that lies about how much payload follows the layout.
+membuf make_oversized_data_blob(const layout& output_layout, size_t malicious_data_size, allocation_type alloc_type) {
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+
+    ob << output_layout;
+    ob << make_data(&alloc_type, sizeof(alloc_type));
+    ob << make_data(&malicious_data_size, sizeof(size_t));
+
+    bool weightless_caching = false;  // take the plain (non-weightless) path
+    ob << weightless_caching;
+
+    // Mirror the reader's alignment padding so stream offsets stay in sync.
+    if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
+        std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
+        ob << make_data(pad.data(), pad.size());
+    }
+
+    // Actually provide malicious_data_size bytes of payload so the vulnerable
+    // read() copies all of them into the (much smaller) destination buffer.
+    std::vector<uint8_t> payload(malicious_data_size, 0xAA);
+    ob << make_data(payload.data(), payload.size());
+
+    return mem_buf;
+}
+}  // namespace
+
+TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
+    auto& engine = get_test_engine();
+
+    // Pick a host-accessible allocation type the test device actually supports,
+    // otherwise load_weights would take the device-copy path / fail to allocate.
+    allocation_type alloc_type = allocation_type::usm_host;
+    if (!engine.supports_allocation(allocation_type::usm_host)) {
+        if (engine.supports_allocation(allocation_type::usm_shared)) {
+            alloc_type = allocation_type::usm_shared;
+        } else {
+            GTEST_SKIP() << "Test device does not support host-accessible USM allocation";
+        }
+    }
+
+    // Victim buffer: 4 bytes. Attacker claims 64 KB of weight data.
+    layout small_layout({1, 1, 1, 4}, data_types::u8, format::bfyx);
+    const size_t malicious_data_size = 64 * 1024;
+    ASSERT_GT(malicious_data_size, small_layout.bytes_count());
+
+    membuf mem_buf = make_oversized_data_blob(small_layout, malicious_data_size, alloc_type);
+
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+
+    cldnn::data data_prim;
+    // weights_memory / model_tensor_base are null: non-weightless, non-zero-copy
+    // path, so mem is allocated from output_layout and the oversized read would
+    // overflow it. The cross-check must reject the blob first.
+    ASSERT_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr), ov::AssertFailure);
+}
