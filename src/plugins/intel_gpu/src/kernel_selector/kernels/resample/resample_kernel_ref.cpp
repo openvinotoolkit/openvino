@@ -91,8 +91,151 @@ static bool use_packing(const resample_params& params) {
     return true;
 }
 
+static bool has_padding(const resample_params& params) {
+    return std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
+           std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
+}
+
+static bool is_integral_ratio(size_t lhs, size_t rhs) {
+    return lhs != 0 && rhs != 0 && (lhs % rhs == 0 || rhs % lhs == 0);
+}
+
+static bool is_integral_upsampling_ratio(size_t output, size_t input) {
+    return input != 0 && output >= input && output % input == 0;
+}
+
+static bool is_fast_nearest_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR || has_padding(params) ||
+        input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
+        return false;
+    }
+
+    const auto asymmetric_floor = params.coordTransMode == CoordinateTransformationMode::ASYMMETRIC &&
+                                  params.nearestMode == NearestMode::FLOOR;
+    const auto asymmetric_simple_upsampling =
+        params.coordTransMode == CoordinateTransformationMode::ASYMMETRIC &&
+        params.nearestMode == NearestMode::SIMPLE &&
+        is_integral_upsampling_ratio(output.X().v, input.X().v) &&
+        is_integral_upsampling_ratio(output.Y().v, input.Y().v) &&
+        (input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v));
+    const auto tf_half_pixel_for_nn_floor_upsampling =
+        params.coordTransMode == CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN &&
+        params.nearestMode == NearestMode::FLOOR &&
+        is_integral_upsampling_ratio(output.X().v, input.X().v) &&
+        is_integral_upsampling_ratio(output.Y().v, input.Y().v) &&
+        (input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v));
+    const auto half_pixel_round_prefer_floor =
+        params.coordTransMode == CoordinateTransformationMode::HALF_PIXEL &&
+        params.nearestMode == NearestMode::ROUND_PREFER_FLOOR &&
+        is_integral_ratio(output.X().v, input.X().v) &&
+        is_integral_ratio(output.Y().v, input.Y().v) &&
+        (input.Dimentions() != 5 || is_integral_ratio(output.Z().v, input.Z().v));
+
+    return asymmetric_floor || asymmetric_simple_upsampling || tf_half_pixel_for_nn_floor_upsampling ||
+           half_pixel_round_prefer_floor;
+}
+
+static bool is_fast_linear_onnx_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    if (params.resampleType != ResampleType::LINEAR_ONNX || has_padding(params) ||
+        params.coordTransMode != CoordinateTransformationMode::HALF_PIXEL ||
+        input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
+        return false;
+    }
+
+    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
+        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
+        return false;
+    }
+
+    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
+}
+
+static bool is_fast_caffe_bilinear_interp_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    return params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP &&
+           !has_padding(params) &&
+           input.Batch().v == output.Batch().v &&
+           input.Feature().v == output.Feature().v;
+}
+
+static int get_axis_index(InterpolateAxis axis) {
+    switch (axis) {
+    case InterpolateAxis::BATCH:
+        return 0;
+    case InterpolateAxis::FEATURE:
+        return 1;
+    case InterpolateAxis::Z:
+        return 2;
+    case InterpolateAxis::Y:
+        return 3;
+    case InterpolateAxis::X:
+        return 4;
+    default:
+        return 0;
+    }
+}
+
+static std::vector<float> get_legacy_scales(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+    auto pads_begin = params.pads_begin;
+    auto pads_end = params.pads_end;
+    if (pads_begin.size() == 4)
+        pads_begin.insert(pads_begin.begin() + 2, 0);
+    if (pads_end.size() == 4)
+        pads_end.insert(pads_end.begin() + 2, 0);
+
+    const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
+    const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
+    const auto z_size_padded = pads_begin[2] + input.Z().v + pads_end[2];
+    const auto y_size_padded = pads_begin[3] + input.Y().v + pads_end[3];
+    const auto x_size_padded = pads_begin[4] + input.X().v + pads_end[4];
+
+    std::vector<float> scales = {
+        static_cast<float>(b_size_padded) / static_cast<float>(output.Batch().v),
+        static_cast<float>(f_size_padded) / static_cast<float>(output.Feature().v),
+        static_cast<float>(z_size_padded) / static_cast<float>(output.Z().v),
+        static_cast<float>(y_size_padded) / static_cast<float>(output.Y().v),
+        static_cast<float>(x_size_padded) / static_cast<float>(output.X().v),
+    };
+
+    for (std::size_t i = 0; i < params.axes.size(); i++) {
+        const int idx = get_axis_index(params.axes[i]);
+        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
+            scales[idx] = 1.f / params.scales[i];
+    }
+
+    return scales;
+}
+
 JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {
     JitConstants jit = ResampleKernelBase::GetJitConstants(params);
+
+    if (is_fast_nearest_case(params)) {
+        jit.RemoveConstant("SCALES");
+        jit.AddConstant(MakeJitConstant("SCALES", get_legacy_scales(params)));
+        jit.AddConstant(MakeJitConstant("RESAMPLE_FAST_NEAREST", 1));
+    }
+
+    if (is_fast_linear_onnx_case(params)) {
+        jit.RemoveConstant("SCALES");
+        jit.AddConstant(MakeJitConstant("SCALES", get_legacy_scales(params)));
+        jit.AddConstant(MakeJitConstant("RESAMPLE_USE_LEGACY_SCALE", 1));
+    }
+
+    if (is_fast_caffe_bilinear_interp_case(params)) {
+        jit.RemoveConstant("SCALES");
+        jit.AddConstant(MakeJitConstant("SCALES", get_legacy_scales(params)));
+        jit.AddConstant(MakeJitConstant("RESAMPLE_USE_LEGACY_SCALE", 1));
+    }
 
     if (use_packing(params)) {
         jit.AddConstant(MakeJitConstant("PACK_SIZE", packing_factor(params)));

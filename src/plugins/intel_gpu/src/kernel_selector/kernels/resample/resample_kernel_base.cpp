@@ -146,17 +146,17 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         paddingUsed |= (pads_begin[i] != 0 || pads_end[i] != 0);
     }
 
-    scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
-    scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
-    scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
-    scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
-    scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+    scales[0] = static_cast<float>(out_b_size_padded) / static_cast<float>(b_size_padded);
+    scales[1] = static_cast<float>(out_f_size_padded) / static_cast<float>(f_size_padded);
+    scales[4] = static_cast<float>(out_x_size_padded) / static_cast<float>(x_size_padded);
+    scales[3] = static_cast<float>(out_y_size_padded) / static_cast<float>(y_size_padded);
+    scales[2] = static_cast<float>(out_z_size_padded) / static_cast<float>(z_size_padded);
 
     for (std::size_t i = 0; i < params.axes.size(); i++) {
         int idx = getAxisIndex(params.axes[i]);
         axesUsed[idx] = 1;
         if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
-            scales[idx] = 1.f / params.scales[i];
+            scales[idx] = params.scales[i];
     }
     for (size_t i = 0; i < scales.size(); ++i) {
         if (scales[i] != 1.f)
@@ -167,6 +167,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant(toString(params.resampleType), ""),
         MakeJitConstant(toString(params.nearestMode), ""),
         MakeJitConstant(toString(params.coordTransMode), ""),
+        MakeJitConstant("SHAPE_CALC_MODE_SIZES", params.shapeCalculationMode == ShapeCalculationMode::SIZES),
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
@@ -234,6 +235,13 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+    if (newParams.resampleType == ResampleType::CUBIC && kernel.code.kernelString) {
+        auto& options = kernel.code.kernelString->options;
+        const std::string mad_option = " -cl-mad-enable";
+        const auto mad_pos = options.find(mad_option);
+        if (mad_pos != std::string::npos)
+            options.erase(mad_pos, mad_option.size());
+    }
 
     return {kd};
 }
