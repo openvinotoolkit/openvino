@@ -153,6 +153,7 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
     #if HAS_FUSED_OPS
+        INPUT0_TYPE resample_result = TO_INPUT0_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
         FUSED_OPS;
         output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
     #else
@@ -253,6 +254,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* inpu
     }
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
     #if HAS_FUSED_OPS
+        INPUT0_TYPE resample_result = TO_INPUT0_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
         FUSED_OPS;
         output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
     #else
