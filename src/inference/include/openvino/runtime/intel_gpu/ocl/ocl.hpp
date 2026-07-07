@@ -41,7 +41,6 @@ namespace ocl {
 
 using gpu_handle_param = void*;
 
-
 using SharedBufferHandle = ov::intel_gpu::SharedBufferHandle;
 using VirtualAdressMemory = ov::intel_gpu::VirtualAdressMemory;
 
@@ -320,13 +319,11 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as void*,
-     *                     DMA-BUF fd on Linux passed as int)
+     * DMA-BUF fd on Linux passed as int)
      * @param memory_type Memory type to use; only MemType::SHARED_BUF is currently supported
      * @return A remote tensor instance
      */
-    ClBufferTensor create_tensor(const element::Type type,
-                                 const Shape& shape,
-                                 SharedBufferHandle handle) {
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, SharedBufferHandle handle) {
 #ifndef __linux__
         OPENVINO_ASSERT(handle.value != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
 #endif
@@ -335,15 +332,13 @@ public:
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
     
-    ClBufferTensor create_tensor(const element::Type type,
-                                 const Shape& shape,
-                                 VirtualAdressMemory buff) {
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAdressMemory buff) {
 
         OPENVINO_ASSERT(buff.ptr != nullptr, "host buffer must not be nullptr for CPU_VA memory type");
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
                          {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(buff.ptr)},
-                         {ov::intel_gpu::cpu_va_size.name(), buff.size}}; // if -1 then use shape to get the size
+                         {ov::intel_gpu::cpu_va_size.name(), buff.size}};  // if -1 then use shape to get the size
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
