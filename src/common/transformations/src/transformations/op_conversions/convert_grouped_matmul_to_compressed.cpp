@@ -101,8 +101,7 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
             }
         } else {
             if (with_zero_point) {
-                new_gmm =
-                    GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale, gmm_input_zp);
+                new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale, gmm_input_zp);
             } else {
                 new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale);
             }
