@@ -65,12 +65,9 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 
 template <class T>
 T stringToType(const std::string& valStr) {
-    T ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
+    auto result = ov::util::view_to_number<T>(ov::util::trim(valStr));
+    OPENVINO_ASSERT(result.has_value(), "Cannot parse '", valStr, "' to number");
+    return *result;
 }
 
 bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value) {
@@ -78,14 +75,6 @@ bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::str
     if (!getStrAttribute(node, name, param))
         return false;
     value = PartialShape(param);
-    return true;
-}
-
-bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value) {
-    std::string param;
-    if (!getStrAttribute(node, name, param))
-        return false;
-    value = Dimension(param);
     return true;
 }
 
@@ -750,10 +739,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             return;
         a->set(shape);
     } else if (auto a = ov::as_type<ov::AttributeAdapter<Dimension>>(&adapter)) {
-        Dimension dim;
-        if (!get_dimension_from_attribute(m_node.child("data"), name, dim))
-            return;
-        a->set(dim);
+        if (const auto dim_str = util::pugixml::get_attribute_view(m_node.child("data"), name); dim_str.has_value()) {
+            a->set(Dimension(*dim_str));
+        }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Shape>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))

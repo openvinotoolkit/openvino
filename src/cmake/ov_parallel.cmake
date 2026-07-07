@@ -77,6 +77,15 @@ endfunction()
 
 macro(ov_find_package_tbb)
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE") AND NOT TBB_FOUND)
+        if(ANDROID)
+            if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+                message(FATAL_ERROR
+                    "Android build with TBB threading requires a separately built oneTBB package. "
+                    "Build oneTBB as described in docs/dev/build_android.md and configure OpenVINO "
+                    "with -DTBB_DIR=<path>/lib/cmake/TBB.")
+            endif()
+        endif()
+
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
@@ -131,6 +140,10 @@ macro(ov_find_package_tbb)
         find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
         set(CMAKE_IGNORE_PATH "${_old_CMAKE_IGNORE_PATH}")
+
+        if(ANDROID AND NOT TBB_FOUND)
+            message(FATAL_ERROR "TBB was not found by the configured TBB_DIR path. Use -DTHREADING=SEQ instead.")
+        endif()
 
         if(NOT TBB_FOUND)
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
@@ -253,7 +266,7 @@ macro(ov_find_package_tbb)
         endif()
 
         if(NOT TBB_FOUND)
-            message(FATAL_ERROR "TBB was not found by the configured TBB_DIR / TBBROOT path. Use -DTHREADING=SEQ instead.")
+            message(FATAL_ERROR "TBB was not found by the configured TBB_DIR path. Use -DTHREADING=SEQ instead.")
         else()
             message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
         endif()

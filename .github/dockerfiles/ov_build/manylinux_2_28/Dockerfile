@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="quay.io"
 FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux_2_28
 
@@ -18,3 +21,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 # To make python3 and pip binaries accessible
 ENV PATH="/opt/python/cp311-cp311/bin:$SCCACHE_HOME:$PATH"
+
+# Install newer ninja (yum ships older version lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0

@@ -19,10 +19,6 @@ on:
 
 permissions: read-all
 
-env:
-  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
-  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-
 jobs:
   Keras3_OpenVINO_Backend:
     name: Keras 3 OpenVINO Backend
@@ -77,8 +73,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
-          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          use-pip-proxy: 'true'
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels
@@ -113,7 +109,7 @@ jobs:
           pytest keras --ignore keras/src/applications $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
           name: test-results-keras3-backend

@@ -9,26 +9,36 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using ov::pass::pattern::Matcher;
@@ -37,8 +47,10 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
+namespace v5 = ov::op::v5;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
+namespace v15 = ov::op::v15;
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
@@ -77,8 +89,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_value = node->input_value(4);
     auto seqlens_k = node->input_value(5);
     auto total_sequence_length = node->input_value(6);
-    auto cos_cache = node->input_value(7);
-    auto sin_cache = node->input_value(8);
+
+    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8 and are dequantized before the
+    // attention math and (re)quantized when appended to the cache. Scales live at inputs 12 (K) / 13 (V).
+    const bool kv_quantized = node->is_kv_quantized();
+    const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
+    const auto k_quant_type = node->get_k_quant_type();
+    const auto v_quant_type = node->get_v_quant_type();
+    const auto kv_cache_type = past_key.get_element_type();
+    ov::Output<ov::Node> k_scale, v_scale;
+    if (kv_quantized) {
+        k_scale = node->input_value(12);
+        v_scale = node->input_value(13);
+    }
 
     auto is_null = [](const ov::Output<ov::Node>& output) {
         return output.get_node_shared_ptr()->description() == "NullNode";
@@ -106,10 +129,16 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
     if (do_rotary) {
+        auto cos_cache = node->input_value(7);
+        auto sin_cache = node->input_value(8);
+
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         if (node->get_input_size() > 9 && !is_null(node->input_value(9))) {
-            position_ids = node->input_value(9).get_node_shared_ptr();
+            // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
+            // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
+            const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+            position_ids = register_new_node<v1::Reshape>(node->input_value(9), neg_one, false);
         } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
@@ -121,30 +150,52 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
-    auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-        return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-    };
+    // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
+    // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
+    // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
+    if (kv_quantized) {
+        K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
+        V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
+    }
+
     if (is_static_input) {
-        // Cache memory layout for static shapes:
-        // - Keys:    [0, ..., 0, past_key[0], ..., past_key[N-1], K[0], ..., K[M-1]]
-        // - Values:  [0, ..., 0, past_value[0], ..., past_value[N-1], V[0], ..., V[M-1]]
-        // Here, padding 0 are lay on front of the buffer.
-        //  M = current_seqlen, which is always 1 for the KV cache model.
-        const auto current_kv_len_const = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
-        const auto past_kv_len_const = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{1}, {past_key.get_partial_shape()[2].get_length()}));
-        past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
+        // static design for GQA (KV cache is static max length, valid KVs are left align)
+        // inputs are:
+        //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
+        //   ..., Pn, 0, 0, ...]
+        //   2. current K/V: [1, num_heads, current_kv_len, head_size], data is in the front along axis 2, [C0, C1, ...,
+        //   Ck, 0, 0, ...]
+        // Output present_key/present_value has the same shape with past_key/past_value, but with data in order [P0, P1,
+        // ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
+        //
+        // Use ScatterUpdate to scatter insert Current into Past
+        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen].
+        std::shared_ptr<ov::Node> scatter_idx =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
+        V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
     } else {
+        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
+            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
+        };
         past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
         past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        K = construct_kv_cache(past_key, K);
+        V = construct_kv_cache(past_value, V);
     }
-    K = construct_kv_cache(past_key, K);
-    V = construct_kv_cache(past_value, V);
 
+    // present_key/present_value are the assembled cache (quantized when kv_quantized), matching the op outputs.
     ov::Output<ov::Node> present_k = K;
     ov::Output<ov::Node> present_v = V;
+
+    // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
+    // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
+    if (kv_quantized) {
+        K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
+        V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
+    }
 
     const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
@@ -183,32 +234,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         std::shared_ptr<ov::Node> vert_range =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        if (is_static_input) {
-            const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-            vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
-        } else {
-            vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
-        }
+        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
 
         const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
         const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
+        // Mask with the type's finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf =
-                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
         else if (T == ov::element::f16)
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
         mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
-
-        if (is_static_input) {
-            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
-            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
-            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
-            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
-            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
-        }
     }
 
     std::shared_ptr<ov::Node> qga_output;
@@ -229,16 +267,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     return {output, present_k, present_v};
 }
 
-// make split functions is a copy-past from ONNX FE. TODO: move it to one place
-ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov::Output<ov::Node>& value,
-                                                                        int64_t num_splits,
-                                                                        int64_t axis) {
-    const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
-    const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
-
-    return split->outputs();
-}
-
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
     const std::shared_ptr<v3::ShapeOf>& shape,
     const std::vector<int>& dims) {
@@ -257,42 +285,193 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
                                                                                       ov::Output<ov::Node> cos,
                                                                                       ov::Output<ov::Node> sin,
                                                                                       bool interleaved) {
-    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
+    // Unsqueeze cos/sin to 4D [1, 1, seqlen, head_size/2] to match RoPE fusion pattern
+    auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+    auto cos_4d = register_new_node<v0::Unsqueeze>(cos, unsqueeze_axes);
+    auto sin_4d = register_new_node<v0::Unsqueeze>(sin, unsqueeze_axes);
+
+    // For interleaved mode, deinterleave first so the core RoPE formula is identical
+    ov::Output<ov::Node> rope_input = input;
+    std::shared_ptr<v3::ShapeOf> input_shape;
+    std::shared_ptr<ov::Node> dim_bns, half_head_size;
+    std::shared_ptr<v0::Constant> perm_5d;
     if (interleaved) {
-        auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
-        auto input_shape = register_new_node<v3::ShapeOf>(input);
-        auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
+        input_shape = register_new_node<v3::ShapeOf>(input);
+        dim_bns = get_dimensions(input_shape, {0, 1, 2});
+        half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
+        perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
-        auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-        auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
-        auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
-
-        auto in_split = make_split(reshaped_input, 2, -1);
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
-        auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
-        auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
-
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
-                                                     register_new_node<v1::Multiply>(in_split_1, sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
-                                                register_new_node<v1::Multiply>(in_split_1, cos));
-
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
-        auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
-        auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
-
-        auto concat_ret = register_new_node<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
-        return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
-    } else {
-        auto in_split = make_split(input, 2, -1);
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
-                                                     register_new_node<v1::Multiply>(in_split[1], sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
-                                                register_new_node<v1::Multiply>(in_split[1], cos));
-
-        return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+        // Deinterleave: [bs,nh,seq,head_size]
+        //   -> reshape [bs,nh,seq,head_size/2,2]
+        //   -> transpose [bs,nh,seq,2,head_size/2]
+        //   -> reshape [bs,nh,seq,head_size]  (now [first_half, second_half])
+        auto deinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
+        auto reshaped_5d = register_new_node<v1::Reshape>(input, deinterleave_5d, false);
+        auto transposed_5d = register_new_node<v1::Transpose>(reshaped_5d, perm_5d);
+        rope_input = register_new_node<v1::Reshape>(transposed_5d, input_shape, false);
     }
+
+    // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
+    // first_ = first_half * cos - second_half * sin
+    // second_ = second_half * cos + first_half * sin
+    const auto& cos_partial_shape = cos.get_partial_shape();
+    const auto half_head_size_val =
+        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
+    const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+    const auto split_lengths =
+        v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
+    // Split along last axis using constant split_lengths to enable RoPE fusion pattern matching
+    auto in_split = register_new_node<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
+    auto first_half_mul_cos = register_new_node<v1::Multiply>(in_split[0], cos_4d);
+    auto second_half_mul_sin = register_new_node<v1::Multiply>(in_split[1], sin_4d);
+    auto neg_one = v0::Constant::create(input.get_element_type(), ov::Shape{}, {-1.0f});
+    auto neg_second_sin = register_new_node<v1::Multiply>(second_half_mul_sin, neg_one);
+    auto res_0 = register_new_node<v1::Add>(first_half_mul_cos, neg_second_sin);
+    auto second_half_mul_cos = register_new_node<v1::Multiply>(in_split[1], cos_4d);
+    auto first_half_mul_sin = register_new_node<v1::Multiply>(in_split[0], sin_4d);
+    auto res_1 = register_new_node<v1::Add>(second_half_mul_cos, first_half_mul_sin);
+    ov::Output<ov::Node> output = register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+
+    // For interleaved mode, re-interleave the result
+    if (interleaved) {
+        // Re-interleave: [bs,nh,seq,head_size]
+        //   -> reshape [bs,nh,seq,2,head_size/2]
+        //   -> transpose [bs,nh,seq,head_size/2,2]
+        //   -> reshape [bs,nh,seq,head_size]
+        auto reinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
+        auto result_5d = register_new_node<v1::Reshape>(output, reinterleave_5d, false);
+        auto result_transposed = register_new_node<v1::Transpose>(result_5d, perm_5d);
+        output = register_new_node<v1::Reshape>(result_transposed, input_shape, false);
+    }
+
+    return output.get_node_shared_ptr();
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_scale(const ov::Output<ov::Node>& scale,
+                                                                                    int64_t kv_num_heads,
+                                                                                    const std::string& quant_type) {
+    // The KV cache is laid out as [batch, kv_num_heads, seq_len, head_size]. Reshape the flat scale so it
+    // broadcasts along that layout. A fully static target shape is used (no -1 wildcard) so the result stays
+    // static-shaped for plugins (e.g. NPU) that require static shapes. A fresh shape Constant is built per
+    // call so no two GQA layers alias it.
+    std::vector<int64_t> target_shape;
+    if (quant_type == "PER_CHANNEL") {
+        // Per-channel scale has kv_num_heads * head_size elements, head-major (scale[kv_head * head_size + ch]).
+        // Reshape to [1, kv_num_heads, 1, head_size] to broadcast over batch and seq. head_size is derived from
+        // the (static) scale length when known, otherwise falls back to a -1 wildcard.
+        int64_t head_size = -1;
+        const auto& scale_pshape = scale.get_partial_shape();
+        if (scale_pshape.rank().is_static() && scale_pshape.rank().get_length() == 1 && scale_pshape[0].is_static()) {
+            head_size = scale_pshape[0].get_length() / kv_num_heads;
+        }
+        target_shape = {1, kv_num_heads, 1, head_size};
+    } else {
+        // PER_TENSOR: a single scalar broadcast over the whole tensor.
+        target_shape = {1, 1, 1, 1};
+    }
+    const auto shape_const =
+        register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{target_shape.size()}, target_shape));
+    return register_new_node<v1::Reshape>(scale, shape_const, false);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize_kv(
+    const ov::Output<ov::Node>& quantized,
+    const ov::Output<ov::Node>& scale,
+    int64_t kv_num_heads,
+    int64_t kv_cache_bit_width,
+    const std::string& quant_type,
+    const ov::element::Type& compute_type) {
+    // Symmetric dequantization matching ONNX Runtime MLAS/CUDA QDQ. The actual Convert(->float) * scale
+    // (optionally - zero_point) chain is built via the shared ov::decomposition::low_precision_dequantize
+    // helper, so it produces the canonical dequantization pattern recognized by MarkDequantization / LPT.
+    const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
+
+    if (kv_cache_bit_width == 4) {
+        // 4-bit cache is stored as u8 with two signed values packed per byte (even channel -> low nibble,
+        // odd channel -> high nibble) biased by +8. Unpack the nibbles back into per-channel integers first,
+        // then let low_precision_dequantize apply the (Convert - 8) * scale chain (zero_point = 8 removes the bias).
+        const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto mask_low =
+            register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {0x0F}));
+        const auto shift_4 = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {4}));
+        const auto low_nibble = register_new_node<v13::BitwiseAnd>(quantized, mask_low);
+        const auto high_nibble = register_new_node<v15::BitwiseRightShift>(quantized, shift_4);
+        // Interleave low/high nibbles back along the head_size axis: [.., packed] -> [.., packed, 2] -> [.., 2*packed].
+        const auto low_u = register_new_node<v0::Unsqueeze>(low_nibble, axis_last);
+        const auto high_u = register_new_node<v0::Unsqueeze>(high_nibble, axis_last);
+        const auto interleaved = register_new_node<v0::Concat>(ov::OutputVector{low_u, high_u}, -1);
+        const auto flat_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, -1}));
+        const auto unpacked = register_new_node<v1::Reshape>(interleaved, flat_shape, true);
+        const auto zero_point = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {8}));
+        ov::pass::NodeRegistry reg;
+        auto dequant =
+            ov::decomposition::low_precision_dequantize(reg, unpacked, scale_bcast, zero_point, {}, compute_type);
+        for (const auto& node : reg.get()) {
+            register_new_node(node);
+        }
+        return dequant.get_node_shared_ptr();
+    }
+
+    // 8-bit cache: symmetric (no zero point) Convert(->compute) * scale via the shared helper.
+    ov::pass::NodeRegistry reg;
+    auto dequant = ov::decomposition::low_precision_dequantize(reg, quantized, scale_bcast, {}, {}, compute_type);
+    for (const auto& node : reg.get()) {
+        register_new_node(node);
+    }
+    return dequant.get_node_shared_ptr();
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(const ov::Output<ov::Node>& current,
+                                                                                  const ov::Output<ov::Node>& scale,
+                                                                                  int64_t kv_num_heads,
+                                                                                  int64_t kv_cache_bit_width,
+                                                                                  const std::string& quant_type,
+                                                                                  const ov::element::Type& cache_type) {
+    // Symmetric quantize-on-write: q = clamp(round(x * inv_scale)). Rounding is round-half-to-even to match the
+    // ONNX Runtime MLAS/CUDA reference (std::rintf). Clamp is applied before the narrowing Convert to avoid
+    // overflow on out-of-range values. inv_scale mirrors MLAS SafeInvScale: a zero scale maps to 1.0 so the step
+    // degenerates to clamp(round(x)) instead of producing NaN (and multiplying by the reciprocal matches MLAS).
+    const auto compute_type = current.get_element_type();
+    const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
+    ov::Output<ov::Node> scale_ct = scale_bcast;
+    if (scale.get_element_type() != compute_type) {
+        scale_ct = register_new_node<v0::Convert>(scale_bcast, compute_type);
+    }
+    const auto one = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {1}));
+    const auto zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
+    const auto is_zero_scale = register_new_node<v1::Equal>(scale_ct, zero);
+    const auto safe_scale = register_new_node<v1::Select>(is_zero_scale, one, scale_ct);
+    const auto inv_scale = register_new_node<v1::Divide>(one, safe_scale);
+    const auto scaled = register_new_node<v1::Multiply>(current, inv_scale);
+    const auto rounded = register_new_node<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN);
+
+    if (kv_cache_bit_width == 4) {
+        // Clamp to signed 4-bit range, add the +8 storage bias, then pack pairs of channels into u8 bytes.
+        const auto clamped = register_new_node<v0::Clamp>(rounded, -8.0, 7.0);
+        const auto bias = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {8}));
+        const auto biased = register_new_node<v1::Add>(clamped, bias);
+        const auto as_u8 = register_new_node<v0::Convert>(biased, cache_type);
+        // Split the head_size axis into pairs: [.., 2*packed] -> [.., packed, 2] -> low/high nibbles.
+        const auto pair_shape =
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, -1, 2}));
+        const auto paired = register_new_node<v1::Reshape>(as_u8, pair_shape, true);
+        const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto split = register_new_node<v1::VariadicSplit>(
+            paired,
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {-1})),
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1})));
+        const auto low = register_new_node<v0::Squeeze>(split->output(0), axis_last);
+        const auto high = register_new_node<v0::Squeeze>(split->output(1), axis_last);
+        const auto shift_4 = register_new_node(v0::Constant::create(cache_type, ov::Shape{}, {4}));
+        const auto mask_low = register_new_node(v0::Constant::create(cache_type, ov::Shape{}, {0x0F}));
+        const auto low_masked = register_new_node<v13::BitwiseAnd>(low, mask_low);
+        const auto high_shifted = register_new_node<v15::BitwiseLeftShift>(high, shift_4);
+        return register_new_node<v13::BitwiseOr>(low_masked, high_shifted);
+    }
+
+    // 8-bit cache: clamp to signed 8-bit range and narrow to the cache type.
+    const auto clamped = register_new_node<v0::Clamp>(rounded, -128.0, 127.0);
+    return register_new_node<v0::Convert>(clamped, cache_type);
 }

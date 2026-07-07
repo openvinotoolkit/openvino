@@ -34,7 +34,7 @@ std::string OVClassCompiledModelPropertiesTests::getTestCaseName(testing::TestPa
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -62,7 +62,7 @@ std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::Test
     std::ostringstream result;
     result << "device_name=" << target_device << "_";
     if (!compileModelProperties.empty()) {
-        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
+        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), " "), "_");
     }
     result << "_expectedDevice=" << userConfig.second;
     return result.str();
@@ -488,7 +488,7 @@ TEST_P(OVClassCompiledModelGetPropertyTest_EXEC_DEVICES, CanGetExecutionDeviceIn
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     ov::CompiledModel exeNetWork;
     auto deviceList = core->get_available_devices();
-    std::vector<std::string> expected_devices = util::split(expectedDeviceName, ',');
+    const auto  expected_devices = util::split(expectedDeviceName);
     std::vector<std::string> updatedExpectDevices;
     updatedExpectDevices.assign(expected_devices.begin(), expected_devices.end());
     for (auto& iter : compileModelProperties) {
@@ -531,6 +531,20 @@ TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
 
     setlocale(LC_ALL, prev.c_str());
 }
+
+// Shared library definitions - not every plugin instantiates all of them.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelSetCorrectConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCorrectPropertiesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompileModelGetExecutionDeviceTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelPropertiesDefaultSupportedTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelEmptyPropertiesTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_EXEC_DEVICES);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelSetIncorrectConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelPropertiesDefaultTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelIncorrectDevice);
 
 }  // namespace behavior
 }  // namespace test

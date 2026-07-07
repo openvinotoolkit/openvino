@@ -579,6 +579,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SparseFil
     return std::make_shared<ov::Model>(results, ov::ParameterVector{values, indices, default_value}, "SparseFillEmptyRowsGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::GroupedMatMul> &node) {
+    // Case: 3D × 3D (batched uniform groups)
+    const auto mat_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
+    const auto groupedMatMulNode = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupedMatMulNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{mat_a, mat_b}, "GroupedMatMulGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -1557,6 +1566,8 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
+    } else if (ov::is_type<ov::op::v17::ErfInv>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v17::ErfInv>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {

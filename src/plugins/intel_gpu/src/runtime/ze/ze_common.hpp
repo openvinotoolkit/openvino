@@ -7,21 +7,28 @@
 #include "openvino/core/except.hpp"
 #define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include "openvino/zero_api.hpp"
+#undef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 
 #include <limits>
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <exception>
 
-// Expect success of level zero command, throw runtime error otherwise
-#define OV_ZE_EXPECT(f) \
-    do { \
-        ze_result_t res_ = (f); \
-        if (res_ != ZE_RESULT_SUCCESS) { \
-            std::stringstream s; \
-            s << std::hex << res_; \
-            throw std::runtime_error(#f " command failed with code " + s.str()); \
-        } \
+// Expect success of level zero command, throw runtime error otherwise.
+// if already handling an exception (stack unwinding), logging a warning instead to avoid termination.
+#define OV_ZE_EXPECT(f)                                                         \
+    do {                                                                        \
+        ze_result_t res_ = (f);                                                 \
+        if (res_ != ZE_RESULT_SUCCESS) {                                        \
+            std::stringstream s;                                                \
+            s << std::hex << res_;                                              \
+            if (std::uncaught_exceptions() > 0) {                               \
+                GPU_DEBUG_INFO << ("[GPU] " #f " command failed with code " + s.str() + " (during stack unwinding)"); \
+            } else {                                                            \
+                OPENVINO_THROW(#f " command failed with code " + s.str());      \
+            }                                                                   \
+        }                                                                       \
     } while (false)
 
 // Prints warning if level zero command does not return success result
@@ -51,7 +58,7 @@ inline const ::ov::ZeroApi& get_ze_api_instance() {
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
         const auto& ze_api = get_ze_api_instance();                                                         \
         if (ze_api.symbol == nullptr) {                                                                     \
-            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+            return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;                                                     \
         }                                                                                                   \
         return ze_api.symbol(std::forward<Args>(args)...);                                                  \
     }

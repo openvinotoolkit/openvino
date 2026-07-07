@@ -14,6 +14,8 @@ namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+class LLMBlockKVCacheStrategy;
+class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
@@ -75,6 +77,8 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class LLMBlockKVCacheStrategy;
+    friend class LLMContinuousKVCacheStrategy;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
@@ -100,6 +104,7 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
+    bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
@@ -124,6 +129,7 @@ private:
 
     bool m_is_whisper = false;
     uint64_t m_eos_token_id = 0;
+    size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
 

@@ -37,6 +37,7 @@ public:
 
         void setArg(const void* arg);
         void setSize(const ov::Shape& shape);
+        void setStrides(const ov::Strides& strides, int32_t elementSize = 1);
         void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
         void updateStride();
         bool compare(const MemRefType& memref);
@@ -71,7 +72,8 @@ public:
 
     virtual uint64_t get_num_subgraphs() const;
 
-    virtual void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+    virtual void predict_output_shape(GraphArguments& args,
+                                      std::vector<MemRefType>& inputDescriptors,
                                       std::vector<MemRefType>& outputDescriptors);
 };
 

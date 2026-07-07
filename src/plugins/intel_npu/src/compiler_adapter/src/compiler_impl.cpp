@@ -4,6 +4,7 @@
 
 #include "compiler_impl.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <mutex>
 
@@ -11,6 +12,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_allocator.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -36,76 +38,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
         usedMinor = loadedVersion.minor;
     }
     return {usedMajor, usedMinor};
-}
-
-struct vcl_allocator : vcl_allocator2_t {
-    vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
-
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
-        }
-        memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
-        vclAllocator->m_allocated = allocatedPtr;
-        return allocatedPtr;
-    }
-
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    uint8_t* m_allocated = nullptr;
-    size_t m_size = 0;
-};
-
-struct vcl_allocator_2 : vcl_allocator2_t {
-    vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate} {}
-
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
-        size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
-        }
-        memset(allocatedPtr + size, 0, alignedSize - size);
-        vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
-        return allocatedPtr;
-    }
-
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
-        // 1 is the placeholder value, as size is not needed in deallocate
-        vclAllocator->m_allocator.deallocate(ptr, 1, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    std::vector<std::pair<uint8_t*, size_t>> m_info;
-};
-
-ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
-    ov::Allocator allocator;
-    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
-    auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator, size](uint8_t* p) mutable {
-        if (p == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
-        }
-        allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    });
-    impl._so = ptr;
-    return ov::make_tensor(impl);
 }
 
 }  // namespace
@@ -162,24 +94,14 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
-    static std::mutex mutex;
-    static std::weak_ptr<VCLCompilerImpl> weak_compiler;
-
-    std::lock_guard<std::mutex> lock(mutex);
-    auto compiler = weak_compiler.lock();
-    if (!compiler) {
-        compiler = std::make_shared<VCLCompilerImpl>();
-        weak_compiler = compiler;
-    }
-    return compiler;
-}
-
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance();
+    (void)VCLApi::getInstance(libraryDir);
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -204,20 +126,34 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    // This information cannot be determined during the initialization phase; set device desc default value, the related
-    // info will be processed in compile phase if passed by user.
-    _logger.info("Device description is not provided, using default values");
-    uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    if (_vclVersion.major == 7 && _vclVersion.minor < 6) {
-        // For vcl <= 7.5, need to use smaller value to pass check
-        defaultTileCount = std::numeric_limits<uint16_t>::max();
+    vcl_device_desc_t vclDeviceDesc = {};
+    if (deviceProperties.has_value()) {
+        constexpr auto invalidRevision = std::numeric_limits<uint16_t>::max();
+        const auto revision = deviceProperties->subdeviceId >= invalidRevision
+                                  ? invalidRevision
+                                  : static_cast<uint16_t>(deviceProperties->subdeviceId);
+
+        if (revision == invalidRevision) {
+            _logger.warning("Device subdeviceId %u does not fit into VCL revision field; using invalid revision "
+                            "sentinel instead",
+                            deviceProperties->subdeviceId);
+        }
+
+        _logger.info("Device description is provided, using deviceID: 0x%X, subdeviceID: %u, maxTiles: %u",
+                     deviceProperties->deviceId,
+                     deviceProperties->subdeviceId,
+                     deviceProperties->numSlices);
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), deviceProperties->deviceId, revision, deviceProperties->numSlices};
+    } else {
+        // This information cannot be determined during the initialization phase; set device desc default value, the
+        // related info will be processed in compile phase if passed by user.
+        _logger.info("Device description is not provided, using default values");
+        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
     }
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     std::numeric_limits<uint16_t>::max(),
-                                     defaultTileCount};
+
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                          vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
+                          vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
                           nullptr);
     THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
                           vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
@@ -251,18 +187,33 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                    const FilteredConfig& config,
-                                    const bool storeWeightlessCacheAttributeFlag) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config,
+    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
+        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
+        OPENVINO_THROW("Unsupported VCL version: ",
+                       _vclVersion.major,
+                       ".",
+                       _vclVersion.minor,
+                       ", please use VCL ",
+                       VCL_COMPILER_VERSION_MAJOR,
+                       ".",
+                       VCL_COMPILER_VERSION_MINOR,
+                       " or later");
+    }
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -305,40 +256,103 @@ ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& mode
                                      serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
+    // Support only the lastest VCL api
+    auto allocator = std::make_shared<vcl_allocator_2>();
+    uint8_t* blob = nullptr;
+    uint64_t blobSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
-        // support the lastest vcl api
-        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
-        vcl_allocator allocator;
-        uint8_t* blob = nullptr;
-        size_t size = 0;
+    auto result =
+        vclAllocatedExecutableCreate4(_compilerHandle, exeDesc, allocator.get(), &blob, &blobSize, &executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        // Check if allocations were performed before throwing exception
+        auto tracked_allocations = allocator->m_info;
+        for (const auto& [buffer, size] : tracked_allocations) {
+            allocator->deallocate(allocator.get(), buffer);
+        }
+        if (executable != nullptr) {
+            vclExecutableDestroy(executable);
+        }
+        OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate4 result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    }
+    OPENVINO_ASSERT(executable != nullptr, "Failed to create VCL executable, executable handle is null");
+    OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
+                    "Failed to create VCL executable, the blob size is zero or the blob is null");
 
-        auto result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
+    // Retrieve the real allocated size for the blob from the allocator
+    auto it = std::find_if(allocator->m_info.begin(),
+                           allocator->m_info.end(),
+                           [blob](const std::pair<uint8_t*, size_t>& item) {
+                               return item.first == blob;
+                           });
+
+    OPENVINO_ASSERT(it != allocator->m_info.end(), "Failed to find the allocated blob in the allocator records");
+    size_t alignedBlobSize = it->second;
+
+    // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+    _logger.debug("Blob size from VCL: %zu ptr %p", static_cast<size_t>(blobSize), static_cast<void*>(blob));
+    _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
+
+    ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
+    allocator->m_info.erase(it);
+
+    std::optional<std::string> compatibilityString;
+    uint64_t compatibilityStringSize = 0;
+    result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+    if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+        // Some compilation modes (e.g. HostCompile_Interpreter) do not produce a compatibility descriptor.
+        _logger.info("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
+                     "compatibility string will be absent",
+                     uint32_t(result));
+    } else if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
+        if (executable != nullptr) {
+            vclExecutableDestroy(executable);
+        }
+        OPENVINO_THROW("Failed to get compatibility string size. vclExecutableGetCompatibilityString result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    } else {
+        OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
+                        "Compatibility string size is too large to allocate a local buffer");
+        compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
+        result = vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
-            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
+            if (executable != nullptr) {
+                vclExecutableDestroy(executable);
+            }
+            OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
                            std::hex,
                            uint64_t(result),
                            " - ",
                            getLatestVCLLog(_logHandle));
         }
-
-        if (size == 0 || blob == nullptr) {
-            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        OPENVINO_ASSERT(compatibilityStringSize <= compatibilityString->size(),
+                        "Returned compatibility string size exceeds the allocated buffer size");
+        size_t outSize = static_cast<size_t>(compatibilityStringSize);
+        if (outSize > 0 && (*compatibilityString)[outSize - 1] == '\0') {
+            --outSize;
         }
-        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
-        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p",
-                      allocator.m_size,
-                      static_cast<void*>(allocator.m_allocated));
-
-        _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
-    } else {
-        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
-                       _vclVersion.major,
-                       _vclVersion.minor);
+        compatibilityString->resize(outSize);
+        _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
     }
+
+    result = vclExecutableDestroy(executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to destroy VCL executable. vclExecutableDestroy result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    }
+
+    return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
+                                                                  std::move(compatibilityString));
 }
 
 std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
@@ -392,20 +406,23 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    vcl_allocator_2 allocator;
+    auto allocator = std::make_shared<vcl_allocator_2>();
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
-                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
+                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),
                           _logHandle);
 
-    if (allocator.m_info.size() == 0) {
+    if (allocator->m_info.size() == 0) {
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
     std::vector<ov::Tensor> initMainTensors;
-    for (auto& blob : allocator.m_info) {
-        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
+    for (const auto& blob : allocator->m_info) {
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second, allocator));
     }
+    // Clean up m_info, delegating actual physical frees strictly to the Tensor/Deleter from now on.
+    allocator->m_info.clear();
+
     return initMainTensors;
 }
 
@@ -415,7 +432,8 @@ ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>&
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, updatedConfig, true);
+    // The compatibility descriptor is not supported in this case
+    return compile(model, updatedConfig, true).first;
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -560,13 +578,13 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
         _logger.debug("is_option_supported start for option: %s, value: %s",
                       optname_ch,
-                      optValue ? optvalue_ch : "null");
+                      optvalue_ch ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);

@@ -56,7 +56,7 @@ void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     auto outputs = network.execute();
     auto output = outputs.at("count_nonzero").get_memory();
 
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(count_non_zero, output_ptr[0]);
 }
 
@@ -152,7 +152,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
 
         ASSERT_EQ(outputs.size(), size_t(1));
         auto output = outputs.at("count_nonzero").get_memory();
-        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         auto count_non_zero = ov::reference::non_zero_get_count<float>(in_data.data(), in_layout.get_shape());
         ASSERT_EQ(count_non_zero, output_ptr[0]);
@@ -188,7 +188,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
     auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<int32_t> shape_ptr(output_shape_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -312,7 +312,7 @@ TEST(non_zero_gpu, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), (uint32_t)8);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -343,7 +343,7 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
     auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
@@ -476,7 +476,7 @@ TEST(test_gather_non_zero, not_use_local_mem) {
 
     auto outputs = network.execute();
     auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> expected_results(max_local_mem_size);
     ov::reference::non_zero<float, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
@@ -526,7 +526,7 @@ TEST(non_zero_gpu, const_input) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), (uint32_t)8);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
