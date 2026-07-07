@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "rm cannot remove electron dist dll Permission denied|Flaky Test",
+  "signature_hash": "b29c6f846d9fd3de",
+  "title": "JS API E2E test cleanup fails with Permission denied on Electron DLL on Windows",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-07T13:51:25Z",
+  "last_seen": "2026-07-07T13:51:25Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28861100887"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36744"
+  ],
+  "recent_timestamps": [
+    "2026-07-07T13:51:25Z"
+  ]
+}

@@ -1,6 +1,15 @@
 {
-  "total": 28,
+  "total": 29,
   "entries": [
+    {
+      "investigation_id": "2026-07-07-13-51-25-000-28861100887",
+      "run_id": "28861100887",
+      "timestamp": "2026-07-07T13:51:25Z",
+      "title": "JS API E2E test cleanup fails with Permission denied on Electron DLL on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "b29c6f846d9fd3de",
+      "pr_number": "36744"
+    },
     {
       "investigation_id": "2026-07-07-04-09-01-383-28837974056",
       "run_id": "28837974056",

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-07-13-51-25-000-28861100887",
+  "timestamp": "2026-07-07T13:51:25Z",
+  "run_id": "28861100887",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28861100887",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36744",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36744",
+  "author": "isanghao",
+  "category": "Flaky Test",
+  "title": "JS API E2E test cleanup fails with Permission denied on Electron DLL on Windows",
+  "signature": "rm cannot remove electron dist dll Permission denied|Flaky Test",
+  "signature_hash": "b29c6f846d9fd3de",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all hook fails: rm -rf demo-electron-app-project Permission denied on d3dcompiler_47.dll"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because JS API (26) failed"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "1) E2E testing for OpenVINO as an Electron dependency.\n     \"after all\" hook for \"should run electron package and verify output\":\n   Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The E2E Mocha test 'after all' cleanup hook calls 'rm -rf demo-electron-app-project' (Unix-style shell delete via Git Bash on Windows). Both actual tests passed (install deps + run electron). The cleanup fails because d3dcompiler_47.dll inside node_modules/electron/dist/ has its read-only/locked attribute set on Windows \u2014 either because Electron holds a file handle on the DLL after the electron process exits, or because npm sets read-only attributes on installed binaries. The Unix 'rm -rf' command on Windows Git Bash does not strip read-only attributes before deletion, causing Permission denied.",
+  "reproduction_steps": "1. Run 'npm run test:e2e' in src/bindings/js/node on a Windows host.\n2. After the electron test completes, observe whether 'rm -rf demo-electron-app-project' fails on d3dcompiler_47.dll.",
+  "recommended_actions": [
+    "Replace 'rm -rf demo-electron-app-project' in the E2E test after-all hook with a cross-platform delete using 'rimraf' (already available as a dev dependency in the Node.js ecosystem) or PowerShell 'Remove-Item -Force -Recurse demo-electron-app-project'.",
+    "Alternatively, add 'icacls demo-electron-app-project /grant Everyone:F /T' before the rm call on Windows to strip read-only attributes.",
+    "Add error handling to the after-all hook so cleanup failures do not fail the test suite (using try/catch or Mocha's 'this.timeout' with error suppression)."
+  ],
+  "prevention_strategies": "Use rimraf or a Node.js cross-platform delete (fs.rmSync with {recursive: true, force: true} in Node >= 14) instead of 'rm -rf' in test cleanup hooks to handle Windows file permission/locking edge cases.",
+  "historical_context": "First occurrence of this specific failure signature. Related to Windows file permission issues with Electron DLL files during test cleanup."
+}
