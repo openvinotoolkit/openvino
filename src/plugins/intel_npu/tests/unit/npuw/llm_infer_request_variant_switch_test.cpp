@@ -13,21 +13,79 @@
 #include <utility>
 #include <vector>
 
-#define private public
-#define protected public
+#include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_infer_request.hpp"
-#undef protected
-#undef private
-
 #include "llm_compiled_model.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
 
+namespace ov::test::npuw {
+
+struct LLMVariantSwitchTestAccess {
+    static std::size_t generate_variant_count(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_generate_compiled_variants.size();
+    }
+
+    static std::shared_ptr<ov::npuw::ICompiledModel_v0> generate_variant(
+        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+        std::size_t idx) {
+        return compiled->m_generate_compiled_variants.at(idx);
+    }
+
+    static bool is_block_kv_cache(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_is_block_kv_cache;
+    }
+
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+        compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
+    }
+
+    static uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
+        const auto& desc = req.m_npuw_llm_compiled_model->m_kvcache_desc;
+        return (ov::npuw::util::isPastValueParam(name) && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
+    }
+
+    static void select_smallest_generate_variant(ov::npuw::LLMInferRequest& req) {
+        ASSERT_GE(req.m_generate_requests.size(), 2u);
+        req.m_kvcache_variant_idx = 0u;
+        req.m_kvcache_request = req.m_generate_requests.front();
+        req.m_kvcache_in_ports = req.m_generate_variant_in_ports.at(req.m_kvcache_request);
+        req.m_kvcache_out_ports = req.m_generate_variant_out_ports.at(req.m_kvcache_request);
+    }
+
+    static uint32_t current_variant_capacity(ov::npuw::LLMInferRequest& req) {
+        return req.get_current_variant_capacity();
+    }
+
+    static bool try_switch_to_larger_variant(ov::npuw::LLMInferRequest& req) {
+        return req.try_switch_to_larger_variant();
+    }
+
+    static std::size_t current_variant_index(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_variant_idx;
+    }
+
+    static const std::vector<std::string>& kvcache_past_names(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_past_names;
+    }
+
+    static const auto& kvcache_in_ports(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_in_ports;
+    }
+
+    static const auto& kvcache_request(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_request;
+    }
+};
+
+}  // namespace ov::test::npuw
+
 namespace {
 
 using ov::test::npuw::build_llm_test_model;
+using ov::test::npuw::LLMVariantSwitchTestAccess;
 using ov::test::npuw::NullPlugin;
 class FakeSubCompiledModel;
 
@@ -76,7 +134,9 @@ public:
     }
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(), nullptr, nullptr);
+        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
+                                                        intel_npu::make_executor("variant_switch_task", 1),
+                                                        intel_npu::make_executor("variant_switch_callback", 1));
     }
     std::string submodel_device(std::size_t) const override {
         return "CPU";
@@ -142,19 +202,6 @@ void fill_tensor_pattern(const ov::SoPtr<ov::ITensor>& tensor, uint8_t seed) {
     ov::get_tensor_impl(dense)->copy_to(tensor._ptr);
 }
 
-uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
-    const auto& desc = req.m_npuw_llm_compiled_model->m_kvcache_desc;
-    return (ov::npuw::util::isPastValueParam(name) && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
-}
-
-void select_smallest_generate_variant(ov::npuw::LLMInferRequest& req) {
-    ASSERT_GE(req.m_generate_requests.size(), 2u);
-    req.m_kvcache_variant_idx = 0u;
-    req.m_kvcache_request = req.m_generate_requests.front();
-    req.m_kvcache_in_ports = req.m_generate_variant_in_ports.at(req.m_kvcache_request);
-    req.m_kvcache_out_ports = req.m_generate_variant_out_ports.at(req.m_kvcache_request);
-}
-
 class LLMInferRequestVariantSwitchTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -192,30 +239,34 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
     VariantSwitchFactory factory;
     auto compiled = create_compiled_model({}, factory);
     ASSERT_NE(compiled, nullptr);
-    ASSERT_EQ(compiled->m_generate_compiled_variants.size(), 2u);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
 
     ov::npuw::LLMInferRequest req(compiled);
-    select_smallest_generate_variant(req);
+    LLMVariantSwitchTestAccess::select_smallest_generate_variant(req);
 
-    const uint32_t stored_tokens = req.get_current_variant_capacity();
-    compiled->m_kvcache_desc.num_stored_tokens = stored_tokens;
+    const uint32_t stored_tokens = LLMVariantSwitchTestAccess::current_variant_capacity(req);
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, stored_tokens);
 
     std::unordered_map<std::string, std::vector<uint8_t>> expected_kv_bytes;
     uint8_t seed = 17u;
-    for (const auto& name : req.m_kvcache_past_names) {
-        auto src = req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at(name));
-        auto src_slice = ov::npuw::util::make_tensor_slice(src, kv_dim_for_name(req, name), 0u, stored_tokens);
+    for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
+        auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
+            LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
+        auto src_slice = ov::npuw::util::make_tensor_slice(
+            src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
         fill_tensor_pattern(src_slice, seed);
         expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
         seed = static_cast<uint8_t>(seed + 37u);
     }
 
-    ASSERT_TRUE(req.try_switch_to_larger_variant());
-    EXPECT_EQ(req.m_kvcache_variant_idx, 1u);
+    ASSERT_TRUE(LLMVariantSwitchTestAccess::try_switch_to_larger_variant(req));
+    EXPECT_EQ(LLMVariantSwitchTestAccess::current_variant_index(req), 1u);
 
-    for (const auto& name : req.m_kvcache_past_names) {
-        auto dst = req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at(name));
-        auto dst_slice = ov::npuw::util::make_tensor_slice(dst, kv_dim_for_name(req, name), 0u, stored_tokens);
+    for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
+        auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
+            LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
+        auto dst_slice = ov::npuw::util::make_tensor_slice(
+            dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
         EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
     }
 }
@@ -229,10 +280,13 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
                                            {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}},
                                           factory);
     ASSERT_NE(compiled, nullptr);
-    ASSERT_EQ(compiled->m_generate_compiled_variants.size(), 2u);
-    ASSERT_TRUE(compiled->m_is_block_kv_cache);
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(compiled->m_generate_compiled_variants.front());
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(compiled->m_generate_compiled_variants.back());
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+    ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
+    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
+        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
+        LLMVariantSwitchTestAccess::generate_variant(compiled,
+                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 

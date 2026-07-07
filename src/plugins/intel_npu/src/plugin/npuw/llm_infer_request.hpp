@@ -18,6 +18,14 @@
 #include "perf.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
@@ -169,6 +177,7 @@ protected:
     friend class LLMContinuousKVCacheStrategy;
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
 };
 
 }  // namespace npuw
