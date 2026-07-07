@@ -242,7 +242,7 @@ static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
  */
 struct SharedBufferHandle {
 #ifdef __linux__
-    using value_type = int;   ///< DMA-BUF file descriptor
+    using value_type = int;  ///< DMA-BUF file descriptor
 #else
     using value_type = void*;  ///< DX12 shared NT HANDLE
 #endif

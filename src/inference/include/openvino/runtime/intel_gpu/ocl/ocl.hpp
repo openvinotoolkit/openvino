@@ -315,12 +315,10 @@ public:
 
     /**
      * @brief This function is used to obtain a remote tensor object from a user-supplied external memory handle
-     *        The API mirrors the NPU pointer-based create_tensor form.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as 
+     * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as
      * void*, DMA-BUF fd on Linux passed as int)
-     * @param memory_type Memory type to use; only MemType::SHARED_BUF is currently supported
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, SharedBufferHandle handle) {
@@ -332,6 +330,13 @@ public:
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
     
+    /**
+     * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAdressMemory
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param buff A VirtualAdressMemory object that contains cpu pointer and size(optional)
+     * @return A remote tensor instance
+     */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAdressMemory buff) {
 
         OPENVINO_ASSERT(buff.ptr != nullptr, "host buffer must not be nullptr for CPU_VA memory type");
