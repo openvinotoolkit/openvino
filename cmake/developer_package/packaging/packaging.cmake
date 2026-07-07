@@ -79,25 +79,40 @@ endmacro()
 #
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
-        get_target_property(target_type ${target} TYPE)
-        if(target_type STREQUAL "STATIC_LIBRARY")
-            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
+        # Resolve alias targets — install(TARGETS) does not accept aliases
+        get_target_property(aliased_target ${target} ALIASED_TARGET)
+        if(aliased_target)
+            set(install_target ${aliased_target})
+        else()
+            set(install_target ${target})
         endif()
 
-        # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
-        list(APPEND openvino_installed_targets ${target})
-        set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
-            "A list of OpenVINO internal targets" FORCE)
+        # Skip imported targets — they are owned by their own package config.
+        # Skip alias targets from external packages (e.g. absl::*) — the real
+        # target behind the alias is registered in that package's own export set
+        # (e.g. abslTargets.cmake) and cannot be added to a second export set.
+        get_target_property(is_imported ${install_target} IMPORTED)
+        if(NOT is_imported AND NOT aliased_target)
+            get_target_property(target_type ${install_target} TYPE)
+            if(target_type STREQUAL "STATIC_LIBRARY")
+                set_target_properties(${install_target} PROPERTIES EXCLUDE_FROM_ALL OFF)
+            endif()
 
-        install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+            # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
+            list(APPEND openvino_installed_targets ${install_target})
+            set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
+                "A list of OpenVINO internal targets" FORCE)
 
-        # install compile PDB file as well
-        ov_install_pdb(${target})
+            install(TARGETS ${install_target} EXPORT OpenVINOTargets
+                    ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
 
-        # export to local tree to build against static build tree
-        export(TARGETS ${target} NAMESPACE openvino::
-               APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+            # install compile PDB file as well
+            ov_install_pdb(${install_target})
+
+            # export to local tree to build against static build tree
+            export(TARGETS ${install_target} NAMESPACE openvino::
+                   APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+        endif()
     endif()
 endmacro()
 
