@@ -134,8 +134,6 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
                                         float softcap,
                                         int64_t qk_matmul_output_mode,
                                         bool include_safe_softmax) {
-    const auto& compute_type = Q.get_element_type();
-
     // 1. Q @ K^T
     auto qk = std::make_shared<v0::MatMul>(Q, K, false, true);
 
@@ -148,7 +146,7 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
     } else {
         auto q_shape = std::make_shared<v3::ShapeOf>(Q);
         auto head_size = get_dimensions(q_shape, {3});
-        auto head_size_f = std::make_shared<v0::Convert>(head_size, compute_type);
+        auto head_size_f = std::make_shared<v1::ConvertLike>(head_size, Q);
         auto sqrt_head = std::make_shared<v0::Sqrt>(head_size_f);
         scaled_qk = std::make_shared<v1::Divide>(qk, sqrt_head);
     }

@@ -316,8 +316,6 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
                      !has_past_key || is_regular_QKV,
                      "past_key and past_value are only supported in unpacked 3D case");
 
-    const auto& compute_type = Q.get_element_type();
-
     if (has_bias) {
         auto bias_splits = detail::split_bias(inputs[3], Q, K, V, num_heads);
         Q = std::make_shared<v1::Add>(Q, bias_splits[0]);

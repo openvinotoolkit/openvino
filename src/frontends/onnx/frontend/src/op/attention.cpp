@@ -223,8 +223,9 @@ PreparedQKV prepare_qkv(const ov::frontend::onnx::Node& node,
 }  // namespace
 }  // namespace detail
 
-namespace opset_23 {
-ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
+namespace detail {
+
+static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, bool is_opset24) {
     auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node, num_inputs >= 3, "Attention expects at least 3 inputs, got: ", num_inputs);
@@ -236,10 +237,15 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     bool has_attn_mask = common::is_input_valid(node, 3);
     bool has_past_key = common::is_input_valid(node, 4);
     bool has_past_value = common::is_input_valid(node, 5);
+    bool has_nonpad = is_opset24 && common::is_input_valid(node, 6);
 
     CHECK_VALID_NODE(node,
                      has_past_key == has_past_value,
                      "past_key and past_value must be both present or both absent");
+    if (is_opset24)
+        CHECK_VALID_NODE(node,
+                         !(has_nonpad && (has_past_key || has_past_value)),
+                         "nonpad_kv_seqlen is mutually exclusive with past_key/past_value");
 
     bool is_causal = static_cast<bool>(node.get_attribute_value<int64_t>("is_causal", 0));
     float scale_attr = node.get_attribute_value<float>("scale", 0.0f);
@@ -257,13 +263,12 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     size_t num_outputs = node.get_outputs_size();
     const auto& output_names = node.get_output_names();
     if (num_outputs > 1) {
-        bool has_present_key = num_outputs > 1 && !output_names[1].get().empty();
+        bool has_present_key = !output_names[1].get().empty();
         bool has_present_value = num_outputs > 2 && !output_names[2].get().empty();
         CHECK_VALID_NODE(node,
                          has_present_key == has_present_value,
                          "present_key and present_value must be both present or both absent");
     }
-
     bool needs_qk_output = output_names.size() > 3 && !output_names[3].get().empty();
     if (!needs_qk_output)
         qk_matmul_output_mode = -1;
@@ -277,7 +282,9 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     bool q_is_3d = prepared.q_is_3d;
 
     const auto& compute_type = Q.get_element_type();
+    CHECK_VALID_NODE(node, compute_type != ov::element::dynamic, "Q input type must be static, got: ", compute_type);
 
+    // Build the additive attention mask (-inf for disallowed positions).
     ov::Output<ov::Node> attn_mask;
     if (has_attn_mask) {
         attn_mask = inputs[3];
@@ -289,26 +296,32 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
             "), got: ",
             attn_mask.get_element_type());
         if (attn_mask.get_element_type() == ov::element::boolean) {
-            // For manual path, convert boolean to float; for SDPA path, SDPA op. handles boolean natively.
-            // The default -inf fill lets build_manual_attention's fully-masked-row guard detect a row
-            // whose keys are all disallowed and emit a zero row (ONNX Attention-23 semantics).
-            if (softcap > 0.0f || qk_matmul_output_mode >= 0 || is_causal) {
+            // opset-24 always converts; opset-23 only when the manual path will be taken.
+            bool must_convert = is_opset24 || softcap > 0.0f || qk_matmul_output_mode >= 0 || is_causal;
+            if (must_convert)
                 attn_mask = convert_boolean_mask(attn_mask, compute_type);
-            }
         }
+        if (is_opset24)  // opset-24 pads mask last dim to total seq_kv length
+            attn_mask = pad_attn_mask_last_dim(attn_mask, K);
     } else {
         auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
         attn_mask = std::make_shared<v1::ConvertLike>(zero_f32, Q);
     }
 
-    // Build an explicit causal mask rather than using the SDPA op's is_causal flag, because the flag
-    // is implemented inconsistently across backends (CPU: bottom-right offset, GPU: top-left).
-    // An explicit additive mask gives identical results on every backend. The mask uses
-    // offset = past_sequence_length when a KV cache is present and 0 otherwise — the bottom-right
-    // alignment according to the ONNX Attention spec (confirmed by onnx/onnx#8068).
+    ov::Output<ov::Node> nonpad;
+    if (has_nonpad)
+        nonpad = inputs[6];
+
+    // Build an explicit causal mask rather than relying on the SDPA op's is_causal flag, because
+    // the flag is implemented inconsistently across backends (CPU: bottom-right offset, GPU: top-left offset).
+    // An explicit additive mask gives identical results on every backend. offset = past_sequence_length when a KV cache
+    // is present (bottom-right alignment per the ONNX Attention spec, confirmed by onnx/onnx#8068).
     if (is_causal) {
-        auto kind = has_past_key ? CausalKind::PAST : CausalKind::NONE;
-        auto causal_mask = build_causal_mask(Q, K, kind);
+        // opset-24 supports NONPAD causal alignment.
+        CausalKind kind = has_past_key                 ? CausalKind::PAST
+                          : (is_opset24 && has_nonpad) ? CausalKind::NONPAD
+                                                       : CausalKind::NONE;
+        auto causal_mask = build_causal_mask(Q, K, kind, NEG_INF, nonpad);
         if (has_attn_mask) {
             attn_mask = std::make_shared<v1::Add>(attn_mask, causal_mask);
         } else {
@@ -318,167 +331,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         is_causal = false;
     }
 
-    ov::Output<ov::Node> Y;
-    ov::Output<ov::Node> qk_debug_output;
-
-    if (softcap > 0.0f || qk_matmul_output_mode >= 0) {
-        auto results = build_manual_attention(Q, K, V, attn_mask, scale_attr, softcap, qk_matmul_output_mode);
-        Y = results[0];
-        if (results[1].get_node()) {
-            qk_debug_output = results[1];
-        }
-    } else {
-        ov::OutputVector inputs{Q, K, V, attn_mask};
-        if (scale_attr != 0.0f) {
-            auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
-            inputs.push_back(std::make_shared<v1::ConvertLike>(scale_f32, Q));
-        }
-
-        Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
-        if (has_attn_mask) {
-            // Fully-masked rows (all keys masked out) yield NaN after softmax inside SDPA.
-            // Replace NaN with zeros to match opset-23 semantics.
-            auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-            auto zero = std::make_shared<v1::ConvertLike>(zero_f32, Y);
-            auto is_nan = std::make_shared<v10::IsNaN>(Y);
-            Y = std::make_shared<v1::Select>(is_nan, zero, Y);
-        }
-    }
-
-    // Reshape output back to 3D if Q was 3D
-    if (q_is_3d)
-        Y = reshape_4d_to_3d(Y);
-
-    // Output names from the ONNX graph determine which outputs are actually requested.
-    // Empty names indicate unused optional outputs — push NullNode for those to avoid
-    // creating shared input/output parameters that confuse port resolution.
-    ov::OutputVector results{Y};
-
-    if (num_outputs > 1) {
-        if (!output_names[1].get().empty()) {
-            results.push_back(present_key);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-    if (num_outputs > 2) {
-        if (!output_names[2].get().empty()) {
-            results.push_back(present_value);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-    if (num_outputs > 3) {
-        if (qk_debug_output.get_node() && !output_names[3].get().empty()) {
-            results.push_back(qk_debug_output);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-
-    return results;
-}
-ONNX_OP("Attention", OPSET_RANGE(1, 23), ai_onnx::opset_23::attention);
-}  // namespace opset_23
-
-namespace opset_24 {
-ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ov_inputs();
-    const auto num_inputs = inputs.size();
-    CHECK_VALID_NODE(node, num_inputs >= 3, "Attention expects at least 3 inputs, got: ", num_inputs);
-
-    auto Q = inputs[0];
-    auto K = inputs[1];
-    auto V = inputs[2];
-
-    bool has_attn_mask = common::is_input_valid(node, 3);
-    bool has_past_key = common::is_input_valid(node, 4);
-    bool has_past_value = common::is_input_valid(node, 5);
-    bool has_nonpad = common::is_input_valid(node, 6);
-
-    CHECK_VALID_NODE(node,
-                     has_past_key == has_past_value,
-                     "past_key and past_value must be both present or both absent");
-    CHECK_VALID_NODE(node,
-                     !(has_nonpad && (has_past_key || has_past_value)),
-                     "nonpad_kv_seqlen is mutually exclusive with past_key/past_value");
-
-    bool is_causal = static_cast<bool>(node.get_attribute_value<int64_t>("is_causal", 0));
-    float scale_attr = node.get_attribute_value<float>("scale", 0.0f);
-    float softcap = node.get_attribute_value<float>("softcap", 0.0f);
-    int64_t qk_matmul_output_mode = node.get_attribute_value<int64_t>("qk_matmul_output_mode", 0);
-    int64_t q_num_heads = node.get_attribute_value<int64_t>("q_num_heads", 0);
-    int64_t kv_num_heads = node.get_attribute_value<int64_t>("kv_num_heads", 0);
-
-    CHECK_VALID_NODE(node, softcap >= 0.0f, "softcap must be non-negative, got: ", softcap);
-    CHECK_VALID_NODE(node,
-                     qk_matmul_output_mode >= 0 && qk_matmul_output_mode <= 3,
-                     "qk_matmul_output_mode must be 0, 1, 2, or 3, got: ",
-                     qk_matmul_output_mode);
-
-    size_t num_outputs = node.get_outputs_size();
-    const auto& output_names = node.get_output_names();
-    if (num_outputs > 1) {
-        bool has_present_key = num_outputs > 1 && !output_names[1].get().empty();
-        bool has_present_value = num_outputs > 2 && !output_names[2].get().empty();
-        CHECK_VALID_NODE(node,
-                         has_present_key == has_present_value,
-                         "present_key and present_value must be both present or both absent");
-    }
-    bool needs_qk_output = output_names.size() > 3 && !output_names[3].get().empty();
-    if (!needs_qk_output)
-        qk_matmul_output_mode = -1;
-
-    auto prepared = detail::prepare_qkv(node, inputs, has_past_key, q_num_heads, kv_num_heads);
-    Q = prepared.Q;
-    K = prepared.K;
-    V = prepared.V;
-    auto present_key = prepared.present_key;
-    auto present_value = prepared.present_value;
-    bool q_is_3d = prepared.q_is_3d;
-
-    const auto& compute_type = Q.get_element_type();
-
-    // Merge attention mask, causal mask and padding mask into a single additive mask using -inf for
-    // disallowed positions (required for the fully-masked-row guard in build_manual_attention).
-    ov::Output<ov::Node> attn_mask;
-    if (has_attn_mask) {
-        attn_mask = inputs[3];
-        CHECK_VALID_NODE(
-            node,
-            attn_mask.get_element_type() == ov::element::boolean || attn_mask.get_element_type() == compute_type,
-            "Attention mask must be boolean or match Q/K/V type (",
-            compute_type,
-            "), got: ",
-            attn_mask.get_element_type());
-        if (attn_mask.get_element_type() == ov::element::boolean) {
-            attn_mask = convert_boolean_mask(attn_mask, compute_type);
-        }
-        // The mask's last dimension may be shorter than the total sequence length; pad with -inf.
-        attn_mask = detail::pad_attn_mask_last_dim(attn_mask, K);
-    } else {
-        auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-        attn_mask = std::make_shared<v1::ConvertLike>(zero_f32, Q);
-    }
-
-    ov::Output<ov::Node> nonpad;
     if (has_nonpad) {
-        nonpad = inputs[6];
-    }
-
-    if (is_causal) {
-        CausalKind kind = has_past_key ? CausalKind::PAST : has_nonpad ? CausalKind::NONPAD : CausalKind::NONE;
-        auto causal_mask = build_causal_mask(Q, K, kind, detail::NEG_INF, nonpad);
-        if (has_attn_mask) {
-            attn_mask = std::make_shared<v1::Add>(attn_mask, causal_mask);
-        } else {
-            attn_mask = causal_mask;
-        }
-        has_attn_mask = true;
-    }
-
-    if (has_nonpad) {
-        auto padding_mask = detail::build_padding_mask(K, nonpad);
+        auto padding_mask = build_padding_mask(K, nonpad);
         if (has_attn_mask) {
             attn_mask = std::make_shared<v1::Add>(attn_mask, padding_mask);
         } else {
@@ -490,22 +344,21 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> Y;
     ov::Output<ov::Node> qk_debug_output;
 
+    // opset-24 forces the manual path when nonpad_kv_seqlen is present.
     if (softcap > 0.0f || qk_matmul_output_mode >= 0 || has_nonpad) {
         auto results = build_manual_attention(Q, K, V, attn_mask, scale_attr, softcap, qk_matmul_output_mode);
         Y = results[0];
-        if (results[1].get_node()) {
+        if (results[1].get_node())
             qk_debug_output = results[1];
-        }
     } else {
         ov::OutputVector inputs{Q, K, V, attn_mask};
         if (scale_attr != 0.0f) {
             auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
             inputs.push_back(std::make_shared<v1::ConvertLike>(scale_f32, Q));
         }
-
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
         if (has_attn_mask) {
-            // Replace NaN with zeros to match opset-23/24 semantics.
+            // Fully-masked rows yield NaN after softmax inside SDPA; replace with zeros.
             auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
             auto zero = std::make_shared<v1::ConvertLike>(zero_f32, Y);
             auto is_nan = std::make_shared<v10::IsNaN>(Y);
@@ -513,35 +366,33 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    if (q_is_3d) {
+    if (q_is_3d)
         Y = reshape_4d_to_3d(Y);
-    }
 
     ov::OutputVector results{Y};
-
-    if (num_outputs > 1) {
-        if (!output_names[1].get().empty()) {
-            results.push_back(present_key);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-    if (num_outputs > 2) {
-        if (!output_names[2].get().empty()) {
-            results.push_back(present_value);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-    if (num_outputs > 3) {
-        if (qk_debug_output.get_node() && !output_names[3].get().empty()) {
-            results.push_back(qk_debug_output);
-        } else {
-            results.push_back(std::make_shared<NullNode>()->output(0));
-        }
-    }
-
+    if (num_outputs > 1)
+        results.push_back(!output_names[1].get().empty() ? present_key : std::make_shared<NullNode>()->output(0));
+    if (num_outputs > 2)
+        results.push_back(!output_names[2].get().empty() ? present_value : std::make_shared<NullNode>()->output(0));
+    if (num_outputs > 3)
+        results.push_back((qk_debug_output.get_node() && !output_names[3].get().empty())
+                              ? qk_debug_output
+                              : std::make_shared<NullNode>()->output(0));
     return results;
+}
+
+}  // namespace detail
+
+namespace opset_23 {
+ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
+    return detail::attention_common(node, /*is_opset24=*/false);
+}
+ONNX_OP("Attention", OPSET_RANGE(1, 23), ai_onnx::opset_23::attention);
+}  // namespace opset_23
+
+namespace opset_24 {
+ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
+    return detail::attention_common(node, /*is_opset24=*/true);
 }
 ONNX_OP("Attention", OPSET_SINCE(24), ai_onnx::opset_24::attention);
 }  // namespace opset_24
