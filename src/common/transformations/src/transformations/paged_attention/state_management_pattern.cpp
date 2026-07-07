@@ -414,8 +414,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     // gpt-oss, gemma3 and gemma4 sliding layer cases
     std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset, gemma4_sw_const;
-    std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset, gemma4_sw_const) =
-        gptoss_gemma3_gemma4_sliding_window_pattern();
+    std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset, gemma4_sw_const) = gptoss_gemma3_gemma4_sliding_window_pattern();
 
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
