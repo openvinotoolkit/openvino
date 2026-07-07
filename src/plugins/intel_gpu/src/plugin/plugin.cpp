@@ -704,10 +704,10 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
-                // v1: full-string equality against the current device descriptor.
-                const auto current = CompiledModel::build_runtime_requirements(device_info);
-                return requirements == current ? ov::CompatibilityCheck::SUPPORTED
-                                               : ov::CompatibilityCheck::UNSUPPORTED;
+                // Same compatibility policy as the import_model() guard (single source of truth).
+                return CompiledModel::is_runtime_requirements_compatible(requirements, device_info)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
             }
         }
         return ov::CompatibilityCheck::NOT_APPLICABLE;
