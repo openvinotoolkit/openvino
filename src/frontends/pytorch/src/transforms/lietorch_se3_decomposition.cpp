@@ -125,8 +125,7 @@ struct Builder {
 }  // namespace
 
 LieTorchSE3Decomposition::LieTorchSE3Decomposition() {
-    const auto fw_node = pattern::wrap_type<PtFrameworkNode>();
-
+    const auto fw_node = pattern::wrap_type<PtFrameworkNode>(fw_node_predicate({"lietorch::Exp", "lietorch::Act3"}));
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto node = ov::as_type_ptr<PtFrameworkNode>(m.get_match_root());
         if (!node) {
