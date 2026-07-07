@@ -53,9 +53,10 @@ int main() {
     // and the allocation size must be a multiple of cache line size.
     // In case of size of tensor lower than cache line size, allocate at least one cache line size 
     // and use ov::intel_gpu::VirtualAdressMemory(cpu_pointer, allocated_size)
-    const size_t size = input_size * in_element_type.size();
+    size_t size = input_size * in_element_type.size();
     const std::string target_device = "GPU";
     const uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    size = ov::util::align_size_up(size, cacheline_size); // ensure OCL runtime compatibility
     void* cpu_pointer = ov::util::aligned_alloc(size, cacheline_size);
     // end of Allocation part
     {

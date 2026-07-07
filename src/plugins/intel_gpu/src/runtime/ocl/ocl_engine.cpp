@@ -57,32 +57,6 @@ cl_platform_id get_platform_id_for_device(const cl::Device& device) {
                     "[GPU] Failed to retrieve CL_DEVICE_PLATFORM, error: ", err);
     return platform;
 }
-
-memory_ptr create_hostbuffer_impl(ocl_engine& engine, void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
-    auto tracker = std::make_shared<MemoryTracker>(&engine,
-                                                   cpu_address,
-                                                   data_size,
-                                                   allocation);
-    cl_int err = CL_SUCCESS;
-    cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
-
-#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
-    const size_t minimal_alignment = static_cast<size_t>(engine.get_device_info().cacheline_size);
-    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
-                    "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
-    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
-                    "[GPU] shared buffer size must be a multiple of ", minimal_alignment, " bytes");
-    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
-#endif
-    cl::Buffer buffer(engine.get_cl_context(), flags, data_size, cpu_address, &err);
-#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
-    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
-#else
-    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
-#endif
-
-    return std::make_shared<ocl::gpu_buffer>(&engine, output_layout, buffer, tracker);
-}
 }  // namespace
 
 ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
@@ -269,11 +243,11 @@ memory_ptr ocl_engine::create_hostbuffer(void* cpu_address,
                                          size_t data_size,
                                          allocation_type _allocation_type,
                                          const layout output_layout) {
-    return create_hostbuffer_impl(*this, cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
+    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
 memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
-    return create_hostbuffer_impl(*this, const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY);
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY);
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
@@ -398,9 +372,35 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
     return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
+memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
+    auto tracker = std::make_shared<MemoryTracker>(this,
+                                                   cpu_address,
+                                                   data_size,
+                                                   allocation);
+    cl_int err = CL_SUCCESS;
+    cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
+
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size);
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
+                    "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
+    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
+                    "[GPU] shared buffer size must be a multiple of ", minimal_alignment, " bytes");
+    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
+#endif
+    cl::Buffer buffer(get_cl_context(), flags, data_size, cpu_address, &err);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
+#else
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
+#endif
+
+    return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
+}
+
+
 std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type) {
     return ocl_engine::create(device, runtime_type);
 }
-
 }  // namespace ocl
 }  // namespace cldnn

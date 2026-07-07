@@ -318,8 +318,8 @@ public:
      *        The API mirrors the NPU pointer-based create_tensor form.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as void*,
-     * DMA-BUF fd on Linux passed as int)
+     * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as 
+     * void*, DMA-BUF fd on Linux passed as int)
      * @param memory_type Memory type to use; only MemType::SHARED_BUF is currently supported
      * @return A remote tensor instance
      */

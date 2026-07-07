@@ -216,7 +216,6 @@ static constexpr Property<void*> cpu_va{"CPU_VA"};
  */
 static constexpr Property<int64_t> cpu_va_size{"CPU_VA_SIZE"};
 
-
 /**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
@@ -243,7 +242,7 @@ static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
  */
 struct SharedBufferHandle {
 #ifdef __linux__
-    using value_type = int;    ///< DMA-BUF file descriptor
+    using value_type = int;   ///< DMA-BUF file descriptor
 #else
     using value_type = void*;  ///< DX12 shared NT HANDLE
 #endif

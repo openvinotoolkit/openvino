@@ -56,6 +56,7 @@ public:
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
+    memory_ptr create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags);
     std::string _extensions;
 };
 

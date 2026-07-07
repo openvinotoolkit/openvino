@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -355,8 +356,8 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        m_memory_object = engine.create_hostbuffer(m_mem,
-                                        m_va_mem.size > 0 ? m_va_mem.size : m_layout.bytes_count(),
+        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
+                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
                                         cldnn::allocation_type::cl_mem,
                                         m_layout);
         break;
@@ -503,7 +504,7 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::cpu_va(m_mem),
+            ov::intel_gpu::cpu_va(m_va_mem.ptr),
         };
         break;
     case TensorType::BT_USM_HOST_INTERNAL:
