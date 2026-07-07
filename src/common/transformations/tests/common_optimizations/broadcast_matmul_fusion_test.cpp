@@ -197,3 +197,26 @@ TEST_F(BroadcastMatMulFusionTest, KeepsBroadcastWhenConsumerNotMatMul) {
     auto add = std::make_shared<ov::op::v1::Add>(broadcast, other);
     model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(add)}, ParameterVector{other});
 }
+
+TEST_F(BroadcastMatMulFusionTest, KeepsBroadcastWithPdpdMode) {
+    // PDPD broadcasting aligns dimensions differently from MatMul's NumPy-style batch
+    // broadcasting, so such a Broadcast must not be detached.
+    auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, 8, 16});
+    auto data = make_const(Shape{1, 32, 8});
+    auto target = v0::Constant::create(element::i64, Shape{3}, {4, 32, 8});
+    auto broadcast =
+        std::make_shared<v3::Broadcast>(data, target, op::BroadcastModeSpec(op::BroadcastType::PDPD, 0));
+    auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
+    model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
+}
+
+TEST_F(BroadcastMatMulFusionTest, KeepsBroadcastWhenFixedExtentAndOtherDynamic) {
+    // Broadcast batch is a fixed 4, the other operand batch is dynamic: not provably equal,
+    // so removing the Broadcast could hide a runtime batch mismatch it would have rejected.
+    auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 8, 16});
+    auto data = make_const(Shape{1, 32, 8});
+    auto target = v0::Constant::create(element::i64, Shape{3}, {4, 32, 8});
+    auto broadcast = std::make_shared<v3::Broadcast>(data, target, op::BroadcastType::BIDIRECTIONAL);
+    auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
+    model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
+}

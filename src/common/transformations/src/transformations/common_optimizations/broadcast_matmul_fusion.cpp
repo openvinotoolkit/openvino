@@ -44,8 +44,10 @@ bool can_remove_broadcast(const ov::PartialShape& data_shape,
 
     // For every batch dimension of the Broadcast output (aligned from the right) either the
     // data input already carries it (Broadcast did nothing) or the other MatMul operand
-    // carries it (MatMul reproduces it via implicit broadcasting). A dynamic operand
-    // dimension is assumed runtime-compatible; only a differing static value is rejected.
+    // carries it (MatMul reproduces it via implicit broadcasting). The other operand is
+    // accepted when it is provably equal, or when both dimensions are dynamic (assumed
+    // runtime-compatible). A fixed Broadcast extent must be matched provably, otherwise
+    // detaching could hide a runtime batch mismatch the Broadcast would have rejected.
     const int64_t broadcast_batch = broadcast_rank - 2;
     for (int64_t offset = 0; offset < broadcast_batch; ++offset) {
         const ov::Dimension& broadcast_dim = broadcast_shape[broadcast_batch - 1 - offset];
@@ -60,7 +62,10 @@ bool can_remove_broadcast(const ov::PartialShape& data_shape,
             return false;
         }
         const ov::Dimension& other_dim = other_shape[other_idx];
-        if (ov::symbol::util::dims_are_equal(other_dim, broadcast_dim) || other_dim.is_dynamic()) {
+        if (ov::symbol::util::dims_are_equal(other_dim, broadcast_dim)) {
+            continue;
+        }
+        if (broadcast_dim.is_dynamic() && other_dim.is_dynamic()) {
             continue;
         }
         return false;
@@ -88,6 +93,15 @@ BroadcastMatMulFusion::BroadcastMatMulFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto broadcast_value = pattern_map.at(broadcast);
+        const auto broadcast_op = ov::as_type_ptr<ov::op::util::BroadcastBase>(broadcast_value.get_node_shared_ptr());
+
+        // Only NumPy-style broadcasting matches MatMul's implicit batch broadcasting.
+        // PDPD / EXPLICIT modes align dimensions differently and must not be detached.
+        const ov::op::BroadcastType mode = broadcast_op->get_broadcast_spec().m_type;
+        if (mode != ov::op::BroadcastType::NUMPY && mode != ov::op::BroadcastType::BIDIRECTIONAL) {
+            return false;
+        }
+
         const auto matmul_node = m.get_match_root();
 
         const size_t broadcast_port = matmul_node->input_value(0) == broadcast_value ? 0 : 1;
