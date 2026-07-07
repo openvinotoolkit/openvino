@@ -658,6 +658,12 @@ uint32_t ov::npuw::LLMInferRequest::get_current_variant_capacity() const {
     // by ReshapeToStatic. Capacity is the number of past tokens that fit, not the total KV window.
     const uint32_t kv_size = m_npuw_llm_compiled_model->m_kvcache_sizes[m_kvcache_variant_idx];
     const uint32_t max_gen_len = m_npuw_llm_compiled_model->m_kvcache_desc.max_generation_token_len;
+    OPENVINO_ASSERT(kv_size >= max_gen_len,
+                    "KV cache size ",
+                    kv_size,
+                    " is smaller than max_generation_token_len ",
+                    max_gen_len,
+                    ".");
     return kv_size - max_gen_len;
 }
 

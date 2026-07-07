@@ -29,7 +29,6 @@ namespace {
 
 using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::NullPlugin;
-
 class FakeSubCompiledModel;
 
 class FakeSubInferRequest final : public ov::ISyncInferRequest {
@@ -52,85 +51,6 @@ public:
     }
 };
 
-class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
-public:
-    explicit FakeSubAsyncInferRequest(const std::shared_ptr<ov::ISyncInferRequest>& request)
-        : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
-          m_request(request) {}
-
-    void start_async() override {
-        try {
-            m_request->infer();
-            if (m_callback) {
-                m_callback(nullptr);
-            }
-        } catch (...) {
-            if (m_callback) {
-                m_callback(std::current_exception());
-                return;
-            }
-            throw;
-        }
-    }
-
-    void wait() override {}
-
-    bool wait_for(const std::chrono::milliseconds&) override {
-        return true;
-    }
-
-    void cancel() override {}
-
-    void set_callback(std::function<void(std::exception_ptr)> callback) override {
-        m_callback = std::move(callback);
-    }
-
-    void infer() override {
-        m_request->infer();
-    }
-
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        return m_request->get_profiling_info();
-    }
-
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
-        return m_request->get_tensor(port);
-    }
-
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
-        m_request->set_tensor(port, tensor);
-    }
-
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {
-        return m_request->get_tensors(port);
-    }
-
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {
-        m_request->set_tensors(port, tensors);
-    }
-
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return m_request->query_state();
-    }
-
-    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override {
-        return m_request->get_compiled_model();
-    }
-
-    const std::vector<ov::Output<const ov::Node>>& get_inputs() const override {
-        return m_request->get_inputs();
-    }
-
-    const std::vector<ov::Output<const ov::Node>>& get_outputs() const override {
-        return m_request->get_outputs();
-    }
-
-private:
-    std::shared_ptr<ov::ISyncInferRequest> m_request;
-    std::function<void(std::exception_ptr)> m_callback;
-};
-
 class FakeSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -144,10 +64,7 @@ public:
         return m_model;
     }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string& name) const override {
-        if (name == ov::execution_devices.name()) {
-            return std::vector<std::string>{"CPU"};
-        }
+    ov::Any get_property(const std::string&) const override {
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
@@ -159,7 +76,7 @@ public:
     }
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return std::make_shared<FakeSubAsyncInferRequest>(create_sync_infer_request());
+        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(), nullptr, nullptr);
     }
     std::string submodel_device(std::size_t) const override {
         return "CPU";
