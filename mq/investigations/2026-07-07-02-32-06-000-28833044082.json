@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-07-02-32-06-000-28833044082",
+  "timestamp": "2026-07-07T02:32:06Z",
+  "run_id": "28833044082",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28833044082",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36738",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36738",
+  "author": "e-ddykim",
+  "category": "Network",
+  "title": "Python unit tests artifact upload fails with ENOTFOUND on self-hosted Windows runner",
+  "signature": "Failed to CreateArtifact: Unable to make request: ENOTFOUND|Network",
+  "signature_hash": "4e9cf236bf92d555",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Python unit tests",
+      "conclusion": "failure",
+      "symptom": "All 81 tests passed but artifact upload step (Upload Test Results) failed with ENOTFOUND"
+    }
+  ],
+  "key_errors": [
+    "##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints"
+  ],
+  "root_cause": "The self-hosted Windows runner successfully ran all Python unit tests (81 passed, 4 skipped) but failed at the final 'Upload Test Results' step (Step 17) when trying to reach GitHub's artifact storage API. The error 'ENOTFOUND' indicates a DNS resolution failure or network connectivity loss to GitHub's API endpoints at that moment. This is a transient network interruption on the runner side and is completely unrelated to the GPU dynamic shape fix in PR #36738.",
+  "reproduction_steps": "N/A - transient network failure not reliably reproducible",
+  "recommended_actions": [
+    "Re-run only the failed jobs to retry the artifact upload step",
+    "Monitor Windows self-hosted runner network stability",
+    "If ENOTFOUND errors recur, investigate runner DNS configuration and GitHub endpoint connectivity"
+  ],
+  "prevention_strategies": "Ensure self-hosted Windows runners maintain stable DNS resolution to GitHub endpoints. Consider adding retry logic or making artifact upload steps non-blocking for overall job success.",
+  "historical_context": "No prior occurrences of this exact ENOTFOUND artifact upload failure. The repo-memory shows a similar pattern: 'Windows Build openvino_package upload fails silently before blob upload on self-hosted runner' (Infrastructure category) from 2026-07-01, which is a different failure mode but also a Windows self-hosted runner network/upload issue."
+}

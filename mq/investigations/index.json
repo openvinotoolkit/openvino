@@ -1,6 +1,15 @@
 {
-  "total": 26,
+  "total": 27,
   "entries": [
+    {
+      "investigation_id": "2026-07-07-02-32-06-000-28833044082",
+      "run_id": "28833044082",
+      "timestamp": "2026-07-07T02:32:06Z",
+      "title": "Python unit tests artifact upload fails with ENOTFOUND on self-hosted Windows runner",
+      "category": "Network",
+      "signature_hash": "4e9cf236bf92d555",
+      "pr_number": "36738"
+    },
     {
       "investigation_id": "2026-07-04-10-21-49-000-28700822021",
       "run_id": "28700822021",

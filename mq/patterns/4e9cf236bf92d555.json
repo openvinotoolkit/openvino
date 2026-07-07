@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to CreateArtifact: Unable to make request: ENOTFOUND|Network",
+  "signature_hash": "4e9cf236bf92d555",
+  "title": "Python unit tests artifact upload fails with ENOTFOUND on self-hosted Windows runner",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-07-07T02:32:06Z",
+  "last_seen": "2026-07-07T02:32:06Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28833044082"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36738"
+  ],
+  "recent_timestamps": [
+    "2026-07-07T02:32:06Z"
+  ]
+}
