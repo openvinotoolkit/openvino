@@ -64,7 +64,12 @@ public:
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
-    /// Created memory object by wrapping a host-allocated layout region
+    /// Created memory object by wrapping a writable host-allocated layout region.
+    /// Backends that support access flags should use read-write permissions.
+    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
+    /// Created memory object by wrapping a read-only host-allocated layout region.
+    /// Backends that support access flags should use read-only permissions.
     virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
