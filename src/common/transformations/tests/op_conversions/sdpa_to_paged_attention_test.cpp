@@ -6365,7 +6365,7 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
 TEST(SDPAToPA, SingleLayerSlidingWindow) {
     // Simplified Gemma3-270 model with a single attention layer.
     // The key part is the sliding window mask subgraph (BitwiseAnd chain)
-    // that gptoss_gemma3_sliding_window_pattern() must match to extract the window size.
+    // that gptoss_gemma3_gemma4_sliding_window_pattern() must match to extract the window size.
 
     const int num_heads = 4;
     const int head_dim = 256;
@@ -6541,7 +6541,6 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
     auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
 
-    // Gemma4 sliding layer mask: Slice(Select(_, _, Select(Unsqueeze(Unsqueeze(GreaterEqual(Subtract, sw_const))))), ...)
     auto make_gemma4_sliding_mask = [&](std::shared_ptr<ov::Node> pos_ids, int64_t sw_size) {
         auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
         auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
@@ -6576,8 +6575,7 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     };
 
     // Gemma4 global layer mask: Slice(Broadcast(...)) - no GreaterEqual pattern
-    auto make_gemma4_global_mask = [&](std::shared_ptr<ov::Node> pos_ids,
-                                       std::shared_ptr<ov::Node> attn_mask) {
+    auto make_gemma4_global_mask = [&](std::shared_ptr<ov::Node> pos_ids, std::shared_ptr<ov::Node> attn_mask) {
         auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
         auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
         auto batch = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
@@ -6616,7 +6614,8 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     auto [k_concat_0, k_assign_0] = make_kv_cache(K_0, "past_key_values.0.key");
     auto [v_concat_0, v_assign_0] = make_kv_cache(V_0, "past_key_values.0.value");
     auto mask_0 = make_gemma4_sliding_mask(position_ids, sliding_window_size);
-    auto sdpa_0 = makeOP<v13::ScaledDotProductAttention>({Q_0, k_concat_0, v_concat_0, mask_0, 1.0f}, {{"causal", false}});
+    auto sdpa_0 =
+        makeOP<v13::ScaledDotProductAttention>({Q_0, k_concat_0, v_concat_0, mask_0, 1.0f}, {{"causal", false}});
 
     // Layer 1: Global attention (sw=0)
     auto Q_1 = make_projection(sdpa_0, hidden_size, num_heads);
@@ -6625,13 +6624,13 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     auto [k_concat_1, k_assign_1] = make_kv_cache(K_1, "past_key_values.1.key");
     auto [v_concat_1, v_assign_1] = make_kv_cache(V_1, "past_key_values.1.value");
     auto mask_1 = make_gemma4_global_mask(position_ids, attention_mask);
-    auto sdpa_1 = makeOP<v13::ScaledDotProductAttention>({Q_1, k_concat_1, v_concat_1, mask_1, 1.0f}, {{"causal", false}});
+    auto sdpa_1 =
+        makeOP<v13::ScaledDotProductAttention>({Q_1, k_concat_1, v_concat_1, mask_1, 1.0f}, {{"causal", false}});
 
     auto res = std::make_shared<v0::Result>(sdpa_1);
-    auto model = std::make_shared<ov::Model>(
-        OutputVector{res},
-        SinkVector{k_assign_0, v_assign_0, k_assign_1, v_assign_1},
-        params);
+    auto model = std::make_shared<ov::Model>(OutputVector{res},
+                                             SinkVector{k_assign_0, v_assign_0, k_assign_1, v_assign_1},
+                                             params);
 
     ov::pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
