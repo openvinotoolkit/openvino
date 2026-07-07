@@ -1,0 +1,12 @@
+# Regenerated compiler/kernel dump artifacts — not source.
+# ISA dumps from dump_isa.sh (55M+, regenerated on demand):
+isa/
+# tensor dump landing dirs:
+dump_dev/
+dump_ref/
+
+# Large captured data — regenerate/download rather than commit.
+# ~29M captured verbose reference output:
+verbose.ref
+# test input data (fetched via download.sh):
+llama-2-7b-chat.jsonl
