@@ -38,6 +38,8 @@ protected:
     GroupedMatMulShapeParams shape_params_;
     ov::element::Type act_type_;
     std::string model_name_;
+    // ov op type name expected to appear in the executed network (via ProfilingInfo::node_type).
+    // Empty = skip the check.
     std::string expected_primitive_;
 
     void SetUp() override;
@@ -50,7 +52,7 @@ using GroupedMatMulParams = std::tuple<
     GroupedMatMulShapeParams,  // shape bundle
     ov::element::Type,         // element type
     std::string,               // target device
-    std::string                // expected primitive type (empty = skip check)
+    std::string                // expected ov op type in the executed network (empty = skip check)
 >;
 
 class GroupedMatMulLayerTest : public testing::WithParamInterface<GroupedMatMulParams>,
@@ -74,8 +76,7 @@ using GroupedMatMulCompressedParams = std::tuple<
     bool,                                    // reshape_on_decompression
     int,                                     // decompression_group_size (-1 = per-OC)
     std::string,                             // target device
-    std::string,                             // expected primitive type for plugin (empty = skip check)
-    std::string                              // expected primitive type after transformation (empty = skip check)
+    std::string                              // expected ov op type in the executed network (empty = skip check)
 >;
 
 class GroupedMatMulCompressedLayerTest
@@ -86,7 +87,6 @@ public:
 
 protected:
     void SetUp() override;
-    void validate() override;
     std::shared_ptr<ov::Node> build_weights() override;
 
 private:
@@ -97,7 +97,6 @@ private:
     ov::test::utils::DecompressionType subtract_type_;
     bool reshape_on_decomp_;
     int group_size_;
-    std::string expected_node_type_;
 };
 
 }  // namespace test

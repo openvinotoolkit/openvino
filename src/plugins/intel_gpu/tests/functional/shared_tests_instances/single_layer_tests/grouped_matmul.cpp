@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_2d3d,
                          ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("grouped_matmul")),
+                                            ::testing::Values("GroupedMatMul")),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d,
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d,
                          ::testing::Combine(::testing::ValuesIn(shapes_3d_3d),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("FullyConnected")),
+                                            ::testing::Values("GroupedMatMul")),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
@@ -61,7 +61,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("grouped_matmul"),
                                             ::testing::Values("GroupedMatMulCompressed")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
@@ -77,7 +76,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("FullyConnected"),
                                             ::testing::Values("GroupedMatMulCompressed")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 }  // namespace

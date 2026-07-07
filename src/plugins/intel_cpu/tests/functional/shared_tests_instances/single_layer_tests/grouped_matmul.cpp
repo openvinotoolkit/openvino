@@ -49,8 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::Values(false),
                                             ::testing::Values(-1, 16),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values("GatherMatmul"),
-                                            ::testing::Values("")), // don't care about executed primitive type for CPU tests
+                                            ::testing::Values("GatherMatmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 
@@ -80,8 +79,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_CornerCases,
                                             ::testing::Values(false),
                                             ::testing::Values(-1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values("GatherMatmul"),
-                                            ::testing::Values("")), // don't care about executed primitive type for CPU tests
+                                            ::testing::Values("GatherMatmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 }  // namespace
