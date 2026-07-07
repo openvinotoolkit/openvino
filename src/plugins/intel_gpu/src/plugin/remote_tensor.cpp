@@ -151,16 +151,18 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_handle mem,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
-                                   ov::intel_gpu::os_handle_param os_handle)
+                                   ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
+                                   ov::intel_gpu::VirtualAdressMemory va_mem)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
     , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
     , m_mem_type(mem_type)
     , m_mem(mem)
-    , m_os_handle(os_handle)
     , m_surf(surf)
-    , m_plane(plane) {
+    , m_plane(plane)
+    , m_shared_buffer_handle(shared_buffer_handle)
+    , m_va_mem(va_mem) {
     update_hash();
     allocate();
 }
@@ -345,7 +347,7 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_BUF_SHARED_FROM_HANDLE: {
-        m_memory_object = engine.import_buffer(m_layout, m_os_handle);
+        m_memory_object = engine.import_buffer(m_layout, m_shared_buffer_handle.value);
         break;
     }
     case TensorType::BT_USM_SHARED: {
@@ -354,7 +356,7 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         m_memory_object = engine.create_hostbuffer(m_mem,
-                                        m_layout.bytes_count(),
+                                        m_va_mem.size > 0 ? m_va_mem.size : m_layout.bytes_count(),
                                         cldnn::allocation_type::cl_mem,
                                         m_layout);
         break;
@@ -410,7 +412,8 @@ bool RemoteTensorImpl::supports_caching() const {
 void RemoteTensorImpl::update_hash() {
     if (supports_caching()) {
         m_hash = cldnn::hash_combine(0, m_mem);
-        m_hash = cldnn::hash_combine(m_hash, m_os_handle);
+        m_hash = cldnn::hash_combine(m_hash, m_shared_buffer_handle);
+        m_hash = cldnn::hash_combine(m_hash, m_va_mem);
         m_hash = cldnn::hash_combine(m_hash, m_surf);
         m_hash = cldnn::hash_combine(m_hash, m_plane);
         m_hash = cldnn::hash_combine(m_hash, m_shape.size());

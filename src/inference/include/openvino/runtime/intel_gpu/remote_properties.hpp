@@ -211,6 +211,13 @@ static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
 static constexpr Property<void*> cpu_va{"CPU_VA"};
 
 /**
+ * @brief This key identifies size of allocated memory of cpu pointer
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<int64_t> cpu_va_size{"CPU_VA_SIZE"};
+
+
+/**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
  * @ingroup ov_runtime_ocl_gpu_cpp_api
@@ -228,5 +235,54 @@ static constexpr Property<uint32_t> dev_object_handle{"DEV_OBJECT_HANDLE"};
  */
 static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
 
+/**
+ * @brief Platform OS memory handle for importing externally allocated memory into GPU plugin tensors.
+ * On Linux this is a DMA-BUF file descriptor (int).
+ * On Windows this is a DX12 shared NT HANDLE (void*).
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+struct SharedBufferHandle {
+#ifdef __linux__
+    using value_type = int;    ///< DMA-BUF file descriptor
+#else
+    using value_type = void*;  ///< DX12 shared NT HANDLE
+#endif
+    value_type value{};
+};
+
+/**
+ * @brief Host (CPU) memory descriptor for wrapping mmap-backed or aligned host buffers
+ * as GPU plugin tensors without copying.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+struct VirtualAdressMemory {
+    explicit VirtualAdressMemory(void* ptr_, int64_t size_ = -1) : ptr(ptr_), size(size_) {}
+
+    void* ptr = nullptr;
+    int64_t size = -1;  ///< Buffer size in bytes; -1 means "derive from tensor shape"
+};
+
 }  // namespace intel_gpu
 }  // namespace ov
+
+// Hash specializations for GPU remote tensor handle types
+namespace std {
+
+template <>
+struct hash<ov::intel_gpu::SharedBufferHandle> {
+    size_t operator()(const ov::intel_gpu::SharedBufferHandle& handle) const noexcept {
+        return std::hash<ov::intel_gpu::SharedBufferHandle::value_type>{}(handle.value);
+    }
+};
+
+template <>
+struct hash<ov::intel_gpu::VirtualAdressMemory> {
+    size_t operator()(const ov::intel_gpu::VirtualAdressMemory& mem) const noexcept {
+        // Hash both pointer and size to distinguish different allocations
+        size_t h1 = std::hash<const void*>{}(mem.ptr);
+        size_t h2 = std::hash<int64_t>{}(mem.size);
+        return h1 ^ (h2 << 1);
+    }
+};
+
+}  // namespace std

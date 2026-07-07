@@ -41,15 +41,9 @@ namespace ocl {
 
 using gpu_handle_param = void*;
 
-/**
- * @brief Shortcut for defining a HANDLE on windows or file descriptor on linux
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-#ifdef __linux__
-using os_handle_param = int;
-#else
-using os_handle_param = void*;
-#endif
+
+using SharedBufferHandle = ov::intel_gpu::SharedBufferHandle;
+using VirtualAdressMemory = ov::intel_gpu::VirtualAdressMemory;
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
@@ -325,42 +319,31 @@ public:
      *        The API mirrors the NPU pointer-based create_tensor form.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param shared_buffer External memory handle from another API (DX12 shared NT handle on Windows passed as void*,
+     * @param SharedBufferHandle External memory handle from another API (DX12 shared NT handle on Windows passed as void*,
      *                     DMA-BUF fd on Linux passed as int)
      * @param memory_type Memory type to use; only MemType::SHARED_BUF is currently supported
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type,
                                  const Shape& shape,
-                                 os_handle_param shared_buffer,
-                                 const MemType memory_type) {
+                                 SharedBufferHandle handle) {
 #ifndef __linux__
-        OPENVINO_ASSERT(shared_buffer != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
+        OPENVINO_ASSERT(handle.value != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
 #endif
-        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
-                        "Only SHARED_BUF memory type is supported for raw buffer pointer or NT handle");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE},
-                         {ov::intel_gpu::os_handle.name(), shared_buffer}};
+                         {ov::intel_gpu::os_handle.name(), handle.value}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
+    
+    ClBufferTensor create_tensor(const element::Type type,
+                                 const Shape& shape,
+                                 VirtualAdressMemory buff) {
 
-    /**
-     * @brief This function is used to obtain a remote tensor object from a user-supplied host pointer.
-     * @param type Tensor element type
-     * @param shape Tensor shape
-     * @param cpu_ptr A pointer to an mmap region or an ov::util::aligned_alloc allocation that should be wrapped by a
-     *                remote tensor
-     * @param memory_type Memory type to use; only MemType::CPU_VA is supported by this overload
-     * @return A remote tensor instance
-     */
-    ClBufferTensor create_tensor_from_cpu_pointer(const element::Type type,
-                                                  const Shape& shape,
-                                                  void* cpu_ptr,
-                                                  const MemType memory_type) {
-        OPENVINO_ASSERT(memory_type == MemType::CPU_VA,
-                        "Only CPU_VA memory type is supported for CPU pointer overload");
+        OPENVINO_ASSERT(buff.ptr != nullptr, "host buffer must not be nullptr for CPU_VA memory type");
+
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
-                         {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
+                         {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(buff.ptr)},
+                         {ov::intel_gpu::cpu_va_size.name(), buff.size}}; // if -1 then use shape to get the size
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
