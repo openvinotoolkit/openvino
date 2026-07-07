@@ -187,7 +187,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(model_path);
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        // Initializer raw bytes live inside the parsed ModelProto, which the graph iterator owns and
+        // keeps alive (see extract_tensor_meta_info), so it is safe to alias them into Constants
+        // instead of copying, avoiding a duplicate in-memory copy of the model's weights.
+        constexpr bool reuse_const_data = true;
+        return std::make_shared<unify::InputModel>(graph_iterator,
+                                                   enable_mmap,
+                                                   m_extensions.telemetry,
+                                                   reuse_const_data);
     };
 
     if (const auto path = get_path_from_any(variants[0])) {

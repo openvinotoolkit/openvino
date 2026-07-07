@@ -21,6 +21,10 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     const std::string* m_tensor_name;
     std::shared_ptr<std::string> m_external_location;
     bool m_is_raw;
+    // Keeps the storage that m_tensor_data points into alive for as long as it is referenced, so the
+    // bytes can be aliased instead of copied (for raw initializers this is the parsed model itself).
+    // Left empty when no such owner exists; in that case consumers must copy the data before use.
+    std::shared_ptr<void> m_data_owner;
 };
 
 class ONNX_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {
