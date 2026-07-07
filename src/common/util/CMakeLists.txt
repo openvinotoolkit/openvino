@@ -17,19 +17,6 @@ set(WIN32_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/wstring_convert_util.cpp
 )
 
-if (WIN32)
-    # Remove linux specific files
-    file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.cpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
-else()
-    # Remove windows specific files
-    file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.cpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
-endif()
 set(UNIX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_file_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_io.cpp
@@ -38,6 +25,20 @@ set(UNIX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/parallel_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/wstring_convert_util.cpp
+)
+
+set(MONITOR_COMMON_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/device_monitor.cpp
+)
+
+set(MONITOR_WIN32_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor.cpp
+)
+
+set(MONITOR_UNIX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/cpu_device_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/xpu_device_monitor.cpp
 )
 
 add_library(${TARGET_NAME} STATIC)
@@ -86,10 +87,13 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
+        ${MONITOR_COMMON_SOURCES}
         # Windows specific sources
         "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"
+        "$<$<BOOL:${WIN32}>:${MONITOR_WIN32_SOURCES}>"
          # Unix specific sources
         "$<$<BOOL:${UNIX}>:${UNIX_SOURCES}>"
+        "$<$<BOOL:${UNIX}>:${MONITOR_UNIX_SOURCES}>"
 )
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
