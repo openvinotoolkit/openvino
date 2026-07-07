@@ -560,13 +560,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 // Returns the byte count for `element_count` elements of the given layout's data type.
 // Handles sub-byte types (u4/i4) that pack two elements per byte.
 static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layout) {
-    switch (layout.data_type) {
-    case ov::element::u4:
-    case ov::element::i4:
-        return element_count / 2;
-    default:
-        return element_count * static_cast<int64_t>(ov::element::Type(layout.data_type).size());
-    }
+    return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
 }
 
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {

@@ -110,16 +110,12 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        auto partial_upload = moe_offload::try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
+        auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
 
         cldnn::memory::ptr mem = nullptr;
-        size_t upload_bytes = constLayout.bytes_count();
-        ov::Shape upload_shape = const_shape;
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
-            upload_bytes = partial_upload.upload_bytes;
-            upload_shape = partial_upload.upload_shape;
         } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
         } else {
@@ -132,13 +128,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
-        auto& stream = p.get_engine().get_service_stream();
 
         if (!partial_upload.enabled) {
+            auto& stream = p.get_engine().get_service_stream();
             cldnn::mem_lock<char> lock{mem, stream};
             auto buf = lock.data();
-            auto bufSize = upload_bytes;
-            auto upload_count = ov::shape_size(upload_shape);
+            auto bufSize = constLayout.bytes_count();
+            auto upload_count = ov::shape_size(const_shape);
 
             // If a constant has element type f64 but contains no elements (empty tensor),
             // convert it to f32 because the GPU plugin only supports the f32 data type internally.

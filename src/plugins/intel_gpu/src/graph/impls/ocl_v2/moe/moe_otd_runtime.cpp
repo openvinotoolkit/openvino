@@ -59,8 +59,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const cldnn::layout& layout,
                               std::vector<uint8_t>& payload,
                               size_t per_expert_size) {
-    const bool transpose_scale_zp = std::getenv("MOE_OTD_DISABLE_SCALE_ZP_TRANSPOSE") == nullptr;
-    if (!transpose_scale_zp || tensor_name == nullptr) {
+    if (tensor_name == nullptr) {
         return;
     }
 

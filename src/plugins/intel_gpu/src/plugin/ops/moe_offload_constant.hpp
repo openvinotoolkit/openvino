@@ -14,7 +14,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov::intel_gpu::moe_offload {
+namespace ov::intel_gpu {
 
 /// Classifies a Constant's role relative to the MoE fused op.
 enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
@@ -82,4 +82,4 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
 
-}  // namespace ov::intel_gpu::moe_offload
+}  // namespace ov::intel_gpu

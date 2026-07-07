@@ -9,7 +9,7 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 
-using namespace ov::intel_gpu::moe_offload;
+using namespace ov::intel_gpu;
 
 // Helper: build a minimal MOECompressed node with 22 inputs (indices 0..21).
 // Inputs 0-2 are Parameters (hidden_states, routing_weights, topk_indices).

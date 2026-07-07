@@ -135,11 +135,11 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
                                const std::string& weights_path = "",
                                size_t lru_expert_num = 0)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
-                    _config(config),
-                    _otd{weight_bin_offsets, weights_path, lru_expert_num} {}
+          _config(config),
+          _otd{weight_bin_offsets, weights_path, lru_expert_num} {}
 
     MOECompressed::Config _config;
-        moe_otd_descriptor _otd;
+    moe_otd_descriptor _otd;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
@@ -147,7 +147,7 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
 
         auto rhs_casted = downcast<const moe_3gemm_fused_compressed>(rhs);
 
-         return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 && _otd == rhs_casted._otd;
+        return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 && _otd == rhs_casted._otd;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
