@@ -118,6 +118,7 @@ private:
     bool m_enable_prefix_caching = false;
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
+    uint64_t m_longrope_context_limit = 0;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

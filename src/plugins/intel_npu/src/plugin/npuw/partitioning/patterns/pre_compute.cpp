@@ -239,8 +239,9 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
                                    const std::shared_ptr<ov::Node>& power_const) {
         auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
         auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
+        auto context_limit = MakeConstant();
         // max(position_ids) + 1 > original_max_position_embeddings
-        auto greater = opp::wrap_type<ov::op::v1::Greater>({add, MakeConstant()});
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({add, context_limit});
 
         auto short_factor_conv = opp::optional<ov::op::v0::Convert>({short_factor->output(0)});
         auto long_factor_conv = opp::optional<ov::op::v0::Convert>({long_factor->output(0)});
@@ -252,7 +253,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({power, MakeConstant()});
         auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
 
-        return std::make_tuple(unsqueeze_1, greater, red_max);
+        return std::make_tuple(unsqueeze_1, greater, red_max, context_limit);
     };
 
     auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -268,6 +269,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto select = std::get<0>(select_cond_max_pos_id);
     auto cond = std::get<1>(select_cond_max_pos_id);
     auto max_pos_id = std::get<2>(select_cond_max_pos_id);
+    auto context_limit = std::get<3>(select_cond_max_pos_id);
 
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
@@ -290,6 +292,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
         this->matched_long_factor = map_sin.at(long_factor).get_node_shared_ptr();
+        this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
         this->matched_multiply_const = map_sin.at(multiply_const).get_node_shared_ptr();
         this->matched_power_const = map_sin.at(power_const).get_node_shared_ptr();
         this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
@@ -304,6 +307,33 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     };
 
     matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+}
+
+std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_phi_v5_longrope_context_limit(
+    const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    std::optional<uint64_t> context_limit;
+    long_rope->transform_cb = [&]() {
+        auto limit_const = ov::as_type_ptr<ov::op::v0::Constant>(long_rope->matched_context_limit);
+        OPENVINO_ASSERT(limit_const,
+                        "Invalid LongRopePatternPhi_v5 match, expected constant context limit");
+
+        const auto limit_values = limit_const->cast_vector<int64_t>();
+        OPENVINO_ASSERT(limit_values.size() == 1,
+                        "Invalid LongRopePatternPhi_v5 context limit, expected a single scalar value");
+        OPENVINO_ASSERT(limit_values.front() >= 0,
+                        "Invalid LongRopePatternPhi_v5 context limit, expected a non-negative value");
+
+        const auto matched_limit = static_cast<uint64_t>(limit_values.front());
+        if (context_limit.has_value()) {
+            OPENVINO_ASSERT(context_limit.value() == matched_limit,
+                            "Inconsistent LongRopePatternPhi_v5 context limits detected in the model");
+        } else {
+            context_limit = matched_limit;
+        }
+    };
+    long_rope->run_on_model(model);
+    return context_limit;
 }
 
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
