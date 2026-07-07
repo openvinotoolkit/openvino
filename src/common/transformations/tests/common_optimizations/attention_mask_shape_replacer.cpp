@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
@@ -46,10 +48,39 @@ std::shared_ptr<ov::Model> build_model(const Output<Node>& shape_source,
 
 class AttentionMaskShapeReplacerTest : public ::TransformationTestsF {};
 
-TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputIdsSequenceDim) {
+TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputIdsBatchDim) {
     auto attention_mask = make_attention_mask();
     auto input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
     input_ids->set_friendly_name("input_ids");
+    model = build_model(attention_mask, attention_mask, input_ids, {0});
+
+    manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(input_ids);
+
+    auto attention_mask_ref = make_attention_mask();
+    auto input_ids_ref = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
+    input_ids_ref->set_friendly_name("input_ids");
+    model_ref = build_model(input_ids_ref, attention_mask_ref, input_ids_ref, {0});
+}
+
+TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputsEmbedsBatchDim) {
+    auto attention_mask = make_attention_mask();
+    auto inputs_embeds = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, 2048});
+    inputs_embeds->set_friendly_name("inputs_embeds");
+    model = build_model(attention_mask, attention_mask, inputs_embeds, {0});
+
+    manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(inputs_embeds);
+
+    auto attention_mask_ref = make_attention_mask();
+    auto inputs_embeds_ref = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, 2048});
+    inputs_embeds_ref->set_friendly_name("inputs_embeds");
+    model_ref = build_model(inputs_embeds_ref, attention_mask_ref, inputs_embeds_ref, {0});
+}
+
+TEST_F(AttentionMaskShapeReplacerTest, DoesNotReplaceNonBatchDim) {
+    auto attention_mask = make_attention_mask();
+    auto input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
+    input_ids->set_friendly_name("input_ids");
+    // Only the batch dimension (index 0) is rewired; the sequence dimension is left untouched.
     model = build_model(attention_mask, attention_mask, input_ids, {1});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(input_ids);
@@ -57,34 +88,20 @@ TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputIdsSequenceDim) {
     auto attention_mask_ref = make_attention_mask();
     auto input_ids_ref = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
     input_ids_ref->set_friendly_name("input_ids");
-    model_ref = build_model(input_ids_ref, attention_mask_ref, input_ids_ref, {1});
+    model_ref = build_model(attention_mask_ref, attention_mask_ref, input_ids_ref, {1});
 }
 
-TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputsEmbedsBothDims) {
+TEST_F(AttentionMaskShapeReplacerTest, DoesNotReplaceNegativeIndex) {
     auto attention_mask = make_attention_mask();
+    // A negative index would select a different dimension against the higher-rank source, so it is skipped.
     auto inputs_embeds = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, 2048});
     inputs_embeds->set_friendly_name("inputs_embeds");
-    model = build_model(attention_mask, attention_mask, inputs_embeds, {0, 1});
+    model = build_model(attention_mask, attention_mask, inputs_embeds, {-2});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(inputs_embeds);
 
     auto attention_mask_ref = make_attention_mask();
     auto inputs_embeds_ref = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, 2048});
     inputs_embeds_ref->set_friendly_name("inputs_embeds");
-    model_ref = build_model(inputs_embeds_ref, attention_mask_ref, inputs_embeds_ref, {0, 1});
-}
-
-TEST_F(AttentionMaskShapeReplacerTest, DoesNotReplaceWhenIndexExceedsSourceRank) {
-    auto attention_mask = make_attention_mask();
-    // Rank-1 source cannot provide the sequence dimension at index 1.
-    auto input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1});
-    input_ids->set_friendly_name("input_ids");
-    model = build_model(attention_mask, attention_mask, input_ids, {1});
-
-    manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(input_ids);
-
-    auto attention_mask_ref = make_attention_mask();
-    auto input_ids_ref = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1});
-    input_ids_ref->set_friendly_name("input_ids");
-    model_ref = build_model(attention_mask_ref, attention_mask_ref, input_ids_ref, {1});
+    model_ref = build_model(attention_mask_ref, attention_mask_ref, inputs_embeds_ref, {-2});
 }

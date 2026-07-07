@@ -20,11 +20,11 @@ class TRANSFORMATIONS_API AttentionMaskShapeReplacer;
  * @ingroup ov_transformation_common_api
  * @brief Detaches the attention_mask parameter from shape-deriving subgraphs.
  *
- * Some models query the batch/sequence dimensions from the attention_mask shape.
+ * Some models query the batch dimension from the attention_mask shape.
  * In PagedAttention mode the attention_mask parameter is removed, so these shape
  * queries must be rewired to an always-present input (input_ids or inputs_embeds).
- * The attention_mask leading dimensions (batch, sequence) coincide with the leading
- * dimensions of input_ids / inputs_embeds, so the same Gather indices remain valid.
+ * The attention_mask batch dimension (index 0) coincides with the batch dimension
+ * of input_ids / inputs_embeds, so the same Gather index remains valid.
  *
  * Before:
  *
@@ -35,8 +35,7 @@ class TRANSFORMATIONS_API AttentionMaskShapeReplacer;
  *           │
  *      ┌────┴────┐   ┌──────────┐
  *      │ ShapeOf │   │ indices  │
- *      └────┬────┘   │ {0, 1 or │
- *           │        │  both}   │
+ *      └────┬────┘   │   {0}    │
  *           │        └────┬─────┘
  *        ┌──┴──┐──────────┘
  *        │Gather├──────────── axis
@@ -51,15 +50,14 @@ class TRANSFORMATIONS_API AttentionMaskShapeReplacer;
  *           │
  *      ┌────┴────┐   ┌──────────┐
  *      │ ShapeOf │   │ indices  │
- *      └────┬────┘   │ {0, 1 or │
- *           │        │  both}   │
+ *      └────┬────┘   │   {0}    │
  *           │        └────┬─────┘
  *        ┌──┴──┐──────────┘
  *        │Gather├──────────── axis
  *        └─────┘
  *
- * The replacement is applied only when every requested Gather index is within the
- * rank of the provided input source; otherwise the match is skipped.
+ * The replacement is applied only when the Gather selects the batch dimension
+ * (index 0); otherwise the match is skipped.
  */
 class ov::pass::AttentionMaskShapeReplacer : public ov::pass::MatcherPass {
 public:

@@ -34,25 +34,17 @@ ov::pass::AttentionMaskShapeReplacer::AttentionMaskShapeReplacer(const Output<No
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        const auto& source_shape = input_source.get_partial_shape();
-        if (source_shape.rank().is_dynamic()) {
-            return false;
-        }
-        const int64_t source_rank = source_shape.rank().get_length();
-        const int64_t attn_mask_rank = pattern_map.at(attn_mask).get_partial_shape().rank().get_length();
-
         auto gather_node = pattern_map.at(gather).get_node_shared_ptr();
         const auto indices_const = ov::util::get_constant_from_source(gather_node->input_value(1));
         if (!indices_const) {
             return false;
         }
 
-        // The leading dimensions (batch, sequence) of attention_mask coincide with the leading
-        // dimensions of the input source. Every requested index must be valid for both ranks so
-        // that the same Gather indices keep pointing at the same dimensions after rewiring.
+        // Only the batch dimension (index 0) is guaranteed to coincide between attention_mask
+        // and the input source regardless of their ranks, so the rewrite is limited to it.
+        // This also keeps the same Gather index valid and avoids negative-index ambiguity.
         for (int64_t index : indices_const->cast_vector<int64_t>()) {
-            const int64_t normalized_index = ov::util::normalize(index, attn_mask_rank);
-            if (normalized_index < 0 || normalized_index >= source_rank) {
+            if (index != 0) {
                 return false;
             }
         }
