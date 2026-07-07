@@ -1532,7 +1532,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
-            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding & compiled->m_is_block_kv_cache;
+            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
+            compiled->m_is_block_kv_cache;
 
         // Deserialize config
         stream & compiled->m_cfg;

@@ -315,8 +315,7 @@ std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_phi_v5_longrope
     std::optional<uint64_t> context_limit;
     long_rope->transform_cb = [&]() {
         auto limit_const = ov::as_type_ptr<ov::op::v0::Constant>(long_rope->matched_context_limit);
-        OPENVINO_ASSERT(limit_const,
-                        "Invalid LongRopePatternPhi_v5 match, expected constant context limit");
+        OPENVINO_ASSERT(limit_const, "Invalid LongRopePatternPhi_v5 match, expected constant context limit");
 
         const auto limit_values = limit_const->cast_vector<int64_t>();
         OPENVINO_ASSERT(limit_values.size() == 1,
