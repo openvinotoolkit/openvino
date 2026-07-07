@@ -57,8 +57,8 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi4c32p_qsu4c32s1s0.h"
 
-#define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN (-3.4028235e38f)
+#define FLOAT_MAX std::numeric_limits<float>::max()
+#define FLOAT_MIN std::numeric_limits<float>::min()
 
 namespace ov::intel_cpu::kai_common {
 enum class KAIKernelTag : std::uint8_t {

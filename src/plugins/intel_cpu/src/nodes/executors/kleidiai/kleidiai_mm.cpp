@@ -124,9 +124,9 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         _kernel->packData(false, packedWeights, biasMem, hasBias, nullptr, rhsPackedMem);
     } else {
         MemoryPtr weightsMemory = memory.at(ARG_WEI);
+        isTransposed = attrs.weightsNonTransposed;
         // Check if weights are in int4 or int8
         if (weightsMemory->getDescPtr()->getPrecision() == element::i4) {
-            isTransposed = attrs.weightsNonTransposed;
             if (isGroupQuantizationEnabled(memory)) {
                 if (hasArmISASupport(ArmISA::I8MM)) {
                     _kernel =
@@ -179,10 +179,26 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         }
 
         rhs_scales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
-        _kernel->packData(isTransposed, weightsMemory, biasMem, hasBias, rhs_scales, rhsPackedMem);
 
-        // Create scratchpad to initialize memory for LHS in update()
-        scratchPad = context->getScratchPad();
+        std::vector<float> transposedScales;
+        // When the weight's Transpose was elided by the graph optimizer (weightsNonTransposed==true,
+        // see FuseFCAndTransposeOnWeights), the per-group decompression scales feeding this FC were
+        // transposed together with the weights (ConvertFullyConnectedToFullyConnectedCompressed::
+        // process_compressed_weights) and had that Transpose elided the same way. Their physical layout
+        // is therefore still [numGroups, N] instead of the canonical [N, numGroups] the KAI group
+        // kernels expect, so it must be repacked here before use.
+        if (isTransposed && isGroupQuantizationEnabled(memory)) {
+            const auto numGroups = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims()[1];
+            transposedScales.resize(N * numGroups);
+            for (size_t g = 0; g < numGroups; ++g) {
+                for (size_t n = 0; n < N; ++n) {
+                    transposedScales[n * numGroups + g] = rhs_scales[g * N + n];
+                }
+            }
+            rhs_scales = transposedScales.data();
+        }
+
+        _kernel->packData(isTransposed, weightsMemory, biasMem, hasBias, rhs_scales, rhsPackedMem);
     }
     // Create scratchpad to initialize memory for LHS in update()
     scratchPad = context->getScratchPad();
@@ -264,7 +280,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             std::memcpy(dst_row, src_data, K * element_size);
         });
         // update M
-        M = gather_idx.size();
+        M_value = gather_idx.size();
         srcMem = tmpInput;
         dstMem = tmpOutput;
     } else {
