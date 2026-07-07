@@ -18,6 +18,7 @@ productTypes = (
     'public_linux_ubuntu_22_04_x86_64_release',
     'public_linux_ubuntu_22_04_dpcpp_x86_64_release',
     'public_linux_ubuntu_24_04_x86_64_release',
+    'public_linux_ubuntu_24_04_x86_64_levelzero_release',
     'public_linux_ubuntu_26_04_x86_64_release',
     'public_windows_vs2019_release',
     'public_windows_vs2019_debug',

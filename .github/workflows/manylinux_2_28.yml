@@ -25,9 +25,6 @@ concurrency:
 
 permissions: read-all
 
-env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -130,6 +127,8 @@ jobs:
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
       NODE_VERSION: 22
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -199,8 +198,6 @@ jobs:
               python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin/python3
             fi
 
-            PIP_VER=$(${python_path} -c "import pip; print(pip.__version__)")
-            export "PIP_CACHE_DIR=${{ env.PIP_CACHE_PATH }}/${PIP_VER}"
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             if [[ $PY_VER == "3.14t" ]]; then
@@ -330,14 +327,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - nodejs-version: 20
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
-          - nodejs-version: 22
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+        nodejs-version: [21, 22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-16gb-ab'
-      image: ${{ matrix.image }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       nodejs-version: ${{ matrix.nodejs-version }}
 
   Overall_Status:

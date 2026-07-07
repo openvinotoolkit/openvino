@@ -119,7 +119,7 @@ Operating systems and developer environment
       * GNU Compiler Collection and CMake are needed for building from source:
 
         * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
-        * `CMake <https://cmake.org/download/>`__ 3.13 or higher
+        * `CMake <https://cmake.org/download/>`__ 3.26 or higher
 
       Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors and above,
       Intel® Core™ Ultra Processors, 4th Gen Intel® Xeon® Scalable Processors and above
@@ -135,7 +135,7 @@ Operating systems and developer environment
       Build environment components:
 
       * `Microsoft Visual Studio 2019 or later <https://visualstudio.microsoft.com/downloads/>`__
-      * `CMake <https://cmake.org/download/>`__ 3.16 or higher
+      * `CMake <https://cmake.org/download/>`__ 3.26 or higher
       * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
@@ -147,7 +147,7 @@ Operating systems and developer environment
       Build environment components:
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
-      * `CMake <https://cmake.org/download/>`__ 3.13 or higher
+      * `CMake <https://cmake.org/download/>`__ 3.26 or higher
       * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
 
    .. tab-item:: DL framework versions:
@@ -185,7 +185,7 @@ to learn more about the release types.
          .. tab-item:: Linux
             :name: archive-lnx-sysreq
 
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
             * GCC:
 
@@ -225,7 +225,7 @@ to learn more about the release types.
          .. tab-item:: macOS
             :name: archive-mac-sysreq
 
-            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
+            * `CMake 3.26 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
             * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.10 - 3.14). Install and add to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
@@ -235,7 +235,7 @@ to learn more about the release types.
 
             * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__ (a core dependency for OpenVINO Runtime)
             * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__ (for development and app compilation with OpenVINO)
-            * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/windows/>`__
 
             .. note::
@@ -259,7 +259,7 @@ to learn more about the release types.
          .. tab-item:: Linux
             :sync: linux
 
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
@@ -272,7 +272,7 @@ to learn more about the release types.
             :sync: linux
 
             * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
@@ -280,7 +280,7 @@ to learn more about the release types.
             :sync: macos
 
             * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation).
+            * `CMake 3.26 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation).
             * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
@@ -333,7 +333,7 @@ to learn more about the release types.
 
             Software:
 
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.4.1
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 
@@ -349,7 +349,7 @@ to learn more about the release types.
 
             Software:
 
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+            * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.2.0
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 

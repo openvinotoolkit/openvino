@@ -139,8 +139,8 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
-      - name: emmake make - build
-        run: emmake make -j$(nproc) hello_query_device -C ${OPENVINO_BUILD_DIR}
+      - name: cmake --build - build
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
