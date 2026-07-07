@@ -150,6 +150,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::D
  * @param v_features Value features dimension
  * @param element_type Element type
  * @param qkv_order Order of QKV dimensions
+ * @param gqa Whether to use Grouped Query Attention (GQA)
  * @param causal Whether to use causal attention
  * @param with_mask Whether to include attention mask
  * @param with_scale Whether to include scaling
@@ -163,7 +164,8 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch = 
                                                           ov::Dimension k_features = ov::Dimension::dynamic(),
                                                           ov::Dimension v_features = ov::Dimension::dynamic(),
                                                           ov::element::Type_t element_type = ov::element::f32,
-                                                          std::vector<int64_t> qkv_order = {0, 1, 2, 3},
+                                                          std::vector<int64_t> qkv_order = { 0, 1, 2, 3 },
+                                                          bool gqa = false,
                                                           bool causal = false,
                                                           bool with_mask = false,
                                                           bool with_scale = false,

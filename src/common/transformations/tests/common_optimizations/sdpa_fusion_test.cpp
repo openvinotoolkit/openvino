@@ -281,12 +281,14 @@ public:
                                                                                                    mask_input,
                                                                                                    scale_const,
                                                                                                    sinks_input,
+                                                                                                   false,
                                                                                                    causal)
                                             : std::make_shared<op::v13::ScaledDotProductAttention>(query,
                                                                                                    key,
                                                                                                    value,
                                                                                                    mask_input,
                                                                                                    scale_const,
+                                                                                                   false,
                                                                                                    causal);
     }
 

@@ -61,6 +61,7 @@ ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
                                 bool has_mask,
                                 const ov::Output<ov::Node>& attn_mask,
                                 float scale_attr,
+                                bool is_gqa,
                                 bool is_causal);
 
 /// \brief Build manual attention decomposition (for softcap or qk_matmul_output).

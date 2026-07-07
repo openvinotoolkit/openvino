@@ -322,7 +322,7 @@ public:
         // For sliding window case, set causal=false because we provide explicit mask with sliding window logic
         // For normal case, set causal=true to let SDPA apply causal mask internally
         bool use_causal = (this->sliding_window == 0);
-
+        bool gqa_mode = false;
         if (use_sink_input) {
             // 7-parameter SDPA constructor with sink support
             // Parameters: query, key, value, attn_mask, scale, sink, causal
@@ -332,6 +332,7 @@ public:
                                                                            inputParams[atten_mask_idx],
                                                                            inputParams[scale_idx],
                                                                            inputParams[sink_idx],
+                                                                           gqa_mode,
                                                                            use_causal);
         } else {
             // 6-parameter SDPA constructor without sink
@@ -341,6 +342,7 @@ public:
                                                                            v_in,
                                                                            inputParams[atten_mask_idx],
                                                                            inputParams[scale_idx],
+                                                                           gqa_mode,
                                                                            use_causal);
         }
         sdp->set_friendly_name("mha");
@@ -382,6 +384,7 @@ public:
                                                                                 inputParams[atten_mask_idx],
                                                                                 inputParams[scale_idx],
                                                                                 inputParams[sink_idx],
+                                                                                gqa_mode,
                                                                                 use_causal);
             } else {
                 sdp2 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(hidden_query,
@@ -389,6 +392,7 @@ public:
                                                                                 v_in,
                                                                                 inputParams[atten_mask_idx],
                                                                                 inputParams[scale_idx],
+                                                                                gqa_mode,
                                                                                 use_causal);
             }
             sdp2->set_friendly_name("mha_reader");

@@ -241,11 +241,11 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
         auto scale_val = 1.0f / std::sqrt(static_cast<float>(head_dim_for_scale));
         auto scale = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {scale_val});
         scale->set_friendly_name(name + ".scale");
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, scale, false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, scale, false, false);
     } else if (attention_mask.get_node()) {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, false, false);
     } else {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, false, false);
     }
     sdpa->set_friendly_name(name + ".sdpa");
 

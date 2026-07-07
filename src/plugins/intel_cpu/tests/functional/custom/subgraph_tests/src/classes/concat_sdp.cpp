@@ -183,7 +183,7 @@ void ConcatSDPTest::SetUp() {
     }
 
     auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
-        inputParams[0], k_for_sdp, v_for_sdp, false);
+        inputParams[0], k_for_sdp, v_for_sdp, false, false);
     sdp->set_friendly_name("mha");
     auto add = std::make_shared<ov::op::v1::Add>(sdp, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
     auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);

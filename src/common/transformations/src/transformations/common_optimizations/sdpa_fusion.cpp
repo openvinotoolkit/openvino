@@ -516,7 +516,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             return false;
 
         std::shared_ptr<ov::Node> sdpa =
-            std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
+            std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false, false);
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
 
@@ -617,10 +617,11 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
                                                                     mask_input,
                                                                     scale_node,
                                                                     sinks_node,
+                                                                    false,
                                                                     false);
         } else {
             sdpa =
-                std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
+                std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false, false);
         }
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);

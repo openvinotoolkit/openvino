@@ -34,6 +34,7 @@ using namespace ov::intel_gpu;
 using TransposeVLSDPATestParams = std::tuple<ElementType,
                                              ov::Dimension::value_type,     // num_head
                                              ov::Dimension::value_type,     // head_size
+                                             bool,
                                              std::vector<int32_t>>;         // cu_seqlens
 
 class TransposeVLSDPATestOnGPU: public testing::WithParamInterface<TransposeVLSDPATestParams>,
@@ -43,13 +44,14 @@ public:
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;
-
-        std::tie(inType, num_head, head_size, cu_seqlens) = obj.param;
+        bool gqa_mode;
+        std::tie(inType, num_head, head_size, gqa_mode, cu_seqlens) = obj.param;
 
         std::ostringstream result;
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
         result << "num_head=(" << to_str(num_head) << ")_";
         result << "head_size=(" << to_str(head_size) << ")_";
+        result << "gqa_mode=(" << std::boolalpha << gqa_mode << ")_";
         result << test::utils::vec2str<int32_t>({cu_seqlens}) << "_";
         result << "Prc=" << inType;
         return result.str();
@@ -83,8 +85,9 @@ protected:
     void SetUp() override {
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
+        bool gqa_mode;
         std::vector<int32_t> cu_seqlens;
-        std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
+        std::tie(inType, num_head, head_size, gqa_mode, cu_seqlens) = GetParam();
 
         targetDevice = test::utils::DEVICE_GPU;
         rel_threshold = 0.02f;
@@ -109,13 +112,14 @@ protected:
         };
         init_input_shapes(inputShapes);
 
-        function = get_function(inType, num_head, head_size);
+        function = get_function(inType, num_head, head_size, gqa_mode);
         functionRefs = function->clone();
 
         m_cu_seqlens = cu_seqlens;
+        m_gqa_mode = gqa_mode;
     }
 
-    std::shared_ptr<ov::Model> get_function(ov::element::Type inType, ov::Dimension::value_type num_head, ov::Dimension::value_type head_size) {
+    std::shared_ptr<ov::Model> get_function(ov::element::Type inType, ov::Dimension::value_type num_head, ov::Dimension::value_type head_size, bool gqa_mode) {
         auto q = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "q");
         auto k = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "k");
         auto v = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "v");
@@ -129,10 +133,11 @@ protected:
         transpose_v->set_friendly_name("transpose_v");
 
         const auto casual = false;
+
         auto sdpa = std::make_shared<opset13::ScaledDotProductAttention>(transpose_q,
                                                                          transpose_k,
                                                                          transpose_v,
-                                                                         attn_mask, casual);
+                                                                         attn_mask, gqa_mode, casual);
         sdpa->set_friendly_name("sdpa");
 
         auto transpose_o = std::make_shared<Transpose>(sdpa, Constant::create(element::i64, Shape{3}, order_o));
@@ -270,6 +275,7 @@ private:
     const std::vector<int64_t> order_o = {1, 0, 2};
 
     std::vector<int32_t> m_cu_seqlens;
+    bool m_gqa_mode{ false };
 
     ov::TensorVector inputs_ref;
 };
@@ -280,7 +286,8 @@ TEST_P(TransposeVLSDPATestOnGPU, CompareWithRefs) {
     ElementType inType;
     ov::Dimension::value_type num_head, head_size;
     std::vector<int32_t> cu_seqlens;
-    std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
+    bool gqa_mode;
+    std::tie(inType, num_head, head_size, gqa_mode, cu_seqlens) = GetParam();
     if (inType != ElementType::f16) // VLSDPA CM kernel supports half precision only
         GTEST_SKIP();
 
@@ -301,6 +308,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TransposeVLSDPATest,
                          ::testing::Combine(::testing::Values(ov::element::f16),
                                             ::testing::Values(1, 2),   // num_heads
                                             ::testing::Values(16, 64, 128),       // head_size
+                                            ::testing::Values(false, true),       // gqa_mode
                                             ::testing::ValuesIn(input_cu_seqlens)),
                          TransposeVLSDPATestOnGPU::getTestCaseName);
 

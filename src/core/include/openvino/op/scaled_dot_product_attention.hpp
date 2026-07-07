@@ -22,7 +22,7 @@ public:
     /// \brief Constructs a ScaledDotProductAttention operation.
     ScaledDotProductAttention() = default;
 
-    ScaledDotProductAttention(const OutputVector& inputs, bool causal);
+    ScaledDotProductAttention(const OutputVector& inputs, bool gqa_mode, bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,
                               const Output<Node>& key,
@@ -30,6 +30,7 @@ public:
                               const Output<Node>& attn_mask,
                               const Output<Node>& scale,
                               const Output<Node>& sink,
+                              bool gqa_mode,
                               bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,
@@ -37,17 +38,20 @@ public:
                               const Output<Node>& value,
                               const Output<Node>& attn_mask,
                               const Output<Node>& scale,
+                              bool gqa_mode,
                               bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,
                               const Output<Node>& key,
                               const Output<Node>& value,
                               const Output<Node>& attn_mask,
+                              bool gqa_mode,
                               bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,
                               const Output<Node>& key,
                               const Output<Node>& value,
+                              bool gqa_mode,
                               bool causal);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -61,9 +65,17 @@ public:
     void set_causal(bool causal) {
         m_causal = causal;
     }
+    bool get_gqa_mode() const {
+        return m_gqa_mode;
+    }
+
+    void set_gqa_mode(bool gqa_mode) {
+        m_gqa_mode = gqa_mode;
+    }
 
 private:
     bool m_causal = false;
+    bool m_gqa_mode = false;
 };
 
 }  // namespace v13

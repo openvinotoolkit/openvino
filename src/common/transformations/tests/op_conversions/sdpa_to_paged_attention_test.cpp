@@ -1083,7 +1083,7 @@ TEST(SDPAToPAKeepConstPrecisionTest, Qwen7bChat_KVCacheParamsMarkedKeepConstPrec
         auto V = Qwen7bChatSDPA::gen_V(v_cache, qkv_proj);
 
         auto attention_mask_to_sdpa = Qwen7bChatSDPA::gen_attention_mask(Q, attention_mask, total_seq_len_2);
-        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attention_mask_to_sdpa, false);
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attention_mask_to_sdpa, false, false);
         auto res = std::make_shared<v0::Result>(sdpa);
 
         auto transformed_model = std::make_shared<ov::Model>(ResultVector{res}, params);
