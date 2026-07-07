@@ -223,7 +223,10 @@ macro(ov_add_frontend)
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
                 $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
-                ${frontend_root_dir}/src
+                ${frontend_root_dir}/src)
+
+    # Add binary dir as SYSTEM so generated protobuf headers don't trigger warnings
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
