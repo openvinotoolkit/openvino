@@ -280,10 +280,12 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     run();
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto enforceSnippets = std::get<7>(this->GetParam());
     if (enforceSnippets) {
         CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
     }
+#endif
     CheckPluginRelatedResults(compiledModel, "Eltwise");
 }
 

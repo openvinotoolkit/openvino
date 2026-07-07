@@ -2078,6 +2078,7 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     h->vmfne_vv(mask_vreg(), src, src);      // set mask where src is nan (i.e. not equal to itself)
     h->vmv_v_x(dst, zero);                   // set dst to 0
+    load_table_val("one", one);
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
