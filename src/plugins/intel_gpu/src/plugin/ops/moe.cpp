@@ -28,7 +28,7 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 // Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
-// MOE_OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
+// OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
 // The number of GPU-resident LRU slots = num_expert * (100 - ratio) / 100.
 // ratio=0 means all resident (no OTD); ratio=100 means all on disk (invalid, disabled).
 // Returns true when OTD is enabled (lru_expert_num > 0).
@@ -40,7 +40,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     const auto& config = op->get_config();
     const auto& model = p.get_model();
-    const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
+    const size_t otd_ratio = p.get_config().get_offload_ratio();
     // ratio=0  → all resident, no offload
     // ratio=100 → all on disk, cannot run → treat as disabled
     // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
@@ -113,7 +113,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         const size_t expected_inputs = base_inputs + shared_inputs;
         validate_inputs_count(op, {expected_inputs});
 
-        // Resolve OTD (offload-to-disk) parameters; no-op when MOE_OFFLOAD_RATIO == 0.
+        // Resolve OTD (offload-to-disk) parameters; no-op when OFFLOAD_RATIO == 0.
         std::vector<size_t> weight_bin_offsets;
         std::filesystem::path weights_path;
         size_t lru_expert_num = 0;

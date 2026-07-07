@@ -179,7 +179,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
         set_property({ov::enable_weightless(*enable_weightless)});
     }
-    if (get_enable_weightless() || get_moe_offload_ratio() > 0) {
+    if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }

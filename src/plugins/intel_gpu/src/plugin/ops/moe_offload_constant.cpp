@@ -46,7 +46,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::layout& const_layout) {
     PartialUploadDesc desc;
 
-    const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
+    const size_t otd_ratio = p.get_config().get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
     // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
     const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
