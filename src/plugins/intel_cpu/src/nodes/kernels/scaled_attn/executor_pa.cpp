@@ -463,10 +463,13 @@ struct MHAHelper {
     PlainTensor _qq_bias;
     std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
-    // Precompute image group boundaries from token_type_ids.
-    // For each image token:
-    //   _image_group_end[i] = KV coordinate past the last contiguous image token in the same group
-    //   _image_group_begin[i] = KV coordinate of the first contiguous image token in the same group
+    // Precompute image group boundaries, translating batched-token indices to KV-global coordinates.
+    // Token i (global batched-token space) maps to KV-global index via:
+    //   KV-global(i) = past_lens[seq] + (i - seq_begin)  =  i + kv_offset
+    // where kv_offset = past_lens[seq] - seq_begin.
+    //
+    // For each image token i, _image_group_begin[i] / _image_group_end[i] store the
+    // [inclusive, exclusive) KV-global bounds of its contiguous image group.
     // For text tokens, both are -1.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,

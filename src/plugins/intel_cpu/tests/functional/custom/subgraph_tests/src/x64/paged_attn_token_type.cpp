@@ -847,6 +847,12 @@ const std::vector<TokenTypePattern> token_type_patterns = {
 
     // Two separate image groups with text between and after
     {"two_image_groups", {0, 1, 1, 0, 0, 0, 1, 1, 1, 0}},
+
+    // Mix of image and text tokens across blocks
+    {"mix_across_blocks",
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // tokens  0-15: text  (first half of block 0)
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   // tokens 16-31: image (second half of block 0)
+      1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}, // tokens 32-35: image; 36-47: text  (block 1)
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnTokenType,
