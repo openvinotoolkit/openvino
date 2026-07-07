@@ -250,9 +250,67 @@ macro(ov_add_frontend)
         if(OV_FRONTEND_PROTOBUF_LITE)
             set(protobuf_target_name libprotobuf-lite)
             set(protobuf_install_name "protobuf_lite_installed")
+            set(protobuf_dependencies 
+                absl::absl_check
+                absl::absl_log
+                absl::base
+                absl::bits
+                absl::core_headers
+                absl::debugging
+                absl::die_if_null
+                absl::dynamic_annotations
+                absl::endian
+                absl::fixed_array
+                absl::inlined_vector
+                absl::log_severity
+                absl::memory
+                absl::raw_logging_internal
+                absl::span
+                absl::strings
+                absl::synchronization
+                absl::type_traits
+                absl::utility
+            )
         else()
             set(protobuf_target_name libprotobuf)
             set(protobuf_install_name "protobuf_installed")
+            set(protobuf_dependencies 
+                absl::absl_check
+                absl::absl_log
+                absl::algorithm
+                absl::base
+                absl::bind_front
+                absl::bits
+                absl::btree
+                absl::cleanup
+                absl::cord
+                absl::core_headers
+                absl::debugging
+                absl::die_if_null
+                absl::dynamic_annotations
+                absl::flags
+                absl::flat_hash_map
+                absl::flat_hash_set
+                absl::function_ref
+                absl::hash
+                absl::layout
+                absl::log_initialize
+                absl::log_globals
+                absl::log_severity
+                absl::memory
+                absl::node_hash_map
+                absl::node_hash_set
+                absl::optional
+                absl::span
+                absl::status
+                absl::statusor
+                absl::strings
+                absl::synchronization
+                absl::time
+                absl::type_traits
+                absl::utility
+                absl::variant
+            )
         endif()
         if(ENABLE_SYSTEM_PROTOBUF)
             # use imported target name with namespace
@@ -274,6 +332,10 @@ macro(ov_add_frontend)
             else()
                 ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
                 set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
+
+                foreach(protobuf_dependency IN LISTS protobuf_dependencies)
+                    ov_install_static_lib(${protobuf_dependency} ${OV_CPACK_COMP_CORE})
+                endforeach()
             endif()
         endif()
     endif()
