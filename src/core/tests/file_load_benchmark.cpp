@@ -16,6 +16,7 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <tuple>
 #include <vector>
@@ -79,7 +80,6 @@ std::filesystem::path generate_test_file(const TestFile& tf) {
     auto path = std::filesystem::path("test_file" + std::to_string(tf.size_mib) + "mib.bin");
 
     if (util::file_exists(path) && std::filesystem::file_size(path) == tf.size_bytes()) {
-        std::cout << "Test file already exists: " << path << ", skipping generation." << std::endl;
         return path;
     }
     std::vector<uint8_t> chunk(util::one_mib);
@@ -102,7 +102,7 @@ long long measure_ms(const std::function<void()>& fn) {
 
 void evict_cache(const std::filesystem::path& path, size_t file_size) {
     static bool warned = false;
-    auto warn_once = [](const char* msg) {
+    auto warn_once = [](std::string_view msg) {
         if (!warned) {
             std::cout << "[WARNING] " << msg << " Results may be unreliable." << std::endl;
             warned = true;
@@ -332,7 +332,7 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 }
 
-TEST_F(FileLoadBenchmark, strategies_memory_lock) {
+TEST_F(FileLoadBenchmark, test_speed_load_data_into_mmap_region) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
