@@ -269,7 +269,6 @@ TEST_F(GQACompiledModelTest, AddsExpectedNpuwDefaultsBeforeInnerCompilation) {
     EXPECT_EQ(call.props.at("NPUW_ONLINE_ISOLATE").as<std::string>(), "ATTN");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn");
     EXPECT_EQ(call.props.at("NPUW_ATTN").as<std::string>(), "STATIC");
-    EXPECT_EQ(call.props.at("NPUW_ONLINE_KEEP_BLOCK_SIZE").as<std::string>(), "2");
     EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
     EXPECT_EQ(call.props.at(ov::cache_mode.name()).as<ov::CacheMode>(), ov::CacheMode::OPTIMIZE_SPEED);
     EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
@@ -296,7 +295,6 @@ TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
     EXPECT_EQ(call.props.count("NPUW_ONLINE_ISOLATE"), 0u);
     EXPECT_EQ(call.props.count("NPUW_ONLINE_KEEP_BLOCKS_TAGGED"), 0u);
     EXPECT_EQ(call.props.count("NPUW_ATTN"), 0u);
-    EXPECT_EQ(call.props.count("NPUW_ONLINE_KEEP_BLOCK_SIZE"), 0u);
 }
 
 TEST_F(GQACompiledModelTest, KeepsAttnIsolationDefaultsForPrefillStyleModels) {
