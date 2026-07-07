@@ -532,6 +532,9 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         return false;
 
     auto prim = node.get_primitive();
+    // count()/spatial() below require a static shape.
+    if (input_layout.is_dynamic())
+        return false;
     if (input_layout.data_type != data_types::f16
         || (input_layout.is_static() && input_layout.feature() % 64 != 0)  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
@@ -561,6 +564,9 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
+        // feature() requires a static shape.
+        if (node.get_input_layout(0).is_dynamic() || node.get_output_layout(0).is_dynamic())
+            return false;
         const auto output_channels = node.get_output_layout(0).feature();
         const auto input_channels = node.get_input_layout(0).feature();
 
@@ -720,7 +726,8 @@ static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, s
             auto reorder_first_user = node.get_users().front();
             if (reorder_first_user->is_type<reshape>()) {
                 for (auto& reshape_user : reorder_first_user->get_users()) {
-                    if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                    if (reshape_user->is_type<mvn>() && !node.get_output_layout().is_dynamic() &&
+                        node.get_output_layout().get_linear_size() > reorder_size_threshold) {
                         GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
                         return true;
                     }
