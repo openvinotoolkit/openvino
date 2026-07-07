@@ -22,26 +22,22 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
-ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed() {
+ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed(
+    const std::vector<ov::element::Type>& supported_weights_types) {
     using namespace ov::pass::pattern;
     using ov::op::internal::GroupedMatMulCompressed;
 
-    const std::vector<ov::element::Type> supported_weights_types = {
-        ov::element::u8,
-        ov::element::i8,
-        ov::element::u4,
-        ov::element::i4,
-    };
-
-    auto data_m = any_input();
+    auto data_2d_m = any_input(rank_equals(2));
+    auto data_3d_m = any_input(rank_equals(3));
     auto offsets_m = any_input();
     auto weights_block =
         std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
 
     // v17::GroupedMatMul has two legal input arities. Match both with a single Or root so
-    // one MatcherPass covers 2D x 3D (with offsets) and 3D x 3D (no offsets).
-    auto gmm_no_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_m, weights_block});
-    auto gmm_with_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_m, weights_block, offsets_m});
+    // one MatcherPass covers 2D x 3D (with offsets) and 3D x 3D (no offsets). Rank is
+    // enforced by the pattern predicates above so the callback doesn't need to re-check it.
+    auto gmm_no_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_3d_m, weights_block});
+    auto gmm_with_offsets_m = wrap_type<ov::op::v17::GroupedMatMul>({data_2d_m, weights_block, offsets_m});
     auto gmm_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{gmm_no_offsets_m, gmm_with_offsets_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -57,23 +53,9 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         // `has_transpose=true`, so the emitted GroupedMatMulCompressed still sees [G, N, K].
         const bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
 
-        const auto& a_pshape = gmm->get_input_partial_shape(0);
-        if (a_pshape.rank().is_dynamic()) {
-            return false;
-        }
-        const auto a_rank = a_pshape.size();
-        const bool with_offsets = (gmm->get_input_size() == 3);
-        if (with_offsets) {
-            // 2D x 3D form must carry offsets and a rank-2 activation.
-            if (a_rank != 2) {
-                return false;
-            }
-        } else {
-            // 3D x 3D form has no offsets and rank-3 activation.
-            if (a_rank != 3) {
-                return false;
-            }
-        }
+        // Which arm of the Or matched — 2D x 3D (with offsets) or 3D x 3D (no offsets).
+        const bool with_offsets = pattern_map.count(data_2d_m) > 0;
+        const auto& data_value = with_offsets ? pattern_map.at(data_2d_m) : pattern_map.at(data_3d_m);
 
         const auto& weights_shape = gmm->get_input_shape(1);
         // GroupedMatMul-17 always has rank-3 mat_b ([G, N, K])
@@ -104,27 +86,25 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
 
         std::shared_ptr<ov::Node> new_gmm;
         if (with_offsets) {
-            const ov::Output<ov::Node>& gmm_input_offsets = gmm->input(2).get_source_output();
+            const auto& gmm_input_offsets = gmm->input_value(2);
             if (with_zero_point) {
-                new_gmm = std::make_shared<GroupedMatMulCompressed>(pattern_map.at(data_m),
+                new_gmm = std::make_shared<GroupedMatMulCompressed>(data_value,
                                                                     gmm_input_b,
                                                                     gmm_input_offsets,
                                                                     gmm_input_scale,
                                                                     gmm_input_zp);
             } else {
-                new_gmm = std::make_shared<GroupedMatMulCompressed>(pattern_map.at(data_m),
+                new_gmm = std::make_shared<GroupedMatMulCompressed>(data_value,
                                                                     gmm_input_b,
                                                                     gmm_input_offsets,
                                                                     gmm_input_scale);
             }
         } else {
             if (with_zero_point) {
-                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m),
-                                                           gmm_input_b,
-                                                           gmm_input_scale,
-                                                           gmm_input_zp);
+                new_gmm =
+                    GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale, gmm_input_zp);
             } else {
-                new_gmm = GroupedMatMulCompressed::make_3d(pattern_map.at(data_m), gmm_input_b, gmm_input_scale);
+                new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale);
             }
         }
 
