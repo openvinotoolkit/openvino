@@ -204,8 +204,7 @@ TEST_F(BroadcastMatMulFusionTest, KeepsBroadcastWithPdpdMode) {
     auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, 8, 16});
     auto data = make_const(Shape{1, 32, 8});
     auto target = v0::Constant::create(element::i64, Shape{3}, {4, 32, 8});
-    auto broadcast =
-        std::make_shared<v3::Broadcast>(data, target, op::BroadcastModeSpec(op::BroadcastType::PDPD, 0));
+    auto broadcast = std::make_shared<v3::Broadcast>(data, target, op::BroadcastModeSpec(op::BroadcastType::PDPD, 0));
     auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
     model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
 }
