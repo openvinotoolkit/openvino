@@ -4,6 +4,7 @@
 
 #include "scaled_attn.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
@@ -1561,13 +1562,15 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                 // Speculative decode / chunked prefill with history (L1 > 1, L0 > 0):
                 // query row m is at position L0+m, attends to K[0..L0+m].
                 // Materialize the position-aware mask: bias[m,n] = 0 if n<=L0+m else -inf.
-                attn_buf.resize<T>({1, 1, L1, L0 + L1});
+                attn_buf.resize<T>({B, 1, L1, L0 + L1});
                 T* p = attn_buf.ptr<T>();
                 const T zero = static_cast<T>(0);
                 const T neg_inf = static_cast<T>(-std::numeric_limits<float>::infinity());
-                for (size_t m = 0; m < L1; m++) {
-                    for (size_t n = 0; n < L0 + L1; n++) {
-                        p[m * (L0 + L1) + n] = (n <= L0 + m) ? zero : neg_inf;
+                for (size_t b = 0; b < B; b++) {
+                    for (size_t m = 0; m < L1; m++) {
+                        for (size_t n = 0; n < L0 + L1; n++) {
+                            p[(b * L1 + m) * (L0 + L1) + n] = (n <= L0 + m) ? zero : neg_inf;
+                        }
                     }
                 }
                 attn_mask = attn_buf;

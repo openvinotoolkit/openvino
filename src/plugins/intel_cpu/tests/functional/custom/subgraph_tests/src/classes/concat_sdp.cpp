@@ -3,6 +3,8 @@
 //
 #include "concat_sdp.hpp"
 
+#include <limits>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -41,7 +43,7 @@ namespace test {
  *                              Result
  */
 std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
-    const auto& [inType, inputShapes, cacheCfg, hasShapeOf, headNumQ, headNumKV] = obj.param;
+    const auto& [inType, inputShapes, cacheCfg, hasShapeOf, headNumQ, headNumKV, isCausal] = obj.param;
     std::ostringstream result;
     result << "IS=";
     for (const auto& shape : inputShapes) {
@@ -66,15 +68,17 @@ std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSD
     }
     result << "_HasShapeOf=" << hasShapeOf;
     result << "_Hq=" << headNumQ << "_Hkv=" << headNumKV;
+    result << "_is_causal=" << isCausal;
     return result.str();
 }
 
 void ConcatSDPTest::SetUp() {
-    const auto& [inType, inputShapes, cacheCfg, hasShapeOf, headNumQ, headNumKV] = this->GetParam();
+    const auto& [inType, inputShapes, cacheCfg, hasShapeOf, headNumQ, headNumKV, isCausal] = this->GetParam();
     m_cacheCfg = cacheCfg;
     m_hasShapeOf = hasShapeOf;
     m_headNumQ = headNumQ;
     m_headNumKV = headNumKV;
+    m_isCausal = isCausal;
     OPENVINO_ASSERT(m_headNumQ % m_headNumKV == 0, "head_num_q must be divisible by head_num_kv");
 
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
@@ -99,8 +103,7 @@ void ConcatSDPTest::SetUp() {
     };
     const bool is_u4 = has_value("KEY_CACHE_PRECISION", "u4") || has_value("VALUE_CACHE_PRECISION", "u4");
     const bool is_u8 = has_value("KEY_CACHE_PRECISION", "u8") || has_value("VALUE_CACHE_PRECISION", "u8");
-    const bool is_tbq = has_value("KEY_CACHE_QUANT_ALG", "TURBO") ||
-                        has_value("VALUE_CACHE_QUANT_ALG", "TURBO");
+    const bool is_tbq = has_value("KEY_CACHE_QUANT_ALG", "TURBO") || has_value("VALUE_CACHE_QUANT_ALG", "TURBO");
     rel_threshold = 1e-2F;
     abs_threshold = 1e-3F;
     if (is_u4 && is_tbq) {
@@ -128,10 +131,12 @@ void ConcatSDPTest::SetUp() {
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, past_ps));
+    inputParams[3]->set_friendly_name("past_k_init");
     auto var_k = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_ps, inType, "pastk"});
     auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_k);
     pastk->set_friendly_name("pastk_r");
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, past_ps));
+    inputParams[4]->set_friendly_name("past_v_init");
     auto var_v = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_ps, inType, "pastv"});
     auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[4], var_v);
     pastv->set_friendly_name("pastv_r");
@@ -140,10 +145,10 @@ void ConcatSDPTest::SetUp() {
     beam_idx->set_friendly_name("beam_idx");
     inputParams.push_back(beam_idx);
 
-    auto gatherK = std::make_shared<ov::op::v8::Gather>(
-        pastk, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
-    auto gatherV = std::make_shared<ov::op::v8::Gather>(
-        pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
+    auto gatherK =
+        std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
+    auto gatherV =
+        std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
 
     std::shared_ptr<Node> shapeof_k, shapeof_v;
     // test special case:
@@ -165,25 +170,23 @@ void ConcatSDPTest::SetUp() {
         const auto Hq = static_cast<int32_t>(m_headNumQ);
         const auto head_size = static_cast<int32_t>(q_ps[3].get_length());
         auto make_gqa_broadcast = [&](const std::shared_ptr<ov::Node>& node) {
-            auto unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(
-                node, ov::op::v0::Constant::create(ov::element::i32, {}, {2}));
+            auto unsqueezed =
+                std::make_shared<ov::op::v0::Unsqueeze>(node, ov::op::v0::Constant::create(ov::element::i32, {}, {2}));
             auto broadcasted = std::make_shared<ov::op::v3::Broadcast>(
                 unsqueezed,
-                ov::op::v0::Constant::create(ov::element::i32, {5},
-                                              std::vector<int32_t>{1, 1, group_size, 1, 1}),
+                ov::op::v0::Constant::create(ov::element::i32, {5}, std::vector<int32_t>{1, 1, group_size, 1, 1}),
                 ov::op::BroadcastType::BIDIRECTIONAL);
             return std::make_shared<ov::op::v1::Reshape>(
                 broadcasted,
-                ov::op::v0::Constant::create(ov::element::i32, {4},
-                                              std::vector<int32_t>{0, Hq, -1, head_size}),
+                ov::op::v0::Constant::create(ov::element::i32, {4}, std::vector<int32_t>{0, Hq, -1, head_size}),
                 true);
         };
         k_for_sdp = make_gqa_broadcast(concatK);
         v_for_sdp = make_gqa_broadcast(concatV);
     }
 
-    auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
-        inputParams[0], k_for_sdp, v_for_sdp, false);
+    auto sdp =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(inputParams[0], k_for_sdp, v_for_sdp, m_isCausal);
     sdp->set_friendly_name("mha");
     auto add = std::make_shared<ov::op::v1::Add>(sdp, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
     auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
@@ -198,7 +201,63 @@ void ConcatSDPTest::SetUp() {
     }
     SinkVector sinks{pastk_assign, pastv_assign};
     function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatSDP");
-    functionRefs = function->clone();
+
+    if (m_isCausal) {
+        OPENVINO_ASSERT(!m_hasShapeOf, "Causal ConcatSDP reference does not support ShapeOf side outputs");
+        OPENVINO_ASSERT(m_headNumQ == m_headNumKV, "Causal ConcatSDP reference covers only non-GQA head layouts");
+        ov::ParameterVector refParams;
+        refParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, q_ps));
+        refParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, kv_ps));
+        refParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, kv_ps));
+        refParams[0]->set_friendly_name("q");
+        refParams[1]->set_friendly_name("k");
+        refParams[2]->set_friendly_name("v");
+        refParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, past_ps));
+        refParams[3]->set_friendly_name("past_k_init");
+        auto ref_var_k =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_ps, inType, "pastk_ref"});
+        auto ref_pastk = std::make_shared<ov::op::v6::ReadValue>(refParams[3], ref_var_k);
+        ref_pastk->set_friendly_name("pastk_ref_r");
+        refParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, past_ps));
+        refParams[4]->set_friendly_name("past_v_init");
+        auto ref_var_v =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_ps, inType, "pastv_ref"});
+        auto ref_pastv = std::make_shared<ov::op::v6::ReadValue>(refParams[4], ref_var_v);
+        ref_pastv->set_friendly_name("pastv_ref_r");
+        auto ref_beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
+        ref_beam_idx->set_friendly_name("beam_idx");
+        refParams.push_back(ref_beam_idx);
+        auto ref_mask = std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{1, m_headNumQ, -1, -1});
+        ref_mask->set_friendly_name("attention_mask");
+        refParams.push_back(ref_mask);
+
+        auto ref_gatherK =
+            std::make_shared<ov::op::v8::Gather>(ref_pastk,
+                                                 ref_beam_idx,
+                                                 ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
+        auto ref_gatherV =
+            std::make_shared<ov::op::v8::Gather>(ref_pastv,
+                                                 ref_beam_idx,
+                                                 ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
+        auto ref_concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{ref_gatherK, refParams[1]}, 2);
+        auto ref_concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{ref_gatherV, refParams[2]}, 2);
+
+        auto ref_sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(refParams[0],
+                                                                                ref_concatK,
+                                                                                ref_concatV,
+                                                                                ref_mask,
+                                                                                false);
+        ref_sdp->set_friendly_name("mha_ref");
+        auto ref_add = std::make_shared<ov::op::v1::Add>(ref_sdp, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto ref_pastk_assign = std::make_shared<ov::op::v6::Assign>(ref_concatK, ref_var_k);
+        auto ref_pastv_assign = std::make_shared<ov::op::v6::Assign>(ref_concatV, ref_var_v);
+        functionRefs = std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::op::v0::Result>(ref_add)},
+                                                   SinkVector{ref_pastk_assign, ref_pastv_assign},
+                                                   refParams,
+                                                   "ConcatSDPCausalReference");
+    } else {
+        functionRefs = function->clone();
+    }
     pass::Manager manager;
     manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     manager.run_passes(functionRefs);
@@ -245,8 +304,8 @@ void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
 // outputs. Updates `compiledModel` so TEST_P post-checks inspect the last run.
 // Inputs keyed by original Parameter pointers; match compiled ports by friendly
 // name. Deep-copy outputs.
-std::vector<std::vector<ov::Tensor>>
-ConcatSDPTest::run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& cfg) {
+std::vector<std::vector<ov::Tensor>> ConcatSDPTest::run_test(const std::shared_ptr<ov::Model>& model,
+                                                             const ov::AnyMap& cfg) {
     compiledModel = core->compile_model(model, targetDevice, cfg);
     auto req = compiledModel.create_infer_request();
     m_iter = 0;
@@ -276,13 +335,72 @@ ConcatSDPTest::run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
     return all;
 }
 
+std::vector<std::vector<ov::Tensor>> ConcatSDPTest::run_causal_reference(const ov::AnyMap& cfg) {
+    auto compiled_model_ref = core->compile_model(functionRefs, targetDevice, cfg);
+    auto req = compiled_model_ref.create_infer_request();
+    m_iter = 0;
+    m_accum_L_q = 0;
+    size_t past_len = 0;
+    std::vector<std::vector<ov::Tensor>> all;
+
+    for (const auto& shapes : targetStaticShapes) {
+        generate_inputs(shapes);
+        const auto q_len = shapes[0][2];
+        const auto kv_len = past_len + q_len;
+        ov::Tensor attention_mask(ov::element::f32, {1, static_cast<size_t>(m_headNumQ), q_len, kv_len});
+        auto* mask_data = attention_mask.data<float>();
+        const float neg_inf = -std::numeric_limits<float>::infinity();
+        for (size_t h = 0; h < static_cast<size_t>(m_headNumQ); ++h) {
+            for (size_t m = 0; m < q_len; ++m) {
+                for (size_t n = 0; n < kv_len; ++n) {
+                    mask_data[(h * q_len + m) * kv_len + n] = (n <= past_len + m) ? 0.0F : neg_inf;
+                }
+            }
+        }
+
+        for (const auto& port : compiled_model_ref.inputs()) {
+            const auto& name = port.get_node()->get_friendly_name();
+            if (name == "attention_mask") {
+                req.set_tensor(port, attention_mask);
+                continue;
+            }
+            for (const auto& [node, tensor] : inputs) {
+                if (node->get_friendly_name() == name) {
+                    req.set_tensor(port, tensor);
+                    break;
+                }
+            }
+        }
+        req.infer();
+
+        std::vector<ov::Tensor> outs;
+        for (const auto& port : compiled_model_ref.outputs()) {
+            const auto& src = req.get_tensor(port);
+            ov::Tensor copy{src.get_element_type(), src.get_shape()};
+            src.copy_to(copy);
+            outs.push_back(std::move(copy));
+        }
+        all.push_back(std::move(outs));
+        past_len = kv_len;
+    }
+    return all;
+}
+
 void ConcatSDPTest::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (m_isCausal) {
+        auto expected = run_causal_reference(configuration);
+        auto actual = run_test(function, configuration);
+        for (size_t i = 0; i < actual.size(); ++i) {
+            compare(expected[i], actual[i]);
+        }
+        return;
+    }
     // Reference: SDPA decomposed into matmul/softmax (no cache codec). Strip cache
     // config keys so reference runs full-precision; keeps quant noise on actual side only.
     auto ref_config = configuration;
-    for (const auto& key : {"KEY_CACHE_PRECISION", "VALUE_CACHE_PRECISION",
-                            "KEY_CACHE_QUANT_ALG", "VALUE_CACHE_QUANT_ALG"}) {
+    for (const auto& key :
+         {"KEY_CACHE_PRECISION", "VALUE_CACHE_PRECISION", "KEY_CACHE_QUANT_ALG", "VALUE_CACHE_QUANT_ALG"}) {
         ref_config.erase(key);
     }
     auto expected = run_test(functionRefs, ref_config);

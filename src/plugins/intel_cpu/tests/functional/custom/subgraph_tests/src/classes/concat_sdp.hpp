@@ -28,15 +28,9 @@ namespace test {
  *                                |
  *                              Result
  */
-// (inType, inputShapes, cacheCfg, hasShapeOf, head_num_q, head_num_kv)
+// (inType, inputShapes, cacheCfg, hasShapeOf, head_num_q, head_num_kv, is_causal)
 // cacheCfg carries KEY_CACHE_* / VALUE_CACHE_* / KV_CACHE_* properties; empty = default.
-typedef std::tuple<ElementType,
-                   std::vector<InputShape>,
-                   ov::AnyMap,
-                   bool,
-                   int64_t,
-                   int64_t>
-    ConcatSDPTestParams;
+typedef std::tuple<ElementType, std::vector<InputShape>, ov::AnyMap, bool, int64_t, int64_t, bool> ConcatSDPTestParams;
 
 class ConcatSDPTest : public testing::WithParamInterface<ConcatSDPTestParams>,
                       virtual public ov::test::SubgraphBaseTest,
@@ -49,13 +43,14 @@ protected:
     void run() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     // Compile+run all iters. Updates `compiledModel` so post-checks see last run.
-    std::vector<std::vector<ov::Tensor>>
-    run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& cfg);
+    std::vector<std::vector<ov::Tensor>> run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& cfg);
+    std::vector<std::vector<ov::Tensor>> run_causal_reference(const ov::AnyMap& cfg);
 
     ov::AnyMap m_cacheCfg;
     bool m_hasShapeOf = false;
     int64_t m_headNumQ = 8;
     int64_t m_headNumKV = 8;
+    bool m_isCausal = false;
     int m_iter = 0;
     size_t m_accum_L_q = 0;
 };
