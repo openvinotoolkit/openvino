@@ -34,6 +34,7 @@ public:
         ASSERT_EQ(data_output_mem->count(), expected_output.size());
         cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
         constexpr float token_type_tolerance = 1e-2f;
+
         for (size_t i = 0; i < data_output_mem->count(); i++) {
             ASSERT_NEAR(static_cast<float>(mem_ptr[i]), expected_output[i], token_type_tolerance) << " at index=" << i;
         }
@@ -114,22 +115,7 @@ TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
 
-    // Run opt path (FA_V2 disabled) to get reference output
-    auto p_ref = p;
-    p_ref.disable_flashattn_v2 = DISABLE_FA_V2;
-    apply_token_type_test_data(pam, p_ref, p_ref.token_type_test_data);
-    auto ref_result = run_gpu_inference(pam, p_ref);
-    cldnn::memory::ptr ref_output_mem = ref_result.outputs.at("output_data").get_memory();
-    ASSERT_TRUE(ref_output_mem);
-    std::vector<float> ref_output(ref_output_mem->count());
-    {
-        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> ref_ptr(ref_output_mem, tests::get_test_stream());
-        for (size_t i = 0; i < ref_output.size(); i++) {
-            ref_output[i] = static_cast<float>(ref_ptr[i]);
-        }
-    }
-
-    // Run micro SDPA path (FA_V2 enabled)
+    // Run micro SDPA path
     apply_token_type_test_data(pam, p, p.token_type_test_data);
     auto result = run_gpu_inference(pam, p);
 
@@ -142,9 +128,9 @@ TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
     EXPECT_TRUE(dump_info.get_entries().find("sdpa_micro") != std::string::npos)
         << "Expected micro SDPA kernel for PREFILL with token_type_ids, got: " << dump_info.get_entries();
 
-    // Compare micro SDPA output against opt path reference
+    // Compare micro SDPA output against golden data
     cldnn::memory::ptr output_data_mem = result.outputs.at("output_data").get_memory();
-    compare_token_type_output(output_data_mem, ref_output);
+    compare_token_type_output(output_data_mem, p.token_type_test_data.expectedOutput);
 }
 
 static std::vector<paged_attention_token_type_test_params> make_micro_sdpa_prefill_test_params() {

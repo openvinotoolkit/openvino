@@ -231,6 +231,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
+    /* Extend causal_k to cover the full bidirectional group that overlaps
+       the current WG's query range. Without this, future K positions in
+       the same image-token group would be skipped entirely. */
+    {
+        int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, k) - 1;
+        if (wg_q_end >= 0 && wg_q_end < k && token_type_ids[wg_q_end] == 1) {
+            int bidir_end = wg_q_end + 1;
+            while (bidir_end < k && token_type_ids[bidir_end] == 1)
+                bidir_end++;
+            causal_k = max(causal_k, bidir_end);
+        }
+    }
+    #endif
 #endif
 
     int window_k_begin = 0;
@@ -242,6 +256,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         window_k_begin = MAX(0, past_len + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #else
         window_k_begin = MAX(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #endif
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
+    /* Extend sliding window start to include the full bidirectional group
+       that overlaps the window boundary. Without this, K positions in the
+       same image-token group but before window_k_begin would be skipped. */
+    if (window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
+        while (window_k_begin > 0 && token_type_ids[window_k_begin - 1] == 1) {
+            window_k_begin--;
+        }
+    }
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
 #endif
@@ -701,7 +725,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
-        /* Apply causal mask with bidirectional exception for image tokens */
+        /* Apply causal mask with bidirectional for image tokens */
         {
             const int k_base = k0 + sg_i0_kq;
             for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
@@ -710,9 +734,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     int i = i0 + get_sub_group_local_id();
                     const int offset_q = col_offset + i;
                     if (greater_than(offset_k, offset_q)) {
-                        bool is_bidirectional = (offset_k < q && offset_q < q &&
-                                                 token_type_ids[offset_k] == 1 &&
-                                                 token_type_ids[offset_q] == 1);
+                        bool is_bidirectional = false;
+                        if (offset_k < q && offset_q < q &&
+                            token_type_ids[offset_k] == 1 &&
+                            token_type_ids[offset_q] == 1) {
+                            /* Verify no 0 exists between q and k (same 1-group).
+                               Scan from the smaller to the larger index so this
+                               works both for future tokens (k>q) and for past
+                               tokens outside the sliding window (k<q). */
+                            is_bidirectional = true;
+                            const int scan_begin = min(offset_q, offset_k) + 1;
+                            const int scan_end = max(offset_q, offset_k);
+                            for (int p = scan_begin; p < scan_end; p++) {
+                                if (token_type_ids[p] != 1) {
+                                    is_bidirectional = false;
+                                    break;
+                                }
+                            }
+                        }
                         if (!is_bidirectional) {
                             tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                                         ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
