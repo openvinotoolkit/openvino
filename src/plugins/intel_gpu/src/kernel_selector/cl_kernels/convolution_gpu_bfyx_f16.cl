@@ -82,6 +82,8 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int x_out_of_bounds = input_x + INPUT_LINE_SIZE > input_spatial_size_x ?
+                                input_x + INPUT_LINE_SIZE - input_spatial_size_x : 0;
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -188,8 +190,7 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
-                        const int in_x = input_x + xb;
-                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= input_spatial_size_x)
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset +
@@ -202,54 +203,46 @@ KERNEL(convolution_bfyx_f16)(
                 else
 #endif  // INPUT_LEFTOVERS
                 {
-                    int valid_start = max(0, -input_x);
-                    int valid_end = min(INPUT_LINE_SIZE, input_spatial_size_x - input_x);
+                    int xb = 0;
+                    for (int i = 0; i < -input_x; i++){
+                        line_cache[xb + i] = 0;
+                    }
+                    xb += -input_x;
+                    const int reachable_size = INPUT_LINE_SIZE - x_out_of_bounds;
+                    for (; xb + 8 <= reachable_size; xb += 8) {
+                        INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
 
-                    if (valid_start <= 0 && valid_end >= INPUT_LINE_SIZE) {
-                        int xb = 0;
-                        for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
-                            INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
-                                                                      icb * input_fs_pitch +
-                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                      xb * input_x_pitch);
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                        line_cache[xb + 4] = vv[4];
+                        line_cache[xb + 5] = vv[5];
+                        line_cache[xb + 6] = vv[6];
+                        line_cache[xb + 7] = vv[7];
+                    }
+                    for (; xb + 4 <= reachable_size; xb += 4) {
+                        INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
 
-                            line_cache[xb + 0] = vv[0];
-                            line_cache[xb + 1] = vv[1];
-                            line_cache[xb + 2] = vv[2];
-                            line_cache[xb + 3] = vv[3];
-                            line_cache[xb + 4] = vv[4];
-                            line_cache[xb + 5] = vv[5];
-                            line_cache[xb + 6] = vv[6];
-                            line_cache[xb + 7] = vv[7];
-                        }
-                        for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
-                            INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
-                                                                      icb * input_fs_pitch +
-                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                      xb * input_x_pitch);
-
-                            line_cache[xb + 0] = vv[0];
-                            line_cache[xb + 1] = vv[1];
-                            line_cache[xb + 2] = vv[2];
-                            line_cache[xb + 3] = vv[3];
-                        }
-                        for (; xb < INPUT_LINE_SIZE; xb++) {
-                            line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
-                                                                     icb * input_fs_pitch +
-                                                                     kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                     xb * input_x_pitch);
-                        }
-                    } else {
-                        for (int xb = 0; xb < INPUT_LINE_SIZE; xb++) {
-                            if (xb < valid_start || xb >= valid_end) {
-                                line_cache[xb] = 0;
-                            } else {
-                                line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
-                                                                         icb * input_fs_pitch +
-                                                                         kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                         xb * input_x_pitch);
-                            }
-                        }
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                    }
+                    for (; xb < reachable_size; xb++) {
+                        line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
+                                                                 icb * input_fs_pitch +
+                                                                 kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                 xb * input_x_pitch);
+                    }
+                    for (int i = 0; i < x_out_of_bounds; i++){
+                        line_cache[xb + 1] = 0;
                     }
                 }
 
