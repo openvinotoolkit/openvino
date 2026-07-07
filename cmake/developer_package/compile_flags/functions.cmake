@@ -300,7 +300,8 @@ function(ov_disable_all_warnings)
         get_target_property(target_type ${target} TYPE)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-            target_compile_options(${target} PRIVATE /WX-)
+            # restrict to C/CXX sources only
+            target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
         elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             target_compile_options(${target} PRIVATE -w)
             # required for LTO

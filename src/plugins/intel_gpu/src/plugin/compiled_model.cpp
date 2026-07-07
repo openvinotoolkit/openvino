@@ -6,6 +6,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
+#include "openvino/core/version.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -13,6 +14,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 
+#include <sstream>
 #include <sys/types.h>
 
 namespace ov::intel_gpu {
@@ -61,6 +63,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
+    m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -83,8 +86,27 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
+    // After ov::CacheMode the blob must start with the magic-guarded compatibility-descriptor
+    // block written by export_model. A blob lacking the magic was produced by an OpenVINO build
+    // predating this feature; cross-version blob import is not supported, so fail fast.
+    uint64_t requirements_magic = 0;
+    ib >> requirements_magic;
+    OPENVINO_ASSERT(requirements_magic == runtime_requirements_magic,
+                    "[GPU] Cannot import compiled blob: missing compatibility descriptor "
+                    "(blob produced by an incompatible OpenVINO version).");
+
+    uint32_t requirements_version = 0;
+    ib >> requirements_version;
+    // An unrecognized version means the descriptor block follows an on-disk contract we don't
+    // understand, so the remainder of the blob cannot be parsed safely. Fail the import; the
+    // caching layer then falls back to recompiling the model.
+    OPENVINO_ASSERT(requirements_version == runtime_requirements_version,
+                    "[GPU] Unsupported compatibility descriptor version ", requirements_version,
+                    " in compiled blob (expected ", runtime_requirements_version, ").");
+    ib >> m_runtime_requirements;
+
     {
-        size_t num_params;
+        size_t num_params = 0;
         ib >> num_params;
 
         for (size_t idx = 0; idx < num_params; ++idx) {
@@ -173,9 +195,12 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     return async_infer_request;
 }
 
-// Cache blob format:
-//     [ is_dynamic flag ]
-//     [ ov::Node::Input/ ov::Node::Output ]
+// Cache blob format (ov::CacheMode is written here but consumed by Plugin::import_model):
+//     [ ov::CacheMode ]
+//     [ compatibility-descriptor block:
+//           [ uint64 magic ][ uint32 descriptor layout version ][ descriptor string ] ]
+//     [ inputs:  count + per-input  records ]
+//     [ outputs: count + per-output records ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
@@ -191,6 +216,13 @@ void CompiledModel::export_model(std::ostream& model) const {
     auto& ob = *ob_ptr;
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+
+    // Compatibility-descriptor block (see blob format above).
+    const uint64_t requirements_magic = runtime_requirements_magic;
+    ob << requirements_magic;
+    const uint32_t requirements_version = runtime_requirements_version;
+    ob << requirements_version;
+    ob << m_runtime_requirements;
 
     // Inputs
     {
@@ -238,6 +270,20 @@ void CompiledModel::export_model(std::ostream& model) const {
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph(0)->get_runtime_model();
 }
+
+std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
+    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // The desc fields are the device properties that invalidate a compiled blob if changed:
+    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
+    std::ostringstream ss;
+    ss << "meta=1.0"
+       << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
+       << ";desc=[driver=" << info.driver_version
+       << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
+       << static_cast<uint32_t>(info.gfx_ver.revision)
+       << ";eus=" << info.execution_units_count << "]";
+    return ss.str();
+}
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {
     return m_graphs;
 }
@@ -279,6 +325,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::intel_gpu::moe_offload_ratio.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
     } else if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};
@@ -291,6 +338,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
+    } else if (name == ov::runtime_requirements) {
+        return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
     }
 
     return m_config.get_property(name, OptionVisibility::RELEASE);

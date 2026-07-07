@@ -39,6 +39,16 @@ struct RMSNorm {
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
 
+/// L2 normalization on last dimension: x / sqrt(sum(x^2) + eps).
+struct L2Norm {
+    ov::element::Type precision;
+    float eps;
+
+    L2Norm(ov::element::Type prec = ov::element::f32, float e = 1e-6f) : precision(prec), eps(e) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
