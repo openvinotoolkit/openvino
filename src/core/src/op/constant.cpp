@@ -143,7 +143,7 @@ bool in_t_range(const U& v) {
             return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
         }
     } else {
-        return std::isinf(v) || (std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max());
+        return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
     }
 }
 
