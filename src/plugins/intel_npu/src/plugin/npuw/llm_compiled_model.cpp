@@ -3,6 +3,9 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <deque>
+#include <unordered_set>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -18,6 +21,7 @@
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
@@ -945,6 +949,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
+    // In case of Gemma3, we should remove `token_type_ids` from generate version of the model,
+    // as it leads to inaccurate output otherwise.
+    // NOTE: It is important to preserve `token_type_ids` in prefill model, however, as `token_type_ids`
+    //       controls creation of correct blockwise attention mask for image tokens.
+    ov::npuw::RemoveTokenTypeIds().run_on_model(kvcache_model);
     // Create generate model variants with different sizes.
     // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
     // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
