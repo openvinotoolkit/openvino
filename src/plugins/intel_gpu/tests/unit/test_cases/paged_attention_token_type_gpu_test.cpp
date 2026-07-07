@@ -105,6 +105,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
 class paged_attention_token_type_micro_sdpa_prefill_test : public paged_attention_token_type_test {};
 
 TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
+    auto& engine = tests::get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
     auto p = GetParam();
 
     ASSERT_TRUE(this->pam.has_value());
