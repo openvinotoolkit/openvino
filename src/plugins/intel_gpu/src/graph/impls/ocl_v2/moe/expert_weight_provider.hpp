@@ -70,6 +70,13 @@ public:
 
     // Releases a lease.
     virtual void release(ExpertSlotLease& /*lease*/) = 0;
+
+    // Binds device-resident weight buffers. Called once on first execution.
+    // Default is no-op (fully resident providers do not need binding).
+    virtual void bind(cldnn::moe_weights& /*resident*/) {}
+
+    // Returns true after bind() has been called.
+    virtual bool is_bound() const { return true; }
 };
 
 }  // namespace ov::intel_gpu::ocl::moe

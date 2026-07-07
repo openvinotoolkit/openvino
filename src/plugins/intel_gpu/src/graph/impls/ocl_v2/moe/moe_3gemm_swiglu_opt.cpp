@@ -676,8 +676,7 @@ public:
     void bind_weights_on_first_exec(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         if (!_weight_provider->is_offloaded())
             return;
-        auto* offload = static_cast<OffloadExpertWeightProvider*>(_weight_provider.get());
-        if (!offload->is_bound()) {
+        if (!_weight_provider->is_bound()) {
             instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
             instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
             instance._weights.gate_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
@@ -689,7 +688,7 @@ public:
             instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
             instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
             instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
-            offload->bind(instance._weights);
+            _weight_provider->bind(instance._weights);
         }
     }
 

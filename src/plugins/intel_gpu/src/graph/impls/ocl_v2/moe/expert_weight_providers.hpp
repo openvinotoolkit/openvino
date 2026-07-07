@@ -70,8 +70,8 @@ public:
     }
 
     void release() override {}
-    void bind(cldnn::moe_weights& resident);
-    bool is_bound() const {
+    void bind(cldnn::moe_weights& resident) override;
+    bool is_bound() const override {
         return _bound;
     }
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
