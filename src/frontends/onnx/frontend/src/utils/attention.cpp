@@ -10,6 +10,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -69,8 +70,9 @@ ov::Output<ov::Node> convert_boolean_mask(const ov::Output<ov::Node>& mask,
                                           const ov::element::Type& type,
                                           float mask_filter_value) {
     auto zero = v0::Constant::create(type, ov::Shape{}, {0.0f});
-    auto neg_large = v0::Constant::create(type, ov::Shape{}, {mask_filter_value});
-    return std::make_shared<v1::Select>(mask, zero, neg_large);
+    auto neg_large = v0::Constant::create(ov::element::f32, ov::Shape{}, {mask_filter_value});
+    auto conv_neg_large = std::make_shared<v1::ConvertLike>(neg_large, zero);
+    return std::make_shared<v1::Select>(mask, zero, conv_neg_large);
 }
 
 // Build an additive causal mask with opset-24 bottom-right alignment. For CausalKind::NONPAD the offset
@@ -140,7 +142,8 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
     // 2. Apply scale
     std::shared_ptr<ov::Node> scaled_qk;
     if (scale_attr != 0.0f) {
-        auto scale_node = v0::Constant::create(compute_type, ov::Shape{}, {scale_attr});
+        auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
+        auto scale_node = std::make_shared<v1::ConvertLike>(scale_f32, qk);
         scaled_qk = std::make_shared<v1::Multiply>(qk, scale_node);
     } else {
         auto q_shape = std::make_shared<v3::ShapeOf>(Q);
@@ -153,7 +156,8 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
     // 3. Apply softcap: softcap * tanh(scores / softcap)
     std::shared_ptr<ov::Node> capped = scaled_qk;
     if (softcap > 0.0f) {
-        auto cap = v0::Constant::create(compute_type, ov::Shape{}, {softcap});
+        auto cap_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {softcap});
+        auto cap = std::make_shared<v1::ConvertLike>(cap_f32, scaled_qk);
         auto divided = std::make_shared<v1::Divide>(scaled_qk, cap);
         auto tanh_out = std::make_shared<v0::Tanh>(divided);
         capped = std::make_shared<v1::Multiply>(tanh_out, cap);
@@ -174,7 +178,8 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
         }
 
         if (non_empty_attn_mask) {
-            auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
+            auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+            auto zero = std::make_shared<v1::ConvertLike>(zero_f32, softmax_out);
             auto is_nan = std::make_shared<v10::IsNaN>(softmax_out);
             softmax_out = std::make_shared<v1::Select>(is_nan, zero, softmax_out);
         }

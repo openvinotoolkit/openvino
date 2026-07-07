@@ -13,6 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
@@ -97,7 +98,6 @@ ov::Output<ov::Node> pad_attn_mask_last_dim(const ov::Output<ov::Node>& mask, co
         return mask;
     }
     const auto r = static_cast<size_t>(rank.get_length());
-    const auto& compute_type = K.get_element_type();
 
     auto mask_shape = std::make_shared<v3::ShapeOf>(mask);
     auto k_shape = std::make_shared<v3::ShapeOf>(K);
@@ -110,7 +110,8 @@ ov::Output<ov::Node> pad_attn_mask_last_dim(const ov::Output<ov::Node>& mask, co
     auto zeros_head = v0::Constant::create(ov::element::i64, ov::Shape{r - 1}, std::vector<int64_t>(r - 1, 0));
     auto pads_end = std::make_shared<v0::Concat>(ov::OutputVector{zeros_head, pad_amount}, 0);  // (r,)
 
-    auto pad_value = v0::Constant::create(compute_type, ov::Shape{}, {NEG_INF});
+    auto pad_value_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF});
+    auto pad_value = std::make_shared<v1::ConvertLike>(pad_value_f32, mask);
     return std::make_shared<v12::Pad>(mask, pads_begin, pads_end, pad_value, ov::op::PadMode::CONSTANT);
 }
 
@@ -296,7 +297,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
             }
         }
     } else {
-        attn_mask = std::make_shared<v0::Constant>(compute_type, ov::Shape{}, 0.0f);
+        auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        attn_mask = std::make_shared<v1::ConvertLike>(zero_f32, Q);
     }
 
     // Build an explicit causal mask rather than using the SDPA op's is_causal flag, because the flag
@@ -327,14 +329,17 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     } else {
         ov::OutputVector inputs{Q, K, V, attn_mask};
-        if (scale_attr != 0.0f)
-            inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
+        if (scale_attr != 0.0f) {
+            auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
+            inputs.push_back(std::make_shared<v1::ConvertLike>(scale_f32, Q));
+        }
 
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
         if (has_attn_mask) {
             // Fully-masked rows (all keys masked out) yield NaN after softmax inside SDPA.
             // Replace NaN with zeros to match opset-23 semantics.
-            auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
+            auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+            auto zero = std::make_shared<v1::ConvertLike>(zero_f32, Y);
             auto is_nan = std::make_shared<v10::IsNaN>(Y);
             Y = std::make_shared<v1::Select>(is_nan, zero, Y);
         }
@@ -452,7 +457,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         // The mask's last dimension may be shorter than the total sequence length; pad with -inf.
         attn_mask = detail::pad_attn_mask_last_dim(attn_mask, K);
     } else {
-        attn_mask = std::make_shared<v0::Constant>(compute_type, ov::Shape{}, 0.0f);
+        auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        attn_mask = std::make_shared<v1::ConvertLike>(zero_f32, Q);
     }
 
     ov::Output<ov::Node> nonpad;
@@ -492,13 +498,16 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     } else {
         ov::OutputVector inputs{Q, K, V, attn_mask};
-        if (scale_attr != 0.0f)
-            inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
+        if (scale_attr != 0.0f) {
+            auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
+            inputs.push_back(std::make_shared<v1::ConvertLike>(scale_f32, Q));
+        }
 
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
         if (has_attn_mask) {
             // Replace NaN with zeros to match opset-23/24 semantics.
-            auto zero = v0::Constant::create(compute_type, ov::Shape{}, {0.0f});
+            auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+            auto zero = std::make_shared<v1::ConvertLike>(zero_f32, Y);
             auto is_nan = std::make_shared<v10::IsNaN>(Y);
             Y = std::make_shared<v1::Select>(is_nan, zero, Y);
         }

@@ -13,6 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
@@ -342,7 +343,8 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
 
         attn_mask = detail::build_mask(attn_mask, Q, K, mask_filter_value);
     } else {
-        attn_mask = std::make_shared<v0::Constant>(compute_type, ov::Shape{}, 0.0f);
+        auto zero_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        attn_mask = std::make_shared<v1::ConvertLike>(zero_f32, Q);
     }
 
     // Build an explicit unidirectional mask rather than using the SDPA op's is_causal flag, because the flag
@@ -398,8 +400,10 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         qk_debug_output = results[1];
     } else {
         ov::OutputVector inputs{Q, K, V, attn_mask};
-        if (scale_attr != 0.0f)
-            inputs.push_back(v0::Constant::create(compute_type, ov::Shape{}, {scale_attr}));
+        if (scale_attr != 0.0f) {
+            auto scale_f32 = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_attr});
+            inputs.push_back(std::make_shared<v1::ConvertLike>(scale_f32, Q));
+        }
 
         Y = std::make_shared<v13::ScaledDotProductAttention>(inputs, false)->output(0);
     }
