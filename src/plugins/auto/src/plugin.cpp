@@ -746,8 +746,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                       std::to_string(item.second).c_str());
                     if (device_utilization.empty() || (device_luid.empty() && device_utilization.count("Total") == 0) ||
                         (!device_luid.empty() && device_utilization.count(device_luid) == 0)) {
-                        LOG_DEBUG_TAG("Cannot get utilization for %s", device->device_name.c_str());
-                        is_excluded = true;
+                        LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list", device->device_name.c_str());
                     } else {
                         device_luid = device_luid.empty() ? "Total" : device_luid;
                         if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {

@@ -20,6 +20,13 @@ if(NOT EXISTS "${_ipf_include_dir}/ClientApi.h")
                         "Please verify IPF_SDK_ROOT points to a valid IPF SDK directory.")
 endif()
 
+if(NOT EXISTS "${_ipf_lib_release}" AND NOT EXISTS "${_ipf_lib_debug}")
+    message(FATAL_ERROR "IPF SDK libraries were not found. Checked:\n"
+                        "  Release: ${_ipf_lib_release}\n"
+                        "  Debug:   ${_ipf_lib_debug}\n"
+                        "Please verify IPF_SDK_ROOT points to a valid IPF SDK directory.")
+endif()
+
 # Create IMPORTED target
 add_library(IPF::ClientApi STATIC IMPORTED GLOBAL)
 
@@ -38,6 +45,10 @@ if(EXISTS "${_ipf_lib_release}")
     set_property(TARGET IPF::ClientApi PROPERTY IMPORTED_LOCATION "${_ipf_lib_release}")
     set_property(TARGET IPF::ClientApi PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
     set_property(TARGET IPF::ClientApi PROPERTY MAP_IMPORTED_CONFIG_MINSIZEREL Release)
+elseif(EXISTS "${_ipf_lib_debug}")
+    set_property(TARGET IPF::ClientApi PROPERTY IMPORTED_LOCATION "${_ipf_lib_debug}")
+    set_property(TARGET IPF::ClientApi PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO Debug)
+    set_property(TARGET IPF::ClientApi PROPERTY MAP_IMPORTED_CONFIG_MINSIZEREL Debug)
 endif()
 
 unset(_ipf_include_dir)

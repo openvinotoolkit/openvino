@@ -109,8 +109,9 @@ TEST(UtilsTests, device_monitor) {
     std::map<std::string, float> utilization;
     ASSERT_NO_THROW(utilization = get_device_utilization(cpu_device_id));
 #ifdef _WIN32
-    ASSERT_FALSE(utilization.empty() && utilization.count("Total") && utilization.at("Total") >= 0.0f)
-        << "Expected non-empty utilization map for CPU device";
+    ASSERT_FALSE(utilization.empty()) << "Expected non-empty utilization map for CPU device";
+    ASSERT_TRUE(utilization.count("Total")) << "Expected 'Total' key in utilization map for CPU device";
+    ASSERT_GE(utilization.at("Total"), 0.0f) << "Expected non-negative CPU utilization value";
 #else
     bool ret = utilization == std::map<std::string, float>{{"Total", -1.0f}};
     ASSERT_TRUE(ret) << "Expected utilization map with 'Total' key only for CPU device";
