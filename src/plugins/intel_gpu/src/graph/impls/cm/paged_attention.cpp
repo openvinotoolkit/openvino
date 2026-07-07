@@ -492,7 +492,9 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (desc->write_kv_cache) {
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
@@ -655,7 +657,7 @@ public:
 
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f32);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4

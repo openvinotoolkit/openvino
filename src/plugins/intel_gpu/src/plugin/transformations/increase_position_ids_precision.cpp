@@ -39,6 +39,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_gpu {
@@ -305,57 +306,61 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
 
 IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo() {
     using namespace ov::pass::pattern;
+    using ov::pass::pattern::op::Or;
 
     // LTX-Video RoPE position encoding pattern (anchored on fused RoPE).
-    // Position encoding is computed once and shared across all 28 transformer blocks (56 RoPE nodes).
-    // A single match is sufficient — subsequent RoPE nodes reuse the precision-upgraded shared path.
+    // Handles two topology variants sharing the same upstream path.
     //
+    // model1 (original):
     //   Multiply → Add(Constant) → Transpose → Reshape
-    //                                              │
-    //                                     ┌────────┴────────┐
-    //                                     │                 │
-    //                                    Sin               Cos
-    //                                     │                 │
-    //                                  Transpose         Transpose
-    //                                     │                 │
-    //                                  Unsqueeze         Unsqueeze
-    //                                     │                 │
-    //                                  Broadcast         Broadcast
-    //                                     │                 │
-    //                                  GatherND          GatherND
-    //                                     │                 │
-    //                                  Transpose         Transpose
-    //                                     │                 │
-    //                                  Concat_sin        Concat_cos
-    //                                     │                 │
-    //                                     └────────┬────────┘
-    //                                              │
-    //                              RoPE(x, Concat_cos, Concat_sin)
+    //       → Sin → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat_sin
+    //       → Cos → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat_cos
+    //       → RoPE(x, Concat_cos, Concat_sin)
+    //
+    // model2 (new topology):
+    //   Multiply → Add(Constant) → Transpose → Reshape
+    //       → Sin → Gather(Sin, Const, Const) → Concat(Broadcast, Gather)  [sin_concat]
+    //       → Cos → Gather(Cos, Const, Const) → Concat(Broadcast, Gather)  [cos_concat]
+    //       → RoPE(x, Concat_cos, Concat_sin)
 
-    // Upstream: Multiply → Add(Constant) → Transpose → Reshape
+    // Upstream: Multiply → Add(Constant) → Transpose → Reshape (same for both models)
     auto mul = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
     auto add_constant = wrap_type<ov::op::v0::Constant>();
     auto add = wrap_type<ov::op::v1::Add>({mul, add_constant});
     auto transpose_up = wrap_type<ov::op::v1::Transpose>({add, any_input()});
     auto reshape = wrap_type<ov::op::v1::Reshape>({transpose_up, any_input()});
 
-    // Sin path: Sin → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
+    // Sin and Cos nodes (shared between both model variants)
     auto sin = wrap_type<ov::op::v0::Sin>({reshape});
+    auto cos = wrap_type<ov::op::v0::Cos>({reshape});
+
+    // model1 sin path: Sin → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
     auto sin_transpose = wrap_type<ov::op::v1::Transpose>({sin, any_input()});
     auto sin_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sin_transpose, any_input()});
     auto sin_broadcast = wrap_type<ov::op::v3::Broadcast>({sin_unsqueeze, any_input()});
     auto sin_gathernd = wrap_type<ov::op::v8::GatherND>({sin_broadcast, any_input()});
     auto sin_transpose2 = wrap_type<ov::op::v1::Transpose>({sin_gathernd, any_input()});
-    auto sin_concat = wrap_type<ov::op::v0::Concat>({any_input(), sin_transpose2});
+    auto sin_concat_m1 = wrap_type<ov::op::v0::Concat>({any_input(), sin_transpose2});
 
-    // Cos path: Cos → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
-    auto cos = wrap_type<ov::op::v0::Cos>({reshape});
+    // model2 sin path: Sin → Gather → Concat
+    auto sin_gather_m2 = wrap_type<ov::op::v8::Gather>({sin, any_input(), any_input()});
+    auto sin_concat_m2 = wrap_type<ov::op::v0::Concat>({any_input(), sin_gather_m2});
+
+    auto sin_concat = std::make_shared<Or>(OutputVector{sin_concat_m1, sin_concat_m2});
+
+    // model1 cos path: Cos → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
     auto cos_transpose = wrap_type<ov::op::v1::Transpose>({cos, any_input()});
     auto cos_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({cos_transpose, any_input()});
     auto cos_broadcast = wrap_type<ov::op::v3::Broadcast>({cos_unsqueeze, any_input()});
     auto cos_gathernd = wrap_type<ov::op::v8::GatherND>({cos_broadcast, any_input()});
     auto cos_transpose2 = wrap_type<ov::op::v1::Transpose>({cos_gathernd, any_input()});
-    auto cos_concat = wrap_type<ov::op::v0::Concat>({any_input(), cos_transpose2});
+    auto cos_concat_m1 = wrap_type<ov::op::v0::Concat>({any_input(), cos_transpose2});
+
+    // model2 cos path: Cos → Gather → Concat
+    auto cos_gather_m2 = wrap_type<ov::op::v8::Gather>({cos, any_input(), any_input()});
+    auto cos_concat_m2 = wrap_type<ov::op::v0::Concat>({any_input(), cos_gather_m2});
+
+    auto cos_concat = std::make_shared<Or>(OutputVector{cos_concat_m1, cos_concat_m2});
 
     // RoPE: input 0 = x, input 1 = cos_concat, input 2 = sin_concat
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat},
@@ -451,6 +456,8 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_freq_pos_id).get_node_shared_ptr());
         auto mul_node1 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_sin_scale).get_node_shared_ptr());
         auto mul_node2 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_cos_scale).get_node_shared_ptr());
+        if (!rope_node || !matmul_node || !mul_node1 || !mul_node2)
+            return false;
 
         const auto desired_et = ov::element::f32;
         const auto original_et = rope_node->get_output_element_type(0);
@@ -506,7 +513,7 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
         if (!sin_node || transformation_callback(sin_node))
             return false;
         auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
-        ov::disable_fp16_compression(freq_const_node);
+        ov::disable_conversion(freq_const_node, element::f16);
         return true;
     };
 

@@ -11,6 +11,7 @@
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
@@ -294,6 +295,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
 
@@ -303,7 +305,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+    if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::GQACompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
+    } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
     } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
@@ -891,16 +896,38 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
         quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
-    ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
-    ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+    // Function calls share pipeline.context with their function body at runtime.
+    // There is no need to serialize the compiled moe/attn state for each call –
+    // doing so would re-import NPU blobs for every repeated layer (one per call),
+    // causing O(N_layers) memory growth on import.  Only the function body
+    // (compiled_model is set, or replaced_by is absent) writes/reads state.
+    const bool is_fcall = replaced_by.has_value() && !static_cast<bool>(compiled_model);
+    if (!is_fcall) {
+        ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+        ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
 
-    if (stream.input()) {
-        if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
-        } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
-        } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+        if (stream.input()) {
+            if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline,
+                                                        pipeline.context,
+                                                        ov::npuw::attn::BehaviorKind::Dynamic);
+            } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline,
+                                                        pipeline.context,
+                                                        ov::npuw::attn::BehaviorKind::Pyramid);
+            } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+            } else if (ov::npuw::moe::get_compiled_experts(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::EXPERTS,
+                                                       true);
+            } else if (ov::npuw::moe::get_compiled_downstream(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::DOWNSTREAM,
+                                                       true);
+            }
         }
     }
 
@@ -1739,8 +1766,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         std::string npu_device_str;
         std::string saved_strides;
         for (const auto& device : devices) {
-            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
-                !pyramid_attn->_attention_infos.empty()) {
+            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 && pyramid_attn->num_models() > 0) {
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
                 support_strides_for = std::find(supported_properties.begin(),
@@ -1749,19 +1775,13 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 if (support_strides_for) {
                     pyramid_attn->_can_use_tensor_view = true;
                     const auto& first_model = pyramid_attn_models[0];
-                    const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
                     const ov::Any existing_any =
                         ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     saved_strides = existing_any.as<std::string>();
                     std::string strided_inputs = saved_strides;
-                    for (const auto& param : first_info.params) {
-                        if (!strided_inputs.empty()) {
-                            strided_inputs += ",";
-                        }
-                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
-                    }
+                    pyramid_attn->collect_strided_input_names(*first_model, strided_inputs);
                     m_meta_devices[npu_device_str][strides_key] = strided_inputs;
                     LOG_INFO("Enabled using tensor view for device: " << device
                                                                       << " for pyramid inputs: " << strided_inputs);
@@ -1951,6 +1971,21 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         return;  // MoE experts don't have a single model to dump
     }
 
+    // Dump MoE downstream model if present (the shape-reduced model passed to compile)
+    if (const auto* moe_downstream =
+            ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[id].pipeline.context)) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has MoE downstream mechanism.");
+        if (moe_downstream->_model_to_compile) {
+            std::string downstream_model_name = format_subgraph_name(id, funcall) + "_moe_downstream.xml";
+            std::string downstream_model_dump_path = ov::util::path_join({dump_dir, downstream_model_name}).string();
+            ov::save_model(moe_downstream->_model_to_compile, downstream_model_dump_path);
+            LOG_INFO("Wrote " << downstream_model_dump_path);
+        } else {
+            LOG_WARN("MoE downstream model already compiled and cleared, cannot dump");
+        }
+        return;
+    }
+
     const auto model_to_dump = m_compiled_submodels[real_id].model;
     if (!model_to_dump) {
         LOG_WARN("Model is null, cannot dump Subgraph[" << id << "]");
@@ -2032,6 +2067,9 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
             } else {
                 base_subgraphs.push_back(base_name + ".xml");
             }
+        } else if (ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
+            base_subgraphs.push_back(base_name + ".xml");
+            moe_subgraphs.push_back(base_name + "_moe_downstream.xml");
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 

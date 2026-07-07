@@ -4,6 +4,10 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
+if(ENABLE_CM_FOR_GPU)
+    add_compile_definitions(ENABLE_CM_FOR_GPU)
+endif()
+
 file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -34,11 +38,11 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
-                          OpenCL::OpenCL # Onednn needs OCL headers even when running L0
+                          OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(GPU_RT_TYPE STREQUAL "L0")
-    # Onednn needs L0 headers
+if(GPU_RT_TYPE STREQUAL "ZE")
+    # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
 
@@ -109,6 +113,9 @@ add_test(NAME TestOCLCodePreprocessing
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+        continue()
+    endif()
     add_subdirectory(impls/${IMPL_TYPE})
     if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
         list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)

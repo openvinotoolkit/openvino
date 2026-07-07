@@ -126,8 +126,8 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
                                     const uint new_tokens_num,
                                     const uint sglid,
                                     const uint is_prefill_stage) {
-    int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
     int num_head_size_groups = is_prefill_stage ? NUM_HEAD_SIZE_GROUPS : NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * num_head_size_groups;
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
         const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
@@ -204,13 +204,13 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
     // Column layout: [packed_tokens (8 bytes)] [scale (f16)] [zp (f16)] = 12 bytes
     // Byte t/2 in column h: lo nibble = token t, hi nibble = token t+1
     // Each lane (sglid) processes one head dim per iteration.
-    int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
     int num_head_size_groups;
     if (is_prefill_stage) {
         num_head_size_groups = NUM_HEAD_SIZE_GROUPS;
     } else {
         num_head_size_groups = NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
     }
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * num_head_size_groups;
 
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;

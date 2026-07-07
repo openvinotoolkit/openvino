@@ -1,5 +1,6 @@
-const core = require('@actions/core');
-const github = require('@actions/github');
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import { fileURLToPath } from 'node:url';
 
 const CONCLUSION_STATES = {
     SUCCESS: 'success',
@@ -74,7 +75,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                     core.info(`Check "${checkName}" is queued...`);
                 }
             }
-            
+
             if (pendingChecks.size) {
                 core.info(`Still waiting for [${Array.from(pendingChecks).join(', ')}]. Waiting ${waitInterval} seconds before next check...`);
                 await new Promise(resolve => setTimeout(resolve, waitIntervalMs));
@@ -193,8 +194,8 @@ async function run() {
 }
 
 // Only run if this file is executed directly (not imported)
-if (require.main === module) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
     run();
 }
 
-module.exports = { run, waitForChecks };
+export { run, waitForChecks };

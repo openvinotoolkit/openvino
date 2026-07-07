@@ -6,8 +6,7 @@ on:
       - "Linux (Ubuntu 22.04, Python 3.11)"
       - "Linux (Ubuntu 24.04, Python 3.12)"
       - "Debian 10 ARM"
-      - "Android ARM64 with vcpkg"
-      - "Android x64"
+      - "Android"
       - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
       - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
       - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
@@ -15,12 +14,10 @@ on:
       - "Linux RISC-V (Ubuntu 22.04, Python 3.10)"
       - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
       - "Linux Sanitizers (Ubuntu 22.04, Python 3.11)"
-      - "Fedora 29 (RHEL 8.4), Python 3.10"
       - "Windows (VS 2022, Python 3.11, Release)"
       - "Windows (VS 2022, Python 3.11, Debug)"
       - "Windows Conditional Compilation (VS 2022, Python 3.11)"
       - "Webassembly"
-      - "Manylinux 2014"
       - "Manylinux 2_28"
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
       - "Documentation"
@@ -50,6 +47,11 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
 
       - name: Install deps
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
@@ -86,6 +88,11 @@ jobs:
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
 
       - name: Install deps
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
