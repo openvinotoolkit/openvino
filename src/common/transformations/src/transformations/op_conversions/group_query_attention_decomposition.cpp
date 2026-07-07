@@ -90,7 +90,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto seqlens_k = node->input_value(5);
     auto total_sequence_length = node->input_value(6);
 
-    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8 and are dequantized before the
+    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
     // attention math and (re)quantized when appended to the cache. Scales live at inputs 12 (K) / 13 (V).
     const bool kv_quantized = node->is_kv_quantized();
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
