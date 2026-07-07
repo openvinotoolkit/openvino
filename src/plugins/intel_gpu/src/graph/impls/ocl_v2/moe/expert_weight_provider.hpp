@@ -76,7 +76,9 @@ public:
     virtual void bind(cldnn::moe_weights& /*resident*/) {}
 
     // Returns true after bind() has been called.
-    virtual bool is_bound() const { return true; }
+    virtual bool is_bound() const {
+        return true;
+    }
 };
 
 }  // namespace ov::intel_gpu::ocl::moe
