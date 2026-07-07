@@ -79,11 +79,22 @@ bool can_remove_broadcast(const ov::PartialShape& data_shape,
 BroadcastMatMulFusion::BroadcastMatMulFusion() {
     MATCHER_SCOPE(BroadcastMatMulFusion);
 
+    // Only NumPy-style broadcasting matches MatMul's implicit batch broadcasting.
+    // PDPD / EXPLICIT modes align dimensions differently and must not be detached.
+    auto is_numpy_or_bidirectional = [](const ov::Output<ov::Node>& output) {
+        const auto broadcast_op = ov::as_type_ptr<ov::op::util::BroadcastBase>(output.get_node_shared_ptr());
+        if (!broadcast_op) {
+            return false;
+        }
+        const ov::op::BroadcastType mode = broadcast_op->get_broadcast_spec().m_type;
+        return mode == ov::op::BroadcastType::NUMPY || mode == ov::op::BroadcastType::BIDIRECTIONAL;
+    };
+
     // Match Constant -> Broadcast -> MatMul with the Broadcast on either MatMul input.
     auto data = pattern::wrap_type<v0::Constant>(pattern::has_static_rank());
-    auto broadcast =
-        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input()},
-                                                        pattern::consumers_count(1) && pattern::has_static_rank());
+    auto broadcast = pattern::wrap_type<ov::op::util::BroadcastBase>(
+        {data, pattern::any_input()},
+        pattern::consumers_count(1) && pattern::has_static_rank() && is_numpy_or_bidirectional);
     auto other = pattern::any_input(pattern::has_static_rank());
     auto matmul_lhs = pattern::wrap_type<v0::MatMul>({broadcast, other});
     auto matmul_rhs = pattern::wrap_type<v0::MatMul>({other, broadcast});
@@ -93,20 +104,11 @@ BroadcastMatMulFusion::BroadcastMatMulFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto broadcast_value = pattern_map.at(broadcast);
-        const auto broadcast_op = ov::as_type_ptr<ov::op::util::BroadcastBase>(broadcast_value.get_node_shared_ptr());
-
-        // Only NumPy-style broadcasting matches MatMul's implicit batch broadcasting.
-        // PDPD / EXPLICIT modes align dimensions differently and must not be detached.
-        const ov::op::BroadcastType mode = broadcast_op->get_broadcast_spec().m_type;
-        if (mode != ov::op::BroadcastType::NUMPY && mode != ov::op::BroadcastType::BIDIRECTIONAL) {
-            return false;
-        }
-
         const auto matmul_node = m.get_match_root();
 
         const size_t broadcast_port = matmul_node->input_value(0) == broadcast_value ? 0 : 1;
         const auto data_value = pattern_map.at(data);
-        const auto other_value = matmul_node->input_value(1 - broadcast_port);
+        const auto other_value = pattern_map.at(other);
 
         if (!can_remove_broadcast(data_value.get_partial_shape(),
                                   broadcast_value.get_partial_shape(),
