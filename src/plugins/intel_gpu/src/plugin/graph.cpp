@@ -658,7 +658,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         return name;
     };
 
-    // Backend priority for relative timeline stitching:
+    // Backend priority for unified timeline stitching:
     // ZE-like timestamps first, then OCL, then unknown/other.
     std::unordered_map<std::string, int> backend_priority_by_layer;
     std::unordered_map<std::string, int> backend_priority_by_prim;
@@ -911,7 +911,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     }
 
     // Build execution-order slots to align timestamps from different backend clocks (ZE/OCL)
-    // into one relative timeline. Heuristic:
+    // into one unified timeline. Heuristic:
     // 1) find first OCL task,
     // 2) insert it into ZE sequence by exec_id anchor,
     // 3) order remaining tasks by exec_id.
@@ -1005,7 +1005,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         return lhs.original_start < rhs.original_start;
     });
 
-    std::chrono::microseconds timeline_cursor{0};
+    std::chrono::microseconds timeline_cursor = ordered_entries.empty() ? std::chrono::microseconds::zero()
+                                                                        : ordered_entries.front().original_start;
     for (auto& entry : ordered_entries) {
         entry.info->start_time = timeline_cursor;
 
