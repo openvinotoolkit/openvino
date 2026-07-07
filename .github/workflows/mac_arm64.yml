@@ -126,7 +126,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Install python dependencies
@@ -232,28 +232,28 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.10"
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Setup Python 3.12
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.12"
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Setup Python 3.13
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.13"
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Setup Python 3.14t
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.14t"
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
           allow-prereleases: 'true'
 
@@ -261,7 +261,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.14"
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Build additional Python wheels (3.10-3.14t)
@@ -290,7 +290,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Cmake & Build - OpenVINO Contrib

@@ -79,7 +79,7 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -120,6 +120,8 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
       COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
+      PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
+      PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
