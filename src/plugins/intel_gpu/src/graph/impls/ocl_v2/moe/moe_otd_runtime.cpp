@@ -21,14 +21,14 @@ void OtdPerfCounters::dump() const {
     const auto total = hits + misses;
     const auto loads = tensor_load_count.load(std::memory_order_relaxed);
     GPU_DEBUG_INFO << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
-              << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
-              << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
-              << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
-              << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
-              << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
-              << ", batched_fallbacks=" << batched_fallbacks.load(std::memory_order_relaxed)
-              << ", grouped_fallbacks=" << grouped_fallbacks.load(std::memory_order_relaxed)
-              << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed) << std::endl;
+                   << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                   << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                   << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                   << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", batched_fallbacks=" << batched_fallbacks.load(std::memory_order_relaxed)
+                   << ", grouped_fallbacks=" << grouped_fallbacks.load(std::memory_order_relaxed)
+                   << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed) << std::endl;
 }
 
 OtdPerfCounters* get_perf_counters() {
@@ -46,7 +46,6 @@ OtdPerfCounters* get_perf_counters() {
     (void)registered;
     return &counters;
 }
-
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const char* tensor_name,

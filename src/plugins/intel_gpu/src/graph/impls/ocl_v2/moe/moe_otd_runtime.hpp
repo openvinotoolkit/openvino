@@ -72,7 +72,6 @@ private:
     size_t _file_size = 0;
 };
 
-
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const char* tensor_name,
                               const cldnn::layout& layout,
