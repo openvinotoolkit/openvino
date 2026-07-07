@@ -254,15 +254,7 @@ void ifstream_read(const std::filesystem::path& path, size_t file_size) {
 
 // --- "compute" scenario -----------------------------------------------------------------
 // Instead of a raw memcpy or mlock(), run a std::transform pass over the mapped bytes (e.g.
-// mimicking a dequantization/dtype-conversion pass over model weights). Unlike memcpy this
-// reads AND writes, but the output buffer is small and reused across chunks, so the region
-// mapped from the file is still only ever read once.
-//
-// NOTE: operates 8 bytes (uint64_t) at a time rather than byte-by-byte. In this Debug
-// (-O0) build a per-byte std::transform lambda call is prohibitively slow for
-// multi-GB files (billions of unoptimized function-call iterations); word-at-a-time
-// cuts the iteration count (and wall-clock cost) by ~8x while still reading every byte
-// of the mapped region and doing real arithmetic on it.
+// mimicking a dequantization/dtype-conversion pass over model weights).
 void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     const size_t file_size = mapped->size();
@@ -444,9 +436,6 @@ TEST_F(FileLoadBenchmark, test_speed_load_data_into_mmap_region) {
 }
 
 TEST_F(FileLoadBenchmark, strategies_compute) {
-    // Same size range/replicate count as strategies_mlock, but the consumer is a std::transform
-    // pass over the mapped bytes (e.g. mimicking a dequantization/dtype-conversion pass) instead
-    // of mlock() or memcpy().
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -498,7 +487,7 @@ TEST_F(FileLoadBenchmark, strategies_compute) {
     }
 
     printf("\n--- Throughput (MB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MB)", "sync prefetch", "mmap+compute");
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "parallel loop sync", "mmap+compute");
     printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
