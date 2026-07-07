@@ -20,10 +20,10 @@ protected:
         // Some rounding float to integer types on GPU may differ from CPU, and as result,
         // the actual values may differ from reference ones on 1 when the float is very close to an integer,
         // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.
-        // That is why the threshold is set 1.f for integer types.
+        // That is why the absolute threshold is set 1.f for integer types.
         if (targetDevice == "GPU" &&
                 (model_type == ov::element::u8 || model_type == ov::element::i8)) {
-            rel_threshold = 1.f;
+            abs_threshold = 1.f;
         }
     }
 };
