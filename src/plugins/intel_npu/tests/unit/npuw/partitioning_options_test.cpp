@@ -466,17 +466,17 @@ TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCo
     EXPECT_EQ(folded, N);
 }
 
-TEST(PartitioningOptionsTest, IsolatedRepeatedFamiliesIgnoreKeepBlockSizeThreshold) {
-    // Each isolated family is a single-node repeated block. These should still
-    // be preserved when an isolate tag is set, even if KEEP_BLOCK_SIZE expects
-    // a larger structural block.
+TEST(PartitioningOptionsTest, OnlyAttnIsolatedFamiliesIgnoreKeepBlockSizeThreshold) {
+    // With KEEP_BLOCK_SIZE=2, only the attn-tagged single-node repeated family
+    // bypasses the size threshold. Non-attn isolated single-node families are
+    // left unfrozen and fuse into adjacent remnants.
     constexpr std::size_t N = 30;
     auto ext_cfg = abc_attn_base_cfg;
     ext_cfg["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "2";
     auto cfg = make_cfg(ext_cfg);
     auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
 
-    EXPECT_EQ(partitioning.subgraphs.size(), 3u * N);
+    EXPECT_EQ(partitioning.subgraphs.size(), 2u * N);
 
     std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
                                        partitioning.subgraphs.end(),
