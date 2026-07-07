@@ -49,6 +49,9 @@ public:
         ov::util::close_file_handle(_shared_handle);
     }
 
+    ParallelWeightReader(const ParallelWeightReader&) = delete;
+    ParallelWeightReader& operator=(const ParallelWeightReader&) = delete;
+
     const std::filesystem::path& path() const {
         return _weights_path;
     }
@@ -59,7 +62,7 @@ public:
 
     void read(char* dst, size_t size, size_t file_offset) {
         if (!ov::util::positional_read(_shared_handle, dst, size, file_offset)) {
-            throw std::runtime_error("Failed to read enough bytes from OTD weight file");
+            OPENVINO_THROW("Failed to read enough bytes from OTD weight file");
         }
     }
 
@@ -69,7 +72,6 @@ private:
     size_t _file_size = 0;
 };
 
-ParallelWeightReader& get_thread_local_weight_reader(const std::filesystem::path& weights_path);
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const char* tensor_name,
@@ -80,7 +82,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
-                         const std::filesystem::path& weights_path,
+                         ParallelWeightReader& weight_reader,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts);

@@ -14,6 +14,7 @@
 #include "expert_weight_provider.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "lru_cache.hpp"
+#include "moe_otd_runtime.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
 
@@ -82,12 +83,17 @@ public:
         return *_cache;
     }
 
+    moe_otd::ParallelWeightReader& weight_reader() {
+        return _weight_reader;
+    }
+
 private:
     size_t _capacity = 0;
     cldnn::MOECompressed::Config _config{};
     std::vector<size_t> _weight_bin_offsets;
     std::filesystem::path _weights_path;
     std::shared_ptr<LRUCache> _cache;
+    moe_otd::ParallelWeightReader _weight_reader;
     cldnn::moe_weights* _resident = nullptr;
     bool _bound = false;
 };

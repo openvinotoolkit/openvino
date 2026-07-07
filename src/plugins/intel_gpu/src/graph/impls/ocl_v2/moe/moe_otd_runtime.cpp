@@ -8,9 +8,10 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <limits>
 #include <string_view>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov::intel_gpu::ocl::moe_otd {
 
@@ -19,7 +20,7 @@ void OtdPerfCounters::dump() const {
     const auto misses = gpu_misses.load(std::memory_order_relaxed);
     const auto total = hits + misses;
     const auto loads = tensor_load_count.load(std::memory_order_relaxed);
-    std::cerr << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
+    GPU_DEBUG_INFO << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
               << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
               << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
               << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
@@ -46,13 +47,6 @@ OtdPerfCounters* get_perf_counters() {
     return &counters;
 }
 
-ParallelWeightReader& get_thread_local_weight_reader(const std::filesystem::path& weights_path) {
-    thread_local std::unique_ptr<ParallelWeightReader> reader;
-    if (!reader || reader->path() != weights_path) {
-        reader = std::make_unique<ParallelWeightReader>(weights_path);
-    }
-    return *reader;
-}
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                               const char* tensor_name,
@@ -148,7 +142,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
-                         const std::filesystem::path& weights_path,
+                         ParallelWeightReader& weight_reader,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts) {
@@ -160,7 +154,6 @@ void fill_weights_memory(cldnn::stream& exec_stream,
 
     const auto num_expert = static_cast<size_t>(config.num_expert);
 
-    OPENVINO_ASSERT(!weights_path.empty(), "weights path is empty for OTD weight loading");
     OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
 
     static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensor_names = {
@@ -170,7 +163,6 @@ void fill_weights_memory(cldnn::stream& exec_stream,
 
     auto* perf = get_perf_counters();
 
-    auto& weight_reader = get_thread_local_weight_reader(weights_path);
     const size_t weight_file_size = weight_reader.file_size();
 
     size_t index = 0;
