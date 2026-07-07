@@ -39,14 +39,12 @@ OtdPerfCounters* get_perf_counters();
 
 class ParallelWeightReader {
 public:
-    explicit ParallelWeightReader(const std::filesystem::path& weights_path) : _weights_path(weights_path) {
-        std::streamoff file_size = 0;
-        ov::util::get_file_handle_and_size(weights_path, 0, _shared_handle, file_size);
-        _file_size = static_cast<size_t>(file_size);
-    }
+    explicit ParallelWeightReader(const std::filesystem::path& weights_path) : _weights_path(weights_path) {}
 
     ~ParallelWeightReader() {
-        ov::util::close_file_handle(_shared_handle);
+        if (_opened) {
+            ov::util::close_file_handle(_shared_handle);
+        }
     }
 
     ParallelWeightReader(const ParallelWeightReader&) = delete;
@@ -56,20 +54,32 @@ public:
         return _weights_path;
     }
 
-    size_t file_size() const {
+    size_t file_size() {
+        ensure_open();
         return _file_size;
     }
 
     void read(char* dst, size_t size, size_t file_offset) {
+        ensure_open();
         if (!ov::util::positional_read(_shared_handle, dst, size, file_offset)) {
             OPENVINO_THROW("Failed to read enough bytes from OTD weight file");
         }
     }
 
 private:
+    void ensure_open() {
+        if (!_opened) {
+            std::streamoff file_size = 0;
+            ov::util::get_file_handle_and_size(_weights_path, 0, _shared_handle, file_size);
+            _file_size = static_cast<size_t>(file_size);
+            _opened = true;
+        }
+    }
+
     std::filesystem::path _weights_path;
     ov::FileHandle _shared_handle{};
     size_t _file_size = 0;
+    bool _opened = false;
 };
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
