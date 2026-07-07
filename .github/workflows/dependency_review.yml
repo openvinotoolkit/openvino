@@ -18,3 +18,34 @@ jobs:
           config-file: './.github/dependency_review.yml'
           base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_ref }}
           head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+  dependency-list:
+    name: Export Dependency List
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+      - name: Export dependency graph SBOM
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/dependency-graph/sbom" > openvino_sbom.json
+
+      - name: Generate human-readable dependency list
+        run: |
+          jq -r '.sbom.packages[]
+                 | [(.name // "unknown"), (.versionInfo // "")]
+                 | join("@")' openvino_sbom.json \
+            | sed 's/@$//' | sort -u > openvino_dependencies.txt
+          echo "Total dependencies: $(wc -l < openvino_dependencies.txt)"
+
+      - name: Upload dependency list
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openvino_dependencies
+          path: |
+            openvino_sbom.json
+            openvino_dependencies.txt
+          if-no-files-found: error
