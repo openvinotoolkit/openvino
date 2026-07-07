@@ -262,5 +262,15 @@
       "signature_hash": "",
       "pr_number": ""
     }
+  ],
+  "investigations": [
+    {
+      "id": "2026-07-07-14-37-38-000-28868848906",
+      "run_id": "28868848906",
+      "timestamp": "2026-07-07T14:37:38Z",
+      "category": "Network",
+      "title": "iGPU RoPE Tests checkout fails with curl 16 Error in the HTTP2 framing layer",
+      "signature_hash": "a34cf8b1555a33e4"
+    }
   ]
 }

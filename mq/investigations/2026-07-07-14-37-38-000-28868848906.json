@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-07-14-37-38-000-28868848906",
+  "timestamp": "2026-07-07T14:37:38Z",
+  "run_id": "28868848906",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28868848906",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36754",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36754",
+  "author": "artanokhov",
+  "category": "Network",
+  "title": "iGPU RoPE Tests checkout fails with curl 16 Error in the HTTP2 framing layer",
+  "signature": "RPC failed; curl 16 Error in the HTTP2 framing layer|Network",
+  "signature_hash": "a34cf8b1555a33e4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU RoPE Tests / GPU_RoPE",
+      "conclusion": "failure",
+      "symptom": "git checkout step failed after 4 retries with 'RPC failed; curl 16 Error in the HTTP2 framing layer'"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because iGPU RoPE Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "error: RPC failed; curl 16 Error in the HTTP2 framing layer",
+    "fatal: expected 'packfile'",
+    "fatal: could not fetch be5da7aaa14ca4d4795f4463dedf0380117d1a83 from promisor remote",
+    "The process '/usr/bin/git' failed with exit code 128",
+    "No files were found with the provided path: /__w/openvino/openvino/install/tests/TEST-gpu_rope_tests.html"
+  ],
+  "root_cause": "The iGPU RoPE Tests runner (ov-dmz-05) experienced a transient HTTP/2 framing error in curl when attempting to git-fetch the repository during the 'Fetch actions' step. The git checkout step retried 4 times but each attempt failed with the same curl 16 error. Because the checkout never completed, no RoPE test artifacts were produced, causing the 'Upload RoPE Test Results' step to also fail. This is a transient network issue on the GPU self-hosted runner, unrelated to the PR changes (which only modified documentation).",
+  "reproduction_steps": "N/A - transient network error on self-hosted GPU runner; not reproducible locally",
+  "recommended_actions": [
+    "Run was already automatically re-queued as attempt 2 - monitor attempt 2 for success",
+    "If iGPU RoPE Tests continue to fail on ov-dmz-05, investigate network configuration on that runner",
+    "Consider adding HTTP/2 disable flag (--http1.1) to git config on affected runners if this recurs frequently"
+  ],
+  "prevention_strategies": "Monitor self-hosted GPU runners (ov-dmz-05) for network instability. Consider configuring git to prefer HTTP/1.1 over HTTP/2 on runners that experience frequent HTTP2 framing errors.",
+  "historical_context": "First occurrence of this specific HTTP2 framing error pattern in the CI Doctor MQ database."
+}

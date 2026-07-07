@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "RPC failed; curl 16 Error in the HTTP2 framing layer|Network",
+  "signature_hash": "a34cf8b1555a33e4",
+  "title": "iGPU RoPE Tests checkout fails with curl 16 Error in the HTTP2 framing layer",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-07-07T14:37:38Z",
+  "last_seen": "2026-07-07T14:37:38Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28868848906"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36754"
+  ],
+  "recent_timestamps": [
+    "2026-07-07T14:37:38Z"
+  ]
+}
