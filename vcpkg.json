@@ -80,16 +80,16 @@
             "dependencies": [
                 {
                     "name": "onnx",
-                    "version>=": "1.16.2"
+                    "version>=": "1.18.0"
                 },
                 {
                     "name": "protobuf",
-                    "version>=": "3.21.2"
+                    "version>=": "6.30.0"
                 },
                 {
                     "name": "protobuf",
                     "host": true,
-                    "version>=": "3.21.2"
+                    "version>=": "6.30.0"
                 }
             ]
         },
