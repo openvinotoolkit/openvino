@@ -85,6 +85,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
                            {"NPUW_FOLD_ONLY", "attn"},
                            {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
                            {"NPUW_ATTN", "STATIC"},
                            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");

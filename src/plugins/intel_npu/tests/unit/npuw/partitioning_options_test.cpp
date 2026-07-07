@@ -467,12 +467,13 @@ TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCo
 }
 
 TEST(PartitioningOptionsTest, OnlyAttnIsolatedFamiliesIgnoreKeepBlockSizeThreshold) {
-    // With KEEP_BLOCK_SIZE=2, only the attn-tagged single-node repeated family
-    // bypasses the size threshold. Non-attn isolated single-node families are
-    // left unfrozen and fuse into adjacent remnants.
+    // With KEEP_BLOCK_SIZE=2 and KEEP_BLOCK_TAG=attn, only the attn-tagged
+    // single-node repeated family bypasses the size threshold. Non-attn
+    // isolated single-node families are left unfrozen and fuse into adjacent remnants.
     constexpr std::size_t N = 30;
     auto ext_cfg = abc_attn_base_cfg;
     ext_cfg["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "2";
+    ext_cfg["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
     auto cfg = make_cfg(ext_cfg);
     auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
 
