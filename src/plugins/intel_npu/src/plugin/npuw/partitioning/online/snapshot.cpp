@@ -1405,13 +1405,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    std::string isolate_tag;
-    for (const auto& gptr : gptrs) {
-        if (!gptr->isolatedTag().empty()) {
-            isolate_tag = gptr->isolatedTag();
-            break;
-        }
-    }
+    std::string isolate_tag = (*(gptrs.begin()))->isolatedTag();
     NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) {
         return g->isolatedTag() == isolate_tag;
     }));
