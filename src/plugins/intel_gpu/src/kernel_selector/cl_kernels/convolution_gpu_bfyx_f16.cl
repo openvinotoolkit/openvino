@@ -190,7 +190,7 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
-                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM)
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= input_spatial_size_x)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset +
@@ -204,10 +204,11 @@ KERNEL(convolution_bfyx_f16)(
 #endif  // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-                    for (int i = 0; i < -input_x; i++){
+                    const int oob_input_x = max(0, -input_x);
+                    for (int i = 0; i < oob_input_x; i++){
                         line_cache[xb + i] = 0;
                     }
-                    xb += -input_x;
+                    xb += oob_input_x;
                     const int reachable_size = INPUT_LINE_SIZE - x_out_of_bounds;
                     for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
