@@ -64,9 +64,9 @@ struct ProfilingInfo {
     std::string node_type;
 
     /**
-     * @brief The backend-specific timestamp, in microseconds, when the node started.
+     * @brief The node start timestamp, in microseconds, from the backend profiling clock epoch.
      *
-     * If the backend cannot provide a meaningful start timestamp, this value is zero.
+     * A value of zero indicates an invalid/unavailable timestamp.
      */
     std::chrono::microseconds start_time;
 };
