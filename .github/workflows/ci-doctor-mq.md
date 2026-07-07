@@ -194,7 +194,7 @@ safe-outputs:
 
         - name: Upload statistics artifact
           if: always()
-          uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+          uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
           with:
             name: ci-doctor-mq-statistics
             path: ${{ runner.temp }}/ci-doctor-mq-stats
@@ -322,7 +322,7 @@ tools:
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
     if: always()
-    uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+    uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
     with:
       name: ci-doctor-mq-investigations
       path: |
