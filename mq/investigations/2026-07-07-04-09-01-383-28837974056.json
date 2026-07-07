@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-07-04-09-01-383-28837974056",
+  "timestamp": "2026-07-07T04:09:01Z",
+  "run_id": "28837974056",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28837974056",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36738",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36738",
+  "author": "andrew-k-park",
+  "category": "Flaky Test",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION in sync mode with -no_warmup on Windows",
+  "signature": "test_benchmark_app_no_warmup_with_api_modes returned non-zero exit status 3221225477|Flaky Test",
+  "signature_hash": "058ea9d678d180f9",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Samples",
+      "conclusion": "failure",
+      "symptom": "test_benchmark_app_no_warmup_with_api_modes[sync-CPU-Python] - benchmark_app returned exit code 3221225477 (STATUS_ACCESS_VIOLATION) after completing all 11 inference steps"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_no_warmup_with_api_modes[sync-CPU-Python] - subprocess.CalledProcessError: Command '('benchmark_app', '-i', ..., '-d', 'CPU', '-niter', '1', '-nireq', '1', '-api', 'sync', '-no_warmup')' returned non-zero exit status 3221225477.",
+    "benchmark_app -i dog-224x224.bmp -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 -api sync -no_warmup returned 3221225477"
+  ],
+  "root_cause": "The Python benchmark_app completed all 11 inference steps and printed the statistics report successfully, then crashed during Python process cleanup/shutdown with exit code 3221225477 (0xC0000005 = Windows STATUS_ACCESS_VIOLATION). The inference itself completed normally. This is a pre-existing flaky crash that occurs intermittently in Windows benchmark_app teardown, unrelated to PR #36738 which only modified GPU plugin format-selection logic. A similar crash was previously observed on 2026-06-29 with the async variant of the same test (pattern 2fe5fca9503d7326).",
+  "reproduction_steps": "Run on Windows: benchmark_app -i dog-224x224.bmp -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 -api sync -no_warmup",
+  "recommended_actions": [
+    "Re-run the failed Samples job as this is a transient crash in Python process teardown",
+    "Investigate benchmark_app Python teardown for use-after-free / double-free in the -no_warmup code path on Windows",
+    "Check if the crash is related to TBB thread pool teardown during benchmark_app exit",
+    "Consider adding a test skip or retry for this flaky test until the underlying crash is fixed"
+  ],
+  "prevention_strategies": "The benchmark_app Python wrapper should guard against access violations during process teardown. Consider adding crash handling or a skip marker for the known-flaky -no_warmup combinations on Windows.",
+  "historical_context": "A similar crash (STATUS_ACCESS_VIOLATION / exit code 3221225477) was observed on 2026-06-29 in run 28260319677 for the async variant test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python] (pattern hash 2fe5fca9503d7326, count=1). Both sync and async modes fail with the same exit code, suggesting a shared teardown code path."
+}

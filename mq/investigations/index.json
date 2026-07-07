@@ -1,6 +1,15 @@
 {
-  "total": 27,
+  "total": 28,
   "entries": [
+    {
+      "investigation_id": "2026-07-07-04-09-01-383-28837974056",
+      "run_id": "28837974056",
+      "timestamp": "2026-07-07T04:09:01Z",
+      "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION in sync mode with -no_warmup on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "058ea9d678d180f9",
+      "pr_number": "36738"
+    },
     {
       "investigation_id": "2026-07-07-02-32-06-000-28833044082",
       "run_id": "28833044082",
