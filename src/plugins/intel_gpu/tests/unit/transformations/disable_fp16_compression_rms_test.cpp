@@ -14,13 +14,10 @@
 #include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
-#include "plugin/transformations/disable_fp16_comp_for_all_rms.hpp"
 #include "ov_ops/rms.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/matmul.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -138,68 +135,4 @@ TEST(TransformationTests, DisableFP16CompForRMS_Negative) {
         {name_rms_2, false}
     };
     run_test(model, expected_status);
-}
-
-TEST(TransformationTests, DisableFP16CompForAllRMS_MatMulProducerToRMS) {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 39, 768});
-    auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768, 768}, {0.01f});
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weight, false, true);
-    matmul->set_friendly_name("matmul_producer");
-
-    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768}, {1.0f});
-    auto rms = std::make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
-    rms->set_friendly_name("rms_downstream");
-
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
-
-    ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForAllRMS>();
-
-    precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-    const bool keep_precision_sensitive_in_fp32 = true;
-    const bool convert_input_output_precision = false;
-    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                      type_to_fuse_map{},
-                                                      keep_precision_sensitive_in_fp32,
-                                                      convert_input_output_precision);
-    manager.run_passes(model);
-
-    bool found_rms = false;
-    bool found_matmul = false;
-    for (const auto& op : model->get_ops()) {
-        if (op->get_friendly_name() == "matmul_producer") {
-            found_matmul = true;
-            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "MatMul producer should not be explicitly protected from FP16 conversion";
-        }
-        if (op->get_friendly_name() == "rms_downstream") {
-            found_rms = true;
-            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "RMS must have FP16 conversion disabled for mixed-precision producer paths";
-            ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
-                << "RMS must stay in FP32";
-            ASSERT_EQ(op->get_input_element_type(0), ov::element::f32)
-                << "RMS input must be FP32";
-
-            const auto producer = op->get_input_node_shared_ptr(0);
-            if (ov::as_type_ptr<ov::op::v0::Convert>(producer)) {
-                auto convert = ov::as_type_ptr<ov::op::v0::Convert>(producer);
-                ASSERT_EQ(convert->get_input_element_type(0), ov::element::f16)
-                    << "If RMS input is explicitly converted, Convert must be f16->f32";
-                ASSERT_EQ(convert->get_output_element_type(0), ov::element::f32)
-                    << "If RMS input is explicitly converted, Convert output must be f32";
-
-                const auto upstream = convert->get_input_node_shared_ptr(0);
-                ASSERT_EQ(upstream->get_friendly_name(), "matmul_producer")
-                    << "Convert feeding RMS must come from matmul_producer";
-            } else {
-                ASSERT_EQ(producer->get_friendly_name(), "matmul_producer")
-                    << "RMS input producer must be matmul_producer when no Convert is inserted";
-                ASSERT_EQ(producer->get_output_element_type(0), ov::element::f32)
-                    << "Without Convert, matmul_producer must stay in f32";
-            }
-        }
-    }
-    ASSERT_TRUE(found_matmul) << "MatMul node 'matmul_producer' not found after passes";
-    ASSERT_TRUE(found_rms) << "RMS node 'rms_downstream' not found after passes";
 }

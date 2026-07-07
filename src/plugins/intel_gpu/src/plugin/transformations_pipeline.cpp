@@ -113,7 +113,6 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
-#include "plugin/transformations/disable_fp16_comp_for_all_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
@@ -673,7 +672,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
-        manager.register_pass<DisableFP16CompForAllRMS>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
