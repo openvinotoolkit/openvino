@@ -813,10 +813,9 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
 // blob yields out-of-bounds read AND write -> memory corruption.
 //
 // This test crafts such a blob: a 4-byte destination tensor, an 8-byte backing weights
-// file, but byte_size = 64 KiB. Built WITHOUT AddressSanitizer it may corrupt the heap
-// and crash nondeterministically; built WITH -fsanitize=address it reports a
-// heap-buffer-overflow at the memcpy. Once the importer is fixed to validate the sizes,
-// this should become an EXPECT_THROW round-trip instead of a crash.
+// file, but byte_size = 64 KiB. Without importer-side validation this may corrupt the heap and crash
+// nondeterministically; with validation in place, read_weightless() is expected to throw (ov::AssertFailure)
+// instead of reaching the memcpy.
 TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     using namespace ov::npuw::s11n;
 
