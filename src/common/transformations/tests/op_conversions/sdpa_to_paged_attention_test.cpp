@@ -6607,6 +6607,11 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
         return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
     };
 
+    auto merge_heads_to_hidden = [&](std::shared_ptr<ov::Node> x) {
+        auto transposed = makeOP<v1::Transpose>({x, {0, 2, 1, 3}});
+        return makeOP<v1::Reshape>({transposed, {0, 0, hidden_size}}, {{"special_zero", true}});
+    };
+
     // Layer 0: Sliding window (sw=1024)
     auto Q_0 = make_projection(embeddings, hidden_size, num_heads);
     auto K_0 = make_projection(embeddings, hidden_size, num_heads);
@@ -6616,11 +6621,12 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     auto mask_0 = make_gemma4_sliding_mask(position_ids, sliding_window_size);
     auto sdpa_0 =
         makeOP<v13::ScaledDotProductAttention>({Q_0, k_concat_0, v_concat_0, mask_0, 1.0f}, {{"causal", false}});
+    auto sdpa_0_hidden = merge_heads_to_hidden(sdpa_0);
 
     // Layer 1: Global attention (sw=0)
-    auto Q_1 = make_projection(sdpa_0, hidden_size, num_heads);
-    auto K_1 = make_projection(sdpa_0, hidden_size, num_heads);
-    auto V_1 = make_projection(sdpa_0, hidden_size, num_heads);
+    auto Q_1 = make_projection(sdpa_0_hidden, hidden_size, num_heads);
+    auto K_1 = make_projection(sdpa_0_hidden, hidden_size, num_heads);
+    auto V_1 = make_projection(sdpa_0_hidden, hidden_size, num_heads);
     auto [k_concat_1, k_assign_1] = make_kv_cache(K_1, "past_key_values.1.key");
     auto [v_concat_1, v_assign_1] = make_kv_cache(V_1, "past_key_values.1.value");
     auto mask_1 = make_gemma4_global_mask(position_ids, attention_mask);
