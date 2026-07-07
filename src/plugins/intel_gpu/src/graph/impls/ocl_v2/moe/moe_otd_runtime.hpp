@@ -83,7 +83,7 @@ private:
 };
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                              const char* tensor_name,
+                              size_t offset_pos,
                               const cldnn::layout& layout,
                               std::vector<uint8_t>& payload,
                               size_t per_expert_size);

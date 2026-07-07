@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <filesystem>
 #include <vector>
 #include <string>
 
@@ -33,7 +34,7 @@ struct moe_weights {
 /// IExpertWeightProvider is rebuilt from it on the impl side.
 struct moe_otd_descriptor {
     std::vector<size_t> weight_bin_offsets;
-    std::string weights_path;
+    std::filesystem::path weights_path;
     size_t lru_expert_num = 0;
 
     bool operator==(const moe_otd_descriptor& rhs) const {
@@ -43,13 +44,15 @@ struct moe_otd_descriptor {
 
     void save(BinaryOutputBuffer& ob) const {
         ob << weight_bin_offsets;
-        ob << weights_path;
+        ob << weights_path.string();
         ob << lru_expert_num;
     }
 
     void load(BinaryInputBuffer& ib) {
         ib >> weight_bin_offsets;
-        ib >> weights_path;
+        std::string path_str;
+        ib >> path_str;
+        weights_path = path_str;
         ib >> lru_expert_num;
     }
 };
@@ -132,7 +135,7 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
                                const std::vector<input_info>& inputs,
                                const MOECompressed::Config& config,
                                const std::vector<size_t>& weight_bin_offsets = {},
-                               const std::string& weights_path = "",
+                               const std::filesystem::path& weights_path = {},
                                size_t lru_expert_num = 0)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),

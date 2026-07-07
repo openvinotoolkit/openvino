@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include <string_view>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -48,24 +47,22 @@ OtdPerfCounters* get_perf_counters() {
 }
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                              const char* tensor_name,
+                              size_t offset_pos,
                               const cldnn::layout& layout,
                               std::vector<uint8_t>& payload,
                               size_t per_expert_size) {
-    if (tensor_name == nullptr) {
-        return;
-    }
-
-    const std::string_view name(tensor_name);
-    const bool is_scale = name.find("_s") != std::string_view::npos;
-    const bool is_zp = name.find("_z") != std::string_view::npos;
+    // Offset positions: 0-2 = weights (no transpose), 3-5 = scales, 6-8 = zero points.
+    // Within each group of 3: index % 3 == 2 means "down" variant.
+    const bool is_scale = (offset_pos >= 3 && offset_pos <= 5);
+    const bool is_zp = (offset_pos >= 6 && offset_pos <= 8);
     if (!is_scale && !is_zp) {
         return;
     }
 
+    const bool is_down = (offset_pos % 3 == 2);
     size_t oc = 0;
     size_t ic = 0;
-    if (name.rfind("down_", 0) == 0) {
+    if (is_down) {
         oc = static_cast<size_t>(config.hidden_size);
         ic = static_cast<size_t>(config.inter_size);
     } else {
@@ -76,19 +73,19 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
     const size_t group_size = static_cast<size_t>(config.group_size);
     size_t group_count = 1;
     if (group_size != 0 && group_size != std::numeric_limits<size_t>::max()) {
-        OPENVINO_ASSERT(ic % group_size == 0, "Invalid group_size for OTD transpose: tensor=", tensor_name, ", ic=", ic, ", group_size=", group_size);
+        OPENVINO_ASSERT(ic % group_size == 0, "Invalid group_size for OTD transpose: offset_pos=", offset_pos, ", ic=", ic, ", group_size=", group_size);
         group_count = ic / group_size;
     }
 
-    OPENVINO_ASSERT(oc > 0 && group_count > 0, "Invalid dims for OTD transpose: tensor=", tensor_name, ", oc=", oc, ", group_count=", group_count);
+    OPENVINO_ASSERT(oc > 0 && group_count > 0, "Invalid dims for OTD transpose: offset_pos=", offset_pos, ", oc=", oc, ", group_count=", group_count);
 
     const size_t elem_count = oc * group_count;
     if (is_scale) {
         const size_t elem_size = static_cast<size_t>(cldnn::data_type_traits::size_of(layout.data_type));
-        OPENVINO_ASSERT(elem_size > 0, "Invalid scale element size for tensor=", tensor_name);
+        OPENVINO_ASSERT(elem_size > 0, "Invalid scale element size for offset_pos=", offset_pos);
         OPENVINO_ASSERT(elem_count * elem_size == per_expert_size,
-                        "Unexpected scale payload size for tensor=",
-                        tensor_name,
+                        "Unexpected scale payload size for offset_pos=",
+                        offset_pos,
                         ", expected=",
                         elem_count * elem_size,
                         ", got=",
@@ -106,10 +103,10 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
         return;
     }
 
-    OPENVINO_ASSERT(elem_count % 2 == 0, "Unexpected odd element count for packed zp tensor=", tensor_name, ", elem_count=", elem_count);
+    OPENVINO_ASSERT(elem_count % 2 == 0, "Unexpected odd element count for packed zp offset_pos=", offset_pos, ", elem_count=", elem_count);
     OPENVINO_ASSERT(elem_count / 2 == per_expert_size,
-                    "Unexpected zp payload size for tensor=",
-                    tensor_name,
+                    "Unexpected zp payload size for offset_pos=",
+                    offset_pos,
                     ", expected=",
                     elem_count / 2,
                     ", got=",
@@ -215,7 +212,7 @@ void fill_weights_memory(cldnn::stream& exec_stream,
             if (mem && plan.per_expert_size != 0) {
                 if (perf) {
                     auto t0 = std::chrono::steady_clock::now();
-                    maybe_transpose_scale_zp(config, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
+                    maybe_transpose_scale_zp(config, offset_pos, mem->get_layout(), payload, plan.per_expert_size);
                     auto t1 = std::chrono::steady_clock::now();
                     mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
                     auto t2 = std::chrono::steady_clock::now();
@@ -225,7 +222,7 @@ void fill_weights_memory(cldnn::stream& exec_stream,
                                                 std::memory_order_relaxed);
                     perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
                 } else {
-                    maybe_transpose_scale_zp(config, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
+                    maybe_transpose_scale_zp(config, offset_pos, mem->get_layout(), payload, plan.per_expert_size);
                     mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
                 }
             }

@@ -31,9 +31,9 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
     : _capacity(capacity),
       _config(config),
       _weight_bin_offsets(std::move(weight_bin_offsets)),
-      _weights_path(weights_path),
+      _weights_path(std::move(weights_path)),
       _cache(std::make_shared<LRUCache>(capacity)),
-      _weight_reader(weights_path) {}
+      _weight_reader(_weights_path) {}
 
 void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
     _resident = &resident;

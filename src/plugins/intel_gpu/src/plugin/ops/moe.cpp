@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 #include <limits>
 #include <unordered_map>
 
@@ -34,7 +35,7 @@ using namespace cldnn;
 static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    const std::shared_ptr<ov::op::internal::MOECompressed>& op,
                                    std::vector<size_t>& weight_bin_offsets,
-                                   std::string& weights_path,
+                                   std::filesystem::path& weights_path,
                                    size_t& lru_expert_num) {
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     const auto& config = op->get_config();
@@ -50,10 +51,12 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     }
     const bool otd_enabled = lru_expert_num > 0;
     if (otd_enabled) {
-        weights_path = p.get_config().get_weights_path();
+        weights_path = std::filesystem::path(p.get_config().get_weights_path());
         OPENVINO_ASSERT(!weights_path.empty(),
                         "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
                         "Please set ov::weights_path when compiling the model.");
+        OPENVINO_ASSERT(std::filesystem::exists(weights_path),
+                        "OTD weights file does not exist: ", weights_path);
     }
 
     auto get_const_offset = [&](size_t index, size_t /*offset_slot*/) -> size_t {
@@ -112,7 +115,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 
         // Resolve OTD (offload-to-disk) parameters; no-op when MOE_OFFLOAD_RATIO == 0.
         std::vector<size_t> weight_bin_offsets;
-        std::string weights_path;
+        std::filesystem::path weights_path;
         size_t lru_expert_num = 0;
         prepare_moe_otd_params(p, op, weight_bin_offsets, weights_path, lru_expert_num);
 
