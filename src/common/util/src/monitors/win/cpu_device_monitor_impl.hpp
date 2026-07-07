@@ -32,7 +32,7 @@ public:
         std::map<std::string, float> result;
         if (!m_ipf) {
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: m_ipf is null" << std::endl;
-            result["Total"] = 0.0f;
+            result["Total"] = -1.0f;
             return result;
         }
         try {
@@ -42,13 +42,13 @@ public:
             if (j.contains("Performance") && j["Performance"].contains("CPUUtilization")) {
                 result["Total"] = j["Performance"]["CPUUtilization"].get<float>();
             } else {
-                result["Total"] = 0.0f;
+                result["Total"] = -1.0f;
             }
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << std::endl;
-            result["Total"] = 0.0f;
+            result["Total"] = -1.0f;
         } catch (...) {
-            result["Total"] = 0.0f;
+            result["Total"] = -1.0f;
         }
         return result;
     }
