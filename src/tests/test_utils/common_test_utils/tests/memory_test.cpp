@@ -6,11 +6,12 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <system_error>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/mmap_test_utils.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -166,15 +167,10 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
     const size_t num_threads = GetParam();
     const size_t size = 64 * util::min_page_alignment;
 
-    std::vector<uint8_t> expected(size);
-    for (size_t i = 0; i < size; ++i)
-        expected[i] = static_cast<uint8_t>(i % 251);
+    const auto expected = utils::make_prime_pattern(size);
 
     m_file_path = utils::generateTestFilePrefix() + "_vm_prefetch.bin";
-    {
-        std::ofstream f(m_file_path, std::ios::binary);
-        f.write(reinterpret_cast<const char*>(expected.data()), expected.size());
-    }
+    utils::write_temp_file(m_file_path, expected.data(), expected.size());
 
     auto mapped = load_mmap_object(m_file_path);
     ASSERT_NE(mapped, nullptr);
@@ -182,9 +178,7 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
 
     EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), num_threads));
 
-    const std::vector<uint8_t> actual(reinterpret_cast<uint8_t*>(mapped->data()),
-                                      reinterpret_cast<uint8_t*>(mapped->data()) + mapped->size());
-    EXPECT_EQ(actual, expected);
+    EXPECT_EQ(utils::read_mapped(*mapped), expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(NumThreads, VmPrefetchMappedFileTest, testing::Values(0u, 5u, 10u));
