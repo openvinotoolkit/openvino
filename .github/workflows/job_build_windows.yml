@@ -159,8 +159,15 @@ jobs:
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ inputs.build-variant == 'vs2022' }}
         with:
           toolset: 14.42 # v2022
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++ for VS 2026
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ inputs.build-variant == 'vs2026' }}
+        with:
+          toolset: 14.50 # v2026
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
