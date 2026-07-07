@@ -303,12 +303,6 @@ static std::shared_ptr<ov::Node> optional_fake_convert(const std::shared_ptr<ov:
     return std::make_shared<Or>(OutputVector{fc_2, fc_3, input});
 }
 
-static std::shared_ptr<ov::Node> optional_fake_quantize(const std::shared_ptr<ov::Node>& input) {
-    // v0::FakeQuantize always has 5 inputs; pattern::optional matches multi-input ops by arity and
-    // does not synthesize missing ones, so all 5 inputs must be listed.
-    return pattern::optional<v0::FakeQuantize>({input, any_input(), any_input(), any_input(), any_input()});
-}
-
 StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
     const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
     const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
@@ -370,8 +364,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // FakeQuantize is not needed on the PagedAttention KV path (which is rebuilt from the pre-concat
     // "current" K/V tensors), so it is simply dropped. Unlike the FakeConvert case above (FP8, kept
     // on the SDPA inputs), this FakeQuantize is not re-applied in the callback.
-    k_concat = optional_fake_quantize(k_concat);
-    v_concat = optional_fake_quantize(v_concat);
+    k_concat = pattern::optional<v0::FakeQuantize>({k_concat, any_input(), any_input(), any_input(), any_input()});
+    v_concat = pattern::optional<v0::FakeQuantize>({v_concat, any_input(), any_input(), any_input(), any_input()});
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
