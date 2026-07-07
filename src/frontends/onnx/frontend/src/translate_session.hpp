@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <unordered_map>
 
 #include "openvino/frontend/input_model.hpp"
@@ -18,6 +19,7 @@ namespace onnx {
 
 class OperatorsBridge;
 class DecoderBaseOperation;
+class TensorONNXPlace;
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, cache of converted body graph models, operation translators (including
@@ -67,6 +69,16 @@ private:
     /// \brief Translate one operation decoder into its OpenVINO outputs, shared by both conversion paths.
     ov::OutputVector translate_operation(const std::shared_ptr<DecoderBaseOperation>& decoder,
                                          const std::shared_ptr<TelemetryExtension>& telemetry);
+
+    /// \brief Materialize a graph tensor as a Constant (data) or Parameter (no data), register it in
+    /// m_tensor_values, append a created Parameter to m_parameters, and return the node.
+    std::shared_ptr<ov::Node> create_const_or_param(const std::string& name,
+                                                    const std::shared_ptr<TensorONNXPlace>& input_tensor);
+
+    /// \brief Emit per-op "op_count" telemetry accumulated during the single-pass walk (the two-pass
+    /// path emits it from load_model()). No-op when telemetry is null.
+    void send_op_count_telemetry(const std::shared_ptr<TelemetryExtension>& telemetry,
+                                 const std::map<std::string, uint64_t>& op_statistics) const;
 
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<OperatorsBridge> m_translator_map;
