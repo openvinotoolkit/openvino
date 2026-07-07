@@ -128,15 +128,7 @@ void ConvertCPULayerTest::SetUp() {
     validate_out_prc();
 
     auto exec_type_precision = inPrc != ov::element::u8 ? inPrc : ov::element::Type(ov::element::i8);
-#if defined(OPENVINO_ARCH_RISCV64)
-    if (primitive == "jit" && inPrc == ov::element::u8) {
-        selectedType = primitive + "_I8";
-    } else {
-        selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
-    }
-#else
     selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
-#endif
 
     for (size_t i = 0; i < shapes.second.size(); i++) {
         targetStaticShapes.push_back(std::vector<ov::Shape>{shapes.second[i]});
