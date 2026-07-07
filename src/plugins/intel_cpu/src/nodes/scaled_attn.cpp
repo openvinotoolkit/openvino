@@ -4,7 +4,6 @@
 
 #include "scaled_attn.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
