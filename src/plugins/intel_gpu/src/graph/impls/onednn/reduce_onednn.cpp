@@ -119,7 +119,16 @@ public:
         ob << typed_pd->get_p();
         ob << typed_pd->get_epsilon();
 
-        ob << get_cache_blob();
+        std::vector<uint8_t> prim_cache;
+        try {
+            prim_cache = _prim.get_cache_blob();
+        } catch (const dnnl::error& e) {
+            // Cache blob export is not supported on some backends (e.g., NVIDIA SYCL).
+            // Only suppress "unimplemented" status; rethrow unexpected errors.
+            if (e.status != dnnl_unimplemented)
+                throw;
+        }
+        ob << prim_cache;
 #endif
     }
 
@@ -146,7 +155,11 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = make_primitive_from_blob(prim_cache);
+        if (prim_cache.empty()) {
+            _prim = dnnl::primitive(_pd);
+        } else {
+            _prim = dnnl::primitive(_pd, prim_cache);
+        }
 #endif
     }
 

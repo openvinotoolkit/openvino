@@ -69,7 +69,6 @@ struct ReduceImplementationManager : public ImplementationManager {
         auto in_dt = in_layout.data_type;
         auto out_dt = out_layout.data_type;
 #ifdef OV_GPU_VENDOR_INTEL
-
         if (in_dt == data_types::f32 && out_dt == data_types::f32) {
             return false;
         }
@@ -85,8 +84,7 @@ struct ReduceImplementationManager : public ImplementationManager {
         // cudnn_reduction_t::pd_t::check_format() validates only the source
         // descriptor and accepts canonical plain a/ab/abc/abcd/abcde tags.
         // In the plugin, these correspond to default plain data layouts only.
-        if (!format::is_simple_data_format(in_layout.format) ||
-            !format::is_default_format(in_layout.format))
+        if (!format::is_default_format(in_layout.format))
             return false;
 
         // Destination must remain plain (no blocked layout), but does not need
@@ -156,12 +154,6 @@ struct ReduceImplementationManager : public ImplementationManager {
         if (out_layout == in_layout) {
             return false;
         }
-
-#ifdef OV_GPU_VENDOR_INTEL
-        // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
-        if (format::is_simple_data_format(in_layout.format))
-            return false;
-#endif
 
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
