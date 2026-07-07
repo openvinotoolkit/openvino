@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-07-19-17-19-000-28887792739",
+  "timestamp": "2026-07-07T19:17:19Z",
+  "run_id": "28887792739",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28887792739",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36727",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36727",
+  "author": "v-Golubev",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMulti_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called twice unsatisfied and active|Flaky Test",
+  "signature_hash": "5f5789b1a8659a47",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache: import_model expected 3 calls, got 2"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2623): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 3 times\n           Actual: called twice - unsatisfied and active",
+    "caching_test.cpp(312): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2075 ms)"
+  ],
+  "root_cause": "The LoadMulti_race test is a stress test that exercises concurrent multi-device model loading with cache lookup. The ByModelName variant uses model name as the cache key; under race conditions on the Windows AKS runner, the 3rd device's import_model call did not occur (the model was possibly compiled fresh instead of imported from cache, or the cache lock was held longer). The PR changes ARM/CPU snippets (IsFinite/IsInf/IsNaN emitters) and are completely unrelated to the caching subsystem, confirming this is a pre-existing flaky race condition test. The test ran 150 iterations before triggering the failure, which is consistent with timing-sensitive behavior on CI runners.",
+  "reproduction_steps": "Run with: ov_inference_unit_tests --gtest_filter=CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache --gtest_repeat=200 on a Windows machine. The failure is timing-dependent and may require many repetitions.",
+  "recommended_actions": [
+    "Re-run the failed job - this is a transient race condition test failure unrelated to the PR changes",
+    "Consider marking CachingTest.LoadMulti_race as GTEST_SKIP or adding retry logic if this pattern persists frequently",
+    "Investigate whether the race condition test timeout (2 seconds) is too tight for Windows AKS runners under load"
+  ],
+  "prevention_strategies": "Race condition tests that rely on exact mock call counts across multiple concurrent devices are inherently flaky. Consider using EXPECT_CALL with AtLeast() or AT_LEAST(n) semantics, or add test-level retry logic with a success threshold.",
+  "historical_context": "This is the 2nd occurrence of CachingTest LoadMulti-race import_model call count mismatch (pattern 5f5789b1a8659a47). Previous occurrence: 2026-07-04T10:21:49Z on run 28700822021 (LoadMultiWithConfig_race variant). A related but distinct pattern (0528d54ff68248cd) with 2 occurrences was also observed on 2026-06-29 and 2026-07-01."
+}

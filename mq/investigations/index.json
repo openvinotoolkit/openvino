@@ -1,6 +1,15 @@
 {
-  "total": 29,
+  "total": 30,
   "entries": [
+    {
+      "investigation_id": "2026-07-07-19-17-19-000-28887792739",
+      "run_id": "28887792739",
+      "timestamp": "2026-07-07T19:17:19Z",
+      "title": "CachingTest LoadMulti_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "5f5789b1a8659a47",
+      "pr_number": "36727"
+    },
     {
       "investigation_id": "2026-07-07-13-51-25-000-28861100887",
       "run_id": "28861100887",
