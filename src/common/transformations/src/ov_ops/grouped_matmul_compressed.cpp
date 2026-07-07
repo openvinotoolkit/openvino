@@ -72,32 +72,10 @@ void GroupedMatMulCompressed::validate_and_infer_types() {
 
 std::shared_ptr<ov::Node> GroupedMatMulCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-
-    const bool with_offsets = has_offsets();
-    if (with_offsets && new_args.size() == 4) {
-        return std::make_shared<GroupedMatMulCompressed>(new_args.at(0),
-                                                         new_args.at(1),
-                                                         new_args.at(2),
-                                                         new_args.at(3));
-    }
-    if (with_offsets && new_args.size() == 5) {
-        return std::make_shared<GroupedMatMulCompressed>(new_args.at(0),
-                                                         new_args.at(1),
-                                                         new_args.at(2),
-                                                         new_args.at(3),
-                                                         new_args.at(4));
-    }
-    if (!with_offsets && new_args.size() == 3) {
-        return make_3d(new_args.at(0), new_args.at(1), new_args.at(2));
-    }
-    if (!with_offsets && new_args.size() == 4) {
-        return make_3d(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
-    }
-    OPENVINO_THROW("Unexpected inputs count for GroupedMatMulCompressed op: ",
-                   new_args.size(),
-                   " (has_offsets=",
-                   with_offsets,
-                   ")");
+    auto op = std::make_shared<GroupedMatMulCompressed>();
+    op->set_arguments(new_args);
+    op->validate_and_infer_types();
+    return op;
 }
 
 }  // namespace ov::op::internal
