@@ -172,7 +172,8 @@ std::conditional_t<ET == element::nf4 && !std::is_integral_v<U>, float, fundamen
 
 Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
     Strides strides;
-    if (!shape.empty() && et.bitwidth() >= 8) {
+    // GGUF block types are opaque blocks of bytes with no meaningful per-element stride.
+    if (!shape.empty() && et.bitwidth() >= 8 && !et.is_gguf_block()) {
         strides.resize(shape.size());
         strides.back() = et.size();
         std::transform(shape.crbegin(),
@@ -190,7 +191,8 @@ namespace v0 {
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
-      m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
+      m_byte_strides{(m_element_type.bitwidth() >= 8 && !m_element_type.is_gguf_block()) ? tensor.get_strides()
+                                                                                        : Strides{}},
       // cast is for internal use only to store tensor data in shared buffer (not for modification)
       m_data{std::make_shared<SharedBuffer<Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
                                                     tensor.get_byte_size(),

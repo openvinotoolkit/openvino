@@ -41,7 +41,8 @@ public:
                                                                                 {"tflite", "tensorflow_lite"},
                                                                                 {"paddle", "paddle"},
                                                                                 {"pytorch", "pytorch"},
-                                                                                {"jax", "jax"}};
+                                                                                {"jax", "jax"},
+                                                                                {"gguf", "gguf"}};
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         if (it != predefined_frontends.end()) {
@@ -145,6 +146,7 @@ private:
             {".pbtxt", {"tf", "tensorflow"}},
             {".tflite", {"tflite", "tensorflow_lite"}},
             {".pdmodel", {"paddle", "paddle"}},
+            {".gguf", {"gguf", "gguf"}},
             // {".ts", {"pytorch", "pytorch"}},
         };
 
@@ -155,7 +157,8 @@ private:
                                                   {"tflite", "tensorflow_lite"},
                                                   {"paddle", "paddle"},
                                                   {"pytorch", "pytorch"},
-                                                  {"jax", "jax"}};
+                                                  {"jax", "jax"},
+                                                  {"gguf", "gguf"}};
         if (variants.empty()) {
             return nullptr;
         }

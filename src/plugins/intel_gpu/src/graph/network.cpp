@@ -49,6 +49,7 @@
 #include <map>
 #include <functional>
 #include <fstream>
+#include <atomic>
 
 #include "debug_helper.hpp"
 #ifdef GPU_DEBUG_CONFIG
@@ -60,6 +61,19 @@
 #endif
 
 namespace cldnn {
+
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+// DEBUG CODE: FC impl execution counters (extern declaration, defined in primitive_inst.cpp)
+namespace fc_counters {
+extern std::atomic<uint64_t> fc_onednn_count;
+extern std::atomic<uint64_t> fc_ocl_count;
+extern std::atomic<uint64_t> fc_other_count;
+extern std::atomic<uint64_t> fc_switch_count;
+extern void reset();
+extern void print_summary(const char* tag);
+}  // namespace fc_counters
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+
 namespace {
 
 #ifdef GPU_DEBUG_CONFIG
@@ -978,6 +992,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+    //  DEBUG CODE: FC counter for print and reset after each network execution
+    {
+        const uint64_t fc_total = fc_counters::fc_onednn_count.load() +
+                                  fc_counters::fc_ocl_count.load() +
+                                  fc_counters::fc_other_count.load();
+        if (fc_total > 0) {
+            static uint64_t infer_seq = 0;
+            char tag[64];
+            snprintf(tag, sizeof(tag), "infer#%lu", static_cast<unsigned long>(++infer_seq));
+            fc_counters::print_summary(tag);
+            fc_counters::reset();
+        }
+    }
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {

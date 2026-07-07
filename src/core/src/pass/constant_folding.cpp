@@ -222,6 +222,13 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
 
         if (node_has_disabled_constant_folding) {
             can_be_folded = false;
+        } else if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(node);
+                   c && c->get_output_element_type(0).is_gguf_block()) {
+            // GGUF block constants are opaque blocks of bytes. Folding any consumer that reads their
+            // bytes would corrupt them and break the byte-equality invariant. Mark them non-foldable
+            // and pin disable_constant_folding on them defensively (see SPEC.md §1.5).
+            can_be_folded = false;
+            ov::pass::disable_constant_folding(node);
         } else if (is_type<op::util::ShapeOfBase>(node)) {
             // In case if node is ShapeOf operation we stop propagation of can_be_folded attribute. We have to limit
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded

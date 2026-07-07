@@ -18,6 +18,10 @@ if(ENABLE_OV_JAX_FRONTEND)
     add_subdirectory(jax)
 endif()
 
+if(ENABLE_OV_GGUF_FRONTEND)
+    add_subdirectory(gguf)
+endif()
+
 if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()

@@ -17,6 +17,7 @@
 #include <bitset>
 #include <optional>
 
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -38,6 +39,10 @@ using data_types = ov::element::Type_t;
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
         auto et = ov::element::Type(data_type);
+        OPENVINO_ASSERT(!et.is_gguf_block(),
+                        "[GPU] data_type_traits::size_of is not defined for opaque GGUF block type (",
+                        et.get_type_name(),
+                        "); use layout::bytes_count() / ov::util::get_memory_size() instead.");
         OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
         return et.size();
     }
@@ -337,13 +342,18 @@ struct layout {
 
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
+        // GGUF block types pack a fixed number of logical elements into a fixed-size block of bytes.
+        // Their per-element bit-width is fractional/rounded, so the generic bitwidth formula below
+        // under-sizes the buffer. Route them through the block-aware ov::util::get_memory_size().
+        const auto bytes_of_layout = ov::element::is_gguf_block(data_type)
+                                         ? ov::util::get_memory_size(ov::element::Type(data_type), get_linear_size())
+                                         : ((ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3);
         if (format == cldnn::format::custom) {
-            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
             return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
         } else {
-            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+            return bytes_of_layout;
         }
     }
 

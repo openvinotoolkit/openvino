@@ -32,6 +32,10 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <deque>
+#include <unordered_map>
+
+#define OV_GPU_MULTI_IMPL_SWITCHING_DEBUG 0
 
 namespace cldnn {
 
@@ -180,6 +184,7 @@ struct ImplementationsFactory {
     std::vector<std::shared_ptr<primitive_impl>> m_dynamic_impls_cache;
 
     std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
+    std::shared_ptr<primitive_impl> create_impl_for_type(primitive_inst& inst, const kernel_impl_params& params, impl_types requested_type);
     bool has(impl_types impl_type) const;
 };
 
@@ -353,6 +358,74 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
+    // -- Runtime Implementation Switching (Multi-Impl Pool) --
+    // Policy controlling how the active implementation is selected at runtime.
+    enum class ImplSwitchingPolicy { NONE, AUTO_HEURISTIC, MANUAL, PROFILING };
+
+    // Per-implementation execution statistics used by the profiling heuristic.
+    struct ImplStats {
+        float avg_execution_time_ms = 0.0f;
+        uint32_t execution_count = 0;
+    };
+
+    // Pool of available implementations for a single primitive instance.
+    struct ImplPool {
+        std::unordered_map<impl_types, std::shared_ptr<primitive_impl>> impls;
+        impl_types active_impl_type = impl_types::any;
+        std::unordered_map<impl_types, ImplStats> stats;
+
+        // True when the impl accepts every shape the pool will route to it
+        // without recompilation. Default false: execute() falls back to
+        // update_impl() on shape change.
+        std::unordered_map<impl_types, bool> shape_agnostic;
+
+        // Shape-cached fast-path for AUTO_HEURISTIC: caches the last
+        // evaluate_best_impl_type result so that repeated calls with
+        // the same input shape skip all analysis (O(1) cache hit).
+        mutable ov::PartialShape cached_shape;
+        mutable impl_types cached_impl = impl_types::any;
+    };
+
+    // Lightweight predictor that tracks recent workload patterns to anticipate
+    // phase changes (Prefill -> Generate or vice-versa).
+    struct WorkloadPredictor {
+        static constexpr size_t HISTORY_SIZE = 8;
+        std::deque<size_t>     workload_history;  // compute_workload (M*K) per invocation
+        std::deque<impl_types> impl_history;
+        // Returns true when the latest compute workload differs from the previous by
+        // more than 2x; a strong indicator of a Prefill/Generate transition.
+        bool      detect_phase_change() const;
+        // If the last three recorded impls are identical, predict that type;
+        // otherwise returns impl_types::any (no confident prediction).
+        impl_types predict_next_impl() const;
+    };
+
+    // Input characteristics used to choose the best implementation.
+    struct ImplSelectionCriteria {
+        size_t  batch_size  = 1;
+        size_t  seq_length  = 1;
+        size_t  m_dimension = 0;    // GEMM M dimension (LLM-friendly: batch * seq)
+        size_t  k_dimension = 1;    // GEMM K dimension (input hidden size)
+        size_t  compute_workload = 0;  // Effective workload proxy: M * K
+        bool    is_prefill  = false;
+    };
+
+    // Arm multi-impl pool using the given policy.
+    // Builds alternative static impls (currently OCL as the Generate-phase fallback).
+    // No-op when called again or when the node cannot support both impl types.
+    void enable_multi_impl_mode(ImplSwitchingPolicy policy = ImplSwitchingPolicy::AUTO_HEURISTIC);
+
+    // Register a pre-built implementation in the pool.
+    // is_shape_agnostic_alt: true if the impl handles every shape the pool will
+    // route to it without recompilation. Pass false for shape-bound impls
+    // (e.g. OneDNN) that must go through update_impl() on shape change.
+    void add_impl_to_pool(impl_types type, std::shared_ptr<primitive_impl> impl,
+                          bool is_shape_agnostic_alt = false);
+
+    // Synchronously switch the active implementation to a pooled type.
+    // Rebinds kernel arguments; returns false when the type is absent from the pool.
+    bool switch_impl_to(impl_types target_type);
+
     const layout& get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
     const layout& get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
@@ -389,6 +462,19 @@ protected:
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
     std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
+
+    // Multi-impl pool: populated by enable_multi_impl_mode().
+    // Null when switching is disabled for this instance.
+    std::unique_ptr<ImplPool>  _impl_pool;
+    ImplSwitchingPolicy        _switching_policy = ImplSwitchingPolicy::NONE;
+    // Phase-aware manual impl override: each phase can target a different impl.
+    struct ManualImplRule {
+        impl_types prefill = impl_types::any;  // impl for prefill (seq_len > 1)
+        impl_types decode  = impl_types::any;  // impl for decode  (seq_len == 1)
+        bool has_rule() const { return prefill != impl_types::any || decode != impl_types::any; }
+    };
+    ManualImplRule             _manual_impl_rule;
+    WorkloadPredictor          _workload_predictor;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -517,6 +603,21 @@ protected:
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 
 private:
+    // -- Multi-impl switching helpers --
+    // Derive workload characteristics from the current impl params.
+    ImplSelectionCriteria extract_selection_criteria(const kernel_impl_params& params) const;
+    // Apply heuristic rules to choose the best impl type for given criteria.
+    impl_types evaluate_best_impl_type(const ImplSelectionCriteria& criteria) const;
+    // Return the best impl type for the current inputs.
+    impl_types select_best_impl_for_inputs(const kernel_impl_params& params) const;
+    // Parse runtime policy string from config.
+    ImplSwitchingPolicy parse_switching_policy_from_config() const;
+    // Parse manual impl selection for current primitive id from config.
+    ManualImplRule parse_manual_impl_for_current_primitive() const;
+    // Returns true when a switch to a different impl would be beneficial.
+    bool should_switch_impl(const kernel_impl_params& params) const;
+    // Update rolling-average execution time and count for a given impl type.
+    void update_impl_statistics(impl_types type, float duration_ms);
     void update_paddings();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();

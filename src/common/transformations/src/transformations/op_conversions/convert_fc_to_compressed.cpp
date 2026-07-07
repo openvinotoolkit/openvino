@@ -180,6 +180,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return false;
         }
 
+        // GGUF weights are opaque blocks of bytes consumed directly by the GPU FullyConnected GGUF
+        // implementation. They must never be re-packed through the generic compression path, which
+        // would rewrite their bytes and break the byte-equality invariant (see SPEC.md §5.2).
+        if (fc->get_input_element_type(1).is_gguf_block()) {
+            return false;
+        }
+
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
         const auto& weights_shape = fc->get_input_shape(1);
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;

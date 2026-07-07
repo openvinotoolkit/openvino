@@ -190,6 +190,9 @@ static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"
 static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_NETWORK_MARKER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
+static constexpr Property<int64_t, ov::PropertyMutability::RW> multi_impl_compute_threshold{"GPU_MULTI_IMPL_COMPUTE_THRESHOLD"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> multi_impl_switching_policy{"GPU_MULTI_IMPL_SWITCHING_POLICY"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> multi_impl_manual_impl_map{"GPU_MULTI_IMPL_MANUAL_IMPL_MAP"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 }  // namespace ov::intel_gpu
 
