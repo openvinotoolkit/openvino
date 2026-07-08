@@ -138,8 +138,9 @@ public:
             // Only squeeze when the constant has exactly one extra leading dimension.
             auto squeeze_constant = [&](const std::shared_ptr<ov::Node>& node) {
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+                OPENVINO_ASSERT(constant, "Expected Constant node, got: ", node->get_type_name());
                 auto shape = constant->get_shape();
-                if (shape.size() - fc_input_shape.size() == 1) {
+                if (shape.size() == fc_input_shape.size() + 1) {
                     shape.erase(shape.begin());
                     const auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, shape);
                     ov::replace_node(constant, new_constant);

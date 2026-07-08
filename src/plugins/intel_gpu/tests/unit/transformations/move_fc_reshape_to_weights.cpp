@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <intel_gpu/op/fully_connected.hpp>
 #include <intel_gpu/op/placeholder.hpp>
 #include <memory>
 #include <openvino/core/model.hpp>
