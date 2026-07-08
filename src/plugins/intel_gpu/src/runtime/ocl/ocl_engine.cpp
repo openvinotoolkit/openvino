@@ -159,7 +159,8 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
     }
     clFinish(q);
     cl::Buffer buf(imported, true);
-    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(this, layout, buf, nullptr);
+    auto mem_tracker = std::make_shared<MemoryTracker>(this, buf.get(), byte_size, allocation_type::cl_mem);
+    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(nullptr, layout, buf, mem_tracker);
     clReleaseMemObject(imported);
     return memory;
 #endif
@@ -379,6 +380,7 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
 
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
     const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size);
+    OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
     OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
                     "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
     OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
