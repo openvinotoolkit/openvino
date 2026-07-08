@@ -89,8 +89,6 @@ private:
     const std::shared_ptr<OperatorsBridge> m_translator_map;
     const std::string m_model_name;
     std::shared_ptr<ov::Model> m_ov_model;
-    // Hash map: ~830 lookups per medium model in single-pass mode; O(1) avg lookup beats the
-    // O(log T) string-compare tree walks of std::map by ~1ms on ResNet-sized graphs.
     std::unordered_map<std::string, Output<ov::Node>> m_tensor_values;
     bool m_fail_fast;
     TranslateSession* m_parent_session;

@@ -330,10 +330,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         send_op_count_telemetry(telemetry, op_statistics);
 
-        // Order graph-input Parameters by model input index. The Place-graph path gets this from
-        // load_model()'s sorted get_inputs(); a custom GraphIterator may emit input decoders in any order.
-        // Parent-scope Parameters (appended by lookup_tensor() during subgraph translation) are absent
-        // from input_indices and sort to the back in their existing relative order.
         sort_by_model_index(m_parameters, [&](const std::shared_ptr<ov::op::v0::Parameter>& p) {
             const auto it = input_indices.find(p.get());
             return it != input_indices.end() ? it->second : std::numeric_limits<int64_t>::max();
@@ -404,7 +400,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     ov_model = std::make_shared<ov::Model>(results, m_parameters, "onnx_Frontend_IR");
 
-    const auto metadata = model_onnx->get_graph_iterator()->get_metadata();
+    const auto metadata = model_onnx->get_metadata();
     const std::string framework_section = "framework";
     for (const auto& pair : metadata) {
         ov_model->set_rt_info(pair.second, framework_section, pair.first);

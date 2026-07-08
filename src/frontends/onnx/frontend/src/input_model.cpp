@@ -615,7 +615,7 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
     std::map<std::string, std::string> get_metadata() const {
-        return m_metadata;
+        return m_loaded ? m_metadata : m_graph_iterator->get_metadata();
     }
 
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
