@@ -282,4 +282,3 @@ struct std::hash<ov::intel_gpu::VirtualAdressMemory> {
         return h1 ^ (h2 << 1);
     }
 };
-
