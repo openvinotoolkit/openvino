@@ -86,24 +86,36 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
-    // After ov::CacheMode the blob must start with the magic-guarded compatibility-descriptor
-    // block written by export_model. A blob lacking the magic was produced by an OpenVINO build
-    // predating this feature; cross-version blob import is not supported, so fail fast.
+    // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
+    // compatibility descriptor. Any rejection below throws ov::Exception;
+    // So the caller (cache layer / OV EP) catches it and recompiles instead of consuming a bad blob.
+
+    // Missing magic => blob produced by an OpenVINO build predating this feature.
     uint64_t requirements_magic = 0;
     ib >> requirements_magic;
-    OPENVINO_ASSERT(requirements_magic == runtime_requirements_magic,
-                    "[GPU] Cannot import compiled blob: missing compatibility descriptor "
-                    "(blob produced by an incompatible OpenVINO version).");
+    if (requirements_magic != runtime_requirements_magic) {
+        OPENVINO_THROW("[GPU] Cannot import compiled blob: missing compatibility descriptor "
+                       "(blob produced by an incompatible OpenVINO version).");
+    }
 
+    // Unknown descriptor version => on-disk contract we can't parse safely.
     uint32_t requirements_version = 0;
     ib >> requirements_version;
-    // An unrecognized version means the descriptor block follows an on-disk contract we don't
-    // understand, so the remainder of the blob cannot be parsed safely. Fail the import; the
-    // caching layer then falls back to recompiling the model.
-    OPENVINO_ASSERT(requirements_version == runtime_requirements_version,
-                    "[GPU] Unsupported compatibility descriptor version ", requirements_version,
-                    " in compiled blob (expected ", runtime_requirements_version, ").");
+    if (requirements_version != runtime_requirements_version) {
+        OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ", requirements_version,
+                       " in compiled blob (expected ", runtime_requirements_version, ").");
+    }
     ib >> m_runtime_requirements;
+
+    // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
+    const auto& device_info = m_context->get_engine().get_device_info();
+    if (!is_runtime_requirements_compatible(m_runtime_requirements, device_info)) {
+        OPENVINO_THROW("[GPU] Cannot import compiled blob: it was built for a different runtime "
+                       "configuration (OpenVINO version/driver mismatch) and cannot be executed on "
+                       "this device.\n"
+                       "  blob:    ", m_runtime_requirements, "\n"
+                       "  current: ", build_runtime_requirements(device_info));
+    }
 
     {
         size_t num_params = 0;
@@ -284,6 +296,13 @@ std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& 
        << ";eus=" << info.execution_units_count << "]";
     return ss.str();
 }
+
+bool CompiledModel::is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info) {
+    // v1 policy: exact match of the full, device-deterministic descriptor. Change this single
+    // function to adjust the policy (e.g. OpenVINO-version-only) for both import and compatibility_check.
+    return requirements == build_runtime_requirements(info);
+}
+
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {
     return m_graphs;
 }
