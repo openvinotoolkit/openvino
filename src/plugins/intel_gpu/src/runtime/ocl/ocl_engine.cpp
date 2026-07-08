@@ -373,10 +373,6 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
 }
 
 memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
-    auto tracker = std::make_shared<MemoryTracker>(this,
-                                                   cpu_address,
-                                                   data_size,
-                                                   allocation);
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
 
@@ -393,6 +389,19 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
     OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
 #else
     OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
+#endif
+
+    std::shared_ptr<MemoryTracker> tracker = nullptr;
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    tracker = std::make_shared<MemoryTracker>(nullptr,
+                                              cpu_address,
+                                              data_size,
+                                              allocation);
+#else
+    tracker = std::make_shared<MemoryTracker>(this,
+                                              cpu_address,
+                                              data_size,
+                                              allocation);
 #endif
 
     return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
