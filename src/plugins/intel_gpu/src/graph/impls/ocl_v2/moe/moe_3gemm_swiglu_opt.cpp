@@ -2279,8 +2279,6 @@ public:
         // Step 1: CPU mask generation (topk_id already flushed by caller)
         // ----------------------------------------------------------------
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
-        expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
         // Flat list of source token indices per expert – input for prefill_gather
         std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);
         // Compact per-activated-expert metadata reused by scatter_reduce
