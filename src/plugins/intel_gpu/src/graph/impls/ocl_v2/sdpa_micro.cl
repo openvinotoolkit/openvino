@@ -464,7 +464,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-#ifdef PREFETCH_K0
+#if PREFETCH_K0
     /* Prefetch first K tile. */
 #if TRANSPOSE_K
     const uint stride_k0 = ldk;
@@ -473,8 +473,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     cooperative_prefetch_2d_k(
             /* ptr */ K + window_k_begin * stride_k0,
-            /* r */ causal_k - window_k_begin,
-            /* c */ d,
+            /* r */ d,
+            /* c */ causal_k - window_k_begin,
             /* rmax */ ugemm_kq_wg_tile_m,
             /* cmax */ PREFETCH_D_MAX,
             /* ld */ ldk,
@@ -776,7 +776,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
         #endif
 
-#ifdef PREFETCH_V
+#if PREFETCH_V
         /* Prefetch V tile. */
 #if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     const int window_v_pf_begin = first ? (window_k_begin - k0) : 0;
@@ -915,7 +915,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     sg_i_kq);
         }
 
-#ifdef PREFETCH_K
+#if PREFETCH_K
         /* Prefetch next K tile. */
         if (!last) {
 #if TRANSPOSE_K
