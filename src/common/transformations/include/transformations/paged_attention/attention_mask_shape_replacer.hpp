@@ -18,46 +18,81 @@ class TRANSFORMATIONS_API AttentionMaskShapeReplacer;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Detaches the attention_mask parameter from shape-deriving subgraphs.
+ * @brief Replaces ShapeOf(attention_mask) with ShapeOf(input_source) in the
+ *        broadcast-shape branch that feeds rotary MatMul.
  *
- * Some models query the batch dimension from the attention_mask shape.
- * In PagedAttention mode the attention_mask parameter is removed, so these shape
- * queries must be rewired to an always-present input (input_ids or inputs_embeds).
- * The attention_mask batch dimension (index 0) coincides with the batch dimension
- * of input_ids / inputs_embeds, so the same Gather index remains valid.
+ * Some models build a Broadcast target shape from attention_mask and then use that
+ * Broadcast as the first input of MatMul, while the second input is derived from
+ * position_ids through an optional Unsqueeze/Convert chain.
+ * In PagedAttention mode, attention_mask is removed, therefore this shape branch
+ * must be rewired to an always-present source (input_ids or inputs_embeds).
  *
- * Before:
+ * Matched topology:
  *
  *  ┌─────────────────┐
  *  │ attention_mask  │
  *  │  (Parameter)    │
  *  └────────┬────────┘
  *           │
- *      ┌────┴────┐   ┌──────────┐
- *      │ ShapeOf │   │ indices  │
- *      └────┬────┘   │   {0}    │
- *           │        └────┬─────┘
- *        ┌──┴──┐──────────┘
- *        │Gather├──────────── axis
- *        └─────┘
+ *      ┌────┴────┐        ┌──────────────┐
+ *      │ ShapeOf │        │ position_ids │
+ *      └────┬────┘        │ (Parameter)  │
+ *           │             └──────┬───────┘
+ *      ┌────┴────┐         ┌─────┴──────┐
+ *      │ Gather  │         │ Unsqueeze  │ (optional)
+ *      └────┬────┘         └─────┬──────┘
+ *           │               ┌────┴────┐
+ *      ┌────┴────┐          │ Convert │ (optional)
+ *      │ Concat  │          └────┬────┘
+ *      └────┬────┘               │
+ *           │                    │
+ *      ┌────┴────┐               │
+ *      │Broadcast├───────────────┘
+ *      └────┬────┘
+ *           │
+ *      ┌────┴────┐
+ *      │ MatMul  │
+ *      └─────────┘
  *
- * After (input_source is input_ids or inputs_embeds):
+ * Rewrite:
+ *
+ * Replace ShapeOf(attention_mask) with ShapeOf(input_source), where input_source
+ * is input_ids or inputs_embeds.
+ *
+ * After:
  *
  *  ┌─────────────────┐
  *  │  input_source   │
  *  │  (Parameter)    │
  *  └────────┬────────┘
  *           │
- *      ┌────┴────┐   ┌──────────┐
- *      │ ShapeOf │   │ indices  │
- *      └────┬────┘   │   {0}    │
- *           │        └────┬─────┘
- *        ┌──┴──┐──────────┘
- *        │Gather├──────────── axis
- *        └─────┘
+ *      ┌────┴────┐        ┌──────────────┐
+ *      │ ShapeOf │        │ position_ids │
+ *      └────┬────┘        │ (Parameter)  │
+ *           │             └──────┬───────┘
+ *      ┌────┴────┐         ┌─────┴──────┐
+ *      │ Gather  │         │ Unsqueeze  │ (optional)
+ *      └────┬────┘         └─────┬──────┘
+ *           │               ┌────┴────┐
+ *      ┌────┴────┐          │ Convert │ (optional)
+ *      │ Concat  │          └────┬────┘
+ *      └────┬────┘               │
+ *           │                    │
+ *      ┌────┴────┐               │
+ *      │Broadcast├───────────────┘
+ *      └────┬────┘
+ *           │
+ *      ┌────┴────┐
+ *      │ MatMul  │
+ *      └─────────┘
  *
- * The replacement is applied only when the Gather selects the batch dimension
- * (index 0); otherwise the match is skipped.
+ * The rewrite is applied only when all of the following hold:
+ *  1) Gather axis is 0 (or -1 for a 1D ShapeOf output).
+ *  2) Gather indices are exactly {0}.
+ *  3) input_source rank is static and at least 1.
+ *
+ * These checks guarantee that the selected dimension is equivalent after rewiring
+ * and avoid altering unsupported shape semantics.
  */
 class ov::pass::AttentionMaskShapeReplacer : public ov::pass::MatcherPass {
 public:
