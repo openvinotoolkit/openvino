@@ -19,7 +19,8 @@ std::vector<uint8_t> make_prime_pattern(size_t size) {
 }
 
 std::vector<uint8_t> read_mapped(ov::MappedMemory& mm) {
-    return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    const auto* begin = reinterpret_cast<const uint8_t*>(mm.data());
+    return std::vector<uint8_t>(begin, begin + mm.size());
 }
 
 }  // namespace ov::test::utils
