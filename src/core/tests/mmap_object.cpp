@@ -16,6 +16,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/mmap_test_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov::test {
 TEST(MappedMemory, get_id_unique_per_file) {
@@ -243,7 +244,7 @@ protected:
     void SetUp() override {
         m_expected = utils::make_prime_pattern(k_hint_evict_file_size);
         m_file_path = utils::generateTestFilePrefix() + "_hint_evict";
-        utils::write_temp_file(m_file_path, m_expected.data(), m_expected.size());
+        ov::util::save_binary(m_file_path, m_expected.data(), m_expected.size());
     }
 
     void TearDown() override {
@@ -309,7 +310,7 @@ TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
     // Append extra bytes so the file size is not a multiple of the 64 KiB granularity.
     constexpr size_t k_extra = 4096;
     m_expected = utils::make_prime_pattern(k_hint_evict_file_size + k_extra);
-    utils::write_temp_file(m_file_path, m_expected.data(), m_expected.size());
+    ov::util::save_binary(m_file_path, m_expected.data(), m_expected.size());
 
     auto mm = load_mmap_object(m_file_path);
     ASSERT_NE(mm, nullptr);
@@ -349,7 +350,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
     constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
     const auto data = utils::make_prime_pattern(file_size);
-    utils::write_temp_file(m_file_path, data.data(), data.size());
+    ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
         auto mapped = load_mmap_object(m_file_path);
@@ -368,7 +369,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
     constexpr size_t prefault_offset = 1 * 1024 * 1024;
     constexpr size_t prefault_size = 5 * 1024 * 1024;
     const auto data = utils::make_prime_pattern(file_size);
-    utils::write_temp_file(m_file_path, data.data(), data.size());
+    ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
         auto mapped = load_mmap_object(m_file_path);
@@ -384,7 +385,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
     constexpr size_t file_size = 1024;  // 1 KB - below threshold
     const auto data = utils::make_prime_pattern(file_size);
-    utils::write_temp_file(m_file_path, data.data(), data.size());
+    ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
         auto mapped = load_mmap_object(m_file_path);
@@ -399,7 +400,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
     constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
     const auto data = utils::make_prime_pattern(file_size);
-    utils::write_temp_file(m_file_path, data.data(), data.size());
+    ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
         auto mapped = load_mmap_object(m_file_path, map_offset);
@@ -420,7 +421,7 @@ TEST_F(HintPrefetchTest, hint_prefetch_with_both_offsets) {
     constexpr size_t pop_offset = 1 * 1024 * 1024;  // Populate starting at 1 MB into mapping
     constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
     const auto data = utils::make_prime_pattern(file_size);
-    utils::write_temp_file(m_file_path, data.data(), data.size());
+    ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
         auto mapped = load_mmap_object(m_file_path, map_offset);
@@ -454,7 +455,7 @@ TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
     {
         const auto data = utils::make_prime_pattern(file_size);
-        utils::write_temp_file(m_file_path, data.data(), data.size());
+        ov::util::save_binary(m_file_path, data.data(), data.size());
     }
 
     auto mapped = load_mmap_object(m_file_path);

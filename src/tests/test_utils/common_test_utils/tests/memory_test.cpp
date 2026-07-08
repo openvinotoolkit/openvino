@@ -13,6 +13,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/mmap_test_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -171,7 +172,7 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
     const auto expected = utils::make_prime_pattern(size);
 
     m_file_path = utils::generateTestFilePrefix() + "_vm_prefetch.bin";
-    utils::write_temp_file(m_file_path, expected.data(), expected.size());
+    ov::util::save_binary(m_file_path, expected.data(), expected.size());
 
     auto mapped = load_mmap_object(m_file_path);
     ASSERT_NE(mapped, nullptr);

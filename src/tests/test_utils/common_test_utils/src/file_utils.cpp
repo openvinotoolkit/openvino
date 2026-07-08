@@ -268,16 +268,4 @@ FileHandle open_ro_file(const std::filesystem::path& path) {
 #endif
 }
 
-void write_temp_file(const std::filesystem::path& path, const void* data, size_t size) {
-    std::ofstream out(path, std::ios::binary);
-    if (!out.is_open()) {
-        throw std::runtime_error("Failed to create temp file: " + path.string());
-    }
-    out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
-    out.close();  // flush + close so late I/O errors surface here
-    if (!out) {
-        throw std::runtime_error("Failed to write temp file: " + path.string());
-    }
-}
-
 }  // namespace ov::test::utils
