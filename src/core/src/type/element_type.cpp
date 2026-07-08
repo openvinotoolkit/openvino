@@ -158,10 +158,6 @@ std::string Type::get_type_name() const {
     return to_string();
 }
 
-Type Type::get_compute_type() const {
-    return m_type == Type_t::bf16 ? f32 : *this;
-}
-
 std::string Type::to_string() const {
     return get_type_info(m_type).m_type_name;
 }
