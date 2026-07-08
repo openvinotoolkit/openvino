@@ -20,7 +20,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
-using namespace ov::intel_gpu;
+using ov::intel_gpu::KeepNMSBoundaryPrecision;
 
 namespace {
 
