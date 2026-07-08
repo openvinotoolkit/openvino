@@ -79,13 +79,10 @@ Initialize the runtime `Core`, read a model, compile it for a device, and run in
 const { addon: ov } = require("openvino-node");
 
 async function main() {
-  const core = new ov.Core();
+  const core = new ov.Core(); // OpenVINO's starting point, one Core instance per application
 
   // Read a model (OpenVINO IR, ONNX, TF, TFLite, or Paddle)
-  const model = await core.readModel("/path/to/model.xml");
-
-  // Compile the model for a device: "CPU", "GPU", or "NPU"
-  const compiledModel = await core.compileModel(model, "CPU");
+  const compiledModel = await core.compileModel("/path/to/model.xml", "CPU");
 
   // Allocate an input tensor (fill it with real input data for your model)
   const input = compiledModel.inputs[0];
@@ -93,8 +90,9 @@ async function main() {
 
   // Create an infer request, set input, and run inference
   const inferRequest = compiledModel.createInferRequest();
-  inferRequest.setInputTensor(inputTensor);
-  inferRequest.infer();
+  const result = inferRequest.infer([inputTensor]);
+  // Read the output
+  console.log(result[compiledModel.outputs[0]].data);
 
   // Read the output
   const outputTensor = inferRequest.getTensor(compiledModel.outputs[0]);
