@@ -24,6 +24,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov::test {
 using OVTensorTest = ::testing::Test;
@@ -1341,6 +1342,55 @@ TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
     // and therefore do not have a source_id
     ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}};
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+}
+
+// Regression tests for ov::util::get_id_for_file: hashing the path must not cross a libstdc++
+// ABI boundary (the crash it used to trigger) and must yield a stable, distinct id per file.
+TEST_F(OVTensorTest, getIdForFileDoesNotCrashAndIsNonZero) {
+    const std::filesystem::path path = "some/relative/weights.bin";
+    uint64_t id = 0;
+    ASSERT_NO_THROW(id = ov::util::get_id_for_file(path, 0, 128));
+    // A concrete, non-empty path is expected to produce a non-trivial id.
+    EXPECT_NE(id, 0u);
+}
+
+TEST_F(OVTensorTest, getIdForFileIsDeterministic) {
+    const std::filesystem::path path = "dir/subdir/model.bin";
+    // Same path/offset/size must always yield the same id (id is used as a weight-sharing cache key).
+    EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(path, 64, 256));
+    // Building the path from its native string must not change the id (the hash is over path.native()).
+    const std::filesystem::path same_path{path.native()};
+    EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(same_path, 64, 256));
+}
+
+TEST_F(OVTensorTest, getIdForFileDistinguishesPathOffsetAndSize) {
+    const std::filesystem::path path_a = "weights_a.bin";
+    const std::filesystem::path path_b = "weights_b.bin";
+    const auto base = ov::util::get_id_for_file(path_a, 0, 128);
+    // Different path, offset or size must map to a different id.
+    EXPECT_NE(base, ov::util::get_id_for_file(path_b, 0, 128));
+    EXPECT_NE(base, ov::util::get_id_for_file(path_a, 1, 128));
+    EXPECT_NE(base, ov::util::get_id_for_file(path_a, 0, 129));
+}
+
+TEST_F(OVTensorTest, getIdForFileMatchesIfstreamSourceId) {
+    // End-to-end: the ifstream read path (mmap=false) tags the tensor with get_id_for_file(...),
+    // computed over the file's byte size. Verify the exposed source_id equals a direct call, i.e.
+    // the value flows through read_tensor_data unchanged and without crashing.
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_get_id_for_file_test.bin";
+    float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    ov::Tensor tensor;
+    ASSERT_NO_THROW(tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, false));
+    const auto source_id = ov::get_tensor_source_id(tensor);
+    ASSERT_TRUE(source_id.has_value());
+    EXPECT_EQ(source_id.value(), ov::util::get_id_for_file(tmp_path, 0, sizeof(data)));
+
+    std::filesystem::remove(tmp_path);
 }
 
 }  // namespace ov::test
