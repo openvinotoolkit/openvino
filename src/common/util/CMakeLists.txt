@@ -31,10 +31,21 @@ set(MONITOR_COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/device_monitor.cpp
 )
 
-set(MONITOR_WIN32_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor.cpp
-)
+set(MONITOR_WIN32_SOURCES)
+
+if(WIN32)
+    if(TARGET IPF::ClientApi)
+        list(APPEND MONITOR_WIN32_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor.cpp
+        )
+    else()
+        list(APPEND MONITOR_WIN32_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor_stub.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor_stub.cpp
+        )
+    endif()
+endif()
 
 set(MONITOR_UNIX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/cpu_device_monitor.cpp
@@ -107,7 +118,9 @@ target_link_libraries(${TARGET_NAME}
 
 if (WIN32)
     set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
-    target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
+    target_include_directories(${TARGET_NAME} PRIVATE $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
+
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 
     # IPF (Intel Platform Framework) SDK for device monitoring
     if(TARGET IPF::ClientApi)
