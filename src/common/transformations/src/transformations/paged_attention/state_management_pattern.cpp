@@ -356,14 +356,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
     v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
 
-    // Full int8 activation quantization (a8w8 / SmoothQuant) inserts a FakeQuantize on the
-    // concatenated KV-cache activation, i.e. directly after this Concat and before whatever consumes
-    // it: the SDPA K/V input (non-GQA) or the Unsqueeze-Broadcast-Reshape "repeat_kv" expansion
-    // (GQA/MQA). Tolerate an optional FakeQuantize here so every downstream KV path (kv_shaping,
-    // *_simply_shaped, *_shaped_transposed and the direct-to-SDPA Or) still binds. The dequant
-    // FakeQuantize is not needed on the PagedAttention KV path (which is rebuilt from the pre-concat
-    // "current" K/V tensors), so it is simply dropped. Unlike the FakeConvert case above (FP8, kept
-    // on the SDPA inputs), this FakeQuantize is not re-applied in the callback.
+    // a8w8 (SmoothQuant) inserts a FakeQuantize right after the KV-cache Concat. Tolerate it so the
+    // pattern still binds; it is re-applied on the PA feed in the callback (like FakeConvert above).
     k_concat = pattern::optional<v0::FakeQuantize>({k_concat, any_input(), any_input(), any_input(), any_input()});
     v_concat = pattern::optional<v0::FakeQuantize>({v_concat, any_input(), any_input(), any_input(), any_input()});
 
@@ -574,10 +568,35 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        // Re-apply FakeConvert after Reshape for Q/K/V (aligned position for all three)
         Output<Node> q_to_pa = q_reshape;
         Output<Node> k_to_pa = k_reshape;
         Output<Node> v_to_pa = v_reshape;
+
+        // Re-apply the KV-cache FakeQuantize (matched at k_concat/v_concat) onto the rebuilt PA feed;
+        // runs before the FakeConvert loop to keep the original op order when both are present.
+        for (auto& [pattern_node, target] : {std::tie(k_concat, k_to_pa), std::tie(v_concat, v_to_pa)}) {
+            if (!pattern_map.count(pattern_node))
+                continue;
+            auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_map.at(pattern_node).get_node_shared_ptr());
+            if (!fq)
+                continue;
+            // Only per-tensor limits broadcast onto the flattened PA feed; skip per-channel.
+            bool per_tensor = true;
+            for (size_t i = 1; i < fq->get_input_size(); ++i) {
+                const auto& ps = fq->get_input_partial_shape(i);
+                if (!ps.is_static() || ov::shape_size(ps.to_shape()) != 1) {
+                    per_tensor = false;
+                    break;
+                }
+            }
+            if (!per_tensor)
+                continue;
+            auto new_inputs = fq->input_values();
+            new_inputs[0] = target;
+            target = fq->clone_with_new_inputs(new_inputs);
+        }
+
+        // Re-apply FakeConvert after Reshape for Q/K/V (aligned position for all three)
         for (auto& [pattern_node, target] :
              {std::tie(q, q_to_pa), std::tie(k_to_sdpa, k_to_pa), std::tie(v_to_sdpa, v_to_pa)}) {
             if (pattern_map.count(pattern_node)) {

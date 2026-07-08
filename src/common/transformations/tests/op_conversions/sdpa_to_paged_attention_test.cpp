@@ -6560,16 +6560,9 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
     }
 }
 
-// Builds a minimal single-layer stateful SDPA model (input_ids/attention_mask/position_ids/beam_idx
-// -> embedding -> Q/K/V projections -> KV-cache ReadValue->Gather(beam_idx)->Concat -> SDPA, with
-// Assign sinks and a mask consuming attention_mask). When fq_on_k / fq_on_v is set, a 5-input
-// v0::FakeQuantize (levels=256, scalar limits) is inserted directly AFTER the KV-cache Concat (the
-// location where NNCF a8w8 / SmoothQuant activation quantization inserts it), before whatever
-// consumes the concatenated KV:
-//   * non-GQA (gqa == false): the FakeQuantize feeds straight into the SDPA K / V input;
-//   * GQA     (gqa == true):  num_kv_heads < num_q_heads, and the FakeQuantize feeds the
-//                             Unsqueeze -> Broadcast -> Reshape "repeat_kv" head-expansion that
-//                             then feeds SDPA. This is the real meta-llama / TinyLlama topology.
+// Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
+// inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
+// (non-GQA) or the repeat_kv Unsqueeze-Broadcast-Reshape expansion (gqa == true).
 static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, bool fq_on_v, bool gqa) {
     const int num_q_heads = 4;
     const int num_kv_heads = gqa ? 2 : 4;
@@ -6616,8 +6609,7 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
         return {concat, past, assign};
     };
 
-    // Minimal mask subgraph that still consumes attention_mask + position_ids so the pass has
-    // something to rewire/remove.
+    // Minimal mask subgraph consuming attention_mask + position_ids so the pass has something to rewire.
     auto make_attn_mask = [&](const std::shared_ptr<ov::Node>& attn_mask, const std::shared_ptr<ov::Node>& kv_past) {
         auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
         auto cur_len_1d = makeOP<v1::Reshape>({cur_len, {1}}, {{"special_zero", false}});
@@ -6631,9 +6623,7 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
         return makeOP<v3::Broadcast>({mask_f32, bcast_shape}, {{"mode", "bidirectional"}});
     };
 
-    // GQA "repeat_kv" head expansion: [B, num_kv_heads, S, D] -> Unsqueeze -> Broadcast -> Reshape ->
-    // [B, num_q_heads, S, D]. Mirrors StateManagementPattern's kv_shaping pattern (the Unsqueeze lets
-    // the pass deduce num_kv_heads).
+    // GQA "repeat_kv" expansion (Unsqueeze -> Broadcast -> Reshape), matching kv_shaping in the pass.
     auto make_repeat_kv = [&](const std::shared_ptr<ov::Node>& kv) {
         const int repeat = num_q_heads / num_kv_heads;
         auto sh = makeOP<v3::ShapeOf>({kv}, {{"output_type", "i64"}});
@@ -6649,8 +6639,7 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
         return makeOP<v1::Reshape>({bcast, reshape_target}, {{"special_zero", false}});
     };
 
-    // The a8w8 activation FakeQuantize: 5 inputs, shape-preserving, per-tensor scalar limits.
-    // Constructed directly because v0::FakeQuantize requires the `levels` argument positionally.
+    // a8w8 activation FakeQuantize: 5 inputs, per-tensor scalar limits.
     auto make_fq = [](const std::shared_ptr<ov::Node>& data) -> std::shared_ptr<ov::Node> {
         auto in_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
         auto in_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
@@ -6682,28 +6671,15 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
     return std::make_shared<ov::Model>(OutputVector{res}, SinkVector{kv_0.assign, vv_0.assign}, params);
 }
 
-// Full int8 activation quantization (a8w8 / SmoothQuant) inserts a v0::FakeQuantize directly after
-// the KV-cache Concat -- feeding the SDPA K/V input (non-GQA) or the repeat_kv head expansion (GQA).
-// StateManagementPattern must tolerate that FakeQuantize; otherwise the SDPA wrap_type never binds,
-// SDPA is not converted to PagedAttention, and the beam_idx / attention_mask parameters survive ->
-// the final validate_nodes_and_infer_types() throws "Model references undeclared parameters".
-//
-// The reference (model_ref) is the SAME single-layer model WITHOUT any FakeQuantize, converted to
-// PagedAttention. The fix drops the dequant FakeQuantize (PagedAttention rebuilds K/V from the
-// pre-concat "current" tensors, upstream of the FakeQuantize, so the FakeQuantize becomes dead
-// subgraph), therefore the converted graph must be identical whether or not the FakeQuantize was
-// present -> the FakeQuantize-free conversion is the correct reference for every parameter combo.
-//
-// Parameters: {fq_on_k, fq_on_v, gqa}. {false, false, *} is the FakeQuantize-free negative control
-// (regression guard); {true, true, false} is the full non-GQA a8w8 topology; {true, true, true} is
-// the full GQA a8w8 topology (the meta-llama / TinyLlama case, where the FakeQuantize sits before the
-// repeat_kv expansion -- a wrap on the direct SDPA input alone would NOT catch it). Note this
-// FakeQuantize case is distinct from the FakeConvert (FP8) case covered by SDPAToPA_Opt125m_General:
-// FakeConvert is preserved on the SDPA inputs, this FakeQuantize is dropped from the KV concat.
+// a8w8 (SmoothQuant) inserts a FakeQuantize after the KV-cache Concat. Without tolerating it, SDPA is
+// not converted and beam_idx / attention_mask survive -> "Model references undeclared parameters".
+// The FakeQuantize is preserved: re-applied on the PagedAttention K/V feed (input 1 = K, input 2 = V).
+// Params {fq_on_k, fq_on_v, gqa}: {false,false,*} is the negative control; gqa == true is the
+// meta-llama / TinyLlama case (FQ before repeat_kv).
 class SDPAToPA_ActivationFakeQuantizeOnKV : public TransformationTestsF,
                                             public ::testing::WithParamInterface<std::tuple<bool, bool, bool>> {};
 
-TEST_P(SDPAToPA_ActivationFakeQuantizeOnKV, KVFakeQuantizeTolerated) {
+TEST_P(SDPAToPA_ActivationFakeQuantizeOnKV, KVFakeQuantizePreserved) {
     const bool fq_on_k = std::get<0>(GetParam());
     const bool fq_on_v = std::get<1>(GetParam());
     const bool gqa = std::get<2>(GetParam());
@@ -6714,32 +6690,44 @@ TEST_P(SDPAToPA_ActivationFakeQuantizeOnKV, KVFakeQuantizeTolerated) {
     }
 
     {
-        auto ref_input = make_single_layer_sdpa_model(false, false, gqa);
+        // Reference: an independent conversion of the same model (comparator checks it is deterministic).
+        auto ref_input = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
         ov::pass::Manager ref_manager;
         ref_manager.register_pass<ov::pass::SDPAToPagedAttention>();
         ref_manager.run_passes(ref_input);
         model_ref = ref_input;
 
-        // Guard against a vacuous comparison: the reference must be a genuine converted graph
-        // (exactly one PagedAttention, with beam_idx / attention_mask absorbed and removed).
+        // Exactly one PagedAttention, with beam_idx / attention_mask removed.
         EXPECT_EQ(count_ops_of_type<ov::op::PagedAttentionExtension>(model_ref), 1u);
         for (const auto& param : model_ref->get_parameters()) {
             const auto& name = param->get_friendly_name();
             EXPECT_NE(name, "beam_idx") << "beam_idx parameter should have been removed";
             EXPECT_NE(name, "attention_mask") << "attention_mask parameter should have been removed";
         }
-    }
 
-    {
-        // The dequant FakeQuantize must be DROPPED by the conversion, not merely tolerated: because
-        // PagedAttention rebuilds K/V from the pre-concat "current" tensors, the FakeQuantize ends up
-        // on a dead branch, so the converted graph must contain zero FakeQuantize ops. (model is
-        // transformed by the fixture in TearDown, so this converts an independent copy to assert here.)
-        auto fq_converted = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
-        ov::pass::Manager fq_manager;
-        fq_manager.register_pass<ov::pass::SDPAToPagedAttention>();
-        fq_manager.run_passes(fq_converted);
-        EXPECT_EQ(count_ops_of_type<ov::op::v0::FakeQuantize>(fq_converted), 0u);
+        // One surviving FakeQuantize per quantized input, re-applied on the PA K/V feed.
+        const size_t expected_fq = (fq_on_k ? 1u : 0u) + (fq_on_v ? 1u : 0u);
+        EXPECT_EQ(count_ops_of_type<ov::op::v0::FakeQuantize>(model_ref), expected_fq);
+
+        std::shared_ptr<ov::Node> pa;
+        for (const auto& op : model_ref->get_ops()) {
+            if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                pa = op;
+                break;
+            }
+        }
+        ASSERT_NE(pa, nullptr);
+        auto producer = [&](size_t input_index) {
+            return pa->get_input_node_shared_ptr(input_index);
+        };
+        if (fq_on_k) {
+            EXPECT_TRUE(ov::is_type<ov::op::v0::FakeQuantize>(producer(1)))
+                << "K FakeQuantize should be re-applied on PagedAttention input 1";
+        }
+        if (fq_on_v) {
+            EXPECT_TRUE(ov::is_type<ov::op::v0::FakeQuantize>(producer(2)))
+                << "V FakeQuantize should be re-applied on PagedAttention input 2";
+        }
     }
 
     comparator.disable(FunctionsComparator::PRECISIONS);
