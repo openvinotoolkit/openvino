@@ -1685,7 +1685,6 @@ public:
             if (stage == PagedAttentionStage::GENERATE) {
                 can_use_micro_sdpa = false;
             }
-            const auto desc = params.typed_desc<paged_attention>();
             if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL) {
                 can_use_micro_sdpa = false;
             }

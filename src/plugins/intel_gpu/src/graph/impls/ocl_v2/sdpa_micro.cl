@@ -234,15 +234,21 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
     /* Extend causal_k to cover the full bidirectional group that overlaps
        the current WG's query range. Without this, future K positions in
-       the same image-token group would be skipped entirely. */
+       the same image-token group would be skipped entirely.
+       Only lane 0 performs the scan; result is broadcast to all WIs. */
     {
         int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, k) - 1;
+        int bidir_causal_k = causal_k;
         if (wg_q_end >= 0 && wg_q_end < k && token_type_ids[wg_q_end] == 1) {
             int bidir_end = wg_q_end + 1;
-            while (bidir_end < k && token_type_ids[bidir_end] == 1)
-                bidir_end++;
-            causal_k = max(causal_k, bidir_end);
+            if (get_sub_group_local_id() == 0) {
+                while (bidir_end < k && token_type_ids[bidir_end] == 1)
+                    bidir_end++;
+            }
+            bidir_end = sub_group_broadcast(bidir_end, 0);
+            bidir_causal_k = max(causal_k, bidir_end);
         }
+        causal_k = bidir_causal_k;
     }
     #endif
 #endif
@@ -260,11 +266,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
     /* Extend sliding window start to include the full bidirectional group
        that overlaps the window boundary. Without this, K positions in the
-       same image-token group but before window_k_begin would be skipped. */
+       same image-token group but before window_k_begin would be skipped.
+       Only lane 0 performs the scan; result is broadcast to all WIs. */
     if (window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
-        while (window_k_begin > 0 && token_type_ids[window_k_begin - 1] == 1) {
-            window_k_begin--;
+        int wb = window_k_begin;
+        if (get_sub_group_local_id() == 0) {
+            while (wb > 0 && token_type_ids[wb - 1] == 1)
+                wb--;
         }
+        window_k_begin = sub_group_broadcast(wb, 0);
     }
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
