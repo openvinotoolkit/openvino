@@ -188,17 +188,22 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // lane-uniform, IGC emitted a per-key SIMD-1 (1|M0) scalar load, reloaded every db -> ~128
         // such loads per k0 iter (measured in the GEN ISA). This collapses them to one 16-wide load
         // each (mirrors the V vs_c/vz_c pattern and the k_mask lane=key layout below).
-        float k_scale_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
+        // scale/zp kept in HALF for the bias-trick dequant below. NOTE: half here does NOT hit
+        // the GEN <2> widen penalty that made an earlier all-half K dequant slower — that penalty
+        // is in the convert_float/(half) WIDEN of the int8 byte, which the bias trick eliminates
+        // (it never widens via convert). zp folds the widen bias (+1152.0h) so the per-byte dequant
+        // is just: reinterpret (0x6480 ^ byte) as half, subtract (zp+1152), multiply scale.
+        half k_scale_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
         #if KEY_ZERO_POINTS
-        float k_zp_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
+        half k_zpb_lane[kq_sg_tile_keys / SUBGROUP_SIZE];   // zp + 1152.0h (bias-trick bias folded in)
         #endif
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
             const int sc_key = key_base + ii * SUBGROUP_SIZE + lane;
             const uint sc_off = KEY_COMP_OFF(b1, b0_kv, sc_key, 0);
-            k_scale_lane[ii] = (sc_key < k) ? convert_float(K_scales[sc_off]) : 0.0f;
+            k_scale_lane[ii] = (sc_key < k) ? convert_half(K_scales[sc_off]) : (half)0.0f;
             #if KEY_ZERO_POINTS
-            k_zp_lane[ii] = (sc_key < k) ? convert_float(K_zp[sc_off]) : 0.0f;
+            k_zpb_lane[ii] = (sc_key < k) ? (convert_half(K_zp[sc_off]) + (half)1152.0h) : (half)1152.0h;
             #endif
         }
 #endif
@@ -231,20 +236,26 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int mb = 0; mb < kq_key_blocks; ++mb)
                     k_raw[mb] = (ushort8)0;
                 // kq_sg_tile_keys keys = kq_sg_tile_keys/4 uints. head=64/128 => 16 keys => uints 0..3.
+                // Bias-trick dequant (microbench-validated, mov -69% vs the convert_float widen):
+                // extract each key byte with shift+mask (NO as_char4 -> no <4;1,0> :b deinterleave),
+                // widen via the denormal-bias reinterpret (0x6480 ^ byte) as half, then the folded
+                // (zp+1152) subtract and scale multiply -- all in half.
                 #pragma unroll
                 for (int u = 0; u < kq_sg_tile_keys / 4; ++u) {
-                    const char4 raw4 = as_char4(kt[u]);
+                    const uint w = kt[u];
                     #pragma unroll
                     for (int bb = 0; bb < 4; ++bb) {
                         const int krel = u * 4 + bb;           // key's subgroup-local index 0..kq_sg_tile_keys-1
-                        const float k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                        const ushort wbits = (ushort)0x6480 ^ (ushort)((w >> (bb * 8)) & 0xFFu);
+                        const half wide = as_half(wbits);
+                        const half k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
                         #if KEY_ZERO_POINTS
-                            const float k_zp = sub_group_broadcast(k_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-                            const float deq_k = (convert_float(raw4[bb]) - k_zp) * k_sc;
+                            const half k_zpb = sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                            const half deq_k = (wide - k_zpb) * k_sc;
                         #else
-                            const float deq_k = convert_float(raw4[bb]) * k_sc;
+                            const half deq_k = (wide - (half)1152.0h) * k_sc;
                         #endif
-                        k_raw[krel / 8][krel % 8] = as_ushort((half)deq_k);
+                        k_raw[krel / 8][krel % 8] = as_ushort(deq_k);
                     }
                 }
             }
@@ -268,9 +279,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         // move. It is a subgroup collective, so it MUST run on all lanes -> keep it
                         // OUTSIDE the per-lane-divergent (head < d) guard below.
                         const int krel = mb * 8 + key_offset;
-                        const float k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                        const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
                         #if KEY_ZERO_POINTS
-                            const float k_zp = sub_group_broadcast(k_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+                            // k_zpb_lane holds zp+1152.0h; recover the raw zp for this scalar path.
+                            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE)) - 1152.0f;
                         #endif
                     #endif
                     if (head < d && key < k) {
@@ -490,7 +502,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // int8 range (verified), so this avoids the half->float->half round trips.
                 const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
                 #if VAL_ZERO_POINTS
-                    const half vz_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
+                    // Fold the bias-trick widen bias (+1152.0h) into zp: the V dequant below widens
+                    // via as_half(0x6480 ^ byte) (== signed_byte + 1152), so subtracting (zp+1152)
+                    // gives (signed_byte - zp) with no convert_half widen. OOB keys -> vzb_c=1152
+                    // (zp=0), and the score-side scale (vs_c=0 for OOB) still zeroes the product.
+                    const half vzb_c = (vs_key < k) ? (convert_half(V_zp[vs_co]) + (half)1152.0h) : (half)1152.0h;
                 #endif
 
                 #pragma unroll
@@ -514,23 +530,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             (global void *)V, VD_w, VD_h, VD_p,
                             (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
                         // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
-                        // Unpack each uint's 4 bytes as a signed char4; scale is folded into pA
-                        // above (score side), so only zp subtraction remains here — its per-key
-                        // value (key-specific, gathered via broadcast into a half4) is applied
-                        // with a single vector sub. as_char4(.s0)==byte0==key u*4+0, matching the
-                        // previous shift-and-mask order.
+                        // Bias-trick dequant (microbench-validated, mov -66% vs convert_half4):
+                        // extract each key byte with shift+mask (NO as_char4 -> no <4;1,0> :b
+                        // deinterleave), widen via the denormal-bias reinterpret (0x6480 ^ byte)
+                        // == signed_byte+1152 as half. scale is folded into pA above (score side),
+                        // so only the bias-folded zp subtraction (vzb=zp+1152) remains here.
                         #pragma unroll
                         for (int u = 0; u < 4; ++u) {
-                            const half4 raw4 = convert_half4(as_char4(vt[u]));
+                            const uint w = vt[u];
                             const int k0r = u * 4;
+                            const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
                             #if VAL_ZERO_POINTS
-                                const half4 zp4 = (half4)(sub_group_broadcast(vz_c, k0r + 0),
-                                                          sub_group_broadcast(vz_c, k0r + 1),
-                                                          sub_group_broadcast(vz_c, k0r + 2),
-                                                          sub_group_broadcast(vz_c, k0r + 3));
-                                const half4 deq4 = raw4 - zp4;
+                                const half4 zpb4 = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
+                                                           sub_group_broadcast(vzb_c, k0r + 1),
+                                                           sub_group_broadcast(vzb_c, k0r + 2),
+                                                           sub_group_broadcast(vzb_c, k0r + 3));
+                                const half4 deq4 = wide4 - zpb4;
                             #else
-                                const half4 deq4 = raw4;
+                                const half4 deq4 = wide4 - (half4)((half)1152.0h);
                             #endif
                             // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
                             // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
