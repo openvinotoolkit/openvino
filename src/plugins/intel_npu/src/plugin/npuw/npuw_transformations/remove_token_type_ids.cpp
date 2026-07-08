@@ -6,7 +6,6 @@
 
 #include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
-
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
@@ -24,7 +23,6 @@ namespace {
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
 
-
 class RemoveTTISubgraphs : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::RemoveTTISubgraphs");
@@ -32,14 +30,17 @@ public:
     // For Gemma3 generate model, we need to remove blockwise mask created from `token_type_ids` parameter
     // as well as second subgraph from `token_type_ids` parameter that is used to create a reshape for the final output.
     // As `token_type_ids` isn't used in the generate stage, it is safe to remove these subgraphs.
-    // This avoids accuracy issues due to incorrect interaction of created mask with static shapes and different paddings.
+    // This avoids accuracy issues due to incorrect interaction of created mask with static shapes and different
+    // paddings.
     RemoveTTISubgraphs() {
         auto token_type_ids = opp::wrap_type<ov::op::v0::Parameter>();
-        // The subgraph below is created from `token_type_ids` parameter and is used to create a mask for blockwise attention
-        // for image tokens.
+        // The subgraph below is created from `token_type_ids` parameter and is used to create a mask for blockwise
+        // attention for image tokens.
         auto subg1_equal = opp::wrap_type<ov::op::v1::Equal>({token_type_ids, opp::any_input()});
-        auto subg1_pad = opp::wrap_type<ov::op::v1::Pad, ov::op::v12::Pad>({subg1_equal, opp::any_input(), opp::any_input(), opp::any_input()});
-        auto subg1_slice = opp::wrap_type<ov::op::v8::Slice>({subg1_pad, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto subg1_pad = opp::wrap_type<ov::op::v1::Pad, ov::op::v12::Pad>(
+            {subg1_equal, opp::any_input(), opp::any_input(), opp::any_input()});
+        auto subg1_slice = opp::wrap_type<ov::op::v8::Slice>(
+            {subg1_pad, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
         auto subg1_bw_not = opp::wrap_type<ov::op::v13::BitwiseNot>({subg1_slice});
         auto subg1_bw_and = opp::wrap_type<ov::op::v13::BitwiseAnd>({subg1_equal, subg1_bw_not});
         auto subg1_convert = opp::wrap_type<ov::op::v0::Convert>({subg1_bw_and});
@@ -58,11 +59,12 @@ public:
         auto subg1_branch_select = opp::wrap_type<ov::op::v1::Select>({subg1_less, opp::any_input(), opp::any_input()});
         auto subg1_branch_equal = opp::wrap_type<ov::op::v1::Equal>({opp::any_input(), subg1_branch_select});
         // Vision block is the subgraph that will be passed to BitwiseOR with Causal mask or Causal Sliding mask futher.
-        auto subg1_branch_vision_block = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), subg1_branch_equal});
+        auto subg1_branch_vision_block =
+            opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), subg1_branch_equal});
 
-        // There is another subgraph from `token_type_ids` parameter that will be passed to BitwiseAND with the resulted mask
-        // from BitwiseOR(Causal mask, Vision block). This subgraph should be removed too to
-        // clean all dependencies from `token_type_ids` parameter.
+        // There is another subgraph from `token_type_ids` parameter that will be passed to BitwiseAND with the resulted
+        // mask from BitwiseOR(Causal mask, Vision block). This subgraph should be removed too to clean all dependencies
+        // from `token_type_ids` parameter.
         auto subg2_shape_of = opp::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({token_type_ids});
         auto subg2_gather = opp::wrap_type<ov::op::v8::Gather>({subg2_shape_of, opp::any_input(), opp::any_input()});
         auto subg2_less = opp::wrap_type<ov::op::v1::Less>({opp::any_input(), subg2_gather});
@@ -75,9 +77,12 @@ public:
         auto subg2_branch_reshape = opp::wrap_type<ov::op::v1::Reshape>({opp::any_input(), subg2_shape_of_2});
 
         // Merge point of the two subgraphs (also exists in two branches: for local and global attentions):
-        auto branch_causal_or_vision = opp::wrap_type<ov::op::v13::BitwiseOr>({opp::any_input(), subg1_branch_vision_block});
-        auto branch_true_and_result = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), branch_causal_or_vision});
-        auto branch_result_and_subg2 = opp::wrap_type<ov::op::v13::BitwiseAnd>({branch_true_and_result, subg2_branch_reshape});
+        auto branch_causal_or_vision =
+            opp::wrap_type<ov::op::v13::BitwiseOr>({opp::any_input(), subg1_branch_vision_block});
+        auto branch_true_and_result =
+            opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), branch_causal_or_vision});
+        auto branch_result_and_subg2 =
+            opp::wrap_type<ov::op::v13::BitwiseAnd>({branch_true_and_result, subg2_branch_reshape});
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
