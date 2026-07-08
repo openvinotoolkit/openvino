@@ -123,7 +123,8 @@ protected:
         if (inType == ov::element::f32)
             configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
 
-        assert(cu_seqlens.front() == 0);
+        ASSERT_FALSE(cu_seqlens.empty());
+        ASSERT_EQ(cu_seqlens.front(), 0);
         const auto cumsum = cu_seqlens.back();
         const auto L = static_cast<size_t>(cumsum);
         const auto H = static_cast<size_t>(num_head);
