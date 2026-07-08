@@ -222,8 +222,8 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
                         std::to_string(dump_index) + "_gpu_exec_graph.xml");
 
         ov::pass::Serialize(xml_path.string(), "").run_on_model(runtime_model);
-        std::cout << "[intel_gpu::Graph] exec graph dumped: " << xml_path.string() << "\n";
-        // exit(0);
+        GPU_DEBUG_COUT << "[intel_gpu::Graph] exec graph dumped: " << xml_path.string() << std::endl;
+        exit(0);
     }
 
     GPU_DEBUG_IF(!dump_graphs_path.empty() && m_stream_id == 0) {
