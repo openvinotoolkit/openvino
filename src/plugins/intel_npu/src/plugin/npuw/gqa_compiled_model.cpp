@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <utility>
 
 #include "intel_npu/config/npuw.hpp"
@@ -15,8 +16,16 @@
 #include "npuw_transformations/drop_zp_subtract.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 
 namespace {
 
@@ -30,47 +39,117 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
-ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
-    enum class GQAModelStage {
-        UNKNOWN,
-        PREFILL,
-        GENERATE,
-    };
+enum class GQAModelStage {
+    UNKNOWN,
+    PREFILL,
+    GENERATE,
+};
 
-    const auto detect_gqa_model_stage = [&]() {
-        // The activation tensor ("input_hidden_states") is what the embedding
-        // model stage feeds into the transformer.  For the generate (iter) model
-        // the seq dim is specialized to 1 via a free-dim override; for the
-        // prefill (ctx) model the seq dim is either >1 or left dynamic (the
-        // context length varies at runtime).  KV-cache slicing has no effect on
-        // this input at all.
-        for (const auto& parameter : model->get_parameters()) {
-            const auto& name = parameter->get_friendly_name();
-            if (name != "input_hidden_states" && name != "input_ids") {
-                continue;
-            }
+GQAModelStage detect_gqa_model_stage(const std::shared_ptr<ov::Model>& model) {
+    // The activation tensor ("input_hidden_states") is what the embedding
+    // model stage feeds into the transformer. For the generate (iter) model
+    // the seq dim is specialized to 1 via a free-dim override; for the
+    // prefill (ctx) model the seq dim is either >1 or left dynamic.
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name != "input_hidden_states" && name != "input_ids") {
+            continue;
+        }
 
-            const auto& partial_shape = parameter->get_partial_shape();
-            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
-                continue;
-            }
+        const auto& partial_shape = parameter->get_partial_shape();
+        if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
+            continue;
+        }
 
-            const auto& token_dim = partial_shape[1];
-
-            // Dynamic seq dim → prefill model with variable context length.
-            if (token_dim.is_dynamic()) {
-                return GQAModelStage::PREFILL;
-            }
-
-            const auto token_count = token_dim.get_length();
-            if (token_count == 1) {
-                return GQAModelStage::GENERATE;
-            }
+        const auto& token_dim = partial_shape[1];
+        if (token_dim.is_dynamic()) {
             return GQAModelStage::PREFILL;
         }
-        return GQAModelStage::UNKNOWN;
-    };
 
+        return token_dim.get_length() == 1 ? GQAModelStage::GENERATE : GQAModelStage::PREFILL;
+    }
+
+    return GQAModelStage::UNKNOWN;
+}
+
+std::string find_seqlens_k_name(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(op);
+        if (!gqa || gqa->get_input_size() <= 5) {
+            continue;
+        }
+
+        auto param = ov::as_type_ptr<ov::op::v0::Parameter>(gqa->input_value(5).get_node_shared_ptr());
+        if (param) {
+            return param->get_friendly_name();
+        }
+        break;
+    }
+
+    return {};
+}
+
+void apply_gqa_decomposition(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::pass::GroupQueryAttentionDecomposition>();
+    rewrite.run_on_model(model);
+}
+
+struct SlicedKVInfo {
+    std::vector<size_t> output_indices;
+    std::vector<size_t> max_seqs;
+    std::vector<bool> transposed;
+};
+
+SlicedKVInfo redirect_sliced_kv_results(const std::shared_ptr<ov::Model>& inner_model,
+                                        const std::shared_ptr<ov::Model>& outer_model) {
+    SlicedKVInfo info;
+
+    const auto& results = inner_model->get_results();
+    for (size_t i = 0; i < results.size(); ++i) {
+        auto direct_src = results[i]->input_value(0).get_node_shared_ptr();
+        auto scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(direct_src);
+        bool transposed = false;
+        if (!scatter) {
+            auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
+            if (trans) {
+                scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(trans->input_value(0).get_node_shared_ptr());
+                if (scatter) {
+                    transposed = true;
+                }
+            }
+        }
+
+        if (!scatter) {
+            continue;
+        }
+
+        if (transposed) {
+            auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
+            trans->input(0).replace_source_output(scatter->input_value(2));
+        } else {
+            results[i]->input(0).replace_source_output(scatter->input_value(2));
+        }
+
+        info.output_indices.push_back(i);
+        info.transposed.push_back(transposed);
+    }
+
+    if (!info.output_indices.empty()) {
+        inner_model->validate_nodes_and_infer_types();
+    }
+
+    const auto& outer_results = outer_model->get_results();
+    for (size_t i = 0; i < info.output_indices.size(); ++i) {
+        const auto& ps = outer_results[info.output_indices[i]]->input_value(0).get_partial_shape();
+        const size_t seq_dim = info.transposed[i] ? 3 : 2;
+        info.max_seqs.push_back(ps[seq_dim].get_length());
+    }
+
+    return info;
+}
+
+ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
     ov::AnyMap config = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
@@ -78,15 +157,28 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
     };
 
-    const auto stage = detect_gqa_model_stage();
+    const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
+    const bool gqa_managed = properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>();
+    LOG_INFO("GQACompiledModel: gqa_managed=" << gqa_managed << " (key_present=" << properties.count(gqa_managed_key)
+                                              << ")");
+
+    const auto stage = detect_gqa_model_stage(model);
     if (stage == GQAModelStage::PREFILL) {
-        merge_config_with(config,
-                          {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
-                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                           {"NPUW_ATTN", "STATIC"},
-                           {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
-        LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
+        if (gqa_managed) {
+            // GQA decomposition uses ScatterUpdate in the KV path — the standard ATTN isolation
+            // pattern (which expects Concat) will not match.  Apply FOLD without ATTN isolation
+            // and let FOLD find the repeating [ffn+attn] blocks directly.
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"}});
+            LOG_INFO("Detected prefill-style GQA model (managed); applying FOLD without ATTN isolation");
+        } else {
+            merge_config_with(config,
+                              {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                               {"NPUW_FOLD_ONLY", "attn"},
+                               {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                               {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"},  // Avoid applying attention policies here
+                               {"NPUW_ATTN", "STATIC"}});
+            LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
+        }
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
@@ -98,13 +190,91 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
         LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
+    // NPUW_GQA_MANAGED is consumed here at the GQA wrapper level.  It must NOT
+    // propagate into the inner NPUW CompiledModel's config, because the inner model
+    // does not know this property and having it present in m_cfg corrupts inference.
+    config.erase(std::string(::intel_npu::NPUW_GQA_MANAGED::key()));
     return config;
 }
 
 }  // namespace
 
+// Build a minimal stub model that advertises the right input/output shapes for
+// the user-facing (outer) GQA interface.  KV outputs have max_seq in the sequence
+// dimension (dim[2] for K, dim[3] for transposed V); everything else matches the
+// inner compiled model exactly.
+// Used when reconstructing a GQACompiledModel from an imported blob.
+//
+// NOTE: stub Parameters (one per output) are added to the model's ParameterVector
+// AFTER the real input parameters to satisfy ov::Model::check_all_parameters_registered.
+// They are hidden from the user-facing interface by GQACompiledModel::inputs().
+static std::shared_ptr<ov::Model> build_stub_outer_model(const std::shared_ptr<ov::npuw::ICompiledModel>& inner_cm,
+                                                         const std::vector<size_t>& kv_indices,
+                                                         const std::vector<size_t>& kv_max_seqs,
+                                                         const std::vector<bool>& kv_transposed) {
+    ov::ParameterVector input_params;
+    for (const auto& inp : inner_cm->inputs()) {
+        auto p = std::make_shared<ov::op::v0::Parameter>(inp.get_element_type(), inp.get_partial_shape());
+        p->set_friendly_name(inp.get_node()->get_friendly_name());
+        // OVEP matches inputs by tensor name, not friendly name.
+        // ICompiledModel doesn't populate tensor names, so use friendly name as tensor name.
+        const auto& tnames = inp.get_tensor().get_names();
+        if (!tnames.empty())
+            p->get_output_tensor(0).set_names(tnames);
+        else
+            p->get_output_tensor(0).set_names({inp.get_node()->get_friendly_name()});
+        input_params.push_back(p);
+    }
+
+    ov::ParameterVector stub_params;
+    ov::ResultVector results;
+    size_t kv_i = 0;
+    for (size_t i = 0; i < inner_cm->outputs().size(); ++i) {
+        const auto& out = inner_cm->outputs()[i];
+        bool is_kv = std::find(kv_indices.begin(), kv_indices.end(), i) != kv_indices.end();
+        ov::PartialShape shape = out.get_partial_shape();
+        if (is_kv && kv_i < kv_max_seqs.size()) {
+            if (kv_i < kv_transposed.size() && kv_transposed[kv_i]) {
+                // Transposed V: the Transpose is preserved in the inner model, so the inner
+                // output is already in transposed layout [1, kv_heads, head_size, curr_seq].
+                // The outer (user-facing) shape must be [1, kv_heads, head_size, max_seq].
+                ov::Dimension kv_heads = shape[1];
+                ov::Dimension head_size = shape[2];  // dim[2]=head_size, dim[3]=curr_seq
+                shape = ov::PartialShape{shape[0], kv_heads, head_size, ov::Dimension(kv_max_seqs[kv_i])};
+            } else {
+                // Standard K/V: inner shape [1, kv_heads, curr_seq, head_size],
+                // outer shape [1, kv_heads, max_seq, head_size].
+                shape[2] = kv_max_seqs[kv_i];
+            }
+            ++kv_i;
+        }
+        // Stub parameter feeds this result; it is NOT a real model input but must be
+        // registered in the model's ParameterVector to pass check_all_parameters_registered.
+        auto stub = std::make_shared<ov::op::v0::Parameter>(out.get_element_type(), shape);
+        stub->set_friendly_name("__gqa_out_stub_" + std::to_string(i));
+        stub_params.push_back(stub);
+        auto r = std::make_shared<ov::op::v0::Result>(stub);
+        r->set_friendly_name(out.get_node()->get_friendly_name());
+        // Set tensor name on the stub's output so OVEP can match outputs by name.
+        const auto& otnames = out.get_tensor().get_names();
+        if (!otnames.empty())
+            stub->get_output_tensor(0).set_names(otnames);
+        else
+            stub->get_output_tensor(0).set_names({out.get_node()->get_friendly_name()});
+        results.push_back(r);
+    }
+
+    // All params = real inputs first, then stubs.  Stubs are appended so that
+    // GQACompiledModel::inputs() can trivially slice them off by knowing real_input_count.
+    ov::ParameterVector all_params = input_params;
+    all_params.insert(all_params.end(), stub_params.begin(), stub_params.end());
+    return std::make_shared<ov::Model>(results, all_params, "gqa_managed_outer");
+}
+
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
+    const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
+    const bool gqa_managed = properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>();
     auto prepared_properties = with_gqa_defaults(model, properties);
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
@@ -124,7 +294,45 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         ov::npuw::CollapseUNQDQ collapse_unqdq;
         collapse_unqdq.run_on_model(model);
     }
-    return {model, std::move(prepared_properties)};
+    // Apply the managed GQA path when requested. The inner model must always see
+    // the decomposed GQA form; the sliced-wrapper decision is made only after
+    // decomposition by inspecting the rewritten result paths.
+    if (gqa_managed) {
+        const std::string seqlens_k_name = find_seqlens_k_name(model);
+        if (seqlens_k_name.empty()) {
+            LOG_INFO("NPUW_GQA_MANAGED: seqlens_k not found in any GQA op input 5; integer parameters:");
+            for (const auto& p : model->get_parameters()) {
+                const auto& et = p->get_element_type();
+                if (et == ov::element::i32 || et == ov::element::i64)
+                    LOG_INFO("  " << p->get_friendly_name() << " " << et << " " << p->get_partial_shape());
+            }
+            return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
+        }
+        LOG_INFO("NPUW_GQA_MANAGED: detected seqlens_k parameter '" << seqlens_k_name << "'");
+
+        LOG_INFO("NPUW_GQA_MANAGED: applying GroupQueryAttentionDecomposition");
+        apply_gqa_decomposition(model);
+
+        // Clone the decomposed model to preserve full-shape KV outputs for the outer interface.
+        auto outer_model = model->clone();
+        const auto sliced_kv = redirect_sliced_kv_results(model, outer_model);
+        const bool can_slice = !sliced_kv.output_indices.empty();
+        LOG_INFO("NPUW_GQA_MANAGED: redirected "
+                 << sliced_kv.output_indices.size() << " KV output(s)"
+                 << (can_slice ? "; infer request will scatter current slices into user KV tensors"
+                               : "; falling back to the decomposed model as-is"));
+
+        auto inner = can_slice ? model : nullptr;
+        return {std::move(outer_model),
+                std::move(inner),
+                std::move(prepared_properties),
+                can_slice,
+                std::move(seqlens_k_name),
+                std::move(sliced_kv.output_indices),
+                std::move(sliced_kv.max_seqs),
+                std::move(sliced_kv.transposed)};
+    }
+    return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compiled_model(
@@ -144,8 +352,22 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              CompiledModelFactory factory)
     : ov::npuw::ICompiledModel(prepared.model, plugin),
-      m_compiled_model(factory(prepared.model, plugin, prepared.properties)) {
+      m_compiled_model(
+          factory(prepared.inner_model ? prepared.inner_model : prepared.model, plugin, prepared.properties)),
+      m_sliced(prepared.sliced),
+      m_seqlens_k_name(std::move(prepared.seqlens_k_name)),
+      m_sliced_output_indices(std::move(prepared.sliced_output_indices)),
+      m_sliced_max_seqs(std::move(prepared.sliced_max_seqs)),
+      m_sliced_transposed(std::move(prepared.sliced_transposed)) {
     OPENVINO_ASSERT(m_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
+    // When the stub outer model has extra (stub) Parameters appended after the real inputs,
+    // build m_outer_inputs so that inputs() hides them from the user-facing interface.
+    if (prepared.real_input_count > 0) {
+        const auto& all_inputs = ICompiledModel::inputs();
+        OPENVINO_ASSERT(prepared.real_input_count <= all_inputs.size(),
+                        "real_input_count exceeds total inputs in stub outer model");
+        m_outer_inputs.assign(all_inputs.begin(), all_inputs.begin() + prepared.real_input_count);
+    }
 }
 
 void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
@@ -156,6 +378,18 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
     write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    // Sliced-wrapper metadata — must be read back in import_model before the inner blob.
+    write(stream, m_sliced);
+    if (m_sliced) {
+        write(stream, m_seqlens_k_name);
+        write(stream, m_sliced_output_indices.size());
+        for (size_t i = 0; i < m_sliced_output_indices.size(); ++i) {
+            write(stream, m_sliced_output_indices[i]);
+            write(stream, m_sliced_max_seqs[i]);
+            bool transposed = (i < m_sliced_transposed.size()) && m_sliced_transposed[i];
+            write(stream, transposed);
+        }
+    }
     m_compiled_model->export_model(stream);
 }
 
@@ -203,14 +437,80 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                        NPUW_SERIALIZATION_VERSION);
     }
 
-    // The rest of the stream is the inner CompiledModel ORC blob.
-    // After import it is fully self-contained; no outer GQA wrapper is needed
-    // because the partitioning is already baked in and port mappings are consistent.
-    return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+    // Read sliced-wrapper metadata (written by export_model before the inner blob).
+    bool sliced = false;
+    read(stream, sliced);
+
+    std::string seqlens_k_name;
+    std::vector<size_t> kv_indices;
+    std::vector<size_t> kv_max_seqs;
+    std::vector<bool> kv_transposed;
+    if (sliced) {
+        read(stream, seqlens_k_name);
+        size_t count = 0;
+        read(stream, count);
+        kv_indices.reserve(count);
+        kv_max_seqs.reserve(count);
+        kv_transposed.reserve(count);
+        for (size_t i = 0; i < count; ++i) {
+            size_t idx = 0, max_seq = 0;
+            bool trans = false;
+            read(stream, idx);
+            read(stream, max_seq);
+            read(stream, trans);
+            kv_indices.push_back(idx);
+            kv_max_seqs.push_back(max_seq);
+            kv_transposed.push_back(trans);
+        }
+    }
+
+    // Load the inner compiled model blob.
+    auto inner_cm = ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+
+    if (!sliced) {
+        // No KV management: the inner model IS the full model, return as-is.
+        return inner_cm;
+    }
+
+    LOG_INFO("Reconstructing GQACompiledModel sliced wrapper (" << kv_indices.size() << " KV outputs, seqlens_k='"
+                                                                << seqlens_k_name << "')");
+
+    // Build a stub outer model that exposes the user-facing shapes (KV outputs with max_seq).
+    auto outer_model = build_stub_outer_model(inner_cm, kv_indices, kv_max_seqs, kv_transposed);
+
+    // The factory ignores its model argument and returns the already-loaded inner compiled model.
+    CompiledModelFactory factory = [inner_cm](const std::shared_ptr<ov::Model>&,
+                                              const std::shared_ptr<const ov::IPlugin>&,
+                                              const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return inner_cm;
+    };
+
+    PreparedState ps;
+    ps.model = outer_model;
+    ps.inner_model = nullptr;  // unused: factory ignores model argument
+    ps.properties = properties;
+    ps.sliced = true;
+    ps.seqlens_k_name = std::move(seqlens_k_name);
+    ps.sliced_output_indices = std::move(kv_indices);
+    ps.sliced_max_seqs = std::move(kv_max_seqs);
+    ps.sliced_transposed = std::move(kv_transposed);
+    // Tell the constructor how many leading Parameters in the stub model are REAL inputs.
+    // The remainder are stub Parameters for outputs (appended by build_stub_outer_model).
+    ps.real_input_count = inner_cm->inputs().size();
+    return std::shared_ptr<GQACompiledModel>(new GQACompiledModel(std::move(ps), plugin, std::move(factory)));
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {
     return m_compiled_model->get_runtime_model();
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::npuw::GQACompiledModel::inputs() const {
+    // When the stub outer model was built with extra stub Parameters (import_model path),
+    // m_outer_inputs holds only the REAL model inputs.  Return it instead of the base-class
+    // m_inputs which would include the stub Parameters as spurious extra inputs.
+    if (!m_outer_inputs.empty())
+        return m_outer_inputs;
+    return ICompiledModel::inputs();
 }
 
 void ov::npuw::GQACompiledModel::set_property(const ov::AnyMap& properties) {
@@ -223,6 +523,9 @@ ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::GQACompiledModel::create_sync_infer_request() const {
     auto self = std::static_pointer_cast<const GQACompiledModel>(shared_from_this());
+    if (m_sliced) {
+        return std::make_shared<ov::npuw::ManagedGQAInferRequest>(std::move(self));
+    }
     return std::make_shared<ov::npuw::GQAInferRequest>(std::move(self));
 }
 
@@ -278,6 +581,142 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                                            const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
+    m_inner_request->set_tensor(map_port_locked(port), tensor);
+}
+
+ov::npuw::ManagedGQAInferRequest::ManagedGQAInferRequest(std::shared_ptr<const GQACompiledModel> compiled_model)
+    : GQAInferRequest(std::move(compiled_model)) {}
+
+bool ov::npuw::ManagedGQAInferRequest::is_kv_output_locked(size_t idx) const {
+    const auto& kv = m_compiled_model->m_sliced_output_indices;
+    return std::find(kv.begin(), kv.end(), idx) != kv.end();
+}
+
+int64_t ov::npuw::ManagedGQAInferRequest::read_seqlens_k_locked() const {
+    const auto& inner_inputs = m_inner_request->get_compiled_model()->inputs();
+    size_t sk_idx = SIZE_MAX;
+    for (size_t i = 0; i < inner_inputs.size(); ++i) {
+        if (inner_inputs[i].get_node()->get_friendly_name() == m_compiled_model->m_seqlens_k_name) {
+            sk_idx = i;
+            break;
+        }
+    }
+    OPENVINO_ASSERT(sk_idx != SIZE_MAX,
+                    "seqlens_k port '",
+                    m_compiled_model->m_seqlens_k_name,
+                    "' not found in inner compiled model");
+    auto sk = m_inner_request->get_tensor(inner_inputs[sk_idx]);
+    if (sk->get_element_type() == ov::element::i32)
+        return static_cast<int64_t>(*reinterpret_cast<const int32_t*>(sk->data()));
+    return *reinterpret_cast<const int64_t*>(sk->data());
+}
+
+void ov::npuw::ManagedGQAInferRequest::scatter_kv_outputs_locked(int64_t seqlens_k_val) const {
+    for (size_t ki = 0; ki < m_compiled_model->m_sliced_output_indices.size(); ++ki) {
+        const size_t kv_idx = m_compiled_model->m_sliced_output_indices[ki];
+        auto user_it = m_user_kv_tensors.find(kv_idx);
+        auto work_it = m_kv_working_tensors.find(kv_idx);
+        if (user_it == m_user_kv_tensors.end() || work_it == m_kv_working_tensors.end()) {
+            LOG_INFO("NPUW_GQA_MANAGED: scatter SKIP ki=" << ki << " kv_idx=" << kv_idx
+                                                          << " user_found=" << (user_it != m_user_kv_tensors.end())
+                                                          << " work_found=" << (work_it != m_kv_working_tensors.end()));
+            continue;
+        }
+
+        const auto& inner_t = work_it->second;
+        const auto& user_t = user_it->second;
+        const auto inner_shape = inner_t->get_shape();
+        const size_t kv_heads = inner_shape[1];
+        const size_t esz = inner_t->get_element_type().size();
+
+        const char* src = reinterpret_cast<const char*>(inner_t->data());
+        char* dst = reinterpret_cast<char*>(user_t->data());
+
+        const bool transposed =
+            (ki < m_compiled_model->m_sliced_transposed.size()) && m_compiled_model->m_sliced_transposed[ki];
+        const size_t curr_seq = transposed ? inner_shape[3] : inner_shape[2];
+        OPENVINO_ASSERT(seqlens_k_val >= static_cast<int64_t>(curr_seq) - 1,
+                        "Invalid seqlens_k=",
+                        seqlens_k_val,
+                        " for curr_seq=",
+                        curr_seq,
+                        " on KV output ",
+                        kv_idx);
+        const size_t past = static_cast<size_t>(seqlens_k_val - static_cast<int64_t>(curr_seq) + 1);
+        if (!transposed) {
+            const size_t head_size = inner_shape[3];
+            const size_t max_seq = user_t->get_shape()[2];
+            for (size_t h = 0; h < kv_heads; ++h) {
+                std::memcpy(dst + (h * max_seq + past) * head_size * esz,
+                            src + h * curr_seq * head_size * esz,
+                            curr_seq * head_size * esz);
+            }
+            continue;
+        }
+
+        const size_t head_size = inner_shape[2];
+        const size_t max_seq = user_t->get_shape()[3];
+        for (size_t h = 0; h < kv_heads; ++h) {
+            for (size_t d = 0; d < head_size; ++d) {
+                std::memcpy(dst + ((h * head_size + d) * max_seq + past) * esz,
+                            src + (h * head_size + d) * curr_seq * esz,
+                            curr_seq * esz);
+            }
+        }
+    }
+}
+
+void ov::npuw::ManagedGQAInferRequest::infer() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+
+    const int64_t seqlens_k_val = read_seqlens_k_locked();
+    m_inner_request->infer();
+    scatter_kv_outputs_locked(seqlens_k_val);
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::ManagedGQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+
+    const auto& outer_outputs = m_compiled_model->outputs();
+    for (size_t i = 0; i < outer_outputs.size(); ++i) {
+        if (outer_outputs[i] != port || !is_kv_output_locked(i))
+            continue;
+        auto it = m_user_kv_tensors.find(i);
+        if (it != m_user_kv_tensors.end())
+            return it->second;
+        auto t = ov::make_tensor(outer_outputs[i].get_element_type(), outer_outputs[i].get_partial_shape().to_shape());
+        m_user_kv_tensors[i] = t;
+        return t;
+    }
+
+    return m_inner_request->get_tensor(map_port_locked(port));
+}
+
+void ov::npuw::ManagedGQAInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                                  const ov::SoPtr<ov::ITensor>& tensor) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
+
+    const auto& outer_outputs = m_compiled_model->outputs();
+    const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
+    for (size_t i = 0; i < outer_outputs.size(); ++i) {
+        if (outer_outputs[i] == port && is_kv_output_locked(i)) {
+            m_user_kv_tensors[i] = tensor;
+            if (i < inner_outputs.size()) {
+                auto& wt = m_kv_working_tensors[i];
+                const auto& inner_port = inner_outputs[i];
+                const auto needed_shape = inner_port.get_partial_shape().to_shape();
+                if (!wt || wt->get_shape() != needed_shape) {
+                    wt = ov::make_tensor(inner_port.get_element_type(), needed_shape);
+                }
+                m_inner_request->set_tensor(inner_outputs[i], wt);
+            }
+            return;
+        }
+    }
+
     m_inner_request->set_tensor(map_port_locked(port), tensor);
 }
 
