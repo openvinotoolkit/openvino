@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_max_suppression.hpp"
