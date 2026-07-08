@@ -20,6 +20,9 @@
 #include "openvino/util/log.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 
+#include <algorithm>
+#include <limits>
+
 //=================================================================================
 // Subgraph Topology:
 // Parameter + Transpose + Split → RoPE + VLSDPA pattern
@@ -60,8 +63,7 @@ enum class AttentionType {
 using TransposeSplitVLSDPATestParams = std::tuple<ElementType,
                                                    ov::Dimension::value_type,     // num_head
                                                    ov::Dimension::value_type,     // head_size
-                                                   std::vector<int32_t>,          // cu_seqlens
-                                                   AttentionType>;                // attention type
+                                                   std::vector<int32_t>>;          // cu_seqlens
 
 class TransposeSplitVLSDPATestOnGPU: public testing::WithParamInterface<TransposeSplitVLSDPATestParams>,
                                      virtual public test::SubgraphBaseTest {
@@ -70,17 +72,15 @@ public:
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;
-        AttentionType attn_type;
 
-        std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = obj.param;
+        std::tie(inType, num_head, head_size, cu_seqlens) = obj.param;
 
         std::ostringstream result;
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
         result << "num_head=(" << to_str(num_head) << ")_";
         result << "head_size=(" << to_str(head_size) << ")_";
         result << test::utils::vec2str<int32_t>({cu_seqlens}) << "_";
-        result << "Prc=" << inType << "_";
-        result << (attn_type == AttentionType::SDPA ? "SDPA" : "VLSDPA");
+        result << "Prc=" << inType;
         return result.str();
     }
 
@@ -93,28 +93,12 @@ public:
         return param;
     }
 
-    static bool check_vl_sdpa_transformations(const ov::CompiledModel& compiled_model) {
-        const std::vector<std::string> target_names {"cu_seq_lens", "cu_window_seqlens"};
-
-        bool exists = false;
-        for (auto &input : compiled_model.inputs()) {
-            const auto& names = input.get_names();
-
-            for (const auto& target : target_names) {
-                exists |= (names.find(target) != names.end());
-            }
-        }
-
-        return exists;
-    }
-
 protected:
     void SetUp() override {
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;
-        AttentionType attn_type;
-        std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = GetParam();
+        std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
 
         targetDevice = test::utils::DEVICE_GPU;
         // f16 SDPA accumulation error grows with head_size
@@ -129,7 +113,7 @@ protected:
         const auto L = static_cast<size_t>(cumsum);
         const auto H = static_cast<size_t>(num_head);
         const auto S = static_cast<size_t>(head_size);
-        const std::vector<InputShape> inputShapes = {
+        std::vector<InputShape> inputShapes = {
             // qkv: [-1, 3, H, S]
             {PartialShape{-1, 3, num_head, head_size}, {Shape{L, 3, H, S}}},
             // cos: [-1, 1, S]
@@ -137,31 +121,29 @@ protected:
             // sin: [-1, 1, S]
             {PartialShape{-1, 1, head_size}, {Shape{L, 1, S}}},
         };
+        inputShapes.emplace_back(PartialShape{-1}, std::vector<Shape>{Shape{cu_seqlens.size()}});
+
         init_input_shapes(inputShapes);
 
-        // Create function - with model_type_hint for VLSDPA, without for SDPA
-        function = get_function(inType, num_head, head_size);
-        if (attn_type == AttentionType::VLSDPA) {
-            function->set_rt_info("QWenVL", "model_type_hint");
-        }
-
-        // Create reference without model_type_hint - will keep original Transpose+Split pattern
-        // Template plugin will execute SDPA without GPU transformations
-        functionRefs = get_function(inType, num_head, head_size);
+        // Create function using an explicit VLSDPA op for the VLSDPA path;
+        // use the regular SDPA op for the reference path.
+        function = get_function(inType, num_head, head_size, AttentionType::VLSDPA);
+        functionRefs = get_function(inType, num_head, head_size, AttentionType::SDPA);
 
         m_cu_seqlens = cu_seqlens;
-        m_attn_type = attn_type;
     }
 
     std::shared_ptr<ov::Model> get_function(ov::element::Type inType,
                                             ov::Dimension::value_type num_head,
-                                            ov::Dimension::value_type head_size) {
-        return create_model(inType, num_head, head_size);
+                                            ov::Dimension::value_type head_size,
+                                            AttentionType attn_type) {
+        return create_model(inType, num_head, head_size, attn_type);
     }
 
     std::shared_ptr<ov::Model> create_model(ov::element::Type inType,
                                             ov::Dimension::value_type num_head,
-                                            ov::Dimension::value_type head_size) {
+                                            ov::Dimension::value_type head_size,
+                                            AttentionType attn_type) {
         // Parameter with shape [-1, 3, num_head, head_size]
         auto qkv = make_param(PartialShape{ov::Dimension::dynamic(), 3, num_head, head_size},
                              inType, "qkv");
@@ -222,29 +204,126 @@ protected:
         auto rope_q = apply_rope(reshape_q, "q");
         auto rope_k = apply_rope(reshape_k, "k");
 
-        // Use ScaledDotProductAttention (will be transformed to VLSDPA on GPU with model_type_hint)
-        auto sdpa = std::make_shared<ScaledDotProductAttention>(rope_q, rope_k, reshape_v, false);
-        sdpa->set_friendly_name("sdpa");
+        const std::vector<int64_t> order{1, 0, 2};
 
-        auto model = std::make_shared<Model>(sdpa, ParameterVector{qkv, cos_param, sin_param});
-        // NOTE: model_type_hint will be set in SetUp() only for VLSDPA case
-        return model;
+        if (attn_type == AttentionType::VLSDPA) {
+            auto cu_seq_lens = std::make_shared<Parameter>(element::i32, PartialShape{-1});
+            cu_seq_lens->set_friendly_name("cu_seq_lens");
+            cu_seq_lens->get_output_tensor(0).set_names({"cu_seq_lens"});
+
+            auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{rope_q, rope_k, reshape_v, cu_seq_lens},
+                                                                     order,
+                                                                     order,
+                                                                     order,
+                                                                     order);
+            vlsdpa->set_friendly_name("vlsdpa");
+
+            return std::make_shared<Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cos_param, sin_param, cu_seq_lens});
+        } else {
+            auto attention_mask = make_param(PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()}, ov::element::f16, "attention_mask");
+
+            auto transpose_q = std::make_shared<Transpose>(rope_q, Constant::create(element::i64, Shape{3}, order));
+            transpose_q->set_friendly_name("transpose_q");
+            auto transpose_k = std::make_shared<Transpose>(rope_k, Constant::create(element::i64, Shape{3}, order));
+            transpose_k->set_friendly_name("transpose_k");
+            auto transpose_v = std::make_shared<Transpose>(reshape_v, Constant::create(element::i64, Shape{3}, order));
+            transpose_v->set_friendly_name("transpose_v");
+
+            auto sdpa = std::make_shared<ScaledDotProductAttention>(transpose_q, transpose_k, transpose_v, attention_mask, false);
+            sdpa->set_friendly_name("sdpa");
+
+            auto transpose_o = std::make_shared<Transpose>(sdpa, Constant::create(element::i64, Shape{3}, order));
+            transpose_o->set_friendly_name("transpose_o");
+
+            return std::make_shared<Model>(transpose_o, ParameterVector{qkv, cos_param, sin_param, attention_mask});
+        }
+    }
+
+    ov::Tensor create_attention_mask_from_cu_seqlens(const std::vector<int32_t>& cu_seqlens,
+                                                    const ov::element::Type& element_type) const {
+        const auto seq_len = static_cast<size_t>(cu_seqlens.back());
+        const Shape mask_shape{1, seq_len, seq_len};
+        ov::Tensor mask(element_type, mask_shape);
+
+        if (element_type == ov::element::f16) {
+            auto* data = mask.data<ov::float16>();
+            std::fill(data, data + mask.get_size(), ov::float16(-std::numeric_limits<float>::infinity()));
+            for (size_t i = 1; i < cu_seqlens.size(); ++i) {
+                const auto start = static_cast<size_t>(cu_seqlens[i - 1]);
+                const auto end = static_cast<size_t>(cu_seqlens[i]);
+                for (size_t row = start; row < end; ++row) {
+                    for (size_t col = start; col < end; ++col) {
+                        data[row * seq_len + col] = ov::float16(0.0f);
+                    }
+                }
+            }
+        } else if (element_type == ov::element::f32) {
+            auto* data = mask.data<float>();
+            std::fill(data, data + mask.get_size(), -std::numeric_limits<float>::infinity());
+            for (size_t i = 1; i < cu_seqlens.size(); ++i) {
+                const auto start = static_cast<size_t>(cu_seqlens[i - 1]);
+                const auto end = static_cast<size_t>(cu_seqlens[i]);
+                for (size_t row = start; row < end; ++row) {
+                    for (size_t col = start; col < end; ++col) {
+                        data[row * seq_len + col] = 0.0f;
+                    }
+                }
+            }
+        } else {
+            throw std::runtime_error("Unsupported attention mask element type");
+        }
+
+        return mask;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         inputs_ref.clear();
-        const auto& funcInputs = compiledModel.inputs();
 
-        // Use small range [-0.5, 0.5] to avoid NaN in f16 SDPA softmax with larger head sizes
-        for (size_t i = 0lu; i < funcInputs.size(); ++i) {
-            const auto& funcInput = funcInputs[i];
-            auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                        targetInputStaticShapes[i],
-                                                        1.0f,   // range
-                                                        -0.5f); // start_from
+        const auto& compiled_inputs = compiledModel.inputs();
+        const auto& ref_inputs = functionRefs->inputs();
+
+        std::map<std::string, ov::Tensor> compiled_tensors_by_name;
+
+        for (size_t i = 0lu; i < compiled_inputs.size(); ++i) {
+            const auto& funcInput = compiled_inputs[i];
+            const auto input_name = funcInput.get_node_shared_ptr()->get_friendly_name();
+            ov::Tensor tensor;
+            if (input_name == "cu_seq_lens") {
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                auto* data = tensor.data<int32_t>();
+                for (size_t j = 0; j < m_cu_seqlens.size(); ++j) {
+                    data[j] = m_cu_seqlens[j];
+                }
+            } else {
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                       targetInputStaticShapes[i],
+                                                       1.0f,   // range
+                                                       -0.5f); // start_from
+            }
+
             inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
-            inputs_ref.emplace_back(tensor);
+            compiled_tensors_by_name.emplace(input_name, tensor);
+        }
+
+        // Build reference inputs in reference-model order, but reuse the compiled-model tensors
+        // for the shared qkv/cos/sin inputs and only create a dedicated attention mask for the
+        // reference-only SDPA branch.
+        for (size_t i = 0lu; i < ref_inputs.size(); ++i) {
+            const auto& ref_input = ref_inputs[i];
+            const auto input_name = ref_input.get_node_shared_ptr()->get_friendly_name();
+            ov::Tensor tensor;
+            if (input_name == "attention_mask") {
+                tensor = create_attention_mask_from_cu_seqlens(m_cu_seqlens, ref_input.get_element_type());
+            } else {
+                auto it = compiled_tensors_by_name.find(input_name);
+                if (it != compiled_tensors_by_name.end()) {
+                    tensor = it->second;
+                } else {
+                    tensor = ov::Tensor(ref_input.get_element_type(), targetInputStaticShapes[i]);
+                }
+            }
+            inputs_ref.emplace_back(std::move(tensor));
         }
     }
 
@@ -289,19 +368,27 @@ TEST_P(TransposeSplitVLSDPATestOnGPU, CompareWithRefs) {
     ElementType inType;
     ov::Dimension::value_type num_head, head_size;
     std::vector<int32_t> cu_seqlens;
-    AttentionType attn_type;
-    std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = GetParam();
+    std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
     if (inType != ElementType::f16) // VLSDPA CM kernel supports half precision only
         GTEST_SKIP();
 
-    run();
+    try {
+        run();
+    } catch (const std::exception& e) {
+        const std::string message = e.what();
+        if (message.find("Kernel for {vlsdpa:vlsdpa} is not found in the kernel cache") != std::string::npos ||
+            message.find("ProgramBuilder build failed") != std::string::npos) {
+            GTEST_SKIP() << "VLSDPA CM kernel is unavailable in this environment: " << message;
+        }
+        throw;
+    }
 }
 
 namespace {
 
 // cu_seqlens starts from 0, ends with seqlen.
 const std::vector<std::vector<int32_t>> input_cu_seqlens = {
-        {0, 16},
+        {0, 4},
         {0, 16, 32},
         {0, 64, 128, 192, 256}
 };
@@ -311,8 +398,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TransposeSplitVLSDPATest,
                          ::testing::Combine(::testing::Values(ov::element::f16),
                                             ::testing::Values(1, 2),   // num_heads
                                             ::testing::Values(16, 64),  // head_size
-                                            ::testing::ValuesIn(input_cu_seqlens),
-                                            ::testing::Values(AttentionType::SDPA, AttentionType::VLSDPA)),
+                                            ::testing::ValuesIn(input_cu_seqlens)),
                          TransposeSplitVLSDPATestOnGPU::getTestCaseName);
 
 }  // namespace

@@ -1956,7 +1956,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                     //
                     // For out2 (→ Reshape → vl_sdpa): is_runtime_propagatable_padding() is also true
                     // for the axis=1/size-1 pattern (see reshape_inst.h).  The CM kernel reads the
-                    // dynamic padding offset via dedicated token_offset_q/token_offset_kv scalars
+                    // dynamic padding offset via dedicated token_offset_q/token_offset_k/token_offset_v scalars
                     // (see vl_sdpa_opt.cpp), so it does NOT need shape_info — the offset is applied
                     // directly to the SVM pointer before dispatch.
                     //

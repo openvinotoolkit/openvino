@@ -2435,4 +2435,26 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consume
         << "reshape1 (K→RoPE) must be runtime-propagatable";
     ASSERT_TRUE(prog->get_node("reshape2").as<reshape>().is_runtime_propagatable_padding())
         << "reshape2 (V→vl_sdpa) must be runtime-propagatable after guard relaxation";
+
+    // Runtime verification: build and execute with optimizations enabled, then
+    // ensure crops are still in-place and V can preserve a different token pitch.
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    net.set_input_data("cu_seqlens", cu_seqlens_mem);
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("output").get_memory();
+    ASSERT_NE(out_mem, nullptr);
+
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+
+    const auto q_layout = net.get_primitive("eltwise0")->get_output_layout();
+    const auto k_layout = net.get_primitive("eltwise1")->get_output_layout();
+    const auto v_layout = net.get_primitive("reshape2")->get_output_layout();
+    const auto q_pitch = q_layout.get_pitches()[0];
+    const auto k_pitch = k_layout.get_pitches()[0];
+    const auto v_pitch = v_layout.get_pitches()[0];
+    ASSERT_EQ(q_pitch, k_pitch) << "Q and K pitches are expected to match in this topology";
+    ASSERT_NE(v_pitch, q_pitch) << "V pitch should differ from Q/K when V keeps crop-derived padding";
 }
