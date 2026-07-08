@@ -159,8 +159,8 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
     }
     clFinish(q);
     cl::Buffer buf(imported, true);
-    auto mem_tracker = std::make_shared<MemoryTracker>(this, buf.get(), byte_size, allocation_type::cl_mem);
-    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(nullptr, layout, buf, mem_tracker);
+    auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, buf.get(), byte_size, allocation_type::cl_mem);
+    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(this, layout, buf, mem_tracker);
     clReleaseMemObject(imported);
     return memory;
 #endif
