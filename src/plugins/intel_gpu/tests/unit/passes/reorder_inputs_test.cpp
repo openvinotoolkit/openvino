@@ -566,6 +566,34 @@ TEST(reorder_inputs, mvn_expected_plain_format) {
 //    }
 //}
 
+TEST(reorder_inputs, dynamic_conv_chain_no_throw) {
+    // conv2 is fully static (feature comes from weights.out_ch) so it enters
+    // the native format-selection heuristics, which then inspect the previous
+    // conv whose input is still dynamic. Those helpers used to call feature()/
+    // count()/get_linear_size() on the dynamic layout and throw.
+    auto& engine = get_test_engine();
+    auto input_layout_dyn = layout{ ov::PartialShape{1, ov::Dimension::dynamic(), 1, 3000},
+                                    data_types::f16,
+                                    format::bfyx };
+    auto weights1 = engine.allocate_memory({ {384,  80, 1, 3}, data_types::f16, format::bfyx });
+    auto weights2 = engine.allocate_memory({ {384, 384, 1, 3}, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dyn));
+    topology.add(data("weights1", weights1));
+    topology.add(data("weights2", weights2));
+    topology.add(convolution("conv1", input_info("input"),  "weights1", "", 1, {1, 1}, {1, 1}, {0, 1}, {0, 1}, false));
+    topology.add(convolution("conv2", input_info("conv1"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 1}, {0, 1}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_inputs, has_reshape_user) {
     auto& engine = get_test_engine();
