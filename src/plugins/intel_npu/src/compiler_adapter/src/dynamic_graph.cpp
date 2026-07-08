@@ -335,7 +335,6 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     // initialize VM execution engine, metadata, input&output descriptors
     initialize_engine();
 
-
     if (!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
         return;

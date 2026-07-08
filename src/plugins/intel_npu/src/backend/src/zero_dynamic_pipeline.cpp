@@ -347,6 +347,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 
     npu_vm_runtime_execute_params_t* params = &args._executeParams;
     bool firstInference = params->graphDdiTableExt == nullptr;
+
     // Force record commandlist for first execution or the mode is set to FORCE_COMMANDLIST_RECORDING_ONLY
     bool commandListRecordingRequired =
         firstInference ||
@@ -356,19 +357,18 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     auto processMemRefs = [&](auto& memRefs, auto& targetMemRefHandles) {
         targetMemRefHandles.clear();
         targetMemRefHandles.reserve(memRefs.size());
+
         for (size_t i = 0; i < memRefs.size(); ++i) {
             auto& memref = memRefs[i];
-            // for (auto& memref : memRefs) {
             auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
             if (impl == nullptr) {
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref);
-            if (firstInference) {
-                targetMemRefHandles.push_back(impl->_memRef);
-            } else if (dynamicGraph->commandlist_mode() ==
-                       ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
+
+            // VM runtime execute path always needs current memref handles.
+            targetMemRefHandles.push_back(impl->_memRef);
+            if (dynamicGraph->commandlist_mode() == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
                 if (!commandListRecordingRequired) {
                     if (impl->_shapeUpdated || impl->_strideUpdated) {
                         // If shape or stride change, need recording commandlist
@@ -451,8 +451,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 
     // Create the VM execution context (owned by args._impl, destroyed with it).
     args.ensureExecutionContext(vmRuntime);
-
     params->executionContext = args._executeParams.executionContext;
+
     params->pInputs = args._inputMemRefHandles.data();
     params->numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
     params->pOutputs = args._outputMemRefHandles.data();
@@ -483,11 +483,10 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
-    std::vector<std::shared_ptr<MemRefTypeImpl>> inputMemRefImpls;
-    std::vector<std::shared_ptr<MemRefTypeImpl>> outputMemRefImpls;
-
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(graph.get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
+
+    std::vector<std::shared_ptr<MemRefTypeImpl>> inputMemRefImpls, outputMemRefImpls;
 
     auto processMemRefs = [&](auto& memRefs, auto& destMemRefHandles, auto& destMemRefImpls) {
         destMemRefHandles.clear();
@@ -496,7 +495,11 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         destMemRefImpls.reserve(memRefs.size());
 
         for (auto& memref : memRefs) {
-            std::shared_ptr<MemRefTypeImpl> impl = std::make_shared<MemRefTypeImpl>();
+            auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
+            if (impl == nullptr) {
+                impl = std::make_shared<MemRefTypeImpl>();
+                memref._impl = impl;
+            }
             impl->UpdateMemRefHandleStatus(memref);
             destMemRefHandles.push_back(impl->_memRef);
             destMemRefImpls.push_back(impl);
@@ -548,6 +551,10 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         }
         logger.debug("Output shape prediction is done successfully.");
     }
+
+    // Clear memref handles after shape prediction to avoid the next execution using wrong memref handles
+    args._inputMemRefHandles.clear();
+    args._outputMemRefHandles.clear();
 }
 
 void DynamicPipeline::pull() {
