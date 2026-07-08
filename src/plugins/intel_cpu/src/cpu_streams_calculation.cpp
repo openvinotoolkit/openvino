@@ -299,11 +299,10 @@ void determine_tbb_partitioner_and_threads(Config& config,
 
     const bool has_lp_ecores = proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0;
     const int all_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC] +
-                  proc_type_table[0][LP_EFFICIENT_CORE_PROC];
-    const float lp_ecore_share = all_cores > 0
-                         ? static_cast<float>(proc_type_table[0][LP_EFFICIENT_CORE_PROC]) /
-                             static_cast<float>(all_cores)
-                         : 0.0F;
+                          proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+    const float lp_ecore_share =
+        all_cores > 0 ? static_cast<float>(proc_type_table[0][LP_EFFICIENT_CORE_PROC]) / static_cast<float>(all_cores)
+                      : 0.0F;
 
     if (has_lp_ecores && int8_intensive && tolerance.total_convs > 0) {
         if (is_main_core_case_1(tolerance) || is_main_core_case_2(tolerance) || is_main_core_case_3(tolerance) ||
