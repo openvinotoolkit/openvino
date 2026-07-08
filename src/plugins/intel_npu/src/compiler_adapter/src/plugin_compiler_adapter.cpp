@@ -15,7 +15,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
@@ -27,21 +27,23 @@
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    } catch (const std::exception& vcl_exception) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vcl_exception.what());
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
     }
 
     if (_zeroInitStruct == nullptr) {
@@ -64,10 +66,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto tensor = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+        NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
+
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
@@ -99,6 +103,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
+        compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
@@ -115,9 +120,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
                  SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
-    int64_t compile_model_mem_start = 0;
+    int64_t compileModelMemStart = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
-        compile_model_mem_start = get_peak_memory_usage();
+        compileModelMemStart = get_peak_memory_usage();
     }
 
     std::vector<ov::Tensor> tensorsInits;
@@ -219,14 +224,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
-        auto compile_model_mem_end = get_peak_memory_usage();
-        _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
-        _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+        auto compileModelMemEnd = get_peak_memory_usage();
+        _logger.debug("Start of compilation memory usage: Peak %lld KB", compileModelMemStart);
+        _logger.debug("End of compilation memory usage: Peak %lld KB", compileModelMemEnd);
         // Note: Following log is parsed by CI. Take care when modifying it.
-        _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
+        _logger.info("Compilation memory usage: Peak %lld KB", compileModelMemEnd - compileModelMemStart);
     }
 
     _logger.debug("compile end");
+
+    auto constants = get_all_constants_in_topological_order(model);
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    model = nullptr;
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
@@ -237,7 +247,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        std::move(model),
+        std::move(constants),
         localConfig,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
@@ -278,17 +288,19 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
+bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
+                                                const std::optional<std::string>& optValue) const {
+    const bool hasValue = optValue.has_value();
+    const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return true;
     } else {
         _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return false;
     }
 }

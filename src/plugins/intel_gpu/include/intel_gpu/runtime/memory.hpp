@@ -8,6 +8,7 @@
 #include "memory_caps.hpp"
 #include "event.hpp"
 #include "engine_configuration.hpp"
+#include "compounds.hpp"
 
 #include <type_traits>
 
@@ -49,13 +50,19 @@ struct memory {
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
     virtual event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
-    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) {
+        return fill(stream, 0, dep_events, blocking);
+    }
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
-    virtual shared_mem_params get_internal_params() const = 0;
+    /// @brief Return internal params for specified runtime type
+    virtual shared_mem_params get_internal_params(runtime_types rt_type) const = 0;
+    shared_mem_params get_internal_params() const {
+        return get_internal_params(get_default_runtime_type());
+    }
     virtual bool is_allocated_by(const engine& engine) const { return &engine == _engine && _type != allocation_type::unknown; }
     engine* get_engine() const { return _engine; }
     const layout& get_layout() const { return _layout; }
@@ -153,7 +160,7 @@ struct simple_attached_memory : memory {
     void unlock(const stream& /* stream */) override {}
     event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
     event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
-    shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
+    shared_mem_params get_internal_params(runtime_types rt_type) const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
 #else
@@ -190,9 +197,9 @@ struct mem_lock {
     mem_lock(const mem_lock& other) = delete;
     mem_lock& operator=(const mem_lock& other) = delete;
 
-#if defined(_SECURE_SCL) && (_SECURE_SCL > 0)
-    auto begin() & { return stdext::make_checked_array_iterator(_ptr, size()); }
-    auto end() & { return stdext::make_checked_array_iterator(_ptr, size(), size()); }
+#if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
+    auto begin() & { return make_checked_array_iterator(_ptr, size()); }
+    auto end() & { return make_checked_array_iterator(_ptr, size(), size()); }
 #else
     T* begin() & { return _ptr; }
     T* end() & { return _ptr + size(); }
@@ -274,25 +281,30 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     } else {
+        auto append_from_lock = [](auto& lock, std::vector<T>& out) {
+            out.reserve(lock.end() - lock.begin());
+            for (auto it = lock.begin(); it != lock.end(); ++it)
+                out.push_back(static_cast<T>(*it));
+        };
         switch (mem_dtype) {
             case data_types::i32: {
                 mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::i64: {
                 mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::f16: {
                 mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::f32: {
                 mem_lock<float, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                append_from_lock(lock, out_vecs);
                 break;
             }
             default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");

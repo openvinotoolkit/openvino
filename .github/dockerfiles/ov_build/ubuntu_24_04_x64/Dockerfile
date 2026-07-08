@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:24.04
 
@@ -84,4 +87,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION}
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+# Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+

@@ -72,6 +72,20 @@ class ocl_kernel_builder : public kernel_builder{
                 GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (const cl::Error& err) {
+                // cl::Program::build only throws cl::BuildError for CL_BUILD_PROGRAM_FAILURE.
+                // Other build-time failures (e.g. CL_OUT_OF_RESOURCES when the generated
+                // kernel exceeds device limits) arrive here as a plain cl::Error, so the
+                // program build log is otherwise lost. Surface it for diagnostics.
+                GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
+                try {
+                    auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
+                    for (auto& e : log) {
+                        GPU_DEBUG_INFO << e.second;
+                    }
+                } catch (const cl::Error&) {
+                    GPU_DEBUG_INFO << "Failed to retrieve program build log" << std::endl;
+                }
+                GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (...) {
                 // We should never hit this catch block
@@ -79,6 +93,11 @@ class ocl_kernel_builder : public kernel_builder{
             }
             for (auto& k : kernels) {
                 const auto &entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                // Intel_Symbol_Table_Void_Program does not correspond to any real kernel
+                // Ignore this entry point as workaround for GSD-12674
+                if (entry_point == "Intel_Symbol_Table_Void_Program") {
+                    continue;
+                }
                 out.push_back(std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, m_device.get_usm_helper()), entry_point));
             }
     }

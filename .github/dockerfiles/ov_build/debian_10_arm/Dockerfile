@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/debian:10.13
 
@@ -60,9 +63,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
         libavcodec-dev:armhf \
         libavformat-dev:armhf \
         libswscale-dev:armhf \
-        libgstreamer1.0-dev:armhf \
         libpython-dev:armhf \
-        libgstreamer-plugins-base1.0-dev:armhf \
         zlib1g-dev:armhf \
         nlohmann-json-dev \
         libgflags-dev:armhf \
@@ -250,4 +251,6 @@ RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+# Install newer ninja (apt ships older version on debian 10 lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+

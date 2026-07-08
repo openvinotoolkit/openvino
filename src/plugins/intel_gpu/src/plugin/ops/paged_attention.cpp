@@ -51,7 +51,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     // WA: in some cases, the query input may have a bounded dimension
     // Use input shape of the input node in such cases
-    auto heads_num = 0;
+    int64_t heads_num = 0;
     auto query_merged_dim = query_ps[1];
     if (query_merged_dim.is_static()) {
         heads_num = query_merged_dim.get_length() / k_head_size;
@@ -116,12 +116,17 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     OPENVINO_ASSERT(sinks_const != nullptr);
     prim.has_sink_input = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 
+    const size_t token_type_ids_idx = cldnn::paged_attention::PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+    const auto token_type_ids_ps = op->get_input_node_shared_ptr(token_type_ids_idx)->get_output_partial_shape(0);
+    prim.has_token_type_ids = token_type_ids_ps.is_dynamic() || (token_type_ids_ps.is_static() && ov::shape_size(token_type_ids_ps.to_shape()) > 0);
+
     const size_t qq_bias_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
     auto qq_bias_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(qq_bias_idx));
     if (qq_bias_input && qq_bias_input->get_output_partial_shape(0).is_dynamic()) {
         prim.has_qq_bias = true;
     }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    prim.write_kv_cache = op->get_write_kv_cache();
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

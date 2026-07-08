@@ -76,7 +76,7 @@ protected:
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}).string());
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir", "add_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -93,7 +93,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}).string());
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir", "addmul_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -112,9 +112,9 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
     const std::string model = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}).string());
+        ov::util::path_join({SERIALIZED_ZOO, "ir", "split_equal_parts_2d.xml"}));
     const std::string weights = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}).string());
+        ov::util::path_join({SERIALIZED_ZOO, "ir", "split_equal_parts_2d.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -131,9 +131,9 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     const std::string model = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}).string());
+        ov::util::path_join({SERIALIZED_ZOO, "ir", "add_abc_initializers.xml"}));
     const std::string weights = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}).string());
+        ov::util::path_join({SERIALIZED_ZOO, "ir", "add_abc_initializers.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -149,8 +149,8 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
-    const auto model = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir/dynamic_variable.xml"}).string());
+    const auto model =
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir", "dynamic_variable.xml"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);

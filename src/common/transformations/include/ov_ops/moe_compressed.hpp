@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
@@ -15,7 +17,7 @@ class TRANSFORMATIONS_API MOECompressed : public ov::op::internal::MOE {
 public:
     OPENVINO_OP("MOECompressed", "", ov::op::internal::MOE);
 
-    enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
+    MOECompressed() = default;
 
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
@@ -28,22 +30,16 @@ public:
         size_t group_size = 0;
         // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
         // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
-        size_t has_batch_dim = 0;
+        bool has_batch_dim = false;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
-        RoutingType routing_type = RoutingType::SOFTMAX;
+        std::optional<float> scale_factor;
     };
 
     /// \brief Constructs a MOECompressed operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - normalized routing weights for selected experts.
-    ///      Supports both:
-    ///        * legacy "scattered" layout: [num_experts, ...] (one slice per expert)
-    ///        * compact post-GatherMatmul layout, consistent with ov::op::MOE
-    ///          routing_weights as documented in openvino/op/moe.hpp.
-    ///      In all cases, the layout must be compatible with router_topk_output_indices
-    ///      and the MOE configuration (top_k, num_expert, etc.).
+    ///   1: routing_weights - [..., topk] normalized routing weights for selected experts.
     ///   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
     ///   3: w0_weight - expert weights for first projection,
     ///   shape [num_experts, inter_size, group_num, group_size]
@@ -66,6 +62,13 @@ public:
     /// \param config Configuration for the MOE operation
     MOECompressed(const OutputVector& args, const Config& config);
 
+    const Config& get_config() const {
+        return m_config;
+    }
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
+    }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -74,20 +77,4 @@ protected:
     Config m_config;
 };
 
-TRANSFORMATIONS_API std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type);
-
 }  // namespace ov::op::internal
-
-namespace ov {
-template <>
-class AttributeAdapter<ov::op::internal::MOECompressed::RoutingType>
-    : public EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType> {
-public:
-    AttributeAdapter(ov::op::internal::MOECompressed::RoutingType& value)
-        : EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType>(value) {}
-
-    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::MOECompressed::RoutingType>");
-    ~AttributeAdapter() override = default;
-};
-
-}  // namespace ov

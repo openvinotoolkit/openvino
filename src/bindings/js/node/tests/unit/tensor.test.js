@@ -43,6 +43,23 @@ describe("ov.Tensor tests", () => {
     assert.strictEqual(tensor.data.length, elemNum);
   });
 
+  test("Memory safe after the original TypedArray goes out of scope", () => {
+    const tensors = [];
+    const iterationCount = 5;
+    for (let i = 0; i < iterationCount; i++) {
+      const shape = [1, 3, 1024, 1024];
+      const itemCount = lengthFromShape(shape);
+      const img = new Float32Array(itemCount).fill(128.0);
+      tensors.push(new ov.Tensor(ov.element.f32, shape, img));
+    }
+    if (typeof global.gc === "function") global.gc();
+
+    for (const tensor of tensors) {
+      const view = tensor.getData();
+      assert.strictEqual(view[0], 128.0);
+    }
+  });
+
   describe("Tensor data", () => {
     it("set tensor data with element type", () => {
       params.forEach(([type, , data]) => {

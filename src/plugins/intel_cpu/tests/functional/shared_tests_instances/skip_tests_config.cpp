@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "utils/precision_support.h"
 #include "snippets/utils.hpp"
+#include "utils/arm_isa_support.h"
+#include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_RISCV64)
-#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
@@ -332,10 +334,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
-            // Ticket: 181107
-            std::regex(R"(.*smoke_ConvAndFQ_CPU.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
+            // GatherMatmul is not supported on 32-bit ARM
+            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
@@ -435,7 +437,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_(static|dynamic)Shapes4D(C(16|32))?(_Transpose|_PermutePerChannels)/TransposeLayerCPUTest.CompareWithRefs.*netPRC=f32.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*smoke_(static|dynamic)_1D/GatherLayerTestCPU.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_RDFT_CPU_(1|2|4)D/RDFTTestCPU.CompareWithRefs.*)"),
-            std::regex(R"(.*smoke_CompareWithRefs(Numpy|None)_dynamic/SelectLayerCPUTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_Check/ConvPoolActivTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_Conv_Sum_(1x1_)?Broadcast(_FP32|_Strided|_INT8|_Several_Consumers|_StaticShape)?/Conv(1x1)?Sum(InPlace(Test(Int8|SeveralConsumers)?|Strided)?|(Unsupported)?BroadcastTest).CompareWithRefs.*)"),
             std::regex(R"(.*smoke_ReshapeFc/ReshapeFcCPUTest.CompareWithRefs.*)"),
@@ -477,7 +478,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Select|BroadcastSelect|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
@@ -507,7 +508,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Tests to be enabled on ARM64
             std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
             // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
@@ -672,8 +672,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
+        }
+        if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+            patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
         }
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
             // Skip fp16 tests for paltforms that don't support fp16 precision

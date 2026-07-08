@@ -33,7 +33,7 @@ static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::MVN
 
     bool across_channels = op->get_across_channels();
     bool normalize_variance = op->get_normalize_variance();
-    float eps = op->get_eps();
+    float eps = static_cast<float>(op->get_eps());
 
     int64_t axes_count = std::max<int64_t>(static_cast<int64_t>(op->get_input_partial_shape(0).size()) - 2, 0);
     std::vector<int64_t> axes(axes_count);
@@ -56,7 +56,7 @@ static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::MVN
     ov::util::try_normalize_axes(axes, op->get_output_partial_shape(0).rank(), *op);
 
     bool normalize_variance = op->get_normalize_variance();
-    float eps = op->get_eps();
+    float eps = static_cast<float>(op->get_eps());
     bool eps_inside_sqrt = op->get_eps_mode() == ov::op::MVNEpsMode::INSIDE_SQRT;
 
     CreateCommonMVNOp(p, op, axes, normalize_variance, eps, eps_inside_sqrt);

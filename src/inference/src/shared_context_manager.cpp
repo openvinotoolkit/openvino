@@ -5,6 +5,7 @@
 #include "shared_context_manager.hpp"
 
 #include "openvino/runtime/icache_manager.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 
@@ -34,12 +35,8 @@ void SharedContextManager::set_context(uint64_t id, std::weak_ptr<ov::wsh::Conte
 }
 
 void SharedContextManager::erase_expired() {
-    for (auto it = m_weight_contexts.begin(); it != m_weight_contexts.end();) {
-        if (it->second.expired()) {
-            it = m_weight_contexts.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    util::erase_if(m_weight_contexts, [](const auto& ctx_entry) {
+        return ctx_entry.second.expired();
+    });
 }
 }  // namespace ov

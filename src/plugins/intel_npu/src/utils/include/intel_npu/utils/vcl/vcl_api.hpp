@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "vcl.h"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
+#include "vcl.h"
 namespace intel_npu {
 
 // clang-format off
@@ -28,7 +28,8 @@ namespace intel_npu {
     vcl_symbol_statement(vclProfilingDestroy)               \
     vcl_symbol_statement(vclProfilingGetProperties)         \
     vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
+    vcl_symbol_statement(vclAllocatedExecutableCreate4)     \
+    vcl_symbol_statement(vclExecutableGetCompatibilityString) \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
 
@@ -36,18 +37,19 @@ namespace intel_npu {
 // symbols that may not be supported in older versions of vcl
 #define vcl_weak_symbols_list()                             \
     vcl_symbol_statement(vclAllocatedExecutableCreate)     \
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
     vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
 // clang-format on
 
 class VCLApi {
 public:
-    VCLApi();
+    VCLApi(const std::string& library_dir);
     VCLApi(const VCLApi& other) = delete;
     VCLApi(VCLApi&& other) = delete;
     void operator=(const VCLApi&) = delete;
     void operator=(VCLApi&&) = delete;
 
-    static const std::shared_ptr<VCLApi> getInstance();
+    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir = std::string());
     std::shared_ptr<void> getLibrary() const {
         return lib;
     }

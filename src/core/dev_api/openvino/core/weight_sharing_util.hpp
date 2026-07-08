@@ -123,6 +123,14 @@ struct OPENVINO_API Extension {
      * @return Return map of weight metadata.
      */
     static WeightRegistry get_weight_registry(const Model& model);
+
+    /** @brief Hint to evict the constant's buffer from physical memory.
+     *
+     * @note Will try to evict data from constant buffer if possible.
+     *
+     * @param constant Constant node to evict buffer for.
+     */
+    static void hint_evict(ov::op::v0::Constant& constant) noexcept;
 };
 
 /** @brief Get the source buffer for a given source id.
