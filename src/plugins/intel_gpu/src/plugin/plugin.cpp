@@ -55,6 +55,55 @@
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <dxgi1_4.h>
+#pragma comment(lib, "dxgi.lib")
+
+static IDXGIAdapter3* g_dxgi_adapter = nullptr;
+
+static void init_dxgi() {
+    if (g_dxgi_adapter) return;
+    IDXGIFactory4* factory = nullptr;
+    if (SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)))) {
+        IDXGIAdapter* adapter = nullptr;
+        for (UINT i = 0; factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+            DXGI_ADAPTER_DESC desc;
+            adapter->GetDesc(&desc);
+            if (desc.VendorId == 0x8086) {
+                adapter->QueryInterface(IID_PPV_ARGS(&g_dxgi_adapter));
+                adapter->Release();
+                break;
+            }
+            adapter->Release();
+        }
+        factory->Release();
+    }
+}
+
+static size_t get_working_set_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / (1024 * 1024);
+    }
+    return 0;
+}
+
+static size_t get_gpu_shared_mb() {
+    init_dxgi();
+    if (!g_dxgi_adapter) return 0;
+    DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
+    if (SUCCEEDED(g_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &info))) {
+        return info.CurrentUsage / (1024 * 1024);
+    }
+    return 0;
+}
+#else
+static size_t get_working_set_mb() { return 0; }
+static size_t get_gpu_shared_mb() { return 0; }
+#endif
+
 
 namespace ov::intel_gpu {
 
@@ -474,10 +523,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
     // Store tensor base in thread-local storage
+    size_t ws_start = get_working_set_mb();
+    size_t gpu_start = get_gpu_shared_mb();
+    std::cout << "[GPU] Import start (" << model.get_byte_size()/(1024*1024) << "MB blob), WS: " << ws_start << "MB, GPU: " << gpu_start << "MB" << std::endl;
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
     auto compiled_model = import_model(stream, context, config);
+    size_t ws_end = get_working_set_mb();
+    size_t gpu_end = get_gpu_shared_mb();
+    std::cout << "[GPU] Import complete, WS: " << ws_end << "MB (+" << (ws_end - ws_start) << "MB), GPU: " << gpu_end << "MB (+" << (gpu_end - gpu_start) << "MB)" << std::endl;
 
     // Clear thread-local storage
     g_current_tensor_base = nullptr;

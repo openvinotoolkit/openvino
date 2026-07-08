@@ -8,6 +8,9 @@
 #include "gather_inst.h"
 #include "gather/gather_kernel_selector.h"
 #include "gather/gather_kernel_ref.h"
+#include <iostream>
+#include <mutex>
+#include <unordered_set>
 
 namespace cldnn {
 namespace ocl {
@@ -66,6 +69,54 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<gather_impl, kernel_params_t>(*this);
+    }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<gather>& instance) override {
+        static std::mutex s_log_mutex;
+        static std::unordered_set<std::string> s_logged_once;
+
+        bool verbose = false;
+        {
+            std::lock_guard<std::mutex> lock(s_log_mutex);
+            verbose = s_logged_once.insert(instance.id()).second;
+        }
+
+        auto print_mem = [](const char* tag, memory::ptr mem) {
+            if (!mem) {
+                std::cout << tag << "=null";
+                return;
+            }
+            const auto params = mem->get_internal_params();
+            const auto tracker = mem->get_mem_tracker();
+            std::cout << tag << "=" << (mem->size() / (1024 * 1024)) << "MB"
+                      << "(alloc=" << static_cast<int>(mem->get_allocation_type())
+                      << ", handle=" << params.mem
+                      << ", buffer_ptr=" << mem->buffer_ptr()
+                      << ", tracker=" << (tracker ? (tracker->size() / (1024 * 1024)) : 0) << "MB)";
+        };
+
+        if (verbose) {
+            std::cout << "[GPU][ocl::gather::execute_impl] begin: " << instance.id()
+                      << ", inputs=" << instance.inputs_memory_count();
+            for (size_t i = 0; i < instance.inputs_memory_count(); ++i) {
+                std::cout << ", in[" << i << "]";
+                print_mem("", instance.input_memory_ptr(i));
+            }
+            std::cout << ", out[0]";
+            print_mem("", instance.output_memory_ptr());
+            std::cout << std::endl;
+        }
+
+        auto ev = parent::execute_impl(events, instance);
+
+        if (verbose) {
+            std::cout << "[GPU][ocl::gather::execute_impl] end: " << instance.id()
+                      << ", out[0]";
+            print_mem("", instance.output_memory_ptr());
+            std::cout << std::endl;
+        }
+
+        return ev;
     }
 
     void load(BinaryInputBuffer& ib) override {

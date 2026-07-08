@@ -49,6 +49,67 @@
 #include <map>
 #include <functional>
 #include <fstream>
+#include <iostream>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <dxgi1_4.h>
+#pragma comment(lib, "dxgi.lib")
+
+namespace {
+static IDXGIAdapter3* g_net_dxgi_adapter = nullptr;
+
+static void init_net_dxgi() {
+    if (g_net_dxgi_adapter) return;
+    IDXGIFactory4* factory = nullptr;
+    if (SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)))) {
+        IDXGIAdapter* adapter = nullptr;
+        for (UINT i = 0; factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+            DXGI_ADAPTER_DESC desc;
+            adapter->GetDesc(&desc);
+            if (desc.VendorId == 0x8086) {
+                adapter->QueryInterface(IID_PPV_ARGS(&g_net_dxgi_adapter));
+                adapter->Release();
+                break;
+            }
+            adapter->Release();
+        }
+        factory->Release();
+    }
+}
+
+static size_t get_net_working_set_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / (1024 * 1024);
+    }
+    return 0;
+}
+
+static void get_net_gpu_memory_mb(size_t& local_mb, size_t& nonlocal_mb) {
+    init_net_dxgi();
+    local_mb = 0;
+    nonlocal_mb = 0;
+    if (!g_net_dxgi_adapter) return;
+
+    DXGI_QUERY_VIDEO_MEMORY_INFO local_info = {};
+    DXGI_QUERY_VIDEO_MEMORY_INFO nonlocal_info = {};
+
+    if (SUCCEEDED(g_net_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info))) {
+        local_mb = local_info.CurrentUsage / (1024 * 1024);
+    }
+    if (SUCCEEDED(g_net_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &nonlocal_info))) {
+        nonlocal_mb = nonlocal_info.CurrentUsage / (1024 * 1024);
+    }
+}
+}  // namespace
+#else
+namespace {
+static size_t get_net_working_set_mb() { return 0; }
+static void get_net_gpu_memory_mb(size_t& local_mb, size_t& nonlocal_mb) { local_mb = 0; nonlocal_mb = 0; }
+}  // namespace
+#endif
 
 #include "debug_helper.hpp"
 #ifdef GPU_DEBUG_CONFIG
@@ -61,6 +122,8 @@
 
 namespace cldnn {
 namespace {
+
+static bool g_first_network_execute = true;
 
 #ifdef GPU_DEBUG_CONFIG
 void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
@@ -241,14 +304,38 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         net_id = get_unique_net_id();
     }
 
+    size_t ws_start = get_net_working_set_mb();
+    size_t gpu_local_start = 0, gpu_nonlocal_start = 0;
+    get_net_gpu_memory_mb(gpu_local_start, gpu_nonlocal_start);
+    std::cout << "[GPU] Network construction start - WS: " << ws_start << "MB, GPU LOCAL: " << gpu_local_start << "MB" << std::endl;
+
     calculate_weights_cache_capacity();
+
+    size_t ws_before_alloc = get_net_working_set_mb();
+    size_t gpu_local_before = 0, gpu_nonlocal_before = 0;
+    get_net_gpu_memory_mb(gpu_local_before, gpu_nonlocal_before);
+    std::cout << "[GPU] Before allocate_primitives - WS: " << ws_before_alloc << "MB, GPU LOCAL: " << gpu_local_before << "MB" << std::endl;
+
     allocate_primitives();
+
+    size_t ws_after_alloc = get_net_working_set_mb();
+    size_t gpu_local_after = 0, gpu_nonlocal_after = 0;
+    get_net_gpu_memory_mb(gpu_local_after, gpu_nonlocal_after);
+    std::cout << "[GPU] After allocate_primitives - WS: " << ws_after_alloc << "MB (+" << (ws_after_alloc - ws_before_alloc) 
+              << "MB), GPU LOCAL: " << gpu_local_after << "MB (+" << (gpu_local_after - gpu_local_before) << "MB)" << std::endl;
+
     configure_primitives_second_output();
     build_insts_deps();
     build_exec_order();
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+
+    size_t ws_end = get_net_working_set_mb();
+    size_t gpu_local_end = 0, gpu_nonlocal_end = 0;
+    get_net_gpu_memory_mb(gpu_local_end, gpu_nonlocal_end);
+    std::cout << "[GPU] Network construction complete - WS: " << ws_end << "MB (+" << (ws_end - ws_start) 
+              << "MB), GPU LOCAL: " << gpu_local_end << "MB (+" << (gpu_local_end - gpu_local_start) << "MB)" << std::endl;
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -694,6 +781,7 @@ void network::configure_primitives_second_output() {
         auto& node = inst.second->get_node();
 
         if (!node.is_type<mutable_data>())
+
             continue;
 
         mutable_datas_ptrs[node.as<mutable_data>().get_attached_memory_ptr()].push_back(&node);
@@ -701,6 +789,7 @@ void network::configure_primitives_second_output() {
 
     for (auto item : mutable_datas_ptrs) {
         if (item.second.size() != 2)
+
             continue;
 
         auto is_first_node_input_md = [&](const cldnn::program_node* first,
@@ -876,6 +965,13 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
 
+    if (g_first_network_execute) {
+        size_t ws_before = get_net_working_set_mb();
+        size_t gpu_local_before = 0, gpu_nonlocal_before = 0;
+        get_net_gpu_memory_mb(gpu_local_before, gpu_nonlocal_before);
+        std::cout << "[GPU] Before first network::execute - WS: " << ws_before << "MB, GPU LOCAL: " << gpu_local_before << "MB" << std::endl;
+    }
+
     // Wait for previous execution completion
     reset_execution(false);
 
@@ -919,7 +1015,21 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     // in some cases.
     auto surf_lock = get_stream().create_surfaces_lock(in_out_mem);
 
+    if (g_first_network_execute) {
+        size_t ws_before_exec = get_net_working_set_mb();
+        size_t gpu_local_before_exec = 0, gpu_nonlocal_before_exec = 0;
+        get_net_gpu_memory_mb(gpu_local_before_exec, gpu_nonlocal_before_exec);
+        std::cout << "[GPU] Before execute_impl - WS: " << ws_before_exec << "MB, GPU LOCAL: " << gpu_local_before_exec << "MB" << std::endl;
+    }
+
     execute_impl(dependencies);
+
+    if (g_first_network_execute) {
+        size_t ws_after_exec = get_net_working_set_mb();
+        size_t gpu_local_after_exec = 0, gpu_nonlocal_after_exec = 0;
+        get_net_gpu_memory_mb(gpu_local_after_exec, gpu_nonlocal_after_exec);
+        std::cout << "[GPU] After execute_impl - WS: " << ws_after_exec << "MB, GPU LOCAL: " << gpu_local_after_exec << "MB" << std::endl;
+    }
 
     std::map<primitive_id, network_output> result;
     for (auto& inst : _outputs) {
@@ -929,6 +1039,14 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
             ev = inst->get_impl_params()->out_event;
 
         result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
+    }
+
+    if (g_first_network_execute) {
+        g_first_network_execute = false;
+        size_t ws_after = get_net_working_set_mb();
+        size_t gpu_local_after = 0, gpu_nonlocal_after = 0;
+        get_net_gpu_memory_mb(gpu_local_after, gpu_nonlocal_after);
+        std::cout << "[GPU] After first network::execute - WS: " << ws_after << "MB, GPU LOCAL: " << gpu_local_after << "MB" << std::endl;
     }
 
     return result;
@@ -954,6 +1072,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
+    const size_t mem_print_threshold_mb = 64;
     size_t executed_prims = 0;
 
     for (auto& inst : _exec_order) {
@@ -966,8 +1085,57 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             inst->add_dep_events(events);
         }
 
-        inst->prepare_primitive();
-        inst->execute();
+        if (g_first_network_execute) {
+            size_t ws_before_prepare = get_net_working_set_mb();
+            size_t gpu_local_before_prepare = 0, gpu_nonlocal_before_prepare = 0;
+            get_net_gpu_memory_mb(gpu_local_before_prepare, gpu_nonlocal_before_prepare);
+
+            inst->prepare_primitive();
+
+            size_t ws_after_prepare = get_net_working_set_mb();
+            size_t gpu_local_after_prepare = 0, gpu_nonlocal_after_prepare = 0;
+            get_net_gpu_memory_mb(gpu_local_after_prepare, gpu_nonlocal_after_prepare);
+
+            const size_t ws_prepare_delta = ws_after_prepare >= ws_before_prepare ? (ws_after_prepare - ws_before_prepare) : 0;
+            const size_t gpu_prepare_delta = gpu_local_after_prepare >= gpu_local_before_prepare ? (gpu_local_after_prepare - gpu_local_before_prepare) : 0;
+            const auto prim_type = inst->get_impl_params()->desc->type_string();
+            const bool force_gather_print = prim_type == "gather";
+            if (force_gather_print || ws_prepare_delta >= mem_print_threshold_mb || gpu_prepare_delta >= mem_print_threshold_mb) {
+                std::cout << "[GPU][execute_impl][prepare] " << inst->id()
+                          << " (type: " << prim_type << ")"
+                          << ", WS: " << ws_before_prepare << "MB -> " << ws_after_prepare << "MB"
+                          << ", GPU LOCAL: " << gpu_local_before_prepare << "MB -> " << gpu_local_after_prepare << "MB"
+                          << std::endl;
+            }
+
+            size_t ws_before_execute = ws_after_prepare;
+            size_t gpu_local_before_execute = gpu_local_after_prepare;
+            inst->execute();
+
+            size_t ws_after_execute = get_net_working_set_mb();
+            size_t gpu_local_after_execute = 0, gpu_nonlocal_after_execute = 0;
+            get_net_gpu_memory_mb(gpu_local_after_execute, gpu_nonlocal_after_execute);
+
+            const size_t ws_execute_delta = ws_after_execute >= ws_before_execute ? (ws_after_execute - ws_before_execute) : 0;
+            const size_t gpu_execute_delta = gpu_local_after_execute >= gpu_local_before_execute ? (gpu_local_after_execute - gpu_local_before_execute) : 0;
+            if (force_gather_print || ws_execute_delta >= mem_print_threshold_mb || gpu_execute_delta >= mem_print_threshold_mb) {
+                std::cout << "[GPU][execute_impl][execute] " << inst->id()
+                          << " (type: " << prim_type << ")"
+                          << ", WS: " << ws_before_execute << "MB -> " << ws_after_execute << "MB"
+                          << ", GPU LOCAL: " << gpu_local_before_execute << "MB -> " << gpu_local_after_execute << "MB"
+                          << std::endl;
+            }
+
+            static bool forced_finish_after_first_gather = false;
+            if (!forced_finish_after_first_gather && force_gather_print) {
+                get_stream().finish();
+                forced_finish_after_first_gather = true;
+                std::cout << "[GPU][execute_impl] forced stream.finish() after first gather execute: " << inst->id() << std::endl;
+            }
+        } else {
+            inst->prepare_primitive();
+            inst->execute();
+        }
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)

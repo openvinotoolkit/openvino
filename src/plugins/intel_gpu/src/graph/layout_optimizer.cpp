@@ -559,9 +559,8 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
         || (input_layout.spatial(0) < 8 &&
             input_layout.spatial(1) < 8)      // disable winograd for small spatials as perf is poor
-        || prim->groups != 1) {                    // disable winograd for groups
+        || prim->groups != 1)                    // disable winograd for groups
         return false;
-    }
     return true;
 }
 }  // namespace
@@ -1362,6 +1361,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return forced_impl;
     }
 
+    // Temporary hard-force for memory-spike investigation:
+    // keep only gather:/Gather_47 on CPU, let all other gathers/ops use normal selection.
+    if (node.id() == "gather:/Gather_47" && node.can_use(impl_types::cpu)) {
+        return impl_types::cpu;
+    }
+
     auto shape_type = shape_types::any;
 
     auto impl = test_format<std::shared_ptr<ImplementationManager>>(node, preferred_format,
@@ -1490,7 +1495,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto output_layout = reduce_node.get_output_layout();
         if (!use_onednn_impls && output_layout.is_dynamic()) {
             if (output_layout.format.dimension() > 4) {
-                expected = format::get_default_format(output_layout.format.dimension());
+                expected = format::bfyx;
             } else if (output_layout.format.dimension() == 4) {
                 expected = format::any;
             }

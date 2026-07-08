@@ -113,6 +113,76 @@
 #endif
 
 using namespace cldnn;
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <dxgi1_4.h>
+#pragma comment(lib, "dxgi.lib")
+
+static IDXGIAdapter3* g_dxgi_adapter = nullptr;
+
+static void init_dxgi() {
+    if (g_dxgi_adapter) return;
+    IDXGIFactory4* factory = nullptr;
+    if (SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)))) {
+        IDXGIAdapter* adapter = nullptr;
+        for (UINT i = 0; factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+            DXGI_ADAPTER_DESC desc;
+            adapter->GetDesc(&desc);
+            std::cout << "[DEBUG] Found adapter " << i << ", VendorId=0x" << std::hex << desc.VendorId << std::dec << std::endl;
+            if (desc.VendorId == 0x8086) {
+                if (SUCCEEDED(adapter->QueryInterface(IID_PPV_ARGS(&g_dxgi_adapter)))) {
+                    std::cout << "[DEBUG] Intel adapter initialized" << std::endl;
+                }
+                adapter->Release();
+                break;
+            }
+            adapter->Release();
+        }
+        factory->Release();
+    } else {
+        std::cout << "[DEBUG] CreateDXGIFactory2 failed" << std::endl;
+    }
+}
+
+static size_t get_working_set_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / (1024 * 1024);
+    }
+    return 0;
+}
+
+static size_t get_gpu_shared_mb() {
+    init_dxgi();
+    if (!g_dxgi_adapter) {
+        std::cout << "[DEBUG] g_dxgi_adapter is null" << std::endl;
+        return 0;
+    }
+
+    DXGI_QUERY_VIDEO_MEMORY_INFO local_info = {};
+    DXGI_QUERY_VIDEO_MEMORY_INFO nonlocal_info = {};
+
+    HRESULT hr_local = g_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info);
+    HRESULT hr_nonlocal = g_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &nonlocal_info);
+
+    size_t local_mb = 0, nonlocal_mb = 0;
+    if (SUCCEEDED(hr_local)) {
+        local_mb = local_info.CurrentUsage / (1024 * 1024);
+    }
+    if (SUCCEEDED(hr_nonlocal)) {
+        nonlocal_mb = nonlocal_info.CurrentUsage / (1024 * 1024);
+    }
+
+    std::cout << "[DEBUG] GPU Memory: LOCAL=" << local_mb << "MB, NON_LOCAL=" << nonlocal_mb << "MB" << std::endl;
+
+    return nonlocal_mb;
+}
+#else
+static size_t get_working_set_mb() { return 0; }
+static size_t get_gpu_shared_mb() { return 0; }
+#endif
+
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
@@ -2021,11 +2091,17 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                         _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
     memory_ptr model_tensor_base_ptr = nullptr;
     if (can_use_mmap_zero_copy) {
+        size_t ws_before_mmap = get_working_set_mb();
+        size_t gpu_before_mmap = get_gpu_shared_mb();
+        std::cout << "[GPU] Creating mmap buffer (" << ib.get_stream_size()/(1024*1024) << "MB), WS: " << ws_before_mmap << "MB, GPU: " << gpu_before_mmap << "MB" << std::endl;
         model_tensor_base_ptr =
             ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
                                                    ib.get_stream_size(),
                                                    allocation_type::usm_host,
                                                    layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        size_t ws_after_mmap = get_working_set_mb();
+        size_t gpu_after_mmap = get_gpu_shared_mb();
+        std::cout << "[GPU] Mmap buffer created, WS: " << ws_after_mmap << "MB (+" << (ws_after_mmap - ws_before_mmap) << "MB), GPU: " << gpu_after_mmap << "MB (+" << (gpu_after_mmap - gpu_before_mmap) << "MB)" << std::endl;
     }
 
     size_t num_nodes;
@@ -2047,6 +2123,9 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
+    size_t ws_before_load = get_working_set_mb();
+    size_t gpu_before_load = get_gpu_shared_mb();
+    std::cout << "[GPU] Loading " << num_nodes << " data nodes, WS: " << ws_before_load << "MB, GPU: " << gpu_before_load << "MB" << std::endl;
     for (size_t i = 0; i < num_nodes; ++i) {
         ib >> is_valid_data_node;
         if (!is_valid_data_node)
@@ -2059,6 +2138,9 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
         get_or_create(prim);
     }
+    size_t ws_after_load = get_working_set_mb();
+    size_t gpu_after_load = get_gpu_shared_mb();
+    std::cout << "[GPU] Data nodes loaded, WS: " << ws_after_load << "MB (+" << (ws_after_load - ws_before_load) << "MB), GPU: " << gpu_after_load << "MB (+" << (gpu_after_load - gpu_before_load) << "MB)" << std::endl;
     size_t num_output_sharing_mutable_datas;
     ib >> num_output_sharing_mutable_datas;
     for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
