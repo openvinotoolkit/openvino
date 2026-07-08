@@ -202,10 +202,11 @@ struct DiscoveredOutput {
     std::shared_ptr<ov::frontend::onnx::DecoderBaseTensor> tensor_decoder;
 };
 
-// Order graph outputs by model output index; stable to preserve first-seen order on duplicate indices.
-void sort_by_model_output_index(std::vector<DiscoveredOutput>& discovered_outputs) {
-    std::stable_sort(discovered_outputs.begin(), discovered_outputs.end(), [](const auto& a, const auto& b) {
-        return a.model_output_index < b.model_output_index;
+// Stable sort by the model index projected from each element by key_of.
+template <typename T, typename KeyFn>
+void sort_by_model_index(std::vector<T>& items, KeyFn key_of) {
+    std::stable_sort(items.begin(), items.end(), [&](const T& a, const T& b) {
+        return key_of(a) < key_of(b);
     });
 }
 }  // namespace
@@ -285,6 +286,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         };
 
         std::vector<DiscoveredOutput> discovered_outputs;
+        // Model input index per graph-input Parameter, for reordering m_parameters after the walk.
+        std::unordered_map<const ov::Node*, int64_t> input_indices;
         std::map<std::string, uint64_t> op_statistics;  // op_count telemetry, keyed to match load_model()
 
         for (; !graph_iterator->is_end(); graph_iterator->next()) {
@@ -292,6 +295,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
             if (const auto tensor_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseTensor>(decoder)) {
                 const auto& info = tensor_decoder->get_tensor_info();
+                const auto input_idx = tensor_decoder->get_input_idx();
                 const auto output_idx = tensor_decoder->get_output_idx();
                 const bool has_data = tensor_has_data(info);
 
@@ -300,8 +304,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     continue;
                 }
                 const std::string& name = info.m_tensor_name ? *info.m_tensor_name : empty_tensor_name;
-                if (tensor_decoder->get_input_idx() >= 0 && !has_data) {
-                    create_const_or_param(name, make_transient_place(info));
+                if (input_idx >= 0 && !has_data) {
+                    const auto node = create_const_or_param(name, make_transient_place(info));
+                    // A no-data graph input is a Parameter unless it is the empty-constant special case.
+                    if (ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
+                        input_indices[node.get()] = input_idx;
+                    }
                 }
                 if (output_idx >= 0) {
                     discovered_outputs.push_back({output_idx, name, tensor_decoder});
@@ -322,7 +330,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         send_op_count_telemetry(telemetry, op_statistics);
 
-        sort_by_model_output_index(discovered_outputs);
+        // Order graph-input Parameters by model input index. The Place-graph path gets this from
+        // load_model()'s sorted get_inputs(); a custom GraphIterator may emit input decoders in any order.
+        // Parent-scope Parameters (appended by lookup_tensor() during subgraph translation) are absent
+        // from input_indices and sort to the back in their existing relative order.
+        sort_by_model_index(m_parameters, [&](const std::shared_ptr<ov::op::v0::Parameter>& p) {
+            const auto it = input_indices.find(p.get());
+            return it != input_indices.end() ? it->second : std::numeric_limits<int64_t>::max();
+        });
+
+        sort_by_model_index(discovered_outputs, [](const DiscoveredOutput& o) {
+            return o.model_output_index;
+        });
         graph_outputs.reserve(discovered_outputs.size());
         for (const auto& discovered : discovered_outputs) {
             // Re-fetch from the still-alive decoder; the loop may have advanced (and freed) other decoders.
