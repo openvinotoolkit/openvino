@@ -706,6 +706,20 @@ public:
             scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
             scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
         }
+
+        // Shared expert weight pointers (indices 12-21)
+        if (instance.dependencies().size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            scratch.moe_fusion_wei_addr.shared_weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
+        }
     }
 
     void on_before_batched_gemv(cldnn::stream& stream,
