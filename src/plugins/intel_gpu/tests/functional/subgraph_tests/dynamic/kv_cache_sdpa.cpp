@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -36,6 +38,7 @@ struct Params {
     size_t v_head_size;
     int32_t initial_batch;
     std::vector<int64_t> qkv_order;
+    size_t context_size = 7;
 };
 
 class SDPAWithKVCacheTest : public ::testing::Test, public ::testing::WithParamInterface<Params> {
@@ -45,6 +48,10 @@ public:
 #if defined(ANDROID)
         GTEST_SKIP();
 #endif
+        // Perf-only mode: skip the CPU reference compute + accuracy compare (expensive at large
+        // context_size). GPU keeps its own KV state and never consumes the reference caches, so
+        // the kernel timing is unaffected. Off by default -> normal accuracy check.
+        const bool skip_ref_check = std::getenv("SDPA_SKIP_REF_CHECK") != nullptr;
         auto core = ov::test::utils::PluginCache::get().core();
 
         if (p.model_element_type == ov::element::bf16) {
@@ -65,7 +72,7 @@ public:
         const size_t n_heads = 16;
         const size_t k_features = p.k_head_size;
         const size_t v_features = p.v_head_size;
-        const size_t context_size = 7;
+        const size_t context_size = p.context_size;
 
         const std::vector<int64_t>& qkv_order = p.qkv_order;
 
@@ -235,19 +242,23 @@ public:
                 ref_k_cache = ov::Tensor(element_type, k_cache_size_initial);
                 ref_v_cache = ov::Tensor(element_type, v_cache_size_initial);
 
-                auto ref_results = get_ref_results(ref_k_cache,
-                                                   ref_v_cache,
-                                                   k_new_token_data,
-                                                   v_new_token_data,
-                                                   q_data,
-                                                   init_beam_idx_data_0,
-                                                   init_beam_idx_shape);
-                ref_k_cache = ref_results[1];
-                ref_v_cache = ref_results[2];
+                if (!skip_ref_check) {
+                    auto ref_results = get_ref_results(ref_k_cache,
+                                                       ref_v_cache,
+                                                       k_new_token_data,
+                                                       v_new_token_data,
+                                                       q_data,
+                                                       init_beam_idx_data_0,
+                                                       init_beam_idx_shape);
+                    ref_k_cache = ref_results[1];
+                    ref_v_cache = ref_results[2];
 
-                infer_request.infer();
+                    infer_request.infer();
 
-                compare_tensors({ref_results[0]}, {sdpa_out});
+                    compare_tensors({ref_results[0]}, {sdpa_out});
+                } else {
+                    infer_request.infer();
+                }
 
                 cache_size += context_size;
             }
@@ -286,16 +297,19 @@ public:
                     infer_request.set_tensor(in_beam_idx, beam_idx_data_array[beam_idx_array_idx]);
                 }
 
-                auto ref_results = get_ref_results(ref_k_cache,
-                                                   ref_v_cache,
-                                                   k_new_token_data,
-                                                   v_new_token_data,
-                                                   q_data,
-                                                   beam_idx_data_array[beam_idx_array_idx],
-                                                   beam_idx_shape);
+                ov::TensorVector ref_results;
+                if (!skip_ref_check) {
+                    ref_results = get_ref_results(ref_k_cache,
+                                                  ref_v_cache,
+                                                  k_new_token_data,
+                                                  v_new_token_data,
+                                                  q_data,
+                                                  beam_idx_data_array[beam_idx_array_idx],
+                                                  beam_idx_shape);
 
-                ref_k_cache = ref_results[1];
-                ref_v_cache = ref_results[2];
+                    ref_k_cache = ref_results[1];
+                    ref_v_cache = ref_results[2];
+                }
 
                 tensor_q.set_shape(q_data.get_shape());
                 tensor_k_new_token.set_shape(k_new_token_data.get_shape());
@@ -307,10 +321,12 @@ public:
 
                 infer_request.infer();
 
-                compare_tensors({ref_results[0]}, {sdpa_out});
+                if (!skip_ref_check) {
+                    compare_tensors({ref_results[0]}, {sdpa_out});
+                }
             }
 
-            if (!compressed) {
+            if (!compressed && !skip_ref_check) {
                 auto variables = infer_request.query_state();
                 for (auto& variable : variables) {
                     auto state = variable.get_state();
@@ -385,6 +401,10 @@ std::vector<Params> get_test_params() {
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
+
+    // Large prefill (real-model shape: k/v_head_size=128, q=context_size=4096) for perf measurement.
+    // Run with env SDPA_SKIP_REF_CHECK=1 to skip the expensive CPU reference/accuracy compare.
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 1, 1, 128, 128, 1, {0, 1, 2, 3}, 4096});
 
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
