@@ -61,14 +61,19 @@ public:
     ov::Output<ov::Node> lookup_tensor(const std::string& name);
 
 private:
-    /// \brief Single-pass conversion that walks the model's GraphIterator decoders directly and
-    /// builds the ov::Model.
-    void translate_graph_from_iterator(const ov::frontend::InputModel::Ptr& input_model,
-                                       std::shared_ptr<ov::Model>& ov_model);
+    /// \brief Build a Result for a graph output (name carried onto the port, sink/friendly names set)
+    /// and append it to results. Shared by both conversion paths.
+    void add_result(const std::string& name, const ov::Output<ov::Node>& output_value, ResultVector& results);
 
-    /// \brief Translate one operation decoder into its OpenVINO outputs, shared by both conversion paths.
-    ov::OutputVector translate_operation(const std::shared_ptr<DecoderBaseOperation>& decoder,
+    /// \brief Apply the registered operator translator (or the not-supported fallback) to one op
+    /// decoder and return its OpenVINO outputs. Shared by both conversion paths.
+    ov::OutputVector apply_op_translator(const std::shared_ptr<DecoderBaseOperation>& decoder,
                                          const std::shared_ptr<TelemetryExtension>& telemetry);
+
+    /// \brief Translate an operation decoder and store its named outputs in m_tensor_values. Shared by
+    /// both conversion paths (the op body is identical once inputs are materialized).
+    void translate_op_and_store_outputs(const std::shared_ptr<DecoderBaseOperation>& op_decoder,
+                                        const std::shared_ptr<TelemetryExtension>& telemetry);
 
     /// \brief Materialize a graph tensor as a Constant (data) or Parameter (no data), register it in
     /// m_tensor_values, append a created Parameter to m_parameters, and return the node.

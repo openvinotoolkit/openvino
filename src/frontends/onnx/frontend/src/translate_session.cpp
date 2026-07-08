@@ -68,7 +68,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     return m_ov_model;
 }
 
-ov::OutputVector TranslateSession::translate_operation(const std::shared_ptr<DecoderBaseOperation>& decoder,
+ov::OutputVector TranslateSession::apply_op_translator(const std::shared_ptr<DecoderBaseOperation>& decoder,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry) {
     const auto out_size = decoder->get_output_size();
     ov::OutputVector ov_outputs(out_size);
@@ -167,107 +167,6 @@ void TranslateSession::send_op_count_telemetry(const std::shared_ptr<TelemetryEx
     }
 }
 
-void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
-                                       std::shared_ptr<ov::Model>& ov_model) {
-    const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
-    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
-
-    if (!model_onnx->is_loaded()) {
-        // Model not loaded to Place-graph; convert directly from the iterator.
-        translate_graph_from_iterator(input_model, ov_model);
-        return;
-    }
-
-    auto& all_tensor_places = model_onnx->get_tensor_places();
-
-    // inputs
-    m_parameters.reserve(model_onnx->get_inputs().size());
-
-    for (const auto& input : model_onnx->get_inputs()) {
-        const auto input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
-        FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
-        const auto name = input_tensor->get_names()[0];
-        create_const_or_param(name, input_tensor);
-    }
-
-    // operations
-    const auto telemetry = model_onnx->get_telemetry_extension();
-    for (const auto& op_place : model_onnx->get_op_places()) {
-        const auto decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
-        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be onnx::DecoderBase or its child");
-        for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            const auto& name = decoder->get_input_tensor_name(i);
-            if (name == "") {
-                continue;
-            }
-            auto node = lookup_tensor(name);
-            if (node.get_node() == nullptr) {
-                auto place_it = all_tensor_places.find(name);
-                FRONT_END_GENERAL_CHECK(place_it != all_tensor_places.end(), "Tensor place not found in a graph");
-                create_const_or_param(name, place_it->second);
-            }
-        }
-
-        const ov::OutputVector ov_outputs = translate_operation(decoder, telemetry);
-        for (size_t i = 0; i < ov_outputs.size() && i < decoder->get_output_size(); ++i) {
-            const auto& name = decoder->get_output_tensor_name(i);
-            if (name == "") {
-                // Means - not connected
-                continue;
-            }
-            m_tensor_values[name] = ov_outputs[i];
-            all_tensor_places[name]->translate(m_tensor_values[name]);
-        }
-    }
-
-    // outputs: materialize tensors that are direct initializers or reference parent-scope tensors.
-    ResultVector results;
-    results.reserve(model_onnx->get_outputs().size());
-    for (const auto& output : model_onnx->get_outputs()) {
-        const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
-        FRONT_END_GENERAL_CHECK(tensor != nullptr,
-                                "Outputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
-        const auto name = tensor->get_names()[0];
-        if (!m_tensor_values.count(name)) {
-            auto place_it = all_tensor_places.find(name);
-            if (place_it != all_tensor_places.end() &&
-                (place_it->second->get_data() != nullptr || place_it->second->get_data_location() != nullptr ||
-                 !place_it->second->get_data_any().empty())) {
-                create_const_or_param(name, place_it->second);
-            } else if (auto parent_value = lookup_tensor(name); parent_value.get_node() != nullptr) {
-                // Cache the parent-scope value so the m_tensor_values[name] lookup below is safe.
-                m_tensor_values.emplace(name, parent_value);
-            } else {
-                FRONT_END_GENERAL_CHECK(false,
-                                        "Output tensor \"",
-                                        name,
-                                        "\" was declared as a graph output but is not produced by any operation, "
-                                        "is not an initializer, and cannot be resolved from a parent scope.");
-            }
-        }
-        const auto& output_value = m_tensor_values[name];
-        const auto result = std::make_shared<ov::op::v0::Result>(output_value);
-        auto input = result->output(0);
-        tensor->translate(input);
-        result->set_friendly_name(name + "/sink_port_0");
-        results.push_back(result);
-        const auto& previous_operation = result->get_input_node_shared_ptr(0);
-        if (!ov::as_type_ptr<ov::op::v0::Parameter>(previous_operation)) {
-            previous_operation->set_friendly_name(name);
-        }
-    }
-
-    auto model_name = "onnx_Frontend_IR";
-    ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
-
-    const auto& metadata = model_onnx->get_metadata();
-    const std::string framework_section = "framework";
-    for (const auto& pair : metadata) {
-        ov_model->set_rt_info(pair.second, framework_section, pair.first);
-    }
-}
-
 namespace {
 // Build a transient TensorONNXPlace from a TensorMetaInfo, registered in no Place map.
 std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> make_transient_tensor_place(
@@ -292,155 +191,201 @@ bool tensor_has_data(const ov::frontend::onnx::TensorMetaInfo& info) {
     return info.m_tensor_data != nullptr || info.m_external_location != nullptr || !info.m_tensor_data_any.empty();
 }
 
-// Graph outputs paired with their output index and the owning tensor decoder (kept alive for lazy iterators).
-using IndexedOutputs =
-    std::vector<std::tuple<int64_t, std::string, std::shared_ptr<ov::frontend::onnx::DecoderBaseTensor>>>;
+// Same predicate as tensor_has_data(), expressed over a materialized TensorONNXPlace.
+bool place_has_data(const ov::frontend::onnx::TensorONNXPlace& place) {
+    return place.get_data() != nullptr || place.get_data_location() != nullptr || !place.get_data_any().empty();
+}
+
+struct DiscoveredOutput {
+    int64_t model_output_index;
+    std::string tensor_name;
+    std::shared_ptr<ov::frontend::onnx::DecoderBaseTensor> tensor_decoder;
+};
 
 // Order graph outputs by model output index; stable to preserve first-seen order on duplicate indices.
-void sort_graph_outputs(IndexedOutputs& indexed_outputs) {
-    std::stable_sort(indexed_outputs.begin(), indexed_outputs.end(), [](const auto& a, const auto& b) {
-        return std::get<0>(a) < std::get<0>(b);
+void sort_by_model_output_index(std::vector<DiscoveredOutput>& discovered_outputs) {
+    std::stable_sort(discovered_outputs.begin(), discovered_outputs.end(), [](const auto& a, const auto& b) {
+        return a.model_output_index < b.model_output_index;
     });
 }
 }  // namespace
 
-void TranslateSession::translate_graph_from_iterator(const ov::frontend::InputModel::Ptr& input_model,
-                                                     std::shared_ptr<ov::Model>& ov_model) {
+void TranslateSession::add_result(const std::string& name,
+                                  const ov::Output<ov::Node>& output_value,
+                                  ResultVector& results) {
+    const auto result = std::make_shared<ov::op::v0::Result>(output_value);
+    auto result_input = result->output(0);
+    if (!name.empty()) {
+        result_input.add_names({name});
+    }
+    result->set_friendly_name(name + "/sink_port_0");
+    results.push_back(result);
+    const auto& previous_operation = result->get_input_node_shared_ptr(0);
+    if (!ov::as_type_ptr<ov::op::v0::Parameter>(previous_operation)) {
+        previous_operation->set_friendly_name(name);
+    }
+}
+
+void TranslateSession::translate_op_and_store_outputs(const std::shared_ptr<DecoderBaseOperation>& op_decoder,
+                                                      const std::shared_ptr<TelemetryExtension>& telemetry) {
+    const auto out_size = op_decoder->get_output_size();
+    ov::OutputVector ov_outputs = apply_op_translator(op_decoder, telemetry);
+    for (size_t i = 0; i < ov_outputs.size() && i < out_size; ++i) {
+        const auto& name = op_decoder->get_output_tensor_name(i);
+        if (name.empty()) {  // not connected
+            continue;
+        }
+        ov_outputs[i].add_names({name});
+        m_tensor_values[name] = ov_outputs[i];
+    }
+}
+
+void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
+                                       std::shared_ptr<ov::Model>& ov_model) {
     const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
-    const auto graph_iterator =
-        std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(model_onnx->get_graph_iterator());
-    FRONT_END_GENERAL_CHECK(graph_iterator != nullptr, "Invalid graph iterator for single-pass conversion");
-
     const auto telemetry = model_onnx->get_telemetry_extension();
+    ResultVector results;
 
-    // Preserve zero-copy constant wrapping when the iterator's owner allows it.
-    const bool reuse_const_data = model_onnx->is_const_data_reusable();
+    std::vector<std::pair<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>> graph_outputs;
 
-    static const std::string empty_tensor_name;
-
-    // Single-pass adapter over the shared create_const_or_param(): wrap the meta info in a transient
-    // TensorONNXPlace and delegate, so both paths build Constants/Parameters through the same routine.
-    auto create_const_or_param = [&](const std::string& name, const ov::frontend::onnx::TensorMetaInfo& info) {
-        auto place = make_transient_tensor_place(info, *model_onnx, reuse_const_data);
-        return this->create_const_or_param(name, place);
-    };
-
-    // Resolve an op input by name: reuse a produced value, look up a parent scope, else materialize it.
-    auto resolve_input = [&](const std::string& name, const ov::frontend::onnx::TensorMetaInfo& info) {
-        if (m_tensor_values.find(name) != m_tensor_values.end()) {
-            return;
-        }
-        if (lookup_tensor(name).get_node() != nullptr) {
-            return;
-        }
-        create_const_or_param(name, info);
-    };
-
-    // Graph outputs carry their model output index for stable sorting after the walk.
-    IndexedOutputs indexed_outputs;
-
-    std::map<std::string, uint64_t> op_statistics;  // op_count telemetry, keyed to match load_model()
-
-    for (; !graph_iterator->is_end(); graph_iterator->next()) {
-        const auto& decoder = graph_iterator->get_decoder();
-
-        if (const auto tensor_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseTensor>(decoder)) {
-            const auto& info = tensor_decoder->get_tensor_info();
-            const auto input_idx = tensor_decoder->get_input_idx();
-            const auto output_idx = tensor_decoder->get_output_idx();
-            const bool has_data = tensor_has_data(info);
-
-            // Pure constant/initializer (not a graph output): materialized on demand by ops.
-            if (has_data && output_idx < 0) {
-                continue;
-            }
-            const std::string& name = info.m_tensor_name ? *info.m_tensor_name : empty_tensor_name;
-            if (input_idx >= 0 && !has_data) {
-                create_const_or_param(name, info);
-            }
-            if (output_idx >= 0) {
-                indexed_outputs.emplace_back(output_idx, name, tensor_decoder);
-            }
-            continue;
-        }
-
-        const auto op_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(decoder);
+    auto materialize_inputs_and_translate = [&](const std::shared_ptr<onnx::DecoderBaseOperation>& op_decoder,
+                                                auto&& resolve_input_place) {
         FRONT_END_GENERAL_CHECK(op_decoder != nullptr, "Decoder must be onnx::DecoderBaseOperation or its child");
-
-        // Ensure all inputs exist (intermediate values were produced by earlier ops in topo order).
         for (size_t i = 0; i < op_decoder->get_input_size(); ++i) {
             const auto& name = op_decoder->get_input_tensor_name(i);
-            if (name.empty()) {
+            // lookup_tensor() also checks m_tensor_values; materialize only on a full miss.
+            if (name.empty() || lookup_tensor(name).get_node() != nullptr) {
                 continue;
             }
-            resolve_input(name, op_decoder->get_input_tensor_info(i));
+            create_const_or_param(name, resolve_input_place(name, i));
         }
+        translate_op_and_store_outputs(op_decoder, telemetry);
+    };
 
-        const auto out_size = op_decoder->get_output_size();
+    // Record a declared output as (name, data_place); keep the place only if it carries initializer data.
+    auto collect_graph_output = [&](const std::string& name,
+                                    const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& data_place) {
+        graph_outputs.emplace_back(name, data_place && place_has_data(*data_place) ? data_place : nullptr);
+    };
 
-        if (telemetry) {
-            // Key by the iterator's resolved opset so op_count events match load_model()'s.
-            op_statistics[op_decoder->get_op_type() + "-" +
-                          std::to_string(graph_iterator->get_opset_version(op_decoder->get_domain()))]++;
-        }
+    if (!model_onnx->is_loaded()) {
+        // Not loaded to a Place-graph: walk the GraphIterator decoders directly (skips load_model()).
+        const auto graph_iterator =
+            std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(model_onnx->get_graph_iterator());
+        FRONT_END_GENERAL_CHECK(graph_iterator != nullptr, "Invalid graph iterator for single-pass conversion");
 
-        ov::OutputVector ov_outputs = translate_operation(op_decoder, telemetry);
-        for (size_t i = 0; i < ov_outputs.size() && i < out_size; ++i) {
-            const auto& name = op_decoder->get_output_tensor_name(i);
-            if (name.empty()) {
+        // Preserve zero-copy constant wrapping when the iterator's owner allows it.
+        const bool reuse_const_data = model_onnx->is_const_data_reusable();
+        static const std::string empty_tensor_name;
+
+        auto make_transient_place = [&](const ov::frontend::onnx::TensorMetaInfo& info) {
+            return make_transient_tensor_place(info, *model_onnx, reuse_const_data);
+        };
+
+        std::vector<DiscoveredOutput> discovered_outputs;
+        std::map<std::string, uint64_t> op_statistics;  // op_count telemetry, keyed to match load_model()
+
+        for (; !graph_iterator->is_end(); graph_iterator->next()) {
+            const auto& decoder = graph_iterator->get_decoder();
+
+            if (const auto tensor_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseTensor>(decoder)) {
+                const auto& info = tensor_decoder->get_tensor_info();
+                const auto output_idx = tensor_decoder->get_output_idx();
+                const bool has_data = tensor_has_data(info);
+
+                // Pure constant/initializer (not a graph output): materialized on demand by ops.
+                if (has_data && output_idx < 0) {
+                    continue;
+                }
+                const std::string& name = info.m_tensor_name ? *info.m_tensor_name : empty_tensor_name;
+                if (tensor_decoder->get_input_idx() >= 0 && !has_data) {
+                    create_const_or_param(name, make_transient_place(info));
+                }
+                if (output_idx >= 0) {
+                    discovered_outputs.push_back({output_idx, name, tensor_decoder});
+                }
                 continue;
             }
-            ov_outputs[i].add_names({name});
-            m_tensor_values[name] = ov_outputs[i];
+
+            const auto op_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(decoder);
+            materialize_inputs_and_translate(op_decoder, [&](const std::string&, size_t i) {
+                return make_transient_place(op_decoder->get_input_tensor_info(i));
+            });
+            if (telemetry) {
+                // Key by the iterator's resolved opset so op_count events match load_model()'s.
+                op_statistics[op_decoder->get_op_type() + "-" +
+                              std::to_string(graph_iterator->get_opset_version(op_decoder->get_domain()))]++;
+            }
+        }
+
+        send_op_count_telemetry(telemetry, op_statistics);
+
+        sort_by_model_output_index(discovered_outputs);
+        graph_outputs.reserve(discovered_outputs.size());
+        for (const auto& discovered : discovered_outputs) {
+            // Re-fetch from the still-alive decoder; the loop may have advanced (and freed) other decoders.
+            const auto& info = discovered.tensor_decoder->get_tensor_info();
+            collect_graph_output(discovered.tensor_name,
+                                 tensor_has_data(info) ? make_transient_place(info) : nullptr);
+        }
+    } else {
+        auto& all_tensor_places = model_onnx->get_tensor_places();
+
+        // inputs
+        m_parameters.reserve(model_onnx->get_inputs().size());
+        for (const auto& input : model_onnx->get_inputs()) {
+            const auto input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
+            FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
+                                    "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
+            create_const_or_param(input_tensor->get_names()[0], input_tensor);
+        }
+
+        // operations
+        for (const auto& op_place : model_onnx->get_op_places()) {
+            const auto op_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
+            materialize_inputs_and_translate(op_decoder, [&](const std::string& name, size_t) {
+                const auto place_it = all_tensor_places.find(name);
+                FRONT_END_GENERAL_CHECK(place_it != all_tensor_places.end(), "Tensor place not found in a graph");
+                return place_it->second;
+            });
+        }
+
+        graph_outputs.reserve(model_onnx->get_outputs().size());
+        for (const auto& output : model_onnx->get_outputs()) {
+            const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
+            FRONT_END_GENERAL_CHECK(tensor != nullptr,
+                                    "Outputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
+            const auto name = tensor->get_names()[0];
+            const auto place_it = all_tensor_places.find(name);
+            collect_graph_output(name, place_it != all_tensor_places.end() ? place_it->second : nullptr);
         }
     }
 
-    send_op_count_telemetry(telemetry, op_statistics);
-
-    // Build results ordered by model output index.
-    sort_graph_outputs(indexed_outputs);
-    ResultVector results;
-    results.reserve(indexed_outputs.size());
-    for (const auto& entry : indexed_outputs) {
-        const auto& name = std::get<1>(entry);
-        // Re-fetch from the still-alive decoder; the loop may have advanced (and freed) other decoders.
-        const auto& info = std::get<2>(entry)->get_tensor_info();
+    results.reserve(graph_outputs.size());
+    for (const auto& graph_output : graph_outputs) {
+        const auto& name = graph_output.first;
+        const auto& data_place = graph_output.second;
         if (!m_tensor_values.count(name)) {
-            // Output is a direct initializer-as-graph-output, or resolvable from a parent scope.
-            if (tensor_has_data(info)) {
-                create_const_or_param(name, info);
-            } else if (auto parent_value = lookup_tensor(name); parent_value.get_node() != nullptr) {
-                m_tensor_values.emplace(name, parent_value);
+            if (data_place) {
+                create_const_or_param(name, data_place);
             } else {
-                FRONT_END_GENERAL_CHECK(false,
+                const auto parent_value = lookup_tensor(name);
+                FRONT_END_GENERAL_CHECK(parent_value.get_node() != nullptr,
                                         "Output tensor \"",
                                         name,
                                         "\" was declared as a graph output but is not produced by any operation, "
                                         "is not an initializer, and cannot be resolved from a parent scope.");
+                m_tensor_values.emplace(name, parent_value);
             }
         }
-        const auto& output_value = m_tensor_values[name];
-        const auto result = std::make_shared<ov::op::v0::Result>(output_value);
-        // The Result's input port must carry the ONNX output tensor name (mirrors tensor->translate()).
-        auto result_input = result->output(0);
-        if (!name.empty()) {
-            result_input.add_names({name});
-        }
-        result->set_friendly_name(name + "/sink_port_0");
-        results.push_back(result);
-        const auto& previous_operation = result->get_input_node_shared_ptr(0);
-        if (!ov::as_type_ptr<ov::op::v0::Parameter>(previous_operation)) {
-            previous_operation->set_friendly_name(name);
-        }
+        add_result(name, m_tensor_values[name], results);
     }
 
-    auto model_name = "onnx_Frontend_IR";
-    ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
+    ov_model = std::make_shared<ov::Model>(results, m_parameters, "onnx_Frontend_IR");
 
-    // Read metadata from the iterator directly, since this path skips load_model().
-    const auto metadata = graph_iterator->get_metadata();
+    const auto metadata = model_onnx->get_graph_iterator()->get_metadata();
     const std::string framework_section = "framework";
     for (const auto& pair : metadata) {
         ov_model->set_rt_info(pair.second, framework_section, pair.first);
