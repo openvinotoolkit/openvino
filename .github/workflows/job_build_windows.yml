@@ -169,11 +169,27 @@ jobs:
         with:
           toolset: 14.50 # v2026
 
-      - name: Install C++ ATL using vs_BuildTools Bootstrapper
-        if: ${{ inputs.build-variant == 'vs2026' }}
-        shell: cmd
+      - name: Install ATL
         run: |
-          vs_BuildTools.exe --modify --add Microsoft.VisualStudio.Component.VC.ATL --passive --norestart --wait
+          $paths = @(
+            "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_buildtools.exe",
+            "C:\Program Files\Microsoft Visual Studio\Installer\vs_buildtools.exe",
+            "C:\BuildTools\vs_buildtools.exe"
+          )
+          
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              Write-Host "Found: $path"
+              & $path modify `
+                --installPath "C:\BuildTools" `
+                --add Microsoft.VisualStudio.Component.VC.ATL `
+                --passive --norestart --wait
+              break
+            } else {
+              Write-Host "Not found: $path"
+            }
+          }
+        shell: pwsh
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
