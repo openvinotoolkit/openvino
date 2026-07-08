@@ -23,6 +23,7 @@
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "moe_gemm_inst.h"
+#include "grouped_matmul_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "gru_seq_inst.h"
@@ -136,6 +137,15 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
+
+    // Aligned MVN flattens the normalized axes into the innermost dimension, which is only valid for planar /
+    // single feature-blocked layouts; reject other layouts (e.g. byxf) so a reorder to planar is inserted instead.
+    if (node.is_type<mvn>()) {
+        const auto& input_layout = node.get_input_layout(0);
+        const layout candidate{input_layout.get_partial_shape(), input_layout.data_type, fmt};
+        if (!node.as<mvn>().get_primitive()->is_aligned_layout_supported(candidate))
+            return false;
+    }
 
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
@@ -532,6 +542,9 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         return false;
 
     auto prim = node.get_primitive();
+    // count()/spatial() below require a static shape.
+    if (input_layout.is_dynamic())
+        return false;
     if (input_layout.data_type != data_types::f16
         || (input_layout.is_static() && input_layout.feature() % 64 != 0)  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
@@ -561,6 +574,9 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
+        // feature() requires a static shape.
+        if (node.get_input_layout(0).is_dynamic() || node.get_output_layout(0).is_dynamic())
+            return false;
         const auto output_channels = node.get_output_layout(0).feature();
         const auto input_channels = node.get_input_layout(0).feature();
 
@@ -675,8 +691,24 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
                                   output_layout.feature() >= required_feature_num);
     auto in_features_per_group = input_layout.feature() / conv->groups;
     auto out_features_per_group = output_layout.feature() / conv->groups;
-    if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size)
-        correct_in_feature = true;
+    if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size) {
+        // Estimate register pressure of bfyx_to_b_fs_yx_fsv16 kernel's line_cache[] array.
+        // Reject b_fs_yx_fsv16 when input_block_size > 64 to prevent CL_OUT_OF_RESOURCES
+        // on register-constrained GPUs (e.g. Xe-LPG with 128 GRFs/thread).
+        constexpr size_t default_block_width = 8;
+        constexpr size_t sg_size = 16;
+        size_t stride_x = conv->stride[conv->stride.size() - 1];
+        size_t dilation_x = conv->dilation[conv->dilation.size() - 1] + 1;
+        size_t filter_x = weights_layout.spatial(0);
+        size_t filter_y = weights_layout.spatial(1);
+        size_t input_line_size = stride_x * (default_block_width - 1) + (filter_x - 1) * dilation_x + 1;
+        if (static_cast<size_t>(input_layout.spatial(0)) < input_line_size)
+            input_line_size = static_cast<size_t>(input_layout.spatial(0));
+        size_t input_block_size = (input_line_size * filter_y + sg_size - 1) / sg_size;
+        if (input_block_size <= 64)
+            correct_in_feature = true;
+    }
+
     bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.feature());  // depthwise conv
     bool grouped = ((feature_block_size % out_features_per_group == 0) &&
                        (feature_block_size % in_features_per_group == 0) &&
@@ -704,7 +736,8 @@ static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, s
             auto reorder_first_user = node.get_users().front();
             if (reorder_first_user->is_type<reshape>()) {
                 for (auto& reshape_user : reorder_first_user->get_users()) {
-                    if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                    if (reshape_user->is_type<mvn>() && !node.get_output_layout().is_dynamic() &&
+                        node.get_output_layout().get_linear_size() > reorder_size_threshold) {
                         GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
                         return true;
                     }
@@ -1581,6 +1614,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
+    enable_onednn_for<grouped_matmul>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {

@@ -89,6 +89,17 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     return model;
 }
 
+inline LLMConfig make_test_model_config_gqa() {
+    auto cfg = make_test_model_config();
+    cfg.num_kv_heads = 2;  // num_heads=4 / num_kv_heads=2 -> n_rep=2
+    return cfg;
+}
+
+inline std::shared_ptr<ov::Model> build_llm_gqa_test_model() {
+    ModelBuilder mb;
+    return mb.build_llm(make_test_model_config_gqa());
+}
+
 inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
     auto model = build_llm_test_model();
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
@@ -115,6 +126,43 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
 
     model->validate_nodes_and_infer_types();
     return model;
+}
+
+/// Hybrid LLM: alternating linear-attention / full-attention layers.
+/// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+/// Attention layers are Qwen3.5-style: output-gated, partial RoPE.
+inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.attn_output_gate = true;
+    cfg.rotary_dim = cfg.head_dim / 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<GatedDeltaNetMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->num_heads = cfg.num_heads;
+    mixer->key_head_dim = cfg.head_dim;
+    mixer->value_head_dim = cfg.head_dim;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+/// LFM2-style hybrid: gated short-conv mixer layers interleaved with full attention.
+/// 4 layers → layers 0,2 short-conv; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<ShortConvMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->conv_dim = cfg.hidden_size;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
 }
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
@@ -144,6 +192,46 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// Qwen3-style MoE: separate gate/up expert MatMuls (SwiGLU) and a Softmax->TopK router
+/// with ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router
+/// patterns (real Qwen3-30B-A3B). Contrast build_moe_llm_test_model, which emits the
+/// GPT-OSS topology (fused gate_up, TopK->Softmax router). Stateful (KV cache) like the
+/// real model; consumers that need static shapes run StatefulToStateless + reshape, the
+/// same way production prepares an LLM.
+inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_qwen3_moe_ffn;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 0,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {},
+                                                                  size_t num_layers = 2) {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = num_layers;
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_token_type_ids_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 1,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {}) {
+    auto cfg = make_test_model_config();
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
 
 class NullPlugin : public ov::IPlugin {
 public:

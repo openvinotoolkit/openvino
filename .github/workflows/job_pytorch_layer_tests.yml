@@ -24,10 +24,10 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
-  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
   PyTorch_Layer_Tests:
@@ -38,8 +38,8 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
@@ -77,6 +77,7 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -96,8 +97,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
-          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          use-pip-proxy: 'true'
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels
@@ -106,15 +107,7 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Install Pytorch Layer tests dependencies (Windows)
-        if: runner.os == 'Windows'
-        env:
-          PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-          PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
-        run: python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
-
       - name: Install Pytorch Layer tests dependencies
-        if: runner.os != 'Windows'
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch

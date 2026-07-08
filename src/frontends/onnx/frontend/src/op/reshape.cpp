@@ -6,6 +6,7 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -20,7 +21,8 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     const auto data = ov_inputs.at(0);
 
     ov::Output<ov::Node> pattern;
-    bool special_zero = true;
+    // ONNX `allowzero` is the inverse of OpenVINO's `special_zero`.
+    const bool special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
     // Since opset 5 the target shape is provided as input
     if (ov_inputs.size() == 2) {
         pattern = ov_inputs.at(1);
@@ -31,9 +33,6 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
             pattern = v0::Constant::create(ov::element::i64, {0}, {});
         }
     } else {
-        // Added in onnx reshape version 14
-        special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
-
         pattern = node.get_attribute_as_constant<std::vector<int64_t>>("shape", {});
     }
 

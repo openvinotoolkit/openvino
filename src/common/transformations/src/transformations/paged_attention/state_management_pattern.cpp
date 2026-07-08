@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -236,7 +237,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     auto bitwise_and_3 = wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
+    auto mask = pattern::optional<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -294,6 +295,12 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
         return default_heads_num;
     }
 };
+
+static std::shared_ptr<ov::Node> optional_fake_convert(const std::shared_ptr<ov::Node>& input) {
+    auto fc_2 = wrap_type<v13::FakeConvert>({input, any_input()});
+    auto fc_3 = wrap_type<v13::FakeConvert>({input, any_input(), any_input()});
+    return std::make_shared<Or>(OutputVector{fc_2, fc_3, input});
+}
 
 StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
     const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
@@ -404,12 +411,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
     };
 
-    auto q = any_input();
     auto scale_input = any_input(scale_predicate);
     auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
 
-    auto k_to_sdpa = std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa = std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    std::shared_ptr<ov::Node> k_to_sdpa =
+        std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
+    std::shared_ptr<ov::Node> v_to_sdpa =
+        std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+
+    auto q_inner = any_input();
+    auto q = optional_fake_convert(q_inner);
+    k_to_sdpa = optional_fake_convert(k_to_sdpa);
+    v_to_sdpa = optional_fake_convert(v_to_sdpa);
 
     auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
                                                           general_alibi_mask,
@@ -426,15 +439,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    // Set to true once a sliding_attention layer matching the gptoss_gemma3 pattern is found
-    // alongside a token_type_ids model input - the combination that uniquely identifies Gemma3
-    // since pattern for full attention mask in Gemma3 is different than sliding window
-    // it has to be persistent in the callback, so shared_ptr is used
-    auto has_token_type_ids = std::make_shared<bool>(false);
-
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& real_q = pattern_map.at(q);
+        const auto& real_q = pattern_map.at(q_inner);
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
@@ -555,6 +562,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
+        // Re-apply FakeConvert after Reshape for Q/K/V (aligned position for all three)
+        Output<Node> q_to_pa = q_reshape;
+        Output<Node> k_to_pa = k_reshape;
+        Output<Node> v_to_pa = v_reshape;
+        for (auto& [pattern_node, target] :
+             {std::tie(q, q_to_pa), std::tie(k_to_sdpa, k_to_pa), std::tie(v_to_sdpa, v_to_pa)}) {
+            if (pattern_map.count(pattern_node)) {
+                auto fc = ov::as_type_ptr<v13::FakeConvert>(pattern_map.at(pattern_node).get_node_shared_ptr());
+                if (fc) {
+                    auto new_inputs = fc->input_values();
+                    new_inputs[0] = target;
+                    target = fc->clone_with_new_inputs(new_inputs);
+                }
+            }
+        }
+
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
@@ -593,7 +616,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        OutputVector pa_arguments = {q_to_pa, k_to_pa, v_to_pa, k_parameter, v_parameter};
         pa_arguments.push_back(pa_params["past_lens"]);
         pa_arguments.push_back(pa_params["subsequence_begins"]);
         if (!options.use_per_layer_block_indices_inputs) {
@@ -609,9 +632,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
-            // gpt-oss shares this sliding window pattern but has no token_type_ids.
-            *has_token_type_ids = static_cast<bool>(pa_params.get("token_type_ids"));
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -740,7 +760,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        if (*has_token_type_ids) {
+        // Meant to be used for Gemma family models with bidirectional image attention. If the condition is met for
+        // other models (ex. BERT) it's probably unintended behavior, as token_type_ids has been historically used
+        // in different contexts.
+        if (pa_params.exists("token_type_ids")) {
             std::shared_ptr<ov::Node> token_type_ids = pa_params["token_type_ids"];
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);

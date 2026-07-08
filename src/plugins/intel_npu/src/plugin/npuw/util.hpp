@@ -12,6 +12,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -36,6 +37,31 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
+
+// Matches the three DynamicQuantize decomposition implementations declared in
+// kv_cache_compressed.hpp.
+enum class DynamicQuantDecomposeMode {
+    // V1: handcrafted symmetric-style path, i8 range [-127, 127].
+    HandcraftedSymmetricI8 = 1,
+
+    // V2: ONNX DynamicQuantizeLinear-style path, u8 range [0, 255].
+    OnnxDynamicQuantizeLinear = 2,
+
+    // V3: compiler pattern-style path. i8 requests are materialized as u8
+    // storage for the asymmetric decomposition branch.
+    CompilerPatternI8 = 3,
+};
+
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
 
 struct UnpackOptions {
     bool bUseOvParallelFor;
@@ -200,12 +226,18 @@ bool matchLinCacheString(const std::string& input, const std::string& past_or_pr
 
 bool starts_with_past_lincache(const std::string& input_name);
 
-// Structure to hold SDPA pattern nodes
+// Structure to hold SDPA pattern nodes.
+// After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
+// replaced by N block parameters, so both param-node fields are vectors.
+// For the unmodified (non-block) case each vector contains exactly one element.
 struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul1_node = nullptr;
     std::shared_ptr<ov::Node> matmul2_node = nullptr;
     std::shared_ptr<ov::Node> softmax_node = nullptr;
     std::shared_ptr<ov::Node> add_node = nullptr;
+    // 1 (contiguous) or N (block-split) Parameter nodes feeding the KV Concat.
+    std::vector<std::shared_ptr<ov::Node>> past_key_param_nodes;
+    std::vector<std::shared_ptr<ov::Node>> past_value_param_nodes;
     std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
     std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
 
@@ -214,8 +246,8 @@ struct SDPAPatternNodes {
                past_value_concat_node;
     }
 
-    // Log pattern information for debugging
-    void log_pattern(const std::string& prefix) const {
+    // Log pattern information for debugging. prefix is optional.
+    void log_pattern(const std::string& prefix = "") const {
         LOG_DEBUG("SDPA Pattern " << prefix << " nodes:");
         LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
@@ -224,12 +256,19 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
         LOG_DEBUG(
             "  Value Concat: " << (past_value_concat_node ? past_value_concat_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Past key params: " << past_key_param_nodes.size());
+        LOG_DEBUG("  Past value params: " << past_value_param_nodes.size());
     }
 };
 
-// Function to find SDPA pattern nodes in the model
+// Find the decomposed SDPA sub-graph pattern (MatMul->Add->Softmax->MatMul) in a
+// model and return all relevant nodes.  Returns an invalid result if not found.
 SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
 std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+
+// Traverse upward from an Add node's mask input to find the attention-mask
+// Parameter.  Only unary ops are traversed; returns nullptr on failure.
+std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
@@ -306,6 +345,11 @@ std::optional<int> isPresentKeyValuesValue(const std::string& str);
 bool isPastKeyParam(const std::string& str);
 // Matches any past value param: contiguous or block-split.
 bool isPastValueParam(const std::string& str);
+
+// Detects DynamicQuantize scale/zp parameters for past KV cache.
+// Returns true if the parameter name matches the DQ naming pattern.
+bool isDQScaleOrZPKey(const std::string& str);
+bool isDQScaleOrZPValue(const std::string& str);
 
 // To remove input KV params that got badly matched in StatefulToStateless pass
 // in Whisper model.

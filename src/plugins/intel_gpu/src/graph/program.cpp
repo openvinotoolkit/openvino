@@ -19,6 +19,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -236,10 +237,13 @@ void program::init_program() {
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
-    _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    if (_engine.runtime_type() != runtime_types::sycl) {
+        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
+                                                                          kernel_selector::KernelBase::get_db().get_batch_headers()));
+
+        _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    }
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -269,6 +273,7 @@ void program::init_primitives() {
 }
 
 kernels_cache& program::get_kernels_cache() const {
+    OPENVINO_ASSERT(_engine.runtime_type() != runtime_types::sycl, "[GPU] Kernels cache is not available for SYCL runtime");
     return *_kernels_cache;
 }
 
@@ -910,9 +915,15 @@ void program::add_intermediate(program_node& node,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    if (connect_int_node_with_old_dep && !node.dependencies.empty())
-        throw std::invalid_argument(
-            "Node which is about to be added in between two other nodes should not have any existing dependencies");
+    if (connect_int_node_with_old_dep && !node.dependencies.empty()) {
+        std::string deps;
+        for (auto& dep : node.dependencies) {
+            deps += dep.first->id() + " ( " + dep.first->get_primitive()->type_string() + " ), ";
+        }
+        OPENVINO_THROW("Node which is about to be added in between two other nodes should not have any existing dependencies. Node: " + node.id() + " ( " +
+                       node.get_primitive()->type_string() + " )" + ". Next: " + next.id() + " ( " + next.get_primitive()->type_string() +
+                       " ). Dependencies: " + deps);
+    }
 
     auto& prev = next.get_dependency(prev_idx);
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
@@ -1496,6 +1507,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool is_dynamic_batch_onednn_conv = false;
+    size_t dynamic_batch_onednn_conv_count = 0;
+    bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
@@ -1524,6 +1537,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+                if (is_dynamic_batch_onednn_conv)
+                    dynamic_batch_onednn_conv_count++;
             } else {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
@@ -1689,6 +1704,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
+        if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
+            has_sdpa = true;
+        }
 #endif
     }
 
@@ -1752,7 +1770,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
-    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+
+    // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
+    constexpr size_t max_byxf_onednn_conv_count = 5;
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
+            (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
@@ -1838,6 +1861,10 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::save is not supported for SYCL runtime");
+    }
+
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
@@ -1945,7 +1972,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << allocating_order.size();
-    for (auto const& node_id : allocating_order) {
+    for (const auto& node_id : allocating_order) {
         ob << node_id;
     }
 
@@ -1954,11 +1981,20 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
+
+    if (!ob.is_encrypted() && !ob.is_offset_page_aligned()) {
+        std::vector<uint8_t> pad(ob.get_bytes_to_page_boundary(), 0);
+        ob << make_data(pad.data(), pad.size());
+    }
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::load is not supported for SYCL runtime");
+    }
+
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
@@ -1975,6 +2011,17 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         } else {
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
         }
+    }
+
+    const bool can_use_mmap_zero_copy = ib.is_mmap_tensor_4K_aligned() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
+                                        _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
+    memory_ptr model_tensor_base_ptr = nullptr;
+    if (can_use_mmap_zero_copy) {
+        model_tensor_base_ptr =
+            ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
+                                                   ib.get_stream_size(),
+                                                   allocation_type::usm_host,
+                                                   layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
     size_t num_nodes;
@@ -2004,11 +2051,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            data_prim->load_weights(ib, weights_memory, model_tensor_base_ptr);
         }
         get_or_create(prim);
     }
-
     size_t num_output_sharing_mutable_datas;
     ib >> num_output_sharing_mutable_datas;
     for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
@@ -2163,4 +2209,11 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> initializers;
         state_initializers[variable_id] = initializers;
     }
+
+    // At the end of load
+    if (!ib.is_encrypted() && !ib.is_offset_page_aligned()) {
+        std::vector<uint8_t> pad(ib.get_bytes_to_page_boundary(), 0);
+        ib >> make_data(pad.data(), pad.size());
+    }
 }
+
