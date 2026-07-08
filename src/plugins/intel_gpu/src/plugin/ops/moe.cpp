@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <limits>
-#include <unordered_map>
 
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -22,6 +21,7 @@
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 
 namespace ov::intel_gpu {
@@ -62,20 +62,34 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     auto get_const_offset = [&](size_t index, size_t /*offset_slot*/) -> size_t {
         auto node = op->input_value(index).get_node_shared_ptr();
         auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-        OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed");
+        OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed, got: ",
+                        node->get_type_name(), " name: ", node->get_friendly_name());
+
+        // 1. Direct WeightlessCacheAttribute lookup
         const auto& rt_info = const_op->get_rt_info();
         auto attr_it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-
         if (attr_it != rt_info.end()) {
             return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
         }
 
-        // Buffer descriptor offset (works when constant data is mmap'd from bin file).
+        // 2. Buffer descriptor offset (mmap path)
         auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
-        OPENVINO_ASSERT(source_buf,
-                        "OTD: Cannot determine bin offset for MOE weight constant. "
-                        "Neither WeightlessCacheAttribute nor mmap source buffer is available.");
-        return ov::weight_sharing::Extension::get_constant_id(*const_op);
+        if (source_buf) {
+            return ov::weight_sharing::Extension::get_constant_id(*const_op);
+        }
+
+        // 3. Plain "otd_bin_offset" rt_info entry (survives copy_runtime_info)
+        auto otd_it = rt_info.find("otd_bin_offset");
+        if (otd_it != rt_info.end()) {
+            return static_cast<size_t>(otd_it->second.as<int64_t>());
+        }
+
+        OPENVINO_THROW("OTD: Cannot determine bin offset for MOE weight constant. "
+                       "Constant name: ", const_op->get_friendly_name(),
+                       ", input_index: ", index,
+                       ", shape: ", const_op->get_shape(),
+                       ", type: ", const_op->get_element_type(),
+                       ", byte_size: ", const_op->get_byte_size());
     };
 
     const std::array<size_t, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> const_input_idx_by_offset = {
