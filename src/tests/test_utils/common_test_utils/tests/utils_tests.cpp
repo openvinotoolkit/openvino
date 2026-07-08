@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/env_util.hpp"
 
 using namespace testing;
 using namespace ov::util;
