@@ -417,24 +417,48 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
 
     # set public / interface compile options
     function(_ov_fix_protobuf_warnings target_name)
-        set(link_type PUBLIC)
-        if(ENABLE_SYSTEM_PROTOBUF)
-            set(link_type INTERFACE)
-        endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET ${original_name})
-                # during build protobuf's cmake creates aliased targets
-                set(target_name ${original_name})
+        if(TARGET ${target_name})
+            set(link_type PUBLIC)
+            if(ENABLE_SYSTEM_PROTOBUF)
+                set(link_type INTERFACE)
             endif()
-            target_compile_options(${target_name} ${link_type} -Wno-undef)
+            if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+                get_target_property(original_name ${target_name} ALIASED_TARGET)
+                if(TARGET ${original_name})
+                    # during build protobuf's cmake creates aliased targets
+                    set(target_name ${original_name})
+                endif()
+                target_compile_options(${target_name} ${link_type} -Wno-undef)
+            endif()
         endif()
     endfunction()
 
     _ov_fix_protobuf_warnings(protobuf::libprotobuf)
-    if(TARGET protobuf::libprotobuf-lite)
-        _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
-    endif()
+    _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
+
+    function(_ov_fix_absl_warnings target_name)
+        if(TARGET ${target_name})
+            if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+                set(link_type PRIVATE)    
+                get_target_property(target_type ${target_name} TYPE)
+                if(target_type STREQUAL "INTERFACE_LIBRARY")
+                    set(link_type INTERFACE)
+                endif()
+
+                get_target_property(original_name ${target_name} ALIASED_TARGET)
+                if(TARGET ${original_name})
+                    set(target_name ${original_name})
+                endif()
+                
+                target_compile_options(${target_name} ${link_type} -Wno-sign-conversion)
+            endif()
+        endif()
+    endfunction()
+
+    _ov_fix_absl_warnings(absl::base)
+    _ov_fix_absl_warnings(absl::debugging)
+    _ov_fix_absl_warnings(absl::malloc_internal)
+    _ov_fix_absl_warnings(absl::stacktrace)
 endif()
 
 #
