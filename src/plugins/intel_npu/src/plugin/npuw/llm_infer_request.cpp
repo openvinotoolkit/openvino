@@ -20,6 +20,12 @@
 namespace {
 using ov::npuw::LLMInferRequest;
 
+int64_t get_max_position_id(const ov::SoPtr<ov::ITensor>& position_ids) {
+    OPENVINO_ASSERT(position_ids->get_size() > 0, "position_ids tensor must not be empty");
+    auto* pos_ids_data = position_ids->data<int64_t>();
+    return *std::max_element(pos_ids_data, pos_ids_data + position_ids->get_size());
+}
+
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
 
@@ -214,13 +220,8 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
                       const ov::SoPtr<ov::ITensor>& position_ids) {
     if (auto longrope_port_it = ports.find(LLMInferRequest::layer_names::longrope_input);
         longrope_port_it != ports.end()) {
-        auto* pos_ids_data = position_ids->data<int64_t>();
-        // assuming position_ids are constantly non-deacreasing.
-        // this potentially could be not true. Alternative is to find max value in position_ids
-        auto max_pos_id = pos_ids_data[position_ids->get_size() - 1];
-
         auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
-        longrope_input->data<int64_t>()[0] = max_pos_id;
+        longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
     }
 }
 }  // anonymous namespace
@@ -319,7 +320,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_strategy->on_initialize();
 
     if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
-        m_prefix_caching_helper = std::make_unique<PrefixCachingHelper>(*this);
+        const size_t prefix_cache_count = m_npuw_llm_compiled_model->m_longrope_context_limit > 0u ? 2u : 1u;
+        m_prefix_caching_helpers.reserve(prefix_cache_count);
+        for (size_t i = 0; i < prefix_cache_count; ++i) {
+            m_prefix_caching_helpers.push_back(std::make_unique<PrefixCachingHelper>(*this));
+        }
     }
 
     if (compiled_model->m_lm_head_compiled) {
@@ -377,6 +382,26 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
     m_llm_profile.area = "LLM/execution";
+}
+
+bool ov::npuw::LLMInferRequest::use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const {
+    const auto context_limit = m_npuw_llm_compiled_model->m_longrope_context_limit;
+    if (context_limit == 0u || m_prefix_caching_helpers.size() < 2u) {
+        return false;
+    }
+
+    const auto max_position_id = get_max_position_id(position_ids);
+    return max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+}
+
+ov::npuw::PrefixCachingHelper* ov::npuw::LLMInferRequest::get_prefix_caching_helper(
+    const ov::SoPtr<ov::ITensor>& position_ids) {
+    if (m_prefix_caching_helpers.empty()) {
+        return nullptr;
+    }
+
+    const size_t cache_index = use_longrope_prefix_cache(position_ids) ? 1u : 0u;
+    return m_prefix_caching_helpers.at(cache_index).get();
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
@@ -808,11 +833,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     uint64_t remaining_prompts = input_prompt_len;
 
-    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    auto* prefix_caching_helper = get_prefix_caching_helper(position_ids);
+    const bool enable_prefix_caching = prefix_caching_helper != nullptr;
     PrefixCacheRestorationContext cache_context;
     if (enable_prefix_caching) {
         // Prepare and restore prefix cache using helper
-        cache_context = m_prefix_caching_helper->prepare_and_restore(input_ids, input_prompt_len);
+        cache_context = prefix_caching_helper->prepare_and_restore(input_ids, input_prompt_len);
         remaining_prompts = cache_context.remaining_prompts;
     }
 
@@ -834,9 +860,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
             if (enable_prefix_caching && cache_context.restore_prefix_cache) {
-                m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
-                                                                                    attn_mask_in_tensor,
-                                                                                    kvcache_desc.num_stored_tokens);
+                prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
+                                                                                  attn_mask_in_tensor,
+                                                                                  kvcache_desc.num_stored_tokens);
                 cache_context.restore_prefix_cache = false;
             }
 
@@ -943,9 +969,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             }
 
             if (enable_prefix_caching) {
-                m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
-                                                               cache_context.prompt_hashes,
-                                                               cache_context.token_idx);
+                prefix_caching_helper->store_computed_blocks(current_prompts_len,
+                                                             cache_context.prompt_hashes,
+                                                             cache_context.token_idx);
             }
         });
 
@@ -978,7 +1004,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_DEBUG("Done.");
 
     if (enable_prefix_caching) {
-        m_prefix_caching_helper->print_cache_status();
+        prefix_caching_helper->print_cache_status();
     }
 }
 
