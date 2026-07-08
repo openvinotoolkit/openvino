@@ -15,10 +15,8 @@
 
 #include "common/convert_common.hpp"
 
-#ifdef GC_USE_GPU // GC_GPU requires IMEX support
 #include "gc/Utils/Error.h"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
-#endif
 
 namespace ov {
 namespace mlir {
@@ -26,31 +24,17 @@ namespace mlir {
 using ::mlir::OwningOpRef;
 using ::mlir::ModuleOp;
 using ::mlir::ExecutionEngine;
-using ::mlir::ModuleOp;
-
-enum MlirMode {
-    MLIR_MODE_TPP,
-    MLIR_MODE_GC,
-    MLIR_MODE_GC_GPU,
-    MLIR_MODE_DEFAULT,
-};
 
 class MLIROp;
 
 class MLIREvaluateBase {
 public:
-    static std::shared_ptr<MLIREvaluateBase> create(OwningOpRef<ModuleOp> module,
-                                                    MlirMode mode,
-                                                    std::shared_ptr<ov::EvaluationContext> ex_context);
-
     virtual bool requires_packed_args() const = 0;
     // ::invoke() doesn't require any args preprocessing so we can pass tensors as is
     virtual bool invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) = 0;
     virtual bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) = 0;
     virtual ~MLIREvaluateBase() = default;
 };
-
-#ifdef GC_USE_GPU // GC_GPU requires IMEX support
 
 class MLIREvaluateGcGPU : public MLIREvaluateBase {
     std::shared_ptr<const gc::gpu::OclModule> module;
@@ -66,21 +50,6 @@ private:
     gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext);
     static void maybe_set_result_event(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx);
 };
-
-#endif // GC_USE_GPU
-
-class MLIREvaluate : public MLIREvaluateBase {
-    OwningOpRef<ModuleOp> module;  // FIXME: needs to be kept?
-    std::unique_ptr<ExecutionEngine> engine;
-
-public:
-
-    MLIREvaluate(OwningOpRef<ModuleOp> _module, MlirMode mode);
-    bool requires_packed_args() const override { return true; }
-    bool invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) override { return false; };
-    bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) override;
-};
-
 
 // Maps [output index][dimension index] -> [input index][dimension index] to infer shapes for entire subgraph
 using DimensionsMap = std::vector<std::vector<std::tuple<size_t, size_t>>>;

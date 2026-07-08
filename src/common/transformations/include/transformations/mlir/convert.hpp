@@ -14,7 +14,7 @@ namespace ov {
 namespace pass {
 
 inline bool is_mlir_transform_enabled() {
-    return !util::getenv_string("OV_MLIR_MODE").empty() && util::getenv_bool("OV_MLIR", true);
+    return util::getenv_bool("OV_MLIR", false);
 }
 
 void TRANSFORMATIONS_API transformMLIR(std::shared_ptr<ov::Model> model,

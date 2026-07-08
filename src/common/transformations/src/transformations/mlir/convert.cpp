@@ -45,7 +45,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -75,16 +74,7 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
-#ifdef GRAPH_COMPILER
 #include "gc/Transforms/Passes.h"
-#endif
-
-#ifdef TPP_MLIR // If TPP is available
-#include "TPP/Dialect/Check/CheckDialect.h"
-#include "TPP/Dialect/Perf/PerfDialect.h"
-#include "TPP/Dialect/Xsmm/XsmmDialect.h"
-#include "TPP/GPU/Utils.h"
-#endif
 
 #include "mlir_op.hpp"
 #include "conversion/patterns.hpp"
@@ -182,22 +172,12 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     auto func = moduleBuilder.create<mlir::func::FuncOp>(funcLoc, function_name, funcType);
     auto block_builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock() /* TODO: Add logger here */);
 
-    // Affix target information attribute to the module to be used, at its discretion,
-    // by the MLIR-compiler that consumes this module.
-    auto tileSize = IntegerAttr::get(IntegerType::get(context, 32), 32);
-    auto key = StringAttr::get(context, "tile_size");
-    DataLayoutEntryInterface entry = DataLayoutEntryAttr::get(context, key, tileSize);
-    TargetDeviceSpecInterface deviceSpec = TargetDeviceSpecAttr::get(context, ArrayRef(entry));
-    auto deviceStr = StringAttr::get(context, "CPU");
-    auto sysSpec = TargetSystemSpecAttr::get(context, {DataLayoutEntryAttr::get(deviceStr, deviceSpec)});
-    module.getOperation()->setAttr("#dlti.sys_spec", sysSpec);
-
     GraphConverter graph_converter(context, &block_builder);
 
     for (size_t i = 0, r = 0; i < inputs.size(); ++i) {
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
         if (is_constant[i]) {
-            auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
+            auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());    
             graph_converter.nodeOutputMap.emplace(inputs[i], getConstant(block_builder, cst, loc));
         } else {
             auto funcInputVal = func.getArgument(r++);
@@ -266,7 +246,6 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 // This pass converts a group of nodes into a single MLIROp
 NodePtr ngraph_to_mlir_op(MLIRContext* context,
                           SubgraphPtr subgraph,
-                          MlirMode mode,
                           std::shared_ptr<ov::EvaluationContext> loweringContext) {
     SmallVector<size_t> keptInputIndices;
     mlir::OwningOpRef<mlir::ModuleOp> module =
@@ -320,7 +299,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
     }
     return std::make_shared<MLIROp>(
         inputs,
-        MLIREvaluate::create(std::move(module), mode, loweringContext),
+        std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext),
         output_types,
         output_map
     );
@@ -341,20 +320,18 @@ void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
 
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
-    MlirMode mode;
     std::shared_ptr<ov::EvaluationContext> loweringContext;
 public:
     OPENVINO_RTTI("Partitioner");
 
-    Partitioner(MLIRContext* context, MlirMode mode, std::shared_ptr<ov::EvaluationContext> loweringContext) :
+    Partitioner(MLIRContext* context, std::shared_ptr<ov::EvaluationContext> loweringContext) :
         context(context),
-        mode(mode),
         loweringContext(loweringContext)
     {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         SubgraphTracker tracker([this](SubgraphPtr subgraph) {
-                auto mlir_op = ngraph_to_mlir_op(context, subgraph, mode, loweringContext);
+                auto mlir_op = ngraph_to_mlir_op(context, subgraph, loweringContext);
                 replace_subgraph(subgraph, mlir_op);
                 OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op << "\n");
             }
@@ -376,7 +353,6 @@ public:
 
 void injectMLIR(std::shared_ptr<ov::Model> model,
                 MLIRContext* context,
-                MlirMode mode,
                 std::shared_ptr<ov::EvaluationContext> loweringContext) {
     ov::pass::Manager manager;
     using namespace ov::op;
@@ -411,7 +387,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<TransposePattern>();
     manager.register_pass<UnsqueezePattern>();
     manager.register_pass<MatMulPattern>();
-    manager.register_pass<Partitioner>(context, mode, loweringContext);
+    manager.register_pass<Partitioner>(context, loweringContext);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
 }
@@ -420,71 +396,16 @@ void loadDialects(MLIRContext* context) {
     context->loadAllAvailableDialects();
 }
 
-MLIRContext* get_shared_mlir_context(MlirMode mode) {
+MLIRContext* get_shared_mlir_context() {
     // Gives MLIRContext instance shared for entire OV process and initialized once upon the initial request
     // FIXME: Bind with OpenVINO lifetime in the sutable class instead of dirty tricking with static lifetime
 
-    static std::shared_ptr<MLIRContext> context;
-    static bool current_mode = mode;
+    static std::shared_ptr<MLIRContext> context = [] {
+        auto ctx = std::make_shared<MLIRContext>(gc::getDialectRegistry());
+        loadDialects(ctx.get());
+        return ctx;
+    }();
 
-    if (context) {
-        if (current_mode != mode) {
-            OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] Switching MLIR mode to: ");
-            current_mode = mode;
-        } else {
-            return context.get();
-        }
-    } else {
-        OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] MLIR mode: ");
-    }
-
-#ifdef GRAPH_COMPILER
-    if (mode == MLIR_MODE_GC || mode == MLIR_MODE_GC_GPU) {
-        OPENVINO_MLIR_DEBUG_PRINT("GC\n");
-        context = std::make_shared<MLIRContext>(gc::getDialectRegistry());
-    } else {
-#endif
-        // Initialize the LLVM machinery
-        llvm::InitializeNativeTarget();
-        llvm::InitializeNativeTargetAsmPrinter();
-#ifdef TPP_MLIR
-        if (mode == MLIR_MODE_TPP) {
-            OPENVINO_MLIR_DEBUG_PRINT("TPP\n");
-            // Initialize GPU-related LLVM machinery
-            tpp::initializeGpuTargets();
-        } else {
-#endif
-            assert(mode == MLIR_MODE_DEFAULT);
-            OPENVINO_MLIR_DEBUG_PRINT("DEFAULT\n");
-#ifdef TPP_MLIR
-            }
-#endif
-
-        // Add the following to include *all* MLIR Core dialects, or selectively
-        // include what you need like above. You only need to register dialects that
-        // will be *parsed* by the tool, not the one generated
-        DialectRegistry registry;
-#ifdef TPP_MLIR
-        if (mode == MLIR_MODE_TPP) {
-            registry.insert<mlir::xsmm::XsmmDialect>();
-            registry.insert<mlir::check::CheckDialect>();
-            registry.insert<mlir::perf::PerfDialect>();
-        }
-#endif
-
-        registerAllDialects(registry);
-        registerAllExtensions(registry);
-        registerAllToLLVMIRTranslations(registry);
-        mlir::linalg::registerTransformDialectExtension(registry);
-        mlir::tensor::registerTransformDialectExtension(registry);
-
-        context = std::make_shared<MLIRContext>(registry);
-
-#ifdef GRAPH_COMPILER
-    }
-#endif
-
-    loadDialects(context.get());
     return context.get();
 }
 
@@ -492,57 +413,7 @@ MLIRContext* get_shared_mlir_context(MlirMode mode) {
 
 void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model,
                              std::shared_ptr<ov::EvaluationContext> loweringContext) {
-    if(is_mlir_transform_enabled()) {
-        const char *default_mode =
-#ifdef TPP_MLIR
-                "TPP";
-#elif defined(GRAPH_COMPILER)
-                "GC";
-#else
-                "DEFAULT";
-#endif
-        auto mode_str = util::getenv_string("OV_MLIR_MODE");
-
-        if (mode_str == "") {
-            mode_str = default_mode;
-        } else {
-            // Convert to uppercase
-            std::transform(mode_str.begin(), mode_str.end(), mode_str.begin(), ::toupper);
-        }
-
-        MlirMode mode;
-
-        if (mode_str == "TPP") {
-#ifndef TPP_MLIR
-            OPENVINO_THROW(
-                "[ ERROR ] OpenVINO wasn't compiled with TPP_MLIR support, "
-                "but OV_MLIR_MODE environment variable is set to TPP.");
-#endif
-            mode = MLIR_MODE_TPP;
-        } else if (mode_str == "GC") {
-#ifndef GRAPH_COMPILER
-            OPENVINO_THROW(
-                "[ ERROR ] OpenVINO wasn't compiled with GRAPH_COMPILER support, "
-                "but OV_MLIR_MODE environment variable is set to GC.");
-#endif
-            mode = MLIR_MODE_GC;
-        } else if (mode_str == "GC_GPU") {
-#ifndef GRAPH_COMPILER
-            OPENVINO_THROW(
-                "[ ERROR ] OpenVINO wasn't compiled with GRAPH_COMPILER support, "
-                "but OV_MLIR_MODE environment variable is set to GC_GPU.");
-#endif
-#ifndef GC_USE_GPU
-            OPENVINO_THROW(
-                "[ ERROR ] GraphCompiler wasn't compiled with Graph Compiler support (-DENABLE_GRAPH_COMPILER), "
-                "but OV_MLIR_MODE environment variable is set to GC_GPU.");
-#endif
-            mode = MLIR_MODE_GC_GPU;
-        } else {
-            OPENVINO_ASSERT(mode_str == "DEFAULT");
-            mode = MLIR_MODE_DEFAULT;
-        }
-
-        injectMLIR(model, get_shared_mlir_context(mode), mode, loweringContext);
+    if (is_mlir_transform_enabled()) {
+        injectMLIR(model, get_shared_mlir_context(), loweringContext);
     }
 }

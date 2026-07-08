@@ -26,6 +26,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 
     apt update
     apt-get install -y --no-install-recommends \
+        software-properties-common \
         `# for python3-pip` \
         ca-certificates \
         file \
@@ -89,6 +90,21 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     else
         apt-get install -y --no-install-recommends nlohmann-json-dev
     fi
+
+    # LLVM/MLIR nightly from apt.llvm.org
+    for arg in "$@"; do
+        if [ "$arg" = "-llvm" ]; then
+            LLVM_VERSION=$(grep -Po '(?<=set\(LLVM_VERSION ")[^"]*' "$(dirname "$0")/cmake/llvm.cmake")
+            if ! dpkg -l "libmlir-${LLVM_VERSION}-dev" &>/dev/null; then
+                wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- "${LLVM_VERSION}" all
+                apt-get install -y --no-install-recommends \
+                    "libmlir-${LLVM_VERSION}-dev" "mlir-${LLVM_VERSION}-tools" \
+                    `# LLVMExports.cmake requires zstd::libzstd_shared` \
+                    libzstd-dev
+            fi
+            break
+        fi
+    done
 elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/os-release ; then
     yum update
     # RHEL 8 / CentOS 7 / Fedora 29
