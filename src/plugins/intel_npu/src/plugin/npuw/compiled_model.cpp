@@ -2457,6 +2457,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
                           BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
                           BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
+                          BIND(npuw::partitioning::online::keep_block_tag, NPUW_ONLINE_KEEP_BLOCKS_TAGGED),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),

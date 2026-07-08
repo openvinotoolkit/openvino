@@ -961,10 +961,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 int64_t kv_offset,
                                                 int64_t mask_offset,
                                                 int64_t tile_length,
-                                                bool async = false) {
+                                                bool async = false,
+                                                bool process_with_mask = true) {
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
-                            auto mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
+                            ov::SoPtr<ov::ITensor> mask_tile_buffer;
+                            if (process_with_mask) {
+                                mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
+                            }
 
                             if (can_reuse_tensor_zero_copy(k_source,
                                                            k_tile_buffer,
@@ -992,7 +996,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
                             }
 
-                            if (attention_mask_tensor) {
+                            if (process_with_mask && attention_mask_tensor) {
                                 if (can_reuse_tensor_zero_copy(attention_mask_tensor,
                                                                mask_tile_buffer,
                                                                MASK_KV_SEQ_DIM,
@@ -1046,6 +1050,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t mask_tile_offset = 0;
                         int64_t past_kv_tiles = num_tiles - 1;  // tiles driven from past blocks
 
+                        // For the fused hfa, the regular tile model has no mask input (6 inputs)
+                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+
                         // Iterate through KV blocks; each block contributes block_size/tile_size tiles.
                         for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0;
                              ++block_idx) {
@@ -1063,7 +1070,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                              v_block,
                                              t * tile_size,
                                              mask_tile_offset,
-                                             tile_size);
+                                             tile_size,
+                                             false,       // async
+                                             uses_mask);  // process_with_mask
                                 mask_tile_offset += tile_size;
                                 past_kv_tiles--;
                             }
