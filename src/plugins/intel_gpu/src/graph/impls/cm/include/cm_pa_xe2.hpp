@@ -105,7 +105,6 @@ void pa_lsc_u8(
         #pragma unroll
         for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
 
@@ -335,6 +334,7 @@ void pa_lsc_u8(
                     uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
                     matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+                    St = cm_mul<float>(St, (float)scale_factor);
 
                     if constexpr (use_causal_mask) {
                         apply_causal_mask_with_offset(St, causal_left);
@@ -516,11 +516,19 @@ void pa_lsc_u8(
             continue;
         }
 #endif
+        // Skip computation for fully-masked causal blocks (after barriers/SLM load).
+        if constexpr (use_causal_mask) {
+            if (causal_left < 0) {
+                causal_left -= kv_step;
+                continue;
+            }
+        }
 
         {
             uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+            St = cm_mul<float>(St, (float)scale_factor);
 
             if constexpr (use_causal_mask) {
                 apply_causal_mask_with_offset(St, causal_left);
@@ -652,9 +660,17 @@ void pa_kernel_lsc_prefetch_f16(
 
     lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
     #pragma unroll
-    for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
+    for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
         cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-        rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+    }
+
+    // For high GQA ratio, skip fp16 pre-scale and use fp32 post-scale instead.
+    // For low GQA ratio, fp16 pre-scale is sufficient and avoids extra fp32 ops.
+    if constexpr (num_heads / num_kv_heads <= 8) {
+        #pragma unroll
+        for (int ri = 0; ri < head_size / REG_K; ri++) {
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
     }
 
     lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
@@ -735,6 +751,10 @@ void pa_kernel_lsc_prefetch_f16(
                         Kmat[k].format<int32_t>());
                 }
             }
+        }
+        // Post-scale only for high GQA ratio (pre-scale already applied for low ratio)
+        if constexpr (num_heads / num_kv_heads > 8) {
+            St = cm_mul<float>(St, (float)scale_factor);
         }
         if constexpr (use_causal_mask) {
             apply_causal_mask_with_offset(St, causal_left);
@@ -876,6 +896,10 @@ void pa_kernel_lsc_prefetch_f16(
                         Kmat[k].format<int32_t>());
                 }
             }
+        }
+        // Post-scale only for high GQA ratio (pre-scale already applied for low ratio)
+        if constexpr (num_heads / num_kv_heads > 8) {
+            St = cm_mul<float>(St, (float)scale_factor);
         }
         if constexpr (use_causal_mask) {
             apply_causal_mask_with_offset(St, causal_left);
