@@ -319,16 +319,16 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                 auto dilations = fold_optional_list(fw_node, 4, dims, "dilation");
                 bool ceil_mode = fold_ceil_mode(fw_node, 5, dims);
                 new_outputs = build_dynamic_kernel_max_pool(rg,
-                                                                dims,
-                                                                return_indices,
-                                                                fw_node->input_value(0),
-                                                                elem_is_const,
-                                                                elem_const_val,
-                                                                elem_runtime_val,
-                                                                stride_is_default,
-                                                                pads,
-                                                                dilations,
-                                                                ceil_mode);
+                                                            dims,
+                                                            return_indices,
+                                                            fw_node->input_value(0),
+                                                            elem_is_const,
+                                                            elem_const_val,
+                                                            elem_runtime_val,
+                                                            stride_is_default,
+                                                            pads,
+                                                            dilations,
+                                                            ceil_mode);
             }
         } catch (const std::exception& e) {
             // Unsupported config: annotate the placeholder so the unconverted-ops reporter surfaces it.
