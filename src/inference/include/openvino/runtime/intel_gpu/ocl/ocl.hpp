@@ -329,7 +329,7 @@ public:
                          {ov::intel_gpu::os_handle.name(), handle.value}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
-    
+
     /**
      * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAdressMemory
      * @param type Tensor element type
@@ -338,7 +338,6 @@ public:
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAdressMemory buff) {
-
         OPENVINO_ASSERT(buff.ptr != nullptr, "host buffer must not be nullptr for CPU_VA memory type");
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
