@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@ using namespace cldnn;
 using namespace tests;
 using ov::intel_gpu::ocl::moe::LRUCache;
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Basic construction and initial state
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, initial_state) {
     LRUCache cache(4);
@@ -26,9 +26,9 @@ TEST(moe_lru_cache, initial_state) {
     ASSERT_FALSE(cache.is_initialized());
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // get_lru_item: insert (miss) and hit
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, single_insert_is_miss) {
     LRUCache cache(4);
@@ -61,9 +61,9 @@ TEST(moe_lru_cache, access_after_set_filled_is_hit) {
     ASSERT_TRUE(hit);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Sequential slot allocation
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, slots_assigned_sequentially) {
     const size_t cap = 4;
@@ -77,9 +77,9 @@ TEST(moe_lru_cache, slots_assigned_sequentially) {
     ASSERT_EQ(cache.size(), cap);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Eviction: oldest entry evicted when cache is full
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, eviction_when_full) {
     LRUCache cache(3);
@@ -90,7 +90,7 @@ TEST(moe_lru_cache, eviction_when_full) {
     cache.get_lru_item(2);  // slot 2
     ASSERT_EQ(cache.size(), 3U);
 
-    // Insert expert 3 â†’ evicts expert 0 (oldest), reuses slot 0
+    // Insert expert 3 -> evicts expert 0 (oldest), reuses slot 0
     auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 0U);   // expert 0's slot is recycled
@@ -106,17 +106,17 @@ TEST(moe_lru_cache, evicted_entry_becomes_miss) {
     cache.get_lru_item(1);
     cache.set_filled(1);
 
-    // Insert expert 2 â†’ evicts expert 0
+    // Insert expert 2 -> evicts expert 0
     cache.get_lru_item(2);
 
-    // Access expert 0 again â†’ should be a miss (it was evicted)
+    // Access expert 0 again -> should be a miss (it was evicted)
     auto [slot, hit] = cache.get_lru_item(0);
     ASSERT_FALSE(hit);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // LRU ordering: recently accessed items survive eviction
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, lru_order_refresh_on_access) {
     LRUCache cache(3);
@@ -126,11 +126,11 @@ TEST(moe_lru_cache, lru_order_refresh_on_access) {
     cache.get_lru_item(1);  // slot 1  (LRU order: 0, 1)
     cache.get_lru_item(2);  // slot 2  (LRU order: 0, 1, 2)
 
-    // Access expert 0 â†’ moves to most recent
+    // Access expert 0 -> moves to most recent
     // (LRU order: 1, 2, 0)
     cache.get_lru_item(0);
 
-    // Insert expert 3 â†’ should evict expert 1 (now the oldest)
+    // Insert expert 3 -> should evict expert 1 (now the oldest)
     auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 1U);  // reuses expert 1's slot
@@ -144,24 +144,24 @@ TEST(moe_lru_cache, double_refresh_changes_eviction_order) {
     cache.get_lru_item(1);  // slot 1
     cache.get_lru_item(2);  // slot 2
 
-    // Refresh 0, then refresh 1  â†’ LRU order: 2, 0, 1
+    // Refresh 0, then refresh 1  -> LRU order: 2, 0, 1
     cache.get_lru_item(0);
     cache.get_lru_item(1);
 
-    // Insert 3 â†’ evicts expert 2 (oldest)
+    // Insert 3 -> evicts expert 2 (oldest)
     auto [slot3, hit3] = cache.get_lru_item(3);
     ASSERT_FALSE(hit3);
     ASSERT_EQ(slot3, 2U);  // reuses expert 2's slot
 
-    // Insert 4 â†’ evicts expert 0 (now oldest)
+    // Insert 4 -> evicts expert 0 (now oldest)
     auto [slot4, hit4] = cache.get_lru_item(4);
     ASSERT_FALSE(hit4);
     ASSERT_EQ(slot4, 0U);  // reuses expert 0's slot
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Multi-layer: (layer, expert) pairs are independent
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 // Since LRU cache is per-layer (each MoE layer has its own cache instance),
 // the layer dimension has been removed from the cache key. This test verifies
@@ -190,9 +190,9 @@ TEST(moe_lru_cache, same_expert_gets_same_slot) {
     ASSERT_EQ(s0, 0U);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // set_filled / filled tracking
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, filled_cleared_on_eviction) {
     LRUCache cache(2);
@@ -204,7 +204,7 @@ TEST(moe_lru_cache, filled_cleared_on_eviction) {
     // Insert expert 1
     cache.get_lru_item(1);
 
-    // Insert expert 2 â†’ evicts expert 0, reuses slot s0
+    // Insert expert 2 -> evicts expert 0, reuses slot s0
     auto [s2, h2] = cache.get_lru_item(2);
     ASSERT_EQ(s2, s0);         // recycled slot
     ASSERT_FALSE(h2);          // filled was cleared during eviction
@@ -221,9 +221,9 @@ TEST(moe_lru_cache, set_filled_out_of_range_is_safe) {
     cache.set_filled(std::numeric_limits<size_t>::max());
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // evict_one: explicit eviction
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, explicit_evict_reduces_size) {
     LRUCache cache(4);
@@ -246,9 +246,9 @@ TEST(moe_lru_cache, evict_on_empty_is_safe) {
     ASSERT_EQ(cache.size(), 0U);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Capacity = 1 edge case
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, capacity_one) {
     LRUCache cache(1);
@@ -259,21 +259,21 @@ TEST(moe_lru_cache, capacity_one) {
 
     cache.set_filled(s0);
 
-    // Access same â†’ hit
+    // Access same -> hit
     auto [s0b, h0b] = cache.get_lru_item(0);
     ASSERT_EQ(s0b, 0U);
     ASSERT_TRUE(h0b);
 
-    // Insert new â†’ evicts the only entry, reuses slot 0
+    // Insert new -> evicts the only entry, reuses slot 0
     auto [s1, h1] = cache.get_lru_item(1);
     ASSERT_EQ(s1, 0U);
     ASSERT_FALSE(h1);
     ASSERT_EQ(cache.size(), 1U);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Stress: many inserts and evictions
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, stress_many_experts) {
     const size_t cap = 8;
@@ -297,9 +297,9 @@ TEST(moe_lru_cache, stress_many_experts) {
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 // Thread safety: concurrent get_lru_item calls
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------------------------------------
 
 TEST(moe_lru_cache, concurrent_access) {
     const size_t cap = 16;
@@ -331,3 +331,4 @@ TEST(moe_lru_cache, concurrent_access) {
 
     ASSERT_LE(cache.size(), cap);
 }
+
