@@ -82,8 +82,9 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    const int x_out_of_bounds = input_x + INPUT_LINE_SIZE > input_spatial_size_x ?
+    const int right_unreachable_count_x = input_x + INPUT_LINE_SIZE > input_spatial_size_x ?
                                 input_x + INPUT_LINE_SIZE - input_spatial_size_x : 0;
+    const int left_unreachable_count_x = max(0, -input_x);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -205,12 +206,11 @@ KERNEL(convolution_bfyx_f16)(
 #endif  // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-                    const int oob_input_x = max(0, -input_x);
-                    for (int i = 0; i < oob_input_x; i++){
+                    for (int i = 0; i < left_unreachable_count_x; i++){
                         line_cache[xb + i] = 0;
                     }
-                    xb += oob_input_x;
-                    const int reachable_size = INPUT_LINE_SIZE - x_out_of_bounds;
+                    xb += left_unreachable_count_x;
+                    const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
                     for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
@@ -243,7 +243,7 @@ KERNEL(convolution_bfyx_f16)(
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
                                                                  xb * input_x_pitch);
                     }
-                    for (int i = 0; i < x_out_of_bounds; i++){
+                    for (int i = 0; i < right_unreachable_count_x; i++){
                         line_cache[xb + i] = 0;
                     }
                 }
