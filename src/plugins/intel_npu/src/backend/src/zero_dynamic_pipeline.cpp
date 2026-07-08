@@ -360,14 +360,15 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 
         for (size_t i = 0; i < memRefs.size(); ++i) {
             auto& memref = memRefs[i];
-            auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
+            std::shared_ptr<MemRefTypeImpl> impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
             if (impl == nullptr) {
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-
+            impl->UpdateMemRefHandleStatus(memref);
             // VM runtime execute path always needs current memref handles.
             targetMemRefHandles.push_back(impl->_memRef);
+            
             if (dynamicGraph->commandlist_mode() == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
                 if (!commandListRecordingRequired) {
                     if (impl->_shapeUpdated || impl->_strideUpdated) {
