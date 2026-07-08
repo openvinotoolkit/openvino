@@ -34,6 +34,13 @@ ov::pass::AttentionMaskShapeReplacer::AttentionMaskShapeReplacer(const Output<No
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
+        // The batch dimension is read from ShapeOf(input_source) at index 0, so the source must
+        // expose it: a static rank of at least 1 is required for the rewrite to stay valid.
+        const auto source_rank = input_source.get_partial_shape().rank();
+        if (source_rank.is_dynamic() || source_rank.get_length() < 1) {
+            return false;
+        }
+
         auto gather_node = pattern_map.at(gather).get_node_shared_ptr();
         const auto indices_const = ov::util::get_constant_from_source(gather_node->input_value(1));
         if (!indices_const) {
