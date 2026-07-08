@@ -92,13 +92,13 @@ jobs:
       #
 
       - name: OpenVINO Core Unit Tests
-        if: ${{ fromJSON(inputs.affected-components).Core.test && inputs.os != 'debian_10' }} # Ticket: 153150
+        if: ${{ fromJSON(inputs.affected-components).Core.test }} # Ticket: 153150
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' }} # Ticket: 153151
+        if: ${{ fromJSON(inputs.affected-components).inference.test }} # Ticket: 153151
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
@@ -246,7 +246,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_util_tests.xml
 
       - name: OpenVINO C API tests
-        if: ${{ fromJSON(inputs.affected-components).C_API.test && inputs.os != 'debian_10' }} # Ticket: 153169
+        if: ${{ fromJSON(inputs.affected-components).C_API.test }} # Ticket: 153169
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
@@ -278,7 +278,7 @@ jobs:
 
       # Disabled for debug build due to long execution time
       - name: Hetero func tests
-        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.os != 'debian_10' && inputs.build-type != 'debug' }} # Ticket: 153170
+        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.build-type != 'debug' }} # Ticket: 153170
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
