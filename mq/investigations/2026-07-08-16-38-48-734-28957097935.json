@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-08-16-38-48-734-28957097935",
+  "timestamp": "2026-07-08T16:38:48Z",
+  "run_id": "28957097935",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28957097935",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36202",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36202",
+  "author": "peterchen-intel",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest primType is unexpected: unknown_i32 Expected acl_i32 on ARM64",
+  "signature": "primtype is unexpected unknown expected acl|Flaky Test",
+  "signature_hash": "cb7d14bccc236de4",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 test failed: smoke_ConvertCPULayerTest primType is unexpected : unknown_i32 Expected : acl_i32"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to upstream test job failure"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?]_TS=(2.4.4.1)_(2.17.5.4)_(1.2.3.4)_(1.3.3.3)_inputPRC=i32_specialValue=none_targetPRC=i8__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_i32 Expected : acl_i32",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/... (74 ms)",
+    "ERROR:test_parallel_runner:Run is not successful",
+    "##[error]Process completed with exit code 255."
+  ],
+  "root_cause": "A single ARM64 CPU functional test (smoke_ConvertCPULayerTest_4D_Dynamic) failed because the ACL (ARM Compute Library) primitive was not selected for an i32-to-i8 Convert operation. The test expects 'acl_i32' but received 'unknown_i32'. This failure occurred in a run triggered by PR #36202, which is a GPU-only change (MoE expert offloading), with no modifications to ARM64 CPU plugin code or ACL kernel registration. The mismatch between expected and actual primitive type is consistent with an intermittent ACL kernel selection issue on the ARM64 runner. Out of 71,986 smoke tests, only this one failed, suggesting a flaky or environment-sensitive condition rather than a code regression introduced by the PR.",
+  "reproduction_steps": "Run on an ARM64 machine with ACL support:\n./ov_cpu_func_tests --gtest_filter='smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?]_TS=(2.4.4.1)_(2.17.5.4)_(1.2.3.4)_(1.3.3.3)_inputPRC=i32_specialValue=none_targetPRC=i8__inFmts=nchw_outFmts=nchw_primitive=acl'",
+  "recommended_actions": [
+    "Re-run the failed jobs to confirm whether this is a transient flaky test.",
+    "If the failure recurs, investigate ARM64 ACL kernel registration for i32 Convert in src/plugins/intel_cpu/src/nodes/convert.cpp.",
+    "Check if ACL supports i32 as input precision for Convert operations in the current ACL version used in the ARM64 build.",
+    "Add the test to the expected_failures skip config at tests/functional_test_utils/layer_tests_summary/github/skip_configs/CPU/expected_failures_OP.csv if confirmed as a known intermittent failure."
+  ],
+  "prevention_strategies": "Monitor ACL kernel coverage for all precision combinations in the ARM64 CPU plugin. Ensure ACL fallback behavior is properly handled when a primitive is not supported, and distinguish between 'not supported' (should skip) vs 'should use ACL but didn't' (should fail).",
+  "historical_context": "No prior occurrences of this specific failure pattern found in the CI Doctor MQ database."
+}

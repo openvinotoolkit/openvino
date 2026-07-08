@@ -1,6 +1,15 @@
 {
-  "total": 30,
+  "total": 31,
   "entries": [
+    {
+      "investigation_id": "2026-07-08-16-38-48-734-28957097935",
+      "run_id": "28957097935",
+      "timestamp": "2026-07-08T16:38:48Z",
+      "title": "smoke_ConvertCPULayerTest primType is unexpected: unknown_i32 Expected acl_i32 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "cb7d14bccc236de4",
+      "pr_number": "36202"
+    },
     {
       "investigation_id": "2026-07-07-19-17-19-000-28887792739",
       "run_id": "28887792739",
