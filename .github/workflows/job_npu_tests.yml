@@ -204,3 +204,109 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
           if-no-files-found: 'error'
+
+  PyTorch_NPU_Models_Tests:
+    name: PyTorch NPU Models tests (${{ matrix.test.name }} - ${{ matrix.npu-platform }})
+    timeout-minutes: 90
+    strategy:
+      # one runner per (NPU platform x test file); keep going even if one leg fails.
+      # Each PyTorch test file has its own env deps (some mutually incompatible, e.g.
+      # hf_transformers pins transformers==4.47.1 while llm pins ==5.5.3), so every
+      # file runs in an isolated matrix leg with only its own requirements installed.
+      fail-fast: false
+      matrix:
+        npu-platform: ${{ fromJSON(inputs.npu-platforms) }}
+        test:
+          - { name: 'torchvision',     file: 'test_torchvision_models.py', reqs: 'pytorch/envs/torchvision.txt' }
+          - { name: 'timm',            file: 'test_timm.py',               reqs: 'pytorch/envs/timm.txt' }
+          - { name: 'hf_transformers', file: 'test_hf_transformers.py',    reqs: 'pytorch/envs/hf_transformers.txt' }
+          - { name: 'edsr',            file: 'test_edsr.py',               reqs: 'pytorch/envs/edsr.txt' }
+          - { name: 'easyocr',         file: 'test_easyocr.py',            reqs: 'pytorch/envs/easyocr.txt' }
+          - { name: 'gfpgan',          file: 'test_gfpgan.py',             reqs: 'pytorch/envs/gfpgan.txt' }
+          - { name: 'tpsmm',           file: 'test_tpsmm.py',              reqs: 'pytorch/envs/tpsmm.txt' }
+          # NOTE: test_llm.py needs llm_build_deps.txt installed BEFORE llm.txt (pypcre is a
+          # build-time dep of gptqmodel). GPTQ/AWQ quantized-model deps are gated to Linux/x86_64,
+          # so on Windows only the non-quantized precommit models are exercised.
+          - { name: 'llm',             file: 'test_llm.py',                reqs: 'pytorch/envs/llm.txt', build_reqs: 'pytorch/envs/llm_build_deps.txt' }
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: ${{ inputs.runner }}
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
+      TEST_DEVICE: ${{ inputs.test-device }}
+      NPU_PLATFORM: ${{ matrix.npu-platform }}
+      MODEL_SCOPE: ${{ inputs.model-scope }}
+    steps:
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Extract OpenVINO tests package
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Fetch setup_python and install wheels actions
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          set-pip-install-path: 'false'
+          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
+          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install PyTorch Models tests requirements
+        run: |
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
+          # Some files (e.g. llm) ship build-time deps that must be installed first.
+          if ('${{ matrix.test.build_reqs }}') {
+            python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\${{ matrix.test.build_reqs }}
+          }
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\${{ matrix.test.reqs }}
+
+      - name: PyTorch Models Tests - NPU compile-only
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\${{ matrix.test.file }} -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_${{ matrix.test.name }}_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+        env:
+          # Make the NPU plugin log the chosen compiler/platform.
+          OV_NPU_LOG_LEVEL: LOG_INFO
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-pytorch-npu-models-${{ matrix.test.name }}-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}\TEST*.html
+          if-no-files-found: 'error'
