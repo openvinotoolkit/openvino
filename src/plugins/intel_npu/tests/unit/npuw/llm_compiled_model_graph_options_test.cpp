@@ -14,6 +14,7 @@
 
 #include "llm_test_helpers.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -227,6 +228,55 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
     EXPECT_EQ(generate_attention_mask_shapes.size(), 2u);
     EXPECT_THAT(generate_attention_mask_shapes,
                 ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
+}
+
+TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());
+    ASSERT_NE(model, nullptr);
+
+    // Hybrid model must have sinks (conv + SSM + KV cache state assigns)
+    EXPECT_GT(model->get_sinks().size(), 0u);
+
+    // Validate the model is well-formed
+    EXPECT_TRUE(model->get_results().size() > 0u);
+}
+
+// LFM2-style gated short conv: conv state only (no SSM), key/value on attention layers.
+// StatefulToStateless is the pass NPUW actually runs to consume cache_params.* states.
+TEST(HybridModelBuilderTest, LFM2ModelConvertsToStateless) {
+    auto model = ov::test::npuw::build_lfm2_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    // 2 short-conv layers x conv + 2 attn layers x (key + value) = 6 states.
+    ASSERT_EQ(model->get_sinks().size(), 6u);
+    ASSERT_EQ(model->get_variables().size(), 6u);
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    auto has_input = [&](const std::string& n) {
+        for (const auto& p : model->inputs())
+            if (p.get_names().count(n))
+                return true;
+        return false;
+    };
+    auto has_output = [&](const std::string& n) {
+        for (const auto& r : model->outputs())
+            if (r.get_names().count(n))
+                return true;
+        return false;
+    };
+
+    for (size_t lin = 0; lin < 2; ++lin) {
+        const auto idx = std::to_string(lin);
+        EXPECT_TRUE(has_input("cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output("cache_params.present.conv." + idx));
+    }
+    for (size_t att = 0; att < 2; ++att) {
+        const auto idx = std::to_string(att);
+        EXPECT_TRUE(has_input("past_key_values." + idx + ".key"));
+        EXPECT_TRUE(has_output("present." + idx + ".key"));
+    }
 }
 
 }  // namespace

@@ -49,6 +49,12 @@ inline std::string make_kv_var_id(const std::string& layer,
     return "past_key_values." + layer + infix + kv_type + "present." + layer + infix + kv_type;
 }
 
+/// Hybrid model state id: cache_params.past.{type}.{N}cache_params.present.{type}.{N}
+/// Missing separator between past+present halves is intentional — matches StatefulToStateless.
+inline std::string make_cache_params_var_id(const std::string& type, const std::string& idx) {
+    return "cache_params.past." + type + "." + idx + "cache_params.present." + type + "." + idx;
+}
+
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
