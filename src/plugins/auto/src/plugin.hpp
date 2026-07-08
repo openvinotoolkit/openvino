@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <list>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -72,8 +73,8 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::map<std::string, float> get_device_utilization(const std::string& device,
-                                                                       const std::string& device_type = "") const;
+    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
+                                                              const std::string& device_luid = "") const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;

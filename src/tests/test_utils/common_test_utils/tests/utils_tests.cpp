@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/device_monitor.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -104,25 +103,6 @@ TEST(UtilsTests, split_by_delimiter_empty_and_comma) {
     ASSERT_EQ(split_set, expected_set);
 }
 
-TEST(UtilsTests, device_monitor) {
-    std::string cpu_device_id = "";
-    std::map<std::string, float> utilization;
-    ASSERT_NO_THROW(utilization = get_device_utilization(cpu_device_id));
-#ifdef _WIN32
-    ASSERT_FALSE(utilization.empty()) << "Expected non-empty utilization map for CPU device";
-    ASSERT_TRUE(utilization.count("Total")) << "Expected 'Total' key in utilization map for CPU device";
-    ASSERT_GE(utilization.at("Total"), 0.0f) << "Expected non-negative CPU utilization value";
-#else
-    bool ret = utilization == std::map<std::string, float>{{"Total", -1.0f}};
-    ASSERT_TRUE(ret) << "Expected utilization map with 'Total' key only for CPU device";
-#endif
-
-    std::string invalid_device_id = "INVALID_DEVICE_ID";
-    // expect no exception and an empty utilization map
-    ASSERT_NO_THROW(utilization = get_device_utilization(invalid_device_id))
-        << "Expected no exception for invalid device ID";
-    ASSERT_TRUE(utilization.empty()) << "Expected empty utilization map for invalid device ID";
-}
 TEST(UtilsTests, mul_overflow_i8_detected) {
     int8_t result;
     constexpr auto max = std::numeric_limits<int8_t>::max();

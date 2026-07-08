@@ -27,31 +27,6 @@ set(UNIX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/wstring_convert_util.cpp
 )
 
-set(MONITOR_COMMON_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/device_monitor.cpp
-)
-
-set(MONITOR_WIN32_SOURCES)
-
-if(WIN32)
-    if(TARGET IPF::ClientApi)
-        list(APPEND MONITOR_WIN32_SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor.cpp
-        )
-    else()
-        list(APPEND MONITOR_WIN32_SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/cpu_device_monitor_stub.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/xpu_device_monitor_stub.cpp
-        )
-    endif()
-endif()
-
-set(MONITOR_UNIX_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/cpu_device_monitor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/xpu_device_monitor.cpp
-)
-
 add_library(${TARGET_NAME} STATIC)
 
 set_source_files_properties(
@@ -98,13 +73,10 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
-        ${MONITOR_COMMON_SOURCES}
         # Windows specific sources
         "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"
-        "$<$<BOOL:${WIN32}>:${MONITOR_WIN32_SOURCES}>"
          # Unix specific sources
         "$<$<BOOL:${UNIX}>:${UNIX_SOURCES}>"
-        "$<$<BOOL:${UNIX}>:${MONITOR_UNIX_SOURCES}>"
 )
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
@@ -115,18 +87,6 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC openvino::pugixml
            $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
            $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
-
-if (WIN32)
-    set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
-    target_include_directories(${TARGET_NAME} PRIVATE $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
-
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
-
-    # IPF (Intel Platform Framework) SDK for device monitoring
-    if(TARGET IPF::ClientApi)
-        target_link_libraries(${TARGET_NAME} PRIVATE IPF::ClientApi)
-    endif()
-endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
