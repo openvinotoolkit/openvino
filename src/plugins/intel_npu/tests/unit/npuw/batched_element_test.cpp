@@ -4,16 +4,18 @@
 
 // Unit tests for the batched v1 element (ov::npuw::batched), a model-agnostic fan-out
 // decorator that unrolls a batched [N, ...] request into N batch-1 inner inferences,
-// resets inner variable state between rows, and stacks the per-row outputs back to [N, ...].
-// The element itself is the unit under test; only the inner compiled model is mocked, which
-// keeps the tests deviceless and lets them observe the per-row infer/reset. It is driven
-// through a synthetic Qwen-style reranker (realistic multi-input, stateful signature), and the
-// mock echoes each row's first token so a test can assert output row r reflects input row r.
+// resets inner variable state between rows, and writes the per-row outputs into rows
+// of the [N, ...] public output tensors. The element itself is the unit under test;
+// only the inner compiled model is mocked, which keeps the tests deviceless and lets
+// them observe the per-row infer/reset. It is driven through a synthetic Qwen-style
+// reranker (realistic multi-input, stateful signature), and the mock echoes each
+// row's first token so a test can assert output row r reflects input row r.
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -133,21 +135,16 @@ private:
     std::shared_ptr<MockState> m_state;
 };
 
-class MockInnerCompiled : public ov::ICompiledModel {
+class MockInnerCompiled : public ov::npuw::ICompiledModel {
 public:
     MockInnerCompiled(const std::shared_ptr<ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
                       std::shared_ptr<Recorder> rec)
-        : ov::ICompiledModel(model, plugin),
+        : ov::npuw::ICompiledModel(model, plugin),
           m_rec(std::move(rec)) {}
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
         return std::make_shared<MockInnerSync>(shared_from_this(), m_rec);
-    }
-    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
-                                                        get_task_executor(),
-                                                        get_callback_executor());
     }
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -170,22 +167,25 @@ protected:
         m_recorder = std::make_shared<Recorder>();
     }
 
-    ov::SoPtr<ov::ICompiledModel> make_inner() {
-        return {std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder), {}};
+    std::shared_ptr<ov::npuw::ICompiledModel> make_inner() {
+        return std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder);
     }
 
-    ov::SoPtr<ov::ICompiledModel> wrap(bool enabled) {
-        return ov::npuw::batched::CompiledModel::create(m_model, m_plugin, make_inner(), enabled);
+    std::shared_ptr<ov::npuw::ICompiledModel> wrap(bool enabled) {
+        return ov::npuw::batched::CompiledModel::create(make_inner(), m_plugin, enabled);
     }
 
-    // Resize a named input in place and return it. Templated so it serves both the async wrapper
-    // and a bare sync request -- both expose get_inputs()/get_tensor().
+    // Bind a fresh zero-filled tensor of the port's element type to a named input.
     template <class Req>
-    static ov::SoPtr<ov::ITensor> resize_input(const std::shared_ptr<Req>& req,
-                                               const std::string& name,
-                                               const ov::Shape& shape) {
-        const auto tensor = req->get_tensor(port_named(req->get_inputs(), name));
-        tensor->set_shape(shape);
+    static ov::SoPtr<ov::ITensor> bind_input(const std::shared_ptr<Req>& req,
+                                             const std::string& name,
+                                             const ov::Shape& shape) {
+        const auto port = port_named(req->get_inputs(), name);
+        auto tensor = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape));
+        if (tensor->get_byte_size() > 0) {
+            std::memset(tensor->data(), 0, tensor->get_byte_size());
+        }
+        req->set_tensor(port, tensor);
         return tensor;
     }
 
@@ -194,7 +194,7 @@ protected:
     static void set_input_ids(const std::shared_ptr<Req>& req, const std::vector<std::vector<int64_t>>& ids) {
         const std::size_t batch = ids.size();
         const std::size_t len = ids.empty() ? 0 : ids.front().size();
-        auto* tokens = static_cast<int64_t*>(resize_input(req, "input_ids", {batch, len})->data());
+        auto* tokens = static_cast<int64_t*>(bind_input(req, "input_ids", {batch, len})->data());
         for (std::size_t r = 0; r < batch; ++r) {
             std::copy(ids[r].begin(), ids[r].end(), tokens + r * len);
         }
@@ -206,9 +206,9 @@ protected:
         const std::size_t batch = ids.size();
         const std::size_t len = ids.empty() ? 0 : ids.front().size();
         set_input_ids(req, ids);
-        resize_input(req, "attention_mask", {batch, len});
-        resize_input(req, "position_ids", {batch, len});
-        resize_input(req, "beam_idx", {batch});
+        bind_input(req, "attention_mask", {batch, len});
+        bind_input(req, "position_ids", {batch, len});
+        bind_input(req, "beam_idx", {batch});
     }
 
     // First element of output row r (the echoed token), independent of the output's rank.
@@ -222,17 +222,28 @@ protected:
     std::shared_ptr<Recorder> m_recorder;
 };
 
+TEST_F(NPUWBatchedElementTest, RequestedFromProperties) {
+    EXPECT_FALSE(ov::npuw::batched::requested({}));
+    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", false}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", true}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_EMBED", true}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}}));
+}
+
 TEST_F(NPUWBatchedElementTest, DisabledReturnsInnerUnwrapped) {
     auto inner = make_inner();
-    auto wrapped = ov::npuw::batched::CompiledModel::create(m_model, m_plugin, inner, /*enabled=*/false);
-    EXPECT_EQ(wrapped._ptr, inner._ptr);
+    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/false);
+    EXPECT_EQ(wrapped, inner);
 }
 
 TEST_F(NPUWBatchedElementTest, EnabledWrapsInner) {
     auto inner = make_inner();
-    auto wrapped = ov::npuw::batched::CompiledModel::create(m_model, m_plugin, inner, /*enabled=*/true);
-    EXPECT_NE(wrapped._ptr, inner._ptr);
-    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::batched::CompiledModel>(wrapped._ptr), nullptr);
+    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
+    EXPECT_NE(wrapped, inner);
+    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::batched::CompiledModel>(wrapped), nullptr);
+    // The wrapper adds no I/O of its own -- it exposes the inner model's ports.
+    EXPECT_EQ(&wrapped->inputs(), &inner->inputs());
+    EXPECT_EQ(&wrapped->outputs(), &inner->outputs());
 }
 
 TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
@@ -270,18 +281,19 @@ TEST_F(NPUWBatchedElementTest, SingleRowScored) {
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer"}));
 }
 
-// A zero-row batch has nothing to score and would publish an unpopulated output.
+// A zero-row batch has nothing to score and would publish unpopulated outputs.
 TEST_F(NPUWBatchedElementTest, ZeroBatchIsRejected) {
     auto wrapped = wrap(/*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
-    resize_input(req, "input_ids", {0, 4});
+    bind_inputs(req, {{1, 2, 3, 4}});
+    bind_input(req, "input_ids", {0, 4});
 
     try {
         req->infer();
         FAIL() << "expected a zero-batch rejection";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(error_message(ex).find("batch size must be > 0"), std::string::npos);
+        EXPECT_NE(error_message(ex).find("zero-sized batch dimension"), std::string::npos);
     }
     EXPECT_TRUE(m_recorder->events.empty());
 }
@@ -293,7 +305,7 @@ TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
     auto req = wrapped->create_infer_request();
 
     bind_inputs(req, {{1, 2}, {3, 4}, {5, 6}});
-    resize_input(req, "attention_mask", {2, 2});
+    bind_input(req, "attention_mask", {2, 2});
 
     try {
         req->infer();
@@ -304,37 +316,15 @@ TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
     EXPECT_TRUE(m_recorder->events.empty());
 }
 
-// The production LLM/rerank wiring builds the element from a *sync* inner request (driven on the
-// calling thread to dodge a nested-executor deadlock), bypassing batched::CompiledModel. Exercise
-// that constructor directly.
-TEST_F(NPUWBatchedElementTest, SyncInnerConstructorScoresEachRow) {
-    auto inner_compiled = std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder);
-    std::shared_ptr<ov::ISyncInferRequest> inner_sync = inner_compiled->create_sync_infer_request();
-    std::shared_ptr<const ov::ICompiledModel> compiled = inner_compiled;
-    auto req = std::make_shared<ov::npuw::batched::InferRequest>(compiled, std::move(inner_sync));
-
-    const std::vector<std::vector<int64_t>> ids = {{11, 2, 3, 4}, {22, 5, 6, 7}, {33, 8, 9, 10}};
-    bind_inputs(req, ids);
-
-    req->infer();
-
-    const auto out = req->get_tensor(req->get_outputs()[0]);
-    ASSERT_EQ(out->get_shape()[0], ids.size());
-    for (std::size_t r = 0; r < ids.size(); ++r) {
-        EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front())) << "output row " << r;
-    }
-    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
-}
-
-// A shared/broadcast input (batch 1) is fed to every row unsliced -- the slice guard only fires
-// when the leading dim equals the batch, so a [1, L] input is never sliced out of range.
-TEST_F(NPUWBatchedElementTest, BroadcastInputSharedAcrossRows) {
+// A shared input (batch 1) is fed to every row whole -- only inputs carrying the full
+// batch are sliced, so a [1, L] input is never sliced out of range.
+TEST_F(NPUWBatchedElementTest, SharedInputBoundToEveryRow) {
     auto wrapped = wrap(/*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1, 1, 1}, {22, 1, 1, 1}, {33, 1, 1, 1}};
     bind_inputs(req, ids);
-    resize_input(req, "attention_mask", {1, 4});  // shared across the 3 rows
+    bind_input(req, "attention_mask", {1, 4});  // shared across the 3 rows
 
     req->infer();
 
@@ -346,22 +336,21 @@ TEST_F(NPUWBatchedElementTest, BroadcastInputSharedAcrossRows) {
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
-// Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1 when a
-// later input carries the real batch. The old "first input with a batch dim wins" logic set batch=1
-// and rejected attention_mask as a mismatch; detection now takes the largest leading dim.
+// Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1
+// when a later input carries the real batch -- the batch is the largest leading dim.
 TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
     auto wrapped = wrap(/*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
-    bind_inputs(req, {{7, 1, 1, 1}});             // input_ids = [1, 4], shared prompt (token 7)
-    resize_input(req, "attention_mask", {3, 4});  // real batch N = 3 on a non-leading input
+    bind_inputs(req, {{7, 1, 1, 1}});           // input_ids = [1, 4], shared prompt (token 7)
+    bind_input(req, "attention_mask", {3, 4});  // real batch N = 3 on a non-leading input
 
     req->infer();
 
     const auto out = req->get_tensor(wrapped->outputs()[0]);
     ASSERT_EQ(out->get_shape()[0], 3u);
     for (std::size_t r = 0; r < 3; ++r) {
-        EXPECT_FLOAT_EQ(row_value(out, r), 7.0f) << "output row " << r;  // input_ids broadcast to every row
+        EXPECT_FLOAT_EQ(row_value(out, r), 7.0f) << "output row " << r;  // input_ids shared with every row
     }
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
@@ -370,8 +359,8 @@ TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
 // two outputs must differ per row.
 TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
     auto model = build_two_output_model();
-    ov::SoPtr<ov::ICompiledModel> inner{std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder), {}};
-    auto wrapped = ov::npuw::batched::CompiledModel::create(model, m_plugin, inner, /*enabled=*/true);
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
@@ -389,6 +378,29 @@ TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
         EXPECT_FLOAT_EQ(row_value(hidden, r), static_cast<float>(ids[r].front()) + kOutputChannelOffset);
     }
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+}
+
+// A caller-bound output tensor of the right shape and type is written in place, not replaced.
+TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
+    auto req = wrapped->create_infer_request();
+
+    const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
+    set_input_ids(req, ids);
+
+    // The mock produces [1, 1] outputs (dynamic dims sized to 1), so the stacked shape is [3, 1].
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {3, 1}));
+    req->set_tensor(wrapped->outputs()[0], bound);
+
+    req->infer();
+
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out->data(), bound->data());
+    for (std::size_t r = 0; r < ids.size(); ++r) {
+        EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front()));
+    }
 }
 
 }  // namespace

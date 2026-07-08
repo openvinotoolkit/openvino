@@ -45,7 +45,6 @@
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
-#include "v1/elements/batched.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 #include "whisper/whisper_infer_request.hpp"
 
@@ -816,8 +815,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
-    auto use_text_rerank_key = pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
-    m_is_rerank = use_text_rerank_key.value_or(false).as<bool>() == true;
+    // NPUW_TEXT_RERANK is consumed at the entry point (npuw::ICompiledModel::create
+    // wraps this model with the batched element); pop it here so it doesn't leak
+    // into the submodel configs.
+    pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
 
     if (m_is_embedding) {
         LOG_DEBUG("Text-embedding model rebuild");
@@ -1623,30 +1624,13 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-
     if (m_is_whisper) {
         return non_const_this->create_whisper_infer_request();
+    } else if (m_is_embedding) {
+        return non_const_this->create_embedding_infer_request();
+    } else {
+        return non_const_this->create_llm_infer_request();
     }
-
-    auto inner =
-        m_is_embedding ? non_const_this->create_embedding_infer_request() : non_const_this->create_llm_infer_request();
-
-    // Batched scoring: wrap the single-sequence request with the batched element so a
-    // [N, ...] input is unrolled into N independent [1, ...] inferences (rows are scored
-    // one at a time, with the KV-cache reset between them) and stacked back into [N, ...].
-    // This is valid only for the non-generating scoring pipelines -- text embedding and
-    // text reranking -- where rows are independent; the pipeline flags the model as such at
-    // compile time, so no user-facing option is needed. Generation never sets these.
-    if (m_is_embedding || m_is_rerank) {
-        // Drive the single-sequence request synchronously (sync overload) so it runs on the
-        // calling thread rather than being re-scheduled onto this model's task executor -- the
-        // outer request is already async on that executor, and nesting on the same executor
-        // would deadlock.
-        auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
-        return std::make_shared<ov::npuw::batched::InferRequest>(self, std::move(inner));
-    }
-
-    return inner;
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {

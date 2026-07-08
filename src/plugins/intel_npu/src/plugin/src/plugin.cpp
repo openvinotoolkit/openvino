@@ -24,6 +24,7 @@
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
+#include "npuw/v1/elements/batched.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -173,7 +174,13 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                 return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
                 // Properties are required for ov::weights_path
-                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+                auto llm_compiled_model = ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+                // The batched-scoring element is a runtime-only decorator and is not
+                // part of the blob - re-apply it from the import properties, mirroring
+                // ov::npuw::ICompiledModel::create().
+                return ov::npuw::batched::CompiledModel::create(llm_compiled_model,
+                                                                pluginSO,
+                                                                ov::npuw::batched::requested(properties));
             } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
                 OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
                                "the current ORC serializer.");
