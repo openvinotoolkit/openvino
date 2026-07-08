@@ -29,6 +29,10 @@ public:
     bool is_offloaded() const override {
         return false;
     }
+    void bind(cldnn::moe_weights& /*resident*/) override {}
+    bool is_bound() const override {
+        return true;
+    }
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override {
         views.weight[0] = weights.gate_w;
         views.scale[0] = weights.gate_s;
@@ -43,7 +47,6 @@ public:
 
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
-    void release(ExpertSlotLease& /*lease*/) override {}
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -77,7 +80,6 @@ public:
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
-    void release(ExpertSlotLease& /*lease*/) override {}
 
     LRUCache& cache() {
         return *_cache;

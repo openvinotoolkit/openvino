@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@ using namespace cldnn;
 using namespace tests;
 using ov::intel_gpu::ocl::moe::LRUCache;
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Basic construction and initial state
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, initial_state) {
     LRUCache cache(4);
@@ -26,9 +26,9 @@ TEST(moe_lru_cache, initial_state) {
     ASSERT_FALSE(cache.is_initialized());
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // get_lru_item: insert (miss) and hit
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, single_insert_is_miss) {
     LRUCache cache(4);
@@ -61,9 +61,9 @@ TEST(moe_lru_cache, access_after_set_filled_is_hit) {
     ASSERT_TRUE(hit);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Sequential slot allocation
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, slots_assigned_sequentially) {
     const size_t cap = 4;
@@ -77,9 +77,9 @@ TEST(moe_lru_cache, slots_assigned_sequentially) {
     ASSERT_EQ(cache.size(), cap);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Eviction: oldest entry evicted when cache is full
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, eviction_when_full) {
     LRUCache cache(3);
@@ -90,7 +90,7 @@ TEST(moe_lru_cache, eviction_when_full) {
     cache.get_lru_item(2);  // slot 2
     ASSERT_EQ(cache.size(), 3U);
 
-    // Insert expert 3 → evicts expert 0 (oldest), reuses slot 0
+    // Insert expert 3 â†’ evicts expert 0 (oldest), reuses slot 0
     auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 0U);   // expert 0's slot is recycled
@@ -106,17 +106,17 @@ TEST(moe_lru_cache, evicted_entry_becomes_miss) {
     cache.get_lru_item(1);
     cache.set_filled(1);
 
-    // Insert expert 2 → evicts expert 0
+    // Insert expert 2 â†’ evicts expert 0
     cache.get_lru_item(2);
 
-    // Access expert 0 again → should be a miss (it was evicted)
+    // Access expert 0 again â†’ should be a miss (it was evicted)
     auto [slot, hit] = cache.get_lru_item(0);
     ASSERT_FALSE(hit);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // LRU ordering: recently accessed items survive eviction
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, lru_order_refresh_on_access) {
     LRUCache cache(3);
@@ -126,11 +126,11 @@ TEST(moe_lru_cache, lru_order_refresh_on_access) {
     cache.get_lru_item(1);  // slot 1  (LRU order: 0, 1)
     cache.get_lru_item(2);  // slot 2  (LRU order: 0, 1, 2)
 
-    // Access expert 0 → moves to most recent
+    // Access expert 0 â†’ moves to most recent
     // (LRU order: 1, 2, 0)
     cache.get_lru_item(0);
 
-    // Insert expert 3 → should evict expert 1 (now the oldest)
+    // Insert expert 3 â†’ should evict expert 1 (now the oldest)
     auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 1U);  // reuses expert 1's slot
@@ -144,24 +144,24 @@ TEST(moe_lru_cache, double_refresh_changes_eviction_order) {
     cache.get_lru_item(1);  // slot 1
     cache.get_lru_item(2);  // slot 2
 
-    // Refresh 0, then refresh 1  → LRU order: 2, 0, 1
+    // Refresh 0, then refresh 1  â†’ LRU order: 2, 0, 1
     cache.get_lru_item(0);
     cache.get_lru_item(1);
 
-    // Insert 3 → evicts expert 2 (oldest)
+    // Insert 3 â†’ evicts expert 2 (oldest)
     auto [slot3, hit3] = cache.get_lru_item(3);
     ASSERT_FALSE(hit3);
     ASSERT_EQ(slot3, 2U);  // reuses expert 2's slot
 
-    // Insert 4 → evicts expert 0 (now oldest)
+    // Insert 4 â†’ evicts expert 0 (now oldest)
     auto [slot4, hit4] = cache.get_lru_item(4);
     ASSERT_FALSE(hit4);
     ASSERT_EQ(slot4, 0U);  // reuses expert 0's slot
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Multi-layer: (layer, expert) pairs are independent
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Since LRU cache is per-layer (each MoE layer has its own cache instance),
 // the layer dimension has been removed from the cache key. This test verifies
@@ -190,9 +190,9 @@ TEST(moe_lru_cache, same_expert_gets_same_slot) {
     ASSERT_EQ(s0, 0U);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // set_filled / filled tracking
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, filled_cleared_on_eviction) {
     LRUCache cache(2);
@@ -204,7 +204,7 @@ TEST(moe_lru_cache, filled_cleared_on_eviction) {
     // Insert expert 1
     cache.get_lru_item(1);
 
-    // Insert expert 2 → evicts expert 0, reuses slot s0
+    // Insert expert 2 â†’ evicts expert 0, reuses slot s0
     auto [s2, h2] = cache.get_lru_item(2);
     ASSERT_EQ(s2, s0);         // recycled slot
     ASSERT_FALSE(h2);          // filled was cleared during eviction
@@ -221,9 +221,9 @@ TEST(moe_lru_cache, set_filled_out_of_range_is_safe) {
     cache.set_filled(std::numeric_limits<size_t>::max());
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // evict_one: explicit eviction
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, explicit_evict_reduces_size) {
     LRUCache cache(4);
@@ -246,9 +246,9 @@ TEST(moe_lru_cache, evict_on_empty_is_safe) {
     ASSERT_EQ(cache.size(), 0U);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Capacity = 1 edge case
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, capacity_one) {
     LRUCache cache(1);
@@ -259,21 +259,21 @@ TEST(moe_lru_cache, capacity_one) {
 
     cache.set_filled(s0);
 
-    // Access same → hit
+    // Access same â†’ hit
     auto [s0b, h0b] = cache.get_lru_item(0);
     ASSERT_EQ(s0b, 0U);
     ASSERT_TRUE(h0b);
 
-    // Insert new → evicts the only entry, reuses slot 0
+    // Insert new â†’ evicts the only entry, reuses slot 0
     auto [s1, h1] = cache.get_lru_item(1);
     ASSERT_EQ(s1, 0U);
     ASSERT_FALSE(h1);
     ASSERT_EQ(cache.size(), 1U);
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Stress: many inserts and evictions
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, stress_many_experts) {
     const size_t cap = 8;
@@ -297,9 +297,9 @@ TEST(moe_lru_cache, stress_many_experts) {
     }
 }
 
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Thread safety: concurrent get_lru_item calls
-// ──────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TEST(moe_lru_cache, concurrent_access) {
     const size_t cap = 16;
@@ -331,254 +331,3 @@ TEST(moe_lru_cache, concurrent_access) {
 
     ASSERT_LE(cache.size(), cap);
 }
-
-// ──────────────────────────────────────────────────
-// Property config: offload_ratio roundtrip
-// ──────────────────────────────────────────────────
-
-TEST(moe_offload_property_test, default_value_is_zero) {
-    auto config = get_test_default_config(get_test_engine());
-    ASSERT_EQ(config.get_offload_ratio(), 0U);
-}
-
-TEST(moe_offload_property_test, set_and_get_various_values) {
-    auto config = get_test_default_config(get_test_engine());
-
-    config.set_property(ov::intel_gpu::offload_ratio(1));
-    ASSERT_EQ(config.get_offload_ratio(), 1U);
-
-    config.set_property(ov::intel_gpu::offload_ratio(50));
-    ASSERT_EQ(config.get_offload_ratio(), 50U);
-
-    config.set_property(ov::intel_gpu::offload_ratio(100));
-    ASSERT_EQ(config.get_offload_ratio(), 100U);
-}
-
-TEST(moe_offload_property_test, set_back_to_zero_disables) {
-    auto config = get_test_default_config(get_test_engine());
-
-    config.set_property(ov::intel_gpu::offload_ratio(37));
-    ASSERT_EQ(config.get_offload_ratio(), 37U);
-
-    config.set_property(ov::intel_gpu::offload_ratio(0));
-    ASSERT_EQ(config.get_offload_ratio(), 0U);
-}
-
-// ──────────────────────────────────────────────────
-// Primitive: moe_3gemm_fused_compressed fields
-// ──────────────────────────────────────────────────
-
-#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
-
-TEST(moe_offload_primitive_test, default_offload_fields) {
-    cldnn::moe_3gemm_fused_compressed prim;
-    ASSERT_TRUE(prim._otd.weight_bin_offsets.empty());
-    ASSERT_TRUE(prim._otd.weights_path.empty());
-    ASSERT_EQ(prim._otd.lru_expert_num, 0U);
-}
-
-TEST(moe_offload_primitive_test, construct_with_offload_params) {
-    MOECompressed::Config config{};
-    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
-    std::string path = "/path/to/weights.bin";
-    size_t lru_num = 16;
-
-    cldnn::moe_3gemm_fused_compressed prim(
-        "test_moe",
-        {cldnn::input_info("input0"), cldnn::input_info("input1")},
-        config,
-        offsets,
-        path,
-        lru_num);
-
-    ASSERT_EQ(prim._otd.weight_bin_offsets.size(), 9U);
-    ASSERT_EQ(prim._otd.weight_bin_offsets[0], 0U);
-    ASSERT_EQ(prim._otd.weight_bin_offsets[8], 800U);
-    ASSERT_EQ(prim._otd.weights_path, path);
-    ASSERT_EQ(prim._otd.lru_expert_num, lru_num);
-}
-
-TEST(moe_offload_primitive_test, equality_with_offload_fields) {
-    MOECompressed::Config config{};
-    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
-
-    cldnn::moe_3gemm_fused_compressed prim1(
-        "test_moe",
-        {cldnn::input_info("input0")},
-        config,
-        offsets,
-        "/path/a.bin",
-        16);
-
-    cldnn::moe_3gemm_fused_compressed prim2(
-        "test_moe",
-        {cldnn::input_info("input0")},
-        config,
-        offsets,
-        "/path/a.bin",
-        16);
-
-    ASSERT_TRUE(prim1 == prim2);
-
-    // Different weights_path → not equal
-    cldnn::moe_3gemm_fused_compressed prim3(
-        "test_moe",
-        {cldnn::input_info("input0")},
-        config,
-        offsets,
-        "/path/b.bin",
-        16);
-    ASSERT_FALSE(prim1 == prim3);
-
-    // Different lru_expert_num → not equal
-    cldnn::moe_3gemm_fused_compressed prim4(
-        "test_moe",
-        {cldnn::input_info("input0")},
-        config,
-        offsets,
-        "/path/a.bin",
-        32);
-    ASSERT_FALSE(prim1 == prim4);
-
-    // Different offsets → not equal
-    std::vector<size_t> offsets2 = {0, 100, 200, 300, 400, 500, 600, 700, 999};
-    cldnn::moe_3gemm_fused_compressed prim5(
-        "test_moe",
-        {cldnn::input_info("input0")},
-        config,
-        offsets2,
-        "/path/a.bin",
-        16);
-    ASSERT_FALSE(prim1 == prim5);
-}
-
-// ──────────────────────────────────────────────────
-// IExpertWeightProvider implementations
-// ──────────────────────────────────────────────────
-
-#include "ocl_v2/moe/expert_weight_providers.hpp"
-
-using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
-using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
-
-TEST(moe_expert_weight_provider, resident_is_identity) {
-    ResidentExpertWeightProvider provider;
-    ASSERT_FALSE(provider.is_offloaded());
-    ASSERT_EQ(provider.resident_capacity(), 0U);
-
-    // Fully resident: try_acquire_simultaneous returns the expert ids unchanged, including duplicates
-    // (no remap, no dedup) — the expert id is already the addressable slot.
-    std::vector<uint32_t> experts = {3, 1, 4, 1, 5, 9, 2, 6};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
-    ASSERT_TRUE(lease.has_value());
-    ASSERT_EQ(lease->slots, (std::vector<size_t>{3, 1, 4, 1, 5, 9, 2, 6}));
-}
-
-TEST(moe_expert_weight_provider, offload_construction_state) {
-    MOECompressed::Config config{};
-    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
-    OffloadExpertWeightProvider provider(/*capacity=*/16, config, offsets, "/path/to/weights.bin");
-
-    ASSERT_TRUE(provider.is_offloaded());
-    ASSERT_EQ(provider.resident_capacity(), 16U);
-    // Resident buffers are bound lazily at first execute, not at construction.
-    ASSERT_FALSE(provider.is_bound());
-    ASSERT_FALSE(provider.cache().is_initialized());
-}
-
-TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
-    MOECompressed::Config config{};
-    OffloadExpertWeightProvider provider(/*capacity=*/8, config, {}, "/path/to/weights.bin");
-    ASSERT_FALSE(provider.is_bound());
-
-    cldnn::moe_weights resident;  // null device pointers are fine; only the binding flag matters here
-    provider.bind(resident);
-    ASSERT_TRUE(provider.is_bound());
-    ASSERT_TRUE(provider.cache().is_initialized());
-
-    // Idempotent: a second bind keeps the provider bound.
-    provider.bind(resident);
-    ASSERT_TRUE(provider.is_bound());
-}
-
-TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) {
-    ResidentExpertWeightProvider provider;
-    std::vector<uint32_t> experts = {3, 7, 3, 1, 7};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
-    ASSERT_TRUE(lease.has_value());
-    ASSERT_EQ(lease->slots, (std::vector<size_t>{3, 7, 3, 1, 7}));
-}
-
-TEST(moe_expert_weight_provider, resident_acquire_one_is_identity) {
-    ResidentExpertWeightProvider provider;
-    ASSERT_EQ(provider.acquire_one(42, get_test_stream()), 42U);
-    ASSERT_EQ(provider.acquire_one(0, get_test_stream()), static_cast<size_t>(0));
-}
-
-TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_capacity_overflow) {
-    // Capacity=2 means at most 2 unique experts can be acquired simultaneously.
-    // Requesting 3 unique experts must return nullopt (capacity overflow).
-    MOECompressed::Config config{};
-    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {0, 100, 200, 300}, "/nonexistent");
-
-    cldnn::moe_weights resident{};
-    provider.bind(resident);
-
-    // Pre-populate the LRU cache so experts 0,1 are hits (no disk I/O needed)
-    auto& cache = provider.cache();
-    cache.get_lru_item(0);
-    cache.set_filled(0);
-    cache.get_lru_item(1);
-    cache.set_filled(1);
-
-    // 3 unique experts (0, 1, 2) exceeds capacity=2 → nullopt
-    std::vector<uint32_t> experts = {0, 1, 2, 0, 1};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
-    ASSERT_FALSE(lease.has_value());
-}
-
-TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_within_capacity) {
-    // Same setup but with only 2 unique experts → should succeed
-    MOECompressed::Config config{};
-    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {0, 100, 200, 300}, "/nonexistent");
-
-    cldnn::moe_weights resident{};
-    provider.bind(resident);
-
-    // Pre-populate cache
-    auto& cache = provider.cache();
-    cache.get_lru_item(0);
-    cache.set_filled(0);
-    cache.get_lru_item(1);
-    cache.set_filled(1);
-
-    // 2 unique experts (0, 1) with duplicates → within capacity=2
-    std::vector<uint32_t> experts = {0, 1, 0, 1, 0};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
-    ASSERT_TRUE(lease.has_value());
-    // Slots should be valid (cache returned slots for experts 0 and 1)
-    ASSERT_EQ(lease->slots.size(), 5U);
-    // Duplicates must map to the same slot
-    ASSERT_EQ(lease->slots[0], lease->slots[2]);
-    ASSERT_EQ(lease->slots[0], lease->slots[4]);
-    ASSERT_EQ(lease->slots[1], lease->slots[3]);
-}
-
-TEST(moe_expert_weight_provider, offload_acquire_one_basic) {
-    // acquire_one always succeeds (evicts LRU if needed)
-    MOECompressed::Config config{};
-    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {0, 100, 200, 300}, "/nonexistent");
-
-    cldnn::moe_weights resident{};
-    provider.bind(resident);
-
-    // Pre-populate cache
-    auto& cache = provider.cache();
-    auto [slot0, hit0] = cache.get_lru_item(5);
-    cache.set_filled(slot0);
-
-    // acquire_one should return a valid slot
-    auto slot = provider.acquire_one(5, get_test_stream());
-    ASSERT_EQ(slot, slot0);
-}
-

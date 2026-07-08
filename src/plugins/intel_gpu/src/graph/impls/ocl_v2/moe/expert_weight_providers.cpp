@@ -17,7 +17,7 @@ namespace ov::intel_gpu::ocl::moe {
 
 std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
-    return ExpertSlotLease{std::vector<size_t>(experts.begin(), experts.end())};
+    return std::vector<size_t>(experts.begin(), experts.end());
 }
 
 size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& /*stream*/) {
@@ -96,7 +96,7 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
         slots[i] = slot;
     }
 
-    return ExpertSlotLease{std::move(slots)};
+    return slots;
 }
 
 size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& stream) {

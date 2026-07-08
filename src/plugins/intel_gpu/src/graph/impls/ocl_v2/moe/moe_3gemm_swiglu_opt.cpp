@@ -737,9 +737,9 @@ public:
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
-        std::vector<uint32_t> slots_u32(lease->slots.size());
-        for (size_t i = 0; i < lease->slots.size(); i++)
-            slots_u32[i] = static_cast<uint32_t>(lease->slots[i]);
+        std::vector<uint32_t> slots_u32(lease->size());
+        for (size_t i = 0; i < lease->size(); i++)
+            slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
         scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
 
         set_otd_weight_pointers(instance, scratch);
@@ -775,9 +775,9 @@ public:
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
-        std::vector<uint32_t> slots_u32(lease->slots.size());
-        for (size_t i = 0; i < lease->slots.size(); i++)
-            slots_u32[i] = static_cast<uint32_t>(lease->slots[i]);
+        std::vector<uint32_t> slots_u32(lease->size());
+        for (size_t i = 0; i < lease->size(); i++)
+            slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
         scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;
         needs_fallback = false;
@@ -856,7 +856,7 @@ public:
         // Remap using lease slots
         std::vector<uint32_t> remapped(topk_count);
         for (size_t i = 0; i < topk_count; i++)
-            remapped[i] = static_cast<uint32_t>(lease->slots[i]);
+            remapped[i] = static_cast<uint32_t>((*lease)[i]);
 
         // Build per-slot token lists sorted by LRU slot index
         std::vector<std::vector<int32_t>> slot_tokens(num_grouped_experts);

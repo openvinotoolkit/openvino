@@ -15,11 +15,8 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-/// Holds the slot indices produced by a simultaneous acquisition.
-/// Valid until release() is called (or provider destruction).
-struct ExpertSlotLease {
-    std::vector<size_t> slots;  // parallel to the input experts vector
-};
+/// Slot indices produced by a simultaneous acquisition (parallel to the input experts vector).
+using ExpertSlotLease = std::vector<size_t>;
 
 /// Lightweight view of routed expert weight/scale/zp triplets for 3 GEMMs.
 struct RoutedWeightViews {
@@ -68,17 +65,11 @@ public:
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
     virtual size_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;
 
-    // Releases a lease.
-    virtual void release(ExpertSlotLease& /*lease*/) = 0;
-
     // Binds device-resident weight buffers. Called once on first execution.
-    // Default is no-op (fully resident providers do not need binding).
-    virtual void bind(cldnn::moe_weights& /*resident*/) {}
+    virtual void bind(cldnn::moe_weights& resident) = 0;
 
     // Returns true after bind() has been called.
-    virtual bool is_bound() const {
-        return true;
-    }
+    virtual bool is_bound() const = 0;
 };
 
 }  // namespace ov::intel_gpu::ocl::moe
