@@ -138,7 +138,18 @@ def main():
         choices=["both", "eager", "openvino"],
         help="Which path(s) to run.",
     )
+    parser.add_argument(
+        "--disable-mm",
+        action="store_true",
+        help=(
+            "Set limit_mm_per_prompt={image,video,audio: 0}. Needed for "
+            "multi-modal models loaded via vLLM that would otherwise trigger "
+            "CUDA-only warmup paths (e.g. Gemma-4-E2B's video profile_run)."
+        ),
+    )
     args = parser.parse_args()
+
+    mm_kwargs = {"limit_mm_per_prompt": {"image": 0, "video": 0, "audio": 0}} if args.disable_mm else {}
 
     _select_cpu_platform()
     from vllm import LLM
@@ -154,6 +165,7 @@ def main():
             enforce_eager=True,
             max_model_len=args.max_model_len,
             distributed_executor_backend="uni",
+            **mm_kwargs,
         )
         eager_text, eager_tps = _run(
             "eager", llm, args.prompt, args.max_new_tokens, args.skip_warmup_tokens
@@ -178,6 +190,7 @@ def main():
                 "backend": "openvino",
                 "custom_ops": ["none"],
             },
+            **mm_kwargs,
         )
         ov_text, ov_tps = _run(
             "openvino", llm, args.prompt, args.max_new_tokens, args.skip_warmup_tokens

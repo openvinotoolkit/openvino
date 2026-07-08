@@ -43,31 +43,58 @@ def _zero_scalar_i32():
 _pa_layout_cache = {}
 
 
-def _pa_auto_detect_kv_geom(ctx, meta_layer_name):
-    """Return (num_kv_heads, head_size) for the model.
+def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
+    """Return (num_kv_heads, head_size) for the given layer.
 
     Order of preference:
-      1. vLLM Attention layer object in ctx.no_compile_layers (authoritative).
-      2. vLLM global model_config via get_current_vllm_config().
-      3. Fallback (1, 1) — caller can still override via env.
+      1. Direct lookup by meta_layer_name in ctx.no_compile_layers.
+      2. Ordinal lookup: derive the layer index from placeholder_layer_name
+         (\"unknown_layer\" -> 0, \"unknown_layer_N\" -> N) and index into
+         list(no_compile_layers.keys()). This is what works during warmup
+         when meta_layer_name has not been resolved yet from attn_metadata.
+      3. Global vLLM model_config (only correct when all layers share geom).
+      4. Fallback (1, 1).
+
+    Models like Gemma-4-E2B have mixed head sizes across layers (28 layers
+    with head_size=256 for local attention + 7 with head_size=512 for
+    global attention). Per-layer lookup via (2) is required; a single
+    model-wide geom would size the KV buffer wrong for half the layers.
     """
-    # 1. Via Attention layer
-    try:
-        nc_layers = ctx.no_compile_layers if ctx is not None else None
-        layer_obj = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
-        if layer_obj is None and isinstance(nc_layers, dict) and nc_layers:
-            for _v in nc_layers.values():
-                if hasattr(_v, "num_kv_heads") and hasattr(_v, "head_size"):
-                    layer_obj = _v
-                    break
-        if layer_obj is not None:
+    def _extract(layer_obj):
+        try:
             hk = int(getattr(layer_obj, "num_kv_heads", 0)) or 0
             hs = int(getattr(layer_obj, "head_size", 0)) or 0
-            if hk and hs:
-                return hk, hs
+        except Exception:
+            return None
+        return (hk, hs) if hk and hs else None
+
+    # 1. Direct lookup by resolved real layer name.
+    try:
+        nc = ctx.no_compile_layers if ctx is not None else None
+        if isinstance(nc, dict) and meta_layer_name is not None:
+            got = _extract(nc.get(meta_layer_name))
+            if got:
+                return got
     except Exception:
         pass
-    # 2. Via global vLLM config
+
+    # 2. Ordinal lookup via placeholder index.
+    try:
+        nc = ctx.no_compile_layers if ctx is not None else None
+        if isinstance(nc, dict) and nc and placeholder_layer_name is not None:
+            import re as _re_ord
+            m = _re_ord.match(r"unknown_layer(?:_(\d+))?$", placeholder_layer_name)
+            if m is not None:
+                idx = int(m.group(1)) if m.group(1) else 0
+                keys = list(nc.keys())
+                if idx < len(keys):
+                    got = _extract(nc.get(keys[idx]))
+                    if got:
+                        return got
+    except Exception:
+        pass
+
+    # 3. Global model config (uniform-geom fallback).
     try:
         from vllm.config import get_current_vllm_config
         cfg = get_current_vllm_config()
@@ -269,7 +296,7 @@ def _bind_paged_attention_side_channel(compiled):
             # OV CPU PA requires block_size == 32 (hard constraint).
             import openvino as _ov_fb
             _fb_dt_ov = _ov_fb.Type.f32
-            _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name)
+            _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=layer_name)
             _fb_block = 32  # CPU PA hard requirement
             # Env overrides (for debugging / unusual models)
             import os as _os_fb
