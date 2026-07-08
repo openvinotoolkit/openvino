@@ -23,6 +23,7 @@
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "moe_gemm_inst.h"
+#include "grouped_matmul_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "gru_seq_inst.h"
@@ -136,6 +137,15 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
+
+    // Aligned MVN flattens the normalized axes into the innermost dimension, which is only valid for planar /
+    // single feature-blocked layouts; reject other layouts (e.g. byxf) so a reorder to planar is inserted instead.
+    if (node.is_type<mvn>()) {
+        const auto& input_layout = node.get_input_layout(0);
+        const layout candidate{input_layout.get_partial_shape(), input_layout.data_type, fmt};
+        if (!node.as<mvn>().get_primitive()->is_aligned_layout_supported(candidate))
+            return false;
+    }
 
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
@@ -1604,6 +1614,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
+    enable_onednn_for<grouped_matmul>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {

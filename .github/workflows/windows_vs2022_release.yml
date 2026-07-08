@@ -198,6 +198,10 @@ jobs:
   JS_API:
     name: JS API
     needs: [ Build, Smart_CI ]
+    strategy:
+      fail-fast: false
+      matrix:
+        nodejs-version: [21, 22, 24, 26]
     defaults:
       run:
         shell: pwsh
@@ -205,7 +209,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-      NODE_VERSION: 21
+      NODE_VERSION: ${{ matrix.nodejs-version }}
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
@@ -254,10 +258,12 @@ jobs:
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: E2E of openvino-node package
+        if: fromJSON(env.NODE_VERSION) >= 22
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
+        if: fromJSON(env.NODE_VERSION) >= 22
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e

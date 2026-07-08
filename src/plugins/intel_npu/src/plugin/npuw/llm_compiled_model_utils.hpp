@@ -23,6 +23,9 @@ public:
     }
 };
 
+constexpr const char* kVisualPosMasksParamName = "visual_pos_masks";
+constexpr const char* kDeepstackVisualEmbedsParamName = "deepstack_visual_embeds";
+
 bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
 // clang-format off
