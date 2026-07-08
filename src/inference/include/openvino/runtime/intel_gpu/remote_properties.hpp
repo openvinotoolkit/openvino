@@ -265,17 +265,14 @@ struct VirtualAdressMemory {
 }  // namespace ov
 
 // Hash specializations for GPU remote tensor handle types
-namespace std {
 
-template <>
-struct hash<ov::intel_gpu::SharedBufferHandle> {
+template <> struct std::hash<ov::intel_gpu::SharedBufferHandle> {
     size_t operator()(const ov::intel_gpu::SharedBufferHandle& handle) const noexcept {
         return std::hash<ov::intel_gpu::SharedBufferHandle::value_type>{}(handle.value);
     }
 };
 
-template <>
-struct hash<ov::intel_gpu::VirtualAdressMemory> {
+template <> struct std::hash<ov::intel_gpu::VirtualAdressMemory> {
     size_t operator()(const ov::intel_gpu::VirtualAdressMemory& mem) const noexcept {
         // Hash both pointer and size to distinguish different allocations
         size_t h1 = std::hash<const void*>{}(mem.ptr);
@@ -284,4 +281,3 @@ struct hash<ov::intel_gpu::VirtualAdressMemory> {
     }
 };
 
-}  // namespace std
