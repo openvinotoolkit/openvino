@@ -719,15 +719,6 @@ public:
             scratch.moe_fusion_wei_addr.shared_scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE));
             scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_ZP));
             scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
-
-            // For symmetric quantization, shared expert ZPs are element::dynamic placeholders (0 bytes).
-            // Redirect to scale pointers so init_shared_primitives' convert2dnnl gets valid memory.
-            const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
-            if (!config.has_zp) {
-                scratch.moe_fusion_wei_addr.shared_zp[0] = scratch.moe_fusion_wei_addr.shared_scale[0];
-                scratch.moe_fusion_wei_addr.shared_zp[1] = scratch.moe_fusion_wei_addr.shared_scale[1];
-                scratch.moe_fusion_wei_addr.shared_zp[2] = scratch.moe_fusion_wei_addr.shared_scale[2];
-            }
         }
     }
 
@@ -1151,13 +1142,16 @@ public:
         auto eng = engine.get_onednn_engine();
         using t = onednn_matmul::type;
 
+        // Helper: returns true if the memory is a real ZP buffer (not a dynamic placeholder used for symmetric quantization).
+        auto is_valid_zp = [](const memory::ptr& m) { return m && m->get_layout().data_type != data_types::dynamic; };
+
         // 1. Up (Standard Linear)
         auto up_w_dt = convert_data_type(addr.shared_weight[1]->get_layout().data_type);
         auto up_w = convert2dnnl(addr.shared_weight[1], {_hidden_size, _shared_intermediate_size}, dnnl::memory::format_tag::ba);
         auto up_s = addr.shared_scale[1]
                         ? convert2dnnl(addr.shared_scale[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                         : dnnl::memory();
-        auto up_z = addr.shared_zp[1]
+        auto up_z = is_valid_zp(addr.shared_zp[1])
                         ? convert2dnnl(addr.shared_zp[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                         : dnnl::memory();
         _shared_up_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
@@ -1178,7 +1172,7 @@ public:
         auto gate_s = addr.shared_scale[0]
                           ? convert2dnnl(addr.shared_scale[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
-        auto gate_z = addr.shared_zp[0]
+        auto gate_z = is_valid_zp(addr.shared_zp[0])
                           ? convert2dnnl(addr.shared_zp[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
         _shared_gate_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
@@ -1216,7 +1210,7 @@ public:
         auto down_s = addr.shared_scale[2]
                           ? convert2dnnl(addr.shared_scale[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
-        auto down_z = addr.shared_zp[2]
+        auto down_z = is_valid_zp(addr.shared_zp[2])
                           ? convert2dnnl(addr.shared_zp[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
         _shared_down_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
