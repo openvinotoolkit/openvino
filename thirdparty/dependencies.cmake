@@ -378,7 +378,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
         find_package(Protobuf 5.26.0 QUIET CONFIG)
         if(NOT Protobuf_FOUND)
-            find_package(Protobuf 4.22.0 QUIET CONFIG)
+            find_package(Protobuf 4.25.1 QUIET CONFIG)
         endif()
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
@@ -388,7 +388,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
                 set(protobuf_config CONFIG)
             endif()
             # otherwise, fallback to existing default
-            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
+            find_package(Protobuf 4.25.1 REQUIRED ${protobuf_config})
         endif()
 
         # with newer protobuf versions (4.22 and newer), we use CONFIG first
@@ -559,7 +559,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.20.1 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
