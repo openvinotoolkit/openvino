@@ -20,25 +20,54 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
-using ov::intel_gpu::KeepNMSBoundaryPrecision;
+using namespace ov::intel_gpu;
 
 namespace {
 
-std::shared_ptr<ov::Model> make_nms_model(const std::string& nms_prefix) {
+struct NmsTestModel {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Node> boxes_offset_add;
+    std::shared_ptr<ov::Node> offsets_unsqueeze;
+    std::shared_ptr<ov::Node> offsets_multiply;
+    std::shared_ptr<ov::Node> class_ids_convert;
+    std::shared_ptr<ov::Node> max_plus_one;
+    std::shared_ptr<ov::Node> reduce_max;
+    std::shared_ptr<ov::Node> max_output_boxes;
+    std::shared_ptr<ov::Node> iou_threshold;
+    std::shared_ptr<ov::Node> score_threshold;
+    std::shared_ptr<ov::Node> boxes_reshape;
+    std::shared_ptr<ov::Node> scores_unsqueeze;
+    std::shared_ptr<ov::Node> nms;
+};
+
+NmsTestModel make_nms_model(const std::string& nms_prefix, bool use_batched_nms_offsets = true) {
     auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
     boxes->set_friendly_name("boxes");
     auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
     scores->set_friendly_name("scores");
+    auto class_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    class_ids->set_friendly_name("class_ids");
 
-    auto reduce_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto reduce_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1});
     auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(boxes, reduce_axis, false);
     reduce_max->set_friendly_name("aten::max/ReduceMax");
 
-    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+    auto one_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f});
+    one_compressed->set_friendly_name("aten::add/Multiply_3_compressed");
+    auto one = std::make_shared<ov::op::v0::Convert>(one_compressed, ov::element::f32);
+    one->set_friendly_name("aten::add/Multiply_3");
     auto max_plus_one = std::make_shared<ov::op::v1::Add>(reduce_max, one);
     max_plus_one->set_friendly_name("aten::add/Add_3");
 
-    auto offsets = std::make_shared<ov::op::v1::Multiply>(scores, max_plus_one);
+    std::shared_ptr<ov::Node> offsets_input = scores;
+    std::shared_ptr<ov::Node> class_ids_convert;
+    if (use_batched_nms_offsets) {
+        class_ids_convert = std::make_shared<ov::op::v0::Convert>(class_ids, ov::element::f32);
+        class_ids_convert->set_friendly_name("aten::to/ConvertLike_2");
+        offsets_input = class_ids_convert;
+    }
+
+    auto offsets = std::make_shared<ov::op::v1::Multiply>(offsets_input, max_plus_one);
     offsets->set_friendly_name("aten::mul/Multiply_2");
 
     auto unsqueeze_axis_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
@@ -76,52 +105,67 @@ std::shared_ptr<ov::Model> make_nms_model(const std::string& nms_prefix) {
     nms->set_friendly_name(nms_prefix + "NonMaxSuppression");
 
     auto result = std::make_shared<ov::op::v0::Result>(nms->output(0));
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{boxes, scores});
-}
 
-std::shared_ptr<ov::Node> find_node_by_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name() == name) {
-            return node;
-        }
-    }
-    return nullptr;
+    return NmsTestModel{std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{boxes, scores, class_ids}),
+                        boxes_for_nms,
+                        offsets_unsqueeze,
+                        offsets,
+                        class_ids_convert,
+                        max_plus_one,
+                        reduce_max,
+                        max_output_boxes,
+                        iou_threshold,
+                        score_threshold,
+                        boxes_reshape,
+                        scores_unsqueeze,
+                        nms};
 }
 
 }  // namespace
 
 TEST(KeepNMSBoundaryPrecisionTest, MarksTargetNmsSubgraph) {
-    auto model = make_nms_model("torchvision::nms/");
+    auto test_model = make_nms_model("torchvision::nms/");
 
     ov::pass::Manager manager;
     manager.register_pass<KeepNMSBoundaryPrecision>();
-    manager.run_passes(model);
+    manager.run_passes(test_model.model);
 
-    for (const auto& name : {std::string{"torchvision::nms/NonMaxSuppression"},
-                             std::string{"torchvision::nms/Reshape"},
-                             std::string{"torchvision::nms/Unsqueeze"},
-                             std::string{"aten::add/Add_4"},
-                             std::string{"aten::unsqueeze/Unsqueeze_2"},
-                             std::string{"aten::mul/Multiply_2"},
-                             std::string{"aten::add/Add_3"},
-                             std::string{"aten::max/ReduceMax"},
-                             std::string{"torchvision::nms/Constant_max_output_boxes"},
-                             std::string{"torchvision::nms/Constant_iou"},
-                             std::string{"2636_1"}}) {
-        auto node = find_node_by_name(model, name);
-        ASSERT_NE(node, nullptr) << name;
-        EXPECT_TRUE(ov::is_conversion_disabled(node, ov::element::f16)) << name;
+    for (const auto& node : {test_model.nms,
+                             test_model.boxes_reshape,
+                             test_model.scores_unsqueeze,
+                             test_model.boxes_offset_add,
+                             test_model.offsets_unsqueeze,
+                             test_model.offsets_multiply,
+                             test_model.class_ids_convert,
+                             test_model.max_plus_one,
+                             test_model.reduce_max,
+                             test_model.max_output_boxes,
+                             test_model.iou_threshold,
+                             test_model.score_threshold}) {
+        ASSERT_NE(node, nullptr);
+        EXPECT_TRUE(ov::is_conversion_disabled(node, ov::element::f16));
     }
 }
 
-TEST(KeepNMSBoundaryPrecisionTest, IgnoresOtherNmsNames) {
-    auto model = make_nms_model("custom::nms/");
+TEST(KeepNMSBoundaryPrecisionTest, MarksStructuralPatternWithoutTorchvisionNames) {
+    auto test_model = make_nms_model("custom::nms/");
 
     ov::pass::Manager manager;
     manager.register_pass<KeepNMSBoundaryPrecision>();
-    manager.run_passes(model);
+    manager.run_passes(test_model.model);
 
-    auto node = find_node_by_name(model, "custom::nms/NonMaxSuppression");
-    ASSERT_NE(node, nullptr);
-    EXPECT_FALSE(ov::is_conversion_disabled(node, ov::element::f16));
+    ASSERT_NE(test_model.nms, nullptr);
+    EXPECT_TRUE(ov::is_conversion_disabled(test_model.nms, ov::element::f16));
+}
+
+TEST(KeepNMSBoundaryPrecisionTest, IgnoresNmsWithoutBatchedOffsetChain) {
+    auto test_model = make_nms_model("custom::nms/", false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<KeepNMSBoundaryPrecision>();
+    manager.run_passes(test_model.model);
+
+    ASSERT_NE(test_model.nms, nullptr);
+    EXPECT_FALSE(ov::is_conversion_disabled(test_model.nms, ov::element::f16));
+    EXPECT_EQ(test_model.class_ids_convert, nullptr);
 }
