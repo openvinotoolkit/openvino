@@ -357,8 +357,7 @@ std::filesystem::path to_fs_path(const StringPathVariant& param);
  */
 FileHandle open_ro_file(const std::filesystem::path& path);
 
-/** @brief Writes a raw buffer to a fresh binary file; throws std::runtime_error if the file cannot be created or
- * written */
+/** @brief Writes a raw buffer to a binary file, creating it if absent or truncating it if it already exists */
 void write_temp_file(const std::filesystem::path& path, const void* data, size_t size);
 
 }  // namespace ov::test::utils

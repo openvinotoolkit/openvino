@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -178,7 +179,8 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
 
     EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), num_threads));
 
-    EXPECT_EQ(utils::read_mapped(*mapped), expected);
+    EXPECT_THAT(expected,
+                ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
 }
 
 INSTANTIATE_TEST_SUITE_P(NumThreads, VmPrefetchMappedFileTest, testing::Values(0u, 5u, 10u));

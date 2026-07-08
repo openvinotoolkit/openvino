@@ -4,6 +4,7 @@
 
 #include "openvino/util/mmap_object.hpp"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -256,13 +257,13 @@ TEST_F(HintEvictTest, full_evict_then_read_matches_original) {
     ASSERT_EQ(mm->size(), k_hint_evict_file_size);
 
     // Verify initial content before eviction.
-    ASSERT_EQ(utils::read_mapped(*mm), m_expected);
+    ASSERT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 
     // Evict all mapped pages.
     mm->hint_evict(0, auto_size);
 
     // All bytes must be transparently restored and unchanged.
-    EXPECT_EQ(utils::read_mapped(*mm), m_expected);
+    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
@@ -273,7 +274,7 @@ TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
     const size_t quarter = k_hint_evict_file_size / 4;
     mm->hint_evict(quarter, k_hint_evict_file_size / 2);
 
-    EXPECT_EQ(utils::read_mapped(*mm), m_expected);
+    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
@@ -287,7 +288,9 @@ TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
 
     for (int cycle = 0; cycle < 3; ++cycle) {
         mm->hint_evict(0, auto_size);
-        EXPECT_EQ(utils::read_mapped(*mm), expected_slice) << "Data mismatch after evict cycle " << cycle;
+        EXPECT_THAT(expected_slice,
+                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()))
+            << "Data mismatch after evict cycle " << cycle;
     }
 }
 
@@ -299,7 +302,7 @@ TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_EQ(utils::read_mapped(*mm), m_expected);
+    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
@@ -314,7 +317,7 @@ TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_EQ(utils::read_mapped(*mm), m_expected);
+    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
@@ -330,7 +333,7 @@ TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_EQ(utils::read_mapped(*mm), expected_slice);
+    EXPECT_THAT(expected_slice, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 class HintPrefetchTest : public ::testing::Test {
@@ -355,7 +358,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_EQ(utils::read_mapped(*mapped), data);
+        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -373,7 +376,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_EQ(utils::read_mapped(*mapped), data);
+        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -387,7 +390,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
         auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
         EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
-        EXPECT_EQ(utils::read_mapped(*mapped), data);
+        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -405,7 +408,8 @@ TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_EQ(utils::read_mapped(*mapped), std::vector<uint8_t>(data.begin() + map_offset, data.end()));
+        const auto* mapped_bytes = reinterpret_cast<const uint8_t*>(mapped->data());
+        EXPECT_TRUE(std::equal(mapped_bytes, mapped_bytes + mapped->size(), data.begin() + map_offset));
     }
 }
 
@@ -425,7 +429,8 @@ TEST_F(HintPrefetchTest, hint_prefetch_with_both_offsets) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(pop_offset, pop_size));
 
-        EXPECT_EQ(utils::read_mapped(*mapped), std::vector<uint8_t>(data.begin() + map_offset, data.end()));
+        const auto* mapped_bytes = reinterpret_cast<const uint8_t*>(mapped->data());
+        EXPECT_TRUE(std::equal(mapped_bytes, mapped_bytes + mapped->size(), data.begin() + map_offset));
     }
 }
 
