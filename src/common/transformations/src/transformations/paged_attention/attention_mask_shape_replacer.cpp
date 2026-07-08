@@ -7,11 +7,17 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -30,6 +36,15 @@ ov::pass::AttentionMaskShapeReplacer::AttentionMaskShapeReplacer(const Output<No
     });
     auto shape_of = wrap_type<ov::op::util::ShapeOfBase>({attn_mask});
     auto gather = wrap_type<ov::op::util::GatherBase>({shape_of, any_input(), any_input()});
+    auto concat = wrap_type<v0::Concat>({gather, any_input(), any_input()});
+    auto broadcast = wrap_type<v3::Broadcast>({any_input(), concat});
+    auto position_ids = wrap_type<v0::Parameter>(has_static_rank() && [](const Output<Node>& output) {
+        return output.get_names().count("position_ids") > 0;
+    });
+    auto position_ids_unsqueeze_0 = ov::pass::pattern::optional<v0::Unsqueeze>({position_ids, any_input()});
+    auto position_ids_unsqueeze_1 = ov::pass::pattern::optional<v0::Unsqueeze>({position_ids_unsqueeze_0, any_input()});
+    auto position_ids_convert = ov::pass::pattern::optional<v0::Convert>({position_ids_unsqueeze_1});
+    auto matmul = wrap_type<v0::MatMul>({broadcast, position_ids_convert});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -77,6 +92,6 @@ ov::pass::AttentionMaskShapeReplacer::AttentionMaskShapeReplacer(const Output<No
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul, matcher_name);
     register_matcher(m, callback);
 }
