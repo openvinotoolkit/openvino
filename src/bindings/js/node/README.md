@@ -81,22 +81,19 @@ const { addon: ov } = require("openvino-node");
 async function main() {
   const core = new ov.Core(); // OpenVINO's starting point, one Core instance per application
 
-  // Read a model (OpenVINO IR, ONNX, TF, TFLite, or Paddle)
+  // Read and compile a model (OpenVINO IR, ONNX, TF, TFLite, or Paddle)
   const compiledModel = await core.compileModel("/path/to/model.xml", "CPU");
 
   // Allocate an input tensor (fill it with real input data for your model)
   const input = compiledModel.inputs[0];
   const inputTensor = new ov.Tensor(ov.element.f32, input.shape);
 
-  // Create an infer request, set input, and run inference
+  // Create an infer request and run inference
   const inferRequest = compiledModel.createInferRequest();
   const result = inferRequest.infer([inputTensor]);
   // Read the output
   console.log(result[compiledModel.outputs[0]].data);
 
-  // Read the output
-  const outputTensor = inferRequest.getTensor(compiledModel.outputs[0]);
-  console.log(outputTensor.data);
 }
 
 main();
