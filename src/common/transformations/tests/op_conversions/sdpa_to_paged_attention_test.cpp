@@ -6652,10 +6652,19 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     ASSERT_EQ(pa_nodes.size(), 2u) << "Expected 2 PA nodes (sliding + global)";
 
     // PA input port 10 is sliding_window
-    // Layer 0 (sliding): should be Constant(1024)
-    auto sw_0 = ov::as_type_ptr<v0::Constant>(pa_nodes[0]->input_value(10).get_node_shared_ptr());
-    ASSERT_NE(sw_0, nullptr) << "Layer 0 sliding_window should be a Constant";
-    EXPECT_EQ(sw_0->cast_vector<int32_t>()[0], (int32_t)sliding_window_size);
+    // Layer 0 (sliding): Trace through Convert -> Squeeze -> original Constant
+    auto trace_to_const = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v0::Constant> {
+        auto node = output.get_node_shared_ptr();
+        if (ov::as_type_ptr<v0::Convert>(node))
+            node = node->input_value(0).get_node_shared_ptr();
+        if (ov::as_type_ptr<v15::Squeeze>(node))
+            node = node->input_value(0).get_node_shared_ptr();
+        return ov::as_type_ptr<v0::Constant>(node);
+    };
+
+    auto sw_0 = trace_to_const(pa_nodes[0]->input_value(10));
+    ASSERT_NE(sw_0, nullptr) << "Layer 0 sliding_window should trace to a Constant";
+    EXPECT_EQ(sw_0->cast_vector<int64_t>()[0], sliding_window_size);
 
     // Layer 1 (global): should be Constant(0)
     auto sw_1 = ov::as_type_ptr<v0::Constant>(pa_nodes[1]->input_value(10).get_node_shared_ptr());

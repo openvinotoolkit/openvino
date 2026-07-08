@@ -244,15 +244,15 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gemma4_sliding_window_pattern() {
-    auto sw_const = wrap_type<v0::Constant>(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(0));
-    auto ge = wrap_type<v1::GreaterEqual>({any_input(), sw_const});
+    auto offset = wrap_type<v0::Constant>();
+    auto ge = wrap_type<v1::GreaterEqual>({any_input(), offset});
     auto unsqueeze_0 = wrap_type<v0::Unsqueeze>({ge, any_input()});
     auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({unsqueeze_0, any_input()});
     auto inner_select = wrap_type<v1::Select>({unsqueeze_1, any_input(), any_input()});
     auto outer_select = wrap_type<v1::Select>({any_input(), any_input(), inner_select});
     auto mask = pattern::optional<v8::Slice>({outer_select, any_input(), any_input(), any_input(), any_input()});
 
-    return {mask, sw_const};
+    return {mask, offset};
 }
 
 typedef std::
@@ -419,8 +419,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
     // gemma4 sliding layer case
-    std::shared_ptr<ov::Node> gemma4_mask, gemma4_sw_const;
-    std::tie(gemma4_mask, gemma4_sw_const) = gemma4_sliding_window_pattern();
+    std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
+    std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
 
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
@@ -658,15 +658,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
-        } else if (pattern_map.count(gemma4_sw_const)) {
-            auto sw_node = pattern_map.at(gemma4_sw_const).get_node_shared_ptr();
-            auto const_node = ov::as_type_ptr<v0::Constant>(sw_node);
-            OPENVINO_ASSERT(const_node, "Gemma4 sliding window constant is not a Constant node");
-            auto val = const_node->cast_vector<int64_t>();
-            OPENVINO_ASSERT(!val.empty() && val[0] > 0,
-                            "Gemma4 sliding window constant must be a positive value, got: ",
-                            val.empty() ? 0 : val[0]);
-            sliding_window = v0::Constant::create(element::i32, Shape{}, {static_cast<int32_t>(val[0])});
+        } else if (pattern_map.count(gemma4_offset)) {
+            auto offset = pattern_map.at(gemma4_offset).get_node_shared_ptr();
+            if (pattern_map.at(gemma4_offset).get_partial_shape().rank() != 0) {
+                offset = std::make_shared<v15::Squeeze>(offset);
+            }
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = offset;
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
