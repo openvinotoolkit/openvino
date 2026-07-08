@@ -583,7 +583,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                        ov::op::v1::Convolution,
                                        ov::op::v1::GroupConvolution,
                                        ov::op::v1::ConvolutionBackpropData,
-                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
+                                       ov::op::v1::GroupConvolutionBackpropData,
+                                       ov::op::v17::GroupedMatMul>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
