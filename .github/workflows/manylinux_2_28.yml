@@ -295,7 +295,7 @@ jobs:
           branch_name: ${{ inputs.target-branch }}
 
   Python_API_Tests:
-    name: Python API tests
+    name: Python API tests - Python ${{ matrix.python-version }}
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     strategy:
