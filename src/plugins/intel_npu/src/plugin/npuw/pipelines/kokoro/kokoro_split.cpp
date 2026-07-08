@@ -145,11 +145,9 @@ std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_pred_dur_node(const std::s
     // TODO Look for pred_dur node name or Sequence Max -> Convert (?) -> Squeeze -> Result
     for (const auto& op : model->get_results()) {
         const auto& name = op->get_name();
-        if (name == "pred_dur") {
-            return op;
-        }
-        for (const auto& output_name : op->output(0).get_names()) {
-            if (output_name == "pred_dur") {
+        const auto& output_names = op->output(0).get_names();
+        for (const auto* candidate : {"pred_dur", "phonemes"}) {
+            if (name == candidate || output_names.count(candidate) != 0) {
                 return op;
             }
         }
