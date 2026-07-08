@@ -60,8 +60,7 @@ public:
         auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
         auto subtract_wo_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m}, consumers_count(1));
         auto sub_convert_m = wrap_type<ov::op::v0::Convert>({sub_const_m}, consumers_count(1));
-        auto subtract_w_convert_m =
-            wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_m}, consumers_count(1));
+        auto subtract_w_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_m}, consumers_count(1));
         auto subtract_m = std::make_shared<op::Or>(OutputVector{subtract_wo_convert_m, subtract_w_convert_m});
 
         auto one_consumer_rank3 = [](const ov::Output<ov::Node>& out) {
@@ -99,8 +98,7 @@ public:
             }
 
             const auto& fc_input_shape = fully_connected->get_input_shape(1);
-            const auto reshape =
-                with_transpose ? weights_path->get_input_node_shared_ptr(0) : weights_path;
+            const auto reshape = with_transpose ? weights_path->get_input_node_shared_ptr(0) : weights_path;
 
             // Accepts shapes that are exactly {1, out_channels, 1} (with the out_channels
             // dimension at the correct index), or any shape that is all-ones / shorter rank
