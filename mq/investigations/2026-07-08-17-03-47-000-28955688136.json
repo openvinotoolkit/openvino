@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-08-17-03-47-000-28955688136",
+  "timestamp": "2026-07-08T17:03:47Z",
+  "run_id": "28955688136",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28955688136",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36638",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36638",
+  "author": "dmatveev",
+  "category": "Flaky Test",
+  "title": "CoreThreadingTests.ReadModel crashes with exit code 1 on Windows C++ unit tests",
+  "signature": "CoreThreadingTests.ReadModel process exit code 1 Windows crash|Flaky Test",
+  "signature_hash": "9a33a1bb95efe59d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "Process exited with code 1 while running CoreThreadingTests.ReadModel - abrupt crash with no error output"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] CoreThreadingTests.ReadModel\n2026-07-08T16:26:39.8564023Z ##[error]Process completed with exit code 1.",
+    "[  SKIPPED ] CoreThreadingTests.RegisterPlugins (21 ms)\n-> This test sporadically crashes on Windows (explicit skip note in code)"
+  ],
+  "root_cause": "The CoreThreadingTests.ReadModel test on Windows crashed the test process with exit code 1 and no diagnostic output. This is consistent with an unhandled exception (e.g., access violation) in a threading context. The neighboring test CoreThreadingTests.RegisterPlugins is already explicitly skipped with the note 'This test sporadically crashes on Windows', indicating the CoreThreadingTests suite is known to have race conditions on Windows. The PR changes (NPUW GQA support - graph isolation via isolation tags) are in the NPU plugin and are unrelated to core threading tests, making this a pre-existing flaky test triggered coincidentally during this merge queue run.",
+  "reproduction_steps": "Run the ov_inference_functional_tests binary on a Windows runner with: .\\ov_inference_functional_tests.exe --gtest_filter=CoreThreadingTests.ReadModel (failure is intermittent due to race condition)",
+  "recommended_actions": [
+    "Re-run the failed jobs - the test crash is likely non-deterministic and should pass on retry",
+    "Add CoreThreadingTests.ReadModel to the Windows skip list in ov_core_threading.cpp alongside CoreThreadingTests.RegisterPlugins if it continues to fail",
+    "Investigate the race condition in CoreThreadingTests.ReadModel to add proper synchronization or skip annotation"
+  ],
+  "prevention_strategies": "Audit all CoreThreadingTests on Windows to identify other tests with similar race conditions. Add explicit skip annotations with reason notes as was done for RegisterPlugins.",
+  "historical_context": "The CoreThreadingTests suite already has CoreThreadingTests.RegisterPlugins explicitly skipped with 'This test sporadically crashes on Windows' at ov_core_threading.cpp line 109. This pattern of intermittent threading crashes on Windows is established in the test suite."
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "CoreThreadingTests.ReadModel process exit code 1 Windows crash|Flaky Test",
+  "signature_hash": "9a33a1bb95efe59d",
+  "title": "CoreThreadingTests.ReadModel crashes with exit code 1 on Windows C++ unit tests",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-08T17:03:47Z",
+  "last_seen": "2026-07-08T17:03:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28955688136"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36638"
+  ],
+  "recent_timestamps": [
+    "2026-07-08T17:03:47Z"
+  ]
+}

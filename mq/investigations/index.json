@@ -1,5 +1,5 @@
 {
-  "total": 31,
+  "total": 32,
   "entries": [
     {
       "investigation_id": "2026-07-08-16-38-48-734-28957097935",
@@ -289,6 +289,17 @@
       "category": "Network",
       "title": "iGPU RoPE Tests checkout fails with curl 16 Error in the HTTP2 framing layer",
       "signature_hash": "a34cf8b1555a33e4"
+    },
+    {
+      "investigation_id": "2026-07-08-17-03-47-000-28955688136",
+      "timestamp": "2026-07-08T17:03:47Z",
+      "run_id": "28955688136",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28955688136",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "pr_number": "36638",
+      "title": "CoreThreadingTests.ReadModel crashes with exit code 1 on Windows C++ unit tests",
+      "category": "Flaky Test",
+      "signature_hash": "9a33a1bb95efe59d"
     }
   ]
 }
