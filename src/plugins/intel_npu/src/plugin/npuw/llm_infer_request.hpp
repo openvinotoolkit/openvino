@@ -54,19 +54,27 @@ protected:
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids,
-                               ov::SoPtr<ov::ITensor> per_layer_inputs);
+                               ov::SoPtr<ov::ITensor> per_layer_inputs,
+                               ov::SoPtr<ov::ITensor> visual_pos_masks,
+                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+    PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
+    bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
                              ov::SoPtr<ov::ITensor> token_type_ids,
-                             ov::SoPtr<ov::ITensor> per_layer_inputs);
+                             ov::SoPtr<ov::ITensor> per_layer_inputs,
+                             ov::SoPtr<ov::ITensor> visual_pos_masks,
+                             ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
                        ov::SoPtr<ov::ITensor> token_type_ids,
-                       ov::SoPtr<ov::ITensor> per_layer_inputs);
+                       ov::SoPtr<ov::ITensor> per_layer_inputs,
+                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
@@ -140,7 +148,7 @@ protected:
     std::string init_pre_alloc_device();
 
     // Support prefix caching
-    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+    std::vector<std::unique_ptr<PrefixCachingHelper>> m_prefix_caching_helpers;
 
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
