@@ -99,6 +99,7 @@ struct CPUStreamsExecutor::Impl {
 #endif
         }
 
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         custom::core_type_id map_proc_kind_to_tbb_core_type(const std::vector<custom::core_type_id>& sys_core_types,
                                                             const int proc_kind) {
             if (sys_core_types.empty()) {
@@ -136,7 +137,6 @@ struct CPUStreamsExecutor::Impl {
             return mapped_core_types;
         }
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
