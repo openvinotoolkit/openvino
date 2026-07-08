@@ -6365,7 +6365,7 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
 TEST(SDPAToPA, SingleLayerSlidingWindow) {
     // Simplified Gemma3-270 model with a single attention layer.
     // The key part is the sliding window mask subgraph (BitwiseAnd chain)
-    // that gptoss_gemma3_gemma4_sliding_window_pattern() must match to extract the window size.
+    // that gptoss_gemma3_sliding_window_pattern() must match to extract the window size.
 
     const int num_heads = 4;
     const int head_dim = 256;
