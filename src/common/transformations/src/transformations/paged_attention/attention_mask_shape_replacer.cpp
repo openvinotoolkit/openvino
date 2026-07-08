@@ -40,6 +40,18 @@ ov::pass::AttentionMaskShapeReplacer::AttentionMaskShapeReplacer(const Output<No
             return false;
         }
 
+        // The shape produced by ShapeOf is a 1D vector, so the Gather axis must select it (0, or the
+        // equivalent -1). Rewiring a Gather with an unexpected or dynamic axis could change behavior.
+        const auto axis_const = ov::util::get_constant_from_source(gather_node->input_value(2));
+        if (!axis_const) {
+            return false;
+        }
+        for (int64_t axis : axis_const->cast_vector<int64_t>()) {
+            if (axis != 0 && axis != -1) {
+                return false;
+            }
+        }
+
         // Only the batch dimension (index 0) is guaranteed to coincide between attention_mask
         // and the input source regardless of their ranks, so the rewrite is limited to it.
         // This also keeps the same Gather index valid and avoids negative-index ambiguity.
