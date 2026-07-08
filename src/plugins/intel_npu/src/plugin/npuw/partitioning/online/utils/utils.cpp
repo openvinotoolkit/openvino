@@ -137,8 +137,9 @@ size_t ov::npuw::online::util::getMinRepBlockSize(const ::intel_npu::Config& cfg
     return min_size;
 }
 
-std::vector<std::string> ov::npuw::online::util::getKeepBlockTags(const ::intel_npu::Config& cfg) {
-    return splitByComma(cfg.getString<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED>());
+std::unordered_set<std::string> ov::npuw::online::util::getKeepBlockTags(const ::intel_npu::Config& cfg) {
+    auto tags = splitByComma(cfg.getString<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED>());
+    return std::unordered_set<std::string>(tags.begin(), tags.end());
 }
 
 std::vector<ov::npuw::online::Avoid> ov::npuw::online::util::getAvoids(const ::intel_npu::Config& cfg) {

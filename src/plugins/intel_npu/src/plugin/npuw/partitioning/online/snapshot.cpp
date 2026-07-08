@@ -1410,15 +1410,14 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
         return g->isolatedTag() == isolate_tag;
     }));
 
-    const bool keep_by_size = block_layer_size >= m_ctx.keep_block_size;
-    const bool keep_by_isolate_tag = !isolate_tag.empty() &&
-                                     std::find(m_ctx.keep_block_tags.begin(), m_ctx.keep_block_tags.end(), isolate_tag) !=
-                                         m_ctx.keep_block_tags.end();
-    if (gptrs.size() >= m_ctx.keep_blocks && (keep_by_size || keep_by_isolate_tag)) {
-        LOG_VERB("Keeping a repeated block of "
-                 << gptrs.size() << " groups with " << block_layer_size << " layers"
-                 << (keep_by_isolate_tag && !keep_by_size ? " - isolate tag '" + isolate_tag + "'" : std::string())
-                 << ".");
+    const bool keep_by_size = gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size;
+    const bool keep_by_isolate_tag =
+        !isolate_tag.empty() && std::find(m_ctx.keep_block_tags.begin(), m_ctx.keep_block_tags.end(), isolate_tag) !=
+                                    m_ctx.keep_block_tags.end();
+    if (keep_by_size || keep_by_isolate_tag) {
+        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                << " layers tagged '" << isolate_tag << "', "
+                                                << "by_size=" << keep_by_size << ",  by_tag=" << keep_by_isolate_tag);
         for (const auto& g : gptrs) {
             g->freeze();
         }
