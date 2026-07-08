@@ -102,12 +102,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
             encryptedBlobStr =
                 _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
             blobSizeAfterEncryption = encryptedBlobStr.size();
-            if (blobSizeAfterEncryption.value() % utils::STANDARD_PAGE_SIZE != 0) {
-                _logger.warning("Encrypted blob size %" PRIu64
-                                " is not page aligned, memory optimization when reading this blob "
-                                "won't be applied",
-                                blobSizeAfterEncryption.value());
-            }
         }  // -1x blob size when deallocating temporary blob string
         stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
     }  // -1x blob size when deallocating encrypted blob string

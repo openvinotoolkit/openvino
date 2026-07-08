@@ -719,8 +719,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                 customAllocator);  // +1x blob size
             std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
             if (paddingSize > 0) {
-                // TODO isn't this a problem for WS?
-                // If user altered in some way initial blob during encryption, check if its size is still paged aligned
+                // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
+                // That means blobs compiled with the current plugin version are expected to be already aligned.
+                // However, the alignment might not be mandatory in a future plugin version. For this scenario, the
+                // padding is added here in order to make use of this "non-copy optimization".
                 _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
                                 paddingSize);
                 std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
