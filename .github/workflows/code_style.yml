@@ -40,7 +40,7 @@ jobs:
             component_pattern: "category: (.*)"
             repo_token: ${{ secrets.GITHUB_TOKEN }}
             skip_when_only_listed_labels_set: 'docs'
-            skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
+            skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
         - name: Show affected components
           run: |
@@ -200,6 +200,9 @@ jobs:
   NamingConventionCheck:
     needs: Docker
     runs-on: aks-linux-4-cores-16gb
+    env:
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
