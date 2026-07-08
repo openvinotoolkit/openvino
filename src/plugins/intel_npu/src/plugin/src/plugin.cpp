@@ -41,8 +41,7 @@ using namespace intel_npu;
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
-constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
-constexpr std::string_view XML_EXTENSION = ".xml";
+constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 /**
@@ -50,6 +49,10 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  * thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+    if (!model) {
+        return;
+    }
+
     for (const auto& ov_node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
             continue;
@@ -775,27 +778,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         if (!originalModel) {
             if (!localConfig.get<WEIGHTS_PATH>().empty()) {
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
-                const size_t weightsPathLength = weightsPath.length();
-                std::string xmlPath = weightsPath;
-
-                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
-                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION) == 0) {
-                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION.length(),
-                                    XML_EXTENSION);
-                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION)) {
+                auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
+                if (ext == ONNX_EXTENSION) {
+                    originalModel = get_core()->read_model(weightsPath, weightsPath, properties);
+                } else if (ext == WEIGHTS_IR_EXTENSION) {
+                    // constants will be populated in parser
+                } else {
                     OPENVINO_THROW("Invalid path to the weights: ",
                                    weightsPath,
                                    ". A \".bin\" or \".onnx\" extension was expected.");
                 }
-
-                originalModel =
-                    get_core()->read_model(ov::util::make_path(xmlPath), ov::util::make_path(weightsPath), properties);
             } else {
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
             }
@@ -831,7 +823,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
+                               weightsSeparationEnabled && originalModel != nullptr
+                                   ? std::make_optional(std::move(originalModel))
+                                   : std::nullopt,
                                compatibilityDescriptor);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
