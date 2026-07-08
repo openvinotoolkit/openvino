@@ -35,6 +35,7 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
+#include "transforms/remove_output_realign_convert.hpp"
 #include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
 #include "transforms/sequence_mark_replacer.hpp"
@@ -242,6 +243,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
         manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
+        // Must run after Results are finalized above, so it can tell whether a marked convert
+        // feeds a Result directly.
+        manager.register_pass<ov::frontend::pytorch::pass::RemoveOutputRealignConvert>();
         manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
         manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();

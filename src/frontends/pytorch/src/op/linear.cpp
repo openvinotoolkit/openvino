@@ -7,6 +7,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
+#include "transforms/rt_info/type_realign_convert.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
@@ -58,6 +59,9 @@ OutputVector translate_linear_ext(const NodeContext& context) {
     }
     if (convert_back) {
         matmul = context.mark_node(std::make_shared<v1::ConvertLike>(matmul, initial_x));
+        // Mark for RemoveOutputRealignConvert: if this convert feeds a Result directly, it only
+        // discards the fp32 precision computed above for no benefit and can be dropped.
+        ov::frontend::pytorch::mark_type_realign_convert(matmul);
     }
     return {matmul};
 };

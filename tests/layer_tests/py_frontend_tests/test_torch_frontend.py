@@ -1358,6 +1358,57 @@ def test_patched_16bit_model_with_convert():
         patch_model._unpatch_torch_functions()
 
 
+def test_patched_16bit_model_output_precision():
+    # A trailing bf16/fp16 Linear's fp32 matmul result should reach the output directly instead
+    # of being narrowed back down for no benefit (RemoveOutputRealignConvert).
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, Type
+
+    class LinearLast(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.l1 = torch.nn.Linear(32, 64, dtype=torch.bfloat16)
+
+        def forward(self, x):
+            return self.l1(x)
+
+    class LinearNotLast(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.l1 = torch.nn.Linear(32, 64, dtype=torch.bfloat16)
+
+        def forward(self, x):
+            return self.l1(x) + 1
+
+    example = (torch.randint(0, 10, [16, 32]).to(torch.bfloat16),)
+
+    # Linear is the last op -> fp32 matmul result reaches the output directly.
+    model = LinearLast()
+    patch_model.__make_16bit_traceable(model)
+    try:
+        with torch.no_grad():
+            converted_model = convert_model(model, example_input=example)
+        assert converted_model
+        assert converted_model.outputs[0].get_element_type() == Type.f32
+        for node in converted_model.get_ordered_ops():
+            assert "pt_type_realign_convert" not in node.get_rt_info()
+    finally:
+        patch_model._unpatch_torch_functions()
+
+    # Linear feeds another op -> narrowing convert is kept, output dtype unchanged.
+    model = LinearNotLast()
+    patch_model.__make_16bit_traceable(model)
+    try:
+        with torch.no_grad():
+            converted_model = convert_model(model, example_input=example)
+        assert converted_model
+        assert converted_model.outputs[0].get_element_type() == Type.bf16
+        for node in converted_model.get_ordered_ops():
+            assert "pt_type_realign_convert" not in node.get_rt_info()
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
 def test_patched_8bit_model_converts_e4m3fn():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
