@@ -405,14 +405,13 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("MarkRMS");
     MarkRMS() {
         MATCHER_SCOPE(MarkRMS);
-        auto rms_pattern = pattern::wrap_type<ov::op::internal::RMS>();
+        auto rms_pattern = pattern::wrap_type<ov::op::internal::RMS>([](const Output<Node>& output) -> bool {
+            return !is_conversion_disabled(output.get_node_shared_ptr(), element::f16);
+        });
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
-                return false;
-
-            if (is_conversion_disabled(node, element::f16))
                 return false;
 
             disable_conversion(node, element::f16);
