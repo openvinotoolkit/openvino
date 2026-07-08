@@ -61,8 +61,7 @@ class TestConvertModel:
         raise "infer_fw_model is not implemented"
 
     def get_compile_config(self, ie_device):
-        # NPU is validated in compile-only mode (offline compilation). The compiler-in-plugin
-        # is required to compile without a physical device
+        # NPU: compile-only (offline); compiler-in-plugin is required to compile without a device
         config = dict(self.ov_config)
         if 'NPU' in (ie_device or ''):
             config["NPU_COMPILER_TYPE"] = "PLUGIN"

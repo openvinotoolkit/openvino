@@ -102,8 +102,7 @@ class TestTFHubConvertModel(TestConvertModel):
         return inputs_info
 
     def convert_model(self, model_obj):
-        # NPU does not support dynamic shapes, so bake the concrete input dims
-        # (already resolved in get_inputs_info) into the model's Parameters.
+        # NPU has no dynamic shapes: bake the concrete input dims (from get_inputs_info) into Parameters
         if 'NPU' in (self.ie_device or '') and getattr(self, 'inputs_info', None):
             input_arg = [(name, shape) for name, shape, _ in self.inputs_info]
             print("Converting with static input shapes for {}: {}".format(self.ie_device, input_arg))
@@ -167,7 +166,8 @@ class TestTFHubConvertModel(TestConvertModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(model_list_path(os.path.join(os.path.dirname(__file__), "model_lists"), "precommit_convert_model")))
+                             get_models_list(model_list_path(os.path.join(os.path.dirname(__file__),
+                                                                          "model_lists"), "precommit_convert_model")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
