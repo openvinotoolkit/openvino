@@ -20,7 +20,7 @@
 #    include <cstdint>
 #    include <limits>
 
-#    include "utils/precision_support.h"
+#    include "utils/arm_isa_support.h"
 #endif
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -142,7 +142,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
-        if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
+        if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
             return false;
         }
         if (config.fcDynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max()) {

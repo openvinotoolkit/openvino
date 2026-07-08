@@ -95,11 +95,8 @@ private:
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
-#ifdef OV_GPU_WITH_ZE_RT
-    ContextType m_type = ContextType::ZE;
-#else
-    ContextType m_type = ContextType::OCL;
-#endif
+
+    ContextType m_type;
     std::string m_device_name = "";
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);

@@ -701,6 +701,17 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::device::pci_info)::value_type {info};
     } else if (name == ov::internal::cache_header_alignment) {
         return decltype(ov::internal::cache_header_alignment)::value_type{4096};
+    } else if (name == ov::compatibility_check) {
+        if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                // Same compatibility policy as the import_model() guard (single source of truth).
+                return CompiledModel::is_runtime_requirements_compatible(requirements, device_info)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -743,6 +754,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::compatibility_check.name(), PropertyMutability::RO},
 
         // Configs
         ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},

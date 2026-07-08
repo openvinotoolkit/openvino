@@ -254,4 +254,3 @@ ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 # Install newer ninja (apt ships older version on debian 10 lacking --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
