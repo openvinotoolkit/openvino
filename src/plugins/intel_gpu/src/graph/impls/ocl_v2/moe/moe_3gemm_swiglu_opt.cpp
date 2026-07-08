@@ -1143,7 +1143,9 @@ public:
         using t = onednn_matmul::type;
 
         // Helper: returns true if the memory is a real ZP buffer (not a dynamic placeholder used for symmetric quantization).
-        auto is_valid_zp = [](const memory::ptr& m) { return m && m->get_layout().data_type != data_types::dynamic; };
+        auto is_valid_zp = [](const memory::ptr& m) {
+            return m && m->get_layout().data_type != data_types::dynamic;
+        };
 
         // 1. Up (Standard Linear)
         auto up_w_dt = convert_data_type(addr.shared_weight[1]->get_layout().data_type);
