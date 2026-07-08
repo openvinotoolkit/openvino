@@ -15,6 +15,8 @@
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
+namespace ov::test {
+
 // Verify the constexpr contract at compile time for the most common alignments.
 static_assert(ov::util::align_size_up(0, 64) == 0);
 static_assert(ov::util::align_size_up(1, 64) == 64);
