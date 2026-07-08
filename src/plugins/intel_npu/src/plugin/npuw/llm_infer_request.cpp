@@ -1410,22 +1410,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
         }
     }
 
-    if (port_names.count("sliding_window_mask_result") > 0) {
-        if (m_first_run) {
-            return m_prefill_request->get_tensor(m_prefill_out_ports.at("sliding_window_mask_result"));
-        } else {
-            return m_kvcache_request->get_tensor(m_kvcache_out_ports.at("sliding_window_mask_result"));
-        }
-    }
-
-    if (port_names.count("tti_mask_result") > 0) {
-        if (m_first_run) {
-            return m_prefill_request->get_tensor(m_prefill_out_ports.at("tti_mask_result"));
-        } else {
-            return m_kvcache_request->get_tensor(m_kvcache_out_ports.at("tti_mask_result"));
-        }
-    }
-
     return ov::ISyncInferRequest::get_tensor(port);
 }
 

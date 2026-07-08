@@ -29,8 +29,9 @@ class RemoveTTISubgraphs : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::RemoveTTISubgraphs");
 
-    // For Gemma3 generate model, we need to remove blockwise mask created from `token_type_ids` parameter.
-    // As `token_type_ids` isn't used in the generate stage, it is safe to remove them.
+    // For Gemma3 generate model, we need to remove blockwise mask created from `token_type_ids` parameter
+    // as well as second subgraph from `token_type_ids` parameter that is used to create a reshape for the final output.
+    // As `token_type_ids` isn't used in the generate stage, it is safe to remove these subgraphs.
     // This avoids accuracy issues due to incorrect interaction of created mask with static shapes and different paddings.
     RemoveTTISubgraphs() {
         auto token_type_ids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -62,7 +63,6 @@ public:
         // There is another subgraph from `token_type_ids` parameter that will be passed to BitwiseAND with the resulted mask
         // from BitwiseOR(Causal mask, Vision block). This subgraph should be removed too to
         // clean all dependencies from `token_type_ids` parameter.
-        // Note: this subgraph doesn't break accuracy when first one is removed.
         auto subg2_shape_of = opp::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({token_type_ids});
         auto subg2_gather = opp::wrap_type<ov::op::v8::Gather>({subg2_shape_of, opp::any_input(), opp::any_input()});
         auto subg2_less = opp::wrap_type<ov::op::v1::Less>({opp::any_input(), subg2_gather});
@@ -75,13 +75,13 @@ public:
         auto subg2_branch_reshape = opp::wrap_type<ov::op::v1::Reshape>({opp::any_input(), subg2_shape_of_2});
 
         // Merge point of the two subgraphs (also exists in two branches: for local and global attentions):
-        auto branch_causal_or_blockwise = opp::wrap_type<ov::op::v13::BitwiseOr>({opp::any_input(), subg1_branch_vision_block});
-        auto branch_true_and_result = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), branch_causal_or_blockwise});
+        auto branch_causal_or_vision = opp::wrap_type<ov::op::v13::BitwiseOr>({opp::any_input(), subg1_branch_vision_block});
+        auto branch_true_and_result = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), branch_causal_or_vision});
         auto branch_result_and_subg2 = opp::wrap_type<ov::op::v13::BitwiseAnd>({branch_true_and_result, subg2_branch_reshape});
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
-            auto matched_causal_or_vision = node_to_output.at(branch_causal_or_blockwise).get_node_shared_ptr();
+            auto matched_causal_or_vision = node_to_output.at(branch_causal_or_vision).get_node_shared_ptr();
             auto matched_final_and = node_to_output.at(branch_result_and_subg2).get_node_shared_ptr();
             auto zero = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, false);
             matched_causal_or_vision->get_input_source_output(1).replace(zero->output(0));
@@ -111,7 +111,7 @@ bool ov::npuw::RemoveTokenTypeIds::run_on_model(const std::shared_ptr<ov::Model>
     if (subgraph_replaced) {
         LOG_INFO("RemoveTokenTypeIds: `token_type_ids` subgraphs were found and removed in generate model.");
     } else {
-        LOG_WARN("RemoveTokenTypeIds: `token_type_ids` exists butsubgraphs were not found in generate model.");
+        LOG_WARN("RemoveTokenTypeIds: `token_type_ids` exists but subgraphs were not found in generate model.");
     }
 
     auto token_type_ids_param =
