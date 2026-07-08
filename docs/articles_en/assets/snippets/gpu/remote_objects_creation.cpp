@@ -52,7 +52,7 @@ int main() {
     // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
     // and the allocation size must be a multiple of cache line size.
     // In case of size of tensor lower than cache line size, allocate at least one cache line size 
-    // and use ov::intel_gpu::VirtualAdressMemory(cpu_pointer, allocated_size)
+    // and use ov::intel_gpu::VirtualAddressMemory(cpu_pointer, allocated_size)
     size_t size = input_size * in_element_type.size();
     const std::string target_device = "GPU";
     const uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
@@ -63,7 +63,7 @@ int main() {
         // real wrapping cpu pointer to remote tensor
         auto remote_tensor = gpu_context.create_tensor(in_element_type,
                                                        in_shape,
-                                                       ov::intel_gpu::VirtualAdressMemory(cpu_pointer, size));
+                                                       ov::intel_gpu::VirtualAddressMemory(cpu_pointer, size));
     }
     ov::util::aligned_free(cpu_pointer); 
     //! [wrap_cpu_pointer]

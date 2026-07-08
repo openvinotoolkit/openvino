@@ -2969,10 +2969,10 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     {
         auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
                                                      shape,
-                                                     ov::intel_gpu::VirtualAdressMemory(input_ptr));
+                                                     ov::intel_gpu::VirtualAddressMemory(input_ptr));
         auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
                                                       shape,
-                                                      ov::intel_gpu::VirtualAdressMemory(output_ptr));
+                                                      ov::intel_gpu::VirtualAddressMemory(output_ptr));
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);

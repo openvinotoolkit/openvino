@@ -186,7 +186,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 tensor_type = TensorType::BT_CPU_VA;
                 mem = extract_object(params, ov::intel_gpu::cpu_va);
                 auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
-                return { reuse_memory_from_cpu_va(type, shape, VirtualAdressMemory{mem, size}, tensor_type), nullptr };
+                return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
@@ -261,7 +261,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_cpu_va(const ov::element::Type type,
                                                                    const ov::Shape& shape,
-                                                                   VirtualAdressMemory cpu_va,
+                                                                   VirtualAddressMemory cpu_va,
                                                                    TensorType tensor_type) {
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, ov::intel_gpu::SharedBufferHandle{}, cpu_va);
 }

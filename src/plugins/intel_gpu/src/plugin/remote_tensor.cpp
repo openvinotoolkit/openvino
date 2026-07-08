@@ -13,6 +13,23 @@
 #include <cstdint>
 #include <memory>
 
+template <>
+struct std::hash<ov::intel_gpu::SharedBufferHandle> {
+    size_t operator()(const ov::intel_gpu::SharedBufferHandle& handle) const noexcept {
+        return std::hash<ov::intel_gpu::SharedBufferHandle::value_type>{}(handle.value);
+    }
+};
+
+template <>
+struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
+    size_t operator()(const ov::intel_gpu::VirtualAddressMemory& mem) const noexcept {
+        // Hash both pointer and size to distinguish different allocations
+        size_t h1 = std::hash<const void*>{}(mem.ptr);
+        size_t h2 = std::hash<int64_t>{}(mem.size);
+        return h1 ^ (h2 << 1);
+    }
+};
+
 namespace ov::intel_gpu {
 
 namespace {
@@ -153,7 +170,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
-                                   ov::intel_gpu::VirtualAdressMemory va_mem)
+                                   ov::intel_gpu::VirtualAddressMemory va_mem)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)

@@ -42,7 +42,7 @@ namespace ocl {
 using gpu_handle_param = void*;
 
 using SharedBufferHandle = ov::intel_gpu::SharedBufferHandle;
-using VirtualAdressMemory = ov::intel_gpu::VirtualAdressMemory;
+using VirtualAddressMemory = ov::intel_gpu::VirtualAddressMemory;
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
@@ -331,13 +331,13 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAdressMemory
+     * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAddressMemory
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param buff A VirtualAdressMemory object that contains cpu pointer and size(optional)
+     * @param buff A VirtualAddressMemory object that contains cpu pointer and size(optional)
      * @return A remote tensor instance
      */
-    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAdressMemory buff) {
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAddressMemory buff) {
         OPENVINO_ASSERT(buff.ptr != nullptr, "host buffer must not be nullptr for CPU_VA memory type");
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},

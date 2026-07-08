@@ -254,31 +254,11 @@ struct SharedBufferHandle {
  * as GPU plugin tensors without copying.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-struct VirtualAdressMemory {
-    explicit VirtualAdressMemory(void* ptr_, int64_t size_ = -1) : ptr(ptr_), size(size_) {}
+struct VirtualAddressMemory {
+    explicit VirtualAddressMemory(void* ptr_, int64_t size_ = -1) : ptr(ptr_), size(size_) {}
 
     void* ptr = nullptr;
     int64_t size = -1;  ///< Buffer size in bytes; -1 means "derive from tensor shape"
 };
-
 }  // namespace intel_gpu
 }  // namespace ov
-
-// Hash specializations for GPU remote tensor handle types
-
-template <>
-struct std::hash<ov::intel_gpu::SharedBufferHandle> {
-    size_t operator()(const ov::intel_gpu::SharedBufferHandle& handle) const noexcept {
-        return std::hash<ov::intel_gpu::SharedBufferHandle::value_type>{}(handle.value);
-    }
-};
-
-template <>
-struct std::hash<ov::intel_gpu::VirtualAdressMemory> {
-    size_t operator()(const ov::intel_gpu::VirtualAdressMemory& mem) const noexcept {
-        // Hash both pointer and size to distinguish different allocations
-        size_t h1 = std::hash<const void*>{}(mem.ptr);
-        size_t h2 = std::hash<int64_t>{}(mem.size);
-        return h1 ^ (h2 << 1);
-    }
-};
