@@ -169,6 +169,12 @@ jobs:
         with:
           toolset: 14.50 # v2026
 
+      - name: Ensure ATL is Installed for VS 2026
+        if: ${{ inputs.build-variant == 'vs2026' }}
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" modify --installPath "C:\Program Files\Microsoft Visual Studio\2026\Community" --add Microsoft.VisualStudio.Component.VC.ATL --passive --norestart
+
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
