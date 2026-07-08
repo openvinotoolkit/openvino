@@ -195,7 +195,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuf) {
 
     createHeap(byte_size);
 
-    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), SharedBufferHandle(shared_mem));
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), ov::intel_gpu::SharedBufferHandle{shared_mem});
 
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
@@ -216,7 +216,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuChangingTensors) {
     const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
     auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();;
     createHeap(byte_size);
-    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), SharedBufferHandle(shared_mem));
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), ov::intel_gpu::SharedBufferHandle{shared_mem});
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
@@ -267,7 +267,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
     std::vector<float> output_data_one(output_tensor.get_size());
     ov::Tensor output_data_tensor_one{ov::element::f32, output_tensor.get_shape(), output_data_one.data()};
 
-    auto remote_tensor = context.create_tensor(ov::element::f32, shape, SharedBufferHandle(shared_mem));
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape, ov::intel_gpu::SharedBufferHandle{shared_mem});
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_one));
     OV_ASSERT_NO_THROW(inference_request.infer());

@@ -270,10 +270,10 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
 
     remote_input_tensor = candidate_ctx.create_tensor(ov::element::f32, 
                                                       shape, 
-                                                      SharedBufferHandle(dx_input_shared.shared_handle));
+                                                      ov::intel_gpu::SharedBufferHandle{dx_input_shared.shared_handle});
     remote_output_tensor = candidate_ctx.create_tensor(ov::element::f32, 
                                                        shape, 
-                                                       SharedBufferHandle(dx_output_shared.shared_handle));
+                                                       ov::intel_gpu::SharedBufferHandle{dx_output_shared.shared_handle});
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, candidate_ctx);
