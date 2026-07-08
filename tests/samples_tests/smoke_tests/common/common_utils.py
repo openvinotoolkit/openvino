@@ -15,6 +15,7 @@
 """
 import functools
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -58,7 +59,7 @@ def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backof
     return retry_decorator
 
 
-def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
+def shell(cmd, env=None, cwd=None, out_format="plain", timeout=290):
     """
     Run command execution in specified environment
     :param cmd: list containing command and its parameters
@@ -66,8 +67,10 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
     :param cwd: working directory from which execute call
     :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
     :param timeout: seconds to wait before killing the process, or None to wait indefinitely.
-                    Default is 1200 s (20 min) — generous enough for samples that load large
-                    models on slow CI machines, while still bounding true hangs.
+                    Default is 290 s — just under the pytest-timeout of 300 s so that a hanging
+                    sample binary is killed and partial output is captured *before* pytest-timeout
+                    fires.  On Windows the thread-based pytest-timeout method cannot interrupt
+                    a blocking communicate() call, so the timeout must be enforced here.
     :return:
     """
 
@@ -78,7 +81,12 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
 
     cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
     _log.debug("Running: %s", cmd_str)
-    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Always set PYTHONUNBUFFERED so Python subprocesses flush stdout to the pipe
+    # immediately — without this, stdout is fully buffered when writing to a PIPE
+    # and we see no output at all from a hanging Python sample process.
+    effective_env = dict(os.environ if env is None else env)
+    effective_env.setdefault("PYTHONUNBUFFERED", "1")
+    p = subprocess.Popen(cmd, cwd=cwd, env=effective_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     _log.debug("PID %d started", p.pid)
     try:
         try:
