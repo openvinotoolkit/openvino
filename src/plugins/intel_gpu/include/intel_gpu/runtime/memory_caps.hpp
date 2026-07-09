@@ -110,7 +110,7 @@ using shared_surface = uint32_t;
 /// @brief Low-level API handles required for using cldnn memory objects in external API calls.
 struct shared_mem_params {
     shared_mem_type mem_type;     ///< shared buffer type
-    shared_handle context;        ///< OpenCL context for external operations
+    shared_handle context;        ///< OpenCL or Level Zero context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
 #ifdef _WIN32
