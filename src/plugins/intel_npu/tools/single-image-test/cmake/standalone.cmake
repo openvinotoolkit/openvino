@@ -52,7 +52,14 @@ else()
         "Make sure you have called setupvars or have specified TBB_DIR.")
 endif()
 
-file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+set(SOURCES
+    argument_parse_helpers.cpp
+    image_quality_helper.cpp
+    main.cpp
+    map_metric_helpers.cpp
+    semantic_segmentation_helpers.cpp
+    yolo_helpers.cpp
+)
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
