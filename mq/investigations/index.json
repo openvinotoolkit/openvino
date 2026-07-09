@@ -357,6 +357,17 @@
       "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
       "category": "Dependencies",
       "signature_hash": "7862e85dd17a5df8"
+    },
+    {
+      "investigation_id": "2026-07-09-11-34-24-734-29010970383",
+      "timestamp": "2026-07-09T11:34:24Z",
+      "run_id": "29010970383",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29010970383",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "category": "Flaky Test",
+      "title": "JS API E2E Electron test cleanup fails with Permission Denied on electron.exe on Windows",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "36780"
     }
   ]
 }
