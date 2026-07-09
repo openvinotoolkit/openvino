@@ -29,63 +29,74 @@ KERNEL (mvn_gpu_bfyx_opt)(
     if (in_data_set_idx < leftovers)
         ++iters_num;
 
-    float my_sum = 0;
-    float tmp;
-
-    //each WI reads items_num consecutive items from batch*feature, accumulating sum(x) and sum(x²)
-    for (uint i=0; i<iters_num; ++i)
-    {
-        tmp = (float)input[my_data_offset + i * workers_per_data_set];
-        my_sum += tmp;
-    }
+#if NORMALIZE_VARIANCE == 0
+    float my_sum = 0.0f;
+    for (uint i = 0; i < iters_num; ++i)
+        my_sum += (float)input[my_data_offset + i * workers_per_data_set];
 
     my_sum = work_group_reduce_add(my_sum);
+    const float mean  = my_sum / (float)data_set_size;
 
-    float mean = my_sum / data_set_size;
+#elif NORMALIZE_VARIANCE == 1
+    float local_mean  = 0.0f;
+    float local_m2    = 0.0f;
+    uint  local_count = 0;
 
-#if NORMALIZE_VARIANCE == 0
-    for (uint i=0; i<iters_num; ++i) {
-        uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(mean);
-#   if HAS_FUSED_OPS
-        FUSED_OPS;
-        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
-#   else
-        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-#   endif
-    }
-#else
-
-    float my_variance;
-    if (in_data_set_idx == 0)
+    for (uint i = 0; i < iters_num; ++i)
     {
-    // Use Welford's algorithm to avoid catastrophic cancellation in variance.
-    float welford_mean = 0.0f;
-    float welford_m2 = 0.0f;
-
-    for (uint j = 0; j < data_set_size; ++j) {
-        const float x = (float)input[data_set_offset + j];
-        const float delta = x - welford_mean;
-        welford_mean += delta / (float)(j + 1);
-        const float delta2 = x - welford_mean;
-        welford_m2 += delta * delta2;
+        const float x      = (float)input[my_data_offset + i * workers_per_data_set];
+        local_count++;
+        const float delta  = x - local_mean;
+        local_mean        += delta / (float)local_count;
+        const float delta2 = x - local_mean;
+        local_m2          += delta * delta2;
     }
 
-    float variance = welford_m2 / (float)data_set_size;
+    __local float wg_mean[LWS];
+    __local float wg_m2[LWS];
+    __local uint  wg_count[LWS];
+
+    wg_mean[in_data_set_idx]  = local_mean;
+    wg_m2[in_data_set_idx]    = local_m2;
+    wg_count[in_data_set_idx] = local_count;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (uint stride = workers_per_data_set / 2; stride > 0; stride >>= 1) {
+        if (in_data_set_idx < stride) {
+            const uint  na     = wg_count[in_data_set_idx];
+            const uint  nb     = wg_count[in_data_set_idx + stride];
+            const float mean_a = wg_mean[in_data_set_idx];
+            const float mean_b = wg_mean[in_data_set_idx + stride];
+            const float m2_a   = wg_m2[in_data_set_idx];
+            const float m2_b   = wg_m2[in_data_set_idx + stride];
+            const uint  n_comb = na + nb;
+            const float delta  = mean_b - mean_a;
+            wg_mean[in_data_set_idx]  = mean_a + delta * (float)nb / (float)n_comb;
+            wg_m2[in_data_set_idx]    = m2_a + m2_b + delta * delta * (float)na * (float)nb / (float)n_comb;
+            wg_count[in_data_set_idx] = n_comb;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    const float mean = wg_mean[0];
+    float variance = wg_m2[0] / (float)data_set_size;
     variance = fmax(variance, 0.0f);
 
+
 #   if defined EPS_OUTSIDE_SQRT
-    my_variance = native_powr(native_sqrt(variance) + (float)EPSILON, -1.f);
+    float my_variance = native_powr(native_sqrt(variance) + (float)EPSILON, -1.f);
 #   elif defined EPS_INSIDE_SQRT
-    my_variance = native_powr(variance + (float)EPSILON, -0.5f);
+    float my_variance = native_powr(variance + (float)EPSILON, -0.5f);
 #   endif
-    }
+#endif
 
-    my_variance = work_group_broadcast(my_variance, 0);
-
-    for (uint i=0; i<iters_num; ++i) {
+    for (uint i = 0; i < iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
+#if NORMALIZE_VARIANCE == 1        
         ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(mean)) * TO_ACTIVATION_TYPE(my_variance);
+#else
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(mean);
+#endif
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
@@ -93,5 +104,4 @@ KERNEL (mvn_gpu_bfyx_opt)(
         output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
 #   endif
     }
-#endif
 }
