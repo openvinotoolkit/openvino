@@ -1384,6 +1384,15 @@ public:
         return false;
     }
 
+    bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
+        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
+            return false;
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
+            return false;
+        return true;
+    }
+
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
@@ -1393,9 +1402,11 @@ public:
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
-            // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
-            // accuracy issues (produces inf/nan) after oneDNN main branch integration.
-            if (params.get_device_info().arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+            // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
+            // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm). Falls back to
+            // the OCL paged_attention path for all stages where micro SDPA is selectable (PREFILL / MIXED)
+            // and for all KV dtypes.
+            if (params.get_device_info().arch == gpu_arch::xe3p) {
                 return false;
             }
         } else {
@@ -1495,7 +1506,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage) && desc->has_token_type_ids == false;
+        rt_params->use_micro_sdpa = can_use_micro_sdpa_for(params, rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1503,7 +1514,6 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            rt_params->use_micro_sdpa = false;
             if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
             } else {
@@ -1676,10 +1686,7 @@ public:
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
             can_use_micro_sdpa = rt_params->use_micro_sdpa;
         } else {
-            can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && desc->has_token_type_ids == false;
-            if (stage == PagedAttentionStage::GENERATE) {
-                can_use_micro_sdpa = false;
-            }
+            can_use_micro_sdpa = can_use_micro_sdpa_for(params, stage);
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
