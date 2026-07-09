@@ -99,9 +99,11 @@ static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
     auto concat_gather = std::make_shared<op::v0::Concat>(
         OutputVector{dim_a, dim_c, dim_b, gather}, /*axis=*/0);
 
-    // Reshape concat_gather (shape {4}) into {2,2} – target shape is any_input.
-    auto reshape_target = op::v0::Constant::create(element::i64, Shape{2}, {2, 2});
-    auto reshape_gather = std::make_shared<op::v1::Reshape>(concat_gather, reshape_target, false);
+    // Reshape data (8 elements, matching the concat_gather-derived shape [1,2,1,4]) using
+    // concat_gather as the shape-pattern input - this is the order the AttentionBroadcast4
+    // pattern actually matches: Reshape({any_input (data), concat_gather (shape)}).
+    auto reshape_data = op::v0::Constant::create(element::f32, Shape{8}, std::vector<float>(8, 1.0f));
+    auto reshape_gather = std::make_shared<op::v1::Reshape>(reshape_data, concat_gather, false);
     reshape_gather->set_friendly_name("reshape_gather");
 
     auto result = std::make_shared<op::v0::Result>(reshape_gather);
@@ -132,8 +134,8 @@ static std::shared_ptr<Model> build_attention_broadcast4_dynamic_model() {
     auto concat_gather = std::make_shared<op::v0::Concat>(
         OutputVector{dim_a, dim_c, dim_b, gather}, /*axis=*/0);
 
-    auto reshape_target = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto reshape_gather = std::make_shared<op::v1::Reshape>(concat_gather, reshape_target, true);
+    // Reshape order matches the production pattern: data first, concat_gather (shape-pattern) second.
+    auto reshape_gather = std::make_shared<op::v1::Reshape>(kv_param, concat_gather, true);
 
     auto result = std::make_shared<op::v0::Result>(reshape_gather);
     auto model  = std::make_shared<Model>(ResultVector{result}, ParameterVector{kv_param});

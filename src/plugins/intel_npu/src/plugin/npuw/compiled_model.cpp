@@ -361,6 +361,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     };
 
     if (attn_isolation(properties)) {
+        // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
+        // the attention isolation to work properly
         ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
     }
 
