@@ -7,13 +7,43 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <set>
 #include <vector>
 
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
-namespace ov::intel_cpu::riscv64::utils {
+namespace ov::intel_cpu::riscv64 {
+
+class EmitABIRegSpills {
+public:
+    explicit EmitABIRegSpills(jit_generator_t* h_arg);
+    ~EmitABIRegSpills();
+
+    [[nodiscard]] size_t get_num_spilled_regs() const {
+        return m_regs_to_spill.size();
+    }
+
+    [[nodiscard]] const std::vector<snippets::Reg>& get_spilled_regs() const {
+        return m_regs_to_spill;
+    }
+
+    void preamble(const std::vector<snippets::Reg>& live_regs);
+    void preamble(const std::set<snippets::Reg>& live_regs);
+    void postamble();
+
+    static void store_regs_to_stack(jit_generator_t* h, const std::vector<snippets::Reg>& regs_to_store);
+    static void load_regs_from_stack(jit_generator_t* h, const std::vector<snippets::Reg>& regs_to_load);
+
+private:
+    jit_generator_t* h = nullptr;
+    std::vector<snippets::Reg> m_regs_to_spill;
+    bool spill_status = true;
+};
+
+namespace utils {
 
 inline size_t get_snippet_lanes() {
     const auto vlen_bytes = Xbyak_riscv::CPU::getInstance().getVlen() / 8;
@@ -68,4 +98,5 @@ private:
  */
 Xbyak_riscv::Reg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
 
-}  // namespace ov::intel_cpu::riscv64::utils
+}  // namespace utils
+}  // namespace ov::intel_cpu::riscv64
