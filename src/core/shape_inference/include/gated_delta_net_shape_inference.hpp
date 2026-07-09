@@ -29,7 +29,8 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
     const auto& k_head_size = key_ps[3];
     const auto& q_head_size = query_ps[3];
     const auto& v_head_size = value_ps[3];
-    auto out_shape = TRShape(value_ps);
+    std::vector<TRShape> output_shapes{value_ps, state_ps};
+    auto& out_shape = output_shapes[0];
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -95,6 +96,6 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
         v_head_size);
     // output has the same shape and type as input value, output state has the same shape and type as input
     // recurrent_state
-    return {out_shape, state_ps};
+    return output_shapes;
 }
 }  // namespace ov::op::internal

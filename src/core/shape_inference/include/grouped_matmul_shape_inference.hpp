@@ -38,7 +38,9 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         const auto& n = mat_b_shape[1];
         const auto& k_b = mat_b_shape[2];
 
-        auto merged_g = DimType();
+        std::vector<TRShape> output_shapes{{DimType(), m, n}};
+        auto& merged_g = output_shapes[0][0];
+
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_g, g_a, g_b),
@@ -52,8 +54,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               k_a,
                               ", mat_b: ",
                               k_b);
-
-        return {TRShape{merged_g, m, n}};
+        return output_shapes;
     }
 
     // Case: 2D × 3D (MoE forward pass) - requires offsets
@@ -86,9 +87,9 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                           false,
                           "GroupedMatMul unsupported combination: mat_a ",
                           mat_a_rank,
-                          "D × mat_b ",
+                          "D x mat_b ",
                           mat_b_rank,
-                          "D. Supported: 2DDx3D, 3DDx3D.");
+                          "D. Supported: 2Dx3D, 3Dx3D.");
 
     return {PartialShape::dynamic()};
 }
