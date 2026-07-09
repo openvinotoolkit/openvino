@@ -138,6 +138,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
         if (pred.first->is_output())
             return false;
+        // In-place concat forces offset padding on predecessor outputs, but shape-of subgraph
+        // nodes run on CPU impls that don't support padded output. Skip optimization for them.
+        if (pred.first->is_in_shape_of_subgraph())
+            return false;
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis

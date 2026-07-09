@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,7 +31,7 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::shared_ptr<const ov::Model>&& model,
+                    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 
@@ -108,7 +110,7 @@ private:
     std::vector<GraphDescriptor> _initsGraphDesc;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
-    std::shared_ptr<const ov::Model> _model;
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> _constants;
 
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
