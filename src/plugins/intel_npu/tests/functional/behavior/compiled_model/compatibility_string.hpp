@@ -14,7 +14,6 @@
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_driver_aware_test.hpp"
-#include "common/npu_driver_skip_macros.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
