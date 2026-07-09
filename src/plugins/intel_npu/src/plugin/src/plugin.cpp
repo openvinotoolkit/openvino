@@ -41,8 +41,6 @@ using namespace intel_npu;
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
-constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
-constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 /**
  * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is

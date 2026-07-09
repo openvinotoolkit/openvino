@@ -233,11 +233,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     _logger.debug("compile end");
 
-    auto constants = get_all_constants_in_topological_order(model);
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    model = nullptr;
-
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
@@ -247,7 +242,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        std::move(constants),
+        std::move(model),
         localConfig,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }

@@ -57,11 +57,6 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMetaMainGraph");
     mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
     _logger.debug("main schedule parse end");
-    if (model.has_value()) {
-        mainNetworkMetadata.name = model.value()->get_friendly_name();
-    } else {
-        _logger.debug("networkMeta name is empty in parse!");
-    }
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
     // shall be available
@@ -97,13 +92,6 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     _logger.debug("inits schedule parse end");
 
-    auto constants = model.has_value()
-                         ? get_all_constants_in_topological_order(model.value())
-                         : get_all_constants_memory_mapped(config.get<WEIGHTS_PATH>(), initNetworkMetadata);
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    model = std::nullopt;
-
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphDesc,
@@ -112,7 +100,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              initBlobs,
-                                             std::move(constants),
+                                             std::move(model),
                                              config,
                                              blobIsPersistent);
 }

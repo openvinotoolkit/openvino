@@ -31,7 +31,7 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
+                    std::optional<std::shared_ptr<const ov::Model>>&& model,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 

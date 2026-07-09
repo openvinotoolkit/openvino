@@ -204,11 +204,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
-    auto constants = get_all_constants_in_topological_order(model);
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    model = nullptr;
-
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphHandle,
@@ -217,7 +212,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             std::move(constants),
+                                             std::move(model),
                                              updatedConfig);
 }
 
