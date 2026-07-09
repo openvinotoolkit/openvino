@@ -105,6 +105,10 @@ PayloadFrame start_framed_payload(std::ostream& model_stream, char payloadType);
 void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame, std::uint64_t payloadSize);
 void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame);
 void write_framed_payload(std::ostream& model_stream, char payloadType, const std::string& payload);
+void write_framed_payload(std::ostream& model_stream,
+                          char payloadType,
+                          std::istream& payloadStream,
+                          std::uint64_t payloadSize);
 PayloadHeader read_payload_header(std::istream& model_stream);
 void read_payload_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName);
 

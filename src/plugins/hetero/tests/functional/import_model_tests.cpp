@@ -291,8 +291,7 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
 TEST_F(HeteroTests, export_single_plugin_without_export_import_uses_framed_ir_payload) {
     auto model = create_model_with_reshape();
     EXPECT_NO_THROW(core.get_available_devices());
-    const auto compiled_model =
-        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
     auto blob = export_compiled_model(compiled_model);
     std::stringstream model_stream(blob);
 
@@ -322,6 +321,29 @@ TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
     auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
     EXPECT_EQ(1, imported_model.inputs().size());
     EXPECT_EQ(1, imported_model.outputs().size());
+}
+
+TEST_F(HeteroTests, export_ir_payload_to_non_seekable_stream) {
+    auto model = create_model_with_reshape();
+    EXPECT_NO_THROW(core.get_available_devices());
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
+
+    NonSeekableOutputBuffer output_buffer;
+    std::ostream model_stream(&output_buffer);
+    compiled_model.export_model(model_stream);
+    EXPECT_TRUE(model_stream);
+
+    std::stringstream model_blob(output_buffer.str());
+    std::string hetero_xml_header;
+    std::getline(model_blob, hetero_xml_header);
+    EXPECT_NE(hetero_xml_header.find(HETERO_BLOB_FORMAT_VERSION_ATTR), std::string::npos);
+    const auto payload_header = read_test_payload_header(model_blob);
+    EXPECT_EQ(IR_PAYLOAD, payload_header.type);
+    EXPECT_GT(payload_header.size, 0);
+
+    std::stringstream import_stream(output_buffer.str());
+    auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
+    expect_compiled_model_runs(*this, imported_model);
 }
 
 TEST_F(HeteroTests, framed_payload_output_buffer_rejects_forward_seek_beyond_written_data) {

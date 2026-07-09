@@ -419,6 +419,23 @@ void write_framed_payload(std::ostream& model_stream, char payloadType, const st
     write_bytes(model_stream, payload.data(), payload.size(), "payload data");
 }
 
+void write_framed_payload(std::ostream& model_stream,
+                          char payloadType,
+                          std::istream& payloadStream,
+                          std::uint64_t payloadSize) {
+    write_bytes(model_stream, &payloadType, sizeof(payloadType), "payload type");
+    write_size(model_stream, payloadSize, "payload size");
+
+    std::array<char, 4096> buffer{};
+    std::uint64_t remaining = payloadSize;
+    while (remaining > 0) {
+        const auto chunk = std::min<std::uint64_t>(remaining, static_cast<std::uint64_t>(buffer.size()));
+        read_payload_bytes(payloadStream, buffer.data(), chunk, "payload data");
+        write_bytes(model_stream, buffer.data(), chunk, "payload data");
+        remaining -= chunk;
+    }
+}
+
 PayloadHeader read_payload_header(std::istream& model_stream) {
     PayloadHeader payloadHeader;
     read_payload_bytes(model_stream, &payloadHeader.type, sizeof(payloadHeader.type), "payload type");
