@@ -144,10 +144,9 @@ KokoroSplitResult KokoroSplit::split_model(const std::shared_ptr<ov::Model>& mod
 std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_pred_dur_node(const std::shared_ptr<ov::Model>& model) {
     // TODO Look for pred_dur node name or Sequence Max -> Convert (?) -> Squeeze -> Result
     for (const auto& op : model->get_results()) {
-        const auto& name = op->get_name();
         const auto& output_names = op->output(0).get_names();
-        for (const auto* candidate : {"pred_dur", "phonemes"}) {
-            if (name == candidate || output_names.count(candidate) != 0) {
+        for (const char* candidate : {"pred_dur", "phonemes"}) {
+            if (output_names.count(candidate) != 0) {
                 return op;
             }
         }
