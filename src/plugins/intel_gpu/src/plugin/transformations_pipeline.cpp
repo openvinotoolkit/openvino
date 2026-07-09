@@ -220,6 +220,8 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 namespace {
 template <typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
