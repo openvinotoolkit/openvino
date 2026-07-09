@@ -176,6 +176,7 @@ jobs:
               & $path modify `
                 --installPath "C:\BuildTools" `
                 --add Microsoft.VisualStudio.Component.VC.ATL `
+                --add Microsoft.VisualStudio.Component.VC.ATLMFC `
                 --passive --norestart --wait
               break
             } else {
@@ -189,6 +190,23 @@ jobs:
         if: ${{ inputs.build-variant == 'vs2026' }}
         with:
           toolset: 14.50 # v2026
+
+      - name: Debug ATL
+        run: |
+          Write-Host "=== Check atlmfc folder ==="
+          Test-Path "C:\BuildTools\VC\Tools\MSVC\14.50.35717\atlmfc"
+
+          Write-Host "=== Search atlbase.h everywhere ==="
+          Get-ChildItem -Path "C:\BuildTools" `
+            -Filter "atlbase.h" -Recurse -ErrorAction SilentlyContinue |
+            Select-Object FullName
+
+          Write-Host "=== Check MSVC versions ==="
+          Get-ChildItem "C:\BuildTools\VC\Tools\MSVC" -ErrorAction SilentlyContinue
+
+          Write-Host "=== Check installed components ==="
+          Get-Content "C:\BuildTools\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" -ErrorAction SilentlyContinue
+        shell: pwsh
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
