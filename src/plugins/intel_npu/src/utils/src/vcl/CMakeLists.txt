@@ -4,7 +4,9 @@
 
 set(TARGET_NAME openvino_npu_vcl_utils)
 
-file(GLOB_RECURSE SOURCES *.cpp)
+set(SOURCES
+    vcl_api.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})

@@ -4,7 +4,17 @@
 
 set(TARGET_NAME openvino_npu_zero_utils)
 
-file(GLOB_RECURSE SOURCES *.cpp)
+set(SOURCES
+  zero_cmd_queue_pool.cpp
+  zero_host_tensor.cpp
+  zero_init.cpp
+  zero_mem.cpp
+  zero_mem_pool.cpp
+  zero_remote_tensor.cpp
+  zero_result.cpp
+  zero_tensor.cpp
+  zero_wrappers.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
