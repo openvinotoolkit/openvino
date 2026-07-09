@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
@@ -204,7 +205,8 @@ enum class ActivationFunction {
     GELU,
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
-    ROUND_HALF_AWAY_FROM_ZERO
+    ROUND_HALF_AWAY_FROM_ZERO,
+    ERFINV
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,7 +329,8 @@ enum class EltwiseMode {
     LEFT_SHIFT,
     BITWISE_AND,
     BITWISE_OR,
-    BITWISE_XOR
+    BITWISE_XOR,
+    ATAN2
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

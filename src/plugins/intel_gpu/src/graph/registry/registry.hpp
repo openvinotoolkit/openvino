@@ -18,11 +18,22 @@
     #define OV_GPU_WITH_SYCL 0
 #endif
 
+#ifdef OV_GPU_WITH_SYCL_RT
+#define OV_GPU_WITH_OCL 0
+#else
 #define OV_GPU_WITH_OCL 1
+#endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
-#define OV_GPU_WITH_CM 1
+#ifdef ENABLE_CM_FOR_GPU
+    #define OV_GPU_WITH_CM 1
+#else
+    #define OV_GPU_WITH_CM 0
+#endif
 
+#ifdef EXPAND
+#undef EXPAND
+#endif
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
 #define CAT(a, b) a ## b
@@ -60,7 +71,7 @@
 #    define OV_GPU_CREATE_INSTANCE_ONEDNN(...)
 #endif
 
-#if OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_SYCL_RT
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...)
@@ -141,6 +152,7 @@ REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
+REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
@@ -150,6 +162,9 @@ REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
+REGISTER_IMPLS(paged_gated_delta_net);
+REGISTER_IMPLS(pa_kv_reorder);
+REGISTER_IMPLS(paged_causal_conv1d);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
@@ -161,6 +176,8 @@ REGISTER_IMPLS(scaled_dot_product_attention);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(scatter_nd_update);
+REGISTER_IMPLS(segment_max);
+REGISTER_IMPLS(slice_scatter);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
@@ -168,11 +185,13 @@ REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
+REGISTER_IMPLS(moe_router_fused);
 REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
+REGISTER_IMPLS(gather_matmul);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
@@ -237,7 +256,6 @@ REGISTER_DEFAULT_IMPLS(eye, OCL_S);
 REGISTER_DEFAULT_IMPLS(unique_count, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
-REGISTER_IMPLS(segment_max);
 REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(ISTFT, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(sparse_fill_empty_rows, OCL_S, OCL_D);

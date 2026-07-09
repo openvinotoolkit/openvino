@@ -8,7 +8,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8_F4
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/f8_utils.cl"
+#include "include/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
 #endif
 
@@ -17,12 +17,12 @@
 #if IS_F8_F4
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
-    #define TO_SCALE_TYPE_8(x) _convert_float8(x)
+    #define TO_SCALE_TYPE_8(x) convert_float8(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
 #else
     #define SCALE_TYPE half
-    #define TO_SCALE_TYPE(x) _convert_half(x)
-    #define TO_SCALE_TYPE_8(x) _convert_half8(x)
+    #define TO_SCALE_TYPE(x) convert_half(x)
+    #define TO_SCALE_TYPE_8(x) convert_half8(x)
     #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 #endif
 
@@ -47,12 +47,6 @@
 #define ELEMENTS_PER_BYTE 2
 #else
 #define ELEMENTS_PER_BYTE 1
-#endif
-
-#if GENERATE_PRECOMPUTED_REDUCTION
-    #define FOR_PRECOMPUTED_REDUCTION(x)  x
-#else
-    #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
 #if OUTPUT_DIMS != 4
@@ -168,7 +162,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
 #if IS_MXFP
-    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_val)))));
+    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_val)))));
 #else
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8
@@ -259,10 +253,15 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
+<<<<<<< HEAD
 #if F4E2M1_OUTPUT
             vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[byte_offset + x * 4]));
 #elif IS_F8
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[byte_offset + x * 8]));
+=======
+#if IS_F8
+            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[out_offset + x * 8]));
+>>>>>>> origin/merge_open_source_6b94f3de7e
 #else
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_CUSTOM(val);
             vstore8(ival, 0, output + byte_offset + x * 8);
@@ -311,8 +310,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
             OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
+<<<<<<< HEAD
             uint out_idx = out_offset + x;
             output[out_idx] = ival;
+=======
+            output[out_offset + x] = ival;
+>>>>>>> origin/merge_open_source_6b94f3de7e
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
         }
 #endif  // F4E2M1_OUTPUT (tail)
@@ -321,7 +324,11 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
 
+<<<<<<< HEAD
     output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0f / scale);
+=======
+    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
+>>>>>>> origin/merge_open_source_6b94f3de7e
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[scale_idx] = precomputed_reduction);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;

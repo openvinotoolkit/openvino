@@ -46,12 +46,14 @@ public:
     MarkupOptimizations(
         const std::vector<PrecisionsRestriction>& precisionRestrictions,
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
-        const AttributeParameters& params);
+        const AttributeParameters& params,
+        const std::vector<std::shared_ptr<ov::pass::MatcherPass>>& additionalMarkupPasses);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
     const std::vector<PrecisionsRestriction> precisionRestrictions;
     const std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
     const AttributeParameters params;
+    const std::vector<std::shared_ptr<ov::pass::MatcherPass>> additionalMarkupPasses;
 };
 
 class ov::pass::low_precision::TypeRelaxedReplacer : public ov::pass::GraphRewrite {
@@ -74,12 +76,17 @@ public:
         const std::set<levels>& supported_levels = all_levels,
         bool check_fake_convert = false);
 
-    static bool doesModelContainMXFPPatterns(const std::shared_ptr<const ov::Model>& model);
-
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {
         const auto tr = std::make_shared<T>(std::forward<Args>(args)...);
         additional_main_passes.push_back(tr);
+        return tr;
+    }
+
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_markup(Args&&... args) {
+        const auto tr = std::make_shared<T>(std::forward<Args>(args)...);
+        additional_markup_passes.push_back(tr);
         return tr;
     }
 
@@ -89,4 +96,5 @@ protected:
     LayerTransformation::Params params;
 
     std::vector<std::shared_ptr<MatcherPass>> additional_main_passes;
+    std::vector<std::shared_ptr<MatcherPass>> additional_markup_passes;
 };

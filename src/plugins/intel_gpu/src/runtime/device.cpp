@@ -81,6 +81,19 @@ struct DeviceOps {
 
 const uint8_t MAX_REVISION = 0xff;
 
+static bool is_xe2_or_xe3_family(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+    case gpu_arch::xe3p:
+        return true;
+    default:
+        return false;
+    }
+}
+
+const DeviceOps xe2_xe3_fallback_ops = { {}, { 1, 16, 32, 128, 256, 0 }, {} };
+
 const std::vector<DeviceOps> device_ops_table = {
 //    | gfx_ver                                 | MAD                   | DPAS (immad)  | DP4A | device_id |
 //    |                                         |  fp64 |  fp32 |  fp16 |  fp16 |  int8 | int8 |           |
@@ -88,8 +101,6 @@ const std::vector<DeviceOps> device_ops_table = {
     { { {12,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,    64 }, {} },    // TGL, RKL, ADL
     { { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,    64 }, {} },    // DG1
     { { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,    128,    256,     0 }, {} },    // DG2
-    { { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,    512,   1024,     0 }, {} },    // PVC_XL
-    { { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,    512,   1024,     0 }, {} },    // PVC_XT
     { { {12, 70,  0}, {12, 71, MAX_REVISION} }, {     0.5,   16,     32,      0,      0,    64 }, {} },    // MTL/ARL-S
     { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,     0 }, {} },    // ARL-H
     { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // BMG
@@ -117,11 +128,19 @@ float device::get_gops(data_types dt) const {
             [&info](auto& entry) {
                 return entry.match(info);
             });
+
+        const DeviceOps* selected_ops = nullptr;
         if (it != device_ops_table.end()) {
-            opsPerEU = it->get_ops(info, dt);
+            selected_ops = &(*it);
+        } else if (is_xe2_or_xe3_family(info.arch)) {
+            selected_ops = &xe2_xe3_fallback_ops;
+        }
+
+        if (selected_ops != nullptr) {
+            opsPerEU = selected_ops->get_ops(info, dt);
             if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
                 // WA: ops of i8/u8 is twice of f16.
-                opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
+                opsPerEU = selected_ops->get_ops_for_mad(data_types::f16) * 2;
             }
         }
     } catch (std::exception& e) {

@@ -82,7 +82,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
     const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
-    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache);
+    // If blob encryption is requested, enable secure compilation in the driver
+    const bool secureCompile = updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                               updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache, secureCompile);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -94,7 +97,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig);
+                                   updatedConfig,
+                                   /* compatibilityDescriptor = */ std::nullopt);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -286,8 +290,9 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
-    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
+                                                const std::optional<std::string>& optValue) const {
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     return isOptionSupported.value_or(false);
 }
 

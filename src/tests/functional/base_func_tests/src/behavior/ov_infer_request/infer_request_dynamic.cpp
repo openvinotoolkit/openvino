@@ -587,6 +587,9 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     ov::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, target_device, configuration)), ov::Exception);
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVNotSupportRequestDynamicTests);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

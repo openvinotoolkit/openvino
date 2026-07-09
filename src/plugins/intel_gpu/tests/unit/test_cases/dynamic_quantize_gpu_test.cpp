@@ -471,18 +471,6 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf8e5m2) {
                                     OutputStorageType::Planar);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf4e2m1) {
-    this->test_dynamic_quantization(false,
-                                    {1, 128, 1, 32},
-                                    {1, 128, 1, 32},
-                                    QuantizationType::Symmetric,
-                                    32,
-                                    data_types::f4e2m1,
-                                    data_types::f8e8m0,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
-}
-
 TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e4m3) {
     this->test_dynamic_quantization(false,
                                     {1, 1, 4096},
@@ -507,14 +495,27 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e5m2) {
                                     OutputStorageType::Planar);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f4e2m1) {
-    this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
-                                    QuantizationType::Symmetric,
-                                    UINT64_MAX,
-                                    data_types::f4e2m1,
-                                    data_types::f16,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256) {
+    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
+                                data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt");
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256_precompute_sum) {
+    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
+                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_group_size_8192_with_precompute_sum) {
+    this->test_dynamic_quantization(false, {1, 1, 16384}, {1, 1, 16384}, QuantizationType::Symmetric, 8192,
+                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
+                                "", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs128_K2560_sym_precompute_sum) {
+    this->test_dynamic_quantization(false, {1, 1, 2560}, {1, 1, 2560}, QuantizationType::Symmetric, 128,
+                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No,
+                                PrecomputeSum::Enabled);
 }

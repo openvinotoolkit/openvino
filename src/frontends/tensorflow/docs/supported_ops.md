@@ -1368,7 +1368,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Unpack                                                  | YES                           |                               |
 | UnravelIndex                                            | YES                           |                               |
 | UnsortedSegmentJoin                                     | NO                            |                               |
-| UnsortedSegmentMax                                      | NO                            |                               |
+| UnsortedSegmentMax                                      | YES                           |                               |
 | UnsortedSegmentMin                                      | NO                            |                               |
 | UnsortedSegmentProd                                     | NO                            |                               |
 | UnsortedSegmentSum                                      | YES                           |                               |

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#define IS_LOW_BIT_FP (F4E2M1_INPUT || F8E5M2_INPUT || F8E4M3_INPUT || F4E2M1_OUTPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+#define IS_LOW_BIT_FP (F4E2M1_INPUT || F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F4E2M1_OUTPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
 
 #if IS_LOW_BIT_FP
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/f8_utils.cl"
+#include "include/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
 #endif
 
@@ -155,12 +155,24 @@ KERNEL (reorder_data)(
 #else
     #ifdef BF16_INPUT
         CALC_TYPE res = TO_CALC_TYPE(_convert_as_bfloat16_float(input[input_idx]));
+    #elif defined F4E2M1_INPUT
+        // FP4 unpacking: 2 elements per byte
+        const uint byte_idx = input_idx / 2;
+        const uint sub_idx = input_idx % 2;
+        const uint shift = sub_idx * 4;
+        
+        uchar packed_byte = ((const __global uchar*)input)[byte_idx];
+        uchar val_u8 = (packed_byte >> shift) & 0x0F;
+        
+        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(_convert_float(as_fp4e2m1_t(val_u8)));
     #elif defined INT4_INPUT
         const uint uint4_idx = input_idx >> 1;
         OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
         OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+    #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
+            OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(_convert_float(input[input_idx]));
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
@@ -239,6 +251,20 @@ KERNEL (reorder_data)(
         res = __TO_OUTPUT_REORDER_TYPE(res);
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
+    #elif defined(F4E2M1_OUTPUT)
+        // FP4 packing: 2 elements per byte, similar to INT4/UINT4 but for FP4
+        OUTPUT_TYPE val = __TO_OUTPUT_REORDER_TYPE(res);
+        
+        volatile __global uchar* output_u8 = (volatile __global uchar*)output;
+        uint byte_idx = output_idx / 2;  // 2 elements per byte for FP4
+        uint sub_idx  = output_idx % 2;
+        uint shift    = sub_idx * 4;      // 4 bits per element
+        
+        uchar val_u8 = as_uchar(val) & 0x0F;
+        
+        // Atomic update for packed FP4 storage
+        atomic_and(&output_u8[byte_idx], (uchar)(~(0x0F << shift)));
+        atomic_or(&output_u8[byte_idx], (uchar)(val_u8 << shift));
     #elif defined(INT4_OUTPUT) || defined(UINT4_OUTPUT)
         OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res);
         int val_i32 = convert_int(val_char);

@@ -71,7 +71,7 @@ protected:
             }
 
             const auto input_dt = instance.get_input_layout(0).data_type;
-            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f4e2m1, data_types::f8e4m3, data_types::f8e5m2});
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 const auto activation_scale_idx = idx++;
@@ -111,22 +111,23 @@ protected:
 
         dnnl::memory::format_tag target_fmt;
         dnnl::memory::format_tag weights_fmt;
+        bool weights_transposed = impl_params.typed_desc<fully_connected>()->weights_transposed;
 
         if (prim_input_size == 3) {
             target_fmt = dnnl::memory::format_tag::abc;
-            weights_fmt = dnnl::memory::format_tag::acb;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc;
         } else if (prim_input_size == 4) {
             target_fmt = dnnl::memory::format_tag::abcd;
-            weights_fmt = dnnl::memory::format_tag::abdc;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd;
         } else if (prim_input_size == 5) {
             target_fmt = dnnl::memory::format_tag::abcde;
-            weights_fmt = dnnl::memory::format_tag::abced;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde;
         } else if (prim_input_size == 6) {
             target_fmt = dnnl::memory::format_tag::abcdef;
-            weights_fmt = dnnl::memory::format_tag::abcdfe;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef;
         } else {
             target_fmt = dnnl::memory::format_tag::ab;
-            weights_fmt = dnnl::memory::format_tag::ba;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab;
         }
 
         if (prim_input_size < 4) {
@@ -307,14 +308,14 @@ public:
         }
 
         const auto input_dt = impl_params->get_input_layout(0).data_type;
-        const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f4e2m1, data_types::f8e4m3, data_types::f8e5m2});
+        const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
         if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
             auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
-            int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
-            int src_group_size = innermost_len / src_scale_ngroups;
+            int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+            int64_t src_group_size = innermost_len / src_scale_ngroups;
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
             _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
@@ -355,7 +356,7 @@ public:
 
         if (prim->compressed_weights) {
             const auto input_dt = impl_params.get_input_layout(0).data_type;
-            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f4e2m1, data_types::f8e4m3, data_types::f8e5m2});
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
             if (is_dyn_quan_input) {
                 OPENVINO_ASSERT(prim->input_size <= 3, "[GPU] Dynamic quantization for 4D matmul is not implemented");
             } else {
@@ -377,7 +378,7 @@ public:
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
                 auto ngroups = scale_layout.get_dim(weight_rank - 1);
-                group_size = ifm / ngroups;
+                group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
@@ -420,8 +421,8 @@ public:
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
                 auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
-                int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
-                int src_group_size = innermost_len / src_scale_ngroups;
+                int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+                int64_t src_group_size = innermost_len / src_scale_ngroups;
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
                 attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);

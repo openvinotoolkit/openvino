@@ -4,7 +4,9 @@
 
 #pragma once
 #include "evaluate_node.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/rms_norm.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -59,6 +61,10 @@ extern template bool evaluate_node<ov::op::v0::HardSigmoid>(std::shared_ptr<ov::
                                                             const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v0::Interpolate>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
 
@@ -544,6 +550,10 @@ extern template bool evaluate_node<ov::op::internal::AUGRUSequence>(std::shared_
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::internal::GatedDeltaNet>(std::shared_ptr<ov::Node> node,
+                                                                    ov::TensorVector& outputs,
+                                                                    const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::internal::RMS>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
                                                           const ov::TensorVector& inputs);
@@ -560,6 +570,14 @@ extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v17::ErfInv>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v17::GroupedMatMul>(std::shared_ptr<ov::Node> node,
+                                                               ov::TensorVector& outputs,
+                                                               const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
                                                           const ov::TensorVector& inputs);
@@ -567,6 +585,10 @@ extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::No
 extern template bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> node,
+                                                                    ov::TensorVector& outputs,
+                                                                    const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> node,
                                                                      ov::TensorVector& outputs,

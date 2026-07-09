@@ -60,12 +60,12 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeLP: return gpu_arch::xe_lp;
         case ngen::HW::XeHP: return gpu_arch::xe_hp;
         case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
-        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::XeHPC: OPENVINO_THROW("[GPU] XeHPC is not supported");
         case ngen::HW::Xe2: return gpu_arch::xe2;
         case ngen::HW::Xe3: return gpu_arch::xe3;
-        case ngen::HW::XE3P_35_10: return gpu_arch::xe3p_35_10;
-        case ngen::HW::XE3P_35_11: return gpu_arch::xe3p_35_11;
-        case ngen::HW::XE3P_UNKNOWN: return gpu_arch::xe3p_unknown;
+        case ngen::HW::XE3P_35_10:
+        case ngen::HW::XE3P_35_11:
+        case ngen::HW::XE3P_UNKNOWN: return gpu_arch::xe3p;
         case ngen::HW::Gen10:
         case ngen::HW::Unknown: return gpu_arch::unknown;
     }
@@ -357,6 +357,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.device_memory_ordinal = 0;
     info.supports_cp_offload = false;
     info.supports_counter_based_events = false;
+    info.supports_leo = false;
 
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
     using namespace dnnl::impl::gpu::intel::jit;

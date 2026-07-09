@@ -146,6 +146,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
         case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
         case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
@@ -359,12 +360,22 @@ private:
         dnnl::memory::dims dims;
         auto fmt_tag = _target_fmt;
 
+        auto count_except = [this](size_t skip_idx) -> int64_t {
+            const auto& raw = _layout.get_tensor().raw;
+            int64_t result = 1;
+            for (size_t i = 0; i < raw.size(); ++i) {
+                if (i != skip_idx)
+                    result *= static_cast<int64_t>(raw[i]);
+            }
+            return result;
+        };
+
         if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
             dims = flatten_tensor(_layout.get_tensor());
             dims.insert(dims.begin(), 1);
         } else if (fmt_tag == dnnl::memory::format_tag::ab) {
             dims.push_back(_layout.batch());
-            dims.push_back(_layout.get_tensor().count() / _layout.batch());
+            dims.push_back(count_except(0));
         } else if (fmt_tag == dnnl::memory::format_tag::abc) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
@@ -393,7 +404,7 @@ private:
             dims.push_back(_layout.spatial(1));
         } else if (fmt_tag == dnnl::memory::format_tag::ba) {
             dims.push_back(_layout.feature());
-            dims.push_back(_layout.get_tensor().count() / _layout.feature());
+            dims.push_back(count_except(1));
         } else if (_flatten) {
             dims = flatten_tensor(_layout.get_tensor());
         } else {
@@ -804,7 +815,8 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        block_sizes[i] = std::make_pair(inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0), inner_blks[i]);
+        const auto idx = inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0);
+        block_sizes[i] = {static_cast<size_t>(idx), static_cast<int>(inner_blks[i])};
     }
 
     // all fmts has at least batch and feature dim for now
@@ -830,7 +842,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         auto pos = outer_order.find(c);
         OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
-        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+        logic_block_sizes[i] = std::make_pair(order[pos], static_cast<int>(inner_blks[i]));
     }
 
     format_traits traits;

@@ -368,7 +368,7 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
     }
 }
 
-void ParamsKey::EnableReampleType(ResampleType a) {
+void ParamsKey::EnableResampleType(ResampleType a) {
     switch (a) {
         case ResampleType::NEAREST_NEIGHBOR:
             key.restrict.val.dedicated.resample.nearest_neighbor = 1;
