@@ -368,7 +368,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
             impl->UpdateMemRefHandleStatus(memref);
             // VM runtime execute path always needs current memref handles.
             targetMemRefHandles.push_back(impl->_memRef);
-            
+
             if (dynamicGraph->commandlist_mode() == ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST) {
                 if (!commandListRecordingRequired) {
                     if (impl->_shapeUpdated || impl->_strideUpdated) {
