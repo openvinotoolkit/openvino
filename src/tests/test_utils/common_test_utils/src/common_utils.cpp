@@ -64,9 +64,9 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
-std::vector<uint8_t> make_prime_pattern(size_t size) {
+std::vector<uint8_t> make_page_misaligned_pattern(size_t size) {
     std::vector<uint8_t> data(size);
-    std::generate(data.begin(), data.end(), PrimePatternGenerator{});
+    std::generate(data.begin(), data.end(), PageMisalignedPatternGenerator{});
     return data;
 }
 

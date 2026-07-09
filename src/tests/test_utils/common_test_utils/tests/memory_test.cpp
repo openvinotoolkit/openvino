@@ -170,7 +170,7 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
     const size_t num_threads = GetParam();
     const size_t size = 64 * util::min_page_alignment;
 
-    const auto expected = utils::make_prime_pattern(size);
+    const auto expected = utils::make_page_misaligned_pattern(size);
 
     m_file_path = utils::generateTestFilePrefix() + "_vm_prefetch.bin";
     ov::util::save_binary(m_file_path, expected.data(), expected.size());
