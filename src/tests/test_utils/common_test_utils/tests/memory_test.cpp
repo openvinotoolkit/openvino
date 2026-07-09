@@ -18,6 +18,8 @@
 
 namespace ov::test {
 
+using testing::ElementsAreArray;
+
 // Verify the constexpr contract at compile time for the most common alignments.
 static_assert(ov::util::align_size_up(0, 64) == 0);
 static_assert(ov::util::align_size_up(1, 64) == 64);
@@ -179,8 +181,7 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
 
     EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), num_threads));
 
-    EXPECT_THAT(expected,
-                ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+    EXPECT_THAT(expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
 }
 
 INSTANTIATE_TEST_SUITE_P(NumThreads, VmPrefetchMappedFileTest, testing::Values(0u, 5u, 10u));

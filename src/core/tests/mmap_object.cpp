@@ -18,6 +18,9 @@
 #include "openvino/util/file_util.hpp"
 
 namespace ov::test {
+
+using testing::ElementsAreArray;
+
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
     std::filesystem::path file1 = utils::generateTestFilePrefix() + "_file1";
@@ -257,13 +260,13 @@ TEST_F(HintEvictTest, full_evict_then_read_matches_original) {
     ASSERT_EQ(mm->size(), k_hint_evict_file_size);
 
     // Verify initial content before eviction.
-    ASSERT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    ASSERT_THAT(m_expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 
     // Evict all mapped pages.
     mm->hint_evict(0, auto_size);
 
     // All bytes must be transparently restored and unchanged.
-    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    EXPECT_THAT(m_expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
@@ -274,7 +277,7 @@ TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
     const size_t quarter = k_hint_evict_file_size / 4;
     mm->hint_evict(quarter, k_hint_evict_file_size / 2);
 
-    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    EXPECT_THAT(m_expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
@@ -288,8 +291,7 @@ TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
 
     for (int cycle = 0; cycle < 3; ++cycle) {
         mm->hint_evict(0, auto_size);
-        EXPECT_THAT(expected_slice,
-                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()))
+        EXPECT_THAT(expected_slice, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()))
             << "Data mismatch after evict cycle " << cycle;
     }
 }
@@ -302,7 +304,7 @@ TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    EXPECT_THAT(m_expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
@@ -317,7 +319,7 @@ TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_THAT(m_expected, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    EXPECT_THAT(m_expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
@@ -333,7 +335,7 @@ TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
 
     mm->hint_evict(0, auto_size);
 
-    EXPECT_THAT(expected_slice, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
+    EXPECT_THAT(expected_slice, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
 class HintPrefetchTest : public ::testing::Test {
@@ -358,8 +360,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_THAT(data,
-                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -377,8 +378,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_THAT(data,
-                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -392,8 +392,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
         auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
         EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
-        EXPECT_THAT(data,
-                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
