@@ -82,8 +82,9 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    const int right_unreachable_count_x = max(input_x + INPUT_LINE_SIZE - input_spatial_size_x, 0);
-    const int left_unreachable_count_x = max(0, -input_x);
+    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - input_spatial_size_x), 
+                                                INPUT_LINE_SIZE);
+    const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
