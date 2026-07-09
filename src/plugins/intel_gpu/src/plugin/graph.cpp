@@ -39,6 +39,40 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+namespace {
+
+std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
+    const std::vector<cldnn::instrumentation::profiling_interval>& intervals) {
+    std::optional<std::chrono::microseconds> earliest_timestamp;
+    std::optional<std::chrono::microseconds> executing_timestamp;
+
+    for (const auto& interval : intervals) {
+        if (!interval.is_valid_start) {
+            continue;
+        }
+
+        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
+        if (!earliest_timestamp.has_value() || interval_start < earliest_timestamp.value()) {
+            earliest_timestamp = interval_start;
+        }
+
+        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+            if (!executing_timestamp.has_value() || interval_start < executing_timestamp.value()) {
+                executing_timestamp = interval_start;
+            }
+        }
+    }
+
+    auto start_time = executing_timestamp.value_or(earliest_timestamp.value_or(std::chrono::microseconds::zero()));
+    if (start_time == std::chrono::microseconds::zero()) {
+        return std::nullopt;
+    }
+
+    return start_time;
+}
+
+}  // namespace
+
 namespace ov::intel_gpu {
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
@@ -659,38 +693,6 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         return name;
     };
 
-    struct timestamp_stage_state {
-        std::optional<std::chrono::microseconds> earliest_timestamp;
-        std::optional<std::chrono::microseconds> executing_timestamp;
-    };
-
-    auto update_timestamp_stage_state = [&](timestamp_stage_state& state,
-                                            const cldnn::instrumentation::profiling_interval& interval) {
-        if (!interval.is_valid_start) {
-            return;
-        }
-
-        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
-        if (!state.earliest_timestamp.has_value() || interval_start < state.earliest_timestamp.value()) {
-            state.earliest_timestamp = interval_start;
-        }
-
-        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
-            if (!state.executing_timestamp.has_value() || interval_start < state.executing_timestamp.value()) {
-                state.executing_timestamp = interval_start;
-            }
-        }
-    };
-
-    auto get_start_time = [&](const timestamp_stage_state& state) -> std::optional<std::chrono::microseconds> {
-        auto start_time = state.executing_timestamp.value_or(state.earliest_timestamp.value_or(std::chrono::microseconds::zero()));
-        if (start_time == std::chrono::microseconds::zero()) {
-            return std::nullopt;
-        }
-
-        return start_time;
-    };
-
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
@@ -705,11 +707,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         auto execIter = executedPrimitives.find(primId);
         if (execIter != executedPrimitives.end() && execIter->second) {
             cldnn::instrumentation::profiling_info cldnnInfo{primId, execIter->second->get_profiling_info()};
-            timestamp_stage_state ts_state;
-            for (auto& interval : cldnnInfo.intervals) {
-                update_timestamp_stage_state(ts_state, interval);
-            }
-            start_time = get_start_time(ts_state);
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
         }
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
@@ -789,7 +787,6 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             long long cpuTime = 0;
             long long deviceTime = 0;
             std::optional<std::chrono::microseconds> start_time;
-            timestamp_stage_state ts_state;
 
             for (auto &interval : cldnnInfo.intervals) {
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
@@ -802,11 +799,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                 } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                     cpuTime += count;
                 }
-
-                update_timestamp_stage_state(ts_state, interval);
             }
 
-            start_time = get_start_time(ts_state);
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
 
             std::string layerName = getClearName(primId);
 
