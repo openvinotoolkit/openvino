@@ -40,6 +40,7 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, model, nullptr, "Shared pointer to the ov::Mo
 OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
@@ -66,6 +67,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_micro_gemm_prefill, tru
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_gpu_mask_gen_prefill, false, "MoE 3GEMM: generate routing masks on GPU instead of CPU for the micro-kernel prefill path")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, true, "MoE 3GEMM: use a single OneDNN grouped matmul per GEMM layer for the prefill path. Takes priority over micro-kernel GEMM")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Disable fusion of MoE subgraph to composite MoE operation")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -98,7 +100,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disa
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_gated_mlp_fusion, true, "Disable pass which fuses FC+SwiGLU to GatedMLP")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")

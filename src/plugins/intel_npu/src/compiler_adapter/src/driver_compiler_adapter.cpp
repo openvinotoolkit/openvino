@@ -5,7 +5,6 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
-#include <string_view>
 
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
@@ -98,7 +97,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
                                    updatedConfig,
-                                   /* compatibilityDescriptor = */ std::nullopt);
+                                   get_compatibility_descriptor(graphDesc._handle));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -205,6 +204,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
+    auto constants = get_all_constants_in_topological_order(model);
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    model = nullptr;
+
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphHandle,
@@ -213,7 +217,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             std::move(model),
+                                             std::move(constants),
                                              updatedConfig);
 }
 
@@ -314,6 +318,10 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
+}
+
+std::optional<std::string> DriverCompilerAdapter::get_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
+    return _zeGraphExt->getCompatibilityDescriptor(graphHandle);
 }
 
 }  // namespace intel_npu

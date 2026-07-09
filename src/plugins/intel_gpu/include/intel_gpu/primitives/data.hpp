@@ -347,7 +347,8 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem) : primitive_base(id, {}), mem(std::move(mem)) {
+    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false)
+        : primitive_base(id, {}), mem(std::move(mem)), _skip_device_transfer(skip_device_transfer) {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
@@ -363,6 +364,14 @@ struct data : public primitive_base<data> {
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
+
+    /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
+    bool skip_device_transfer() const { return _skip_device_transfer; }
+
+private:
+    bool _skip_device_transfer = false;
+
+public:
 
     std::shared_ptr<weightless_cache_manager> cache_info;
 
@@ -411,9 +420,13 @@ struct data : public primitive_base<data> {
 
         allocation_type _allocation_type = allocation_type::unknown;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-        
+
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
+
+        OPENVINO_ASSERT(data_size == output_layout.bytes_count(),
+               "[GPU] Corrupt cache blob: data_size=", data_size,
+               ", expected=", output_layout.bytes_count());
 
         bool weightless_caching = false;
         ib >> weightless_caching;
@@ -425,7 +438,7 @@ struct data : public primitive_base<data> {
         if (!enable_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
-        
+
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {

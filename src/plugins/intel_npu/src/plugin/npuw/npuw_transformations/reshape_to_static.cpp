@@ -32,11 +32,36 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
             NPUW_ASSERT(input.get_partial_shape()[2].is_static());
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (input_name.find(ov::npuw::util::kDeepstackVisualEmbedsParamName) != std::string::npos) {
+            // NB: VLMs case (Qwen3-VL "DeepStack"). The parameter has shape
+            // [num_deepstack_layers, num_visual_tokens, EMB_SIZE]: dim 0 selects one of
+            // several intermediate ViT feature levels (consumed by Gather/select ops),
+            // it is NOT a batch dimension. Both num_deepstack_layers and num_visual_tokens
+            // are dynamic in the source model. The visual-token dim is made static to
+            // input_size, while the layer dim must be resolved to its real (static) value -
+            // collapsing it to 1 silently drops every deepstack level but the first.
+            const auto& partial_shape = input.get_partial_shape();
+            NPUW_ASSERT(partial_shape.size() == 3u);
+            NPUW_ASSERT(partial_shape[2].is_static());
+            ov::Dimension num_layers = partial_shape[0];
+            if (!num_layers.is_static()) {
+                // Resolve the number of deepstack layers from the parameter's consumers:
+                // each deepstack level is read by exactly one consumer (a Gather/select
+                // along dim 0), so the number of readers equals the number of levels.
+                const size_t num_readers = input.get_target_inputs().size();
+                if (num_readers > 0) {
+                    num_layers = ov::Dimension(static_cast<int64_t>(num_readers));
+                }
+            }
+            NPUW_ASSERT(num_layers.is_static());  // num_deepstack_layers must be resolved
+            new_shape = ov::PartialShape({num_layers, input_size, partial_shape[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
             if (lhs_seq_size && !is_prefill)
                 // NB: for whisper kvcache model attn mask should be size + 1
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
+        } else if (input_name.find(ov::npuw::util::kVisualPosMasksParamName) != std::string::npos) {
+            new_shape = ov::PartialShape({1, input_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni, Qwen3.5 VL use 3D shapes
