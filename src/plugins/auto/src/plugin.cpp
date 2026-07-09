@@ -579,7 +579,15 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
                                                     const std::string& device_luid) const {
-    return ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
+    auto result = ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
+    if (result.has_value()) {
+        LOG_DEBUG_TAG("[IPF] Device %s utilization: %s percent",
+                      device_name.c_str(),
+                      std::to_string(result.value()).c_str());
+    } else {
+        LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device_name.c_str());
+    }
+    return result;
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,

@@ -12,15 +12,17 @@ set(OV_AUTO_IPF_AVAILABLE OFF PARENT_SCOPE)
 set(_ipf_ef_dir "${CMAKE_CURRENT_SOURCE_DIR}/ipf/IPF_EF")
 
 if(NOT MSVC)
+    message(STATUS "[AUTO] IPF: non-MSVC toolchain, device utilization monitoring disabled, IPF_AVAILABLE = OFF")
     return()
 endif()
 
 if(NOT EXISTS "${_ipf_ef_dir}/CMakeLists.txt")
-    message(STATUS "AUTO plugin: IPF submodule not found at ${_ipf_ef_dir}; device utilization monitoring disabled. "
+    message(STATUS "[AUTO] IPF: submodule not found at ${_ipf_ef_dir}, device utilization monitoring disabled, IPF_AVAILABLE = OFF. "
                    "Run 'git submodule update --init --recursive' to enable it.")
     return()
 endif()
 
 add_subdirectory("${_ipf_ef_dir}" "${CMAKE_CURRENT_BINARY_DIR}/ipf" EXCLUDE_FROM_ALL)
 
+message(STATUS "[AUTO] IPF: successfully configured, IPF_AVAILABLE = ON")
 set(OV_AUTO_IPF_AVAILABLE ON PARENT_SCOPE)
