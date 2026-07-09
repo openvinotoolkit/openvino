@@ -1622,10 +1622,10 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             min_val = "-" + macroName + "_VAL_MAX";
             val_one = "1.0f";
             val_zero = "0.0f";
-            to_type = "_convert_bfloat16_as_ushort(v)";
-            to_type_sat = "_convert_bfloat16_as_ushort(v)";
-            to_vector_type = "CONVERT_BFLOAT16_AS_USHORT(v, size)";
-            to_vector_type_sat = "CONVERT_BFLOAT16_AS_USHORT(v, size)";
+            to_type = "_convert_bfloat16_as_ushort(convert_float(v))";
+            to_type_sat = "_convert_bfloat16_as_ushort(convert_float(v))";
+            to_vector_type = "CONVERT_BFLOAT16_AS_USHORT(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
+            to_vector_type_sat = "CONVERT_BFLOAT16_AS_USHORT(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
             compute_type = "float";
             to_compute_type = "convert_float(v)";
             decode_compute_type = "_convert_as_bfloat16_float(v)";
