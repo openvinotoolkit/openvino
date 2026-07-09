@@ -103,9 +103,8 @@ class TestSVDGeneralSize(PytorchLayerTest):
 class TestLinalgSVD(PytorchLayerTest):
     """aten::linalg_svd — the Vh convention (torch.linalg.svd returns U, S, Vh = V^T).
 
-    Verifies both that the reconstruction U @ diag(S) @ Vh equals the input and that Vh is
-    the transpose of torch.svd's V (Vh @ Vh^T = I). Reference values come from PyTorch
-    (torch.linalg.svd).
+    Verifies the reconstruction U @ diag(S) @ Vh equals the input and the singular values match.
+    Reference values come from PyTorch (torch.linalg.svd).
     """
 
     def _prepare_input(self, input_shape):
@@ -210,12 +209,14 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
     def test_static_nonsquare_fails_at_conversion(self, ie_device, precision, ir_version):
         # Static non-square trailing dims => the reshape element-count check fails while the model
         # is built. Trace on a square matrix (torch rejects a non-square svd at trace time), then
-        # force a non-square shape via input=.
+        # force a non-square shape via input=. Assert the op-labeled guard node so an unrelated
+        # build error cannot green the test.
         example = torch.randn(2, 4, 4, dtype=torch.float32)
         scripted = torch.jit.trace(self._svd(), example)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception) as exc_info:
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([2, 4, 5])])
+        assert "requires_square" in str(exc_info.value)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -232,6 +233,24 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
         bad = np.random.randn(2, 4, 5).astype(np.float32)
         with pytest.raises(Exception):
             compiled((bad,))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_dynamic_same_numel_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
+        # [1, 9] has a square (3x3) element count: a [.., L, L] guard that pins to the actual last
+        # dim would fold to a no-op, but the general path's rank-changing [-1, N, N] flatten reshape
+        # still fails loudly (1x9 has 9 elements, not a multiple of L*L for the resolved L).
+        if ie_device != "CPU":
+            pytest.skip("runtime reshape-guard failure is asserted on CPU")
+        example = torch.randn(3, 3, dtype=torch.float32)
+        scripted = torch.jit.trace(self._svd(), example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1, -1])])
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+        bad = np.arange(9, dtype=np.float32).reshape(1, 9)
+        with pytest.raises(Exception) as exc_info:
+            compiled((bad,))
+        assert "requires_square" in str(exc_info.value)
 
 
 class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):

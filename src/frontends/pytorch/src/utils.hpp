@@ -71,6 +71,22 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
                                     int64_t n,
                                     const std::string& op_label);
 
+/// \brief Flattens the leading batch dims of a batched matrix into a single axis: (..., N, N) ->
+/// (B, N, N). The rank-changing [-1, N, N] reshape doubles as a squareness guard (it cannot fold to
+/// a no-op and its element-count check fails loudly on a non-square trailing pair); the guard node's
+/// friendly name is `op_label + "/requires_square"`. `n_1d` is the trailing size N as a [1] tensor.
+Output<Node> flatten_batch_to_square(const NodeContext& context,
+                                     const Output<Node>& x,
+                                     const Output<Node>& n_1d,
+                                     const std::string& op_label);
+
+/// \brief Reshapes `flat` back to the original leading batch dims (`orig_shape[:-2]`) followed by
+/// `trailing` (empty for a scalar-per-batch result). Inverse of the batch-flatten above.
+Output<Node> restore_leading_batch(const NodeContext& context,
+                                   const Output<Node>& flat,
+                                   const Output<Node>& orig_shape,
+                                   const OutputVector& trailing);
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x);

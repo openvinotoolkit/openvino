@@ -15,7 +15,7 @@ namespace pass {
 // Resolves the deferred max_pool placeholder (a PtFrameworkNode emitted by translate_max_pool_base
 // when kernel_size was not a compile-time constant). Runs after shape propagation: a kernel that
 // became static (e.g. via convert_model(input=...)) lowers to a plain v14::MaxPool; one still
-// dynamic falls back to the ReduceMax full-extent decomposition.
+// dynamic falls back to a windowed-gather + ReduceMax decomposition.
 class MaxPoolDynamicKernelResolver : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::MaxPoolDynamicKernelResolver");
