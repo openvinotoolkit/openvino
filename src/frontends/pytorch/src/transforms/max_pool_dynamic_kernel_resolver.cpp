@@ -9,15 +9,18 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/concat.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -88,62 +91,89 @@ std::optional<bool> fold_ceil_mode(const std::shared_ptr<ov::op::util::Framework
     return ceil_c->cast_vector<bool>()[0];
 }
 
-// Runtime-assert that spatial axis `spatial_idx` (within the trailing `dims` axes) has extent `k`:
-// a Reshape copying every axis but pinning this one to `k`. Identity when extent == k; a strided
-// pool (k < extent) makes the element counts disagree, so the Reshape fails loudly.
-Output<Node> guard_full_extent_axis(ov::pass::NodeRegistry& rg,
-                                    const Output<Node>& tensor,
-                                    int dims,
-                                    int spatial_idx,
-                                    const Output<Node>& k) {
-    auto zero = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-    auto one = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-    auto neg_dims = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims});
-    auto shape = rg.make<v3::ShapeOf>(tensor, element::i64);
-    // Leading (non-pooled) axes, copied verbatim; empty when rank == dims (Concat handles it).
-    auto batch = rg.make<v8::Slice>(shape, zero, neg_dims, one, zero);
-    Output<Node> k_i64 = k;
-    if (k_i64.get_element_type() != element::i64) {
-        k_i64 = rg.make<v0::Convert>(k_i64, element::i64);
-    }
-    // Reshape the scalar kernel element to 1-D [1] so it slots into the shape.
-    auto k_1d = rg.make<v1::Reshape>(k_i64, one, false);
-    OutputVector parts{batch};
-    for (int t = 0; t < dims; ++t) {
-        if (t == spatial_idx) {
-            parts.push_back(k_1d);
-        } else {
-            // Copy this axis's current extent (negative index works for dynamic rank).
-            auto idx = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{t - dims});
-            parts.push_back(rg.make<v8::Gather>(shape, idx, zero));
+// Windowed max over one spatial axis with a runtime window `k` and stride `s` (no padding, dilation 1,
+// floor rounding). `axis` is the negative index of the spatial axis. Builds a (out, k) gather-index
+// matrix idx[j, w] = j*s + w with out = (L - k)/s + 1, gathers the windows along `axis` (inserting a
+// new window axis right after it), then ReduceMax over that window axis -- exact, no Loop. When
+// k == extent and s == k this reduces to a global pool over the axis (out = 1).
+Output<Node> windowed_max_axis(ov::pass::NodeRegistry& rg,
+                               const Output<Node>& tensor,
+                               int dims,
+                               int spatial_idx,
+                               const Output<Node>& k,
+                               const Output<Node>& s) {
+    const int64_t axis = static_cast<int64_t>(spatial_idx) - dims;  // negative index of this axis
+    auto axis_c = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{axis});
+    auto axis_s = rg.make<v0::Constant>(element::i64, Shape{}, std::vector<int64_t>{axis});
+    auto zero = rg.make<v0::Constant>(element::i64, Shape{}, std::vector<int64_t>{0});
+    auto one = rg.make<v0::Constant>(element::i64, Shape{}, std::vector<int64_t>{1});
+
+    auto to_i64_scalar = [&](const Output<Node>& v) -> Output<Node> {
+        Output<Node> x = v;
+        if (x.get_element_type() != element::i64) {
+            x = rg.make<v0::Convert>(x, element::i64);
         }
-    }
-    auto target = rg.make<v0::Concat>(parts, 0);
-    auto guarded = rg.make<v1::Reshape>(tensor, target, false);
-    // The CPU plugin embeds this name in the runtime error.
-    guarded->set_friendly_name("aten::max_pool" + std::to_string(dims) + "d/require_full_extent");
-    return guarded;
+        // Reshape to a scalar so Range/arithmetic below are unambiguous.
+        auto empty = rg.make<v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
+        return rg.make<v1::Reshape>(x, empty, false);
+    };
+    auto k_s = to_i64_scalar(k);
+    auto s_s = to_i64_scalar(s);
+
+    auto shape = rg.make<v3::ShapeOf>(tensor, element::i64);
+    auto L = rg.make<v1::Reshape>(rg.make<v8::Gather>(shape, axis_c, zero),
+                                  rg.make<v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{}),
+                                  false);  // scalar extent L
+    // out = (L - k)/s + 1
+    auto out = rg.make<v1::Add>(rg.make<v1::Divide>(rg.make<v1::Subtract>(L, k_s), s_s), one);
+    auto j = rg.make<v4::Range>(zero, out, one, element::i64);  // (out,)
+    auto w = rg.make<v4::Range>(zero, k_s, one, element::i64);  // (k,)
+    auto one_1d = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto zero_1d = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto j_col = rg.make<v0::Unsqueeze>(j, one_1d);                         // (out, 1)
+    auto w_row = rg.make<v0::Unsqueeze>(w, zero_1d);                        // (1, k)
+    auto idx = rg.make<v1::Add>(rg.make<v1::Multiply>(j_col, s_s), w_row);  // (out, k)
+    // Gather windows along `axis`: inserts the k axis right after `axis`. `axis` is negative, so the
+    // window axis sits at negative index `axis` in the result; reduce it away.
+    auto gathered = rg.make<v8::Gather>(tensor, idx, axis_s);
+    return rg.make<v1::ReduceMax>(gathered, axis_c, /*keep_dims=*/false);
 }
 
-// Build the full-extent ReduceMax decomposition for a runtime kernel. `reduce_axes` are the negative
-// spatial-axis indices to pool (exactly the non-constant kernel elements); each is first guarded to
-// equal its runtime kernel value, so a strided pool (kernel < extent) fails loudly at inference.
-// The config is validated by the caller before this pure builder runs, so it never rejects.
+// Build the windowed-gather + ReduceMax decomposition for a runtime kernel. Per spatial axis: max
+// over sliding windows of size k with stride s (default stride = kernel). A constant window of 1
+// with default stride is an identity and is skipped. The config is validated by the caller before
+// this pure builder runs, so it never rejects.
 OutputVector build_dynamic_kernel_max_pool(ov::pass::NodeRegistry& rg,
                                            int dims,
                                            const Output<Node>& input,
                                            const std::vector<bool>& elem_is_const,
+                                           const std::vector<int64_t>& elem_const_val,
                                            const std::vector<Output<Node>>& elem_runtime_val,
-                                           const std::vector<int64_t>& reduce_axes) {
-    Output<Node> guarded = input;
+                                           const std::vector<bool>& stride_is_const,
+                                           const std::vector<int64_t>& stride_const_val,
+                                           const std::vector<Output<Node>>& stride_runtime_val,
+                                           bool stride_is_default) {
+    Output<Node> res = input;
     for (int i = 0; i < dims; ++i) {
-        if (!elem_is_const[i]) {
-            // Runtime element: guard that it spans the whole axis (global pool).
-            guarded = guard_full_extent_axis(rg, guarded, dims, i, elem_runtime_val[i]);
+        // Kernel element k for this axis (runtime Output or a constant).
+        Output<Node> k = elem_is_const[i]
+                             ? Output<Node>(rg.make<v0::Constant>(element::i64, Shape{}, elem_const_val[i]))
+                             : elem_runtime_val[i];
+        // Stride element s: default (stride == kernel) when stride is absent/None/empty; else the
+        // provided (constant or runtime) stride element.
+        Output<Node> s;
+        if (stride_is_default) {
+            s = k;
+        } else {
+            s = stride_is_const[i] ? Output<Node>(rg.make<v0::Constant>(element::i64, Shape{}, stride_const_val[i]))
+                                   : stride_runtime_val[i];
         }
+        // Skip an identity axis: constant kernel 1 with default stride leaves the axis unchanged.
+        if (elem_is_const[i] && elem_const_val[i] == 1 && stride_is_default) {
+            continue;
+        }
+        res = windowed_max_axis(rg, res, dims, i, k, s);
     }
-    auto axes = rg.make<v0::Constant>(element::i64, Shape{reduce_axes.size()}, reduce_axes);
-    auto res = rg.make<v1::ReduceMax>(guarded, axes, /*keep_dims=*/true);
     return {res};
 }
 
@@ -261,19 +291,13 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                                                 dilations,
                                                 rounding_type);
         } else {
-            // Kernel still dynamic -> the ReduceMax full-extent decomposition. It is exact only for a
-            // global pool with default placement: reject everything else, leaving the framework node.
+            // Kernel still dynamic -> the windowed-gather + ReduceMax decomposition. It is exact for a
+            // sliding window with any kernel/stride, but not for return_indices, padding, dilation, or
+            // ceil_mode: reject those, leaving the framework node for the reporter.
             if (return_indices) {
                 add_exception_to_fw_node(
                     fw_node,
                     op_label + " with a non-constant kernel_size and return_indices=True is not supported.");
-                return false;
-            }
-            bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
-            if (!stride_is_default) {
-                add_exception_to_fw_node(fw_node,
-                                         op_label + " with a non-constant kernel_size is only supported with the "
-                                                    "default stride (stride=kernel_size).");
                 return false;
             }
             auto pad_vals = fold_optional_list(fw_node, 3);
@@ -313,44 +337,63 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                     op_label + " with a non-constant kernel_size is only supported with ceil_mode=False.");
                 return false;
             }
-            if (static_cast<int>(elem_is_const.size()) != dims || static_cast<int>(elem_runtime_val.size()) != dims) {
+            if (static_cast<int>(elem_is_const.size()) != dims ||
+                static_cast<int>(elem_runtime_val.size()) != dims) {
                 add_exception_to_fw_node(fw_node,
                                          op_label + ": could not interpret the non-constant kernel_size (expected " +
                                              std::to_string(dims) + " spatial entries).");
                 return false;
             }
-            // Per axis: reduce it (full-extent) or leave it (window 1); a static window > 1 is a
-            // sliding-window pool a ReduceMax cannot represent.
-            std::vector<int64_t> reduce_axes;
-            for (int i = 0; i < dims; ++i) {
-                const int64_t axis = static_cast<int64_t>(i) - dims;  // negative index of this spatial axis
-                if (!elem_is_const[i]) {
-                    reduce_axes.push_back(axis);
-                } else if (elem_const_val[i] == 1) {
-                    continue;  // window of 1 (default stride) is an identity
-                } else {
-                    add_exception_to_fw_node(
-                        fw_node,
-                        op_label + " with a non-constant kernel_size is only supported when every pooled axis spans "
-                                   "its full extent (the kernel along statically-sized axes must be 1).");
+
+            // Probe the stride the same way as the kernel (constant vs runtime, per spatial axis).
+            bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
+            std::vector<bool> stride_is_const;
+            std::vector<int64_t> stride_const_val;
+            std::vector<Output<Node>> stride_runtime_val;
+            if (!stride_is_default) {
+                for (const auto& e : get_list_as_outputs(fw_node->input_value(2))) {
+                    if (const auto c = ov::util::get_constant_from_source(e)) {
+                        for (auto val : c->cast_vector<int64_t>()) {
+                            stride_is_const.push_back(true);
+                            stride_const_val.push_back(val);
+                            stride_runtime_val.emplace_back();
+                        }
+                    } else {
+                        stride_is_const.push_back(false);
+                        stride_const_val.push_back(-1);
+                        stride_runtime_val.push_back(e);
+                    }
+                }
+                // A scalar stride applies to every axis (copy element 0 into locals first).
+                if (stride_is_const.size() == 1 && dims > 1) {
+                    const bool c0 = stride_is_const[0];
+                    const int64_t v0 = stride_const_val[0];
+                    const Output<Node> r0 = stride_runtime_val[0];
+                    stride_is_const.assign(dims, c0);
+                    stride_const_val.assign(dims, v0);
+                    stride_runtime_val.assign(dims, r0);
+                }
+                if (static_cast<int>(stride_is_const.size()) != dims) {
+                    add_exception_to_fw_node(fw_node,
+                                             op_label + ": could not interpret the stride (expected " +
+                                                 std::to_string(dims) + " spatial entries).");
                     return false;
                 }
-            }
-            if (reduce_axes.empty()) {
-                add_exception_to_fw_node(fw_node,
-                                         op_label + ": a non-constant kernel_size that pools no axis is unexpected.");
-                return false;
             }
             new_outputs = build_dynamic_kernel_max_pool(rg,
                                                         dims,
                                                         fw_node->input_value(0),
                                                         elem_is_const,
+                                                        elem_const_val,
                                                         elem_runtime_val,
-                                                        reduce_axes);
+                                                        stride_is_const,
+                                                        stride_const_val,
+                                                        stride_runtime_val,
+                                                        stride_is_default);
         }
 
-        // copy_runtime_info (not _and_name) so the guard nodes keep their op-labeled friendly names
-        // (e.g. aten::max_poolNd/require_full_extent, asserted by the runtime-guard test).
+        // copy_runtime_info (not _and_name): don't transplant the FrameworkNode's friendly name onto
+        // the decomposed subgraph -- the new nodes keep their own generated names.
         ov::copy_runtime_info(fw_node, rg.get());
         replace_node(fw_node, new_outputs);
         return true;

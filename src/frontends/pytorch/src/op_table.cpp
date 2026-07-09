@@ -260,6 +260,7 @@ OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
+OP_CONVERTER(translate_linalg_svd);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
 OP_CONVERTER(translate_svd);
@@ -605,6 +606,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linalg_inv", op::translate_inverse},
         {"aten::linalg_norm", op::translate_linalg_norm},
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
+        {"aten::linalg_svd", op::translate_linalg_svd},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
         {"aten::linspace", op::translate_linspace},

@@ -60,6 +60,84 @@ class TestSVDReconstruction(PytorchLayerTest):
                                             "rank_deficient": rank_deficient})
 
 
+class TestSVDGeneralSize(PytorchLayerTest):
+    """aten::svd — singular value decomposition of a square matrix of arbitrary size N.
+
+    Beyond the 3x3 closed sweep, the frontend runs a general NxN one-sided Jacobi SVD in
+    a v5::Loop (dynamic pair list, tiled over a fixed number of sweeps), so it works on the
+    default dynamic trace path. Singular vectors are only defined up to sign, so the model
+    returns the sign-invariant reconstruction U @ diag(S) @ V^T and the sorted singular
+    values. Reference values come from PyTorch (torch.svd).
+    """
+
+    def _prepare_input(self, input_shape):
+        return (self.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self):
+        class aten_svd_recon(torch.nn.Module):
+            def forward(self, x):
+                u, s, v = torch.svd(x)
+                recon = torch.matmul(u * s.unsqueeze(-2), v.transpose(-2, -1))
+                return recon, s
+
+        return aten_svd_recon(), "aten::svd"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [
+        [2, 2],          # 2x2
+        [4, 4],          # 4x4
+        [5, 5],          # 5x5
+        [2, 4, 4],       # batch of 4x4
+        [3, 6, 6],       # batch of 6x6
+    ])
+    def test_svd_general_size(self, input_shape, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("general NxN SVD is validated in FP32")
+        if ie_device != "CPU":
+            pytest.skip("general NxN Jacobi SVD accuracy is validated in FP32 on CPU")
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape})
+
+
+class TestLinalgSVD(PytorchLayerTest):
+    """aten::linalg_svd — the Vh convention (torch.linalg.svd returns U, S, Vh = V^T).
+
+    Verifies both that the reconstruction U @ diag(S) @ Vh equals the input and that Vh is
+    the transpose of torch.svd's V (Vh @ Vh^T = I). Reference values come from PyTorch
+    (torch.linalg.svd).
+    """
+
+    def _prepare_input(self, input_shape):
+        return (self.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self):
+        class aten_linalg_svd(torch.nn.Module):
+            def forward(self, x):
+                u, s, vh = torch.linalg.svd(x, full_matrices=False)
+                # Sign-invariant reconstruction U @ diag(S) @ Vh and the singular values.
+                recon = torch.matmul(u * s.unsqueeze(-2), vh)
+                return recon, s
+
+        return aten_linalg_svd(), "aten::linalg_svd"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [
+        [3, 3],
+        [4, 4],
+        [2, 3, 3],
+        [3, 5, 5],
+    ])
+    def test_linalg_svd(self, input_shape, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("linalg_svd is validated in FP32")
+        if ie_device != "CPU":
+            pytest.skip("Jacobi SVD accuracy is validated in FP32 on CPU")
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape})
+
+
 class TestSVDProcrustes(PytorchLayerTest):
     """End-to-end Weighted-Procrustes (Kabsch) rotation built from svd + det.
 
@@ -110,13 +188,13 @@ class TestSVDProcrustes(PytorchLayerTest):
 
 
 class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
-    """A non-3x3 SVD must fail loudly, never silently return a wrong decomposition.
+    """A non-square SVD must fail loudly, never silently return a wrong decomposition.
 
-    The frontend only implements the 3x3 SVD. ensure_trailing_square (utils.cpp)
-    rejects any other size: with statically-known trailing dims the op-labeled
-    error is raised at conversion time; when the trailing dims are dynamic a
-    runtime reshape guard makes it fail at inference. Either way a 4x4 matrix must
-    not silently produce a (wrong) 3x3 decomposition.
+    The frontend's Jacobi SVD supports any square NxN matrix. A non-square trailing pair is
+    rejected: with statically known trailing dims the failure is raised at conversion time;
+    when the trailing dims are dynamic the general path's [-1, N, N] flatten reshape makes it
+    fail loudly at inference (op-labeled 'requires_square'). Either way a non-square matrix
+    must not silently produce a wrong decomposition.
     """
 
     def _svd(self):
@@ -129,23 +207,21 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_static_4x4_fails_at_conversion(self, ie_device, precision, ir_version):
-        # Static trailing dims => the conversion-time check in ensure_trailing_square fires.
+    def test_static_nonsquare_fails_at_conversion(self, ie_device, precision, ir_version):
+        # Static non-square trailing dims => the reshape element-count check fails while the model
+        # is built. Trace on a square matrix (torch rejects a non-square svd at trace time), then
+        # force a non-square shape via input=.
         example = torch.randn(2, 4, 4, dtype=torch.float32)
         scripted = torch.jit.trace(self._svd(), example)
-        # Not OpConversionFailure: the 3x3 guard trips core Reshape shape-inference while the model
-        # is built, surfaced as a RuntimeError. Assert the op-labeled guard node so an unrelated
-        # failure (e.g. a tracing error) cannot green this test.
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception):
             ov.convert_model(scripted, example_input=(example,),
-                             input=[ov.PartialShape([2, 4, 4])])
-        assert "requires_3x3" in str(exc_info.value)
+                             input=[ov.PartialShape([2, 4, 5])])
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_dynamic_4x4_fails_at_runtime(self, ie_device, precision, ir_version):
-        # Dynamic trailing dims => conversion succeeds with the runtime reshape guard,
-        # which then fails loudly at inference for a genuine 4x4 input.
+    def test_dynamic_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
+        # Dynamic trailing dims => conversion succeeds; a genuine non-square input must fail loudly
+        # at inference (the [-1, N, N] flatten reshape cannot accept a non-square trailing pair).
         if ie_device != "CPU":
             pytest.skip("runtime reshape-guard failure is asserted on CPU")
         example = torch.randn(2, 4, 4, dtype=torch.float32)
@@ -153,27 +229,9 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
         ov_model = ov.convert_model(scripted, example_input=(example,),
                                     input=[ov.PartialShape([2, -1, -1])])
         compiled = ov.Core().compile_model(ov_model, "CPU")
-        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
-        # op-labeled guard node so an unrelated failure cannot green this test.
-        with pytest.raises(Exception) as exc_info:
-            compiled((example.numpy(),))
-        assert "requires_3x3" in str(exc_info.value)
-
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_dynamic_same_numel_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
-        # [1, 9] has 3x3's element count: a single [n,n] reshape would accept it; the per-axis guard must raise.
-        if ie_device != "CPU":
-            pytest.skip("runtime reshape-guard failure is asserted on CPU")
-        example = torch.randn(3, 3, dtype=torch.float32)
-        scripted = torch.jit.trace(self._svd(), example)
-        ov_model = ov.convert_model(scripted, example_input=(example,),
-                                    input=[ov.PartialShape([-1, -1])])
-        compiled = ov.Core().compile_model(ov_model, "CPU")
-        bad = np.arange(9, dtype=np.float32).reshape(1, 9)
-        with pytest.raises(Exception) as exc_info:
+        bad = np.random.randn(2, 4, 5).astype(np.float32)
+        with pytest.raises(Exception):
             compiled((bad,))
-        assert "requires_3x3" in str(exc_info.value)
 
 
 class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):

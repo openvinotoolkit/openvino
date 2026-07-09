@@ -345,71 +345,56 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool_dynamic_kernel_sliding_window_unsupported(self, ie_device, precision, ir_version):
-        # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool
-        # that a ReduceMax cannot represent: conversion must fail with a clear message. Convert
-        # directly (like the det/svd negative tests) so this expected conversion failure skips
-        # _test's retry/inference plumbing.
+    def test_max_pool_dynamic_kernel_sliding_window(self, ie_device, precision, ir_version):
+        # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool.
+        # The windowed-gather + ReduceMax decomposition handles it (default stride = kernel); the
+        # output must match torch. Dynamic last axis keeps x.size(3) a runtime value so the mixed
+        # static-window/dynamic kernel reaches the dynamic-kernel path (a static axis would const-fold
+        # to [3, 20] and take the static MaxPool path instead).
         class aten_max_pool_mixed(torch.nn.Module):
             def forward(self, x):
                 return torch.nn.functional.max_pool2d(x, kernel_size=[3, x.size(3)])
 
-        example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
-        scripted = torch.jit.trace(aten_max_pool_mixed(), example)
-        # The dynamic last axis keeps x.size(3) a runtime value, so the mixed static-window/dynamic
-        # kernel reaches the frontend and the conversion guard fires (a static axis would const-fold
-        # to [3, 20] and hit the static MaxPool path). The guard raises OpConversionFailure.
-        with pytest.raises(ov.frontend.OpConversionFailure):
-            ov.convert_model(scripted, example_input=(example,),
-                             input=[ov.PartialShape([1, 8, 15, -1])])
+        self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
+        self._test(aten_max_pool_mixed(), "aten::max_pool2d", ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool_dynamic_kernel_dynamic_stride_unsupported(self, ie_device, precision, ir_version):
-        # A stride derived from a runtime size (here x.size(3)) is not a full-extent global pool the
-        # ReduceMax decomposition can represent, and it cannot become a MaxPool constructor attribute.
-        # The deferred resolver must reject it at conversion (via the stride_is_default guard) rather
-        # than silently treating the non-constant stride as the default. Convert directly like the
-        # sliding-window negative test above.
+    def test_max_pool_dynamic_kernel_dynamic_stride(self, ie_device, precision, ir_version):
+        # A kernel and stride both derived from a runtime size. The windowed decomposition builds the
+        # window index matrix from the runtime kernel and stride, so the strided pool converts and must
+        # match torch. Dynamic last axis keeps both kernel and stride runtime values.
         class aten_max_pool_dyn_stride(torch.nn.Module):
             def forward(self, x):
-                k = x.size(3)
+                k = x.size(3) // 4
                 return torch.nn.functional.max_pool2d(x, kernel_size=[1, k], stride=[1, k])
 
-        example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
-        scripted = torch.jit.trace(aten_max_pool_dyn_stride(), example)
-        # Dynamic last axis keeps both the kernel and the stride runtime values, so the non-default
-        # dynamic stride reaches the frontend and the conversion guard fires.
-        with pytest.raises(ov.frontend.OpConversionFailure):
-            ov.convert_model(scripted, example_input=(example,),
-                             input=[ov.PartialShape([1, 8, 15, -1])])
+        self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
+        self._test(aten_max_pool_dyn_stride(), "aten::max_pool2d", ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool_dynamic_partial_kernel_fails_at_runtime(self, ie_device, precision, ir_version):
-        # A runtime kernel that does not span the full axis extent is a strided pool the ReduceMax
-        # decomposition can't represent; the runtime guard must fail loudly instead of returning a
-        # wrong [N, C, H, 1]. Here kernel = x.size(3)//2 = 32 vs. extent 64, so the guard reshape fails.
-        if ie_device != "CPU":
-            pytest.skip("runtime reshape-guard failure is asserted on CPU")
-
+    def test_max_pool_dynamic_partial_kernel(self, ie_device, precision, ir_version):
+        # A runtime kernel that does not span the full axis extent is a strided/partial pool. The
+        # windowed decomposition handles it exactly (kernel = x.size(3)//2 = 32 vs. extent 64, default
+        # stride = kernel), producing [N, C, H, 2] matching torch -- no longer a runtime failure.
         class aten_max_pool_partial(torch.nn.Module):
             def forward(self, x):
                 return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3) // 2])
 
+        self.input_tensor = self.random.randn(1, 128, 40, 64).astype(np.float32)
+        # Structural check: the dynamic-kernel branch (ReduceMax) is taken, not a static MaxPool.
         example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
         scripted = torch.jit.trace(aten_max_pool_partial(), example)
-        # Dynamic last axis keeps the kernel a runtime value, so the dynamic-kernel guard is emitted.
         ov_model = ov.convert_model(scripted, example_input=(example,),
                                     input=[ov.PartialShape([1, 128, 40, -1])])
         op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
         assert "ReduceMax" in op_types, f"expected the dynamic-kernel branch; ops: {op_types}"
-        compiled = ov.Core().compile_model(ov_model, "CPU")
-        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
-        # op-labeled guard node so an unrelated failure cannot green this test.
-        with pytest.raises(Exception) as exc_info:
-            compiled((example.numpy(),))
-        assert "require_full_extent" in str(exc_info.value)
+        # Numeric check vs torch.
+        self._test(aten_max_pool_partial(), "aten::max_pool2d", ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
