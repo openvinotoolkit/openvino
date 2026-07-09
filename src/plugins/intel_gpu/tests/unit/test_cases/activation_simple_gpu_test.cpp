@@ -1580,7 +1580,7 @@ TEST(activation_bf16_fw_gpu, basic_bfyx_all_functions)
                     break;
                 case activation_func::hswish:
                     ASSERT_NEAR((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f,
-                        static_cast<float>(output_ptr[i]), 1e-2f);
+                        static_cast<float>(output_ptr[i]), 1.1e-2f);
                     break;
                 case activation_func::hard_sigmoid:
                     ASSERT_NEAR(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f,

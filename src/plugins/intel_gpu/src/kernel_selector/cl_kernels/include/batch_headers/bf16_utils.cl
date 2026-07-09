@@ -49,6 +49,13 @@ inline ushort _convert_bfloat16_as_ushort(float source) {
     // Mirrors ov::bfloat16::round_to_nearest_even in
     // src/core/include/openvino/core/type/bfloat16.hpp.
     uint u = as_uint(source);
+    // NaN handling: a float is NaN when its exponent bits are all ones and the
+    // mantissa is non-zero (abs(bits) > 0x7F800000). Plain truncation/rounding can
+    // drop all significant mantissa bits (or carry into the exponent) and silently
+    // turn a NaN into +/-Inf. Preserve the sign and emit a quiet bfloat16 NaN.
+    if ((u & 0x7FFFFFFFu) > 0x7F800000u) {
+        return (ushort)((u >> 16) | 0x0040u);
+    }
     return (ushort)((u + ((u & 0x00010000u) >> 1)) >> 16);
 }
 

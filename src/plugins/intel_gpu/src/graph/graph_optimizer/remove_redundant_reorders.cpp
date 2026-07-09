@@ -490,17 +490,6 @@ void remove_redundant_reorders::run(program& p) {
                     input.add_fused_primitive(local_desc);
                 }
 
-                // Write the new out datatype to the last fused op to avoid problems with bf16
-                if (!same_data_type) {
-                    auto& fused_prims = input.get_fused_primitives();
-                    for (auto it = fused_prims.rbegin(); it != fused_prims.rend(); ++it) {
-                        if (it->f_param && it->f_param->type() == reorder::type_id())
-                            continue;
-                        it->output_layout.data_type = output_layout.data_type;
-                        break;
-                    }
-                }
-
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
 

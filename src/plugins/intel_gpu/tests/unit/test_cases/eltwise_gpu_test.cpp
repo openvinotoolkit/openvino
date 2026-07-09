@@ -171,8 +171,8 @@ void run_eltwise_generic_test(cldnn::eltwise_mode mode) {
     generic_eltwise_test<float>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, 0.f, 0, 0, 0, 0);
     if (f16_supported) {
         generic_eltwise_test<ov::float16>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, (ov::float16)0.f, 0, 0, 0, 0);
-        generic_eltwise_test<ov::bfloat16>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, (ov::bfloat16)0.f, 0, 0, 0, 0);
     }
+    generic_eltwise_test<ov::bfloat16>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, (ov::bfloat16)0.f, 0, 0, 0, 0);
 
 }
 
