@@ -1,4 +1,4 @@
 ghapi==1.0.4
 pyyaml==6.0.1
 jsonschema==4.19.1
-fastcore<2
+fastcore==1.14.5
