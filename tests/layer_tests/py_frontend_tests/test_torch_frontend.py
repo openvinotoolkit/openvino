@@ -2911,12 +2911,14 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetri
 
     class FakeWeightArgs:
         num_bits = 4
+        type = "int"
         symmetric = _symmetric
         strategy = "group"
         group_size = _group_size
 
     class FakeScheme:
         weights = FakeWeightArgs()
+        format = "pack-quantized"
 
     class FakeQuantConfig:
         quant_method = "compressed-tensors"
@@ -2972,6 +2974,67 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetri
     model = CTModel()
     x = torch.randn(2, in_features, generator=rng)
     return model, x, FakeCompressedLinear
+
+
+def _make_fake_ct_embedding_model(num_embeddings=64, embedding_dim=32, group_size=32,
+                                  symmetric=True, ct_format="pack-quantized"):
+    """Return ``(model, idx)`` with a pack-quantized ``nn.Embedding``.
+
+    Mirrors the modern (>= 0.17) layout: a plain ``nn.Embedding`` carrying
+    ``weight_packed`` / ``weight_scale`` (+ ``weight_zero_point`` when asymmetric)
+    and a ``quantization_scheme`` with ``format`` set. ``ct_format`` can be
+    overridden to exercise the unsupported-config error path.
+    """
+    rng = torch.Generator().manual_seed(0)
+    n_groups = embedding_dim // group_size
+    _group_size, _symmetric, _fmt = group_size, symmetric, ct_format
+
+    class FakeWeightArgs:
+        num_bits = 4
+        type = "int"
+        symmetric = _symmetric
+        strategy = "group"
+        group_size = _group_size
+
+    class FakeScheme:
+        weights = FakeWeightArgs()
+        format = _fmt
+
+    class FakeQuantConfig:
+        quant_method = "compressed-tensors"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    def _make_embedding():
+        # Modern CT layer is a *plain* nn.Embedding (matched by exact class), with
+        # the dense weight replaced by packed buffers + a quantization_scheme.
+        emb = torch.nn.Embedding(num_embeddings, embedding_dim)
+        del emb.weight
+        emb.register_buffer("weight_packed", torch.randint(
+            -(2 ** 31), 2 ** 31, (num_embeddings, embedding_dim // 8),
+            dtype=torch.int32, generator=rng))
+        emb.register_buffer("weight_scale", torch.randn(
+            num_embeddings, n_groups, dtype=torch.float32, generator=rng))
+        if not _symmetric:
+            emb.register_buffer("weight_zero_point", torch.randint(
+                -(2 ** 31), 2 ** 31, (num_embeddings // 8, n_groups),
+                dtype=torch.int32, generator=rng))
+        emb.quantization_scheme = FakeScheme()
+        # Placeholder forward so tracing produces a valid result before patching.
+        emb.forward = lambda idx: torch.zeros(*idx.shape, embedding_dim, dtype=torch.float32)
+        return emb
+
+    class CTModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.emb = _make_embedding()
+
+        def forward(self, idx):
+            return self.emb(idx)
+
+    return CTModel(), torch.randint(0, num_embeddings, (2, 4))
 
 
 def _inject_fake_ct_module(fake_linear_class):
@@ -3131,5 +3194,70 @@ def test_compressed_tensors_convert_asym_keeps_u4():
         ]
         assert u4_consts, \
             "Expected u4 weight constants in the OV model for asymmetric CT gemm"
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_embedding_keeps_i4():
+    """A pack-quantized ``nn.Embedding`` must convert to a Gather over an i4
+    weight constant — the embedding table must NOT be decompressed to float."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model()
+    prior = _inject_fake_ct_module(torch.nn.Linear)  # embedding path needs only the CT pkg present
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        op_types = [op.get_type_name() for op in ov_model.get_ops()]
+        assert "Gather" in op_types, "Expected a Gather for the embedding lookup"
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, "Expected a packed 4-bit weight constant for CT embedding"
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_unsupported_format_raises():
+    """An unsupported compressed-tensors format must raise (never silently export
+    the module as dense float)."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model(ct_format="nvfp4-pack-quantized")
+    prior = _inject_fake_ct_module(torch.nn.Linear)
+    try:
+        with pytest.raises(Exception, match="nvfp4-pack-quantized"):
+            decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+            fe = FrontEndManager().load_by_framework("pytorch")
+            fe.convert(fe.load(decoder))
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_missing_format_still_converts():
+    """A valid pack-quantized module whose ``quantization_scheme.format`` is None
+    (the plain model-load path, older CT, and the legacy CompressedLinear path all
+    leave it unset) must still convert — the format check is lenient when unset."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model(ct_format=None)
+    prior = _inject_fake_ct_module(torch.nn.Linear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, "Expected a packed 4-bit weight constant when format is None"
     finally:
         _restore_ct_modules(prior)

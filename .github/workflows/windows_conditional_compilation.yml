@@ -57,7 +57,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
   # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
 
@@ -84,6 +84,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
@@ -119,8 +120,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
 
       - name: Install certifi
         run: |
@@ -257,7 +259,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
@@ -265,7 +267,7 @@ jobs:
 
       - name: Upload OpenVINO PDB package
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
@@ -273,14 +275,14 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
           if-no-files-found: 'error'
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_windows_cc_collect
@@ -322,7 +324,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -334,8 +336,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
 
       - name: CMake configure - CC ON
         run: |
