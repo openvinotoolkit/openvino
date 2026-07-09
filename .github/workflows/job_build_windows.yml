@@ -177,6 +177,7 @@ jobs:
                 --installPath "C:\BuildTools" `
                 --add Microsoft.VisualStudio.Component.VC.ATL `
                 --add Microsoft.VisualStudio.Component.VC.ATLMFC `
+                --add Microsoft.VisualStudio.Component.VC.14.50.ATL `
                 --passive --norestart --wait
               break
             } else {
