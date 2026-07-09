@@ -157,7 +157,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             std::string out_name = "";
             Datatype in_type = c.input_dt;
             bool can_all_use_preload = true;
-
+            Datatype last_fused_out_dtype = c.input_dt;
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
                 // Reorder is not processed by jitter
                 if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
@@ -180,11 +180,15 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                 if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
                     fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
+                last_fused_out_dtype = params.fused_ops[i].output_tensor.GetDType();
             }
 
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
+            // Convert dtype, only if last fused op has a different one from kernel output
+            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype)
+                out_name = "TO_OUTPUT_VECTOR_TYPE(" + out_name + ", " + toCodeString(c.vec_size) + ")";
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();

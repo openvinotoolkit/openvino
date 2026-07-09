@@ -2260,9 +2260,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OP"+toCodeString(desc.op_id)+"_ACTION" + conf.suffix, op_decls));
-    
-    // Convert output to kernel's output type
-    out_var = "TO_OUTPUT_VECTOR_TYPE(" + out_var + ", " + toCodeString(vec_size) + ")";
 
     return jit;
 }
