@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-07-40-13-816-29001747652",
+  "timestamp": "2026-07-09T07:40:13Z",
+  "run_id": "29001747652",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29001747652",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "36504",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36504",
+  "author": "zhanmyz",
+  "category": "Dependencies",
+  "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+  "signature": "AttributeError: 'list' object has no attribute 'starmap'|Dependencies",
+  "signature_hash": "7862e85dd17a5df8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Smart_CI",
+      "conclusion": "failure",
+      "symptom": "AttributeError: 'list' object has no attribute 'starmap' when constructing GhApi()"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Downstream status check exits 1 due to Smart_CI failure"
+    }
+  ],
+  "key_errors": [
+    "File \"/home/runner/.local/lib/python3.12/site-packages/ghapi/core.py\", line 105, in __init__\n    funcs_ = L(funcs).starmap(_GhVerb, client=self, kwargs=kwargs)\n             ^^^^^^^^^^^^^^^^\nFile \"/home/runner/.local/lib/python3.12/site-packages/fastcore/basics.py\", line 578, in __getattr__\n    if attr is not None: return getattr(attr,k)\n                               ^^^^^^^^^^^^^^^\nAttributeError: 'list' object has no attribute 'starmap'"
+  ],
+  "root_cause": "The smart-ci requirements.txt pins ghapi==1.0.4 but specifies fastcore>=1.5.4 with no upper bound. fastcore 2.0.1 was resolved and installed, but it is incompatible with ghapi 1.0.4: the L class no longer provides a 'starmap' method (returns a plain list) that ghapi 1.0.4 depends on in GhApi.__init__ (core.py line 105). This is the 3rd occurrence today (run 29000379233 at 07:11Z affecting PR #36780, run 29000703414 at 07:26Z affecting PR #36773, and now this run 29001747652 at 07:40Z affecting PR #36504). Fix: pin fastcore to fastcore>=1.5.4,<2.0.0 in .github/actions/smart-ci/requirements.txt, or upgrade ghapi to a version that supports fastcore 2.x.",
+  "reproduction_steps": "pip install ghapi==1.0.4 fastcore==2.0.1; python3 -c \"from ghapi.all import GhApi; GhApi()\"",
+  "recommended_actions": [
+    "Pin fastcore in .github/actions/smart-ci/requirements.txt to fastcore>=1.5.4,<2.0.0 to prevent future breaks from fastcore major version bumps.",
+    "Alternatively, upgrade ghapi to a version that supports fastcore 2.x (check ghapi releases for compatibility).",
+    "This is a recurring infrastructure failure blocking multiple PRs — escalation/immediate fix is needed."
+  ],
+  "prevention_strategies": "Always specify upper bounds for transitive dependencies in requirements.txt files used by CI infrastructure scripts. Consider using pip-compile or a lockfile. Add a CI sanity-check step that imports the smart-ci module before running it.",
+  "historical_context": "This is the 3rd occurrence of this failure on 2026-07-09. First occurrence: run 29000379233 (PR #36780, ~07:11Z). Second occurrence: run 29000703414 (PR #36773, Linux Ubuntu 22.04 ARM64 cross-compilation, ~07:26Z). All three runs failed within 30 minutes, indicating the fastcore 2.0.1 release is persistently breaking the ghapi 1.0.4 API for all merge-queue CI workflows."
+}
