@@ -1,7 +1,7 @@
 [requires]
 onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
-protobuf/3.21.12
+protobuf/6.33.5
 ittapi/[>=3.23.0]
 opencl-icd-loader/[>=2023.04.17]
 rapidjson/[>=1.1.0]
@@ -15,7 +15,7 @@ flatbuffers/[>=22.9.24]
 cmake/[>=3.20]
 pkgconf/1.9.5
 patchelf/[>=0.12]
-protobuf/3.21.12
+protobuf/6.33.5
 flatbuffers/[>=22.9.24]
 
 [options]

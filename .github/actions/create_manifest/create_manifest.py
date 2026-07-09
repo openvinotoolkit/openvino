@@ -105,38 +105,50 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     manifest = Manifest()
     component_name = None
     repositories = []
-    version = None
     trigger_repo = None
+    trigger_repo_version = None
+    pyproject_file = None
 
     for repo_dir in repos:
         repo = Repository(**get_repo_data(repo_dir))
         repositories.append(repo)
+        repo_version = None
+        repo_version_file = None
+
         if repo.name == 'openvino':
-            version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
-            version = parse_ov_version(version_file)
+            repo_version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
+            repo_version = parse_ov_version(repo_version_file)
         elif repo.name in ('openvino_tokenizers', 'openvino.genai'):
-            version_file = Path(repo_dir) / 'pyproject.toml'
-            version = parse_version_from_toml(version_file)
+            repo_version_file = Path(repo_dir) / 'pyproject.toml'
+            repo_version = parse_version_from_toml(repo_version_file)
             
         if repo.trigger:
             trigger_repo = repo
             component_name = repo.name
-            pyproject_file = version_file
+            trigger_repo_version = repo_version
+            if repo.name in ('openvino_tokenizers', 'openvino.genai'):
+                pyproject_file = repo_version_file
+
+    if not trigger_repo:
+        raise ValueError('Trigger repository is not found in repos list')
+
+    if not trigger_repo_version:
+        raise ValueError(f'Failed to detect version for trigger repository: {trigger_repo.name}')
 
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
-    product_version = f'{version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}'
+    product_version = f'{trigger_repo_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}'
 
     merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
     target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
     is_release_branch = re.match('^releases/.+$', target_branch)
     ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}' if not is_release_branch else ''
-    wheel_product_version = f'{version}.{ci_build_dev_tag}' if not is_release_branch else version
+    wheel_product_version = f'{trigger_repo_version}.{ci_build_dev_tag}' if not is_release_branch else trigger_repo_version
 
     set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
     set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
 
-    if ci_build_dev_tag:
+    if ci_build_dev_tag and pyproject_file:
         replacements = {
             # update extension version (2025.0.0.0 -> 2025.0.0.0.dev001)
             r'(^\s*\[project\][^\[]*?^\s*version\s*=\s*["\'])(.*)(["\']\s*)': r'\1\2' + f'.{ci_build_dev_tag}' + r'\3'
