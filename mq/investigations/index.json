@@ -38,5 +38,14 @@
     "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
     "signature_hash": "926d0537c057e523",
     "pr_number": "36774"
+  },
+  {
+    "investigation_id": "2026-07-09-16-28-39-874-29030218709",
+    "timestamp": "2026-07-09T16:28:39Z",
+    "run_id": "29030218709",
+    "pr_number": "36774",
+    "category": "Dependencies",
+    "title": "Docker build fails: libpython3-dev:riscv64 unmet deps libncursesw6/libtinfo6 after docker_tag bump",
+    "signature_hash": "493bf4a71d007127"
   }
 ]

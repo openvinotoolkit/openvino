@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-16-28-39-874-29030218709",
+  "timestamp": "2026-07-09T16:28:39Z",
+  "run_id": "29030218709",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218709",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "36774",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36774",
+  "author": "bumbosiepsak",
+  "category": "Configuration",
+  "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+  "signature": "apt-get install libpython3-dev:riscv64 fails - libpython3.10-stdlib:riscv64 depends on libtinfo6:riscv64 but not installable|Configuration",
+  "signature_hash": "926d0537c057e523",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "docker buildx build for ubuntu_22_04_riscv:pr-36774 fails: apt-get install libpython3-dev:riscv64 exits with code 100 due to unmet riscv64 package dependencies"
+    }
+  ],
+  "key_errors": [
+    "libpython3.10-stdlib:riscv64 : Depends: libncursesw6:riscv64 (>= 6.1) but it is not going to be installed\nlibpython3.10-stdlib:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed\nlibreadline8:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed\nE: Unable to correct problems, you have held broken packages.",
+    "#11 ERROR: process \"/bin/sh -c dpkg --add-architecture riscv64 && apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && apt-get install -y --no-install-recommends libpython3-dev:riscv64\" did not complete successfully: exit code: 100",
+    "ERROR: failed to solve: process ... did not complete successfully: exit code: 100\nRuntimeError: Command 'docker buildx build ... openvinogithubactions.azurecr.io/ov_build/ubuntu_22_04_riscv:pr-36774 ...' returned non-zero exit status 1"
+  ],
+  "root_cause": "PR #36774 changed .github/dockerfiles/docker_tag from pr-36765 to pr-36774, which invalidated the Docker cache for ubuntu_22_04_riscv and forced a full image rebuild. During the rebuild, Dockerfile line 72-74 runs: dpkg --add-architecture riscv64 && apt-get update && apt-get install -y --no-install-recommends libpython3-dev:riscv64. This fails because the Ubuntu ports riscv64 repository has a dependency conflict: libpython3.10-stdlib:riscv64 requires libncursesw6:riscv64 (>=6.1) and libtinfo6:riscv64 (>=6), but those packages are not installable due to held/conflicting versions. The riscv64-sources.list in the Dockerfile includes only jammy main/universe, jammy-updates main, and jammy-security main for riscv64 -- it omits jammy-updates universe and jammy-security universe, which may contain the required versions of libncursesw6/libtinfo6. This image was previously built successfully under docker_tag pr-36765, meaning the apt conflict is likely a regression caused by a recent Ubuntu ports package update.",
+  "reproduction_steps": "docker buildx build --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile --tag test-riscv .",
+  "recommended_actions": [
+    "Update .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile to explicitly install libtinfo6:riscv64 and libncursesw6:riscv64 before libpython3-dev:riscv64 in the same RUN step (Dockerfile line 72).",
+    "Alternatively, add 'deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe' and 'deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security universe' to riscv64-sources.list in the Dockerfile (lines 47-65) to make all riscv64 dependency updates available.",
+    "Verify by running the Docker build locally after the Dockerfile fix.",
+    "If the upstream Ubuntu ports riscv64 repo has a known bug, consider pinning the specific version of libncurses6:riscv64 / libtinfo6:riscv64 until the repo issue is resolved."
+  ],
+  "prevention_strategies": "When bumping docker_tag in .github/dockerfiles/docker_tag, validate that all dependent Docker images still build successfully in a pre-merge CI step or locally before merging. Consider adding jammy-updates universe and jammy-security universe riscv64 sources to the riscv64-sources.list to avoid future apt dependency conflicts.",
+  "historical_context": "No prior occurrences of this exact riscv64 apt dependency failure found in the investigation database. The docker_tag file was last at pr-36765 before this PR."
+}
