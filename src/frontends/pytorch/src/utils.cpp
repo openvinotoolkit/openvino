@@ -228,6 +228,31 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
     return g2;
 }
 
+Output<Node> flatten_batch_to_square(const NodeContext& context,
+                                     const Output<Node>& x,
+                                     const Output<Node>& n_1d,
+                                     const std::string& op_label) {
+    auto minus_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto flat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{minus_one, n_1d, n_1d}, 0));
+    auto x_flat = context.mark_node(std::make_shared<v1::Reshape>(x, flat_shape, /*special_zero=*/false));
+    x_flat->set_friendly_name(op_label + "/requires_square");
+    return x_flat;
+}
+
+Output<Node> restore_leading_batch(const NodeContext& context,
+                                   const Output<Node>& flat,
+                                   const Output<Node>& orig_shape,
+                                   const OutputVector& trailing) {
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(orig_shape, zero, neg_two, step));
+    OutputVector parts{batch_shape};
+    parts.insert(parts.end(), trailing.begin(), trailing.end());
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(parts, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(flat, new_shape, /*special_zero=*/false));
+}
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     return get_node_axes_range(context, x);

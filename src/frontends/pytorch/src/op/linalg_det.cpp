@@ -5,7 +5,6 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -20,7 +19,6 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -121,15 +119,10 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     auto seq = context.mark_node(std::make_shared<v4::Range>(i64_s(0), n, i64_s(1), element::i64));  // (N,)
     auto r_row = context.mark_node(std::make_shared<v0::Unsqueeze>(seq, i64_c({0})));                // (1, N)
 
-    // Flatten all leading batch axes into a single axis so the loop body has a fixed rank (B, N, N).
-    // A CPU-plugin body cannot have a dynamic rank; the batch shape is restored on the result.
-    // This reshape to [-1, N, N] doubles as the squareness guard: it changes rank (so no shape pass
-    // can fold it to a no-op) and its element-count check fails loudly on any non-N x N trailing pair
-    // (e.g. [1, 9] or [3, 4]). The op-labeled name surfaces the op in the CPU runtime error.
+    // Flatten leading batch dims to a fixed rank-3 (B, N, N) (a CPU-plugin loop body cannot have a
+    // dynamic rank); the reshape doubles as the squareness guard (aten::det/linalg_det/requires_square).
     auto n_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(n, i64_c({0})));  // (1,) = [N]
-    auto flat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{i64_c({-1}), n_1d, n_1d}, 0));
-    auto x_flat = context.mark_node(std::make_shared<v1::Reshape>(x_f32, flat_shape, /*special_zero=*/false));
-    x_flat->set_friendly_name("aten::det/linalg_det/requires_square");
+    auto x_flat = flatten_batch_to_square(context, x_f32, n_1d, "aten::det/linalg_det");
     auto b_flat = context.mark_node(std::make_shared<v3::ShapeOf>(x_flat, element::i64));
     auto b_dim = context.mark_node(std::make_shared<v8::Slice>(b_flat, i64_c({0}), i64_c({1}), i64_c({1})));  // [B]
     auto acc_init = context.mark_node(std::make_shared<v3::Broadcast>(f32_s(1.0f), b_dim));  // (B,) ones
@@ -205,20 +198,16 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     loop->set_invariant_input(r_body, r_row);
     auto det_flat = loop->get_iter_value(acc_new, -1);  // (B,) determinant per flattened batch element
 
-    // Restore the original batch shape (shape[:-2]).
-    auto det_marked = context.mark_node(det_flat.get_node_shared_ptr());
-    auto batch_shape =
-        context.mark_node(std::make_shared<v8::Slice>(shape, i64_c({0}), i64_c({-2}), i64_c({1})));
-    auto det = context.mark_node(std::make_shared<v1::Reshape>(det_marked, batch_shape, /*special_zero=*/false));
+    // Restore the original batch shape (shape[:-2]); det is scalar per batch element (no trailing).
+    context.mark_node(det_flat.get_node_shared_ptr());
+    auto det = restore_leading_batch(context, det_flat, shape, {});
     return context.mark_node(std::make_shared<v1::ConvertLike>(det, x));
 }
 
 // Determinant of a batched square matrix. When the trailing dims are statically known and small
 // (1x1 / 2x2 / 3x3) a closed-form expansion is used (reachable on the FX / convert_model(input=...)
-// paths); the size-n static path guards non-square inputs via ensure_trailing_square. Otherwise —
-// including the dynamic-dims TorchScript trace path — the general LU decomposition handles any square
-// size, and its own [-1, N, N] flatten reshape enforces squareness (a rank-changing reshape cannot be
-// folded to a no-op, unlike a rank-preserving [.., N, N] guard).
+// paths), guarding non-square inputs via ensure_trailing_square. Otherwise -- including the
+// dynamic-dims TorchScript trace path -- the general LU decomposition handles any square size.
 Output<Node> det_dispatch(const NodeContext& context, const Output<Node>& x) {
     const auto& ps = x.get_partial_shape();
     const auto rank = ps.rank();

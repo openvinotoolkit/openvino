@@ -121,11 +121,13 @@ class TestDetNonSquareFailsGracefully(PytorchLayerTest):
         # Static non-square trailing dims => the reshape element-count check fails while the
         # model is built (a RuntimeError, not OpConversionFailure). Trace on a square matrix
         # (torch rejects a non-square det at trace time) and force a non-square shape via input=.
+        # Assert the op-labeled guard node so an unrelated build error cannot green the test.
         example = torch.randn(2, 4, 4, dtype=torch.float32)
         scripted = torch.jit.trace(self._det(), example)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception) as exc_info:
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([2, 4, 5])])
+        assert "requires_square" in str(exc_info.value)
 
     @pytest.mark.nightly
     @pytest.mark.precommit

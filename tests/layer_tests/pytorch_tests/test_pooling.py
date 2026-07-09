@@ -282,9 +282,10 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
     """max_pool with a kernel_size built from x.size(...).
 
     Such a kernel is a runtime value the OpenVINO MaxPool op cannot represent (its kernel is a
-    constructor attribute); for a full-extent (global) pool the frontend decomposes it into a
-    ReduceMax over that axis. trace_model=True keeps the kernel a runtime value (a plain literal
-    would be const-folded onto the static MaxPool path).
+    constructor attribute); the frontend decomposes it into a windowed gather + ReduceMax that
+    handles any runtime kernel/stride (the full-extent global pool is the out=1 special case).
+    trace_model=True keeps the kernel a runtime value (a plain literal would be const-folded onto
+    the static MaxPool path).
     """
 
     def _prepare_input(self):
@@ -343,35 +344,34 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
         self._test(*self.create_model(dims, axes), ie_device, precision, ir_version,
                    trace_model=True, dynamic_shapes=is_dynamic_shapes)
 
+    @pytest.mark.parametrize("case", [
+        # Static window > 1 mixed with a dynamic full-extent axis: a genuine sliding-window pool
+        # (default stride = kernel). The dynamic last axis keeps x.size(3) a runtime value so the
+        # mixed static-window/dynamic kernel reaches the dynamic-kernel path (a static axis would
+        # const-fold to [3, 20] and take the static MaxPool path instead).
+        "sliding_window",
+        # Kernel and stride both derived from a runtime size: the windowed decomposition builds the
+        # window index matrix from the runtime kernel and stride, so the strided pool converts.
+        "dynamic_stride",
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool_dynamic_kernel_sliding_window(self, ie_device, precision, ir_version):
-        # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool.
-        # The windowed-gather + ReduceMax decomposition handles it (default stride = kernel); the
-        # output must match torch. Dynamic last axis keeps x.size(3) a runtime value so the mixed
-        # static-window/dynamic kernel reaches the dynamic-kernel path (a static axis would const-fold
-        # to [3, 20] and take the static MaxPool path instead).
-        class aten_max_pool_mixed(torch.nn.Module):
+    def test_max_pool_dynamic_kernel_windowed(self, case, ie_device, precision, ir_version):
+        # Both cases route through the windowed-gather + ReduceMax decomposition; the output must
+        # match torch.
+        class aten_max_pool_sliding_window(torch.nn.Module):
             def forward(self, x):
                 return torch.nn.functional.max_pool2d(x, kernel_size=[3, x.size(3)])
 
-        self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
-        self._test(aten_max_pool_mixed(), "aten::max_pool2d", ie_device, precision, ir_version,
-                   trace_model=True, dynamic_shapes=True)
-
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_max_pool_dynamic_kernel_dynamic_stride(self, ie_device, precision, ir_version):
-        # A kernel and stride both derived from a runtime size. The windowed decomposition builds the
-        # window index matrix from the runtime kernel and stride, so the strided pool converts and must
-        # match torch. Dynamic last axis keeps both kernel and stride runtime values.
-        class aten_max_pool_dyn_stride(torch.nn.Module):
+        class aten_max_pool_dynamic_stride(torch.nn.Module):
             def forward(self, x):
                 k = x.size(3) // 4
                 return torch.nn.functional.max_pool2d(x, kernel_size=[1, k], stride=[1, k])
 
+        model = {"sliding_window": aten_max_pool_sliding_window,
+                 "dynamic_stride": aten_max_pool_dynamic_stride}[case]()
         self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
-        self._test(aten_max_pool_dyn_stride(), "aten::max_pool2d", ie_device, precision, ir_version,
+        self._test(model, "aten::max_pool2d", ie_device, precision, ir_version,
                    trace_model=True, dynamic_shapes=True)
 
     @pytest.mark.nightly
