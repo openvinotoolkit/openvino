@@ -31,12 +31,12 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     // Case: 3D × 3D (batched, uniform group sizes) - no offsets needed
     if (mat_a_rank == 3 && mat_b_rank == 3) {
-        const auto g_a = mat_a_shape[0];
-        const auto m = mat_a_shape[1];
-        const auto k_a = mat_a_shape[2];
-        const auto g_b = mat_b_shape[0];
-        const auto n = mat_b_shape[1];
-        const auto k_b = mat_b_shape[2];
+        const auto& g_a = mat_a_shape[0];
+        const auto& m = mat_a_shape[1];
+        const auto& k_a = mat_a_shape[2];
+        const auto& g_b = mat_b_shape[0];
+        const auto& n = mat_b_shape[1];
+        const auto& k_b = mat_b_shape[2];
 
         auto merged_g = DimType();
         auto merged_k = DimType();
@@ -65,11 +65,11 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
                               "GroupedMatMul offsets must be 1D tensor.");
 
-        const auto total_rows = mat_a_shape[0];
-        const auto k_a = mat_a_shape[1];
-        const auto g = mat_b_shape[0];
-        const auto n = mat_b_shape[1];
-        const auto k_b = mat_b_shape[2];
+        const auto& total_rows = mat_a_shape[0];
+        const auto& k_a = mat_a_shape[1];
+        const auto& g = mat_b_shape[0];
+        const auto& n = mat_b_shape[1];
+        const auto& k_b = mat_b_shape[2];
 
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
