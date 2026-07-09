@@ -26,7 +26,7 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -144,9 +144,14 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        nodejs-version: [21, 22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-8gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
+      nodejs-version: ${{ matrix.nodejs-version }}
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
