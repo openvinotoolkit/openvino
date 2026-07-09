@@ -38,7 +38,7 @@ void ocl_user_event::set_impl() {
         cl_ulong device_ts = 0;
         cl_ulong host_ts = 0;
         if (clGetDeviceAndHostTimer(_device.get(), &device_ts, &host_ts) == CL_SUCCESS) {
-            _exec_start = std::chrono::nanoseconds(static_cast<long long>(device_ts));
+            _exec_start = std::chrono::nanoseconds(static_cast<long long>(device_ts)) - _duration->value();
         }
     }
 #endif

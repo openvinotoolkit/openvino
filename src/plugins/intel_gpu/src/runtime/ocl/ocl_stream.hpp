@@ -9,7 +9,6 @@
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
 
-#include <chrono>
 #include <memory>
 #include <vector>
 
