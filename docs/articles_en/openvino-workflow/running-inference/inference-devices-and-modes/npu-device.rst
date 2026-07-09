@@ -170,6 +170,8 @@ The NPU device is currently supported by AUTO inference modes
          ov::range_for_streams
          ov::num_streams
          ov::execution_devices
+         ov::runtime_requirements
+         ov::compatibility_check
          ov::device::architecture
          ov::device::capabilities
          ov::device::full_name
@@ -377,6 +379,28 @@ or
    }, nullptr}));
 
    compiled_model.export_model(custom_encrypted_blob_stream);
+
+**ov::runtime_requirements**
+
+This property returns a plugin-specific requirements string from a compiled model.
+
+.. code-block::
+
+   auto requirements = compiled_model.get_property(ov::runtime_requirements);
+
+.. note::
+
+   Querying this property throws if the compiled model has no runtime requirements,
+   for example weightless models or Level Zero drivers older than 1.16.
+
+**ov::compatibility_check**
+
+This property can be queried with a requirements string to check whether
+the current runtime is compatible with the described model.
+
+.. code-block::
+
+   auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
 
 Limitations
 #############################

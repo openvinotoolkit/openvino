@@ -191,6 +191,8 @@ The following properties are supported (may differ based on current system confi
 | `ov::caching_properties`/</br>`CACHING_PROPERTIES` | RW | Returns a list of all properties that are used by OpenVINO cache to build the hash key. | `N/A` | `N/A` |
 | `ov::compilation_num_threads`/</br>`COMPILATION_NUM_THREADS` | RW | Maximum number of threads that can be used for compilation tasks. | `N/A` | `N/A` |
 | `ov::num_streams`/</br>`NUM_STREAMS` | RW | Sets the per-executor stream/thread limit. Executor layout depends on mode: `AUTO` uses only the task executor; `0` runs `start_async` on the caller thread, uses a single wait executor thread, and disables the callback executor; explicit positive values use separate executors for start, wait, and callback stages, each configured with `num_streams` threads. | `AUTO/`</br>`INT` | `AUTO` |
+| `ov::runtime_requirements`/</br>`RUNTIME_REQUIREMENTS` | RO | Returns a string containing the runtime requirements of the compiled model. The string can be used with `ov::compatibility_check` to check compatibility before import.</br>Throws if no requirements are available for the compiled model (for example weightless models, or Level Zero drivers older than 1.16). | `N/A` | `N/A` |
+| `ov::compatibility_check`/</br>`COMPATIBILITY_CHECK` | RO | Checks whether the current runtime is compatible with a compiled model, using a requirements string passed through `ov::runtime_requirements`. | `SUPPORTED`/</br>`UNSUPPORTED`/</br>`NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | `ov::optimal_number_of_infer_requests`/</br>`OPTIMAL_NUMBER_OF_INFER_REQUESTS` | RO | Returns the optimal number of inference requests to be used by the application. Depends on the platform version and on ov::hint::performance_mode. Please see the table below. | `N/A` | `N/A` |
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
@@ -330,6 +332,22 @@ Notes regarding on-device vs offline compilation:
 - For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
+<br>
+
+### ov::runtime_requirements and ov::compatibility_check
+
+A string containing plugin-specific runtime requirements can be retrieved from a compiled model using the ``ov::runtime_requirements`` property:
+```
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+```
+This string can later be used before import to check the compatibility of the described model with the current runtime:
+```
+    auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
+```
+
+> Note: `ov::runtime_requirements` is not available for every compiled model. Querying it throws for models without runtime requirements (for example weightless models, or Level Zero drivers older than 1.16); `ov::compatibility_check` returns `NOT_APPLICABLE` in those cases.
+
+Developers and contributors can find more details on how the plugin handles this data internally (the compile, export, and import flow) in [Runtime Requirements and Compatibility Check](./docs/runtime-requirements.md).
 <br>
 
 ## Stateful models
