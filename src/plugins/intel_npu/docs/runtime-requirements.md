@@ -24,62 +24,37 @@ sequenceDiagram
     participant Adapter as Compiler Adapter
     participant Compiler as Compiler or Driver
     participant Graph as IGraph / Graph
-    participant PM as CompiledModelPropertyManager
+    participant PM as PropertyManager
     participant Meta as NPU Metadata
-    participant Parser as Parser
 
     User->>Plugin: compile_model(model, "NPU", config)
     Plugin->>Adapter: compile(model, config)
-
-    alt Compiler in Plugin path
-        Adapter->>Compiler: VCLCompilerImpl::compile(model, config)
-        Compiler-->>Adapter: blob + compatibilityDescriptor
-    else Compiler in Driver path
-        Adapter->>Compiler: build graph in driver
-        Adapter->>Compiler: zeDeviceGetRuntimeRequirements(graphHandle)
-        Compiler-->>Adapter: compatibilityDescriptor
-        Compiler-->>Adapter: graph handle + blob access
-    end
-
+    Adapter->>Compiler: obtain blob + compatibility descriptor
+    Note over Adapter,Compiler: CIP: VCLCompilerImpl::compile()<br/>CID: driver builds graph, then zeDeviceGetRuntimeRequirements()
+    Compiler-->>Adapter: blob + compatibilityDescriptor
     Adapter->>Graph: construct Graph(..., compatibilityDescriptor)
-    Graph-->>Plugin: graph with stored raw descriptor
-    Plugin->>PM: create CompiledModelPropertyManager(graph, batchSize)
+    Adapter-->>Plugin: compiled graph (stores descriptor)
     Plugin-->>User: ov::CompiledModel
 
-    User->>Plugin: compiledModel.get_property(ov::runtime_requirements)
+    User->>Plugin: get_property(ov::runtime_requirements)
     Plugin->>PM: getProperty("RUNTIME_REQUIREMENTS")
     PM->>Graph: get_compatibility_descriptor()
     Graph-->>PM: raw compatibilityDescriptor
-    PM->>Meta: Metadata(..., compatibilityDescriptor).write_as_text(...)
-    Meta-->>PM: human-readable runtime requirements string
-    PM-->>Plugin: runtime requirements string
-    Plugin-->>User: string
+    PM->>Meta: Metadata(..., descriptor).write_as_text()
+    Meta-->>PM: human-readable requirements string
+    PM-->>User: requirements string
 
-    User->>Plugin: compiledModel.export_model(stream)
-    Plugin->>Graph: export_blob(stream)
-    Graph-->>Plugin: raw compiled blob bytes
-    Plugin->>Graph: get_compatibility_descriptor()
-    Graph-->>Plugin: raw compatibilityDescriptor
-    Plugin->>Meta: Metadata(..., compatibilityDescriptor).write(stream)
-    Meta-->>User: stream = blob + metadata trailer
+    User->>Plugin: export_model(stream)
+    Plugin->>Graph: export_blob() + get_compatibility_descriptor()
+    Graph-->>Plugin: blob bytes + compatibilityDescriptor
+    Plugin->>Meta: Metadata(..., descriptor).write(stream)
+    Meta-->>User: stream = blob + metadata payload
 
-    User->>Plugin: import_model(stream or tensor)
-    Plugin->>Meta: read_metadata_from(...)
-    Meta-->>Plugin: blobSize + compatibilityDescriptor + other metadata
-    Plugin->>Parser: parse(blob ROI, metadata.compatibilityDescriptor)
-    Parser->>Graph: construct Graph(..., compatibilityDescriptor)
-    Graph-->>Plugin: imported graph with restored raw descriptor
-    Plugin->>PM: create CompiledModelPropertyManager(graph, batchSize)
+    User->>Plugin: import_model(stream)
+    Plugin->>Meta: read_metadata_from(stream)
+    Meta-->>Plugin: blobSize + compatibilityDescriptor
+    Plugin->>Graph: parse(blob, descriptor), construct restored Graph
     Plugin-->>User: imported ov::CompiledModel
-
-    User->>Plugin: importedModel.get_property(ov::runtime_requirements)
-    Plugin->>PM: getProperty("RUNTIME_REQUIREMENTS")
-    PM->>Graph: get_compatibility_descriptor()
-    Graph-->>PM: restored raw compatibilityDescriptor
-    PM->>Meta: Metadata(..., compatibilityDescriptor).write_as_text(...)
-    Meta-->>PM: regenerated runtime requirements string
-    PM-->>Plugin: runtime requirements string
-    Plugin-->>User: string
 ```
 
 ## Notes
