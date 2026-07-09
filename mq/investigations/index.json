@@ -346,6 +346,17 @@
       "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
       "signature_hash": "7862e85dd17a5df8",
       "pr_number": "36780"
+    },
+    {
+      "investigation_id": "2026-07-09-09-43-17-000-29005496269",
+      "timestamp": "2026-07-09T09:43:17Z",
+      "run_id": "29005496269",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29005496269",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "pr_number": "36755",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8"
     }
   ]
 }
