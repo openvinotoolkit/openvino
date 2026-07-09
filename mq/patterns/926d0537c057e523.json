@@ -4,16 +4,18 @@
   "signature_hash": "926d0537c057e523",
   "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
   "category": "Configuration",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-07-09T13:58:10Z",
-  "last_seen": "2026-07-09T13:58:10Z",
+  "last_seen": "2026-07-09T14:21:23Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29023574901",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29022024794"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/36774"
   ],
   "recent_timestamps": [
+    "2026-07-09T14:21:23Z",
     "2026-07-09T13:58:10Z"
   ]
 }

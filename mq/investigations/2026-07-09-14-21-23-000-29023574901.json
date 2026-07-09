@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-14-21-23-000-29023574901",
+  "timestamp": "2026-07-09T14:21:23Z",
+  "run_id": "29023574901",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29023574901",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "36774",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36774",
+  "author": "bumbosiepsak",
+  "category": "Configuration",
+  "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+  "signature": "apt-get install libpython3-dev:riscv64 fails - libpython3.10-stdlib:riscv64 depends on libtinfo6:riscv64 but not installable|Configuration",
+  "signature_hash": "926d0537c057e523",
+  "confidence": "High",
+  "failed_jobs": ["Docker"],
+  "key_errors": [
+    "E: Unable to correct problems, you have held broken packages.",
+    "libpython3.10-stdlib:riscv64 : Depends: libncursesw6:riscv64 (>= 6.1) but it is not going to be installed",
+    "libpython3.10-stdlib:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "libreadline8:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "ERROR: failed to solve: process \"/bin/sh -c dpkg --add-architecture riscv64 && apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && apt-get install -y --no-install-recommends libpython3-dev:riscv64\" did not complete successfully: exit code: 100"
+  ],
+  "root_cause": "The ubuntu_22_04_riscv Docker image build fails at Dockerfile line 72 (step 5/8) when attempting to install libpython3-dev:riscv64 via cross-compilation. APT cannot resolve the dependency chain: libpython3.10-stdlib:riscv64 requires libncursesw6:riscv64 and libtinfo6:riscv64 which are not going to be installed. The likely cause is that the amd64 Python packages installed from the deadsnakes PPA (libpython3.10-dev 3.10.12) hold a newer version constraint that conflicts with the riscv64 counterparts available in ubuntu-ports jammy. This is the same failure seen in prior run 29022024794 for the same PR 36774, also in the merge queue."
+}
