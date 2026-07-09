@@ -1958,9 +1958,6 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         CPU_NODE_ASSERT(out_dims == out_idx_dims, "gets incorrect output tensor dimension sizes!");
 
-        if (axis < 0) {
-            axis += in_dims_size;
-        }
         CPU_NODE_ASSERT(axis >= 0 && axis < in_dims_size,
                         "gets incorrect input parameters dimensions and axis number!");
     } else {
