@@ -342,8 +342,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         for (const auto& discovered : discovered_outputs) {
             // Re-fetch from the still-alive decoder; the loop may have advanced (and freed) other decoders.
             const auto& info = discovered.tensor_decoder->get_tensor_info();
-            collect_graph_output(discovered.tensor_name,
-                                 tensor_has_data(info) ? make_transient_place(info) : nullptr);
+            collect_graph_output(discovered.tensor_name, tensor_has_data(info) ? make_transient_place(info) : nullptr);
         }
     } else {
         auto& all_tensor_places = model_onnx->get_tensor_places();
