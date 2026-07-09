@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2026.2.0",
+  "version": "2026.3.0",
   "description": "OpenVINO™ Runtime for Node.js: high-performance deep learning inference on Intel CPU, GPU, and NPU.",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
