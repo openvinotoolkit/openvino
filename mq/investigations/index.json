@@ -1,5 +1,5 @@
 {
-  "total": 35,
+  "total": 36,
   "entries": [
     {
       "investigation_id": "2026-07-09-07-55-19-000-29002123148",
@@ -315,6 +315,16 @@
       "category": "Dependencies",
       "signature_hash": "7862e85dd17a5df8",
       "pr_number": "36781"
+    },
+    {
+      "investigation_id": "2026-07-09-13-19-49-976-29014939485",
+      "timestamp": "2026-07-09T13:19:49Z",
+      "run_id": "29014939485",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29014939485",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "category": "Infrastructure",
+      "title": "ci/gha_overall_status job cancelled before runner assignment in Linux CI merge queue run",
+      "signature_hash": "bf5775e54113be48"
     }
   ],
   "investigations": [

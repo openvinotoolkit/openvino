@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "ci_gha_overall_status job cancelled before runner assignment|Infrastructure",
+  "signature_hash": "bf5775e54113be48",
+  "title": "ci/gha_overall_status job cancelled before runner assignment in merge queue run",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-09T13:19:49Z",
+  "last_seen": "2026-07-09T13:19:49Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29014939485"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36780"
+  ],
+  "recent_timestamps": [
+    "2026-07-09T13:19:49Z"
+  ]
+}

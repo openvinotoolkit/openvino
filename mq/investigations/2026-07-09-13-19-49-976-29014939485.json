@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-13-19-49-976-29014939485",
+  "timestamp": "2026-07-09T13:19:49Z",
+  "run_id": "29014939485",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29014939485",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36780",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36780",
+  "author": "azhai219",
+  "category": "Infrastructure",
+  "title": "ci/gha_overall_status job cancelled before runner assignment in Linux CI merge queue run",
+  "signature": "ci_gha_overall_status job cancelled before runner assignment|Infrastructure",
+  "signature_hash": "bf5775e54113be48",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "cancelled",
+      "symptom": "Final status reporting job cancelled with runner_id=0 (no runner assigned) after waiting ~15 min"
+    }
+  ],
+  "key_errors": [
+    "Job ci/gha_overall_status: conclusion=cancelled, runner_id=0, runner_name='', created_at=2026-07-09T12:45:21Z, completed_at=2026-07-09T13:01:00Z (never assigned a runner; all 36 test/build jobs had passed or were skipped)"
+  ],
+  "root_cause": "All 36 test and build jobs in the 'Linux (Ubuntu 22.04, Python 3.11)' workflow completed successfully (27 passed, 8 skipped, 1 cancelled). Only the final ci/gha_overall_status consolidation job was cancelled. This job never received a runner assignment (runner_id=0, runner_name='') and was cancelled after waiting ~15 minutes. This pattern is consistent with the GitHub merge queue reshuffling or cancelling the in-flight run — for example when a PR earlier in the queue fails or is removed, the merge queue invalidates the current batch, causing the summary job to be cancelled before it could execute. The code change in PR #36780 (CPU coverity fixes to topk.cpp and multinomial.cpp) did not cause any test failures.",
+  "reproduction_steps": "N/A — this failure is driven by the merge queue scheduler; it cannot be reproduced locally.",
+  "recommended_actions": [
+    "Re-queue PR #36780 into the merge queue — all actual CI tests passed; only the summary job was cancelled by the scheduler.",
+    "No code change is needed; the CPU coverity fix is correct and all tests pass.",
+    "If this pattern recurs multiple times for this PR, investigate whether the merge queue is consistently reshuffling due to queue position conflicts."
+  ],
+  "prevention_strategies": "Merge queue cancellations of the overall-status job are externally driven and not preventable by PR authors. The merge queue system manages the queue and may cancel in-flight runs when reshuffling. No code-level prevention is applicable.",
+  "historical_context": "No prior pattern of this exact failure found in the CI Doctor MQ database. The failure is not related to the code changes in PR #36780. Two prior CI Doctor comments on this PR addressed unrelated failures: (1) fastcore/ghapi Smart CI dependency conflict and (2) JS API Electron cleanup flakiness on Windows — both are pre-existing infrastructure issues."
+}
