@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-16-59-02-000-29030218412",
+  "timestamp": "2026-07-09T16:59:02Z",
+  "run_id": "29030218412",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218412",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36773",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36773",
+  "author": "e-ddykim",
+  "category": "External Service",
+  "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+  "signature": "HTTPError: HTTP Error 504: Gateway Time-out|External Service",
+  "signature_hash": "9cb03e077ef3024a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "4 EasyOCR tests fail: HTTP 504 when downloading model weights via easyocr.Reader()"
+    }
+  ],
+  "key_errors": [
+    "HTTPError: HTTP Error 504: Gateway Time-out\n  File \"/venv/lib/python3.11/site-packages/easyocr/easyocr.py\", line 178, in __init__\n    download_and_unzip(model['url'], model['filename'], ...)\n  File \"/venv/lib/python3.11/site-packages/easyocr/utils.py\", line 628, in download_and_unzip\n    urlretrieve(url, zip_path, reporthook=reporthook)",
+    "FAILED install/tests/model_hub_tests/pytorch/test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[CPU-detector]\nFAILED install/tests/model_hub_tests/pytorch/test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[CPU-recognizer]\nFAILED install/tests/model_hub_tests/pytorch/test_easyocr.py::TestEasyOCRConvertModel::test_convert_model_export[CPU-detector]\nFAILED install/tests/model_hub_tests/pytorch/test_easyocr.py::TestEasyOCRConvertModel::test_convert_model_export[CPU-recognizer]\n4 failed, 8 passed in 236.46s"
+  ],
+  "root_cause": "The EasyOCR library (test_easyocr.py) attempts to download model weights from a remote URL at test time via urllib.request.urlretrieve. The download server returned HTTP 504 Gateway Time-out, indicating the upstream model hosting server was temporarily unavailable or overloaded. This is a transient external service failure unrelated to the PR changes ([GPU] correct SDPA micro prefetch bounds).",
+  "reproduction_steps": "N/A - transient external service failure that cannot be reproduced locally on demand",
+  "recommended_actions": [
+    "Re-run the failed jobs: the HTTP 504 is transient and a retry is expected to succeed",
+    "Long-term: pre-cache EasyOCR model weights on the CI runner or in the shared cache volume (/mount/caches/) to avoid runtime downloads"
+  ],
+  "prevention_strategies": "Cache EasyOCR model files in the CI runner's shared cache directory (e.g., /mount/caches/easyocr/) and configure the EASYOCR_MODULE_PATH environment variable to point to the cache. This eliminates the dependency on external model hosting during CI runs.",
+  "historical_context": "First occurrence of this specific EasyOCR HTTP 504 pattern in the database. Similar external-service download failures have been seen with other model hub tests."
+}

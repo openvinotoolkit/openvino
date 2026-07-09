@@ -47,5 +47,15 @@
     "category": "Dependencies",
     "title": "Docker build fails: libpython3-dev:riscv64 unmet deps libncursesw6/libtinfo6 after docker_tag bump",
     "signature_hash": "493bf4a71d007127"
+  },
+  {
+    "investigation_id": "2026-07-09-16-59-02-000-29030218412",
+    "timestamp": "2026-07-09T16:59:02Z",
+    "run_id": "29030218412",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "External Service",
+    "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+    "signature_hash": "9cb03e077ef3024a",
+    "pr_number": "36773"
   }
 ]
