@@ -106,10 +106,10 @@ Output<Node> matrix_svdvals(const NodeContext& context, const Output<Node>& x) {
     };
 
     auto x_f32 = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x_f32, element::i64));  // (rank,)
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x_f32, element::i64));    // (rank,)
     auto m = context.mark_node(std::make_shared<v8::Gather>(shape, i64_s(-2), i64_s(0)));  // scalar M
     auto n = context.mark_node(std::make_shared<v8::Gather>(shape, i64_s(-1), i64_s(0)));  // scalar N
-    auto k = context.mark_node(std::make_shared<v1::Minimum>(m, n));                        // K = min(M,N)
+    auto k = context.mark_node(std::make_shared<v1::Minimum>(m, n));                       // K = min(M,N)
     auto m_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(m, i64_c({0})));
     auto n_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(n, i64_c({0})));
 
@@ -122,7 +122,7 @@ Output<Node> matrix_svdvals(const NodeContext& context, const Output<Node>& x) {
 
     // Column norms (B, N); the top-K descending are the singular values.
     auto sq_norms = context.mark_node(std::make_shared<v1::ReduceSum>(mul(jac.a, jac.a), i64_c({1}), false));  // (B,N)
-    auto col_norms = context.mark_node(std::make_shared<v0::Sqrt>(sq_norms));  // (B, N)
+    auto col_norms = context.mark_node(std::make_shared<v0::Sqrt>(sq_norms));                                  // (B, N)
     auto topk = context.mark_node(std::make_shared<v11::TopK>(col_norms,
                                                               k,
                                                               1,
@@ -156,13 +156,13 @@ Output<Node> move_matrix_axes_to_end(const NodeContext& context, const Output<No
         std::make_shared<v8::Gather>(norm_axes, v0::Constant::create(element::i64, Shape{1}, {1}), zero));  // [ax1]
     auto eq0 = context.mark_node(std::make_shared<v1::Equal>(all_axes, a0));
     auto eq1 = context.mark_node(std::make_shared<v1::Equal>(all_axes, a1));
-    auto is_mat = context.mark_node(std::make_shared<v1::LogicalOr>(eq0, eq1));                 // (rank,)
+    auto is_mat = context.mark_node(std::make_shared<v1::LogicalOr>(eq0, eq1));  // (rank,)
     auto keep_mask = context.mark_node(std::make_shared<v1::LogicalNot>(is_mat));
     auto keep_idx = context.mark_node(std::make_shared<v3::NonZero>(keep_mask, element::i64));  // (1, rank-2)
-    auto keep_axes = context.mark_node(std::make_shared<v8::Gather>(all_axes,
-                                                                    context.mark_node(std::make_shared<v0::Squeeze>(
-                                                                        keep_idx, zero_1d)),
-                                                                    zero));  // (rank-2,)
+    auto keep_axes = context.mark_node(
+        std::make_shared<v8::Gather>(all_axes,
+                                     context.mark_node(std::make_shared<v0::Squeeze>(keep_idx, zero_1d)),
+                                     zero));  // (rank-2,)
     auto perm = context.mark_node(std::make_shared<v0::Concat>(OutputVector{keep_axes, a0, a1}, 0));
     return context.mark_node(std::make_shared<v1::Transpose>(x, perm));
 }

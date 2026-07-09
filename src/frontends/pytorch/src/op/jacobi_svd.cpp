@@ -69,11 +69,11 @@ JacobiLoopResult run_jacobi_column_loop(const NodeContext& context,
     };
 
     auto n_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(n, i64_c({0})));  // [cols]
-    auto b_dim = context.mark_node(std::make_shared<v8::Slice>(
-        context.mark_node(std::make_shared<v3::ShapeOf>(A_flat, element::i64)),
-        i64_c({0}),
-        i64_c({1}),
-        i64_c({1})));  // [B]
+    auto b_dim = context.mark_node(
+        std::make_shared<v8::Slice>(context.mark_node(std::make_shared<v3::ShapeOf>(A_flat, element::i64)),
+                                    i64_c({0}),
+                                    i64_c({1}),
+                                    i64_c({1})));  // [B]
 
     // Identity V (B, cols, cols) to accumulate the right rotations (only when requested).
     Output<Node> V_flat;
@@ -88,19 +88,19 @@ JacobiLoopResult run_jacobi_column_loop(const NodeContext& context,
     // Upper-triangle pair list (p < q): NonZero of the (cols, cols) strictly-upper mask, tiled
     // `sweeps` times into one flat schedule of length sweeps * cols(cols-1)/2.
     auto seq = context.mark_node(std::make_shared<v4::Range>(i64_s(0), n, i64_s(1), element::i64));  // (cols,)
-    auto ii = context.mark_node(std::make_shared<v0::Unsqueeze>(seq, i64_c({1})));  // (cols, 1)
-    auto jj = context.mark_node(std::make_shared<v0::Unsqueeze>(seq, i64_c({0})));  // (1, cols)
-    auto upper = context.mark_node(std::make_shared<v1::Less>(ii, jj));            // (cols, cols) p < q
-    auto coords = context.mark_node(std::make_shared<v3::NonZero>(upper, element::i64));  // (2, P)
+    auto ii = context.mark_node(std::make_shared<v0::Unsqueeze>(seq, i64_c({1})));                   // (cols, 1)
+    auto jj = context.mark_node(std::make_shared<v0::Unsqueeze>(seq, i64_c({0})));                   // (1, cols)
+    auto upper = context.mark_node(std::make_shared<v1::Less>(ii, jj));                         // (cols, cols) p < q
+    auto coords = context.mark_node(std::make_shared<v3::NonZero>(upper, element::i64));        // (2, P)
     auto p_list = context.mark_node(std::make_shared<v8::Gather>(coords, i64_s(0), i64_s(0)));  // (P,)
     auto q_list = context.mark_node(std::make_shared<v8::Gather>(coords, i64_s(1), i64_s(0)));  // (P,)
     auto sweeps_c = i64_c({sweeps});
     auto p_all = context.mark_node(std::make_shared<v0::Tile>(p_list, sweeps_c));  // (sweeps*P,)
     auto q_all = context.mark_node(std::make_shared<v0::Tile>(q_list, sweeps_c));
-    auto total = context.mark_node(std::make_shared<v8::Gather>(
-        context.mark_node(std::make_shared<v3::ShapeOf>(p_all, element::i64)),
-        i64_s(0),
-        i64_s(0)));  // scalar sweeps*P
+    auto total = context.mark_node(
+        std::make_shared<v8::Gather>(context.mark_node(std::make_shared<v3::ShapeOf>(p_all, element::i64)),
+                                     i64_s(0),
+                                     i64_s(0)));  // scalar sweeps*P
 
     // ---- Loop body: one Givens rotation of columns p, q of A (and V) ----
     auto A_b = std::make_shared<v0::Parameter>(et, PartialShape{-1, -1, -1});
@@ -136,8 +136,9 @@ JacobiLoopResult run_jacobi_column_loop(const NodeContext& context,
     auto sgn = context.mark_node(std::make_shared<v0::Sign>(zeta));
     auto is_zero = context.mark_node(std::make_shared<v1::Equal>(zeta, fc(0.0f)));
     auto sign = context.mark_node(std::make_shared<v1::Select>(is_zero, fc(1.0f), sgn));
-    auto t = mul(sign, div(fc(1.0f), add(abs_zeta, context.mark_node(std::make_shared<v0::Sqrt>(
-                                                       add(fc(1.0f), mul(zeta, zeta)))))));
+    auto t = mul(
+        sign,
+        div(fc(1.0f), add(abs_zeta, context.mark_node(std::make_shared<v0::Sqrt>(add(fc(1.0f), mul(zeta, zeta)))))));
     auto cc = div(fc(1.0f), context.mark_node(std::make_shared<v0::Sqrt>(add(fc(1.0f), mul(t, t)))));
     auto ss = mul(cc, t);
 
@@ -151,10 +152,10 @@ JacobiLoopResult run_jacobi_column_loop(const NodeContext& context,
     auto na_q = rot_q(ap, aq);
 
     // Scatter the two rotated columns back on the column axis (-1).
-    auto pq = context.mark_node(std::make_shared<v0::Concat>(
-        OutputVector{context.mark_node(std::make_shared<v0::Unsqueeze>(p, i64_c({0}))),
-                     context.mark_node(std::make_shared<v0::Unsqueeze>(q, i64_c({0})))},
-        0));  // (2,)
+    auto pq = context.mark_node(
+        std::make_shared<v0::Concat>(OutputVector{context.mark_node(std::make_shared<v0::Unsqueeze>(p, i64_c({0}))),
+                                                  context.mark_node(std::make_shared<v0::Unsqueeze>(q, i64_c({0})))},
+                                     0));  // (2,)
     auto pack = [&](const Output<Node>& cp, const Output<Node>& cq) {
         return context.mark_node(std::make_shared<v0::Concat>(
             OutputVector{context.mark_node(std::make_shared<v0::Unsqueeze>(cp, i64_c({2}))),
@@ -170,8 +171,8 @@ JacobiLoopResult run_jacobi_column_loop(const NodeContext& context,
     if (accumulate_v) {
         auto vp = std::make_shared<v8::Gather>(V_b, p, ax_col);
         auto vq = std::make_shared<v8::Gather>(V_b, q, ax_col);
-        V_new = context.mark_node(std::make_shared<v3::ScatterUpdate>(V_b, pq, pack(rot_p(vp, vq), rot_q(vp, vq)),
-                                                                      ax_col));
+        V_new =
+            context.mark_node(std::make_shared<v3::ScatterUpdate>(V_b, pq, pack(rot_p(vp, vq), rot_q(vp, vq)), ax_col));
         body_results.push_back(V_new);
         body_params.push_back(V_b);
     }
