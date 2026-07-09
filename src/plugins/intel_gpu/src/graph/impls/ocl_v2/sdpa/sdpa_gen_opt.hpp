@@ -75,6 +75,11 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc_impl(const kernel_impl_params& params, size_t stage) const;
 };
 
+// Single-token decode generator. Also serves split-KV decode when desc->split_kv is set: the
+// split-KV deltas (trailing K_new/V_new/kv_len args, the SPLIT_KV jit, one extra partition for the
+// current-step chunk) are applied inside the methods, reusing the same sdpa_opt.cl template and all
+// of the opt partitioning / dispatch machinery. split_kv is part of the op hash, so split and
+// non-split kernels never collide. See split_kv_opt_supported (sdpa_opt.hpp) for the conditions.
 class SDPAOptGeneratorSingleToken : public SDPAOptGeneratorBase {
 public:
     explicit SDPAOptGeneratorSingleToken(bool indirect) : SDPAOptGeneratorBase("sdpa_opt", indirect ? "_single_ind" : "_single_reg", indirect) {}
@@ -93,6 +98,8 @@ public:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
 
+// Finalization (flash-combine) generator. Like the single-token generator above, it also serves
+// split-KV decode when desc->split_kv is set (extra new-chunk partition + split-KV argument list).
 class SDPAOptGeneratorFinalization : public SDPAOptGeneratorBase {
 public:
     explicit SDPAOptGeneratorFinalization(bool indirect) : SDPAOptGeneratorBase("sdpa_opt", "_finalization", false) {}

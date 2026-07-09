@@ -115,12 +115,23 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
     p.add_primitive(*op, sdpa_prim);
 }
 
+// split-KV input layout: [Q, K_cache, V_cache, mask, K_new, V_new, kv_len] (7 inputs). No scale
+// INPUT (scale is the scale_val attribute, fixed at 1.0 by the fusion). mask is always present for
+// the matched pattern; the trailing i32 kv_len carries the valid cache length.
+constexpr size_t split_kv_input_count = 7;
+
 static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SDPA>& op) {
-    validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
+    const bool split_kv = op->get_split_kv();
+    if (split_kv) {
+        validate_inputs_count(op, {split_kv_input_count});
+    } else {
+        validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
+    }
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
-    auto scalar_scale = GetScalarConstInput(op, scale_idx);
+    // For split_kv there is no scale input (indices 4/5 are K_new/V_new); only probe the mask slot.
+    auto scalar_scale = split_kv ? nullptr : GetScalarConstInput(op, scale_idx);
     auto scalar_attn_mask = GetScalarConstInput(op, mask_idx);
 
     ReshapeInput(p, op, inputs);
@@ -139,6 +150,18 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          transpose_orders[1],
                                                          transpose_orders[2],
                                                          transpose_orders[3]);
+    if (split_kv) {
+        // Inputs are [Q, K_cache, V_cache, mask, K_new, V_new, kv_len]. The base ctor auto-derived
+        // the has_* flags from the raw input count (7), which is wrong (it would treat the trailing
+        // K_new/V_new/kv_len as scale/sink). Set them explicitly: mask is present, scale is a baked
+        // constant (no input), no sink. scale_val = 1.0 is applied by the kernel as STATIC_SCALE_VALUE.
+        sdpa_prim.split_kv = true;
+        sdpa_prim.has_attn_mask_input = true;
+        sdpa_prim.has_scale_input = false;
+        sdpa_prim.has_sink_input = false;
+        sdpa_prim.scale_val = 1.0f;
+    }
+
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }

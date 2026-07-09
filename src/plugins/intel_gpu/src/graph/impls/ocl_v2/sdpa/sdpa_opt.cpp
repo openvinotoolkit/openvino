@@ -66,6 +66,15 @@ public:
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
+        } else if (params.typed_desc<scaled_dot_product_attention>()->split_kv) {
+            // split-KV decode reuses the regular single-token + finalization stages (they emit the
+            // split-KV deltas when desc->split_kv is set). Validated by SDPAOpt::validate_impl ->
+            // split_kv_opt_supported (static shapes, default layout).
+            GPU_DEBUG_TRACE_DETAIL << "add stage for split-KV decode\n";
+            add_stage(regular_single_token, params);
+            // Always >= 2 partitions (>=1 cache + 1 new-chunk), so finalization always runs to
+            // flash-combine the per-partition partials.
+            add_stage(regular_finalization, params);
         } else {
             auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             GPU_DEBUG_TRACE_DETAIL << "add stage for non-dynamic, is_indirect = " << is_indirect << "\n";
@@ -116,6 +125,12 @@ public:
 
         kernel_dump_info.clear_entries();
 
+        if (new_params.typed_desc<scaled_dot_product_attention>()->split_kv) {
+            GPU_DEBUG_TRACE_DETAIL << "execute split-KV decode single_token + finalization\n";
+            auto ev = execute_stage(events, instance, regular_single_token);
+            return execute_stage({ev}, instance, regular_finalization);
+        }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // Check if INT4 KV cache is in use (micro kernel doesn't support INT4 for non-PA SDPA)
         // Only apply this check when the SDPA node actually uses compressed KV cache (i8/u8/i4/u4 K/V inputs).
@@ -160,8 +175,12 @@ public:
         auto params_canonicalization = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
 
-        const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
-        const auto is_prefill = is_prefill_stage(params_canonicalization);
+        // split-KV decode adds one new-chunk partition and is never a prefill; its partitioned
+        // buffers must always be full-sized (>=2 partitions, finalization always runs).
+        const bool is_split_kv = desc->split_kv;
+        const auto num_of_partitions = is_split_kv ? (get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN) + 1)
+                                                   : get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
+        const auto is_prefill = !is_split_kv && is_prefill_stage(params_canonicalization);
         const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
         const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 

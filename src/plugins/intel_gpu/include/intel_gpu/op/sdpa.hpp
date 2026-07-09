@@ -20,13 +20,20 @@ public:
 
     SDPA() = default;
 
+    // split_kv: when true, the input list carries K and V as two pieces each, in the fixed order
+    // [Q, K_cache, V_cache, mask, K_new, V_new, kv_len]. There is no scale input (scale is the
+    // scale_val attribute, fixed at 1.0 by the fusion). The trailing i32 kv_len is the valid cache
+    // length; the kernel caps its cache loops there. The op attends over the logical sequence
+    // concatenation of the cache and new chunks without materializing it, avoiding a per-step
+    // full-cache KV Concat. Defaults to false, leaving the standard single-K/single-V op unchanged.
     SDPA(const OutputVector& inputs,
          const bool is_causal,
          const std::vector<int64_t>& order_q,
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const ov::element::Type output_type = ov::element::dynamic);
+         const ov::element::Type output_type = ov::element::dynamic,
+         bool split_kv = false);
 
     SDPA(const OutputVector& inputs,
          const bool is_causal,
@@ -55,6 +62,9 @@ public:
     QuantizationAttribute get_quantization_attrs() const { return m_quantization_attrs; }
     size_t get_compression_inputs_num() const;
 
+    // True when K/V are supplied as two chunks each (cache + new); see the split_kv constructor.
+    bool get_split_kv() const { return m_split_kv; }
+
     static std::vector<int64_t> default_order(size_t rank) {
         std::vector<int64_t> order(rank);
         std::iota(order.begin(), order.end(), 0);
@@ -71,6 +81,7 @@ protected:
 
     bool m_compressed = false;
     QuantizationAttribute m_quantization_attrs = {};
+    bool m_split_kv = false;
 };
 
 std::vector<ov::PartialShape> shape_infer(const SDPA* op,
