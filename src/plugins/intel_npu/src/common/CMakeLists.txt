@@ -4,7 +4,26 @@
 
 set(TARGET_NAME "openvino_npu_common")
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+set(SOURCES
+    include/intel_npu/common/compiler_adapter_factory.hpp
+    include/intel_npu/common/device_helpers.hpp
+    include/intel_npu/common/filtered_config.hpp
+    include/intel_npu/common/icompiled_model.hpp
+    include/intel_npu/common/icompiler_adapter.hpp
+    include/intel_npu/common/idynamic_graph.hpp
+    include/intel_npu/common/igraph.hpp
+    include/intel_npu/common/iparser.hpp
+    include/intel_npu/common/itt.hpp
+    include/intel_npu/common/network_metadata.hpp
+    include/intel_npu/common/npu.hpp
+    include/intel_npu/common/parser_factory.hpp
+    src/device_helpers.cpp
+    src/filtered_config.cpp
+    src/idynamic_graph.cpp
+    src/igraph.cpp
+    src/network_metadata.cpp
+    src/npu.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

@@ -4,7 +4,36 @@
 
 set(TARGET_NAME "openvino_npu_compiler_adapter")
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+set(SOURCES
+    include/compiler_impl.hpp
+    include/custom_stream_buffer.hpp
+    include/driver_compiler_adapter.hpp
+    include/dynamic_graph.hpp
+    include/graph.hpp
+    include/mem_usage.hpp
+    include/model_serializer.hpp
+    include/parser.hpp
+    include/plugin_compiler_adapter.hpp
+    include/weightless_graph.hpp
+    include/weightless_utils.hpp
+    include/xml_serializer.hpp
+    include/ze_graph_ext_wrappers.hpp
+    src/compiler_adapter_factory.cpp
+    src/compiler_impl.cpp
+    src/driver_compiler_adapter.cpp
+    src/dynamic_graph.cpp
+    src/graph.cpp
+    src/mem_usage.cpp
+    src/model_serializer.cpp
+    src/parser.cpp
+    src/parser_factory.cpp
+    src/plugin_compiler_adapter.cpp
+    src/precomp.hpp
+    src/weightless_graph.cpp
+    src/weightless_utils.cpp
+    src/xml_serializer.cpp
+    src/ze_graph_ext_wrappers.cpp
+)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
