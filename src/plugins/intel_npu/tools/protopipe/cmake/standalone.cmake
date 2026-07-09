@@ -52,8 +52,35 @@ if (WIN32)
     list(APPEND DEPENDENCIES "winmm.lib")
 endif()
 
-file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-list(APPEND SOURCES main.cpp)
+set(SOURCES
+    main.cpp
+    src/graph.cpp
+    src/result.cpp
+    src/parser/config.cpp
+    src/parser/parser.cpp
+    src/scenario/accuracy_metrics.cpp
+    src/scenario/criterion.cpp
+    src/scenario/inference.cpp
+    src/scenario/scenario_graph.cpp
+    src/simulation/accuracy_mode.cpp
+    src/simulation/computation.cpp
+    src/simulation/computation_builder.cpp
+    src/simulation/dummy_source.cpp
+    src/simulation/executor.cpp
+    src/simulation/layer_validator.cpp
+    src/simulation/layers_data.cpp
+    src/simulation/layers_reader.cpp
+    src/simulation/operations.cpp
+    src/simulation/ov_layers_reader.cpp
+    src/simulation/performance_mode.cpp
+    src/simulation/reference_mode.cpp
+    src/simulation/simulation.cpp
+    src/simulation/validation_mode.cpp
+    src/utils/data_providers.cpp
+    src/utils/logger.cpp
+    src/utils/timer.cpp
+    src/utils/utils.cpp
+)
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
