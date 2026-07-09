@@ -24,7 +24,7 @@ std::string driverTypeToString(DriverType type);
 std::optional<DriverType> parseDriverType(const std::string& str);
 
 /**
- * Reads configuration environment variables
+ * Reads configuration environment variables and CLI arguments
  */
 class NpuTestEnvConfig {
 public:
