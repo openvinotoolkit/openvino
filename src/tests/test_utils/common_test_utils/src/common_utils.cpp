@@ -64,9 +64,9 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
-std::vector<uint8_t> make_page_misaligned_pattern(size_t size) {
+std::vector<uint8_t> make_modulo_sequence_pattern(size_t size) {
     std::vector<uint8_t> data(size);
-    std::generate(data.begin(), data.end(), PageMisalignedPatternGenerator{});
+    std::generate(data.begin(), data.end(), ModuloSequenceGenerator{});
     return data;
 }
 

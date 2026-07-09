@@ -217,7 +217,7 @@ std::string generateTestFilePrefix();
 // next byte of the sequence: the k-th call (0-based) yields (k % 251).
 // 251 is prime, so the byte period never aligns with any power-of-two page / granularity
 // boundary, which makes off-by-page corruption easy to spot.
-struct PageMisalignedPatternGenerator {
+struct ModuloSequenceGenerator {
     static constexpr uint8_t modulus = 251;
     size_t index = 0;
     constexpr uint8_t operator()() {
@@ -225,8 +225,8 @@ struct PageMisalignedPatternGenerator {
     }
 };
 
-// Build a vector<uint8_t> holding the prime-modulo pattern (see PageMisalignedPatternGenerator).
-std::vector<uint8_t> make_page_misaligned_pattern(size_t size);
+// Build a vector<uint8_t> holding the prime-modulo pattern (see ModuloSequenceGenerator).
+std::vector<uint8_t> make_modulo_sequence_pattern(size_t size);
 
 size_t getVmSizeInKB();
 

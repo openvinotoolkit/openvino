@@ -244,7 +244,7 @@ protected:
     static constexpr size_t k_hint_evict_file_size = 64 * 1024 * 10;
 
     void SetUp() override {
-        m_expected = utils::make_page_misaligned_pattern(k_hint_evict_file_size);
+        m_expected = utils::make_modulo_sequence_pattern(k_hint_evict_file_size);
         m_file_path = utils::generateTestFilePrefix() + "_hint_evict";
         ov::util::save_binary(m_file_path, m_expected.data(), m_expected.size());
     }
@@ -310,7 +310,7 @@ TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
 TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
     // Append extra bytes so the file size is not a multiple of the 64 KiB granularity.
     constexpr size_t k_extra = 4096;
-    m_expected = utils::make_page_misaligned_pattern(k_hint_evict_file_size + k_extra);
+    m_expected = utils::make_modulo_sequence_pattern(k_hint_evict_file_size + k_extra);
     ov::util::save_binary(m_file_path, m_expected.data(), m_expected.size());
 
     auto mm = load_mmap_object(m_file_path);
@@ -350,7 +350,7 @@ protected:
 TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
     constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
-    const auto data = utils::make_page_misaligned_pattern(file_size);
+    const auto data = utils::make_modulo_sequence_pattern(file_size);
     ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
@@ -369,7 +369,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
     constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MB
     constexpr size_t prefault_offset = 1 * 1024 * 1024;
     constexpr size_t prefault_size = 5 * 1024 * 1024;
-    const auto data = utils::make_page_misaligned_pattern(file_size);
+    const auto data = utils::make_modulo_sequence_pattern(file_size);
     ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
@@ -385,7 +385,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
 TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
     constexpr size_t file_size = 1024;  // 1 KB - below threshold
-    const auto data = utils::make_page_misaligned_pattern(file_size);
+    const auto data = utils::make_modulo_sequence_pattern(file_size);
     ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
@@ -400,7 +400,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_offset.bin");
     constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
-    const auto data = utils::make_page_misaligned_pattern(file_size);
+    const auto data = utils::make_modulo_sequence_pattern(file_size);
     ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
@@ -421,7 +421,7 @@ TEST_F(HintPrefetchTest, hint_prefetch_with_both_offsets) {
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
     constexpr size_t pop_offset = 1 * 1024 * 1024;  // Populate starting at 1 MB into mapping
     constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
-    const auto data = utils::make_page_misaligned_pattern(file_size);
+    const auto data = utils::make_modulo_sequence_pattern(file_size);
     ov::util::save_binary(m_file_path, data.data(), data.size());
 
     {
@@ -455,7 +455,7 @@ TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
 
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
     {
-        const auto data = utils::make_page_misaligned_pattern(file_size);
+        const auto data = utils::make_modulo_sequence_pattern(file_size);
         ov::util::save_binary(m_file_path, data.data(), data.size());
     }
 
