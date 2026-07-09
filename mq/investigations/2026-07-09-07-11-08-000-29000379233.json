@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-07-11-08-000-29000379233",
+  "timestamp": "2026-07-09T07:11:08Z",
+  "run_id": "29000379233",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29000379233",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36780",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36780",
+  "author": "yuxu42",
+  "category": "Dependencies",
+  "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+  "signature": "AttributeError: 'list' object has no attribute 'starmap'|Dependencies",
+  "signature_hash": "7862e85dd17a5df8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Smart_CI",
+      "conclusion": "failure",
+      "symptom": "AttributeError: 'list' object has no attribute 'starmap' when constructing GhApi()"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_riscv",
+      "conclusion": "failure",
+      "symptom": "Downstream status check exits 1 due to Smart_CI failure"
+    }
+  ],
+  "key_errors": [
+    "File \"/home/runner/.local/lib/python3.12/site-packages/ghapi/core.py\", line 105, in __init__\n    funcs_ = L(funcs).starmap(_GhVerb, client=self, kwargs=kwargs)\n             ^^^^^^^^^^^^^^^^\nFile \"/home/runner/.local/lib/python3.12/site-packages/fastcore/basics.py\", line 578, in __getattr__\n    if attr is not None: return getattr(attr,k)\n                               ^^^^^^^^^^^^^^^\nAttributeError: 'list' object has no attribute 'starmap'"
+  ],
+  "root_cause": "The smart-ci requirements.txt pins ghapi==1.0.4 but specifies fastcore>=1.5.4 with no upper bound. fastcore 2.0.1 (released recently) was resolved and installed, but it removed the 'starmap' method from the L class (or changed it to return a plain list rather than an L instance). ghapi 1.0.4 calls L(funcs).starmap() in GhApi.__init__ (core.py line 105), which now raises AttributeError: 'list' object has no attribute 'starmap'. The fix is to pin fastcore to a compatible version, e.g. fastcore>=1.5.4,<2.0.0 in .github/actions/smart-ci/requirements.txt.",
+  "reproduction_steps": "pip install ghapi==1.0.4 fastcore==2.0.1; python3 -c \"from ghapi.all import GhApi; GhApi()\"  # This reproduces the AttributeError",
+  "recommended_actions": [
+    "Pin fastcore in .github/actions/smart-ci/requirements.txt to fastcore>=1.5.4,<2.0.0 to prevent future breaks from fastcore major version bumps.",
+    "Alternatively, upgrade ghapi to a version that supports fastcore 2.x.",
+    "Check if ghapi has a version pinning that explicitly declares compatibility with fastcore 2.x."
+  ],
+  "prevention_strategies": "Always specify upper bounds for transitive dependencies in requirements.txt files used by CI infrastructure scripts. Consider using pip-compile or a lockfile to prevent unexpected dependency upgrades. Add a CI sanity check that verifies the smart-ci script can be imported without errors.",
+  "historical_context": "No prior occurrences of this specific pattern found in the database. This is the first recorded fastcore/ghapi incompatibility failure."
+}

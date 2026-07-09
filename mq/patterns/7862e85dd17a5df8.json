@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "AttributeError: 'list' object has no attribute 'starmap'|Dependencies",
+  "signature_hash": "7862e85dd17a5df8",
+  "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+  "category": "Dependencies",
+  "count": 1,
+  "first_seen": "2026-07-09T07:11:08Z",
+  "last_seen": "2026-07-09T07:11:08Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29000379233"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36780"
+  ],
+  "recent_timestamps": [
+    "2026-07-09T07:11:08Z"
+  ]
+}

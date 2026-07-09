@@ -300,6 +300,16 @@
       "title": "CoreThreadingTests.ReadModel crashes with exit code 1 on Windows C++ unit tests",
       "category": "Flaky Test",
       "signature_hash": "9a33a1bb95efe59d"
+    },
+    {
+      "investigation_id": "2026-07-09-07-11-08-000-29000379233",
+      "timestamp": "2026-07-09T07:11:08Z",
+      "run_id": "29000379233",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "category": "Dependencies",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36780"
     }
   ]
 }
