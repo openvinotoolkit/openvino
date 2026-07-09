@@ -664,7 +664,7 @@ public:
         } else if (name == ov::internal::exclusive_async_requests) {
             return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
         } else if (name == ov::device::uuid) {
-            ov::device::UUID uuid;
+            ov::device::UUID uuid{};
             for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                 if (device_id == device_ids[0])
                     uuid.uuid[i] = static_cast<uint8_t>(i);
@@ -747,7 +747,7 @@ public:
             return decltype(ov::internal::supported_properties)::value_type(
                 {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
         } else if (name == ov::device::uuid) {
-            ov::device::UUID uuid;
+            ov::device::UUID uuid{};
             for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                 if (device_id == device_ids[0])
                     uuid.uuid[i] = static_cast<uint8_t>(i * 2);
@@ -832,7 +832,7 @@ public:
         } else if (name == ov::internal::exclusive_async_requests) {
             return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
         } else if (name == ov::device::uuid) {
-            ov::device::UUID uuid;
+            ov::device::UUID uuid{};
             for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                 if (device_id == device_ids[0])
                     uuid.uuid[i] = static_cast<uint8_t>(i * 7);
@@ -919,7 +919,7 @@ public:
         } else if (name == ov::internal::exclusive_async_requests) {
             return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
         } else if (name == ov::device::uuid) {
-            ov::device::UUID uuid;
+            ov::device::UUID uuid{};
             for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                 if (device_id == device_ids[0])
                     uuid.uuid[i] = static_cast<uint8_t>(i);

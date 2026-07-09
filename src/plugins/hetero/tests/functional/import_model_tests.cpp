@@ -58,6 +58,81 @@ private:
     std::string _data;
 };
 
+class SeekCountingOutputBuffer : public std::streambuf {
+public:
+    const std::string& str() const {
+        return _data;
+    }
+
+    std::size_t seek_count() const {
+        return _seek_count;
+    }
+
+    void reset_seek_count() {
+        _seek_count = 0;
+    }
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize count) override {
+        if (count <= 0) {
+            return 0;
+        }
+
+        const auto offset = static_cast<std::string::size_type>(_pos);
+        const auto size = static_cast<std::string::size_type>(count);
+        if (offset + size > _data.size()) {
+            _data.resize(offset + size);
+        }
+        for (std::string::size_type i = 0; i < size; ++i) {
+            _data[offset + i] = data[i];
+        }
+        _pos += count;
+        return count;
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+
+        const char c = traits_type::to_char_type(ch);
+        return xsputn(&c, 1) == 1 ? ch : traits_type::eof();
+    }
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        if ((which & std::ios_base::out) == 0) {
+            return pos_type(off_type(-1));
+        }
+
+        ++_seek_count;
+
+        off_type base = 0;
+        if (dir == std::ios_base::cur) {
+            base = _pos;
+        } else if (dir == std::ios_base::end) {
+            base = static_cast<off_type>(_data.size());
+        } else if (dir != std::ios_base::beg) {
+            return pos_type(off_type(-1));
+        }
+
+        const auto new_pos = base + off;
+        if (new_pos < 0) {
+            return pos_type(off_type(-1));
+        }
+        _pos = new_pos;
+        return pos_type(_pos);
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
+    }
+
+private:
+    std::string _data;
+    off_type _pos = 0;
+    std::size_t _seek_count = 0;
+};
+
 std::string export_compiled_model(ov::CompiledModel compiled_model) {
     std::stringstream model_stream;
     compiled_model.export_model(model_stream);
@@ -279,6 +354,35 @@ TEST_F(HeteroTests, framed_payload_output_buffer_rejects_forward_seek_beyond_wri
     verify_stream.read(payload.data(), static_cast<std::streamsize>(payload_header.size));
     ASSERT_TRUE(verify_stream);
     EXPECT_EQ("abcd", payload);
+}
+
+TEST_F(HeteroTests, framed_payload_output_buffer_avoids_seeks_for_sequential_writes) {
+    SeekCountingOutputBuffer output_buffer;
+    std::ostream model_stream(&output_buffer);
+
+    FramedPayloadOutputBuffer payload_buffer(model_stream);
+    std::ostream payload_stream(&payload_buffer);
+
+    output_buffer.reset_seek_count();
+    payload_stream.write("abc", 3);
+    payload_stream.write("def", 3);
+    ASSERT_TRUE(payload_stream);
+
+    EXPECT_EQ(0U, output_buffer.seek_count());
+    EXPECT_EQ(6, payload_buffer.written_size());
+    EXPECT_EQ("abcdef", output_buffer.str());
+}
+
+TEST_F(HeteroTests, bounded_string_output_buffer_rejects_payload_larger_than_limit) {
+    BoundedStringOutputBuffer payload_buffer(3);
+    std::ostream payload_stream(&payload_buffer);
+
+    payload_stream.write("abc", 3);
+    ASSERT_TRUE(payload_stream);
+
+    payload_stream.write("d", 1);
+    EXPECT_FALSE(payload_stream);
+    EXPECT_EQ("abc", payload_buffer.str());
 }
 
 TEST_F(HeteroTests, import_large_compiled_payload_uses_bounded_stream_and_throws) {

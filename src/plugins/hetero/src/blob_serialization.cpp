@@ -36,15 +36,6 @@ std::streamoff checked_stream_offset(std::uint64_t offset, const char* fieldName
     return static_cast<std::streamoff>(offset);
 }
 
-void read_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName) {
-    const auto streamSize = checked_stream_size(size, fieldName);
-    if (streamSize == 0) {
-        return;
-    }
-    stream.read(data, streamSize);
-    OPENVINO_ASSERT(stream.gcount() == streamSize && !stream.bad(), "Failed to read HETERO compiled blob ", fieldName);
-}
-
 void write_bytes(std::ostream& stream, const char* data, std::uint64_t size, const char* fieldName) {
     stream.write(data, checked_stream_size(size, fieldName));
     OPENVINO_ASSERT(stream, "Failed to write HETERO compiled blob ", fieldName);
@@ -52,7 +43,7 @@ void write_bytes(std::ostream& stream, const char* data, std::uint64_t size, con
 
 std::uint64_t read_size(std::istream& stream, const char* fieldName) {
     std::uint64_t size = 0;
-    read_bytes(stream, reinterpret_cast<char*>(&size), sizeof(size), fieldName);
+    read_payload_bytes(stream, reinterpret_cast<char*>(&size), sizeof(size), fieldName);
     return size;
 }
 
@@ -251,7 +242,19 @@ BoundedStreamBuffer::pos_type BoundedStreamBuffer::seekpos(pos_type pos, std::io
     return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
 }
 
-FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream) : _stream(stream), _start(stream.tellp()) {
+void read_payload_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName) {
+    const auto streamSize = checked_stream_size(size, fieldName);
+    if (streamSize == 0) {
+        return;
+    }
+    stream.read(data, streamSize);
+    OPENVINO_ASSERT(stream.gcount() == streamSize && !stream.bad(), "Failed to read HETERO compiled blob ", fieldName);
+}
+
+FramedPayloadOutputBuffer::FramedPayloadOutputBuffer(std::ostream& stream)
+    : _stream(stream),
+      _start(stream.tellp()),
+      _underlyingPos(_start) {
     OPENVINO_ASSERT(_start != std::streampos(-1), "HETERO compiled blob output stream is not seekable");
 }
 
@@ -268,11 +271,16 @@ std::streamsize FramedPayloadOutputBuffer::xsputn(const char* data, std::streams
     checked_stream_offset(newPos, "payload position");
 
     _stream.clear();
-    _stream.seekp(_start + checked_stream_offset(_pos, "payload position"));
+    const auto writePos = _start + checked_stream_offset(_pos, "payload position");
+    if (_underlyingPos != writePos) {
+        _stream.seekp(writePos);
+        _underlyingPos = writePos;
+    }
     _stream.write(data, count);
     OPENVINO_ASSERT(_stream, "Failed to write HETERO compiled blob payload data");
 
     _pos = newPos;
+    _underlyingPos = _start + checked_stream_offset(_pos, "payload position");
     _writtenSize = std::max(_writtenSize, _pos);
     return count;
 }
@@ -318,6 +326,39 @@ FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekoff(off_type 
 
 FramedPayloadOutputBuffer::pos_type FramedPayloadOutputBuffer::seekpos(pos_type pos, std::ios_base::openmode which) {
     return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
+}
+
+BoundedStringOutputBuffer::BoundedStringOutputBuffer(std::uint64_t maxSize) : _maxSize(maxSize) {
+    checked_stream_size(maxSize, "buffered payload");
+}
+
+const std::string& BoundedStringOutputBuffer::str() const {
+    return _data;
+}
+
+std::streamsize BoundedStringOutputBuffer::xsputn(const char* data, std::streamsize count) {
+    if (count <= 0) {
+        return 0;
+    }
+
+    const auto writeSize = static_cast<std::uint64_t>(count);
+    OPENVINO_ASSERT(writeSize <= _maxSize - static_cast<std::uint64_t>(_data.size()),
+                    "HETERO compiled blob buffered payload size exceeds limit: ",
+                    static_cast<std::uint64_t>(_data.size()) + writeSize,
+                    " > ",
+                    _maxSize);
+
+    _data.append(data, static_cast<std::string::size_type>(count));
+    return count;
+}
+
+BoundedStringOutputBuffer::int_type BoundedStringOutputBuffer::overflow(int_type ch) {
+    if (traits_type::eq_int_type(ch, traits_type::eof())) {
+        return traits_type::not_eof(ch);
+    }
+
+    const char c = traits_type::to_char_type(ch);
+    return xsputn(&c, 1) == 1 ? ch : traits_type::eof();
 }
 
 bool is_output_stream_seekable(std::ostream& model_stream) {
@@ -380,7 +421,7 @@ void write_framed_payload(std::ostream& model_stream, char payloadType, const st
 
 PayloadHeader read_payload_header(std::istream& model_stream) {
     PayloadHeader payloadHeader;
-    read_bytes(model_stream, &payloadHeader.type, sizeof(payloadHeader.type), "payload type");
+    read_payload_bytes(model_stream, &payloadHeader.type, sizeof(payloadHeader.type), "payload type");
     payloadHeader.size = read_size(model_stream, "payload size");
     return payloadHeader;
 }
@@ -403,7 +444,7 @@ void read_ir_payload(std::istream& model,
                     "HETERO compiled blob IR XML size is too large: ",
                     dataSize);
     xmlString.resize(static_cast<std::string::size_type>(dataSize));
-    read_bytes(model, xmlString.data(), dataSize, "IR XML content");
+    read_payload_bytes(model, xmlString.data(), dataSize, "IR XML content");
 
     ov::Tensor weights;
     consume_payload_bytes(remainingPayloadSize, sizeof(std::uint64_t), "IR weights size");
@@ -414,7 +455,7 @@ void read_ir_payload(std::istream& model,
                         "HETERO compiled blob IR weights size is too large: ",
                         dataSize);
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-        read_bytes(model, reinterpret_cast<char*>(weights.data<std::uint8_t>()), dataSize, "IR weights content");
+        read_payload_bytes(model, reinterpret_cast<char*>(weights.data<std::uint8_t>()), dataSize, "IR weights content");
     }
 
     OPENVINO_ASSERT(!hasPayloadBoundary || remainingPayloadSize == 0,

@@ -5,7 +5,6 @@
 #include "compiled_model.hpp"
 
 #include <algorithm>
-#include <cstdint>
 #include <limits>
 #include <memory>
 #include <sstream>
@@ -26,14 +25,16 @@
 
 namespace {
 
-void read_payload_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName) {
-    const auto streamSize = static_cast<std::streamsize>(size);
-    if (streamSize == 0) {
-        return;
-    }
-
-    stream.read(data, streamSize);
-    OPENVINO_ASSERT(stream.gcount() == streamSize && !stream.bad(), "Failed to read HETERO compiled blob ", fieldName);
+template <typename WritePayload>
+void write_bounded_framed_payload(std::ostream& modelStream,
+                                  char payloadType,
+                                  WritePayload writePayload,
+                                  const char* fieldName) {
+    ov::hetero::BoundedStringOutputBuffer payloadBuffer(ov::hetero::MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE);
+    std::ostream payloadStream(&payloadBuffer);
+    writePayload(payloadStream);
+    OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob ", fieldName);
+    ov::hetero::write_framed_payload(modelStream, payloadType, payloadBuffer.str());
 }
 
 }  // namespace
@@ -157,7 +158,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                 "HETERO compiled blob compiled submodel payload size is too large: ",
                                 payloadHeader.size);
                 std::string payload(static_cast<std::string::size_type>(payloadHeader.size), '\0');
-                read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
+                ov::hetero::read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
                 std::istringstream payloadStream(std::move(payload));
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
             } else if (payloadHeader.type == IR_PAYLOAD) {
@@ -440,18 +441,23 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
                 continue;
             }
 
-            std::stringstream payloadStream;
             try {
-                comp_model_desc.compiled_model->export_model(payloadStream);
-                payloadStream.flush();
-                write_framed_payload(model_stream, COMPILED_BLOB_PAYLOAD, payloadStream.str());
+                write_bounded_framed_payload(model_stream,
+                                             COMPILED_BLOB_PAYLOAD,
+                                             [&](std::ostream& payloadStream) {
+                                                 comp_model_desc.compiled_model->export_model(payloadStream);
+                                             },
+                                             "compiled submodel payload");
                 continue;
             } catch (ov::NotImplemented&) {
             }
 
-            std::stringstream irPayloadStream;
-            write_ir_payload(irPayloadStream, comp_model_desc.model);
-            write_framed_payload(model_stream, IR_PAYLOAD, irPayloadStream.str());
+            write_bounded_framed_payload(model_stream,
+                                         IR_PAYLOAD,
+                                         [&](std::ostream& payloadStream) {
+                                             write_ir_payload(payloadStream, comp_model_desc.model);
+                                         },
+                                         "IR payload");
             continue;
         }
 
@@ -462,8 +468,11 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             continue;
         }
 
-        std::stringstream payloadStream;
-        write_ir_payload(payloadStream, comp_model_desc.model);
-        write_framed_payload(model_stream, IR_PAYLOAD, payloadStream.str());
+        write_bounded_framed_payload(model_stream,
+                                     IR_PAYLOAD,
+                                     [&](std::ostream& payloadStream) {
+                                         write_ir_payload(payloadStream, comp_model_desc.model);
+                                     },
+                                     "IR payload");
     }
 }

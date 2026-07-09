@@ -69,8 +69,24 @@ protected:
 private:
     std::ostream& _stream;
     std::streampos _start;
+    std::streampos _underlyingPos;
     std::uint64_t _pos = 0;
     std::uint64_t _writtenSize = 0;
+};
+
+class BoundedStringOutputBuffer : public std::streambuf {
+public:
+    explicit BoundedStringOutputBuffer(std::uint64_t maxSize);
+
+    const std::string& str() const;
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize count) override;
+    int_type overflow(int_type ch) override;
+
+private:
+    std::uint64_t _maxSize = 0;
+    std::string _data;
 };
 
 struct PayloadHeader {
@@ -90,6 +106,7 @@ void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& paylo
 void finish_framed_payload(std::ostream& model_stream, const PayloadFrame& payloadFrame);
 void write_framed_payload(std::ostream& model_stream, char payloadType, const std::string& payload);
 PayloadHeader read_payload_header(std::istream& model_stream);
+void read_payload_bytes(std::istream& stream, char* data, std::uint64_t size, const char* fieldName);
 
 void read_ir_payload(std::istream& model,
                      const std::shared_ptr<ov::ICore>& core,
