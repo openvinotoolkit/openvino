@@ -108,13 +108,6 @@ def setup_model(model_id):
     model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
-    # Save original model
-    model_path = get_model_path(model_id, "org")
-    if not os.path.exists(model_path):
-        logger.info(f"Saving original model: {model_path}")
-        model.save_pretrained(model_path)
-        tokenizer.save_pretrained(model_path)
-
     # Convert tokenizer for OpenVINO
     ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
 
