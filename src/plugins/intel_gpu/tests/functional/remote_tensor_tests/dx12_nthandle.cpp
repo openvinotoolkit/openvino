@@ -21,6 +21,7 @@
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
 
+#include "remote_tensor_tests/helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -51,16 +52,6 @@ bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUI
 
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
 }
-
-// Keep data unchanged while still forcing an explicit output tensor write path.
-std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
-    auto add = std::make_shared<ov::op::v1::Add>(param, zero);
-    auto result = std::make_shared<ov::op::v0::Result>(add);
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-}
-
 
 struct Dx12TestContext {
     CComPtr<IDXGIAdapter1> adapter;
@@ -277,12 +268,12 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
 
-    remote_input_tensor = candidate_ctx.create_tensor(ov::element::f32, shape,
-                                                dx_input_shared.shared_handle,
-                                                ov::intel_gpu::MemType::SHARED_BUF);
-    remote_output_tensor = candidate_ctx.create_tensor(ov::element::f32, shape,
-                                                dx_output_shared.shared_handle,
-                                                ov::intel_gpu::MemType::SHARED_BUF);
+    remote_input_tensor = candidate_ctx.create_tensor(ov::element::f32, 
+                                                      shape, 
+                                                      ov::intel_gpu::SharedBufferHandle{dx_input_shared.shared_handle});
+    remote_output_tensor = candidate_ctx.create_tensor(ov::element::f32, 
+                                                       shape, 
+                                                       ov::intel_gpu::SharedBufferHandle{dx_output_shared.shared_handle});
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, candidate_ctx);
