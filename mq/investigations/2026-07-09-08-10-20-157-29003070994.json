@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-08-10-20-157-29003070994",
+  "timestamp": "2026-07-09T08:10:20Z",
+  "run_id": "29003070994",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29003070994",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36781",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36781",
+  "author": "peterchen-intel",
+  "category": "Dependencies",
+  "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+  "signature": "AttributeError: 'list' object has no attribute 'starmap'|Dependencies",
+  "signature_hash": "7862e85dd17a5df8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Smart_CI",
+      "conclusion": "failure",
+      "symptom": "AttributeError: 'list' object has no attribute 'starmap' when initializing GhApi client"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check exits 1 because Smart_CI failed"
+    }
+  ],
+  "key_errors": [
+    "File \"/home/runner/.local/lib/python3.12/site-packages/ghapi/core.py\", line 105, in __init__\n    funcs_ = L(funcs).starmap(_GhVerb, client=self, kwargs=kwargs)\n             ^^^^^^^^^^^^^^^^\n  File \"/home/runner/.local/lib/python3.12/site-packages/fastcore/basics.py\", line 578, in __getattr__\n    if attr is not None: return getattr(attr,k)\n                                ^^^^^^^^^^^^^^^\nAttributeError: 'list' object has no attribute 'starmap'"
+  ],
+  "root_cause": "fastcore 2.0.1 (released ~2026-07-08) changed the behavior of the L class so that L(funcs) no longer returns a fastcore.L instance with the starmap method; instead it falls back to a plain Python list. The ghapi 1.0.4 library's GhApi.__init__ calls L(funcs).starmap(...) and therefore raises AttributeError. The Smart CI step uses ghapi to enumerate PR labels/components and fails immediately on initialization. This is a transitive dependency version bump that broke an implicit API contract between fastcore and ghapi. This is the 5th occurrence of the same failure today.",
+  "reproduction_steps": "N/A - requires CI environment with fastcore>=2.0.1 installed. Locally: pip install 'fastcore>=2.0.1' ghapi==1.0.4 && python3 -c \"from ghapi.all import GhApi; GhApi()\"",
+  "recommended_actions": [
+    "Pin fastcore to <2.0.1 in the Smart CI requirements: fastcore<2.0.1 or fastcore==1.8.4",
+    "Or upgrade ghapi to a version that is compatible with fastcore 2.0.1",
+    "Update .github/actions/smart-ci/requirements.txt (or similar) with the pinned version",
+    "Merge the fix PR quickly - this is breaking ALL merge-queue runs today"
+  ],
+  "prevention_strategies": "Pin all transitive dependencies in CI scripts to exact versions (e.g., requirements.txt with ==). Add a CI health-check job that runs Smart CI initialization in isolation so version conflicts are caught before merge.",
+  "historical_context": "This is occurrence #5 of this exact failure pattern today (2026-07-09). First seen at 07:11 UTC. Prior occurrences affected PRs #36780, #36773, #36504, and #36781 (earlier run 29002123148). Pattern hash: 7862e85dd17a5df8."
+}

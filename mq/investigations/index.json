@@ -1,5 +1,5 @@
 {
-  "total": 34,
+  "total": 35,
   "entries": [
     {
       "investigation_id": "2026-07-09-07-55-19-000-29002123148",
@@ -306,6 +306,15 @@
       "category": "Network",
       "signature_hash": "",
       "pr_number": ""
+    },
+    {
+      "investigation_id": "2026-07-09-08-10-20-157-29003070994",
+      "run_id": "29003070994",
+      "timestamp": "2026-07-09T08:10:20Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36781"
     }
   ],
   "investigations": [
