@@ -187,8 +187,11 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
             // Convert dtype, only if last fused op has a different one from kernel output
-            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype)
+            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype) {
+                if (last_fused_out_dtype == Datatype::BF16)
+                    out_name = "CONVERT_AS_BFLOAT16_FLOAT(" + out_name + ", " + toCodeString(c.vec_size) + ")";
                 out_name = "TO_OUTPUT_VECTOR_TYPE(" + out_name + ", " + toCodeString(c.vec_size) + ")";
+            }
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();
