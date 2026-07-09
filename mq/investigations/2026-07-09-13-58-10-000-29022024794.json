@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-13-58-10-000-29022024794",
+  "timestamp": "2026-07-09T13:58:10Z",
+  "run_id": "29022024794",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29022024794",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36774",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36774",
+  "author": "mryzhov",
+  "category": "Configuration",
+  "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+  "signature": "apt-get install libpython3-dev:riscv64 fails - libpython3.10-stdlib:riscv64 depends on libtinfo6:riscv64 but not installable|Configuration",
+  "signature_hash": "926d0537c057e523",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "docker buildx build fails at Dockerfile step 5/8 - apt-get install libpython3-dev:riscv64 exits with code 100"
+    }
+  ],
+  "key_errors": [
+    "#12 8.550  libpython3.10-stdlib:riscv64 : Depends: libncursesw6:riscv64 (>= 6.1) but it is not going to be installed",
+    "#12 8.550  libpython3.10-stdlib:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "#12 8.550  libreadline8:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "#12 8.559 E: Unable to correct problems, you have held broken packages.",
+    "ERROR: failed to solve: process \"/bin/sh -c dpkg --add-architecture riscv64 && apt-get update ... && apt-get install -y --no-install-recommends libpython3-dev:riscv64\" did not complete successfully: exit code: 100",
+    "RuntimeError: Command 'docker buildx build ... --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile ...' returned non-zero exit status 1"
+  ],
+  "root_cause": "The Dockerfile at .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile fails at step 5/8 where it installs libpython3-dev:riscv64 via cross-compilation. The libpython3.10-stdlib:riscv64 package depends on libncursesw6:riscv64 and libtinfo6:riscv64, but these cannot be installed because libtinfo6:amd64 was already installed in step 3/8 with different package constraints. The apt-get update with -o Dir::Etc::sourcelist= flag does not fully isolate the riscv64 sources (sources.list.d directory is still scanned, causing duplicate warnings), and the package dependency graph for libpython3-dev:riscv64 conflicts with the already-installed amd64 packages. This is a Dockerfile configuration issue with the apt cross-architecture setup.",
+  "reproduction_steps": "docker buildx build --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile . (fails at RUN dpkg --add-architecture riscv64 && apt-get update ... && apt-get install libpython3-dev:riscv64 step)",
+  "recommended_actions": [
+    "Inspect .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile lines 71-74 to understand the riscv64 apt cross-compilation setup",
+    "Add libncursesw6:riscv64 and libtinfo6:riscv64 explicitly to the apt-get install command in Dockerfile step 5/8 to satisfy the libpython3-dev:riscv64 dependencies",
+    "Consider using --no-install-recommends with explicit package list or pinning package versions to avoid cross-arch conflicts",
+    "Alternatively, restructure the Dockerfile to install riscv64 packages before amd64 packages to avoid held-package conflicts"
+  ],
+  "prevention_strategies": "When setting up cross-architecture apt in Dockerfiles, ensure that shared library packages (like libtinfo6, libncursesw6) are explicitly listed with both architectures, or use architecture-specific apt source pinning to avoid version conflicts between amd64 and riscv64 variants.",
+  "historical_context": "No prior occurrences of this specific RISCV Docker build failure pattern in the CI Doctor MQ database."
+}
