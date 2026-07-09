@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-15-32-32-477-29029047050",
+  "timestamp": "2026-07-09T15:32:32Z",
+  "run_id": "29029047050",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29029047050",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36774",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36774",
+  "author": "mryzhov",
+  "category": "Configuration",
+  "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+  "signature": "apt-get install libpython3-dev:riscv64 fails - libpython3.10-stdlib:riscv64 depends on libtinfo6:riscv64 but not installable|Configuration",
+  "signature_hash": "926d0537c057e523",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Docker build for ubuntu_22_04_riscv fails - apt-get install libpython3-dev:riscv64 exits with code 100 due to broken riscv64 dependencies"
+    }
+  ],
+  "key_errors": [
+    "#11 9.031 Some packages could not be installed.\n#11 9.131  libpython3.10-stdlib:riscv64 : Depends: libncursesw6:riscv64 (>= 6.1) but it is not going to be installed\n#11 9.131                                 Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed\n#11 9.131  libreadline8:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed\n#11 9.138 E: Unable to correct problems, you have held broken packages.",
+    "ERROR: failed to solve: process \"/bin/sh -c dpkg --add-architecture riscv64 && apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && apt-get install -y --no-install-recommends libpython3-dev:riscv64\" did not complete successfully: exit code: 100",
+    "RuntimeError: Command 'docker buildx build ... --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile ...' returned non-zero exit status 1"
+  ],
+  "root_cause": "The Docker build for the ubuntu_22_04_riscv image fails at Dockerfile line 72-74 because apt-get cannot install libpython3-dev:riscv64. The dependency chain requires libtinfo6:riscv64 (>= 6) and libncursesw6:riscv64 (>= 6.1) but these packages cannot be installed. This is likely caused by a version conflict between the deadsnakes PPA (which provides riscv64 packages and is included in the image) and the Ubuntu ports riscv64 repository, creating an unsatisfiable dependency state. This is the 3rd occurrence of this exact failure pattern today on PR #36774.",
+  "reproduction_steps": "docker buildx build --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile --build-arg REGISTRY=openvinogithubactions.azurecr.io/dockerio .",
+  "recommended_actions": [
+    "Investigate whether deadsnakes PPA riscv64 packages conflict with Ubuntu ports riscv64 libtinfo6/libncursesw6 versions in the Dockerfile",
+    "Pin libtinfo6:riscv64 and libncursesw6:riscv64 explicitly before installing libpython3-dev:riscv64 in the Dockerfile",
+    "Consider installing libpython3-dev from Ubuntu ports directly without deadsnakes PPA for riscv64, or explicitly exclude riscv64 from deadsnakes PPA sources",
+    "Review .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile step 4/8 where riscv64-sources.list is constructed to ensure deadsnakes PPA is amd64-only"
+  ],
+  "prevention_strategies": "Restrict third-party PPAs (like deadsnakes) to amd64-only in the riscv64-sources.list to prevent cross-architecture package conflicts. Add explicit dependency pre-installation steps for riscv64 base packages (libtinfo6, libncursesw6) before installing higher-level packages.",
+  "historical_context": "This is the 3rd occurrence today (2026-07-09). First seen at 2026-07-09T13:58:10Z, second at 2026-07-09T14:21:23Z, current at 2026-07-09T15:32:32Z. All occurrences are on PR #36774 (Debian 10 removal). The pattern hash is 926d0537c057e523."
+}
