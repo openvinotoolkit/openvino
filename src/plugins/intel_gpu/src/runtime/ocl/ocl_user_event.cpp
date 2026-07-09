@@ -3,23 +3,22 @@
 //
 
 #include "ocl_user_event.hpp"
+#include "CL/cl.h"
 #include <list>
 
 using namespace cldnn::ocl;
 
 ocl_user_event::ocl_user_event(const cl::Context& ctx,
                                bool is_set,
-                               bool has_device_steady_offset,
-                               std::chrono::nanoseconds device_steady_offset)
+                               const cl::Device& device)
     : ocl_base_event()
     , _ctx(ctx)
     , _event(_ctx) {
-    if (has_device_steady_offset) {
-        auto steady_now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch());
-        auto device_time = steady_now + device_steady_offset;
-        _exec_start = device_time > std::chrono::nanoseconds::zero() ? device_time : std::chrono::nanoseconds::zero();
-        _has_device_timestamps = true;
+#if defined(CL_VERSION_2_1)
+    if (device.get() != nullptr) {
+        _device = device;
     }
+#endif
 
     if (is_set) {
         set();
@@ -34,6 +33,15 @@ void ocl_user_event::set_impl() {
     static_cast<cl::UserEvent&&>(get()).setStatus(CL_COMPLETE);
     _duration = std::unique_ptr<cldnn::instrumentation::profiling_period_basic>(
         new cldnn::instrumentation::profiling_period_basic(_timer.uptime()));
+#if defined(CL_VERSION_2_1)
+    if (_device.get() != nullptr) {
+        cl_ulong device_ts = 0;
+        cl_ulong host_ts = 0;
+        if (clGetDeviceAndHostTimer(_device.get(), &device_ts, &host_ts) == CL_SUCCESS) {
+            _exec_start = std::chrono::nanoseconds(static_cast<long long>(device_ts));
+        }
+    }
+#endif
 }
 
 bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::profiling_interval>& info) {
@@ -44,7 +52,7 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
     auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
     info.push_back({ instrumentation::profiling_stage::duration, period });
 
-    if (_has_device_timestamps) {
+    if (_device.get() != nullptr) {
         auto zero_period = std::make_shared<instrumentation::profiling_period_basic>(std::chrono::nanoseconds::zero());
         info.push_back({ instrumentation::profiling_stage::starting, zero_period, _exec_start, true });
         info.push_back({ instrumentation::profiling_stage::executing, period, _exec_start, true });
