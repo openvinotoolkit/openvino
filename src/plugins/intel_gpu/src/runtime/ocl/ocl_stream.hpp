@@ -9,6 +9,7 @@
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -27,7 +28,9 @@ public:
         , _command_queue(other._command_queue)
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
-        , _last_barrier_ev(other._last_barrier_ev) {}
+        , _last_barrier_ev(other._last_barrier_ev)
+        , _has_device_steady_offset(other._has_device_steady_offset)
+        , _device_steady_offset(other._device_steady_offset) {}
 
     ~ocl_stream() = default;
 
@@ -58,6 +61,7 @@ public:
 #endif
 
 private:
+    void init_device_host_offset(bool profiling_enabled);
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const ocl_engine& _engine;
@@ -65,6 +69,8 @@ private:
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     cl::Event _last_barrier_ev;
+    bool _has_device_steady_offset = false;
+    std::chrono::nanoseconds _device_steady_offset = std::chrono::nanoseconds::zero();
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;

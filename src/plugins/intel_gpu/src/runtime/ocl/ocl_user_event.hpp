@@ -17,14 +17,10 @@ namespace cldnn {
 namespace ocl {
 
 struct ocl_user_event : public ocl_base_event {
-    explicit ocl_user_event(const cl::Context& ctx, bool is_set = false)
-    : ocl_base_event()
-    , _ctx(ctx)
-    , _event(_ctx) {
-        if (is_set) {
-            set();
-        }
-    }
+    explicit ocl_user_event(const cl::Context& ctx,
+                            bool is_set = false,
+                            bool has_device_steady_offset = false,
+                            std::chrono::nanoseconds device_steady_offset = std::chrono::nanoseconds::zero());
 
     void set_impl() override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
@@ -33,6 +29,8 @@ struct ocl_user_event : public ocl_base_event {
 protected:
     cldnn::instrumentation::timer<> _timer;
     std::unique_ptr<cldnn::instrumentation::profiling_period_basic> _duration;
+    bool _has_device_timestamps = false;
+    std::chrono::nanoseconds _exec_start = std::chrono::nanoseconds::zero();
     const cl::Context& _ctx;
     cl::UserEvent _event;
 

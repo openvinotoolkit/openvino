@@ -204,6 +204,30 @@ void set_arguments_impl(ocl_kernel_type& kernel,
 
 }  // namespace
 
+void ocl_stream::init_device_host_offset(bool profiling_enabled) {
+    _has_device_steady_offset = false;
+    _device_steady_offset = std::chrono::nanoseconds::zero();
+
+#if defined(CL_VERSION_2_1)
+    if (!profiling_enabled) {
+        return;
+    }
+
+    cl_ulong device_ts = 0;
+    cl_ulong host_ts = 0;
+    auto steady_before = std::chrono::steady_clock::now();
+    auto status = clGetDeviceAndHostTimer(_engine.get_cl_device().get(), &device_ts, &host_ts);
+    auto steady_after = std::chrono::steady_clock::now();
+    if (status == CL_SUCCESS) {
+        auto device_time = std::chrono::nanoseconds(static_cast<long long>(device_ts));
+        auto steady_mid = steady_before + (steady_after - steady_before) / 2;
+        auto steady_time = std::chrono::duration_cast<std::chrono::nanoseconds>(steady_mid.time_since_epoch());
+        _device_steady_offset = device_time - steady_time;
+        _has_device_steady_offset = true;
+    }
+#endif
+}
+
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
     , _engine(engine) {
@@ -226,6 +250,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
+    init_device_host_offset(config.get_enable_profiling());
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
@@ -233,6 +258,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
     , _engine(engine) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
+    init_device_host_offset(config.get_enable_profiling());
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -348,7 +374,8 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
         sync_events(deps, is_output);
         return std::make_shared<ocl_event>(_last_barrier_ev, _last_barrier);
     } else {
-        return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true);
+        return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true,
+                                                _has_device_steady_offset, _device_steady_offset);
     }
 }
 
@@ -359,7 +386,8 @@ event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr ocl_stream::create_user_event(bool set) {
-    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set);
+    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set,
+                                            _has_device_steady_offset, _device_steady_offset);
 }
 
 event::ptr ocl_stream::create_base_event() {
