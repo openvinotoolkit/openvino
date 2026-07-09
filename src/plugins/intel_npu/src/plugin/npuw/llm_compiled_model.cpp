@@ -567,6 +567,12 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     const KVAxesPosition& axes,
     const uint32_t whisper_lhs_seq_size) {
     const uint32_t total_kv_size = m_kvcache_desc.total_size;
+    OPENVINO_ASSERT(total_kv_size >= m_kvcache_desc.max_prompt_size,
+                    "KV cache total size ",
+                    total_kv_size,
+                    " is smaller than max_prompt_size ",
+                    m_kvcache_desc.max_prompt_size,
+                    ".");
     const uint32_t min_response_len = total_kv_size - m_kvcache_desc.max_prompt_size;
     const uint32_t max_generation_token_len = m_kvcache_desc.max_generation_token_len;
     const bool enable_generate_pyramid = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>();
