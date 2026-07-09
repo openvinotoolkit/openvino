@@ -4,20 +4,23 @@
   "signature_hash": "7862e85dd17a5df8",
   "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
   "category": "Dependencies",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-07-09T07:11:08Z",
-  "last_seen": "2026-07-09T07:40:13Z",
+  "last_seen": "2026-07-09T07:55:19Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29002123148",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29001747652",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29000703414",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29000379233"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36781",
     "https://github.com/openvinotoolkit/openvino/pull/36504",
     "https://github.com/openvinotoolkit/openvino/pull/36773",
     "https://github.com/openvinotoolkit/openvino/pull/36780"
   ],
   "recent_timestamps": [
+    "2026-07-09T07:55:19Z",
     "2026-07-09T07:40:13Z",
     "2026-07-09T07:26:09Z",
     "2026-07-09T07:11:08Z"

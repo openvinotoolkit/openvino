@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-07-55-19-000-29002123148",
+  "timestamp": "2026-07-09T07:55:19Z",
+  "run_id": "29002123148",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29002123148",
+  "workflow_name": "Webassembly",
+  "pr_number": "36781",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36781",
+  "author": "zaixing-wang",
+  "category": "Dependencies",
+  "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+  "signature": "AttributeError: 'list' object has no attribute 'starmap'|Dependencies",
+  "signature_hash": "7862e85dd17a5df8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Smart_CI",
+      "conclusion": "failure",
+      "symptom": "AttributeError: 'list' object has no attribute 'starmap' in GhApi init"
+    },
+    {
+      "name": "ci/gha_overall_status_webassembly",
+      "conclusion": "failure",
+      "symptom": "Downstream status check exits with code 1 due to Smart_CI failure"
+    }
+  ],
+  "key_errors": [
+    "File \"/home/runner/.local/lib/python3.12/site-packages/ghapi/core.py\", line 105, in __init__\n    funcs_ = L(funcs).starmap(_GhVerb, client=self, kwargs=kwargs)\nAttributeError: 'list' object has no attribute 'starmap'",
+    "Traceback (most recent call last):\n  File \".github/actions/smart-ci/smart_ci.py\", line 190, in main\n    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv(\"GITHUB_TOKEN\"))\n  File \"/home/runner/.local/lib/python3.12/site-packages/fastcore/basics.py\", line 578, in __getattr__\n    if attr is not None: return getattr(attr,k)\nAttributeError: 'list' object has no attribute 'starmap'"
+  ],
+  "root_cause": "requirements.txt for .github/actions/smart-ci pins ghapi==1.0.4 but only specifies fastcore>=1.5.4 as a transitive constraint. pip resolved fastcore to the latest release 2.0.1, which is a major version bump that introduced a breaking API change: the L() constructor now returns a plain Python list in some code paths, losing the fastcore.basics.L class method starmap(). ghapi 1.0.4 calls L(funcs).starmap() in GhApi.__init__, which fails when fastcore 2.0.1 returns a bare list. This is the 4th occurrence of the same failure today \u2014 the root fix is to pin fastcore to a compatible 1.x version (e.g., fastcore==1.5.29) in requirements.txt, or upgrade ghapi to a version that supports fastcore 2.x.",
+  "reproduction_steps": "pip install ghapi==1.0.4 fastcore==2.0.1 && python3 -c \"from ghapi.core import GhApi; GhApi(owner='x', repo='y', token='t')\"",
+  "recommended_actions": [
+    "Pin fastcore to a compatible version in .github/actions/smart-ci/requirements.txt, e.g. add 'fastcore==1.5.29' or 'fastcore<2.0.0'",
+    "Alternatively upgrade ghapi to a version that is compatible with fastcore 2.x (check ghapi changelog for 2.x support)",
+    "Re-queue PR #36781 after the requirements.txt fix is merged to master"
+  ],
+  "prevention_strategies": "Always pin transitive dependencies to specific versions or version ranges in requirements.txt files used by CI actions. Use dependabot or a lockfile to manage dependency updates.",
+  "historical_context": "This is the 4th occurrence today (2026-07-09). Prior occurrences: run 29001747652 (PR #36504), run 29000703414 (PR #36773), run 29000379233 (PR #36780). All affected PRs are unrelated code changes \u2014 the failure is caused by a newly released fastcore 2.0.1 breaking ghapi 1.0.4 across all CI runs."
+}
