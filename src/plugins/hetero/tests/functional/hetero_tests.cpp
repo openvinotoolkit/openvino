@@ -775,6 +775,91 @@ public:
     }
 };
 
+class MockPluginNoExportImport : public MockPluginBase {
+public:
+    MockPluginNoExportImport(const std::string& name)
+        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Reshape"}, true) {}
+
+    const ov::Version& get_const_version() override {
+        static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_no_export_import_plugin"};
+        return version;
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        for (const auto& it : properties) {
+            if (it.first == ov::num_streams.name())
+                num_streams = it.second.as<int32_t>();
+            else if (it.first == ov::enable_profiling.name())
+                m_profiling = it.second.as<bool>();
+            else if (it.first == ov::internal::exclusive_async_requests.name())
+                exclusive_async_requests = it.second.as<bool>();
+            else if (it.first == ov::device::id.name())
+                continue;
+            else
+                OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+        }
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        const static std::vector<std::string> device_ids = {"0"};
+        const static std::vector<ov::PropertyName> roProperties{
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::available_devices.name()),
+            RO_property(ov::loaded_from_cache.name()),
+            RO_property(ov::device::capabilities.name()),
+            RO_property(ov::device::uuid.name()),
+        };
+        const static std::vector<ov::PropertyName> rwProperties{
+            RW_property(ov::num_streams.name()),
+            RW_property(ov::enable_profiling.name()),
+        };
+
+        std::string device_id;
+        if (arguments.find(ov::device::id.name()) != arguments.end()) {
+            device_id = arguments.find(ov::device::id.name())->second.as<std::string>();
+        }
+        if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties;
+            supportedProperties.reserve(roProperties.size() + rwProperties.size());
+            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+            return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type(
+                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+                 ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}});
+        } else if (name == ov::internal::exclusive_async_requests) {
+            return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
+        } else if (name == ov::device::uuid) {
+            ov::device::UUID uuid;
+            for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+                if (device_id == device_ids[0])
+                    uuid.uuid[i] = static_cast<uint8_t>(i * 7);
+            }
+            return decltype(ov::device::uuid)::value_type{uuid};
+        } else if (name == ov::available_devices) {
+            return decltype(ov::available_devices)::value_type(device_ids);
+        } else if (name == ov::device::capabilities) {
+            return decltype(ov::device::capabilities)::value_type{};
+        } else if (ov::internal::caching_properties == name) {
+            std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+            return decltype(ov::internal::caching_properties)::value_type(caching_properties);
+        } else if (name == ov::loaded_from_cache.name()) {
+            return m_loaded_from_cache;
+        } else if (name == ov::enable_profiling.name()) {
+            return decltype(ov::enable_profiling)::value_type{m_profiling};
+        } else if (name == ov::streams::num.name()) {
+            return decltype(ov::streams::num)::value_type{num_streams};
+        }
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+
+private:
+    int32_t num_streams{0};
+    bool exclusive_async_requests = false;
+};
+
 class MockPluginGPU : public MockPluginBase {
 public:
     MockPluginGPU(const std::string& name)
@@ -910,6 +995,7 @@ void ov::hetero::tests::HeteroTests::SetUp() {
     if (m_mock_plugins.empty()) {
         reg_plugin_type<MockPluginReshape>("MOCK0");
         reg_plugin_type<MockPluginSubtract>("MOCK1");
+        reg_plugin_type<MockPluginNoExportImport>("MOCKIR");
         reg_plugin_type<MockPluginGPU>("MOCKGPU");
     }
 }

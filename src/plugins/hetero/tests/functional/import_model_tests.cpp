@@ -125,6 +125,48 @@ std::string get_hetero_xml_header(const std::string& blob) {
     return blob.substr(0, header_end + 1);
 }
 
+std::string make_legacy_unframed_blob_from_framed_blob(const std::string& framed_blob, char expected_payload_type) {
+    auto legacy_blob = remove_blob_format_version(get_hetero_xml_header(framed_blob));
+
+    std::stringstream framed_stream(framed_blob);
+    std::string hetero_xml_header;
+    std::getline(framed_stream, hetero_xml_header);
+
+    const auto payload_header = read_test_payload_header(framed_stream);
+    if (payload_header.type != expected_payload_type) {
+        throw std::runtime_error("Unexpected HETERO test payload type");
+    }
+    if (payload_header.size > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+        throw std::runtime_error("HETERO test payload is too large");
+    }
+
+    std::string legacy_payload(static_cast<std::string::size_type>(payload_header.size), '\0');
+    if (!legacy_payload.empty()) {
+        framed_stream.read(&legacy_payload[0], static_cast<std::streamsize>(payload_header.size));
+        if (!framed_stream) {
+            throw std::runtime_error("Failed to read HETERO test payload");
+        }
+    }
+
+    legacy_blob += legacy_payload;
+    return legacy_blob;
+}
+
+void expect_compiled_model_runs(HeteroTests& fixture, ov::CompiledModel compiled_model) {
+    ASSERT_EQ(1, compiled_model.inputs().size());
+    ASSERT_EQ(1, compiled_model.outputs().size());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto input_tensor =
+        fixture.create_and_fill_tensor(compiled_model.input().get_element_type(), compiled_model.input().get_shape());
+    infer_request.set_input_tensor(input_tensor);
+    ASSERT_NO_THROW(infer_request.infer());
+
+    auto output_tensor = infer_request.get_output_tensor();
+    EXPECT_EQ(compiled_model.output().get_shape(), output_tensor.get_shape());
+    EXPECT_EQ(compiled_model.output().get_element_type(), output_tensor.get_element_type());
+}
+
 }  // namespace
 
 // IR frontend is needed for import
@@ -169,6 +211,27 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
     EXPECT_EQ(1, imported_model.inputs().size());
     EXPECT_EQ(1, imported_model.outputs().size());
+}
+
+TEST_F(HeteroTests, export_single_plugin_without_export_import_uses_framed_ir_payload) {
+    auto model = create_model_with_reshape();
+    EXPECT_NO_THROW(core.get_available_devices());
+    const auto compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
+    auto blob = export_compiled_model(compiled_model);
+    std::stringstream model_stream(blob);
+
+    std::string hetero_xml_header;
+    std::getline(model_stream, hetero_xml_header);
+    EXPECT_NE(hetero_xml_header.find(HETERO_BLOB_FORMAT_VERSION_ATTR), std::string::npos);
+
+    const auto payload_header = read_test_payload_header(model_stream);
+    EXPECT_EQ(IR_PAYLOAD, payload_header.type);
+    EXPECT_GT(payload_header.size, 0);
+
+    std::stringstream import_stream(blob);
+    auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
+    expect_compiled_model_runs(*this, imported_model);
 }
 
 TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
@@ -256,6 +319,19 @@ TEST_F(HeteroTests, import_single_plugin_legacy_unframed_blob_without_format_ver
     auto imported_model = core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {});
     EXPECT_EQ(1, imported_model.inputs().size());
     EXPECT_EQ(1, imported_model.outputs().size());
+}
+
+TEST_F(HeteroTests, import_single_plugin_legacy_unframed_ir_blob_without_format_version) {
+    auto model = create_model_with_reshape();
+    EXPECT_NO_THROW(core.get_available_devices());
+    const auto hetero_compiled_model =
+        core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
+    const auto framed_blob = export_compiled_model(hetero_compiled_model);
+    const auto legacy_blob = make_legacy_unframed_blob_from_framed_blob(framed_blob, IR_PAYLOAD);
+
+    std::stringstream model_stream(legacy_blob);
+    auto imported_model = core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {});
+    expect_compiled_model_runs(*this, imported_model);
 }
 
 TEST_F(HeteroTests, import_truncated_framed_payload_throws) {
