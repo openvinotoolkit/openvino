@@ -162,11 +162,27 @@ std::string driverTypeToString(DriverType type) {
 }
 
 std::optional<DriverType> parseDriverType(const std::string& str) {
-    if (str == "pv" || str == "PV") {
+    // accept any case ("PV", "pv", "Pv", ...) and ignore surrounding whitespace
+    const auto begin = std::find_if_not(str.begin(), str.end(), [](unsigned char c) {
+        return std::isspace(c);
+    });
+    const auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char c) {
+                         return std::isspace(c);
+                     }).base();
+
+    std::string normalized;
+    if (begin < end) {
+        normalized.reserve(static_cast<size_t>(end - begin));
+        std::transform(begin, end, std::back_inserter(normalized), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+    }
+
+    if (normalized == "pv") {
         return DriverType::PV;
-    } else if (str == "release" || str == "RELEASE") {
+    } else if (normalized == "release") {
         return DriverType::RELEASE;
-    } else if (str == "latest" || str == "LATEST") {
+    } else if (normalized == "latest") {
         return DriverType::LATEST;
     }
     return std::nullopt;
