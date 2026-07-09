@@ -297,6 +297,53 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                            "dim": dim, "keepdim": keepdim})
 
 
+class TestLinalgMatrixNormSvd(PytorchLayerTest):
+    """Matrix norms that require singular values: spectral (ord=2 / ord=-2) and nuclear ("nuc").
+
+    ord=2 is the largest singular value, ord=-2 the smallest, "nuc" their sum. The frontend computes
+    the singular values of the trailing (or dim-selected) matrix via a general MxN one-sided Jacobi
+    (values only), so square and rectangular matrices are both supported. Singular values are computed
+    in FP32 (the Jacobi rotations); reference values come from PyTorch (torch.linalg.matrix_norm).
+    """
+
+    def _prepare_input(self, input_shape):
+        return (self.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self, p, dim, keepdim):
+        class aten_linalg_matrix_norm(torch.nn.Module):
+            def __init__(self, p, dim, keepdim):
+                super().__init__()
+                self.ord = p
+                self.dim = dim
+                self.keepdim = keepdim
+
+            def forward(self, x):
+                return torch.linalg.matrix_norm(x, ord=self.ord, dim=self.dim, keepdim=self.keepdim)
+
+        return aten_linalg_matrix_norm(p, dim, keepdim), "aten::linalg_matrix_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('p', [2, -2, "nuc"])
+    @pytest.mark.parametrize('dim', [[-2, -1]])
+    @pytest.mark.parametrize('keepdim', [True, False])
+    @pytest.mark.parametrize('input_shape', [
+        [3, 3],          # square, no batch
+        [4, 4],          # square
+        [5, 3],          # tall rectangular
+        [3, 5],          # wide rectangular
+        [2, 4, 4],       # batch of square
+        [2, 6, 4],       # batch of tall
+    ])
+    def test_matrix_norm_svd(self, p, dim, keepdim, input_shape, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("singular-value matrix norms are validated in FP32")
+        if ie_device != "CPU":
+            pytest.skip("Jacobi singular-value accuracy is validated in FP32 on CPU")
+        self._test(*self.create_model(p, dim, keepdim), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape})
+
+
 # ord=None on rank>2 inputs (previously raised in the FE): torch maps ord=None to the vector
 # 2-norm over `dim` (Frobenius for a 2-axis dim), rank-agnostic. Shared by the dynamic-rank
 # test_linalg_norm cases and the forced-static-rank cases below.

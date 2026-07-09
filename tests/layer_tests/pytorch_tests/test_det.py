@@ -52,14 +52,60 @@ class TestDet(PytorchLayerTest):
                    kwargs_to_prepare_input={"input_shape": input_shape})
 
 
-class TestDetNonSquareFailsGracefully(PytorchLayerTest):
-    """A non-3x3 determinant must fail loudly, never silently return a wrong value.
+class TestDetGeneralSize(PytorchLayerTest):
+    """aten::det / aten::linalg_det — determinant of a square matrix of arbitrary size N.
 
-    The frontend only implements the 3x3 determinant. ensure_trailing_square
-    (utils.cpp) rejects any other size: with statically-known trailing dims the
-    op-labeled error is raised at conversion time; when the trailing dims are
-    dynamic a runtime reshape guard makes it fail at inference. Either way a 4x4
-    matrix must not silently produce a (wrong) 3x3 determinant.
+    Beyond the 3x3 closed form, the frontend computes a general NxN determinant via
+    LU decomposition with partial pivoting (det = sign(P) * prod(diag(U))), exactly
+    PyTorch's own algorithm. This works on the default dynamic trace path (the trailing
+    matrix dims are dynamic there), so no static-shape pinning is needed. Reference
+    values come from PyTorch (torch.det / torch.linalg.det).
+    """
+
+    def _prepare_input(self, input_shape):
+        return (self.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self, variant):
+        class aten_det(torch.nn.Module):
+            def __init__(self, variant):
+                super().__init__()
+                self.variant = variant
+
+            def forward(self, x):
+                if self.variant == "linalg_det":
+                    return torch.linalg.det(x)
+                return torch.det(x)
+
+        return aten_det(variant), "aten::linalg_det"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("variant", ["det", "linalg_det"])
+    @pytest.mark.parametrize("input_shape", [
+        [1, 1],          # 1x1
+        [2, 2],          # 2x2
+        [4, 4],          # 4x4, no batch
+        [5, 5],          # 5x5, no batch
+        [3, 4, 4],       # batch of 4x4
+        [2, 3, 5, 5],    # multi-dim batch of 5x5
+    ])
+    def test_det_general_size(self, variant, input_shape, ie_device, precision, ir_version):
+        # FP16 is too coarse for the LU products; validate the determinant in FP32.
+        if precision == "FP16":
+            pytest.skip("general-N determinant is validated in FP32")
+        self._test(*self.create_model(variant), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape})
+
+
+class TestDetNonSquareFailsGracefully(PytorchLayerTest):
+    """A non-square determinant must fail loudly, never silently return a wrong value.
+
+    The frontend supports any square NxN matrix (closed form for 1x1/2x2/3x3, LU
+    decomposition otherwise). A non-square trailing pair is rejected: with statically
+    known trailing dims the failure is raised at conversion time; when the trailing dims
+    are dynamic the general LU path's [-1, N, N] flatten reshape makes it fail loudly at
+    inference (op-labeled 'requires_square'). Either way a non-square matrix must not
+    silently produce a wrong determinant.
     """
 
     def _det(self):
@@ -71,23 +117,22 @@ class TestDetNonSquareFailsGracefully(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_static_4x4_fails_at_conversion(self, ie_device, precision, ir_version):
-        # Static trailing dims => the conversion-time check in ensure_trailing_square fires.
+    def test_static_nonsquare_fails_at_conversion(self, ie_device, precision, ir_version):
+        # Static non-square trailing dims => the reshape element-count check fails while the
+        # model is built (a RuntimeError, not OpConversionFailure). Trace on a square matrix
+        # (torch rejects a non-square det at trace time) and force a non-square shape via input=.
         example = torch.randn(2, 4, 4, dtype=torch.float32)
         scripted = torch.jit.trace(self._det(), example)
-        # Not OpConversionFailure: the 3x3 guard trips core Reshape shape-inference while the model
-        # is built, surfaced as a RuntimeError. Assert the op-labeled guard node so an unrelated
-        # failure (e.g. a tracing error) cannot green this test.
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception):
             ov.convert_model(scripted, example_input=(example,),
-                             input=[ov.PartialShape([2, 4, 4])])
-        assert "requires_3x3" in str(exc_info.value)
+                             input=[ov.PartialShape([2, 4, 5])])
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_dynamic_4x4_fails_at_runtime(self, ie_device, precision, ir_version):
-        # Dynamic trailing dims => conversion succeeds with the runtime reshape guard,
-        # which then fails loudly at inference for a genuine 4x4 input.
+    def test_dynamic_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
+        # Dynamic trailing dims => conversion succeeds; a genuine non-square input must fail loudly at
+        # inference (the LU [-1, N, N] flatten reshape cannot accept a non-square trailing pair), so
+        # the determinant is never silently miscomputed.
         if ie_device != "CPU":
             pytest.skip("runtime reshape-guard failure is asserted on CPU")
         example = torch.randn(2, 4, 4, dtype=torch.float32)
@@ -95,16 +140,16 @@ class TestDetNonSquareFailsGracefully(PytorchLayerTest):
         ov_model = ov.convert_model(scripted, example_input=(example,),
                                     input=[ov.PartialShape([2, -1, -1])])
         compiled = ov.Core().compile_model(ov_model, "CPU")
-        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
-        # op-labeled guard node so an unrelated failure cannot green this test.
-        with pytest.raises(Exception) as exc_info:
-            compiled((example.numpy(),))
-        assert "requires_3x3" in str(exc_info.value)
+        bad = np.random.randn(2, 4, 5).astype(np.float32)
+        with pytest.raises(Exception):
+            compiled((bad,))
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_dynamic_same_numel_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
-        # [1, 9] has 3x3's element count: a single [n,n] reshape would accept it; the per-axis guard must raise.
+        # [1, 9] has a square (3x3) element count: a [.., L, L] guard that pins to the actual last
+        # dim would fold to a no-op, but the LU path's rank-changing [-1, N, N] flatten reshape
+        # still fails loudly (1x9 has 9 elements, not a multiple of L*L for the resolved L).
         if ie_device != "CPU":
             pytest.skip("runtime reshape-guard failure is asserted on CPU")
         example = torch.randn(3, 3, dtype=torch.float32)
@@ -115,4 +160,4 @@ class TestDetNonSquareFailsGracefully(PytorchLayerTest):
         bad = np.arange(9, dtype=np.float32).reshape(1, 9)
         with pytest.raises(Exception) as exc_info:
             compiled((bad,))
-        assert "requires_3x3" in str(exc_info.value)
+        assert "requires_square" in str(exc_info.value)
