@@ -21,6 +21,29 @@ ov::Tensor allocate_aligned_tensor(const size_t blobSize) {
     return tensor;
 }
 
+void decrypt_schedule(ov::Tensor& schedule, const intel_npu::Logger& logger) const {
+    std::string decryptedBlobStr;
+    {
+        std::string encryptedBlobStr(schedule.data<const char>(), schedule.get_byte_size());         // +1x blob size
+        decryptedBlobStr = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +1x blob size
+    }  // -1x blob size when deallocating temporary encrypted blob string
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+    size_t paddingSize = alignedSize - decryptedBlobStr.size();
+    schedule = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
+                          customAllocator);  // +1x blob size
+    std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+    if (paddingSize > 0) {
+        // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
+        // That means blobs compiled with the current plugin version are expected to be already aligned.
+        // However, the alignment might not be mandatory in a future plugin version. For this scenario, the
+        // padding is added here in order to make use of this "non-copy optimization".
+        logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                       paddingSize);
+        std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+    }
+}  // -1x blob size when deallocating decrypted blob string
+
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
@@ -115,6 +138,8 @@ IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<ov::Model>& origina
       m_config(config),
       m_logger(logger) {}
 
+ov::Tensor IBlobFormatHandler::decrypt_schedule(const ov::Tensor& schedule) const {}
+
 std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
     OPENVINO_ASSERT(m_graph != nullptr, "Invalid state")
     return create_dummy_model(m_graph->get_metadata().inputs,
@@ -137,10 +162,6 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
                          get_compiler_compatibility_descriptor());
 }
 
-void IBlobFormatHandler::decrypt_schedules() {}
-
-ov::Tensor IBlobFormatHandler::decrypt_schedule(const ov::Tensor& schedule) const {}
-
 std::unordered_map<size_t, ov::Constant> IBlobFormatHandler::create_weights_map() const {}
 
 RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
@@ -162,6 +183,19 @@ RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
     OPENVINO_ASSERT(blob_size > 0, "The blob provided for import is empty");
 
     m_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
+}
+
+void RawBlobHandler::decrypt_schedules() {
+    const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                      m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
+    if (is_null_decryption) {
+        return;
+    }
+
+    m_logger.warning("Received decryption callback, but metadata parsing is skipped and cannot determine if blob was "
+                     "encrypted or not.");
+
+    decrypt_schedule(m_main_schedule, m_logger);
 }
 
 ov::Tensor RawBlobHandler::extract_main_schedule() const {
@@ -210,6 +244,18 @@ BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
 
     // ROI tensor to skip the NPU plugin metadata
     m_compiler_payload = ov::Tensor(npu_formatted_blob, ov::Coordinate{0}, ov::Coordinate{blob_size});
+}
+
+void BlobFormatV1Handler::decrypt_schedules() {
+    const bool is_payload_encrypted = metadata->is_encrypted_blob().value_or(false);
+    const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                      m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
+    if (!is_payload_encrypted) {
+        return;
+    }
+    OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
+
+    decrypt_schedule(m_compiler_payload, m_logger);
 }
 
 ov::Tensor BlobFormatV1Handler::extract_main_schedule() const {

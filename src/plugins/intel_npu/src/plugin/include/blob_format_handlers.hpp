@@ -24,6 +24,8 @@ public:
 private:
     virtual ov::Tensor extract_main_schedule() const = 0;
 
+    void decrypt_schedules() = 0;
+
     virtual std::optional<std::vector<ov::Tensor>> extract_init_schedules() const = 0;
 
     virtual std::optional<int> extract_batch_size() const = 0;
@@ -31,10 +33,6 @@ private:
     virtual std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const = 0;
 
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
-
-    void decrypt_schedules();
-
-    ov::Tensor decrypt_schedule(const ov::Tensor& schedule) const;
 
     std::unordered_map<size_t, ov::Constant> create_weights_map() const;
 
@@ -62,6 +60,8 @@ public:
                             const FilteredConfig& config);
 
 private:
+    void decrypt_schedules() override;
+
     ov::Tensor extract_main_schedule() const override;
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override;
@@ -84,6 +84,8 @@ public:
                                  const FilteredConfig& config);
 
 private:
+    void decrypt_schedules() override;
+
     ov::Tensor extract_main_schedule() const override;
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override;

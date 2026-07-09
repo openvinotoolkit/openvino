@@ -710,7 +710,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             {
                 std::string encryptedBlobStr(tensor.data<const char>(), tensor.get_byte_size());  // +1x blob size
                 decryptedBlobStr =
-                    localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +2x blob size
+                    localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +1x blob size
             }  // -1x blob size when deallocating temporary encrypted blob string
             ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
