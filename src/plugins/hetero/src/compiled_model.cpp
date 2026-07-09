@@ -442,22 +442,24 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             }
 
             try {
-                write_bounded_framed_payload(model_stream,
-                                             COMPILED_BLOB_PAYLOAD,
-                                             [&](std::ostream& payloadStream) {
-                                                 comp_model_desc.compiled_model->export_model(payloadStream);
-                                             },
-                                             "compiled submodel payload");
+                write_bounded_framed_payload(
+                    model_stream,
+                    COMPILED_BLOB_PAYLOAD,
+                    [&](std::ostream& payloadStream) {
+                        comp_model_desc.compiled_model->export_model(payloadStream);
+                    },
+                    "compiled submodel payload");
                 continue;
             } catch (ov::NotImplemented&) {
             }
 
-            write_bounded_framed_payload(model_stream,
-                                         IR_PAYLOAD,
-                                         [&](std::ostream& payloadStream) {
-                                             write_ir_payload(payloadStream, comp_model_desc.model);
-                                         },
-                                         "IR payload");
+            write_bounded_framed_payload(
+                model_stream,
+                IR_PAYLOAD,
+                [&](std::ostream& payloadStream) {
+                    write_ir_payload(payloadStream, comp_model_desc.model);
+                },
+                "IR payload");
             continue;
         }
 
@@ -468,11 +470,12 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             continue;
         }
 
-        write_bounded_framed_payload(model_stream,
-                                     IR_PAYLOAD,
-                                     [&](std::ostream& payloadStream) {
-                                         write_ir_payload(payloadStream, comp_model_desc.model);
-                                     },
-                                     "IR payload");
+        write_bounded_framed_payload(
+            model_stream,
+            IR_PAYLOAD,
+            [&](std::ostream& payloadStream) {
+                write_ir_payload(payloadStream, comp_model_desc.model);
+            },
+            "IR payload");
     }
 }
