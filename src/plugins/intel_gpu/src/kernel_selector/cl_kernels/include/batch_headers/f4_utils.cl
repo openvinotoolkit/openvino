@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// TODO: Replace `_intel_convert*` with bultins when ready, current implementations are copied from XeTLA:
+// TODO: Replace `_intel_convert*` with builtins when ready, current implementations are copied from XeTLA:
 
 #define FP4_MASK       0x0F
 #define FP4_SHIFT      4
