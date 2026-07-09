@@ -301,9 +301,9 @@ struct HFARuntimeContext {
     /// @throws std::runtime_error if context_size not divisible by query_size
     template <typename HFADesc>
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
-        // Get mask tensor shape from the tile model
+        // Get mask tensor shape from the final tile model
         const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
-        const auto& mask_port = hfa_desc._compiled_tile_model->inputs()[mask_input_idx];
+        const auto& mask_port = hfa_desc._compiled_final_tile_model->inputs()[mask_input_idx];
         const auto mask_shape = mask_port.get_shape();
         const auto mask_dtype = mask_port.get_element_type();
 

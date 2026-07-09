@@ -131,6 +131,8 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     } else {
         ASSERT_TRUE(it == properties.cend());
     }
+    // #E224500 workaround until driver fix
+    compiledModel = {};
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhenSupported) {
@@ -171,6 +173,8 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
                         ov::Exception,
                         testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
     }
+    // #E224500 workaround until driver fix
+    compiledModel = {};
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
