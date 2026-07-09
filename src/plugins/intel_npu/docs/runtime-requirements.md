@@ -30,7 +30,7 @@ sequenceDiagram
     User->>Plugin: compile_model(model, "NPU", config)
     Plugin->>Adapter: compile(model, config)
     Adapter->>Compiler: obtain blob + compatibility descriptor
-    Note over Adapter,Compiler: CIP: VCLCompilerImpl::compile()<br/>CID: driver builds graph, then zeDeviceGetRuntimeRequirements()
+    Note over Adapter,Compiler: CIP: VCLCompilerImpl::compile()<br/>CID: driver builds graph,<br/> then zeDeviceGetRuntimeRequirements()
     Compiler-->>Adapter: blob + compatibilityDescriptor
     Adapter->>Graph: construct Graph(..., compatibilityDescriptor)
     Adapter-->>Plugin: compiled graph (stores descriptor)
