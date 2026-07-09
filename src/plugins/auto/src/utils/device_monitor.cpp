@@ -30,7 +30,6 @@ public:
     TelemetryClient() {
         try {
             m_client = std::make_unique<Ipf::ClientApi>();
-            OPENVINO_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "TelemetryClient::init_success");
             LOG_DEBUG_TAG("TelemetryClient: IPF ClientApi initialized successfully");
         } catch (const std::exception& e) {
             m_client = nullptr;
