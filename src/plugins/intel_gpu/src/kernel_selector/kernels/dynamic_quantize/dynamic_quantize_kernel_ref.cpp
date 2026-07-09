@@ -104,6 +104,15 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX)
         y_size = params.outputs[0].Y().v / params.group_sizes[2];
 
+    // For F4E2M1, two elements are packed into one byte, each work item should processes 2 elements
+    if (params.outputs[0].GetDType() == Datatype::F4E2M1 && group_sizes[3] == 1) {
+        if (params.outputs[0].X().v == 1) {
+            y_size = (y_size + 1) / 2;
+        } else {
+            x_size = (x_size + 1) / 2;
+        }
+    }
+
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
 
