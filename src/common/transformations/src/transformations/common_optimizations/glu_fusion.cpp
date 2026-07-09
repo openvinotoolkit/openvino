@@ -58,8 +58,8 @@ GLUFusion::GLUFusion() {
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
-        const auto mul_node = pattern_map.at(mul_m).get_node_shared_ptr();
-        if (!mul_node || transformation_callback(mul_node))
+        auto mul = ov::as_type_ptr<v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
+        if (!mul || transformation_callback(mul))
             return false;
 
         auto isSwiGLU = pattern_map.count(swish_m);
@@ -72,8 +72,8 @@ GLUFusion::GLUFusion() {
             glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v4::Swish>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
             auto gelu = ov::as_type_ptr<v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
@@ -82,8 +82,8 @@ GLUFusion::GLUFusion() {
                            : ov::op::internal::GLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v7::Gelu>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else {
             OPENVINO_THROW("'glu_type' not initialized");
