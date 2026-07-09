@@ -1919,16 +1919,17 @@ void primitive_inst::do_runtime_in_place_crop() {
 
                 const auto& crop_users = u->get_user_insts();
                 std::pair<const program_node*, layout> user_info;
-                if (crop_users.front()->get_node().is_type<reshape>()) {
+                primitive_inst* reshape_inst = nullptr;
+                if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>()) {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
-                    auto reshape_inst = crop_users.front();
+                    reshape_inst = crop_users.front();
                     if (!reshape_inst->_update_shape_done_by_other) {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
                         reshape_inst->_update_shape_done_by_other = true;
-                        user_info.first = &reshape_inst->get_node();
-                        user_info.second = reshape_inst->_impl_params->get_output_layout();
                     }
+                    user_info.first = &reshape_inst->get_node();
+                    user_info.second = reshape_inst->_impl_params->get_output_layout();
                 }
 
                 layout crop_layout = u->_impl_params->get_output_layout();

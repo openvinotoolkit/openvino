@@ -977,6 +977,42 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
         ASSERT_EQ(output_ptr_3[i], out3[i]);
 }
 
+TEST(prepare_buffer_fusing, do_runtime_in_place_crop_skips_non_propagatable_reshape_when_reshape_was_preupdated) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 1, 4}, data_types::f32, format::bfyx};
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {2});
+    set_values<int64_t>(splits_length_mem, {2, 2});
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        crop("crop", {input_info("input"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), cldnn::tensor(0), cldnn::crop_ngraph_op_mode::variadic_split, 0, 2),
+        reshape("reshape", input_info("crop"), false, {}, ov::PartialShape{-1, -1, 4}, cldnn::reshape::reshape_mode::base),
+        reorder("output", input_info("reshape"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto input_inst = network.get_primitive("input");
+    auto crop_inst = network.get_primitive("crop");
+    auto reshape_inst = network.get_primitive("reshape");
+
+    crop_inst->set_can_be_optimized(true);
+    const_cast<cldnn::program_node&>(crop_inst->get_node()).can_be_optimized(true);
+    PrimitiveInstTestHelper::set_update_shape_done_by_other(reshape_inst, true);
+
+    PrimitiveInstTestHelper::do_runtime_in_place_crop(input_inst);
+
+    ASSERT_FALSE(crop_inst->can_be_optimized());
+}
+
 TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
     auto& engine = get_test_engine();
 

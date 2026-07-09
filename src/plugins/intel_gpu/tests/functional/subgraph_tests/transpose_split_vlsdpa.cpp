@@ -21,6 +21,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 //=================================================================================
@@ -239,6 +240,51 @@ protected:
         }
     }
 
+    template <typename T>
+    void fill_tensor_with_non_zero_pattern(ov::Tensor& tensor) const {
+        auto* data = tensor.data<T>();
+        const auto size = tensor.get_size();
+        for (size_t i = 0; i < size; ++i) {
+            const float value = 0.25f + 0.25f * static_cast<float>((i % 7) + 1);
+            data[i] = static_cast<T>(value);
+        }
+    }
+
+    void fill_tensor_with_non_zero_pattern(ov::Tensor& tensor) const {
+        switch (tensor.get_element_type()) {
+        case ov::element::f16:
+            fill_tensor_with_non_zero_pattern<ov::float16>(tensor);
+            break;
+        case ov::element::f32:
+            fill_tensor_with_non_zero_pattern<float>(tensor);
+            break;
+        case ov::element::i32:
+            fill_tensor_with_non_zero_pattern<int32_t>(tensor);
+            break;
+        default:
+            throw std::runtime_error("Unsupported tensor element type for deterministic input generation");
+        }
+    }
+
+    template <typename T>
+    void compare_tensor_elements(const ov::Tensor& expected,
+                                 const ov::Tensor& actual,
+                                 size_t output_index) const {
+        const auto* expected_data = expected.data<T>();
+        const auto* actual_data = actual.data<T>();
+        constexpr float abs_tol = 1e-4f;
+        constexpr float rel_tol = 1e-4f;
+        for (size_t i = 0; i < expected.get_size(); ++i) {
+            const float expected_value = static_cast<float>(expected_data[i]);
+            const float actual_value = static_cast<float>(actual_data[i]);
+            const float abs_diff = std::abs(expected_value - actual_value);
+            const float allowed_tol = abs_tol + rel_tol * std::abs(expected_value);
+            ASSERT_LE(abs_diff, allowed_tol)
+                << "Element-wise mismatch at output[" << output_index << "] index[" << i
+                << "]: expected=" << expected_value << ", actual=" << actual_value;
+        }
+    }
+
     ov::Tensor create_attention_mask_from_cu_seqlens(const std::vector<int32_t>& cu_seqlens,
                                                     const ov::element::Type& element_type) const {
         const auto seq_len = static_cast<size_t>(cu_seqlens.back());
@@ -296,10 +342,8 @@ protected:
                     data[j] = m_cu_seqlens[j];
                 }
             } else {
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                       targetInputStaticShapes[i],
-                                                       1.0f,   // range
-                                                       -0.5f); // start_from
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                fill_tensor_with_non_zero_pattern(tensor);
             }
 
             inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
@@ -348,11 +392,18 @@ protected:
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override {
         ASSERT_EQ(expected.size(), actual.size());
         ASSERT_EQ(expected.size(), function->get_results().size());
-        const auto& results = function->get_results();
-        for (size_t j = 0; j < results.size(); j++) {
-            const auto result = results[j];
-            for (size_t i = 0; i < result->get_input_size(); ++i) {
-                utils::compare(expected[j], actual[j], abs_threshold, rel_threshold);
+
+        for (size_t j = 0; j < expected.size(); ++j) {
+            ASSERT_EQ(expected[j].get_element_type(), actual[j].get_element_type());
+            ASSERT_EQ(expected[j].get_shape(), actual[j].get_shape());
+            ASSERT_EQ(expected[j].get_size(), actual[j].get_size());
+
+            if (expected[j].get_element_type() == ov::element::f16) {
+                compare_tensor_elements<ov::float16>(expected[j], actual[j], j);
+            } else if (expected[j].get_element_type() == ov::element::f32) {
+                compare_tensor_elements<float>(expected[j], actual[j], j);
+            } else {
+                compare_tensor_elements<int32_t>(expected[j], actual[j], j);
             }
         }
     }
