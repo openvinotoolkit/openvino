@@ -65,11 +65,44 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    // specify HostCompile_Interpreter mode for dynamic model (inputs and outputs both dynamic) if NPU_COMPILATION_MODE
+    // is not set
+    FilteredConfig effectiveConfig = config;
+    if (!config.has<COMPILATION_MODE>() &&
+        !(config.has<DYNAMIC_SHAPE_TO_STATIC>() && config.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        const auto isDynamic = [](const auto& port) {
+            auto& shape = port.get_partial_shape();
+            return shape.is_dynamic() && (shape.rank().get_length() == 4) && shape[0].is_static();
+        };
+
+        if (model) {
+            const auto& inputs = model->inputs();
+            const auto& outputs = model->outputs();
+            const bool inputsDynamic = std::any_of(inputs.begin(), inputs.end(), isDynamic);
+            const bool outputsDynamic = std::any_of(outputs.begin(), outputs.end(), isDynamic);
+            if (inputsDynamic && outputsDynamic) {
+                _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+                             "for fully-dynamic model (inputs and outputs both dynamic)");
+                effectiveConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+            }
+        }
+    }
+
     _logger.debug("compile start");
-    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, effectiveConfig);
     _logger.debug("compile end");
 
-    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+    auto isHostCompiledBlob = [&](ov::Tensor& tensor) {
+        const size_t headerSize = std::min(tensor.get_byte_size(), size_t{20});
+        const std::string_view header(static_cast<const char*>(tensor.data()), headerSize);
+        if (header.find("llvm") != std::string_view::npos || header.find("NPUByte\x00") != std::string_view::npos) {
+            _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
+            return true;
+        }
+        return false;
+    };
+
+    if (isHostCompiledBlob(tensor)) {
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
@@ -233,6 +266,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     _logger.debug("compile end");
 
+    auto constants = get_all_constants_in_topological_order(model);
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    model = nullptr;
+
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
@@ -242,7 +280,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        std::move(model),
+        std::move(constants),
         localConfig,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
