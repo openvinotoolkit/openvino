@@ -45,7 +45,8 @@ RUN wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_pa
     chmod +x /usr/local/bin/gtest_parallel.py
 
 # Install dgpu drivers
-RUN apt-get update && apt-get install ocl-icd-libopencl1 && \
+RUN add-apt-repository -y ppa:kobuk-team/intel-graphics && \
+    apt-get update && apt-get install ocl-icd-libopencl1 libze-dev libze1 && \
     mkdir drivers && \
     cd drivers && \
     wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-core-2_2.32.7+21184_amd64.deb && \
@@ -68,5 +69,4 @@ ENV PATH="/venv/bin:$PATH"
 ENV PIP_VERSION="24.0"
 RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages

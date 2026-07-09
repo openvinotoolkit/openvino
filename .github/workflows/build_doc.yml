@@ -67,6 +67,37 @@ jobs:
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
+  Check_Doc_Links:
+    needs: Smart_CI
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check relative links in Markdown files
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
+        with:
+          # --exclude skips links whose target matches the regex.
+          # '\{[^}]+\}' ignores template placeholders like {run_url} or
+          # {workflow_name} that appear verbatim in markdown and are not
+          # resolvable file paths (lychee would otherwise report them as errors).
+          # '%7B[^%]+%7D' covers the same placeholders when URL-encoded by lychee
+          # before matching (e.g. {run_url} becomes %7Brun_url%7D in the file: URI).
+          args: >-
+            --offline
+            --root-dir "${{ github.workspace }}"
+            --verbose
+            --no-progress
+            --exclude '\{[^}]+\}'
+            --exclude '%7B[^%]+%7D'
+            './**/*.md'
+          fail: true
+          jobSummary: true
+
   Build_Doc:
     needs: [ Docker, Smart_CI ]
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
@@ -90,6 +121,8 @@ jobs:
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
       SCCACHE_AZURE_KEY_PREFIX: build_docs
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -123,7 +156,7 @@ jobs:
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BUILD_DIR }}/docs/_build/.doctrees
           key: sphinx-docs-cache
@@ -134,13 +167,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Upload sphinx.log
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
       - name: Upload docs html
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
@@ -157,7 +190,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/
