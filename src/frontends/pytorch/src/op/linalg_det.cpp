@@ -113,7 +113,7 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     // the end via ConvertLike so the result matches the input element type.
     auto x_f32 = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
 
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x_f32, element::i64));  // (rank,)
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x_f32, element::i64));    // (rank,)
     auto n = context.mark_node(std::make_shared<v8::Gather>(shape, i64_s(-1), i64_s(0)));  // scalar N
     // Row-index vector r = [0, 1, ..., N-1] of shape (1, N) for masked argmax / swap logic.
     auto seq = context.mark_node(std::make_shared<v4::Range>(i64_s(0), n, i64_s(1), element::i64));  // (N,)
@@ -130,16 +130,16 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     // ---- Loop body: operates on the flattened rank-3 (B, N, N) working matrix ----
     auto A_body = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto acc_body = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
-    auto k_slice = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});    // sliced iter index
+    auto k_slice = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});     // sliced iter index
     auto r_body = std::make_shared<v0::Parameter>(element::i64, PartialShape{1, -1});  // invariant (1, N)
 
     auto k = std::make_shared<v0::Squeeze>(k_slice, i64_c({0}));  // scalar current pivot index
 
     // -- partial pivot selection: argmax over rows r>=k of |A[:, :, k]| --
     auto ax1 = i64_s(1), ax2 = i64_s(2);
-    auto col_k = std::make_shared<v8::Gather>(A_body, k, ax2);      // (B, N)
+    auto col_k = std::make_shared<v8::Gather>(A_body, k, ax2);  // (B, N)
     auto abs_col = std::make_shared<v0::Abs>(col_k);
-    auto ge = std::make_shared<v1::GreaterEqual>(r_body, k);        // (1, N) bool -> broadcast
+    auto ge = std::make_shared<v1::GreaterEqual>(r_body, k);  // (1, N) bool -> broadcast
     auto neg_big = f32_s(-3.0e38f);
     auto masked = std::make_shared<v1::Select>(ge, abs_col, neg_big);
     auto topk = std::make_shared<v11::TopK>(masked,
@@ -151,8 +151,8 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     auto p = topk->output(1);  // (B, 1) i64 pivot row index
 
     // -- per-batch row permutation swapping k <-> p, then row-gather A --
-    auto eq_k = std::make_shared<v1::Equal>(r_body, k);  // (1, N)
-    auto eq_p = std::make_shared<v1::Equal>(r_body, p);  // (B, N)
+    auto eq_k = std::make_shared<v1::Equal>(r_body, k);                                                // (1, N)
+    auto eq_p = std::make_shared<v1::Equal>(r_body, p);                                                // (B, N)
     auto perm = std::make_shared<v1::Select>(eq_k, p, std::make_shared<v1::Select>(eq_p, k, r_body));  // (B, N)
     // Permute rows on axis 1 via GatherElements (index[b,i,:] = perm[b,i]) rather than
     // Gather(batch_dims=1): the batch_dims Gather hits a CPU-plugin AVX2 JIT kernel bug when the Loop
@@ -162,21 +162,21 @@ Output<Node> det_lu(const NodeContext& context, const Output<Node>& x) {
     auto A_sw = std::make_shared<v6::GatherElements>(A_body, perm_idx, 1);  // (B, N, N) rows permuted
 
     // -- sign flip when a real swap happened (p != k) --
-    auto neq = std::make_shared<v1::NotEqual>(p, k);  // (B, 1) bool
+    auto neq = std::make_shared<v1::NotEqual>(p, k);                           // (B, 1) bool
     auto sign = std::make_shared<v1::Select>(neq, f32_s(-1.0f), f32_s(1.0f));  // (B, 1)
 
     // -- pivot, multipliers, rank-1 elimination update --
-    auto row_k = std::make_shared<v8::Gather>(A_sw, k, ax1);          // (B, N) pivot row
-    auto pivot = std::make_shared<v8::Gather>(row_k, k, ax1);         // (B,) pivot value
-    auto col_k_new = std::make_shared<v8::Gather>(A_sw, k, ax2);      // (B, N) column k
-    auto gt = std::make_shared<v1::Greater>(r_body, k);              // (1, N) rows below the diagonal
+    auto row_k = std::make_shared<v8::Gather>(A_sw, k, ax1);              // (B, N) pivot row
+    auto pivot = std::make_shared<v8::Gather>(row_k, k, ax1);             // (B,) pivot value
+    auto col_k_new = std::make_shared<v8::Gather>(A_sw, k, ax2);          // (B, N) column k
+    auto gt = std::make_shared<v1::Greater>(r_body, k);                   // (1, N) rows below the diagonal
     auto pivot_col = std::make_shared<v0::Unsqueeze>(pivot, i64_c({1}));  // (B, 1)
     auto ratio = std::make_shared<v1::Divide>(col_k_new, pivot_col);
-    auto mult = std::make_shared<v1::Select>(gt, ratio, f32_s(0.0f));     // (B, N) multipliers
-    auto mult_c = std::make_shared<v0::Unsqueeze>(mult, ax2);             // (B, N, 1)
-    auto row_r = std::make_shared<v0::Unsqueeze>(row_k, ax1);            // (B, 1, N)
-    auto update = std::make_shared<v1::Multiply>(mult_c, row_r);         // (B, N, N)
-    auto A_new = std::make_shared<v1::Subtract>(A_sw, update);           // (B, N, N)
+    auto mult = std::make_shared<v1::Select>(gt, ratio, f32_s(0.0f));  // (B, N) multipliers
+    auto mult_c = std::make_shared<v0::Unsqueeze>(mult, ax2);          // (B, N, 1)
+    auto row_r = std::make_shared<v0::Unsqueeze>(row_k, ax1);          // (B, 1, N)
+    auto update = std::make_shared<v1::Multiply>(mult_c, row_r);       // (B, N, N)
+    auto A_new = std::make_shared<v1::Subtract>(A_sw, update);         // (B, N, N)
 
     // -- accumulate det *= pivot * sign --
     auto factor = std::make_shared<v1::Multiply>(pivot, std::make_shared<v0::Squeeze>(sign, i64_c({1})));

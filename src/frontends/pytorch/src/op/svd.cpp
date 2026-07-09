@@ -239,8 +239,8 @@ std::tuple<Output<Node>, Output<Node>, Output<Node>> jacobi_svd(const NodeContex
     // Singular values = column norms (B, N); left singular vectors U = A_col / sigma.
     auto tiny = fc(1e-30f);
     auto sq_norms = context.mark_node(std::make_shared<v1::ReduceSum>(mul(jac.a, jac.a), i64_c({1}), true));  // (B,1,N)
-    auto sig = context.mark_node(std::make_shared<v0::Sqrt>(sq_norms));  // (B, 1, N)
-    auto U_flat = div(jac.a, add(sig, tiny));                            // (B, N, N)
+    auto sig = context.mark_node(std::make_shared<v0::Sqrt>(sq_norms));               // (B, 1, N)
+    auto U_flat = div(jac.a, add(sig, tiny));                                         // (B, N, N)
     auto S_flat = context.mark_node(std::make_shared<v0::Squeeze>(sig, i64_c({1})));  // (B, N)
 
     // Sort columns by descending singular value: TopK on S gives the permutation; gather U/V columns
