@@ -10,8 +10,8 @@
 #include <optional>
 #include <string>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using namespace ov::test::behavior;
 

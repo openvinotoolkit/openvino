@@ -151,9 +151,12 @@ const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
 
 std::string driverTypeToString(DriverType type) {
     switch (type) {
-    case DriverType::PV:      return "PV";
-    case DriverType::RELEASE: return "RELEASE";
-    case DriverType::LATEST:  return "LATEST";
+    case DriverType::PV:
+        return "PV";
+    case DriverType::RELEASE:
+        return "RELEASE";
+    case DriverType::LATEST:
+        return "LATEST";
     }
     return "";
 }

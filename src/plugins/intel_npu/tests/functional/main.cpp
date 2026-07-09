@@ -89,7 +89,8 @@ int main(int argc, char** argv, char** envp) {
             auto parsed = ov::test::utils::parseDriverType(value);
             if (parsed.has_value()) {
                 cfg.driver_type = *parsed;
-                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_type) << std::endl;
+                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_type)
+                          << std::endl;
             } else {
                 std::cerr << "WARNING: Invalid --driver_type value: '" << value
                           << "' (expected pv, release, or latest)." << std::endl;
@@ -140,8 +141,8 @@ int main(int argc, char** argv, char** envp) {
 
     auto& log = intel_npu::Logger::global();
     ov::log::Level logLevel = cfg.IE_NPU_TESTS_LOG_LEVEL.empty()
-        ? ov::log::Level::ERR
-        : intel_npu::OptionParser<ov::log::Level>::parse(cfg.IE_NPU_TESTS_LOG_LEVEL.c_str());
+                                  ? ov::log::Level::ERR
+                                  : intel_npu::OptionParser<ov::log::Level>::parse(cfg.IE_NPU_TESTS_LOG_LEVEL.c_str());
     log.setLevel(logLevel);
 
     return RUN_ALL_TESTS();
