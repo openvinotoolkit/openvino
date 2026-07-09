@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "llm_infer_base_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
@@ -33,9 +34,12 @@ class LLMInferRequest;  // forward declaration — strategy always outlived by i
  *           is_last=false: intermediate chunk — persist KV outputs into past buffer
  *           is_last=true:  final chunk — store outputs into blocks (block mode) or no-op
  *   4. Per generate step:
- *      a. on_generate_kv_init()           — first generate step: bind/copy prefill→generate KV
+ *      a. on_generate_kv_init()           — first step only: bind/copy prefill KV into generate
  *      b. infer() [called by LLMInferRequest]
- *      c. on_generate_step_done()         — after infer(), update KV for next step
+ *      c. on_generate_step_done()         — after infer(): persist new token KV, update bindings
+ *      c'. on_generate_variant_switch()   — conditional, after c: if the current variant's KV
+ *                                           capacity is now full, promote to the next larger one
+ *                                           so the next iteration starts with it already selected.
  */
 class LLMKVCacheStrategy {
 public:
@@ -45,6 +49,8 @@ public:
      * The reference guarantees the request outlives the strategy (both live inside the
      * same LLMInferRequest object) and can never be null.
      */
+    using PortsMap = LLMInferBaseRequest::PortsMap;
+
     explicit LLMKVCacheStrategy(LLMInferRequest& req) : m_req(req) {}
     virtual ~LLMKVCacheStrategy() = default;
 
@@ -67,6 +73,16 @@ public:
     // Called once on the first generate step before infer():
     // bind/copy the accumulated prefill KV into the generate model's input ports.
     virtual void on_generate_kv_init() = 0;
+
+    // Called after on_generate_step_done() when the active variant's KV cache is now full.
+    // old_req/old_in_ports: the variant that just reached capacity (source of live KV data).
+    // new_req/new_in_ports: the promoted larger variant (destination for KV migration).
+    // Block-based:  rebind existing block tensors to new variant ports (zero-copy).
+    // Continuous:   re-pack live tokens from old BNSD layout to new layout via a CPU temp buffer.
+    virtual void on_generate_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& old_req,
+                                            const PortsMap& old_in_ports,
+                                            const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
+                                            const PortsMap& new_in_ports) = 0;
 
     // Called after each generate step's infer(): persist new token KV and update bindings
     virtual void on_generate_step_done(uint32_t input_tokens_len) = 0;

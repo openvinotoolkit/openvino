@@ -559,16 +559,6 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     return lm_head_model;
 }
 
-bool has_phi_v5_longrope_pattern(const std::shared_ptr<ov::Model>& model) {
-    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
-    bool matched = false;
-    long_rope->transform_cb = [&]() {
-        matched = true;
-    };
-    long_rope->run_on_model(model);
-    return matched;
-}
-
 }  // namespace
 
 // Apply DEVICE_ROUTED MoE transformations to models
@@ -577,6 +567,12 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     const KVAxesPosition& axes,
     const uint32_t whisper_lhs_seq_size) {
     const uint32_t total_kv_size = m_kvcache_desc.total_size;
+    OPENVINO_ASSERT(total_kv_size >= m_kvcache_desc.max_prompt_size,
+                    "KV cache total size ",
+                    total_kv_size,
+                    " is smaller than max_prompt_size ",
+                    m_kvcache_desc.max_prompt_size,
+                    ".");
     const uint32_t min_response_len = total_kv_size - m_kvcache_desc.max_prompt_size;
     const uint32_t max_generation_token_len = m_kvcache_desc.max_generation_token_len;
     const bool enable_generate_pyramid = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>();
@@ -1112,11 +1108,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         update_config_for_text_embed(prefill_config);
     }
 
+    m_longrope_context_limit =
+        ov::npuw::patterns::pre_compute::extract_phi_v5_longrope_context_limit(prefill_model).value_or(0u);
+    if (m_longrope_context_limit > 0u) {
+        LOG_INFO("Detected long-rope context limit: " << m_longrope_context_limit);
+    }
+
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
-        const bool force_rope_cache = has_phi_v5_longrope_pattern(prefill_model);
+        const bool force_rope_cache = m_longrope_context_limit > 0u;
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
@@ -1314,8 +1316,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         stream & m_kvcache_desc.max_prompt_size & m_kvcache_desc.total_size & m_kvcache_desc.num_stored_tokens &
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
-            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
-            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding & m_is_block_kv_cache;
+            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
+            m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
+            m_is_embedding & m_is_block_kv_cache;
 
         // Write config
         stream & m_cfg;
@@ -1533,9 +1536,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_desc.max_generation_token_len & compiled->m_kvcache_desc.v_tensors_transposed_pre &
             compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
-            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
-            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
-            compiled->m_is_embedding & compiled->m_is_block_kv_cache;
+            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
+            compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
+            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
+            compiled->m_is_block_kv_cache;
 
         // Deserialize config
         stream & compiled->m_cfg;
