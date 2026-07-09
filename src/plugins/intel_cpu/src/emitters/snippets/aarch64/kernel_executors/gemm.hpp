@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "emitters/snippets/brgemm_generic.hpp"
@@ -12,6 +13,7 @@
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp_qsi8cxp_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 
@@ -27,6 +29,11 @@ public:
     }
 
     void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
+    void set_input_a_zero_point(int32_t input_a_zero_point);
+
+    [[nodiscard]] int32_t get_input_a_zero_point() const {
+        return m_input_a_zero_point;
+    }
 
     [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
         return std::make_unique<GemmKernelKaiConfig>(*this);
@@ -37,6 +44,9 @@ public:
     }
 
 private:
+    [[nodiscard]] size_t compute_hash() const;
+
+    int32_t m_input_a_zero_point = 0;
     size_t m_hash{SIZE_MAX};
 };
 
@@ -72,6 +82,13 @@ struct GemmCompiledKernelF16 {
         kai_get_dst_offset_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
         kai_get_dst_size_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
         kai_run_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla};
+};
+
+struct GemmCompiledKernelI8 {
+    static kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel get_selected_ukernel();
+
+    std::shared_ptr<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel> gemm_ukernel =
+        std::make_shared<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(get_selected_ukernel());
 };
 
 struct GemmKaiCallArgs {
@@ -116,6 +133,21 @@ public:
     void update_kernel(const GemmKernelKaiConfig& config,
                        std::shared_ptr<GemmCompiledKernelF16>& kernel) const override final;
     static void execute(const GemmF16KaiKernelExecutor* executor, const call_args* args);
+
+private:
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                       GemmKernelKaiConfig& config) const override;
+};
+
+class GemmI8KaiKernelExecutor : public GemmKaiKernelExecutorBase,
+                                public snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernelI8> {
+public:
+    using call_args = GemmKaiCallArgs;
+    GemmI8KaiKernelExecutor(GemmKernelKaiConfig config);
+    void update_kernel(const GemmKernelKaiConfig& config,
+                       std::shared_ptr<GemmCompiledKernelI8>& kernel) const override final;
+    static void execute(const GemmI8KaiKernelExecutor* executor, const call_args* args);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,

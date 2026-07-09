@@ -25,6 +25,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
@@ -53,6 +54,9 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(
     } else if (input_prc == element::f32) {
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+    } else if (input_prc == element::i8) {
+        m_kernel_executor =
+            kernel_table->register_kernel<GemmCopyBI8KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unexpected precision for GemmCopyB executor: ", input_prc);
     }
@@ -71,6 +75,9 @@ std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_prec
     std::set<std::vector<element::Type>> result{{element::f32}};
     if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         result.insert({element::f16});
+    }
+    if (ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()) {
+        result.insert({element::i8});
     }
     return result;
 }

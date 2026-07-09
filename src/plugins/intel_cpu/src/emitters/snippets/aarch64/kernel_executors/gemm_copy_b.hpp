@@ -14,6 +14,7 @@
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp_qsi8cxp_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 
@@ -113,6 +114,13 @@ struct GemmCopyBCompiledKernelF16 {
         kai_run_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla};
 };
 
+struct GemmCopyBCompiledKernelI8 {
+    static kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel get_selected_ukernel();
+
+    std::shared_ptr<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel> copy_b_ukernel =
+        std::make_shared<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(get_selected_ukernel());
+};
+
 class GemmCopyBKaiKernelExecutorBase {
 protected:
     GemmCopyBKaiKernelExecutorBase() = default;
@@ -149,6 +157,21 @@ public:
     void update_kernel(const GemmCopyBKernelKaiConfig& config,
                        std::shared_ptr<GemmCopyBCompiledKernelF16>& kernel) const override final;
     static void execute(const GemmCopyBF16KaiKernelExecutor* executor, void* in0, void* out0);
+
+private:
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                       GemmCopyBKernelKaiConfig& config) const override;
+};
+
+class GemmCopyBI8KaiKernelExecutor
+    : public GemmCopyBKaiKernelExecutorBase,
+      public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernelI8> {
+public:
+    GemmCopyBI8KaiKernelExecutor(GemmCopyBKernelKaiConfig config);
+    void update_kernel(const GemmCopyBKernelKaiConfig& config,
+                       std::shared_ptr<GemmCopyBCompiledKernelI8>& kernel) const override final;
+    static void execute(const GemmCopyBI8KaiKernelExecutor* executor, void* in0, void* out0);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,

@@ -567,7 +567,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*(BF|bf)16.*)"));
             patterns.emplace_back(std::regex(R"(.*bfloat16.*)"));
         }
-        if (!ov::test::snippets::is_i8_supported_by_brgemm()) {
+        if (!ov::test::snippets::is_i8_supported()) {
             patterns.emplace_back(std::regex(R"(.*Snippets.*MatMulFQ.*)"));
             patterns.emplace_back(std::regex(R"(.*Snippets.*MatMul.*Quantized.*)"));
             patterns.emplace_back(std::regex(R"(.*Snippets.*MHAFQ.*)"));

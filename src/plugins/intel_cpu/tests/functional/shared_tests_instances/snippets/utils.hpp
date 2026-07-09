@@ -3,18 +3,20 @@
 //
 
 #include "internal_properties.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-#define SNIPPETS_TESTS_STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
+#define SNIPPETS_TESTS_STATIC_SHAPES(...) \
+    static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
 // Snippets BRGEMM supports bf16 only on platforms with AVX512_bf16 or AMX instructions
 static inline bool is_bf16_supported_by_brgemm() {
-    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
+    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() ||
+           CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
 // Snippets BRGEMM supports fp16 only on platforms with AMX-FP16 instructions
@@ -23,9 +25,10 @@ static inline bool is_fp16_supported_by_brgemm() {
            ov::with_cpu_neon_fp16();
 }
 
-// Snippets BRGEMM supports i8 only on platforms with VNNI or AMX instructions
-static inline bool is_i8_supported_by_brgemm() {
-    return ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8();
+// The shared snippets i8 tests require BRGEMM post-op/fusion coverage.
+static inline bool is_i8_supported() {
+    return ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni() ||
+           ov::with_cpu_x86_avx512_core_amx_int8();
 }
 
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {
@@ -56,8 +59,7 @@ static inline std::vector<std::vector<element::Type>> precision_fp16_if_supporte
 
 static inline std::vector<std::vector<element::Type>> quantized_precisions_if_supported() {
     std::vector<std::vector<element::Type>> prc = {};
-    // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-    if (is_i8_supported_by_brgemm()) {
+    if (is_i8_supported()) {
         prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
         prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
     }
