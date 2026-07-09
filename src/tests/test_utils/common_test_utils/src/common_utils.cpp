@@ -64,15 +64,9 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
-namespace {
-constexpr uint8_t k_prime_modulus = 251;
-}  // namespace
-
 std::vector<uint8_t> make_prime_pattern(size_t size) {
     std::vector<uint8_t> data(size);
-    for (size_t i = 0; i < size; ++i) {
-        data[i] = static_cast<uint8_t>(i % k_prime_modulus);
-    }
+    std::generate(data.begin(), data.end(), PrimePatternGenerator{});
     return data;
 }
 

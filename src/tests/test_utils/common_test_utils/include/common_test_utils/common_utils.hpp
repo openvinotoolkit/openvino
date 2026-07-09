@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -212,9 +213,19 @@ inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
 
 std::string generateTestFilePrefix();
 
-// Build a vector<uint8_t> holding the prime-modulo pattern: byte at index i is (i % 251).
+// Stateful generator for the prime-modulo pattern. Each call to operator() returns the
+// next byte of the sequence: the k-th call (0-based) yields (k % 251).
 // 251 is prime, so the byte period never aligns with any power-of-two page / granularity
 // boundary, which makes off-by-page corruption easy to spot.
+struct PrimePatternGenerator {
+    static constexpr uint8_t modulus = 251;
+    size_t index = 0;
+    uint8_t operator()() {
+        return static_cast<uint8_t>(index++ % modulus);
+    }
+};
+
+// Build a vector<uint8_t> holding the prime-modulo pattern (see PrimePatternGenerator).
 std::vector<uint8_t> make_prime_pattern(size_t size);
 
 size_t getVmSizeInKB();
