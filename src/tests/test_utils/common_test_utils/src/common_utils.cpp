@@ -64,6 +64,18 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
+namespace {
+constexpr uint8_t k_prime_modulus = 251;
+}  // namespace
+
+std::vector<uint8_t> make_prime_pattern(size_t size) {
+    std::vector<uint8_t> data(size);
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = static_cast<uint8_t>(i % k_prime_modulus);
+    }
+    return data;
+}
+
 #ifdef _WIN32
 static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
     static PROCESS_MEMORY_COUNTERS pmc;
@@ -150,6 +162,7 @@ size_t count_resident_pages(const void* data, size_t size) {
 }
 
 #endif
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -210,6 +211,11 @@ inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
 }
 
 std::string generateTestFilePrefix();
+
+// Build a vector<uint8_t> holding the prime-modulo pattern: byte at index i is (i % 251).
+// 251 is prime, so the byte period never aligns with any power-of-two page / granularity
+// boundary, which makes off-by-page corruption easy to spot.
+std::vector<uint8_t> make_prime_pattern(size_t size);
 
 size_t getVmSizeInKB();
 

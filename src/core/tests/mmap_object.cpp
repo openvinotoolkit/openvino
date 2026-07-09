@@ -15,7 +15,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/mmap_test_utils.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov::test {
@@ -359,7 +358,8 @@ TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data,
+                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -377,7 +377,8 @@ TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data,
+                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
@@ -391,7 +392,8 @@ TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
         auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
         EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
-        EXPECT_THAT(data, ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
+        EXPECT_THAT(data,
+                    ::testing::ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
 
