@@ -175,6 +175,7 @@ jobs:
             "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_buildtools.exe",
             "C:\Program Files\Microsoft Visual Studio\Installer\vs_buildtools.exe",
             "C:\BuildTools\vs_buildtools.exe"
+            "C:\Temp\vs_buildtools.exe"
           )
           
           foreach ($path in $paths) {
