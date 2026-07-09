@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-09-15-46-39-000-29030218781",
+  "timestamp": "2026-07-09T15:46:39Z",
+  "run_id": "29030218781",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218781",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36774",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36774",
+  "author": "mryzhov",
+  "category": "Configuration",
+  "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+  "signature": "apt-get install libpython3-dev:riscv64 fails - libpython3.10-stdlib:riscv64 depends on libtinfo6:riscv64 but not installable|Configuration",
+  "signature_hash": "926d0537c057e523",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "docker buildx build fails: apt-get install libpython3-dev:riscv64 exits with code 100 due to unresolvable cross-arch dependencies"
+    }
+  ],
+  "key_errors": [
+    "libpython3.10-stdlib:riscv64 : Depends: libncursesw6:riscv64 (>= 6.1) but it is not going to be installed",
+    "libpython3.10-stdlib:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "libreadline8:riscv64 : Depends: libtinfo6:riscv64 (>= 6) but it is not going to be installed",
+    "E: Unable to correct problems, you have held broken packages.",
+    "ERROR: failed to solve: process \"/bin/sh -c dpkg --add-architecture riscv64 && apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && apt-get install -y --no-install-recommends libpython3-dev:riscv64\" did not complete successfully: exit code: 100"
+  ],
+  "root_cause": "Dockerfile step 11 (lines 72-74 of .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile) fails when installing libpython3-dev:riscv64 via cross-arch apt. The riscv64 package libpython3.10-stdlib:riscv64 requires libtinfo6:riscv64 (>=6) and libncursesw6:riscv64 (>=6.1), but these transitive dependencies cannot be resolved. The riscv64-sources.list contains duplicate amd64 entries already present in /etc/apt/sources.list, generating multiple warnings; combined with partial riscv64 repository coverage (missing jammy-updates/security for riscv64 universe), apt cannot find satisfiable versions for the riscv64 transitive deps. This failure has been recurring since this PR entered the merge queue.",
+  "reproduction_steps": "Run: docker buildx build --file .github/dockerfiles/ov_build/ubuntu_22_04_riscv/Dockerfile --build-arg REGISTRY=docker.io .",
+  "recommended_actions": [
+    "Add libtinfo6:riscv64 and libncursesw6:riscv64 explicitly to the apt install list in Dockerfile line 72-74 before installing libpython3-dev:riscv64",
+    "Add 'deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe' and 'deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security universe' to riscv64-sources.list in the Dockerfile",
+    "Consider removing the duplicate [arch=amd64] entries from riscv64-sources.list (lines 1-10) since they duplicate /etc/apt/sources.list and may confuse apt dependency resolution",
+    "Test the Docker build locally before merging by running the docker buildx command against the modified Dockerfile"
+  ],
+  "prevention_strategies": "When modifying RISCV64 cross-compilation Dockerfiles, validate that all cross-arch package dependencies can be resolved by running a local docker build. Ensure riscv64 universe and security universe sources are included in riscv64-sources.list. Avoid duplicating amd64 entries already in the base image sources.",
+  "historical_context": "Same failure pattern seen 3 times prior today: runs 29022024794 (13:58 UTC), 29023574901 (14:21 UTC), 29029047050 (15:32 UTC), all for PR #36774. This is the 4th occurrence."
+}

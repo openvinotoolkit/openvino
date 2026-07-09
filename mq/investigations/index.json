@@ -28,5 +28,15 @@
     "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
     "signature_hash": "926d0537c057e523",
     "pr_number": "36774"
+  },
+  {
+    "investigation_id": "2026-07-09-15-46-39-000-29030218781",
+    "timestamp": "2026-07-09T15:46:39Z",
+    "run_id": "29030218781",
+    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+    "category": "Configuration",
+    "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+    "signature_hash": "926d0537c057e523",
+    "pr_number": "36774"
   }
 ]
