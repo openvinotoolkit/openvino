@@ -274,7 +274,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
                     ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
                     ruleFlag &= categoryRuleEnabler("driver_version", {devices.getDriverVersion()}, enableRules);
                     ruleFlag &= categoryRuleEnabler("driver_type",
-                        {driverTypeToString(g_driver_type)},
+                        {driverTypeToString(NpuTestEnvConfig::getInstance().driver_type)},
                         enableRules);
                     ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
                 }

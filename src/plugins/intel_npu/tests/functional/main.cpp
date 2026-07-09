@@ -60,8 +60,8 @@ int main(int argc, char** argv, char** envp) {
         oss << *env << "; ";
     }
 
-    auto blobPaths = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH;
-    if (blobPaths.empty()) {
+    auto& cfg = ov::test::utils::NpuTestEnvConfig::getInstance();
+    if (cfg.OV_NPU_TESTS_BLOBS_PATH.empty()) {
         auto path = std::string_view(argv[0]);
         const char slashDelimiter = '/';
         const char backSlashDelimiter = '\\';
@@ -75,9 +75,8 @@ int main(int argc, char** argv, char** envp) {
                       ? path.find_last_of(backSlashDelimiter)
                       : path.find_last_of(slashDelimiter);
         }
-        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
-            pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
-        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
+        cfg.OV_NPU_TESTS_BLOBS_PATH = pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
+        cfg.OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
     }
 
     ::testing::InitGoogleTest(&argc, argv);
@@ -89,19 +88,14 @@ int main(int argc, char** argv, char** envp) {
             std::string value = arg.substr(prefix.length());
             auto parsed = ov::test::utils::parseDriverType(value);
             if (parsed.has_value()) {
-                ov::test::utils::g_driver_type = parsed;
-                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(parsed) << std::endl;
+                cfg.driver_type = *parsed;
+                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_type) << std::endl;
             } else {
                 std::cerr << "WARNING: Invalid --driver_type value: '" << value
                           << "' (expected pv, release, or latest)." << std::endl;
             }
             break;
         }
-    }
-    if (!ov::test::utils::g_driver_type.has_value()) {
-        ov::test::utils::g_driver_type = ov::test::utils::DriverType::LATEST;
-        std::cout << "Driver type not specified, defaulting to: "
-                  << ov::test::utils::driverTypeToString(ov::test::utils::g_driver_type) << std::endl;
     }
 
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::NpuTestReportEnvironment());
@@ -126,7 +120,7 @@ int main(int argc, char** argv, char** envp) {
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
-            ov::test::utils::NpuTestTool npuTestTool(ov::test::utils::NpuTestEnvConfig::getInstance());
+            ov::test::utils::NpuTestTool npuTestTool(cfg);
             backend = npuTestTool.getDeviceMetric(ov::intel_npu::backend_name.name());
             arch = npuTestTool.getDeviceMetric(ov::device::architecture.name());
             full = npuTestTool.getDeviceMetric(ov::device::full_name.name());
@@ -145,9 +139,9 @@ int main(int argc, char** argv, char** envp) {
     }
 
     auto& log = intel_npu::Logger::global();
-    auto level = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_LOG_LEVEL;
-    ov::log::Level logLevel =
-        level.empty() ? ov::log::Level::ERR : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());
+    ov::log::Level logLevel = cfg.IE_NPU_TESTS_LOG_LEVEL.empty()
+        ? ov::log::Level::ERR
+        : intel_npu::OptionParser<ov::log::Level>::parse(cfg.IE_NPU_TESTS_LOG_LEVEL.c_str());
     log.setLevel(logLevel);
 
     return RUN_ALL_TESTS();

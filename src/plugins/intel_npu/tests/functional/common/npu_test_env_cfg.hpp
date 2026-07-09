@@ -19,18 +19,19 @@ namespace ov::test::utils {
 
 enum class DriverType { PV, RELEASE, LATEST };
 
-std::string driverTypeToString(std::optional<DriverType> type);
+std::string driverTypeToString(DriverType type);
 
 std::optional<DriverType> parseDriverType(const std::string& str);
-
-// Accessed by NpuDriverAwareTest and skip config machinery
-extern std::optional<DriverType> g_driver_type;
 
 /**
  * Reads configuration environment variables
  */
 class NpuTestEnvConfig {
 public:
+    // CLI argument: --driver_type={pv|release|latest}
+    // Defaults to LATEST when not provided. Set in main.cpp before tests run
+    mutable DriverType driver_type = DriverType::LATEST;
+
     std::string IE_NPU_TESTS_DEVICE_NAME;
     std::string IE_NPU_TESTS_DUMP_PATH;
     std::string IE_NPU_TESTS_LOG_LEVEL;

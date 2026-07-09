@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "common/npu_test_env_cfg.hpp"
 
 // Example: NPU_SKIP_IF_DRIVER_TYPE_IS(PV, "C#12345: feature X not supported on PV driver");
@@ -25,15 +23,13 @@
 
 namespace ov::test::behavior {
 
-// Returns the driver type set via CLI --driver_type argument in main().
-inline std::optional<ov::test::utils::DriverType> getDriverType() {
-    return ov::test::utils::g_driver_type;
+inline ov::test::utils::DriverType getDriverType() {
+    return ov::test::utils::NpuTestEnvConfig::getInstance().driver_type;
 }
 
 // Returns true when the driver type matches `type`.
 inline bool isDriverType(ov::test::utils::DriverType type) {
-    const auto dt = getDriverType();
-    return dt.has_value() && *dt == type;
+    return getDriverType() == type;
 }
 
 }  // namespace ov::test::behavior
