@@ -108,6 +108,31 @@ def setup_model(model_id):
     model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
+    # Save original model
+    model_path = get_model_path(model_id, "org")
+    if not os.path.exists(model_path):
+        logger.info(f"Saving original model: {model_path}")
+        model.save_pretrained(model_path)
+        tokenizer.save_pretrained(model_path)
+
+    # Prepare ground truth data
+    set_seed(42)
+    use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
+    gt_path = get_gt_path(model_id, use_chat_template)
+    if not os.path.exists(gt_path):
+        logger.info(f'Creating ground truth data: {gt_path}')
+        evaluator = wwb.Evaluator(
+            base_model=model,
+            tokenizer=tokenizer,
+            num_samples=NUMBER_OF_SAMPLES,
+            use_chat_template=use_chat_template
+        )
+        evaluator.dump_gt(gt_path)
+        del evaluator
+
+    del model
+    gc.collect()
+
     # Convert tokenizer for OpenVINO
     ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
 
@@ -139,20 +164,6 @@ def setup_model(model_id):
         save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
         save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
     gc.collect()
-
-    # Prepare ground truth data
-    set_seed(42)
-    use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
-    gt_path = get_gt_path(model_id, use_chat_template)
-    if not os.path.exists(gt_path):
-        logger.info(f'Creating ground truth data: {gt_path}')
-        evaluator = wwb.Evaluator(
-            base_model=model,
-            tokenizer=tokenizer,
-            num_samples=NUMBER_OF_SAMPLES,
-            use_chat_template=use_chat_template
-        )
-        evaluator.dump_gt(gt_path)
 
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)
