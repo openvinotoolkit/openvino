@@ -186,6 +186,23 @@ jobs:
           }
         shell: pwsh
 
+      - name: Copy ATL to MSVC 14.50
+        run: |
+          $src = "C:\BuildTools\VC\Tools\MSVC\14.42.34433\atlmfc"
+          $dst = "C:\BuildTools\VC\Tools\MSVC\14.50.35717\atlmfc"
+
+          Write-Host "Copying ATL from 14.42 to 14.50..."
+          Copy-Item -Path $src -Destination $dst -Recurse -Force
+
+          # Verify
+          if (Test-Path "$dst\include\atlbase.h") {
+            Write-Host "ATL successfully copied to 14.50"
+          } else {
+            Write-Host "Copy failed"
+            exit 1
+          }
+        shell: pwsh
+
       - name: Configure Developer Command Prompt for Microsoft Visual C++ for VS 2026
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         if: ${{ inputs.build-variant == 'vs2026' }}
