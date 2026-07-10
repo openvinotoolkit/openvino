@@ -66,9 +66,6 @@ private:
 
     bool should_import_raw_blob(const ov::AnyMap& properties) const;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const std::shared_ptr<IBlobFormatHandler>& blobFormatHandler,
-                                                     ov::AnyMap& properties) const;
-
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
      * can be used for running predictions.
@@ -81,9 +78,8 @@ private:
      * @param properties Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
-    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
-                                              std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+    std::shared_ptr<ov::ICompiledModel> import_model(const std::unique_ptr<IBlobFormatHandler>& blobFormatHandler,
+                                                     ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

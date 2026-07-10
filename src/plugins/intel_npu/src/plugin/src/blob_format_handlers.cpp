@@ -316,7 +316,7 @@ std::optional<std::string> BlobFormatV1Handler::extract_compiler_compatibility_d
 
 namespace blob_format_handler_factory {
 
-std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
+std::unique_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
                                            const bool is_raw_blob,
                                            const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config) {
@@ -341,10 +341,10 @@ std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
 
     npu_formatted_blob.seekg(compiler_payload_beggining, std::ios::beg);
 
-    return std::make_shared<BlobFormatV1Handler>(npu_formatted_blob, original_model, config);
+    return std::make_unique<BlobFormatV1Handler>(npu_formatted_blob, original_model, config);
 }
 
-std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
+std::unique_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
                                            const bool is_raw_blob,
                                            const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config) {
@@ -364,7 +364,7 @@ std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
         OPENVINO_THROW("The blob is missing the NPU metadata!");
     }
 
-    return std::make_shared<BlobFormatV1Handler>(npu_formatted_blob, original_model, config);
+    return std::make_unique<BlobFormatV1Handler>(npu_formatted_blob, original_model, config);
 }
 
 }  // namespace blob_format_handler_factory
