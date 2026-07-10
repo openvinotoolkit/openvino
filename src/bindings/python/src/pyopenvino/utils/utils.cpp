@@ -343,6 +343,16 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             std::map<std::string, unsigned> thresholds;
             auto dict = py::cast<py::dict>(property.second);
             for (const auto& item : dict) {
+                if (!py::isinstance<py::str>(item.first)) {
+                    OPENVINO_THROW("The key type of ",
+                                  ov::intel_auto::devices_utilization_threshold.name(),
+                                  " should be dict[str, int>=0] with string keys");
+                }
+                if (!py::isinstance<py::int_>(item.second) || py::isinstance<py::bool_>(item.second)) {
+                    OPENVINO_THROW("The value type of ",
+                                  ov::intel_auto::devices_utilization_threshold.name(),
+                                  " should be dict[str, int>=0] with integer values");
+                }
                 const auto key = py::str(item.first).cast<std::string>();
                 const auto value = py::cast<long long>(item.second);
                 if (value < 0 || value > std::numeric_limits<unsigned>::max()) {

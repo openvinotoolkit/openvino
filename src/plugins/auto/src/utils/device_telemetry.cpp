@@ -64,9 +64,15 @@ public:
                 return std::nullopt;
             }
             const float value = parsed["Performance"][metric_key].get<float>();
-            LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", std::to_string(value), device_name.c_str());
+            const std::string value_as_string = std::to_string(value);
+            LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
+                          value_as_string.c_str(),
+                          device_name.c_str());
             const float utilization_percent = value * 100.0f;
-            LOG_DEBUG_TAG("TelemetryClient: converted utilization=%s for device=%s", std::to_string(utilization_percent), device_name.c_str());
+            const std::string utilization_percent_as_string = std::to_string(utilization_percent);
+            LOG_DEBUG_TAG("TelemetryClient: converted utilization=%s for device=%s",
+                          utilization_percent_as_string.c_str(),
+                          device_name.c_str());
             return utilization_percent;
         } catch (...) {
             LOG_DEBUG_TAG("TelemetryClient: unknown exception during query for device=%s", device_name.c_str());
