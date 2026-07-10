@@ -620,9 +620,11 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     //  crop output buffer
     //  |_low_pad_|__data_size__|___|<-upper pad
     if (!node.is_dynamic() && can_crop_be_optimized_along_feature(crop_layout, input_layout)) {
+        std::pair<const program_node*, layout> user_info;
         update_in_place_crop_padding_along_feature(node,
                                                    crop_layout,
                                                    input_layout,
+                                                   user_info,
                                                    crop_params->input_offsets[0],
                                                    node.get_primitive()->axis,
                                                    false);
@@ -657,6 +659,7 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
 void crop_in_place_optimization::update_in_place_crop_padding_along_feature(const program_node& node,
                                                                             layout& crop_layout,
                                                                             layout& input_layout,
+                                                                            std::pair<const program_node*, layout>& user_info,
                                                                             const tensor offsets,
                                                                             size_t crop_axis,
                                                                             bool is_runtime) {
@@ -697,6 +700,88 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         padding::DynamicDimsMask dyn_pad_sizes;
         dyn_pad_sizes[crop_axis] = 1;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
+
+        // Explicitly propagate the crop's feature-axis padding into the
+        // reshape output layout. reshape_inst::calc_output_layouts resets
+        // padding to empty for reshape_mode::base, so relying on a follow-up
+        // reshape_inst->update_shape() call would drop the padding silently.
+        if (user_info.first && user_info.first->is_type<reshape>()) {
+            const auto reshape_desc = user_info.first->as<reshape>().get_primitive();
+            const auto reshape_mode = reshape_desc->mode;
+            const auto reshape_ps = user_info.second.get_partial_shape();
+            const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
+            const auto crop_ps = crop_layout.get_partial_shape();
+            const auto crop_dim_val = crop_ps[crop_axis].get_length();
+
+            std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+            std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
+            padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+            // TransposeSplitMatcher pattern: crop [L, 1, H, S(, ...)] cut on the
+            // feature axis (crop_axis == 1, crop_dim_val == 1) feeding a base-mode
+            // reshape that drops the size-1 feature dim ([L, H, S(, ...)]).
+            //
+            // With crop_dim_val == 1 the standard axis-mapping algorithm below
+            // (mirrored from update_in_place_crop_padding_simple_data_format)
+            // would place raw `k` on the reshape's last axis. That yields
+            // get_linear_offset() == k and get_pitches()[0] == pshape[-1] +
+            // pad, both of which are physically wrong for downstream CM/OCL
+            // kernels that read the layout via those standard APIs.
+            //
+            // The parent buffer per-token stride is F * H * S(...) and slice-k
+            // starts at k * H * S(...) inside it. To make the reshape output
+            // layout carry those exact numbers we place scaled padding on the
+            // reshape's dim 1 (bfyx feature position, which corresponds to
+            // pshape[1] == H after the squeeze):
+            //   _lower_size[1] = k       * H_size
+            //   _upper_size[1] = (F-1-k) * H_size
+            // yielding padded_dim[1] = F * H_size, therefore:
+            //   get_pitches()[0]    = padded_dim[1] * padded_dim[2] * ... = F * H * S(...)
+            //   get_linear_offset() = _lower_size[1] * pitch[1]          = k * H * S(...)
+            // Only inner-axis padding contributes to pitches[0], so this
+            // scaling cannot be represented on the L (batch) axis.
+            const bool is_axis1_size1_squeeze = reshape_mode == reshape::reshape_mode::base && crop_axis == 1 && crop_dim_val == 1 &&
+                                                reshape_ps.size() + 1 == crop_ps.size() && reshape_ps.size() >= 2 && reshape_ps[1].is_static();
+
+            if (is_axis1_size1_squeeze) {
+                const auto h_size = reshape_ps[1].get_length();
+                reshape_lower_sizes[1] = lower_sizes[crop_axis] * h_size;
+                reshape_upper_sizes[1] = upper_sizes[crop_axis] * h_size;
+                reshape_dyn_pad_mask[1] = 1;
+            } else {
+                // Fallback: mirror update_in_place_crop_padding_simple_data_format
+                // axis-mapping so build-time (dyn mask) and runtime (mask +
+                // explicit sizes) paths pick the same reshape axis for patterns
+                // that do not need scaling.
+                size_t reshape_axis = crop_axis;
+                if (reshape_mode == reshape::reshape_mode::base) {
+                    reshape_axis = reshape_ps.size() - 1;
+                    ov::Dimension::value_type mul = 1;
+                    for (size_t i = reshape_ps.size(); i > 1; i--) {
+                        if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
+                            break;
+                        mul *= reshape_ps[i - 1].get_length();
+                        reshape_axis = i - 1;
+                    }
+                } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
+                    const auto& output_pattern = reshape_desc->output_pattern;
+                    for (size_t i = 0; i < output_pattern.size(); i++) {
+                        if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                            reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                        }
+                    }
+                }
+
+                OPENVINO_ASSERT(reshape_axis < output_rank,
+                                "[GPU] Calculated reshape_axis is out of range for along-feature crop propagation.");
+
+                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
+                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                reshape_dyn_pad_mask[reshape_axis] = 1;
+            }
+
+            user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
+        }
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
     }
@@ -911,9 +996,11 @@ void prepare_buffer_fusing::run(program& p) {
             auto crop_layout = node.get_output_layout();
             auto crop_params = node.get_kernel_impl_params();
             if (!node.is_dynamic() && crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                std::pair<const program_node*, layout> user_info;
                 crop_in_place_optimization::update_in_place_crop_padding_along_feature(node,
                                                                                        crop_layout,
                                                                                        pred_layout,
+                                                                                       user_info,
                                                                                        crop_params->input_offsets[0],
                                                                                        node.get_primitive()->axis,
                                                                                        false);

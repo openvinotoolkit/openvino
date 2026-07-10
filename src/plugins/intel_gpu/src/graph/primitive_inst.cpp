@@ -1971,12 +1971,21 @@ void primitive_inst::do_runtime_in_place_crop() {
                             continue;
                         }
                     }
-                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
+                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    // Install the padded crop layout and propagate the reshape
+                    // output padding computed by the helper. Assigning the
+                    // reshape output layout directly (mirroring the
+                    // simple_data_format branch below) avoids a second
+                    // reshape_inst->update_shape() call, which would run
+                    // reshape_inst::calc_output_layouts and reset the padding
+                    // to empty for reshape_mode::base.
+                    u->_impl_params->output_layouts[0] = crop_layout;
                     if (user_info.first) {
                         auto reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
                     }
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " update_in_place_crop_padding_along_feature " << offsets << ", " << crop_axis << std::endl;
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
                         u->set_can_be_optimized(false);
@@ -1988,6 +1997,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
                     }
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " update_in_place_crop_padding_simple_data_format " << offsets << ", " << crop_axis << std::endl;
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
