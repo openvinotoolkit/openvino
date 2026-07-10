@@ -75,6 +75,7 @@
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -681,6 +682,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::StridedSliceReshapeConcatFusion);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceNoKeepDims);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
     CPU_REGISTER_PASS_ARM32(manager, MishDecomposition);
