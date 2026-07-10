@@ -59,7 +59,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-      NEO_CACHE_DIR: /root/.cache/
+      NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
       NEO_CACHE_STATS: 1
       NEO_CACHE_PERSISTENT: 1
     steps:
@@ -95,7 +95,7 @@ jobs:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
-          NEO_CACHE_DIR: /root/.cache/s
+          NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
           NEO_CACHE_STATS: 1
           NEO_CACHE_PERSISTENT: 1
         run: |
