@@ -57,5 +57,15 @@
     "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
     "signature_hash": "9cb03e077ef3024a",
     "pr_number": "36773"
+  },
+  {
+    "investigation_id": "2026-07-10-07-45-37-000-29072781821",
+    "timestamp": "2026-07-10T07:45:37Z",
+    "run_id": "29072781821",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "36763",
+    "category": "Flaky Test",
+    "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
+    "signature_hash": "85df26485ff568d8"
   }
 ]

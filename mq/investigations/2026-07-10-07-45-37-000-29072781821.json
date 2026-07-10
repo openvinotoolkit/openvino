@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-10-07-45-37-000-29072781821",
+  "timestamp": "2026-07-10T07:45:37Z",
+  "run_id": "29072781821",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29072781821",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36763",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36763",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "after all hook fails: rm -rf demo-electron-app-project returns Permission denied on Electron dist files"
+    }
+  ],
+  "key_errors": [
+    "Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied"
+  ],
+  "root_cause": "The Electron E2E test runs on Windows and spawns an Electron process. After test completion, the after-all cleanup hook attempts to delete the demo project directory using 'rm -rf'. However, the Electron process (or Windows file handles) keeps locks on electron.exe and its DLLs, preventing deletion. The 2 actual tests pass; only the cleanup hook fails. This is a Windows file-locking issue with Electron binaries and is not related to the PR changes.",
+  "reproduction_steps": "Run 'npm run test:e2e' on a Windows runner after the Electron app test, and observe the after-all cleanup failing to remove locked Electron DLLs.",
+  "recommended_actions": [
+    "Fix the E2E cleanup hook to handle Windows file locks: use 'rimraf' or 'del' npm packages that handle Windows file locking, or use a Windows-native rmdir command.",
+    "Alternatively, ensure the Electron process is fully terminated before running rm, e.g. using taskkill on Windows.",
+    "Re-run the failed jobs as a short-term workaround - the failure is transient."
+  ],
+  "prevention_strategies": "Use platform-aware cleanup utilities (e.g., rimraf) in test after-all hooks that run on Windows runners to handle locked Electron binary files.",
+  "historical_context": "This exact failure pattern (Electron dist files Permission denied on Windows during cleanup) was previously seen on 2026-07-09 (run 29010970383, PR #36780) and 2026-07-07 (run 28861100887, PR #36744). It is a recurring infrastructure/flaky issue unrelated to PR content."
+}
