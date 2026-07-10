@@ -345,7 +345,7 @@ This string can later be used before import to check the compatibility of the de
     auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
 ```
 
-> Note: `ov::runtime_requirements` is not available for every compiled model. Querying it throws for models without runtime requirements (for example weightless models, or Level Zero drivers older than 1.16); `ov::compatibility_check` returns `NOT_APPLICABLE` in those cases.
+> Note: `ov::runtime_requirements` is not available for every compiled model. Querying it throws for models without runtime requirements (for example weightless models, or Level Zero drivers older than 1.16); `ov::compatibility_check` returns `NOT_APPLICABLE` in those cases. Before reading the property, the application is recommended to check whether it is present in the model's list of supported properties.
 
 Developers and contributors can find more details on how the plugin handles this data internally (the compile, export, and import flow) in [Runtime Requirements and Compatibility Check](./docs/runtime-requirements.md).
 <br>
