@@ -58,14 +58,16 @@ bool parse_slice_window(const std::shared_ptr<ov::Node>& node, int64_t& start, i
     if (const auto strided_slice = ov::as_type_ptr<op::v1::StridedSlice>(node)) {
         data = strided_slice->input_value(0);
         const auto pshape = data.get_partial_shape();
-        if (pshape.rank().is_dynamic() || pshape.rank().get_length() != 2 || pshape[0].is_dynamic() || pshape[1].is_dynamic()) {
+        if (pshape.rank().is_dynamic() || pshape.rank().get_length() != 2 || pshape[0].is_dynamic() ||
+            pshape[1].is_dynamic()) {
             return false;
         }
 
         std::vector<int64_t> begin;
         std::vector<int64_t> end;
         std::vector<int64_t> strides;
-        if (!get_vector_i64(strided_slice->input_value(1), begin) || !get_vector_i64(strided_slice->input_value(2), end) ||
+        if (!get_vector_i64(strided_slice->input_value(1), begin) ||
+            !get_vector_i64(strided_slice->input_value(2), end) ||
             !get_vector_i64(strided_slice->input_value(3), strides)) {
             return false;
         }
