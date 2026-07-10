@@ -23,9 +23,7 @@ class jit_reg_spill_begin_emitter : public jit_emitter {
     friend jit_reg_spill_end_emitter;
 
 public:
-    jit_reg_spill_begin_emitter(jit_generator_t* h,
-                                cpu_isa_t isa,
-                                const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_reg_spill_begin_emitter(jit_generator_t* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {
         return 0;
@@ -45,9 +43,7 @@ protected:
 
 class jit_reg_spill_end_emitter : public jit_emitter {
 public:
-    jit_reg_spill_end_emitter(jit_generator_t* h,
-                              cpu_isa_t isa,
-                              const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_reg_spill_end_emitter(jit_generator_t* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {
         return 0;
