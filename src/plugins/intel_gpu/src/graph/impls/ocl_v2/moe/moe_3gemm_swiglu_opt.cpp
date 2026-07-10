@@ -2079,6 +2079,13 @@ public:
         auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
+        // Runtime dispatch hint: actual max tokens assigned to any single expert.
+        // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
+        // allowing the kernel to reduce per-expert workgroup dispatch without
+        // recompiling the primitive.
+        auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
+        dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
+
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
         {
             auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
@@ -2089,7 +2096,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
             }
@@ -2106,7 +2114,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
             }
@@ -2138,7 +2147,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
             }
