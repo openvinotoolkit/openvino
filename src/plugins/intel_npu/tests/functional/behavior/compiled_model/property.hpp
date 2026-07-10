@@ -240,6 +240,9 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
 using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassPluginPropertiesTestSuite5NPU, CanSetMutablePropertiesToCompiledModel) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
     // ie.set_property won't call plugin Engine::SetConfig due to empty string-ov::Plugin map from core_impl
     // workaround to overcome this is to call first ie.get_property which calls get_plugin() from core_impl and
     // populates plugin map

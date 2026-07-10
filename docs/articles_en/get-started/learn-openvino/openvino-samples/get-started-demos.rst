@@ -135,7 +135,7 @@ Instructions below show how to build sample applications with CMake. If you are 
 
             .. note::
 
-               If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+               If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.26 or higher.
 
             You can build the C or C++ sample applications on Windows with either PowerShell or Command Prompt.
 
