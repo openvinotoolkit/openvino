@@ -415,9 +415,18 @@ std::vector<std::string> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         FRONT_END_GENERAL_CHECK(!m_tensor_place->is_raw(), "Loading strings from raw data isn't supported");
-        FRONT_END_GENERAL_CHECK(m_tensor_place->get_data_any().is<std::vector<std::string>>(),
-                                "Tensor data type mismatch for strings");
-        return m_tensor_place->get_data_any().as<std::vector<std::string>>();
+        const auto& data_any = m_tensor_place->get_data_any();
+
+        // Support both std::vector<std::string> (with copy) and const std::string* (without copy)
+        if (data_any.is<std::vector<std::string>>()) {
+            return data_any.as<std::vector<std::string>>();
+        } else if (data_any.is<const std::string*>()) {
+            const std::string* str_ptr = data_any.as<const std::string*>();
+            size_t count = m_tensor_place->get_data_size();
+            return std::vector<std::string>(str_ptr, str_ptr + count);
+        }
+
+        FRONT_END_THROW("Tensor data type mismatch for strings");
     }
     if (m_tensor_proto->has_raw_data()) {
         FRONT_END_THROW("Loading strings from raw data isn't supported");
