@@ -139,7 +139,9 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
+    // Sub-byte types (i4/u4) are allowed but only for contiguous (non-ROI) copies
+    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8 || roi_shape.empty(),
+                    "[GPU] ROI copy is not supported for sub-byte element type: ", src->get_element_type());
 
     // If it's a simple copy_to/copy_from call, then change dst shape
     if (roi_shape.empty()) {
@@ -215,6 +217,22 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
+    // Sub-byte types (i4/u4) don't support strided copy — use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (dst_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, nullptr, dst->data());
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
+
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
@@ -248,6 +266,22 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
+
+    // Sub-byte types (i4/u4) don't support strided copy — use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (src_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
 
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
