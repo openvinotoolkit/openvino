@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/gqa.hpp"
 #include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
@@ -762,10 +763,14 @@ void Snapshot::earlyRegroup() {
                 HNDL(VariadicSplit);
                 HNDL_MOE(GPTOSSExpert);
                 HNDL_MOE(GPTOSSRouter);
+                HNDL_MOE(Qwen3Expert);
+                HNDL_MOE(Qwen3Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(GQA);
+                HNDL_ATTN(SDPACompressed);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
@@ -1401,8 +1406,19 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
-        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
+    std::string isolate_tag = (*(gptrs.begin()))->isolatedTag();
+    NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) {
+        return g->isolatedTag() == isolate_tag;
+    }));
+
+    const bool keep_by_size = gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size;
+    const bool keep_by_isolate_tag =
+        !isolate_tag.empty() && std::find(m_ctx.keep_block_tags.begin(), m_ctx.keep_block_tags.end(), isolate_tag) !=
+                                    m_ctx.keep_block_tags.end();
+    if (keep_by_size || keep_by_isolate_tag) {
+        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                << " layers tagged '" << isolate_tag << "', "
+                                                << "by_size=" << keep_by_size << ",  by_tag=" << keep_by_isolate_tag);
         for (const auto& g : gptrs) {
             g->freeze();
         }

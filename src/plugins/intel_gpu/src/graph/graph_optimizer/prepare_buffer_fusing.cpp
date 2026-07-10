@@ -76,22 +76,6 @@ auto available_pred = [](const program_node& input) {
     return true;
 };
 
-// Primitives that read input by explicit tensor coordinate and therefore correctly skip
-// padding on the input side.
-auto reads_padded_input_safely = [](const program_node& user) {
-    if (user.can_be_optimized())
-        return false;
-    if (user.is_type<eltwise>()) {
-        auto broadcast_type = user.as<eltwise>().get_primitive()->broadcast_spec.m_type;
-        return broadcast_type == ov::op::AutoBroadcastType::NONE;
-    }
-    return user.is_type<convolution>()   ||
-           user.is_type<deconvolution>() ||
-           user.is_type<pooling>()       ||
-           user.is_type<activation>()    ||
-           user.is_type<quantize>();
-};
-
 bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
@@ -154,6 +138,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
         if (pred.first->is_output())
             return false;
+        // In-place concat forces offset padding on predecessor outputs, but shape-of subgraph
+        // nodes run on CPU impls that don't support padded output. Skip optimization for them.
+        if (pred.first->is_in_shape_of_subgraph())
+            return false;
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
@@ -164,16 +152,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // TODO: handle optimized reshape
         if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
             return false;
-        // A predecessor with more than two users can still be fused if all non-concat
-        // users correctly handle a padded input buffer.
-        if (pred.first->get_users().size() > 2) {
-            for (const auto& user : pred.first->get_users()) {
-                if (user->is_type<concatenation>())
-                    continue;
-                if (!reads_padded_input_safely(*user))
-                    return false;
-            }
-        }
+        // TODO: Investigate if this condition is needed
+        if (pred.first->get_users().size() > 2)
+            return false;
 
        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
@@ -259,7 +240,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    // Implicit concat for onednn only when use_usm and batch 1 on the batch axis.
+    // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
         const layout& concat_out_l = concat_params.get_output_layout();
@@ -269,11 +250,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             // Return true in build time, it will be checked again in runtime
             return true;
         } else {
-            // Block formats (b_fs_yx_fsv16 etc.) are not contiguous along the batch axis,
-            // so batch-axis (axis=0) concat with batch>1 cannot safely alias buffers.
-            // Feature-axis and other axes are fine — the 64-byte alignment check above is
-            // the correctness gate for those cases.
-            if (concat_axis_index == 0 && concat_out_l.batch() > 1)
+            if (concat_out_l.batch() > 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
@@ -536,11 +513,18 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph())
         return false;
 
+    // Treat crop as dynamic if its predecessor is dynamic, so that the
+    // dyn-only guards below match the runtime path. Skipped at runtime
+    // since the predecessor shape is already resolved there.
+    const bool dyn_aware = node.is_dynamic() ||
+                           (!is_runtime && !node.get_dependencies().empty() &&
+                            node.get_dependency(0).is_dynamic());
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
+        if (dyn_aware && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -555,15 +539,15 @@ bool crop_in_place_optimization::match(const program_node& node,
         // where the total size of tensor is not properly calculated and becomes 0
         // It causes issue for internal buffer allocation during runtime
         // TODO: Need to allow optimization for gemm user
-        if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
+        if (dyn_aware && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
+            if (dyn_aware && node.get_users().size() != 1)
                 return false;
             auto& reshape_node = user->as<reshape>();
             if (can_reshape_be_optimized(reshape_node) &&
-                (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
+                (!dyn_aware || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
@@ -595,17 +579,17 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && node.is_dynamic()) {
+        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && dyn_aware) {
             return false;
         }
 
         // optimization is available for cropping across depth(features) or batch
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
-        if ((!node.is_dynamic() || is_runtime) &&
+        if ((!dyn_aware || is_runtime) &&
             !is_optimizable_padding_for_crop(node, crop_layout, input_layout, crop_params.input_offsets[0]))
             return false;
-        if (!(((!node.is_dynamic() || is_runtime) && can_crop_be_optimized_along_feature(crop_layout, input_layout))
+        if (!(((!dyn_aware || is_runtime) && can_crop_be_optimized_along_feature(crop_layout, input_layout))
             || can_crop_be_optimized_simple_data_format(crop_layout, input_layout)))
             return false;
     } else {
