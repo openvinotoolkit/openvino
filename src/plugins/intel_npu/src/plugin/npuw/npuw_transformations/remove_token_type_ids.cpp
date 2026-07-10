@@ -174,20 +174,32 @@ bool ov::npuw::RemoveTokenTypeIds::run_on_model(const std::shared_ptr<ov::Model>
     // `token_type_ids` parameter from the model to skip unnecessary operations with it.
     // As `token_type_ids` isn't used in the generate stage, it is safe to remove the subgraphs.
     // However, components and connections in `attention_mask` subgraph should be fully preserved.
-    ov::pass::Manager transform_manager("remove-token-type-ids");
-    transform_manager.set_per_pass_validation(false);
-    transform_manager.register_pass<RemoveTTIVisionSubgraph>();
-    transform_manager.register_pass<RemoveTTIShapeOfSubgraph>();
-    auto subgraphs_removed = transform_manager.run_passes(model);
-    if (subgraphs_removed) {
-        LOG_INFO("RemoveTokenTypeIds: `token_type_ids` subgraphs were found and removed in generate model.");
+    //
+    // Apply both passes independently and require BOTH to succeed before removing parameter.
+    ov::pass::Manager vision_manager("remove-token-type-ids-vision");
+    vision_manager.set_per_pass_validation(false);
+    vision_manager.register_pass<RemoveTTIVisionSubgraph>();
+    auto vision_removed = vision_manager.run_passes(model);
+
+    ov::pass::Manager shapeof_manager("remove-token-type-ids-shapeof");
+    shapeof_manager.set_per_pass_validation(false);
+    shapeof_manager.register_pass<RemoveTTIShapeOfSubgraph>();
+    auto shapeof_removed = shapeof_manager.run_passes(model);
+
+    bool both_subgraphs_removed = vision_removed && shapeof_removed;
+    
+    if (both_subgraphs_removed) {
+        LOG_INFO("RemoveTokenTypeIds: both vision and shapeof subgraphs were found and removed. Removing `token_type_ids` parameter.");
         auto token_type_ids_param =
             ov::as_type_ptr<ov::op::v0::Parameter>(model->input(token_type_ids_name).get_node_shared_ptr());
         model->remove_parameter(token_type_ids_param);
         model->validate_nodes_and_infer_types();
+    } else if (vision_removed || shapeof_removed) {
+        LOG_WARN("RemoveTokenTypeIds: only partial subgraphs removed (vision=%d, shapeof=%d). Parameter not removed.",
+                 vision_removed, shapeof_removed);
     } else {
         LOG_WARN("RemoveTokenTypeIds: `token_type_ids` exists but subgraphs were not found in generate model.");
     }
 
-    return subgraphs_removed;
+    return both_subgraphs_removed;
 }
