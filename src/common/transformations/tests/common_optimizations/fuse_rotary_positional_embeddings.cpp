@@ -2313,8 +2313,11 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
 //    the Q/K projection is BSNH [batch, seq, heads, head_size] and transposed to BNSH before RoPE;
 //    RoPEFusion's RoPEFusionPreprocess sub-pass must absorb that Transpose into the fused RoPE
 //    (input_trans0213=true).
+//  - whether the "add last dim" step uses Reshape (PagedAttention mode) instead of Unsqueeze.
+//    In PagedAttention mode, SDPAToPagedAttention changes Q/K seq-length to 1, which causes
+//    shape propagation to canonicalize Unsqueeze ops into Reshape ops with explicit shapes.
 class ConvertToROPECohereTest : public TransformationTestsF,
-                                public ::testing::WithParamInterface<std::tuple<ov::element::Type, bool>> {};
+                                public ::testing::WithParamInterface<std::tuple<ov::element::Type, bool, bool>> {};
 
 TEST_P(ConvertToROPECohereTest, basic) {
     disable_rt_info_check();
@@ -2322,6 +2325,7 @@ TEST_P(ConvertToROPECohereTest, basic) {
     const int head_size = 128;  // must be static for the pass
     const ov::element::Type dtype = std::get<0>(GetParam());
     const bool has_transpose = std::get<1>(GetParam());
+    const bool use_reshape = std::get<2>(GetParam());
     const int64_t stop = (dtype == ov::element::i32) ? std::numeric_limits<int32_t>::max()
                                                      : std::numeric_limits<int64_t>::max();
 
@@ -2335,14 +2339,14 @@ TEST_P(ConvertToROPECohereTest, basic) {
     const ov::Shape cs_shape{(size_t)batch, 1, (size_t)seq_len, (size_t)head_size};
 
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, input_shape);
-        auto param_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, cs_shape);
-        auto param_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, cs_shape);
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+        auto param_cos = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+        auto param_sin = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
 
         // The Cohere rotation operates on BNSH; with a Transpose it is applied to the transposed tensor.
         std::shared_ptr<ov::Node> x = input;
         if (has_transpose) {
-            x = makeOP<ov::opset1::Transpose>({input, makeConst(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3})});
+            x = makeOP<v1::Transpose>({input, makeConst(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3})});
         }
 
         // x[..., start::2] along axis 3; stop value encodes "all remaining elements".
@@ -2355,19 +2359,30 @@ TEST_P(ConvertToROPECohereTest, basic) {
         };
         auto x_odd  = make_slice(1);  // x[..., 1::2]
         auto x_even = make_slice(0);  // x[..., 0::2]
-        auto neg_x_odd = makeOP<ov::opset1::Multiply>({x_odd, makeConst(ov::element::f32, ov::Shape{1}, {-1.0f})},
-                                                       {{"auto_broadcast", "numpy"}});
+        auto neg_x_odd = makeOP<v1::Multiply>({x_odd, makeConst(ov::element::f32, ov::Shape{1}, {-1.0f})},
+                                              {{"auto_broadcast", "numpy"}});
         // stack((-x_odd, x_even), dim=-1)
-        auto neg_x_odd_unsq =
-            makeOP<ov::opset1::Unsqueeze>({neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1})});
-        auto x_even_unsq = makeOP<ov::opset1::Unsqueeze>({x_even, makeConst(ov::element::i64, ov::Shape{}, {-1})});
-        auto stack       = makeOP<ov::opset1::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
-        // .flatten(-2) using special_zero=true: {0,0,0,-1} → [B,H,L,head_size]
+        std::shared_ptr<ov::Node> neg_x_odd_unsq;
+        std::shared_ptr<ov::Node> x_even_unsq;
+        if (use_reshape) {
+            // Use Reshape(x, explicit_shape, special_zero=false) instead of Unsqueeze(x, -1).
+            // This is what SDPAToPagedAttention produces when the seq dimension becomes 1.
+            auto unsq_shape = makeConst(ov::element::i32, ov::Shape{5},
+                                        std::vector<int32_t>{-1, num_heads, seq_len, head_size / 2, 1});
+            neg_x_odd_unsq = makeOP<v1::Reshape>({neg_x_odd, unsq_shape}, {{"special_zero", false}});
+            x_even_unsq    = makeOP<v1::Reshape>({x_even,    unsq_shape}, {{"special_zero", false}});
+        } else {
+            neg_x_odd_unsq =
+                makeOP<v0::Unsqueeze>({neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1})});
+            x_even_unsq = makeOP<v0::Unsqueeze>({x_even, makeConst(ov::element::i64, ov::Shape{}, {-1})});
+        }
+        auto stack       = makeOP<v0::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
+        // .flatten(-2) using special_zero=true: {0,0,0,-1} -> [B,H,L,head_size]
         auto shape_const = makeConst(ov::element::i64, ov::Shape{4}, {0LL, 0LL, 0LL, -1LL});
-        auto x_rotate    = makeOP<ov::opset1::Reshape>({stack, shape_const}, {{"special_zero", true}});
-        auto mul_cos     = makeOP<ov::opset1::Multiply>({x, param_cos}, {{"auto_broadcast", "numpy"}});
-        auto mul_sin     = makeOP<ov::opset1::Multiply>({x_rotate, param_sin}, {{"auto_broadcast", "numpy"}});
-        auto result      = makeOP<ov::opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+        auto x_rotate    = makeOP<v1::Reshape>({stack, shape_const}, {{"special_zero", true}});
+        auto mul_cos     = makeOP<v1::Multiply>({x, param_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_sin     = makeOP<v1::Multiply>({x_rotate, param_sin}, {{"auto_broadcast", "numpy"}});
+        auto result      = makeOP<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
         model = std::make_shared<ov::Model>(ov::OutputVector{result},
                                             ov::ParameterVector{input, param_cos, param_sin});
@@ -2378,9 +2393,9 @@ TEST_P(ConvertToROPECohereTest, basic) {
         manager.register_pass<ov::pass::RoPEFusion>();
     }
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, input_shape);
-        auto param_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, cs_shape);
-        auto param_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, cs_shape);
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+        auto param_cos = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+        auto param_sin = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
 
         // With a Transpose the RoPE is fed directly from `input` and folds it (input_trans0213=true);
         // without one the input is already BNSH and input_trans0213=false.
@@ -2408,4 +2423,5 @@ TEST_P(ConvertToROPECohereTest, basic) {
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
                          ConvertToROPECohereTest,
                          ::testing::Combine(::testing::Values(ov::element::i32, ov::element::i64),
+                                            ::testing::Bool(),
                                             ::testing::Bool()));
