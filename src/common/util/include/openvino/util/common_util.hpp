@@ -6,17 +6,13 @@
 
 #include <charconv>
 #include <iterator>
-#include <locale>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
 
-#include "openvino/util/container_util.hpp"
-#include "openvino/util/hash_util.hpp"
-#include "openvino/util/math_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 
 namespace ov::util {
 
@@ -153,56 +149,6 @@ std::string to_upper(std::string_view s);
 std::string filter_lines_by_prefix(std::string_view sv, std::string_view prefix);
 
 /**
- * @brief A custom stream buffer that provides read-only access to a string view.
- *
- * This class inherits from `std::streambuf` and is designed to facilitate
- * input operations directly on a `std::string_view` without copying the
- * underlying string data. It allows for efficient reading and seeking
- * operations within the string view.
- *
- * @note This stream buffer is intended for input operations only.
- * @see pyopenvino/utils/utils.hpp for a similar implementation
- */
-class StringViewStreamBuf : public std::streambuf {
-public:
-    explicit StringViewStreamBuf(std::string_view sv) {
-        char* begin = const_cast<char*>(sv.data());
-        setg(begin, begin, begin + sv.size());
-    }
-
-protected:
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir dir,
-                     std::ios_base::openmode which = std::ios_base::in) override {
-        if (which != std::ios_base::in) {
-            return off_type(-1);
-        }
-
-        switch (dir) {
-        case std::ios_base::beg:
-            setg(eback(), eback() + off, egptr());
-            break;
-        case std::ios_base::end:
-            setg(eback(), egptr() + off, egptr());
-            break;
-        case std::ios_base::cur:
-            setg(eback(), gptr() + off, egptr());
-            break;
-        default:
-            return off_type(-1);
-        }
-        if (gptr() < eback() || gptr() > egptr())
-            return off_type(-1);
-
-        return gptr() - eback();
-    }
-
-    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
-        return seekoff(pos, std::ios_base::beg, which);
-    }
-};
-
-/**
  * @brief This function attempts to parse the input string view `sv` into a number of type `T`.
  *
  * @tparam T The type of the number to convert to. Must be an arithmetic type.
@@ -233,7 +179,6 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
         }
     }
 }
-
 /**
  * @brief Transforms a string view into a container.
  *
