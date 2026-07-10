@@ -8,6 +8,8 @@
 
 namespace ov::npuw {
 
+constexpr const char* token_type_ids_name = "token_type_ids";
+
 class RemoveTokenTypeIds : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RemoveTokenTypeIds");
