@@ -16,9 +16,12 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #define USE_SINGLE_THREADED_RUN_INIT 1
 
@@ -118,10 +121,9 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_constants_map(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
     const std::vector<NetworkMetadata>& initNetworkMetadata) {
-    if (const std::shared_ptr<const ov::Model>* model =
-            std::get_if<std::reference_wrapper<std::istream>>(&weightsSource)) {
+    if (const std::shared_ptr<const ov::Model>* model = std::get_if<std::shared_ptr<const ov::Model>>(&weightsSource)) {
         return get_all_constants_in_topological_order(*model);
-    } else if (std::string_view* weightsPath = std::get_if<std::reference_wrapper<std::istream>>(&weightsSource)) {
+    } else if (std::string_view* weightsPath = std::get_if<std::string_view>(&weightsSource)) {
         auto ext = ov::util::path_to_string(ov::util::make_path(*weightsPath).extension());
         if (ext == ONNX_EXTENSION) {
             const auto model = get_core()->read_model(*weightsPath, *weightsPath, properties);

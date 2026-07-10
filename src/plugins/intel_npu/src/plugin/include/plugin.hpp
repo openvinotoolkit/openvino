@@ -67,6 +67,7 @@ private:
     bool should_import_raw_blob(const ov::AnyMap& properties) const;
 
     /**
+    TODO adjust this
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
      * can be used for running predictions.
      * @details The binary data corresponding to the compiled model is made of NPU plugin metadata, the schedule of

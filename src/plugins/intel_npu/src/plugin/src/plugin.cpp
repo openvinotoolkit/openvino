@@ -604,7 +604,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
         OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     }
 
-    return import_model(stream, properties);
+    return import_model(stream, localConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
@@ -631,14 +631,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
 
     try {
-        // TODO make unique?
         std::unique_ptr<IBlobFormatHandler> blobFormatHandler =
             blob_format_handler_factory::create(compiledBlob,
                                                 should_import_raw_blob(npuPluginProperties),
                                                 get_model_ptr_from_map(properties),
                                                 localConfig);
 
-        return import_model(blobFormatHandler, npuPluginProperties);
+        return import_model(blobFormatHandler, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -657,17 +656,37 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::shared_ptr<IBlobFormatHandler>& blobFormatHandler,
-                                                         ov::AnyMap& properties) const {
+                                                         FilteredConfig& localConfig) const {
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
-
     if (_backend == nullptr || device == nullptr) {
         OPENVINO_THROW("Device not found.");
     }
+
     if (!localConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
     }
 
-    return nullptr;
+    // TODO what about this & compiler version stuff?
+    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
+    if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
+        localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
+        CompilerAdapterFactory factory;
+        (void)factory.getCompiler(_backend, compilerType, device->getName());
+
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+
+    const std::shared_ptr<IGraph> graph =
+        blobFormatHandler->create_graph(_backend->getInitStructs(),
+                                        "net" + std::to_string(_compiledModelLoadCounter++));
+
+    return std::make_shared<CompiledModel>(blobFormatHandler->create_dummy_model(),
+                                           shared_from_this(),
+                                           device,
+                                           graph,
+                                           localConfig,
+                                           graph->get_batch_size());
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,

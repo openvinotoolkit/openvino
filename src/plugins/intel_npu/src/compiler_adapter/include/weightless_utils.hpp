@@ -4,14 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include "intel_npu/common/network_metadata.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace intel_npu {
 

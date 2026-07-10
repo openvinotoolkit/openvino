@@ -11,6 +11,11 @@
 
 namespace {
 
+constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
+constexpr std::string_view EMPTY_BLOB_MESSAGE = "The blob provided for import is empty";
+constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
+    "The blob provided for import doesn't have any compiler payload";
+
 ov::Tensor allocate_aligned_tensor(const size_t blobSize) {
     ov::Allocator customAllocator{intel_npu::utils::AlignedAllocator{intel_npu::utils::STANDARD_PAGE_SIZE}};
     ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
@@ -152,10 +157,13 @@ std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
 }
 
 std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
-    const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs) const {
+    const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs,
+    std::string_view network_name,
+    const std::shared_ptr<ov::ICore>& core) const {
     decrypt_schedules();
     m_main_schedule = extract_main_schedule();
     m_init_schedules = extract_init_schedules();
+    m_batch_size = extract_batch_size();
 
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(zero_init_structs);
@@ -171,19 +179,29 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
         }
     }
 
-    return parser->parse(m_main_schedule,
-                         m_config,
-                         m_init_schedules,
-                         std::move(weights_source),
-                         get_compiler_compatibility_descriptor());
+    const std::shared_ptr<IGraph> graph = parser->parse(m_main_schedule,
+                                                        m_config,
+                                                        core,
+                                                        std::move(weights_source),
+                                                        m_init_schedules,
+                                                        get_compiler_compatibility_descriptor());
+
+    graph->update_network_name(network_name);
+    if (m_batch_size.has_value() && m_batch_size.value() > 0) {
+        // Initial batch setup for static cases
+        graph->set_batch_size(m_batch_size.value());
+    }
+
+    return graph;
 }
 
+// TODO comments, logs, ITT
 RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
                                const std::shared_ptr<const ov::Model>& original_model,
                                const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("RawBlobHandler", config.get<LOG_LEVEL>())) {
     const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
-    OPENVINO_ASSERT(blob_size > 0, "The blob provided for import is empty");
+    OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
     m_main_schedule = allocate_aligned_tensor(blob_size);
     compiler_main_schedule.read(m_main_schedule.data<char>(), static_cast<std::streamsize>(blob_size));
@@ -194,7 +212,7 @@ RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
                                const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("RawBlobHandler", config.get<LOG_LEVEL>())) {
     const size_t blob_size = compiler_main_schedule.get_byte_size();
-    OPENVINO_ASSERT(blob_size > 0, "The blob provided for import is empty");
+    OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
     m_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
@@ -241,7 +259,7 @@ BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,
     m_metadata = read_metadata_from(npu_formatted_blob);
 
     const size_t blob_size = m_metadata->get_blob_size();
-    OPENVINO_ASSERT(blob_size > 0, "The blob provided for import doesn't have any compiler payload");
+    OPENVINO_ASSERT(blob_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
 
     m_compiler_payload = allocate_aligned_tensor(blob_size);
     npu_formatted_blob.read(m_compiler_payload.data<char>(), static_cast<std::streamsize>(blob_size));
@@ -254,7 +272,7 @@ BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
     m_metadata = read_metadata_from(npu_formatted_blob);
 
     const size_t blob_size = m_metadata->get_blob_size();
-    OPENVINO_ASSERT(blob_size > 0, "The blob provided for import doesn't have any compiler payload");
+    OPENVINO_ASSERT(blob_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
 
     // ROI tensor to skip the NPU plugin metadata
     m_compiler_payload = ov::Tensor(npu_formatted_blob, ov::Coordinate{0}, ov::Coordinate{blob_size});
@@ -291,7 +309,7 @@ std::optional<std::vector<ov::Tensor>> BlobFormatV1Handler::extract_init_schedul
         init_schedules.push_back(ov::Tensor(m_compiler_payload,
                                             ov::Coordinate{cursor_position},
                                             ov::Coordinate{cursor_position + init_size}));
-        cursor_position += initSize;
+        cursor_position += init_size;
     }
 
     return init_schedules;
@@ -332,16 +350,15 @@ std::unique_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
     }
 
     // The V1 format is identified by some magic bytes at the end of the input
-    size_t magic_bytes_size = MAGIC_BYTES.size();
+    const size_t magic_bytes_size = MAGIC_BYTES.size();
     std::string blob_magic_bytes;
     blob_magic_bytes.resize(magic_bytes_size);
 
     std::streampos compiler_payload_beggining = npu_formatted_blob.tellg();
     npu_formatted_blob.seekg(-std::streampos(magic_bytes_size), std::ios::end);
     npu_formatted_blob.read(blob_magic_bytes.data(), magic_bytes_size);
-    if (MAGIC_BYTES != blob_magic_bytes) {
-        OPENVINO_THROW("The blob is missing the NPU metadata!");
-    }
+
+    OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 
     npu_formatted_blob.seekg(compiler_payload_beggining, std::ios::beg);
 
@@ -364,9 +381,7 @@ std::unique_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
         npu_formatted_blob.data<const char>() + npu_formatted_blob.get_byte_size() - magic_bytes_size,
         magic_bytes_size);
 
-    if (MAGIC_BYTES != blob_magic_bytes) {
-        OPENVINO_THROW("The blob is missing the NPU metadata!");
-    }
+    OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 
     return std::make_unique<BlobFormatV1Handler>(npu_formatted_blob, original_model, config);
 }

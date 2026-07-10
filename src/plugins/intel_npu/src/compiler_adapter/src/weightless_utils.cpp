@@ -4,12 +4,6 @@
 
 #include "weightless_utils.hpp"
 
-#include "openvino/core/memory_util.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/mmap_object.hpp"
-
 namespace intel_npu {
 
 bool isInitMetadata(const NetworkMetadata& networkMetadata) {

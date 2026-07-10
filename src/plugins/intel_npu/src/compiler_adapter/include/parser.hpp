@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <variant>
-
 #include "intel_npu/common/iparser.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -23,9 +21,9 @@ public:
     std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
+        const std::shared_ptr<ov::ICore>& core,
+        std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource =
-            std::monostate,
         const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
 
 private:

@@ -28,8 +28,9 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 std::shared_ptr<IGraph> Parser::parse(
     const ov::Tensor& mainBlob,
     const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
+    const std::shared_ptr<ov::ICore>& core,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::string>& compatibilityDescriptor) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
@@ -92,7 +93,7 @@ std::shared_ptr<IGraph> Parser::parse(
         initNetworkMetadata.push_back(std::move(initNetworkMeta));
     }
     _logger.debug("inits schedule parse end");
-
+    // TODO pass the core as optional (or as part of the variant?)
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphDesc,
