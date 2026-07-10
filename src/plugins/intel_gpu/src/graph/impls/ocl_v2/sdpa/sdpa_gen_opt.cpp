@@ -336,8 +336,7 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             // split-KV adds one partition for the new chunk; see split_kv_partitions_num.
-            const size_t num_of_partitions =
-                desc->split_kv ? split_kv_partitions_num(params) : get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
+            const size_t num_of_partitions = desc->split_kv ? split_kv_partitions_num(params) : get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
             // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
@@ -441,8 +440,7 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             // split-KV adds one partition for the new chunk; see split_kv_partitions_num.
-            const size_t num_of_partitions =
-                desc->split_kv ? split_kv_partitions_num(params) : get_partitions_num(params, SDPAStage::FINALIZATION);
+            const size_t num_of_partitions = desc->split_kv ? split_kv_partitions_num(params) : get_partitions_num(params, SDPAStage::FINALIZATION);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
             // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
