@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
@@ -27,13 +27,12 @@ TEST_F(StridedSliceReshapeConcatFusionTest, Positive) {
             auto begin = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {0, start});
             auto end = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {1, start + 4});
             auto strides = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
-            auto strided_slice =
-                std::make_shared<ov::op::v1::StridedSlice>(input,
-                                                           begin,
-                                                           end,
-                                                           strides,
-                                                           std::vector<int64_t>{0, 0},
-                                                           std::vector<int64_t>{0, 0});
+            auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(input,
+                                                                            begin,
+                                                                            end,
+                                                                            strides,
+                                                                            std::vector<int64_t>{0, 0},
+                                                                            std::vector<int64_t>{0, 0});
             auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 1, 4});
             auto reshape = std::make_shared<ov::op::v1::Reshape>(strided_slice, shape, false);
             concat_inputs.push_back(reshape);
@@ -47,8 +46,8 @@ TEST_F(StridedSliceReshapeConcatFusionTest, Positive) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16});
         auto indices = ov::op::v0::Constant::create<int64_t>(ov::element::i64,
-                                                              ov::Shape{3, 4},
-                                                              {0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7});
+                                                             ov::Shape{3, 4},
+                                                             {0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7});
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis, 0);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{input});
@@ -66,11 +65,11 @@ TEST_F(StridedSliceReshapeConcatFusionTest, NegativeUnequalSliceLength) {
         auto end = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {1, stop});
         auto strides = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(input,
-                                                                         begin,
-                                                                         end,
-                                                                         strides,
-                                                                         std::vector<int64_t>{0, 0},
-                                                                         std::vector<int64_t>{0, 0});
+                                                                        begin,
+                                                                        end,
+                                                                        strides,
+                                                                        std::vector<int64_t>{0, 0},
+                                                                        std::vector<int64_t>{0, 0});
         auto shape = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{3}, {1, 1, stop - start});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(strided_slice, shape, false);
         concat_inputs.push_back(reshape);
@@ -93,13 +92,12 @@ TEST(StridedSliceReshapeConcatFusionInferTest, NumericalEquivalence) {
             auto begin = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {0, start});
             auto end = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {1, start + 4});
             auto strides = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {1, 1});
-            auto strided_slice =
-                std::make_shared<ov::op::v1::StridedSlice>(input,
-                                                           begin,
-                                                           end,
-                                                           strides,
-                                                           std::vector<int64_t>{0, 0},
-                                                           std::vector<int64_t>{0, 0});
+            auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(input,
+                                                                            begin,
+                                                                            end,
+                                                                            strides,
+                                                                            std::vector<int64_t>{0, 0},
+                                                                            std::vector<int64_t>{0, 0});
             auto shape = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{3}, {1, 1, 4});
             auto reshape = std::make_shared<ov::op::v1::Reshape>(strided_slice, shape, false);
             concat_inputs.push_back(reshape);
@@ -129,4 +127,3 @@ TEST(StridedSliceReshapeConcatFusionInferTest, NumericalEquivalence) {
     ASSERT_EQ(outputs_before.size(), 1);
     ov::test::utils::compare(outputs_before[0], outputs_after[0], 0.0, 0.0);
 }
-
