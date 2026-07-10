@@ -847,7 +847,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed23_fp4e2m1) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed24_fp4e2m1) {
+TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::f4e2m1, ov::Shape{ 32, 16 }, { 1 });
