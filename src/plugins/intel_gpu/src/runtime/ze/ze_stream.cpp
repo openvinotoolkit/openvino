@@ -23,6 +23,8 @@
 #include "compute_runtime/ze_stypes.h"
 
 #include <cassert>
+#include <cstdlib>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
@@ -38,26 +40,27 @@ namespace cldnn {
 namespace ze {
 
 namespace {
-thread_local std::string last_enqueued_kernel_id;
-
 bool sync_after_each_kernel_enabled() {
     static const bool enabled = [] {
         const char* value = std::getenv("OV_GPU_ZE_SYNC_EACH_KERNEL");
         return value != nullptr && std::string(value) != "0";
     }();
+
     return enabled;
 }
 
 bool print_each_kernel() {
-    const char* value = std::getenv("OV_GPU_ZE_PRINT_EACH_KERNEL");
-    if ((value != nullptr && std::string(value) != "0") || sync_after_each_kernel_enabled())
-        return true;
-    return false;
+    static const bool enabled = [] {
+        const char* value = std::getenv("OV_GPU_ZE_PRINT_EACH_KERNEL");
+        return value != nullptr && std::string(value) != "0";
+    }();
+
+    return enabled || sync_after_each_kernel_enabled();
 }
 
 std::string ze_result_to_hex(ze_result_t status) {
     std::ostringstream oss;
-    oss << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(status);
+    oss << "0x" << std::hex << static_cast<uint32_t>(status);
     return oss.str();
 }
 
@@ -318,10 +321,6 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      const kernel_arguments_data& /* args */,
                                      std::vector<event::ptr> const& deps,
                                      bool is_output) {
-    last_enqueued_kernel_id = kernel.get_id();
-    if (print_each_kernel())
-        std::cout << "[GPU] Enqueue kernel: " << kernel.get_id() << std::endl;
-
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
     auto kern = ze_kernel.get_kernel_handle();
@@ -345,6 +344,10 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
+
+    if (print_each_kernel())
+        std::cout << "[GPU] Enqueue kernel: " << kernel.get_id() << std::endl;
+
     OV_ZE_EXPECT(ze::zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
     OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(m_cmd_list.handle(),
                                              kern,
@@ -354,7 +357,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                              dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
 
     if (sync_after_each_kernel_enabled()) {
-        const auto status = ze::zeCommandListHostSynchronize(m_command_list, endless_wait);
+        const auto status = ze::zeCommandListHostSynchronize(m_cmd_list.handle(), endless_wait);
         if (status != ZE_RESULT_SUCCESS) {
             OPENVINO_THROW("[GPU] Kernel failed during OV_GPU_ZE_SYNC_EACH_KERNEL mode: ",
                            kernel.get_id(),
