@@ -22,9 +22,9 @@ public:
     virtual ~IBlobFormatHandler() = default;
 
 private:
-    virtual ov::Tensor extract_main_schedule() const = 0;
-
     void decrypt_schedules() = 0;
+
+    virtual ov::Tensor extract_main_schedule() const = 0;
 
     virtual std::optional<std::vector<ov::Tensor>> extract_init_schedules() const = 0;
 
@@ -34,8 +34,6 @@ private:
 
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
-    std::unordered_map<size_t, ov::Constant> create_weights_map() const;
-
     std::optional<std::shared_ptr<const ov::Model>> m_original_model;
     FilteredConfig m_config;
     Logger m_logger;
@@ -43,8 +41,6 @@ private:
     ov::Tensor m_main_schedule;
     std::optional<std::vector<ov::Tensor>> m_init_schedules;
     std::optional<int> m_batch_size;
-    std::optional<std::vector<ov::Layout>> m_input_layouts;
-    std::optional<std::vector<ov::Layout>> m_output_layouts;
 
     std::shared_ptr<IGraph> m_graph;
 };

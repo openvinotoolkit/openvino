@@ -141,16 +141,22 @@ IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<const ov::Model>& o
 ov::Tensor IBlobFormatHandler::decrypt_schedule(const ov::Tensor& schedule) const {}
 
 std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
-    OPENVINO_ASSERT(m_graph != nullptr, "Invalid state")
+    OPENVINO_ASSERT(m_graph != nullptr, "Invalid state");
+
+    const std::optional<std::pair<std::vector<ov::Layout>>> layouts = extract_layouts();
     return create_dummy_model(m_graph->get_metadata().inputs,
                               m_graph->get_metadata().outputs,
                               m_batch_size,
-                              m_input_layouts,
-                              m_output_layouts);
+                              layouts.has_value() ? layouts->first : std::nullopt,
+                              layouts.has_value() ? layouts->second : std::nullopt, );
 }
 
 std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
     const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs) const {
+    decrypt_schedules();
+    m_main_schedule = extract_main_schedule();
+    m_init_schedules = extract_init_schedules();
+
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(zero_init_structs);
 
@@ -171,8 +177,6 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
                          std::move(weights_source),
                          get_compiler_compatibility_descriptor());
 }
-
-std::unordered_map<size_t, ov::Constant> IBlobFormatHandler::create_weights_map() const {}
 
 RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
                                const std::shared_ptr<const ov::Model>& original_model,
