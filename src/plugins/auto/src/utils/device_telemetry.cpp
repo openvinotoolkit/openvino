@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "device_monitor.hpp"
+#include "device_telemetry.hpp"
 
 #ifdef OV_AUTO_ENABLE_IPF
 
@@ -64,15 +64,9 @@ public:
                 return std::nullopt;
             }
             const float value = parsed["Performance"][metric_key].get<float>();
-            LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%.6f for device=%s", value, device_name.c_str());
-
-            // IPF returns utilization in [0, 1] range; convert to [0, 100] percentage
-            if (value < 0.0f || value > 1.0f) {
-                LOG_DEBUG_TAG("TelemetryClient: utilization value out of range [0-1]: %.6f", value);
-                return std::nullopt;
-            }
+            LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", std::to_string(value), device_name.c_str());
             const float utilization_percent = value * 100.0f;
-            LOG_DEBUG_TAG("TelemetryClient: converted utilization=%.2f%% for device=%s", utilization_percent, device_name.c_str());
+            LOG_DEBUG_TAG("TelemetryClient: converted utilization=%s for device=%s", std::to_string(utilization_percent), device_name.c_str());
             return utilization_percent;
         } catch (...) {
             LOG_DEBUG_TAG("TelemetryClient: unknown exception during query for device=%s", device_name.c_str());

@@ -12,7 +12,7 @@
 #include <tuple>
 #include <vector>
 
-#include "utils/device_monitor.hpp"
+#include "utils/device_telemetry.hpp"
 
 using namespace ov::auto_plugin;
 

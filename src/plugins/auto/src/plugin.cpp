@@ -18,7 +18,7 @@
 #include "cumulative_compiled_model.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
-#include "utils/device_monitor.hpp"
+#include "utils/device_telemetry.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -581,7 +581,7 @@ std::optional<float> Plugin::get_device_utilization(const std::string& device_na
                                                     const std::string& device_luid) const {
     auto result = ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
     if (result.has_value()) {
-        LOG_DEBUG_TAG("[IPF] Device %s utilization: %s percent",
+        LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
                       device_name.c_str(),
                       std::to_string(result.value()).c_str());
     } else {
