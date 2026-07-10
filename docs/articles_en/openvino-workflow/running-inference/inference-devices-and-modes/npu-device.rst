@@ -390,13 +390,17 @@ This property returns a plugin-specific requirements string from a compiled mode
 
 .. note::
 
-   Querying this property throws if the compiled model has no runtime requirements,
-   for example weightless models or Level Zero drivers older than 1.16.
+   Particular models might not support the ``ov::runtime_requirements`` property. For example,
+   models compiled with a driver (compiler-in-driver) that does not support Level Zero
+   version 1.16, or models compiled with ``ENABLE_WEIGHTLESS=true``, which is only a
+   preview feature for now. Before reading the property, the application is recommended
+   to check whether it is present in the list of supported properties for that model.
+   Reading an unsupported property will throw.
 
 **ov::compatibility_check**
 
 This property can be queried with a requirements string to check whether
-the current runtime is compatible with the described model.
+the described model is compatible with the current runtime.
 
 .. code-block::
 
