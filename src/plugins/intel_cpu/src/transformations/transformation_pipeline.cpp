@@ -39,6 +39,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -240,6 +241,7 @@
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "transformations/cpu_opset/arm/pass/align_unsupported_lp_conv_fq_precision.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_fc_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -306,29 +308,34 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         });
     };
 
+    auto benefit_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
+        return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static());
+    };
+
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-        all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static())) {
+    if (benefit_from_decompression(consumers)) {
         return true;
     }
 
-    auto are_converts_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
-        if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
-            return false;
-        }
-        return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
-            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-                   all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static());
-        });
-    };
+    auto are_converts_from_decompression =
+        [&all_has_type, &benefit_from_decompression](const std::set<ov::Input<ov::Node>>& consumers) {
+            if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
+                return false;
+            }
+            return std::all_of(consumers.begin(),
+                               consumers.end(),
+                               [&benefit_from_decompression](const ov::Input<ov::Node>& consumer) {
+                                   const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+                                   return benefit_from_decompression(child_consumers);
+                               });
+        };
 
     if (all_has_type(consumers, ov::op::v1::Reshape::get_type_info_static())) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-                all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static()) ||
-                are_converts_from_decompression(child_consumers)) {
+            if (benefit_from_decompression(child_consumers) || are_converts_from_decompression(child_consumers)) {
                 return true;
             }
         }
@@ -576,7 +583,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                        ov::op::v1::Convolution,
                                        ov::op::v1::GroupConvolution,
                                        ov::op::v1::ConvolutionBackpropData,
-                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
+                                       ov::op::v1::GroupConvolutionBackpropData,
+                                       ov::op::v17::GroupedMatMul>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
@@ -966,6 +974,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
 #endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
         lptManager,
@@ -1631,7 +1640,8 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node) ||
+                   match_acl_int8_matmul_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "convert_group_conv.hpp"
 
@@ -62,9 +63,8 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
         ov::NodeVector concat_inputs;
         for (int64_t g = 0; g < groups; g++) {
             auto out = split->output(g);
-            auto filter = std::make_shared<ov::op::v0::Squeeze>(
-                split_weights->output(g),
-                ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{}, {0}));
+            auto squeeze_axis = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{}, {0});
+            auto filter = std::make_shared<ov::op::v0::Squeeze>(split_weights->output(g), squeeze_axis);
             auto conv = std::make_shared<ov::op::v1::Convolution>(out,
                                                                   filter,
                                                                   gconv->get_strides(),
@@ -73,6 +73,8 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
                                                                   gconv->get_dilations(),
                                                                   gconv->get_auto_pad());
             concat_inputs.push_back(conv);
+            replace_nodes.push_back(squeeze_axis);
+            replace_nodes.push_back(filter);
             replace_nodes.push_back(conv);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(concat_inputs, 1);
