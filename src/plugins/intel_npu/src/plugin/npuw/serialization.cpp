@@ -20,6 +20,7 @@
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+#include "wsh_lookup.hpp"
 
 // NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
@@ -48,13 +49,9 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
             if (c->get_element_type() != ov::element::bf16) {
                 continue;
             }
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
+            if (auto origin = ov::npuw::wsh::resolve_origin(*c)) {
+                bf16_cache.insert({origin->offset, c->get_byte_size()});
             }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            bf16_cache.insert({offset, c->get_byte_size()});
         }
     }
     return bf16_cache;

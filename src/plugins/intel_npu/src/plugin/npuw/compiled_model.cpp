@@ -14,6 +14,7 @@
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
+#include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
@@ -46,6 +47,7 @@
 #include "openvino/util/file_util.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
+#include "wsh_lookup.hpp"
 
 namespace {
 std::string canonical_device_name(const std::string& device_name) {
@@ -147,14 +149,11 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                     continue;
                 }
                 const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                auto rt_info = c->get_rt_info();
-                auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                if (weightless_cache_attr == rt_info.end()) {
+                auto origin = ov::npuw::wsh::resolve_origin(*c);
+                if (!origin) {
                     continue;
                 }
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                std::size_t size = c->get_byte_size();
-                consts_cache[{offset, size}] = node;
+                consts_cache[{origin->offset, c->get_byte_size()}] = node;
             }
         } else if (!handle_provider) {
             NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
@@ -1517,20 +1516,19 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
 void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
     for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
-            }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
-            if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
-            }
+        if (!ov::op::util::is_constant(node_ptr)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+        auto origin = ov::npuw::wsh::resolve_origin(*c);
+        if (!origin) {
+            continue;
+        }
+        auto data_ptr = c->get_data_ptr();
+        auto inserted = m_const_to_offset.insert({data_ptr, origin->offset});
+        if (!inserted.second) {
+            NPUW_ASSERT(inserted.first->second == origin->offset &&
+                        "Model contains two constants with same pointer and different offset!");
         }
     }
 }
