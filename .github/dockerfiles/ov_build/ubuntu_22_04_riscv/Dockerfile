@@ -70,8 +70,13 @@ RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricte
     mv riscv64-sources.list /etc/apt/sources.list.d/
 
 RUN dpkg --add-architecture riscv64 && \
-    apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
-    apt-get install -y --no-install-recommends libpython3-dev:riscv64
+    apt-get update \
+        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list \
+        -o Dir::Etc::sourceparts=/dev/null && \
+    apt-get install \
+        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list \
+        -o Dir::Etc::sourceparts=/dev/null \
+        libpython3-dev:riscv64
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
