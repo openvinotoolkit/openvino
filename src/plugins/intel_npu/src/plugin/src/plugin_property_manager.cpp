@@ -14,6 +14,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace {
 
@@ -155,6 +156,13 @@ static auto get_specified_device_name(const intel_npu::Config& config) {
 void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
         properties.erase(ov::hint::model.name());
+    }
+    // MODEL_SHARING_CONTEXT carries a std::shared_ptr<const weight_sharing::Context>
+    // and is consumed via wsh::context_from(properties) before this filter runs.
+    // It is not a compiler-registered option; keeping it here trips any_copy()'s
+    // .as<std::string>() and the "not supported for current configuration" throw.
+    if (properties.count(ov::internal::model_sharing_context.name())) {
+        properties.erase(ov::internal::model_sharing_context.name());
     }
 }
 

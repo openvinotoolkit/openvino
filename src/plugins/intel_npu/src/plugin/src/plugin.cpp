@@ -24,6 +24,7 @@
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
+#include "npuw/wsh_lookup.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -128,27 +129,22 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 }
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
- * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ * @brief Checks that every Constant's origin (bin offset / size / dtype) can be resolved, either through the legacy
+ * "WeightlessCacheAttribute" rt_info or through an ov::weight_sharing::Context threaded via the
+ * "MODEL_SHARING_CONTEXT" property. Throws if neither source produces an entry for the model's Constants — the
+ * weights separation flow cannot proceed without it.
  */
-void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model,
+                                                 const ov::weight_sharing::Context* ctx = nullptr) {
     if (!model) {
         return;
     }
-
-    for (const auto& ov_node : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
-            continue;
-        }
-
-        if (auto it = ov_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
-            it != ov_node->get_rt_info().end()) {
-            return;
-        }
+    if (ov::npuw::wsh::any_origin_available(*model, ctx)) {
+        return;
     }
-
-    OPENVINO_THROW("No \"WeightlessCacheAttribute\" has been found in any of the model's Constant nodes. This "
-                   "attribute is required for running the \"weights separation\" flow.");
+    OPENVINO_THROW("No \"WeightlessCacheAttribute\" rt_info and no matching ov::weight_sharing::Context entry has been "
+                   "found for any of the model's Constant nodes. One of these origin sources is required for running "
+                   "the \"weights separation\" flow.");
 }
 
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
@@ -531,11 +527,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    const auto shared_ctx_for_compile = ov::npuw::wsh::context_from(properties);
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
-            check_weightless_cache_attribute_occurrence(model);
+            check_weightless_cache_attribute_occurrence(model, shared_ctx_for_compile.get());
             return compiler->compileWS(std::move(modelToCompile), config);
         }
     };
@@ -920,7 +917,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             }
         }
 
-        check_weightless_cache_attribute_occurrence(originalModel);
+        check_weightless_cache_attribute_occurrence(originalModel, ov::npuw::wsh::context_from(properties).get());
     }
 
     const std::optional<std::vector<ov::Tensor>> initBlobs =

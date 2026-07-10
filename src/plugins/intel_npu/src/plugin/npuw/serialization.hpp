@@ -86,6 +86,12 @@ class Parameter;
 }  // namespace v0
 }  // namespace op
 
+// Forward declaration for the weight-sharing Context (defined in
+// openvino/core/weight_sharing_util.hpp).
+namespace weight_sharing {
+struct Context;
+}  // namespace weight_sharing
+
 namespace npuw {
 
 // Forward declaration
@@ -204,7 +210,8 @@ struct SubmodelDeserializeCtx {
     std::function<std::map<std::string, Any>(const std::string&)> import_config_for_device;
 };
 
-BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
+BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model,
+                          const ov::weight_sharing::Context* ctx = nullptr);
 
 // The NPUW stream type IS the ORC stream.
 using Stream = ::ov::npuw::orc::Stream;

@@ -114,7 +114,8 @@ private:
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
-                                                                        ov::internal::cache_header_alignment.name()};
+                                                                        ov::internal::cache_header_alignment.name(),
+                                                                        ov::internal::model_sharing_context.name()};
 
     mutable std::mutex _mutex;
 };

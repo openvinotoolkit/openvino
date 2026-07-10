@@ -14,11 +14,31 @@
 #include "serialization.hpp"
 
 namespace ov {
+namespace weight_sharing {
+struct Context;
+}  // namespace weight_sharing
 namespace npuw {
 namespace weights {
 // Forward declaration
 class LazyTensor;
 struct LazyTensorImpl;
+
+// RAII scope that publishes an ov::weight_sharing::Context to any
+// op::Const constructor invoked on the current thread. Used at NPUW
+// compile time to let Constants without an ov::WeightlessCacheAttribute
+// resolve their bin_offset through the Context passed via
+// "MODEL_SHARING_CONTEXT".
+class ConstResolveScope {
+public:
+    explicit ConstResolveScope(const ov::weight_sharing::Context* ctx) noexcept;
+    ~ConstResolveScope() noexcept;
+    ConstResolveScope(const ConstResolveScope&) = delete;
+    ConstResolveScope& operator=(const ConstResolveScope&) = delete;
+    static const ov::weight_sharing::Context* current() noexcept;
+
+private:
+    const ov::weight_sharing::Context* m_prev = nullptr;
+};
 
 namespace op {
 class Const;

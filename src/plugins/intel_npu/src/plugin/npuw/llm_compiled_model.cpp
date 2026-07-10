@@ -36,8 +36,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
+#include "lazy_tensor.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "wsh_lookup.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -829,8 +831,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
-    // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    // And only then do bf16 to f16 transformation. Consult the weight-sharing Context (if any) so that
+    // Constants without WLCA rt_info can still be located via desc-based lookup.
+    const auto llm_shared_ctx = ov::npuw::wsh::context_from(properties);
+    ov::npuw::weights::ConstResolveScope llm_resolve_scope(llm_shared_ctx.get());
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model, llm_shared_ctx.get());
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);

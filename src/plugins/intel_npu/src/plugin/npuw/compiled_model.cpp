@@ -14,6 +14,7 @@
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
+#include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
@@ -45,6 +46,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/convert_precision.hpp"
+#include "wsh_lookup.hpp"
 
 namespace {
 std::string canonical_device_name(const std::string& device_name) {
@@ -141,19 +143,17 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 model_ptr &&
                 "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
             pre_load_transform(model_ptr, {});
+            const auto shared_ctx = ov::npuw::wsh::context_from(properties);
             for (const auto& node : model_ptr->get_ordered_ops()) {
                 if (!ov::op::util::is_constant(node)) {
                     continue;
                 }
                 const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                auto rt_info = c->get_rt_info();
-                auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                if (weightless_cache_attr == rt_info.end()) {
+                auto origin = ov::npuw::wsh::resolve_origin(*c, shared_ctx.get());
+                if (!origin) {
                     continue;
                 }
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                std::size_t size = c->get_byte_size();
-                consts_cache[{offset, size}] = node;
+                consts_cache[{origin->offset, c->get_byte_size()}] = node;
             }
         } else if (!handle_provider) {
             NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
@@ -342,9 +342,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(false) {
     init_profiling();
 
+    // Extract the weight-sharing Context (if the caller supplied one via
+    // "MODEL_SHARING_CONTEXT") and publish it to the current thread so any
+    // LazyTensor / op::Const created during pre_load_transform, partitioning,
+    // CWAI, etc. can resolve bin_offset through it when WLCA rt_info is absent.
+    const auto shared_ctx = ov::npuw::wsh::context_from(properties);
+    ov::npuw::weights::ConstResolveScope resolve_scope(shared_ctx.get());
+
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model, shared_ctx.get());
     pre_load_transform(model, properties);
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
@@ -390,7 +397,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     // Store original constants' offset for serialization purposes
-    store_const_offsets(model);
+    store_const_offsets(model, shared_ctx.get());
 
     std::optional<ov::npuw::v1::subgraphs::PatternRegistry> combined_subgraph_patterns;
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> builtin_pattern_registrations;
@@ -1102,6 +1109,10 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
 
     ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
+    // MODEL_SHARING_CONTEXT carries a std::shared_ptr<const weight_sharing::Context>
+    // that is meaningful only in-process at compile time. It must not be
+    // serialized — anyToString has no handler for shared_ptr and would throw.
+    serializable_props.erase(ov::internal::model_sharing_context.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
     auto write_children = [&](std::ostream& body_stream) {
@@ -1476,22 +1487,22 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Done.");
 }
 
-void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
+void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model,
+                                                  const ov::weight_sharing::Context* ctx) {
     for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
-            }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
-            if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
-            }
+        if (!ov::op::util::is_constant(node_ptr)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+        auto origin = ov::npuw::wsh::resolve_origin(*c, ctx);
+        if (!origin) {
+            continue;
+        }
+        auto data_ptr = c->get_data_ptr();
+        auto inserted = m_const_to_offset.insert({data_ptr, origin->offset});
+        if (!inserted.second) {
+            NPUW_ASSERT(inserted.first->second == origin->offset &&
+                        "Model contains two constants with same pointer and different offset!");
         }
     }
 }

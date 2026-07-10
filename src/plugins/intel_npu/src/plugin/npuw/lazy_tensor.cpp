@@ -10,6 +10,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -18,12 +19,33 @@
 #include "openvino/util/mmap_object.hpp"
 #include "orc.hpp"
 #include "util.hpp"
+#include "wsh_lookup.hpp"
 
 using ov::npuw::weights::LazyTensor;
 
 namespace ov {
 namespace npuw {
 namespace weights {
+
+namespace {
+// Thread-local pointer to the currently-active weight-sharing Context. Set by
+// ConstResolveScope so op::Const constructors invoked during NPUW compile-time
+// model transforms can fall back to Context lookup when WLCA rt_info is absent.
+thread_local const ov::weight_sharing::Context* tls_ctx = nullptr;
+}  // namespace
+
+ConstResolveScope::ConstResolveScope(const ov::weight_sharing::Context* ctx) noexcept : m_prev(tls_ctx) {
+    tls_ctx = ctx;
+}
+
+ConstResolveScope::~ConstResolveScope() noexcept {
+    tls_ctx = m_prev;
+}
+
+const ov::weight_sharing::Context* ConstResolveScope::current() noexcept {
+    return tls_ctx;
+}
+
 namespace op {
 Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_type = m_node->get_element_type();
@@ -31,10 +53,8 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_ptr = m_node->get_data_ptr();
     m_byte_size = m_node->get_byte_size();
 
-    auto rt_info = m_node->get_rt_info();
-    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    if (weightless_cache_attr != rt_info.end()) {
-        m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    if (auto origin = ov::npuw::wsh::resolve_origin(*m_node, ConstResolveScope::current())) {
+        m_offset = origin->offset;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "

@@ -12,6 +12,7 @@
 #include "logging.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
@@ -20,6 +21,7 @@
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+#include "wsh_lookup.hpp"
 
 // NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
@@ -41,20 +43,17 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
     is_weightless = _weights || !_consts_cache.empty();
 }
 
-ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<ov::Model>& model) {
+ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<ov::Model>& model,
+                                                          const ov::weight_sharing::Context* ctx) {
     ov::npuw::s11n::BF16Cache bf16_cache;
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node_ptr)) {
             if (c->get_element_type() != ov::element::bf16) {
                 continue;
             }
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
+            if (auto origin = ov::npuw::wsh::resolve_origin(*c, ctx)) {
+                bf16_cache.insert({origin->offset, c->get_byte_size()});
             }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            bf16_cache.insert({offset, c->get_byte_size()});
         }
     }
     return bf16_cache;
