@@ -8,10 +8,10 @@
 
 namespace ov::intel_gpu {
 
-class ScatterUpdateReshapeConcatReshapeSDPAFusion : public ov::pass::MatcherPass {
+class GQADecompositionfusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ScatterUpdateReshapeConcatReshapeSDPAFusion");
-    ScatterUpdateReshapeConcatReshapeSDPAFusion();
+    OPENVINO_MATCHER_PASS_RTTI("GQADecompositionfusion");
+    GQADecompositionfusion();
 };
 
 }   // namespace ov::intel_gpu
