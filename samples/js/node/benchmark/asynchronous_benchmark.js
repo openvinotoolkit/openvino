@@ -27,6 +27,9 @@ async function main() {
   let deviceName = 'CPU';
   const args = process.argv;
 
+  console.log('OpenVINO:');
+  console.log(`${'Build '.padEnd(39, '.')} ${ov.version}`);
+
   if (args.length === 4) {
     deviceName = args[2];
   } else if (args.length !== 3) {

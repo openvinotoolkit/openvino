@@ -115,6 +115,13 @@ describe("ov basic tests.", () => {
     });
   });
 
+  describe("ov.version", () => {
+    it("is a non-empty string", () => {
+      assert.strictEqual(typeof ov.version, "string");
+      assert.ok(ov.version.length > 0);
+    });
+  });
+
   it("CompiledModel type", () => {
     assert.ok(compiledModel instanceof ov.CompiledModel);
   });

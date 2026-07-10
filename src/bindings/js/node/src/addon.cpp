@@ -75,6 +75,8 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports) {
 
     init_function(env, exports, "saveModelSync", save_model_sync);
 
+    exports.Set("version", Napi::String::New(env, ov::get_openvino_version().buildNumber));
+
     preprocess::init(env, exports);
     element::init(env, exports);
 

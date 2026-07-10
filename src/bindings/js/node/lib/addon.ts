@@ -806,6 +806,17 @@ export interface NodeAddon {
    */
   saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
+  /**
+   * The build number of the OpenVINO runtime library currently loaded by the
+   * addon, for example `"2026.3.0-21905-bb42a2f2073"`.
+   *
+   * @remarks
+   * This reflects the version of the underlying OpenVINO core binary that is
+   * actually executing. It should not differ from the `version` field declared in
+   * the package's `package.json`.
+   */
+  version: string;
+
   element: typeof element;
   resizeAlgorithm: typeof resizeAlgorithm;
 }
