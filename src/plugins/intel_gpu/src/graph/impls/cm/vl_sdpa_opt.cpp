@@ -87,12 +87,9 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // need_wg_mapping
 
-        // token_offset_q / token_offset_k / token_offset_v are element-count offsets applied
-        // to the Q/K/V SVM pointers when an in-place crop (TransposeSplitMatcher axis=1
-        // pattern) has propagated a dynamic padding offset into the input layout.  Without
-        // these the CM kernel would read from the base of the sliced buffer instead of the
-        // correct slice.  Each offset is derived from the corresponding input layout.
-        // When no crop optimization fires the padding is 0 and the offsets are 0.
+        // Per-input token-axis discontinuity descriptors (populated in the dispatch lambda
+        // from each input layout's get_linear_offset() and get_pitches()[0]). See
+        // cm_sdpa_vlen.cm for the exact memory-layout contract with the kernel.
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // token_offset_q
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_k
         args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_offset_v
@@ -163,11 +160,14 @@ protected:
             wgs.global = {num_q_heads, wg_count * wg_size, 1};
             wgs.local = {1, wg_size, 1};
 
-            // Compute element-count offsets arising from in-place crop dynamic padding
-            // on the Q/K/V inputs.  These are set
-            // when TransposeSplitMatcher replaces Transpose+Split(axis=0) with
-            // Split(axis=1): the crop optimization places lower_pad[feature_axis] in the
-            // layout padding, and this value encodes the QKV-slice index (0, 1, or 2).
+            // Element-count offsets and per-input token strides taken directly from the
+            // input layouts. Non-zero token_offset_x arises when an in-place crop
+            // (e.g. TransposeSplitMatcher axis=1) leaves the SVM base pointing at the
+            // packed parent buffer and expresses the slice view via layout padding on
+            // the token axis; the kernel shifts the Q/K/V pointers accordingly.
+            // Contract with the CM kernel (see cm_sdpa_vlen.cm): only the token (outer)
+            // axis of each input layout may be padded — the head and head_size strides
+            // are hardcoded in the kernel and are NOT parameterized here.
             int32_t token_offset_q = static_cast<int32_t>(params.input_layouts[0].get_linear_offset());
             int32_t token_offset_k = static_cast<int32_t>(params.input_layouts[1].get_linear_offset());
             int32_t token_offset_v = static_cast<int32_t>(params.input_layouts[2].get_linear_offset());

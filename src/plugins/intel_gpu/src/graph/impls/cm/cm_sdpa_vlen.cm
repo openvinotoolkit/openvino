@@ -40,16 +40,25 @@ _GENX_MAIN_ void KERNEL_NAME(
 #endif
     int* cu_seqlens [[type("svmptr_t")]],
     int  need_wg_mapping,
-    // Element-count offsets for in-place crop (TransposeSplitMatcher axis=1 pattern).
-    // When the upstream Reshape propagates dynamic padding from a Split(axis=1) crop,
-    // the SVM base pointer still points to the start of the packed QKV buffer.
-    // These scalars shift query/output (token_offset_q), key (token_offset_k) and value
-    // (token_offset_v) to the correct slice. They are 0 when no crop optimization is active.
+    // Memory-layout contract for Q/K/V inputs (must be preserved by upstream passes):
+    //   Only the token (outer) axis is allowed to be discontinuous. The kernel treats
+    //   each input as a 3-D tensor [tokens, heads, head_size] and hardcodes the two
+    //   inner strides:
+    //     - per-head stride  == head_size (heads contiguous within a token)
+    //     - per-element stride == 1        (head_size dim is contiguous)
+    //   Only the outer per-token stride is layout-driven via {q,k,v}_token_pitch below.
+    //   If prepare_buffer_fusing ever propagates padding onto the head or head_size axis
+    //   of a vl_sdpa input layout, this kernel will silently address the wrong memory.
+    //
+    // Element-count offsets from the SVM base to the slice start of each input, taken
+    // from input_layout.get_linear_offset(). Non-zero when an in-place crop (e.g. the
+    // TransposeSplitMatcher axis=1 pattern) leaves the SVM base pointing at the packed
+    // parent buffer and shifts the logical view via layout padding on the token axis.
     int  token_offset_q,
     int  token_offset_k,
     int  token_offset_v,
-    // Per-input token pitches (in elements) for query/key/value. This allows mixed layouts
-    // where q/k/v can have different token strides.
+    // Per-input token strides in elements, from input_layout.get_pitches()[0]. Allows
+    // mixed layouts (e.g. Q/K contiguous post-RoPE, V still viewing the padded parent).
     int  q_token_pitch,
     int  k_token_pitch,
     int  v_token_pitch
