@@ -63,8 +63,8 @@ public:
      * @return `true` if the option is supported, `false` if it is not supported,
      *         and `std::nullopt` if the option-support query itself is not supported.
      */
-    std::optional<bool> isOptionSupported(std::string optName,
-                                          std::optional<std::string> optValue = std::nullopt) const;
+    std::optional<bool> isOptionSupported(const std::string& optName,
+                                          const std::optional<std::string>& optValue = std::nullopt) const;
 
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
@@ -89,6 +89,13 @@ public:
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
+
+    /**
+     * @brief Fetches the compatibility descriptor of a compiled graph.
+     * @return The descriptor string if the driver supports the feature and the graph carries one,
+     *         or `std::nullopt` otherwise.
+     */
+    std::optional<std::string> getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,

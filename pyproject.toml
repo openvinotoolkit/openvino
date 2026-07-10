@@ -17,14 +17,14 @@ classifiers = [
 requires-python = ">=3.10"
 
 dependencies = [
-    "numpy>=1.16.6,<2.5.0",
+    "numpy>=1.16.6,<2.6.0",
     "openvino-telemetry>=2023.2.1",
 ]
 
 [build-system]
 requires = [
-    "setuptools>=77,<=82.0.1", 
-    "wheel<=0.46.3",
+    "setuptools>=77,<=83.0.0", 
+    "wheel<=0.47.0",
     "cmake<=4.3.4", 
     "patchelf<=0.17.2.4; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]
