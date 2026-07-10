@@ -224,7 +224,19 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Weights normalization
         bool is_small_matmul = true;
-        if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
+
+        // When compressed weights come from a Parameter (shared/external weights) and
+        // the original matmul does not transpose B, we must avoid inserting a runtime
+        // Transpose node because the GPU permute kernel does not support INT4 data type.
+        // Instead, use the non-transposed weight layout and let oneDNN handle it natively.
+        bool is_parameter_compressed_weight = is_compressed_weight &&
+            !matmul->get_transpose_b() &&
+            pattern_map.count(weights_param_m) &&
+            pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr;
+
+        if (is_parameter_compressed_weight) {
+            is_small_matmul = false;
+        } else if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
              if (matmul->get_transpose_a())
