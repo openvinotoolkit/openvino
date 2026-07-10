@@ -234,7 +234,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
              // the non-transposed path to K >= 8192 and (M <= 512 or N <= 4096)
              // to keep the wins while avoiding those regressions.
-             if (k >= 8192 && (m <= 512 || n <= 4096) &&
+             if (supports_immad && k >= 8192 && (m <= 512 || n <= 4096) &&
                  matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
                  is_small_matmul = false;
              }
