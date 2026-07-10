@@ -147,12 +147,74 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // input6 : compressed_weights_input_down {#experts, ofm, num_groups, group_size}
         // input7 : scale_input_down {#experts, ofm, num_groups, 1}
         // input8 : bias_down {#experts, 1, ofm}
+        // (with has_zp: input5=zp_up, input6=bias_up, input7=down_weight, ...)
         // moe_mask_gen
         // moe_gather
         // moe_gemm_up + bias
         // swiglu_with_clamp
         // moe_gemm_down + bias
         // moe_scatter_reduce
+
+        // --- OTD setup for 2GEMM ---
+        // Bin offset layout: [up_w, up_s, up_z, down_w, down_s, down_z] (6 elements)
+        static constexpr size_t moe_2gemm_offset_count = 6;
+        moe_otd_descriptor otd_desc;
+        {
+            const size_t otd_ratio = p.get_config().get_offload_ratio();
+            if (otd_ratio > 0 && otd_ratio < 100) {
+                otd_desc.lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+            }
+            if (otd_desc.lru_expert_num > 0) {
+                otd_desc.weights_path = std::filesystem::path(p.get_config().get_weights_path());
+                OPENVINO_ASSERT(!otd_desc.weights_path.empty(),
+                                "ov::weights_path property is not set. OTD requires a valid path to the model .bin file.");
+                OPENVINO_ASSERT(std::filesystem::exists(otd_desc.weights_path),
+                                "OTD weights file does not exist: ", otd_desc.weights_path);
+
+                auto get_const_offset_2gemm = [&](size_t index) -> size_t {
+                    auto node = op->input_value(index).get_node_shared_ptr();
+                    auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                    OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE 2GEMM OTD, got: ",
+                                    node->get_type_name(), " name: ", node->get_friendly_name());
+                    const auto& rt_info = const_op->get_rt_info();
+                    auto attr_it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+                    if (attr_it != rt_info.end()) {
+                        return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+                    }
+                    auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
+                    if (source_buf) {
+                        return ov::weight_sharing::Extension::get_constant_id(*const_op);
+                    }
+                    auto otd_it = rt_info.find("otd_bin_offset");
+                    if (otd_it != rt_info.end()) {
+                        return static_cast<size_t>(otd_it->second.as<int64_t>());
+                    }
+                    OPENVINO_THROW("OTD 2GEMM: Cannot determine bin offset for MOE weight constant. "
+                                   "Constant name: ", const_op->get_friendly_name(), ", input_index: ", index);
+                };
+
+                // Populate 6 offsets: [up_w, up_s, up_z, down_w, down_s, down_z]
+                otd_desc.weight_bin_offsets.resize(moe_2gemm_offset_count, 0);
+                if (config.has_zp) {
+                    // inputs: 3=up_w, 4=up_s, 5=up_zp, 6=up_bias, 7=down_w, 8=down_s, 9=down_zp, 10=down_bias
+                    otd_desc.weight_bin_offsets[0] = get_const_offset_2gemm(3);  // up_w
+                    otd_desc.weight_bin_offsets[1] = get_const_offset_2gemm(4);  // up_s
+                    otd_desc.weight_bin_offsets[2] = get_const_offset_2gemm(5);  // up_z
+                    otd_desc.weight_bin_offsets[3] = get_const_offset_2gemm(7);  // down_w
+                    otd_desc.weight_bin_offsets[4] = get_const_offset_2gemm(8);  // down_s
+                    otd_desc.weight_bin_offsets[5] = get_const_offset_2gemm(9);  // down_z
+                } else {
+                    // inputs: 3=up_w, 4=up_s, 5=up_bias, 6=down_w, 7=down_s, 8=down_bias
+                    otd_desc.weight_bin_offsets[0] = get_const_offset_2gemm(3);  // up_w
+                    otd_desc.weight_bin_offsets[1] = get_const_offset_2gemm(4);  // up_s
+                    otd_desc.weight_bin_offsets[2] = 0;                          // up_z (not present)
+                    otd_desc.weight_bin_offsets[3] = get_const_offset_2gemm(6);  // down_w
+                    otd_desc.weight_bin_offsets[4] = get_const_offset_2gemm(7);  // down_s
+                    otd_desc.weight_bin_offsets[5] = 0;                          // down_z (not present)
+                }
+            }
+        }
+
         std::string prim_name_base = layer_type_name_ID(op);
         auto moe_mask_gen_name = prim_name_base + "_moe_mask_gen";
         auto moe_mask_gen_reshape_name = prim_name_base + "_moe_mask_gen_reshape";
@@ -201,6 +263,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         }
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config);
         moe_gemm_up.has_bias = true;
+        moe_gemm_up._otd = otd_desc;
+        moe_gemm_up.is_up_gemm = true;
         p.add_primitive(*op, moe_gemm_up);
 
         // GPT-OSS swiglu: stride-2 interleave (gate=swish, up=clamp+add).
@@ -236,6 +300,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 
         auto moe_gemm_down = cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config);
         moe_gemm_down.has_bias = true;
+        moe_gemm_down._otd = otd_desc;
+        moe_gemm_down.is_up_gemm = false;
         p.add_primitive(*op, moe_gemm_down);
         auto moe_scatter_reduce_prim =
             cldnn::moe_scatter_reduction(moe_scatter_reduce_name,

@@ -10,6 +10,7 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "moe_otd_descriptor.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -25,36 +26,6 @@ struct moe_weights {
     cldnn::memory::ptr down_w = nullptr;
     cldnn::memory::ptr down_s = nullptr;
     cldnn::memory::ptr down_z = nullptr;
-};
-
-/// @brief Lightweight, serializable descriptor for the offload-to-disk (OTD) weight strategy.
-/// @details Consolidates the OTD plumbing so the primitive carries a single cohesive field
-/// instead of loose members. Empty/zero values mean OTD is disabled (fully resident). This is
-/// the only OTD state that participates in blob-cache serialization; the runtime
-/// IExpertWeightProvider is rebuilt from it on the impl side.
-struct moe_otd_descriptor {
-    std::vector<size_t> weight_bin_offsets;
-    std::filesystem::path weights_path;
-    size_t lru_expert_num = 0;
-
-    bool operator==(const moe_otd_descriptor& rhs) const {
-        return weight_bin_offsets == rhs.weight_bin_offsets && weights_path == rhs.weights_path &&
-               lru_expert_num == rhs.lru_expert_num;
-    }
-
-    void save(BinaryOutputBuffer& ob) const {
-        ob << weight_bin_offsets;
-        ob << weights_path.string();
-        ob << lru_expert_num;
-    }
-
-    void load(BinaryInputBuffer& ib) {
-        ib >> weight_bin_offsets;
-        std::string path_str;
-        ib >> path_str;
-        weights_path = path_str;
-        ib >> lru_expert_num;
-    }
 };
 
 /// @brief moe compressed primitive

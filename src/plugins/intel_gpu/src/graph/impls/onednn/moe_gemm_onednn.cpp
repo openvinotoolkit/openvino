@@ -3,12 +3,12 @@
 //
 
 #include "moe_gemm_onednn.hpp"
+#include "moe_gemm_otd_context.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
 
 namespace cldnn {
@@ -19,6 +19,11 @@ struct moe_gemm_onednn : typed_primitive_onednn_impl<moe_gemm> {
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::moe_gemm_onednn)
+
+    // OTD members
+    mutable std::shared_ptr<Moe2GemmOtdContext> _otd_ctx;
+    bool _is_up_gemm = true;
+    size_t _lru_expert_num = 0;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -100,9 +105,83 @@ protected:
         return args;
     }
 
+    // OTD pre-execution: load needed experts from disk into the weight buffer
+    void prepare_otd_execution(moe_gemm_inst& instance) const {
+        auto& network = instance.get_network();
+        auto& stream = network.get_stream();
+
+        // Bind resident buffers — each direction binds its own buffers independently
+        if (_is_up_gemm && !_otd_ctx->resident.up_w) {
+            auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(*instance.get_impl_params());
+            _otd_ctx->resident.up_w = instance.input_memory_ptr(moe_gemm::MoEGemmInputIdx::WEIGHT);
+            if (moe_cfg.is_weight_quantized)
+                _otd_ctx->resident.up_s = instance.input_memory_ptr(moe_cfg.weight_scale_idx);
+            if (moe_cfg.is_weight_quantized && !moe_cfg.is_weight_symmetric_quantized)
+                _otd_ctx->resident.up_z = instance.input_memory_ptr(moe_cfg.weight_zp_idx);
+            _otd_ctx->bound = true;
+        } else if (!_is_up_gemm && !_otd_ctx->resident.down_w) {
+            auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(*instance.get_impl_params());
+            _otd_ctx->resident.down_w = instance.input_memory_ptr(moe_gemm::MoEGemmInputIdx::WEIGHT);
+            if (moe_cfg.is_weight_quantized)
+                _otd_ctx->resident.down_s = instance.input_memory_ptr(moe_cfg.weight_scale_idx);
+            if (moe_cfg.is_weight_quantized && !moe_cfg.is_weight_symmetric_quantized)
+                _otd_ctx->resident.down_z = instance.input_memory_ptr(moe_cfg.weight_zp_idx);
+            _otd_ctx->bound = true;
+        }
+
+        // Read expert IDs from GPU
+        auto& experts_ids_mem = instance.input_memory(moe_gemm::MoEGemmInputIdx::EXPERTS_IDS);
+        const auto& experts_shape = experts_ids_mem.get_layout().get_shape();
+        const size_t num_active = experts_shape[0];
+
+        std::vector<int32_t> expert_ids_cpu(num_active);
+        experts_ids_mem.copy_to(stream, expert_ids_cpu.data(), 0, 0, num_active * sizeof(int32_t), true);
+
+        std::vector<uint32_t> expert_ids_u32(num_active);
+        for (size_t i = 0; i < num_active; i++) {
+            expert_ids_u32[i] = static_cast<uint32_t>(expert_ids_cpu[i]);
+        }
+
+        // Load experts for this direction into their original positions
+        _otd_ctx->load_experts(stream, expert_ids_u32, _is_up_gemm);
+    }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            typed_primitive_inst<moe_gemm>& instance) override {
+        if (!_otd_ctx || _lru_expert_num == 0) {
+            return parent::execute_impl(events, instance);
+        }
+
+        // OTD path: load needed experts from disk, then execute normally
+        auto& network = instance.get_network();
+        auto& stream = network.get_stream();
+        auto net_id = network.get_id();
+
+        // Load experts on-demand
+        prepare_otd_execution(instance);
+
+        // Use normal (non-remapped) arguments — experts loaded into original positions
+        _args[net_id] = get_arguments(instance);
+
+        // Execute oneDNN primitive
+        event::ptr event;
+        if (!instance.can_be_optimized()) {
+            try {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
+                OPENVINO_THROW(err.what());
+            }
+            if (instance.needs_completion_event())
+                event = stream.enqueue_marker({});
+        }
+
+        return event;
+    }
+
     static std::shared_ptr<dnnl::matmul::primitive_desc>
         get_moe_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
-                                          const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+                                          const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
+                                          size_t lru_expert_num_override = 0) {
         auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<moe_gemm>();
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(impl_params);
@@ -115,7 +194,10 @@ protected:
         const auto& experts_weight_shape = weights_layout.get_shape();
         dnnl::memory::dim N = experts_weight_shape[1];
         dnnl::memory::dim K = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
-        dnnl::memory::dim num_experts = experts_weight_shape[0];
+        // When OTD is enabled, use lru_expert_num instead of the full num_experts
+        dnnl::memory::dim num_experts = lru_expert_num_override > 0
+            ? static_cast<dnnl::memory::dim>(lru_expert_num_override)
+            : experts_weight_shape[0];
 
         dnnl::memory::dims input_dims = {total_tokens, K};
         dnnl::memory::dims weights_dims = {num_experts, K, N};
@@ -193,9 +275,36 @@ public:
             }
         }
 
-        auto prim_desc = get_moe_gemm_primitive_descriptor(impl_params, *attr);
+        // For 2GEMM OTD, don't reduce num_experts in PD — full weight buffer is allocated.
+        // OTD only provides lazy disk-loading, not memory reduction.
+        auto prim_desc = get_moe_gemm_primitive_descriptor(impl_params, *attr, 0);
 
-        return std::make_unique<moe_gemm_onednn>(engine, config, attr, *prim_desc);
+        auto impl = std::make_unique<moe_gemm_onednn>(engine, config, attr, *prim_desc);
+
+        // Set up OTD context if enabled
+        const size_t lru_expert_num = prim->_otd.lru_expert_num;
+        if (lru_expert_num > 0) {
+            // For 2GEMM, use num_experts as capacity (no memory reduction, just lazy loading)
+            auto weights_layout = impl_params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
+            const size_t num_experts = weights_layout.get_shape()[0];
+            impl->_lru_expert_num = num_experts;
+            impl->_is_up_gemm = prim->is_up_gemm;
+
+            std::string prim_id = prim->id;
+            std::string moe_layer_id = prim_id;
+            auto pos = prim_id.rfind("_moe_gemm_");
+            if (pos != std::string::npos)
+                moe_layer_id = prim_id.substr(0, pos);
+
+            impl->_otd_ctx = Moe2GemmOtdRegistry::instance().get_or_create(
+                moe_layer_id,
+                num_experts,  // capacity = full expert count
+                prim->_moe_config,
+                prim->_otd.weight_bin_offsets,
+                prim->_otd.weights_path);
+        }
+
+        return impl;
     }
 };
 

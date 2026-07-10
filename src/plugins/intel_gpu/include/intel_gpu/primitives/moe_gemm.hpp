@@ -4,6 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
+#include "moe_otd_descriptor.hpp"
 #include "ov_ops/moe_compressed.hpp"
 
 namespace cldnn {
@@ -43,17 +44,25 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const ov::op::internal::MOECompressed::Config& moe_config)
           : primitive_base(id, inputs),
             num_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
-            has_batch_dim(moe_config.has_batch_dim) {}
+            has_batch_dim(moe_config.has_batch_dim),
+            _moe_config(moe_config) {}
 
     bool has_bias = false;
     int32_t num_experts_per_token = 0;
     bool has_batch_dim = true;
+
+    // OTD support fields
+    moe_otd_descriptor _otd;
+    bool is_up_gemm = true;  // true = up (gate_up fused), false = down
+    ov::op::internal::MOECompressed::Config _moe_config{};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, has_bias);
         seed = hash_combine(seed, num_experts_per_token);
         seed = hash_combine(seed, has_batch_dim);
+        seed = hash_combine(seed, _otd.lru_expert_num);
+        seed = hash_combine(seed, is_up_gemm);
         return seed;
     }
 
@@ -63,7 +72,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
         auto rhs_casted = downcast<const moe_gemm>(rhs);
         return has_bias == rhs_casted.has_bias &&
                num_experts_per_token == rhs_casted.num_experts_per_token &&
-               has_batch_dim == rhs_casted.has_batch_dim;
+               has_batch_dim == rhs_casted.has_batch_dim &&
+               _otd == rhs_casted._otd &&
+               is_up_gemm == rhs_casted.is_up_gemm;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -71,6 +82,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
         ob << has_bias;
         ob << num_experts_per_token;
         ob << has_batch_dim;
+        _otd.save(ob);
+        ob << is_up_gemm;
+        ob << make_data(&_moe_config, sizeof(_moe_config));
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -78,6 +92,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
         ib >> has_bias;
         ib >> num_experts_per_token;
         ib >> has_batch_dim;
+        _otd.load(ib);
+        ib >> is_up_gemm;
+        ib >> make_data(&_moe_config, sizeof(_moe_config));
     }
 };
 }

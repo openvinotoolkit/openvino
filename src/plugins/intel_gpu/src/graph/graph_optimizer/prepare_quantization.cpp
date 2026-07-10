@@ -623,6 +623,10 @@ static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& 
 
 static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
     auto prim = node.get_primitive();
+    if (prim->_otd.lru_expert_num > 0) {
+        // OTD routed weights: skip compile-time reorder — transpose done at runtime during disk loading.
+        return;
+    }
     // Production has bias; tests may not.
     const size_t scale_idx = prim->has_bias ? static_cast<size_t>(moe_gemm::WEIGHT_SCALE)
                                             : static_cast<size_t>(moe_gemm::WEIGHT_SCALE) - 1;
