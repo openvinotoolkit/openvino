@@ -11,7 +11,7 @@ namespace intel_npu {
 
 class IBlobFormatHandler {
 public:
-    IBlobFormatHandler(const std::shared_ptr<ov::Model>& original_model,
+    IBlobFormatHandler(const std::shared_ptr<const ov::Model>& original_model,
                        const FilteredConfig& config,
                        const Logger& logger);
 
@@ -36,7 +36,7 @@ private:
 
     std::unordered_map<size_t, ov::Constant> create_weights_map() const;
 
-    std::optional<std::shared_ptr<ov::Model>> m_original_model;
+    std::optional<std::shared_ptr<const ov::Model>> m_original_model;
     FilteredConfig m_config;
     Logger m_logger;
 
@@ -52,11 +52,11 @@ private:
 class RawBlobHandler : public IBlobFormatHandler {
 public:
     explicit RawBlobHandler(std::istream& compiler_main_schedule,
-                            const std::shared_ptr<ov::Model>& original_model,
+                            const std::shared_ptr<const ov::Model>& original_model,
                             const FilteredConfig& config);
 
     explicit RawBlobHandler(const ov::Tensor& compiler_main_schedule,
-                            const std::shared_ptr<ov::Model>& original_model,
+                            const std::shared_ptr<const ov::Model>& original_model,
                             const FilteredConfig& config);
 
 private:
@@ -76,11 +76,11 @@ private:
 class BlobFormatV1Handler : public IBlobFormatHandler {
 public:
     explicit BlobFormatV1Handler(std::istream& npu_formatted_blob,
-                                 const std::shared_ptr<ov::Model>& original_model,
+                                 const std::shared_ptr<const ov::Model>& original_model,
                                  const FilteredConfig& config);
 
     explicit BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
-                                 const std::shared_ptr<ov::Model>& original_model,
+                                 const std::shared_ptr<const ov::Model>& original_model,
                                  const FilteredConfig& config);
 
 private:
@@ -104,12 +104,12 @@ namespace blob_format_handler_factory {
 
 std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
                                            const bool is_raw_blob,
-                                           const std::shared_ptr<ov::Model>& original_model,
+                                           const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config);
 
 std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
                                            const bool is_raw_blob,
-                                           const std::shared_ptr<ov::Model>& original_model,
+                                           const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config);
 
 }  // namespace blob_format_handler_factory

@@ -71,7 +71,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
 }
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_memory_mapped(
-    const std::string& weightsPath,
+    std::string_view weightsPath,
     const std::vector<NetworkMetadata>& initNetworkMetadata) {
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
@@ -116,29 +116,26 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
 
 // TODO flag to indicate whether or not the weight can be extracted from config
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_constants_map(
-    std::optional<std::shared_ptr<const ov::Model>>&& model,
-    const FilteredConfig& config,
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
     const std::vector<NetworkMetadata>& initNetworkMetadata) {
-    if (!model.has_value()) {
-        if (!config.get<WEIGHTS_PATH>().empty()) {
-            const std::string weightsPath = config.get<WEIGHTS_PATH>();
-            auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
-            if (ext == ONNX_EXTENSION) {
-                model = get_core()->read_model(weightsPath, weightsPath, properties);
-            } else if (ext == WEIGHTS_IR_EXTENSION) {
-                // constants will be populated in parser
-            } else {
-                OPENVINO_THROW("Invalid path to the weights: ",
-                               weightsPath,
-                               ". A \".bin\" or \".onnx\" extension was expected.");
-            }
+    if (const std::shared_ptr<const ov::Model>* model =
+            std::get_if<std::reference_wrapper<std::istream>>(&weightsSource)) {
+        return get_all_constants_in_topological_order(*model);
+    } else if (std::string_view* weightsPath = std::get_if<std::reference_wrapper<std::istream>>(&weightsSource)) {
+        auto ext = ov::util::path_to_string(ov::util::make_path(*weightsPath).extension());
+        if (ext == ONNX_EXTENSION) {
+            const auto model = get_core()->read_model(*weightsPath, *weightsPath, properties);
+            return get_all_constants_in_topological_order(model);
+        } else if (ext == WEIGHTS_IR_EXTENSION) {
+            return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
         } else {
-            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+            OPENVINO_THROW("Invalid path to the weights: ",
+                           weightsPath,
+                           ". A \".bin\" or \".onnx\" extension was expected.");
         }
     }
 
-    return model.has_value() ? get_all_constants_in_topological_order(model.value())
-                             : get_all_constants_memory_mapped(config.get<WEIGHTS_PATH>(), initNetworkMetadata);
+    OPENVINO_THROW("No source of weights has been provided to the \"WeightlessGraph\" ctor");
 }
 
 struct QueueData {
@@ -242,17 +239,18 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 }  // namespace
 
-WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                 const GraphDescriptor& mainGraphDesc,
-                                 NetworkMetadata mainMetadata,
-                                 std::optional<ov::Tensor> mainBlob,
-                                 const std::vector<GraphDescriptor>& initGraphDesc,
-                                 std::vector<NetworkMetadata> initMetadata,
-                                 std::optional<std::vector<ov::Tensor>> initBlobs,
-                                 std::optional<std::shared_ptr<const ov::Model>>&& model,
-                                 const FilteredConfig& config,
-                                 const bool blobIsPersistent)
+WeightlessGraph::WeightlessGraph(
+    const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    const GraphDescriptor& mainGraphDesc,
+    NetworkMetadata mainMetadata,
+    std::optional<ov::Tensor> mainBlob,
+    const std::vector<GraphDescriptor>& initGraphDesc,
+    std::vector<NetworkMetadata> initMetadata,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+    const FilteredConfig& config,
+    const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -265,7 +263,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _constants(extract_constants_map(std::move(model), config, _initsMetadata)),
+      _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");

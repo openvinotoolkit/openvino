@@ -25,11 +25,12 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
                     "Failed to create ZeGraphExtWrappers in Parser. Please check if the driver is properly installed.");
 }
 
-std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
-                                      const FilteredConfig& config,
-                                      const std::optional<std::vector<ov::Tensor>>& initBlobs,
-                                      std::optional<std::shared_ptr<const ov::Model>>&& model,
-                                      const std::optional<std::string>& compatibilityDescriptor) const {
+std::shared_ptr<IGraph> Parser::parse(
+    const ov::Tensor& mainBlob,
+    const FilteredConfig& config,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+    const std::optional<std::string>& compatibilityDescriptor) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
     // Detect blob format
@@ -100,7 +101,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              initBlobs,
-                                             std::move(model),
+                                             std::move(weightsSource),
                                              config,
                                              blobIsPersistent);
 }

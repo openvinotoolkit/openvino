@@ -131,7 +131,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
 namespace intel_npu {
 
-IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<ov::Model>& original_model,
+IBlobFormatHandler::IBlobFormatHandler(const std::shared_ptr<const ov::Model>& original_model,
                                        const FilteredConfig& config,
                                        const Logger& logger)
     : m_original_model(original_model),
@@ -154,18 +154,28 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(zero_init_structs);
 
-    const bool weights_separation_enabled = m_init_schedules.has_value();
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view> weights_source;
+    if (m_init_schedules.has_value()) {
+        if (m_original_model.has_value()) {
+            weights_source = m_original_model.value();
+        } else if (!m_config.get<WEIGHTS_PATH>().empty()) {
+            weights_source = m_config.get<WEIGHTS_PATH>();
+        } else {
+            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+        }
+    }
+
     return parser->parse(m_main_schedule,
                          m_config,
                          m_init_schedules,
-                         weights_separation_enabled ? m_original_model : std::nullopt,
+                         std::move(weights_source),
                          get_compiler_compatibility_descriptor());
 }
 
 std::unordered_map<size_t, ov::Constant> IBlobFormatHandler::create_weights_map() const {}
 
 RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
-                               const std::shared_ptr<ov::Model>& original_model,
+                               const std::shared_ptr<const ov::Model>& original_model,
                                const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("RawBlobHandler", config.get<LOG_LEVEL>())) {
     const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
@@ -176,7 +186,7 @@ RawBlobHandler::RawBlobHandler(std::istream& compiler_main_schedule,
 }
 
 RawBlobHandler::RawBlobHandler(const ov::Tensor& compiler_main_schedule,
-                               const std::shared_ptr<ov::Model>& original_model,
+                               const std::shared_ptr<const ov::Model>& original_model,
                                const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("RawBlobHandler", config.get<LOG_LEVEL>())) {
     const size_t blob_size = compiler_main_schedule.get_byte_size();
@@ -219,7 +229,7 @@ std::optional<std::string> RawBlobHandler::extract_compiler_compatibility_descri
 }
 
 BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,
-                                         const std::shared_ptr<ov::Model>& original_model,
+                                         const std::shared_ptr<const ov::Model>& original_model,
                                          const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("BlobFormatV1Handler", config.get<LOG_LEVEL>())) {
     // Read only the metadata from the stream and check if the blob is compatible. Load the blob into memory only if
@@ -234,7 +244,7 @@ BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,
 }
 
 BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
-                                         const std::shared_ptr<ov::Model>& original_model,
+                                         const std::shared_ptr<const ov::Model>& original_model,
                                          const FilteredConfig& config)
     : IBlobFormatHandler(original_model, config, Logger("BlobFormatV1Handler", config.get<LOG_LEVEL>())) {
     m_metadata = read_metadata_from(npu_formatted_blob);
@@ -308,7 +318,7 @@ namespace blob_format_handler_factory {
 
 std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
                                            const bool is_raw_blob,
-                                           const std::shared_ptr<ov::Model>& original_model,
+                                           const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config) {
     const Logger logger("blob_format_handler_factory", config.get<LOG_LEVEL>());
     if (is_raw_blob) {
@@ -336,7 +346,7 @@ std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
 
 std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
                                            const bool is_raw_blob,
-                                           const std::shared_ptr<ov::Model>& original_model,
+                                           const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config) {
     const Logger logger("blob_format_handler_factory", config.get<LOG_LEVEL>());
     if (is_raw_blob) {
