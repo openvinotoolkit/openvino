@@ -28,6 +28,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -1384,4 +1385,44 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+TEST(TransformationTests, MarkRMS_keeps_rms_in_fp32) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        model = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        disable_conversion(rms, element::f16);
+        disable_conversion(gamma, element::f16);
+
+        model_ref = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
 }
