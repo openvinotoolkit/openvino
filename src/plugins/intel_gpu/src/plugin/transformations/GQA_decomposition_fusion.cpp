@@ -9,6 +9,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include <openvino/util/pp.hpp>
 
 namespace ov::intel_gpu {
     GQADecompositionfusion::GQADecompositionfusion() {
