@@ -73,7 +73,7 @@ namespace ov::intel_gpu {
             }
             return true;
             };
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "ScatterUpdateReshapeConcatReshapeSDPAFusion");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "GQADecompositionfusion");
 
         this->register_matcher(m, callback);
     }
