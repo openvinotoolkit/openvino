@@ -26,10 +26,6 @@
 
 namespace ov::intel_cpu {
 
-bool pass::EliminateCopyB::should_extract(size_t param_idx) const {
-    return m_runtime_repacking_supported || m_compile_time_repacking_idxs.count(param_idx) > 0;
-}
-
 bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(EliminateCopyB);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateCopyB")
@@ -57,9 +53,6 @@ bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model)
         const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
         OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                         "Parameter index is invalid in EliminateCopyB transformation");
-        if (!should_extract(param_idx)) {
-            continue;
-        }
 
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();

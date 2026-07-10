@@ -7,41 +7,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/itt.hpp"
-#include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/common/pass/lowered/adjust_copy_b_loop_ports.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
-
-namespace {
-void assign_new_ptr_increment(int64_t new_ptr_increment,
-                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
-    const auto old_ptr_incr = loop_desc.ptr_increment;
-    const auto old_final_offset = loop_desc.finalization_offset;
-
-    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
-        loop_desc.ptr_increment = new_ptr_increment;
-        if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
-            OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");
-            loop_desc.finalization_offset =
-                ov::snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (old_final_offset / old_ptr_incr));
-        }
-    }
-}
-}  // namespace
 
 bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
@@ -88,7 +68,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }
 
-                    assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
+                    pass::copy_b_loop_ports::assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
                     modified = true;
                 }
             }
@@ -104,46 +84,22 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
     bool modified = false;
 
     auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& brgemm_expr) {
-        // Repacking may be extracted outside the snippets kernel. In this case, brgemm parent expression is a
-        // parameter.
-        const auto& brgemm_in1 = brgemm_expr->get_input_port_connector(1)->get_source();
-        const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(brgemm_in1.get_expr());
-        const auto source =
-            shape_infer_seq.empty() ? brgemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
-        if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node())) {
-            return std::vector<size_t>{};
-        }
-        const auto repacking_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr);
-        OPENVINO_ASSERT(repacking_expr, "BrgemmCopyB expression is not found");
-        return repacking_expr->get_loop_ids();
+        return pass::copy_b_loop_ports::get_repacking_loop_idces(brgemm_expr,
+                                                                 brgemm_utils::repacking::get_copy_b_expr,
+                                                                 "BrgemmCopyB expression is not found");
     };
 
-    for (const auto& expr : linear_ir) {
+    auto is_target_expr = [](const snippets::lowered::ExpressionPtr& expr) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
-        if (!brgemm || !brgemm->get_config().with_wei_repacking()) {
-            continue;
-        }
-        const auto& brgemm_loop_ids = expr->get_loop_ids();
-        const auto& repacking_loop_ids = get_repacking_loop_idces(expr);
-        // Continue if there is no blocking loop
-        if (brgemm_loop_ids.empty() && repacking_loop_ids.empty()) {
-            continue;
-        }
+        return brgemm && brgemm->get_config().with_wei_repacking();
+    };
 
-        OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
-        const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
-        for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
-            const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
-            auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-            if (!uni_loop) {
-                uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-            }
-            if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-                m_affected_loops.insert(uni_loop);
-                modified = true;
-            }
-        }
-    }
+    modified = pass::copy_b_loop_ports::run(linear_ir,
+                                            m_affected_loops,
+                                            is_target_expr,
+                                            get_repacking_loop_idces,
+                                            pass::AdjustBrgemmCopyBLoopPorts::update_loop_info,
+                                            "Invalid BrgemmCopyB loop configuration");
 
     return modified;
 }

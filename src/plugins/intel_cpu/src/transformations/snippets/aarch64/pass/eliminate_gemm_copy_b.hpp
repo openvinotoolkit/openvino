@@ -6,8 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <set>
-#include <utility>
 
 #include "emitters/snippets/input_repacker.hpp"
 #include "openvino/core/node.hpp"
@@ -23,9 +21,7 @@ namespace ov::intel_cpu::pass::aarch64 {
 class EliminateGemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateGemmCopyB");
-    explicit EliminateGemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
-                                std::set<size_t> compile_time_repacking_idxs)
-        : EliminateCopyB(input_repackers, true, std::move(compile_time_repacking_idxs)) {}
+    explicit EliminateGemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers) : EliminateCopyB(input_repackers) {}
 
 private:
     [[nodiscard]] std::shared_ptr<ov::Node> get_copy_b_pattern(const std::shared_ptr<ov::Node>& input) const override;
