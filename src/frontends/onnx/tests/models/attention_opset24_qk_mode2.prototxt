@@ -1,0 +1,50 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "Q"
+    input: "K"
+    input: "V"
+    input: "M"
+    output: "Y"
+    output: ""
+    output: ""
+    output: "QK"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute { name: "softcap" f: 3.0 type: FLOAT }
+    attribute { name: "qk_matmul_output_mode" i: 2 type: INT }
+  }
+  name: "attention_opset24_qk_mode2"
+  input {
+    name: "Q"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "K"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "V"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "M"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 3 } } } }
+  }
+  output {
+    name: "Y"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+  output {
+    name: "QK"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 3 } } } }
+  }
+}
+opset_import { version: 24 }

@@ -1,0 +1,44 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "Q"
+    input: "K"
+    input: "V"
+    input: ""
+    input: ""
+    input: ""
+    input: "NP"
+    output: "Y"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute { name: "is_causal" i: 1 type: INT }
+  }
+  name: "attention_opset24_nonpad"
+  input {
+    name: "Q"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "K"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 4 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "V"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 4 } dim { dim_value: 4 } } } }
+  }
+  input {
+    name: "NP"
+    type { tensor_type { elem_type: 7
+      shape { dim { dim_value: 1 } } } }
+  }
+  output {
+    name: "Y"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 4 } } } }
+  }
+}
+opset_import { version: 24 }
