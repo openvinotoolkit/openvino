@@ -890,8 +890,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
-                const int64_t upper_bound = static_cast<int64_t>(srcDimAxis);
-                const int64_t lower_bound =
+                const auto upper_bound = static_cast<int64_t>(srcDimAxis);
+                const auto lower_bound =
                     scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate ? -upper_bound : 0;
                 if (scatterUpdateMode != ScatterUpdateMode::ScatterUpdate) {
                     CPU_NODE_ASSERT(idxValue >= lower_bound && idxValue < upper_bound,
