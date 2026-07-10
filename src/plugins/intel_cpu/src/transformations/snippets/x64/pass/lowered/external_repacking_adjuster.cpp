@@ -20,7 +20,6 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"

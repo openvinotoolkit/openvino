@@ -4,7 +4,6 @@
 
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
 
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 

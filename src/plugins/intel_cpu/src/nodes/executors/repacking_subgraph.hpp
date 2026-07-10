@@ -213,7 +213,7 @@ protected:
             auto& last_processed_src_offset = m_repacked_offsets_by_threads[ithr][repacked_offset_idx];
             if (src_offset != last_processed_src_offset) {
                 typename RepackingKernel::call_args args;
-                args.src = in_mem_ptrs[in_idx]->getDataAs<const uint8_t>() + src_offset;
+                args.src = in_mem_ptrs[in_idx]->template getDataAs<const uint8_t>() + src_offset;
                 args.tr_src = repacked_ptr;
                 (*input_repacker.template kernel<RepackingKernel>())(&args);
 
