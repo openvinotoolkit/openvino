@@ -8,8 +8,11 @@
 #include <memory>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/snippets/riscv64/utils.hpp"
 #include "emitters/utils.hpp"
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/reg_spill.hpp"
