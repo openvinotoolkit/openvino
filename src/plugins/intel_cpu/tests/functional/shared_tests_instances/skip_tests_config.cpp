@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "utils/precision_support.h"
 #include "snippets/utils.hpp"
+#include "utils/arm_isa_support.h"
+#include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_RISCV64)
-#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
@@ -334,6 +336,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
+            // GatherMatmul is not supported on 32-bit ARM
+            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
@@ -652,6 +656,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_IT=\([^)]*f16[^)]*\).*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_OT=\([^)]*f16[^)]*\).*)"));
         }
+        if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+            patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
+        }
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (!ov::with_cpu_x86_avx2()) {
@@ -668,9 +675,14 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
         }
+        if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+            patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
+        }
+        // Accuracy issue in case of odd K
+        patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed_CornerCases.*WET=i4.*)"));
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
             // Skip fp16 tests for paltforms that don't support fp16 precision
             patterns.emplace_back(std::regex(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)"));

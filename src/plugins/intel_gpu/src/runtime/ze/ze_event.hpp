@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ze_base_event.hpp"
-#include "ze_event_pool.hpp"
+#include "ze_resource.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -13,18 +13,14 @@ namespace ze {
 // ZE event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
 public:
-    // Take ownership of event handle
-    ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_event_handle_t ev, std::shared_ptr<ze_event_pool> event_pool)
+    ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_event_resource ev, ze_event_pool_resource ev_pool)
         : ze_base_event(queue_stamp)
-        , m_event_pool(event_pool)
         , m_factory(factory)
+        , m_event_pool(ev_pool)
         , m_event(ev) {
-            // Ensure event handle is not null
-            OPENVINO_ASSERT(ev != nullptr, "[GPU] Trying to create event with null handle");
+            OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create event with empty resource");
+            OPENVINO_ASSERT(!m_event_pool.is_empty(), "[GPU] Attempt to create event with empty event pool resource");
         }
-    ze_event(const ze_event &) = delete;
-    ze_event& operator=(const ze_event &) = delete;
-    ~ze_event();
     void reset() override;
 
     std::optional<ze_kernel_timestamp_result_t> query_timestamp() override;
@@ -38,9 +34,10 @@ protected:
     // TODO: Implement add_event_handler_impl
     // bool add_event_handler_impl(event_handler, void*) override;
 
-    std::shared_ptr<ze_event_pool> m_event_pool;
     const ze_base_event_factory& m_factory;
-    ze_event_handle_t m_event;
+    // To ensure correct lifetime, drop event pool after dropping event
+    ze_event_pool_resource m_event_pool;
+    ze_event_resource m_event;
 };
 
 }  // namespace ze
