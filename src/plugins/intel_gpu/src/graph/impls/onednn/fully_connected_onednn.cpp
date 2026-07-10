@@ -271,6 +271,7 @@ public:
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
         int grouped = (1 << prim->input_size) - 1;
+        auto ifm_dim_idx = prim->weights_transposed ? 1 : 0;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -279,7 +280,7 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            auto ngroups = scale_layout.get_dim(1);
+            auto ngroups = scale_layout.get_dim(ifm_dim_idx);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
@@ -299,7 +300,7 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(1);
+                    auto ngroups = dzp_layout.get_dim(ifm_dim_idx);
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
@@ -380,8 +381,11 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
-                auto ngroups = scale_layout.get_dim(weight_rank - 1);
+                // For transposed weights [N, K], IFM (K) is the last dimension.
+                // For non-transposed weights [K, N], IFM (K) is the second-to-last dimension.
+                auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
+                auto ngroups = scale_layout.get_dim(ifm_dim_idx);
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -410,7 +414,8 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto ngroups = dzp_layout.get_dim(dzp_rank - 1);
+                    auto dzp_ifm_dim_idx = prim->weights_transposed ? (dzp_rank - 1) : (dzp_rank - 2);
+                    auto ngroups = dzp_layout.get_dim(dzp_ifm_dim_idx);
                     if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
