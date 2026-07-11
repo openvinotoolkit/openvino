@@ -92,7 +92,8 @@ def _patch_cpu_model_runner():
         # (KV_CACHE_PRECISION=bf16, INFERENCE_PRECISION_HINT=bf16,
         # DYNAMIC_QUANTIZATION_GROUP_SIZE=32). Individual flags can be
         # overridden by adding them explicitly to `options`.
-        options = {"aot_autograd": True, "vllm": True}
+        options = {"aot_autograd": False, "vllm": True} if os.environ.get("OV_NO_AOT") else {"aot_autograd": True, "vllm": True}
+        if os.environ.get("OV_PA_TORCH_FALLBACK"): options["pa_translate"] = False
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
