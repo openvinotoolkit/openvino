@@ -3,9 +3,6 @@
 //
 
 #include "common_test_utils/ov_test_utils.hpp"
-
-#include "ov_ops/rotary_positional_embeddings.hpp"
-
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,11 +10,8 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/variadic_split.hpp"
-
 #include "intel_gpu/op/sdpa.hpp"
-
 #include "plugin/transformations/GQA_decomposition_fusion.hpp"
-
 #include <memory>
 
 using namespace testing;
@@ -34,7 +28,6 @@ TEST_F(TransformationTestsF, GQADecompositionFusion1) {
     std::vector<int64_t> out_order = {0, 1, 2, 3};
     const bool is_causal = false;
     {
-        
         auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 16});
         auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
         auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
