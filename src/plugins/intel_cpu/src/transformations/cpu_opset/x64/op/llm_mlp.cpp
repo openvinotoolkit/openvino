@@ -73,9 +73,10 @@ void LLMMLPNode::validate_and_infer_types() {
 
     const auto& w_down_shape = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this, ishape.rank().is_static() && (ishape.rank() == 2 || ishape.rank() == 3),
-                          "feature shape rank must be 2 or 3");
-    const auto feature = ishape[ishape.size() - 1];
+    NODE_VALIDATION_CHECK(this, ishape.rank().is_static() && ishape.rank() == 3, "feature shape rank must be 3");
+    const auto batch = ishape[0];
+    const auto length = ishape[1];
+    const auto feature = ishape[2];
     NODE_VALIDATION_CHECK(this, feature.is_static());
     NODE_VALIDATION_CHECK(this, itype.is_real(), "feature data type must be real");
 

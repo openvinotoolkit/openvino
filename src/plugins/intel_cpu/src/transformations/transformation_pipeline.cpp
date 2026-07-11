@@ -65,6 +65,7 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/normalize_vllm_rope.hpp"
 #include "transformations/common_optimizations/normalize_vllm_mlp.hpp"
+#include "transformations/common_optimizations/wrap_vllm_mlp_rank2.hpp"
 #include "transformations/common_optimizations/normalize_vllm_qkv.hpp"
 #include "transformations/common_optimizations/erase_redundant_convert_pair.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
@@ -1137,6 +1138,9 @@ void Transformations::PostLpt() {
     // form (rotate_half + mul + add) so RoPEFusion can match it.
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMRoPE);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMMLP);
+    // Wrap rank-2 vLLM MLP blocks with Unsqueeze/Squeeze so the rank-3-only
+    // LLMMLPFusion pattern matches unchanged.
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::WrapVLLMMLPRank2);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMQKV);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::EraseRedundantConvertPair);
 
