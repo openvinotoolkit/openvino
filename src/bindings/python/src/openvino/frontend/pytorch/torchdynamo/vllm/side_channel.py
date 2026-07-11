@@ -117,6 +117,9 @@ _PA_FIELDS = (
     # are now *derived* from these in-graph via SDPAToPagedAttention-style
     # ops, so the translator emits these Parameters instead.
     "seq_lens", "query_start_loc",
+    # Per-layer sliding_window (Gemma-4 hybrid: 512 for sliding layers, 0 for
+    # full-attention layers). Bound from layer_obj.impl.sliding_window.
+    "sliding_window",
 )
 
 
@@ -180,6 +183,18 @@ def _bind_paged_attention_side_channel(compiled):
             _am = ctx.attn_metadata
             if isinstance(_am, dict):
                 _real_layer_names = list(_am.keys())
+                # attn_metadata dict iteration order groups layers by KV-cache
+                # spec (Gemma-4 hybrid: all 28 sliding then all 7 global), NOT
+                # by model layer index. The OV frontend numbers PA nodes in
+                # FX-graph order = model layer order, so we must sort real
+                # names by their trailing ".layers.<N>." index to match. Fall
+                # back to input order for layer names without that pattern.
+                import re as _re_sort
+                def _layer_idx(name):
+                    m = _re_sort.search(r"layers\.(\d+)", name)
+                    return int(m.group(1)) if m else -1
+                if all(_layer_idx(n) >= 0 for n in _real_layer_names):
+                    _real_layer_names = sorted(_real_layer_names, key=_layer_idx)
         except Exception:
             pass
 
@@ -234,6 +249,19 @@ def _bind_paged_attention_side_channel(compiled):
                 if layer_name != "shared":
                     nc_layers = ctx.no_compile_layers
                     layer_obj = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
+                    # KV sharing (Gemma-4 has last num_kv_shared_layers=20
+                    # layers reuse KV of an earlier same-type layer): read the
+                    # target layer's kv_cache instead. Reuse the same OV-side
+                    # allocation via cache_key redirection below.
+                    # KV sharing: Gemma-4 has last num_kv_shared_layers=20
+                    # layers reuse KV of an earlier same-type layer. Redirect
+                    # to target's kv_cache and OV allocation.
+                    kv_sharing_tgt = getattr(layer_obj, "kv_sharing_target_layer_name", None) if layer_obj is not None else None
+                    if kv_sharing_tgt is not None:
+                        tgt_obj = nc_layers.get(kv_sharing_tgt) if isinstance(nc_layers, dict) else None
+                        if tgt_obj is not None:
+                            layer_obj = tgt_obj
+                            meta_layer_name = kv_sharing_tgt
                     if layer_obj is not None and hasattr(layer_obj, "kv_cache"):
                         kv_cache = layer_obj.kv_cache
                         # kv_cache may be list indexed by virtual_engine
@@ -265,10 +293,21 @@ def _bind_paged_attention_side_channel(compiled):
                     # OV CPU PA writes back to this buffer via shared_memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
+                    # OV CPU PagedAttention hard-requires block_size==32. When
+                    # vLLM allocates blocks of size B>32 (e.g. Gemma-4 hybrid
+                    # unifies to 64 to keep page_size_bytes uniform across
+                    # layers with different head_size), present the buffer to
+                    # OV as (N*ratio, Hk, 32, S) — a pure reshape with the
+                    # same total element count. Block indices are re-expanded
+                    # accordingly when metadata is built.
+                    if len(_kv_shape) >= 4 and _kv_shape[-2] > 32 and _kv_shape[-2] % 32 == 0:
+                        _ratio = _kv_shape[-2] // 32
+                        _param_shape = (_kv_shape[0] * _ratio,) + _kv_shape[1:-2] + (32, _kv_shape[-1])
+                    else:
+                        _param_shape = _kv_shape
                     # Find the actual Parameter in compiled.inputs for this layer's
                     # key_cache and use its dtype (plugin may override via KV_CACHE_PRECISION).
                     _param_dt = None
-                    _param_shape = _kv_shape
                     # Parameter name pattern: __pa__<layer_name>__key_cache
                     _target_name = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
                     for _pi in compiled.inputs:
@@ -317,13 +356,12 @@ def _bind_paged_attention_side_channel(compiled):
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
             value_cache_np = value_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
 
-        # Per-seq metadata: build once per forward pass from the first
-        # layer that has real attn_meta; all other layers reuse it.
+        # Per-seq shared metadata (seq_lens/qsl/past_lens/max_ctx) is identical
+        # across all layers; compute once from the first layer with attn_meta.
         if not _shared_built and attn_meta is not None:
             try:
                 seq_lens = getattr(attn_meta, "seq_lens", None)
                 qsl = getattr(attn_meta, "query_start_loc", None)
-                block_table = getattr(attn_meta, "block_table", None)
                 if seq_lens is not None and qsl is not None:
                     _shared_meta["seq_lens_np"] = seq_lens.to(torch.int32).contiguous().numpy()
                     _shared_meta["qsl_np"] = qsl.to(torch.int32).contiguous().numpy()
@@ -331,32 +369,72 @@ def _bind_paged_attention_side_channel(compiled):
                     _shared_meta["past_lens_np"] = (seq_lens - q_lens).to(torch.int32).contiguous().numpy()
                     _shared_meta["subseq_begins_np"] = _shared_meta["qsl_np"]
                     _shared_meta["max_ctx_len_np"] = np.array(int(seq_lens.max().item()), dtype=np.int32)
-                if block_table is not None and seq_lens is not None:
-                    bt = block_table.to(torch.int32).contiguous()
-                    block_size = int(kv_cache.shape[3]) if kv_cache is not None and kv_cache.ndim >= 5 else 16
-                    blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
-                    rows = bt.shape[0] if bt.ndim > 0 else 1
-                    # CSR trim: take bt[i, :blocks_per_seq[i]] for each i.
-                    # Fastest vectorized form using numpy (bt is small).
-                    bps_np = blocks_per_seq.numpy()
-                    bt_np = bt.numpy()
-                    if rows > 0 and bps_np.sum() > 0:
-                        # Build a flat index mask without a Python loop.
-                        max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
-                        col_idx = np.arange(max_blocks, dtype=np.int32)
-                        # mask[i, j] = 1 if j < bps_np[i]
-                        mask = col_idx[None, :] < bps_np[:, None]  # [rows, max_blocks]
-                        flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
-                        _shared_meta["block_indices_np"] = flat_bt[mask].astype(np.int32, copy=False)
-                    else:
-                        _shared_meta["block_indices_np"] = np.zeros((0,), dtype=np.int32)
-                    begins = np.empty(rows + 1, dtype=np.int32)
-                    begins[0] = 0
-                    np.cumsum(bps_np, out=begins[1:])
-                    _shared_meta["block_indices_begins_np"] = begins
                 _shared_built = True
             except Exception:
                 pass
+
+        # Per-layer block_indices / block_indices_begins. Models with multiple
+        # KV-cache groups (e.g. Gemma-4 hybrid) have a distinct block_table per
+        # group. Compute from this layer's own attn_meta + kv_cache block_size.
+        block_indices_np = _zeros_1_i32()
+        block_indices_begins_np = _zeros_2_i32()
+        if attn_meta is not None and kv_cache is not None:
+            try:
+                seq_lens = getattr(attn_meta, "seq_lens", None)
+                block_table = getattr(attn_meta, "block_table", None)
+                if block_table is not None and seq_lens is not None:
+                    bt = block_table.to(torch.int32).contiguous()
+                    block_size = int(kv_cache.shape[3]) if kv_cache.ndim >= 5 else 16
+                    blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
+                    rows = bt.shape[0] if bt.ndim > 0 else 1
+                    bps_np = blocks_per_seq.numpy()
+                    bt_np = bt.numpy()
+                    _ov_ratio = block_size // 32 if block_size > 32 and block_size % 32 == 0 else 1
+                    if rows > 0 and bps_np.sum() > 0:
+                        max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
+                        col_idx = np.arange(max_blocks, dtype=np.int32)
+                        mask = col_idx[None, :] < bps_np[:, None]
+                        flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
+                        bi = flat_bt[mask].astype(np.int32, copy=False)
+                        if _ov_ratio > 1:
+                            bi = (bi[:, None] * _ov_ratio + np.arange(_ov_ratio, dtype=np.int32)[None, :]).reshape(-1)
+                        block_indices_np = bi
+                    begins = np.empty(rows + 1, dtype=np.int32)
+                    begins[0] = 0
+                    np.cumsum(bps_np * _ov_ratio, out=begins[1:])
+                    block_indices_begins_np = begins
+            except Exception:
+                pass
+
+        # Per-layer sliding_window. Read from vLLM layer_obj.impl (backend impl)
+        # or fall back to layer_obj itself. Full-attention layers report None
+        # or 0; sliding-attention layers report their window size (e.g. 512
+        # for Gemma-4). Passed as a scalar i32.
+        sliding_window_val = 0
+        if ctx is not None and layer_name != "shared":
+            try:
+                nc_layers = ctx.no_compile_layers
+                lo = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
+                sw = None
+                if lo is not None:
+                    impl = getattr(lo, "impl", None)
+                    sw = getattr(impl, "sliding_window", None) if impl is not None else None
+                    if sw is None:
+                        sw = getattr(lo, "sliding_window", None)
+                if sw is not None:
+                    # vLLM stores sliding_window as a tuple (w-1, w-1) or
+                    # (w-1, 0) for sliding layers, (-1, -1) for full-attention.
+                    # The OV PA op wants: 0 for disabled, N for "last N tokens".
+                    if isinstance(sw, (tuple, list)):
+                        sw = sw[0] if sw else -1
+                    sw_int = int(sw)
+                    # Map vLLM's -1 (no window) to 0 (OV's "disabled"). vLLM
+                    # stores (w-1); pass through as-is — OV kernel does
+                    # ncausal > sliding_window comparison, exclusive so w-1 works.
+                    sliding_window_val = 0 if sw_int < 0 else sw_int
+            except Exception:
+                pass
+        sliding_window_np = np.array(sliding_window_val, dtype=np.int32)
 
         _sm = _shared_meta
         for field, name in fields.items():
@@ -369,14 +447,16 @@ def _bind_paged_attention_side_channel(compiled):
             elif field == "subsequence_begins":
                 result[name] = _sm["subseq_begins_np"]
             elif field == "block_indices":
-                result[name] = _sm["block_indices_np"]
+                result[name] = block_indices_np
             elif field == "block_indices_begins":
-                result[name] = _sm["block_indices_begins_np"]
+                result[name] = block_indices_begins_np
             elif field == "max_context_len":
                 result[name] = _sm["max_ctx_len_np"]
             elif field == "seq_lens":
                 result[name] = _sm["seq_lens_np"]
             elif field == "query_start_loc":
                 result[name] = _sm["qsl_np"]
+            elif field == "sliding_window":
+                result[name] = sliding_window_np
 
     return result
