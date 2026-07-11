@@ -153,6 +153,24 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         }
     }
 
+    // Capture per-layer K/V head geometry BEFORE force_rank2 flattens them.
+    // K/V arrive rank-3 [num_tokens, num_kv_heads, head_dim]. This is what the
+    // CPU plugin's ConvertPagedAttnInputs pass reads via rt_info to size each
+    // layer's key_cache/value_cache Parameter independently — required for
+    // models like Gemma-4 with heterogeneous head sizes across layers.
+    auto capture_kv_geom = [](const Output<Node>& t, size_t& num_heads_out, size_t& head_size_out) {
+        const auto& ps = t.get_partial_shape();
+        if (ps.rank().is_static() && ps.rank().get_length() >= 3 &&
+            ps[ps.rank().get_length() - 1].is_static() &&
+            ps[ps.rank().get_length() - 2].is_static()) {
+            head_size_out = static_cast<size_t>(ps[ps.rank().get_length() - 1].get_length());
+            num_heads_out = static_cast<size_t>(ps[ps.rank().get_length() - 2].get_length());
+        }
+    };
+    size_t k_num_heads = 0, k_head_size = 0, v_num_heads = 0, v_head_size = 0;
+    capture_kv_geom(key, k_num_heads, k_head_size);
+    capture_kv_geom(value, v_num_heads, v_head_size);
+
     // Flatten q/k/v to rank-2. Prefer a static Reshape([-1, H*D]) when the
     // trailing dims are known: that's a single Reshape op vs the dynamic
     // path's ShapeOf+Gather+Concat+Reshape chain (4 ops × 3 tensors × 16
@@ -228,8 +246,13 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     const std::string sprefix = "__pa__shared__";
     auto seq_lens = get_or_make_shared_pa_param(context, sprefix + "seq_lens", element::i32, PartialShape{-1});
     auto query_start_loc = get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
-    auto block_indices = get_or_make_shared_pa_param(context, sprefix + "block_indices", element::i32, PartialShape{-1});
-    auto block_indices_begins = get_or_make_shared_pa_param(context, sprefix + "block_indices_begins", element::i32, PartialShape{-1});
+    // block_indices and block_indices_begins are per-layer, not shared: models
+    // with multiple KV-cache groups (e.g. Gemma-4 hybrid: sliding block_size=64
+    // + global block_size=32) have a distinct block_table per KV-cache group.
+    // Using a single shared Parameter would silently overwrite indices from one
+    // group with those of another and produce wrong results.
+    auto block_indices = make_tagged_parameter(context, prefix + "block_indices", element::i32, PartialShape{-1});
+    auto block_indices_begins = make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
 
     auto* session = context.get_session();
     auto derive_or_cache = [&](const std::string& key,
@@ -277,7 +300,12 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         ? scale_from_q
         : v0::Constant::create(scale_et, Shape{}, {0.125f});
 
-    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
+    // sliding_window is per-layer: hybrid models like Gemma-4 mix
+    // sliding-attention layers (window=512) with full-attention layers
+    // (window=0). Emit as a side-channel Parameter so bind time can pass in
+    // each layer's actual window value from vLLM's layer_obj.impl.sliding_window.
+    auto sliding_window = make_tagged_parameter(context, prefix + "sliding_window",
+                                                element::i32, PartialShape{});
     auto alibi_slopes = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
     auto score_aggr_window = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
     auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
@@ -327,9 +355,23 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     };
 
     auto pa = context.mark_node(std::make_shared<PagedAttentionExtension>(pa_inputs));
+    // Attach per-layer KV head geometry as rt_info so the CPU plugin's
+    // ConvertPagedAttnInputs pass can size each layer's key_cache / value_cache
+    // Parameter to its actual head dims (e.g. Gemma-4 has some layers with
+    // head_size=256 and others with head_size=512). Without this, all layers
+    // fall back to the plugin's default (uniform) shape and PA fails at
+    // runtime with dim mismatches on the heterogeneous-head layers.
+    if (k_num_heads && k_head_size && v_num_heads && v_head_size) {
+        pa->get_rt_info()["num_k_heads"] = k_num_heads;
+        pa->get_rt_info()["k_head_size"] = k_head_size;
+        pa->get_rt_info()["num_v_heads"] = v_num_heads;
+        pa->get_rt_info()["v_head_size"] = v_head_size;
+    }
     if (std::getenv("OV_DBG_PA_TRANS")) {
         std::cerr << "[PA_TRANS] emitted PagedAttentionExtension for layer " << layer_name
-                  << ", output ps=" << pa->output(0).get_partial_shape() << std::endl;
+                  << ", output ps=" << pa->output(0).get_partial_shape()
+                  << ", k=(" << k_num_heads << "," << k_head_size << ")"
+                  << ", v=(" << v_num_heads << "," << v_head_size << ")" << std::endl;
     }
     // PagedAttentionExtension has multiple outputs; the FX op returns just the
     // attention output (output 0). Convert back to query's original dtype
