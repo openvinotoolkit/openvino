@@ -5,7 +5,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 
 #include <algorithm>
-#include <functional>
 #include <regex>
 
 #include "openvino/core/log_util.hpp"
@@ -149,38 +148,28 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector& args) {
-    // Heap's algorithm: visits every permutation of pattern_args exactly once, performing a single
-    // swap between successive permutations. Enumeration order is irrelevant since matching only needs
-    // some permutation to match. k is the length of the still-unfixed prefix; it starts at the full
-    // argument count and shrinks by one per level of recursion. The base case (k <= 1) covers the
-    // empty and single-argument cases by running the match attempt once.
-    const std::function<bool(size_t)> permute = [&](size_t k) -> bool {
-        if (k <= 1) {
-            OPENVINO_LOG_MATCHER6(this);
-            auto saved = start_match();
-            if (match_permutation(pattern_args, args)) {
-                auto res = saved.finish(true);
-                OPENVINO_LOG_MATCHER7(this);
-                return res;
-            }
-            OPENVINO_LOG_MATCHER8(this);
-            return false;
-        }
-
-        for (size_t i = 0; i < k; ++i) {
-            if (permute(k - 1)) {
-                return true;
-            }
-            if (k % 2 == 0) {
-                std::swap(pattern_args[i], pattern_args[k - 1]);
-            } else {
-                std::swap(pattern_args[0], pattern_args[k - 1]);
-            }
-        }
-        return false;
+    // The enumeration order of permutations is observable behavior, not an implementation detail:
+    // the matcher commits to the first permutation that matches, so when more than one permutation
+    // of a commutative pattern can match (e.g. a label competing with any_input()), the order
+    // decides which graph operand each pattern operand binds to. Order-sensitive patterns rely on
+    // the long-standing lexicographic enumeration (sort + next_permutation over the Output<Node>
+    // ordering); replacing it with an unordered scheme such as Heap's algorithm changes those
+    // bindings.
+    const auto less = [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+        return n1 < n2;
     };
-
-    return permute(pattern_args.size());
+    std::sort(pattern_args.begin(), pattern_args.end(), less);
+    do {
+        OPENVINO_LOG_MATCHER6(this);
+        auto saved = start_match();
+        if (match_permutation(pattern_args, args)) {
+            auto res = saved.finish(true);
+            OPENVINO_LOG_MATCHER7(this);
+            return res;
+        }
+        OPENVINO_LOG_MATCHER8(this);
+    } while (std::next_permutation(pattern_args.begin(), pattern_args.end(), less));
+    return false;
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {

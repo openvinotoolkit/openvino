@@ -214,8 +214,11 @@ public:
 
 protected:
     bool match_permutation(const OutputVector& pattern_args, const OutputVector& args);
-    // Tries to match all permutations of commutative arguments, generating them with Heap's
-    // algorithm (one swap per permutation). Returns true as soon as a permutation matches.
+    // Tries to match commutative arguments under every permutation of pattern_args, enumerating
+    // permutations in the long-standing lexicographic order (sort + next_permutation). The order is
+    // load-bearing: the matcher commits to the first matching permutation, which determines the
+    // pattern->graph operand bindings order-sensitive patterns rely on. Returns true as soon as a
+    // permutation matches.
     bool match_permutations(OutputVector& pattern_args, const OutputVector& args);
 
     std::string m_name{"unnamed"};

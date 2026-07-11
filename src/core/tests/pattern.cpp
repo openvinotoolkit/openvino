@@ -1695,9 +1695,9 @@ TEST(pattern, wrap_type_with_output_index_constraint) {
 
 // A wrap_type pattern over a sequence of commutative ops that distinguishes the two operands of each
 // op (a Parameter-typed input vs a Constant-typed input) must match regardless of the operand order
-// used when the model was built. This exercises Matcher::match_permutations, the Heap's-algorithm
-// permutation search over commutative arguments: a successful match also proves the operands were
-// told apart, since the Parameter slot only accepts Parameters and the scale slots only Constants.
+// used when the model was built. This exercises Matcher::match_permutations, the permutation search
+// over commutative arguments: a successful match also proves the operands were told apart, since
+// the Parameter slot only accepts Parameters and the scale slots only Constants.
 TEST(pattern, commutative_arguments_permutations) {
     // Pattern: (param * scale0) * scale1, two chained commutative Multiplies.
     auto p_param = pattern::wrap_type<op::v0::Parameter>();
