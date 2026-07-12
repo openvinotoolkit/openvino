@@ -12,7 +12,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -180,6 +182,7 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             // are handled by walking new_mul's target inputs; other
             // non-Convert consumers (e.g. residual add expecting narrow
             // dtype) are left untouched.
+            std::shared_ptr<ov::op::v0::MatMul> down_proj_mm;
             for (auto& consumer : new_mul->output(0).get_target_inputs()) {
                 auto cvt = ov::as_type<ov::op::v0::Convert>(consumer.get_node());
                 if (!cvt) continue;
@@ -192,6 +195,67 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 if (cvt_src == cvt_dst) {
                     for (auto& downstream : cvt->output(0).get_target_inputs()) {
                         downstream.replace_source_output(new_mul->output(0));
+                    }
+                }
+            }
+
+            // Rank-2 wrap: if the gate_up MatMul source is rank-2 (vLLM's
+            // flattened [B*S, H]), the intel_cpu MLPFusion pattern which
+            // requires rank-3 [B, S, H] activation won't match. Insert
+            // Unsqueeze(axis=0) at the gate_up MatMul's activation input
+            // and Squeeze(axis=0) after the down_proj MatMul so the
+            // interior chain (MatMul + VariadicSplit + Swish + Multiply +
+            // MatMul) flows as rank-3 [1, B*S, H]. Non-MLP consumers of
+            // the shared source and of the down_proj output continue to
+            // see the rank-2 tensor.
+            auto gate_up_mm_walk = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
+                new_vs_data.get_node_shared_ptr());
+            if (gate_up_mm_walk) {
+                auto shared_src = gate_up_mm_walk->input_value(0);
+                auto src_ps_rk2 = shared_src.get_partial_shape();
+                if (src_ps_rk2.rank().is_static() && src_ps_rk2.rank().get_length() == 2) {
+                    // Locate down_proj MatMul reached from new_mul (possibly
+                    // through an intermediate Convert).
+                    auto walk_to_matmul = [](const ov::Output<ov::Node>& out)
+                            -> std::shared_ptr<ov::op::v0::MatMul> {
+                        for (auto& consumer : out.get_target_inputs()) {
+                            auto node = consumer.get_node()->shared_from_this();
+                            if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node)) {
+                                return mm;
+                            }
+                            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+                                for (auto& c2 : node->output(0).get_target_inputs()) {
+                                    auto n2 = c2.get_node()->shared_from_this();
+                                    if (auto mm2 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(n2)) {
+                                        return mm2;
+                                    }
+                                }
+                            }
+                        }
+                        return nullptr;
+                    };
+                    down_proj_mm = walk_to_matmul(new_mul->output(0));
+                    if (down_proj_mm) {
+                        auto out_ps_rk2 = down_proj_mm->output(0).get_partial_shape();
+                        if (out_ps_rk2.rank().is_static() &&
+                            out_ps_rk2.rank().get_length() == 2) {
+                            auto zero_axis = ov::op::v0::Constant::create(
+                                ov::element::i32, ov::Shape{1}, {0});
+                            auto unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(
+                                shared_src, zero_axis);
+                            gate_up_mm_walk->input(0).replace_source_output(unsqueezed->output(0));
+
+                            auto zero_axis_sq = ov::op::v0::Constant::create(
+                                ov::element::i32, ov::Shape{1}, {0});
+                            auto squeezed = std::make_shared<ov::op::v0::Squeeze>(
+                                down_proj_mm->output(0), zero_axis_sq);
+                            for (auto& c : down_proj_mm->output(0).get_target_inputs()) {
+                                if (c.get_node() == squeezed.get()) continue;
+                                c.replace_source_output(squeezed->output(0));
+                            }
+                            ov::copy_runtime_info(ov::NodeVector{gate_up_mm_walk}, unsqueezed);
+                            ov::copy_runtime_info(ov::NodeVector{down_proj_mm}, squeezed);
+                        }
                     }
                 }
             }
