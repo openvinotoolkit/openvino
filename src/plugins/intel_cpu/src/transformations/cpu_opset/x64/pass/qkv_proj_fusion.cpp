@@ -226,8 +226,12 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         if (split_lengths.size() != 3) {
             return false;
         }
-        // Allow GQA / unequal Q/K/V proj sizes; only enforce that no entry is non-positive.
-        if (split_lengths[0] <= 0 || split_lengths[1] <= 0 || split_lengths[2] <= 0) {
+
+        auto proj_size = split_lengths[0];
+        if (split_lengths[1] != proj_size) {
+            return false;
+        }
+        if (split_lengths[2] != proj_size) {
             return false;
         }
 
@@ -246,19 +250,16 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        uint64_t total_proj = static_cast<uint64_t>(split_lengths[0]) +
-                              static_cast<uint64_t>(split_lengths[1]) +
-                              static_cast<uint64_t>(split_lengths[2]);
-        if (w_shape[0] != total_proj) {
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
         }
 
         QKVProjectionNode::Config config{is_quantized_int8,
                                          static_cast<int>(w_shape[1]),
+                                         1,
                                          split_lengths[0],
                                          split_lengths[1],
-                                         split_lengths[2],
-                                         /*weights_combined=*/true};
+                                         static_cast<bool>(split_lengths[2])};
 
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
