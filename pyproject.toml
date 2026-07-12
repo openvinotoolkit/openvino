@@ -23,9 +23,9 @@ dependencies = [
 
 [build-system]
 requires = [
-    "setuptools>=77,<=83.0.0", 
+    "setuptools>=77,<=83.0.0",
     "wheel<=0.47.0",
-    "cmake<=4.3.4", 
+    "cmake<=4.3.4",
     "patchelf<=0.17.2.4; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]
 build-backend = "setuptools.build_meta"
@@ -39,7 +39,7 @@ license-files = [
 ]
 [tool.setuptools.packages.find]
 where = ["./src/bindings/python"]
-include = ["pyopenvino"] 
+include = ["pyopenvino"]
 
 [tool.black]
 line-length = 160
