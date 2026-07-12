@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
@@ -88,17 +87,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto down_proj_weight_deq =
         wrap_type<Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
-    // gate-up weights are combined. Accept any narrow real type (f16/bf16
-    // and any future low-precision float) to stay dtype-agnostic across
-    // model dtypes and ISAs (AVX2/AVX-512/AMX). The kernel only requires
-    // the weight to be a 16-bit float; specific narrow type is checked at
-    // node-creation time via isSupportedOperation.
-    auto gate_up_proj_weight = wrap_type<Constant>([](const ov::Output<ov::Node>& o) {
-        const auto& et = o.get_element_type();
-        return (et == ov::element::f16 || et == ov::element::bf16) &&
-               o.get_partial_shape().rank().is_static() &&
-               o.get_partial_shape().rank().get_length() == 2;
-    });
+    // gate-up weights are combined
+    auto gate_up_proj_weight = wrap_type<Constant>(type_matches(element::f16) && rank_equals(2));
     auto gate_up_proj_weight_f32 = wrap_type<Convert>(gate_up_proj_weight, {{"destination_type", "f32"}});
 
     auto gate_up_proj_weight_const_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
@@ -109,13 +99,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
     auto gate_up_proj = wrap_type<MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
                                           {{"transpose_a", false}, {"transpose_b", true}});
-    // When the residual stream is a narrow float (bf16/f16), a Convert appears
-    // between gate_up_proj's f32 output and the VariadicSplit. Match that case
-    // via an optional Convert.
-    auto gate_up_proj_cvt = wrap_type<Convert>({gate_up_proj});
     auto gate_up_split_lengths = wrap_type<Constant>(type_matches(element::i32) && shape_matches("[2]"));
-    auto gate_up_proj_split = wrap_type<VariadicSplit>(
-        {gate_up_proj | gate_up_proj_cvt, -1, gate_up_split_lengths});
+    auto gate_up_proj_split = wrap_type<VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
 
     auto mlp_gate_proj =
@@ -128,13 +113,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
     auto mlp_gated_up = wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split},
                                             {{"auto_broadcast", "numpy"}});
-    // Allow an optional Convert between the gated multiply and down_proj for
-    // narrow-residual graphs (model dtype = bf16/f16 with mixed-precision
-    // compute upcasts the down_proj input back to f32).
-    auto mlp_gated_up_cvt = wrap_type<Convert>({mlp_gated_up});
     auto down_proj =
-        wrap_type<MatMul>({mlp_gated_up | mlp_gated_up_cvt,
-                           down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
+        wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
                           {{"transpose_a", false}, {"transpose_b", true}});
 
     auto result = down_proj;

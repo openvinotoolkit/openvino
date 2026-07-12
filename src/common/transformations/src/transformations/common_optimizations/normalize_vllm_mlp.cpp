@@ -62,7 +62,11 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
         };
 
         // Branch B: already a VariadicSplit. Canonicalize lengths to i32 [2]
-        // and axis to -1 if needed.
+        // and axis to -1 if needed. Also elide the narrow-residual Convert
+        // pair (f32->bf16 before VariadicSplit, bf16->f32 after Multiply)
+        // that vLLM emits for bf16 model dtype. Removing the pair skips a
+        // bf16 round-trip that LLMMLPFusion would otherwise have to tolerate
+        // via optional-Convert relaxations in intel_cpu/mlp_fusion.cpp.
         if (up_vsplit) {
             auto sw_in = activation->input_value(0);
             auto gate_vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(sw_in.get_node_shared_ptr());
@@ -80,7 +84,62 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 auto av = axis_const_chk->cast_vector<int64_t>();
                 if (!av.empty() && av[0] == -1) axis_is_neg_one = true;
             }
-            if (lens_ok && axis_is_neg_one) return false;
+
+            // Detect narrow-Convert wedged between the gate_up MatMul (f32)
+            // and this VariadicSplit. In vLLM bf16 graphs it takes the form
+            // `MatMul(f32) -> Convert(f32->bf16) -> VariadicSplit(bf16)`.
+            // Bypass it if present so LLMMLPFusion's f32 pattern matches.
+            ov::Output<ov::Node> new_vs_data = up_vsplit->input_value(0);
+            auto pre_cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(
+                new_vs_data.get_node_shared_ptr());
+            bool bypassed_pre_cvt = false;
+            if (pre_cvt) {
+                auto src = pre_cvt->input_value(0);
+                auto src_t = src.get_element_type();
+                auto dst_t = pre_cvt->get_destination_type();
+                if ((dst_t == ov::element::bf16 || dst_t == ov::element::f16) &&
+                    src_t == ov::element::f32) {
+                    new_vs_data = src;
+                    bypassed_pre_cvt = true;
+                }
+            }
+
+            // If we bypassed the pre-Convert, we also need the gate_up MatMul
+            // weight Constant to match intel_cpu LLMMLPFusion's f16 predicate.
+            // vLLM stores weights in the model's native dtype (bf16 for
+            // Llama-3.2-family); recast statically to fp16 so the pattern
+            // fires. bf16 has narrower mantissa (7 vs f16's 10 bits) but
+            // wider exponent (8 vs 5). MLP weight magnitudes are <<1 so
+            // fp16 range (max 65504) is not a concern. Precision widens
+            // slightly (7 mantissa -> 10 mantissa).
+            std::shared_ptr<ov::op::v0::Constant> new_gate_up_weight_const;
+            std::shared_ptr<ov::op::v0::Convert> old_weight_cvt;
+            if (bypassed_pre_cvt) {
+                // Walk pre-cvt (which we bypassed above) -> MatMul -> weight
+                // Convert -> weight Constant.
+                auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
+                    pre_cvt->input_value(0).get_node_shared_ptr());
+                if (mm) {
+                    auto wcvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(
+                        mm->input_value(1).get_node_shared_ptr());
+                    if (wcvt) {
+                        auto wcst = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                            wcvt->input_value(0).get_node_shared_ptr());
+                        if (wcst && wcst->get_element_type() == ov::element::bf16 &&
+                            wcvt->get_destination_type() == ov::element::f32) {
+                            // Static bf16 -> fp16 recast (lossless in range for
+                            // MLP weights). Use Constant::create<float16> from
+                            // upcast-to-f32 vector.
+                            auto vals = wcst->cast_vector<float>();
+                            new_gate_up_weight_const = ov::op::v0::Constant::create(
+                                ov::element::f16, wcst->get_shape(), vals);
+                            old_weight_cvt = wcvt;
+                        }
+                    }
+                }
+            }
+
+            if (lens_ok && axis_is_neg_one && !bypassed_pre_cvt) return false;
 
             auto vals = sl_const->cast_vector<int64_t>();
             if (vals.size() != 2) return false;
@@ -90,8 +149,19 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             auto split_lengths_new = ov::op::v0::Constant::create(
                 ov::element::i32, ov::Shape{2},
                 {static_cast<int32_t>(vals[0]), static_cast<int32_t>(vals[1])});
+            // If we rewrote the weight, redirect the MatMul's weight Convert
+            // input to the new f16 Constant. The Convert becomes f16 -> f32,
+            // matching intel_cpu's `wrap_type<Convert>(gate_up_proj_weight)`.
+            if (new_gate_up_weight_const && old_weight_cvt) {
+                auto new_wcvt = std::make_shared<ov::op::v0::Convert>(
+                    new_gate_up_weight_const, ov::element::f32);
+                for (auto& c : old_weight_cvt->output(0).get_target_inputs()) {
+                    c.replace_source_output(new_wcvt->output(0));
+                }
+            }
+
             auto new_vsplit = std::make_shared<ov::op::v1::VariadicSplit>(
-                up_vsplit->input_value(0), axis_const_new, split_lengths_new);
+                new_vs_data, axis_const_new, split_lengths_new);
 
             size_t gate_idx = sw_in.get_index();
             size_t up_idx = up_out.get_index();
@@ -103,6 +173,28 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             new_mul->set_friendly_name(mul->get_friendly_name());
             ov::copy_runtime_info({up_vsplit, activation, mul}, {new_vsplit, new_swish, new_mul});
             ov::replace_node(mul, new_mul);
+
+            // Elide any post-Multiply Convert(bf16/f16 -> f32) that vLLM's
+            // narrow-residual graph inserts before down_proj. Route those
+            // consumers back to new_mul directly. Multi-Convert consumers
+            // are handled by walking new_mul's target inputs; other
+            // non-Convert consumers (e.g. residual add expecting narrow
+            // dtype) are left untouched.
+            for (auto& consumer : new_mul->output(0).get_target_inputs()) {
+                auto cvt = ov::as_type<ov::op::v0::Convert>(consumer.get_node());
+                if (!cvt) continue;
+                auto cvt_src = new_mul->output(0).get_element_type();
+                auto cvt_dst = cvt->get_destination_type();
+                // Only elide the narrow-then-wide sequence: mul (f32) skips
+                // the redundant Convert(f32->f32) that appears after we've
+                // bypassed the pre-Convert. If the source is truly narrow
+                // (bf16/f16) then the round-trip is real and we leave it.
+                if (cvt_src == cvt_dst) {
+                    for (auto& downstream : cvt->output(0).get_target_inputs()) {
+                        downstream.replace_source_output(new_mul->output(0));
+                    }
+                }
+            }
             return true;
         }
 
