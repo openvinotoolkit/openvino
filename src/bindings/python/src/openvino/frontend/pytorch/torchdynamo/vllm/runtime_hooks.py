@@ -22,6 +22,43 @@ def has_pa_inputs(compiled) -> bool:
     return False
 
 
+def should_skip_pa_infer() -> bool:
+    """Detect the vLLM warm-up / profile_run state where ForwardContext exists
+    but ``attn_metadata`` is None. In that state the OV CPU PA kernel would
+    read uninitialized ``_slot_mapping`` entries (heap garbage → OOB writes)
+    because our side-channel binder can only supply zero-length metadata.
+
+    vLLM invokes ``model.forward()`` in this state for two purposes:
+      1. ``determine_available_memory`` — measuring peak activation memory.
+      2. ``dummy_run`` — compile warm-up so torch.compile traces the graph.
+
+    Neither consumes the model output semantically, so returning zeros of
+    the expected shape is a safe substitute for a real infer call.
+
+    Returns True only when the OV backend is active AND we can prove
+    attn_metadata is missing. Any exception falls through to False so
+    real inference is never skipped by accident.
+    """
+    try:
+        from vllm.forward_context import get_forward_context
+    except Exception:
+        return False
+    try:
+        ctx = get_forward_context()
+    except (AssertionError, RuntimeError):
+        return False
+    if ctx is None:
+        return False
+    am = getattr(ctx, "attn_metadata", None)
+    # attn_metadata is either None (bootstrap) or a dict keyed by layer.
+    # An empty dict during profile_run also means "no real attention state".
+    if am is None:
+        return True
+    if isinstance(am, dict) and not am:
+        return True
+    return False
+
+
 def build_call_kwargs(compiled, ov_inputs):
     """Build the ``req.infer(...)`` kwargs dict for a PA-equipped graph.
 
