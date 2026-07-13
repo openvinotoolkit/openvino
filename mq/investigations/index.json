@@ -77,5 +77,16 @@
     "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
     "pr_number": "36488",
     "signature_hash": "43e136cf67333978"
+  },
+  {
+    "investigation_id": "2026-07-13-13-40-20-000-29245921214",
+    "timestamp": "2026-07-13T13:40:20Z",
+    "run_id": "29245921214",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "36413",
+    "category": "Flaky Test",
+    "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
+    "signature_hash": "18324e8563a426a9",
+    "confidence": "High"
   }
 ]

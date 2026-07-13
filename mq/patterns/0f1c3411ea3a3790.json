@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "rm cannot remove electron dist Permission denied|Infrastructure",
+  "signature_hash": "0f1c3411ea3a3790",
+  "title": "Electron E2E cleanup fails with Permission Denied on Windows runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-13T13:40:20Z",
+  "last_seen": "2026-07-13T13:40:20Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29245921214"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36413"],
+  "recent_timestamps": ["2026-07-13T13:40:20Z"]
+}

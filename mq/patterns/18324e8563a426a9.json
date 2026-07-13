@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "CachingTest LoadMulti_race Expected import_model call count mismatch|Flaky Test",
+  "signature_hash": "18324e8563a426a9",
+  "title": "CachingTest LoadMulti_race mock call count mismatch on Windows",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-13T13:40:20Z",
+  "last_seen": "2026-07-13T13:40:20Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29245921214"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36413"],
+  "recent_timestamps": ["2026-07-13T13:40:20Z"]
+}

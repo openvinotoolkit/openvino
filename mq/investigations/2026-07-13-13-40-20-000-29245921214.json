@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-13-13-40-20-000-29245921214",
+  "timestamp": "2026-07-13T13:40:20Z",
+  "run_id": "29245921214",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29245921214",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36413",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36413",
+  "author": "dkrupnov",
+  "category": "Flaky Test",
+  "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
+  "signature": "CachingTest LoadMulti_race Expected import_model call count mismatch|Flaky Test",
+  "signature_hash": "18324e8563a426a9",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache: import_model expected 8 calls, got 7"
+    },
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "Electron E2E cleanup fails: rm cannot remove electron.exe/d3dcompiler_47.dll - Permission denied"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2623): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n  Expected: to be called 8 times\n    Actual: called 7 times - unsatisfied and active\n[  FAILED  ] CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache (2068 ms)",
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied"
+  ],
+  "root_cause": "Two independent transient failures on Windows: (1) CachingTest.LoadMulti_race is a multithreaded stress test that ran 171 iterations and failed due to a non-deterministic race condition in the inference caching layer - the mock plugin's import_model was called 7 instead of the expected 8 times due to timing-sensitive thread scheduling on the Windows runner. The test name explicitly includes 'race' indicating known sensitivity to timing. (2) The Electron E2E test teardown hook tries to rm -rf the demo-electron-app-project directory but Windows locks the electron.exe, d3dcompiler_47.dll, libEGL.dll, and libGLESv2.dll files because the Electron process is still running when cleanup executes, causing Permission Denied errors. Both failures are unrelated to the PR changes (memory_tests: update reporting).",
+  "reproduction_steps": "N/A - both are timing-sensitive Windows-specific failures unlikely to reproduce on demand",
+  "recommended_actions": [
+    "Re-run the failed jobs - both failures are transient and unrelated to the PR changes",
+    "For the CachingTest race: consider adding retry logic or increasing tolerance in LoadMulti_race mock expectations",
+    "For the Electron cleanup: add a process kill step before rm -rf in the E2E test teardown, or use a Windows-safe directory removal approach"
+  ],
+  "prevention_strategies": "Mark CachingTest.LoadMulti_race as retryable or add exponential backoff. For Electron E2E cleanup, use taskkill /F /IM electron.exe before directory removal on Windows.",
+  "historical_context": "First occurrence of this specific combination. Both failure types (Windows file lock and race conditions in caching tests) are common on Windows CI runners."
+}
