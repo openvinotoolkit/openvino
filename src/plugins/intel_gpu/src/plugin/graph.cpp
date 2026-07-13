@@ -33,31 +33,12 @@
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include <atomic>
-#include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <utility>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 namespace ov::intel_gpu {
-
-namespace {
-
-std::atomic<uint64_t> g_exec_graph_dump_counter{0};
-
-std::string sanitize_model_name(const std::string& name) {
-    std::string sanitized = name;
-    for (char& c : sanitized) {
-        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
-            c = '_';
-        }
-    }
-    return sanitized;
-}
-
-}  // namespace
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
@@ -209,20 +190,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
     std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dry_run_path.empty()) {
-        auto runtime_model = get_runtime_model();
-        auto model_name = sanitize_model_name(runtime_model->get_friendly_name());
-        if (model_name.empty()) {
-            model_name = "unknown_model";
-        }
-
-        std::filesystem::path dump_dir(dry_run_path);
-        std::filesystem::create_directories(dump_dir);
-        const uint64_t dump_index = g_exec_graph_dump_counter.fetch_add(1, std::memory_order_relaxed);
-        auto xml_path = dump_dir / (model_name + "_stream" + std::to_string(m_stream_id) + "_" +
-                        std::to_string(dump_index) + "_gpu_exec_graph.xml");
-
-        ov::pass::Serialize(xml_path.string(), "").run_on_model(runtime_model);
-        GPU_DEBUG_COUT << "[intel_gpu::Graph] exec graph dumped: " << xml_path.string() << std::endl;
+        ov::pass::Serialize(dry_run_path, "").run_on_model(get_runtime_model());
         exit(0);
     }
 
