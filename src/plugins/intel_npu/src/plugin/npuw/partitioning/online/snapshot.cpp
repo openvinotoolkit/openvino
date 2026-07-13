@@ -1018,15 +1018,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         return {};
     }
 
-    // Only bypass the keep_blocks size floor for tags the user explicitly asked to preserve via
-    // NPUW_ONLINE_KEEP_BLOCKS_TAGGED - this must stay in sync with cleanUpUniquesImpl's
-    // keep_by_isolate_tag check below, which is the only place that will actually keep such a
-    // block regardless of size. Bypassing for any other isolated tag would let it grow past the
-    // size floor here for nothing, since it would still get dropped later.
-    const auto& isolate_tag = prods.front()->isolatedTag();
-    const bool has_isolated_tag =
-        !isolate_tag.empty() && m_ctx.keep_block_tags.find(isolate_tag) != m_ctx.keep_block_tags.end();
-    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
+    if (prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeTriangles() pass checks that producer and consumer have a different tag to be merged further.
@@ -1315,12 +1307,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         }
     }
 
-    // Only bypass the keep_blocks size floor for tags the user explicitly asked to preserve via
-    // NPUW_ONLINE_KEEP_BLOCKS_TAGGED - see matching comment in tryMergeTriangles() above.
-    const auto& isolate_tag = conss.front()->isolatedTag();
-    const bool has_isolated_tag =
-        !isolate_tag.empty() && m_ctx.keep_block_tags.find(isolate_tag) != m_ctx.keep_block_tags.end();
-    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
+    if (prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeRepeating() pass checks that producer and consumer have a different tag to be merged further.
