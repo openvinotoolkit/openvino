@@ -24,6 +24,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::pass;
 
@@ -50,7 +51,11 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         }
 
         const bool has_swish = activation_out.has_value();
-        if (!has_swish && fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
+        if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
+            return false;
+        }
+        if (has_swish &&
+            none_of(conv->get_input_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
             return false;
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
@@ -79,8 +84,7 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
             auto new_add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
             auto dq_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(new_mul->get_input_node_shared_ptr(1));
             if (new_add && dq_scale_const) {
-                auto bias_div_scale =
-                    ov::as_type_ptr<ov::op::v0::Constant>(new_add->get_input_node_shared_ptr(1));
+                auto bias_div_scale = ov::as_type_ptr<ov::op::v0::Constant>(new_add->get_input_node_shared_ptr(1));
                 if (bias_div_scale) {
                     const auto bds_vals = bias_div_scale->cast_vector<float>();
                     const auto scale_vals = dq_scale_const->cast_vector<float>();
@@ -89,8 +93,8 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
                         const float s = (scale_vals.size() == 1) ? scale_vals[0] : scale_vals[i];
                         restored[i] = bds_vals[i] * s;
                     }
-                    auto restored_const = ov::op::v0::Constant::create(
-                        ov::element::f32, bias_div_scale->get_shape(), restored);
+                    auto restored_const =
+                        ov::op::v0::Constant::create(ov::element::f32, bias_div_scale->get_shape(), restored);
                     restored_const->set_friendly_name(bias_div_scale->get_friendly_name());
                     ov::copy_runtime_info(bias_div_scale, restored_const);
                     ov::replace_node(bias_div_scale, restored_const);
