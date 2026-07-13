@@ -7,6 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: false
+        default: '{"TF_FE":{"test":true},"JAX_FE":{"test":true},"PyTorch_FE":{"test":true}}'
       image:
         description: 'Docker image to use for the job (Linux only; leave empty on Windows)'
         type: string
@@ -37,6 +42,7 @@ env:
 jobs:
   TensorFlow_NPU_Models_Tests:
     name: TF NPU Models tests (${{ matrix.npu-platform }})
+    if: fromJSON(inputs.affected-components).TF_FE.test
     timeout-minutes: 60
     strategy:
       # one runner per NPU platform; keep going even if one platform fails
@@ -98,15 +104,29 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       - name: Install TF Models tests requirements
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
-      - name: TensorFlow Models Tests - NPU compile-only
+      - name: TensorFlow Models Tests - NPU compile-only (convert_model)
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+        env:
+          # Make the NPU plugin log the chosen compiler/platform.
+          OV_NPU_LOG_LEVEL: LOG_INFO
+
+      - name: TensorFlow Models Tests - NPU compile-only (read_model)
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
         env:
           # Make the NPU plugin log the chosen compiler/platform.
           OV_NPU_LOG_LEVEL: LOG_INFO
@@ -122,6 +142,7 @@ jobs:
 
   JAX_NPU_Models_Tests:
     name: JAX NPU Models tests (${{ matrix.npu-platform }})
+    if: fromJSON(inputs.affected-components).JAX_FE.test
     timeout-minutes: 60
     strategy:
       # one runner per NPU platform; keep going even if one platform fails
@@ -182,6 +203,9 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
+
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: Install JAX Models tests requirements
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
@@ -206,28 +230,16 @@ jobs:
           if-no-files-found: 'error'
 
   PyTorch_NPU_Models_Tests:
-    name: PyTorch NPU Models tests (${{ matrix.test.name }} - ${{ matrix.npu-platform }})
-    timeout-minutes: 90
+    name: PyTorch NPU Models tests (${{ matrix.npu-platform }})
+    if: fromJSON(inputs.affected-components).PyTorch_FE.test
+    timeout-minutes: 120
     strategy:
-      # one runner per (NPU platform x test file); keep going even if one leg fails.
-      # Each PyTorch test file has its own env deps (some mutually incompatible, e.g.
-      # hf_transformers pins transformers==4.47.1 while llm pins ==5.5.3), so every
-      # file runs in an isolated matrix leg with only its own requirements installed.
+      # one runner per NPU platform (like TF/JAX). The PyTorch test files have mutually
+      # incompatible env deps, so within a leg they are grouped by dep-compatibility and
+      # the requirements are reinstalled only between groups (mirrors job_pytorch_models_tests).
       fail-fast: false
       matrix:
         npu-platform: ${{ fromJSON(inputs.npu-platforms) }}
-        test:
-          - { name: 'torchvision',     file: 'test_torchvision_models.py', reqs: 'pytorch/envs/torchvision.txt' }
-          - { name: 'timm',            file: 'test_timm.py',               reqs: 'pytorch/envs/timm.txt' }
-          - { name: 'hf_transformers', file: 'test_hf_transformers.py',    reqs: 'pytorch/envs/hf_transformers.txt' }
-          - { name: 'edsr',            file: 'test_edsr.py',               reqs: 'pytorch/envs/edsr.txt' }
-          - { name: 'easyocr',         file: 'test_easyocr.py',            reqs: 'pytorch/envs/easyocr.txt' }
-          - { name: 'gfpgan',          file: 'test_gfpgan.py',             reqs: 'pytorch/envs/gfpgan.txt' }
-          - { name: 'tpsmm',           file: 'test_tpsmm.py',              reqs: 'pytorch/envs/tpsmm.txt' }
-          # NOTE: test_llm.py needs llm_build_deps.txt installed BEFORE llm.txt (pypcre is a
-          # build-time dep of gptqmodel). GPTQ/AWQ quantized-model deps are gated to Linux/x86_64,
-          # so on Windows only the non-quantized precommit models are exercised.
-          - { name: 'llm',             file: 'test_llm.py',                reqs: 'pytorch/envs/llm.txt', build_reqs: 'pytorch/envs/llm_build_deps.txt' }
     defaults:
       run:
         shell: pwsh
@@ -283,30 +295,75 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Install PyTorch Models tests requirements
-        run: |
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
-          # Some files (e.g. llm) ship build-time deps that must be installed first.
-          if ('${{ matrix.test.build_reqs }}') {
-            python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\${{ matrix.test.build_reqs }}
-          }
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\${{ matrix.test.reqs }}
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
-      - name: PyTorch Models Tests - NPU compile-only
+      # Group A: torchvision + timm + edsr share compatible deps (installed together).
+      - name: "Install PyTorch tests requirements (group A: torchvision/timm/edsr)"
+        run: |
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\torchvision.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\timm.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\edsr.txt
+
+      - name: PyTorch Models Tests - NPU compile-only (group A)
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\${{ matrix.test.file }} -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_${{ matrix.test.name }}_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+          python3 -m pytest ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_torchvision_models.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
         env:
-          # Make the NPU plugin log the chosen compiler/platform.
+          OV_NPU_LOG_LEVEL: LOG_INFO
+
+      # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
+      - name: "Install PyTorch tests requirements (group B: hf_transformers/easyocr/gfpgan/tpsmm)"
+        run: |
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\hf_transformers.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\easyocr.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\gfpgan.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\tpsmm.txt
+
+      - name: PyTorch Models Tests - NPU compile-only (group B)
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
+          python3 -m pytest ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_hf_transformers.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_easyocr.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+        env:
+          OV_NPU_LOG_LEVEL: LOG_INFO
+
+      # Group C: llm is isolated. llm_build_deps.txt must be installed BEFORE llm.txt
+      # (pypcre is a build-time dep of gptqmodel); llm.txt needs --no-build-isolation.
+      # GPTQ/AWQ quantized deps are gated to Linux/x86_64, so on Windows only the
+      # non-quantized precommit models are exercised.
+      - name: "Install PyTorch tests requirements (group C: llm)"
+        run: |
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm_build_deps.txt
+          python3 -m pip install --no-build-isolation -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm.txt
+
+      - name: "PyTorch Models Tests - NPU compile-only (group C: llm)"
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_llm.py -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_llm_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+        env:
           OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
-          name: test-results-pytorch-npu-models-${{ matrix.test.name }}-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
+          name: test-results-pytorch-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
           if-no-files-found: 'error'

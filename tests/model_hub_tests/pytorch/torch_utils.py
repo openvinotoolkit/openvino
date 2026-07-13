@@ -64,7 +64,7 @@ class TestTorchConvertModel(TestConvertModel):
             return flattenize_structure(inputs)
 
     def npu_static_input(self):
-        #Declare static input shapes (derived from the traced example) so the compiler-in-plugin can compile.
+        # NPU has no dynamic shapes: declare static input dims from the traced example so the compiler can compile
         example = self.example
         tensors = list(example.values()) if isinstance(example, dict) else flattenize_tuples(example)
         return [PartialShape(list(t.shape)) for t in tensors]

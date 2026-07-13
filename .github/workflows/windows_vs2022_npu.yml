@@ -105,6 +105,7 @@ jobs:
     uses: ./.github/workflows/job_npu_tests.yml
     with:
       runner: 'aks-win-8-cores-16gb-test'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       test-device: ${{ inputs.test-device || 'NPU' }}
       npu-platforms: ${{ inputs.npu-platforms || '["3720","4000","5010","5020"]' }}
       model-scope: ${{ inputs.model-scope || 'precommit' }}
