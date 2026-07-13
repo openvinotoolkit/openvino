@@ -63,7 +63,8 @@ inline void erase_if(Container& data, const PredicateT& predicate) {
 template <class T = void, class... Args>
 constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Args...>, T>, sizeof...(Args)> make_array(
     Args&&... args) {
-    return {std::forward<Args>(args)...};
+    using CommonT = std::conditional_t<std::is_void_v<T>, std::common_type_t<Args...>, T>;
+    return {static_cast<CommonT>(std::forward<Args>(args))...};
 }
 
 }  // namespace ov::util
