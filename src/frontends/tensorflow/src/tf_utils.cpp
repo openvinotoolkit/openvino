@@ -163,10 +163,6 @@ void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& c
     }
 }
 
-bool CfMarkerType::is_copyable() const {
-    return false;
-}
-
 Type get_ov_type(const ::tensorflow::DataType& type) {
     using ::tensorflow::DataType;
 
@@ -423,8 +419,10 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
             }
         } else if (const auto& switch_node = as_type_ptr<Switch>(node)) {
             // update conditional flow marker with new marker for the current Switch node
+            // the Switch is stored as a weak_ptr (see SetOfSwitchNodes) so this self-reference in
+            // the node's own rt_info does not create an ownership cycle
             auto switch_marker = switch_node->get_switch_marker();
-            resulted_cf_marker.new_markers[switch_marker] = {switch_node};
+            resulted_cf_marker.new_markers[switch_marker].insert(switch_node);
             resulted_cf_marker.existing_markers_with_branches = combined_markers_with_branches;
             resulted_cf_marker.existing_markers_with_switches = combined_markers_with_switches;
         } else {

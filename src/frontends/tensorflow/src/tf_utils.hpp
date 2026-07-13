@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <memory>
+#include <set>
+
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/runtime_attribute.hpp"
@@ -33,7 +36,10 @@ ov::Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
                             const ::tensorflow::DataType& tensor_type);
 
 class Switch;
-using SetOfSwitchNodes = std::unordered_set<std::shared_ptr<Switch>>;
+// Hold Switch nodes via weak_ptr so a Switch marker stored in the node's own rt_info does not
+// create a shared_ptr self-cycle (which would keep the node - and the TF GraphDef it pins via its
+// decoder - alive forever). owner_less gives stable identity-based ordering for the set.
+using SetOfSwitchNodes = std::set<std::weak_ptr<Switch>, std::owner_less<std::weak_ptr<Switch>>>;
 using SetOfBranchIndices = std::unordered_set<uint32_t>;
 
 // structure to save conditional flow marker
@@ -41,7 +47,9 @@ class CfMarkerType : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("CfMarkerType", "0", RuntimeAttribute);
     CfMarkerType() = default;
-    bool is_copyable() const override;
+    bool is_copyable() const override {
+        return false;
+    }
 
 public:
     // new_markers serves to mark Switch node and saves its own marker id

@@ -81,6 +81,18 @@ endif()
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
 
+# switch_marker_lifetime.cpp reaches into the frontend-internal conditional-flow marker
+# (CfMarkerType in src/tf_utils.hpp, pulled via helper_ops/switch.hpp) to assert a Switch node is
+# not kept alive by its own rt_info. That needs the frontend 'src' dir, the generated protobuf
+# headers (frontend binary dir) and the protobuf include on the path. These are added target-wide;
+# existing tests are unaffected because a quoted #include "tf_utils.hpp" resolves to the sibling
+# test wrapper (tests/tf_utils.hpp) first, while helper_ops/switch.hpp has no sibling and so falls
+# back to the frontend 'src' copy.
+target_include_directories(${TARGET_NAME} PRIVATE
+    ${TENSORFLOW_FRONTEND_SRC_DIR}
+    $<TARGET_PROPERTY:openvino_tensorflow_frontend,BINARY_DIR>
+    $<TARGET_PROPERTY:libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
+
 ov_build_target_faster(${TARGET_NAME} PCH)
 
 add_subdirectory(standalone_build)

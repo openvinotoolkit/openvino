@@ -99,7 +99,15 @@ public:
         FRONT_END_GENERAL_CHECK(
             cf_marker.merge_eliminated_markers.count(switch_marker) > 0,
             "[TensorFlow Frontend] internal error: no Switch node with requiested conditional flow marker");
-        return cf_marker.merge_eliminated_markers[switch_marker];
+        // markers store Switch nodes as weak_ptr; lock them into shared_ptr for the caller
+        // (all Switch nodes are alive while SwitchMergeResolver runs, so lock always succeeds)
+        std::unordered_set<std::shared_ptr<Switch>> switch_nodes;
+        for (const auto& weak_switch : cf_marker.merge_eliminated_markers[switch_marker]) {
+            if (auto switch_node = weak_switch.lock()) {
+                switch_nodes.insert(switch_node);
+            }
+        }
+        return switch_nodes;
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <functional>
+
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
@@ -38,6 +40,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "tf_utils.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "utils.hpp"
@@ -883,4 +887,36 @@ TEST(FrontEndConvertTrickyModels, dynpart_overflow_num_partitions) {
     } catch (...) {
         FAIL() << "DynamicPartition with overflowing num_partitions failed with unexpected exception type.";
     }
+}
+
+namespace {
+// Recursively walk all operations of a model and its sub-graphs (If/Loop bodies).
+void for_each_op_recursive(const std::shared_ptr<Model>& model, const std::function<void(const shared_ptr<Node>&)>& fn) {
+    for (const auto& op : model->get_ordered_ops()) {
+        fn(op);
+        if (auto multisubgraph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
+                for_each_op_recursive(multisubgraph_op->get_function(static_cast<int>(i)), fn);
+            }
+        }
+    }
+}
+}  // namespace
+
+// A TF1 While loop is built from internal control-flow helper ops (Switch/Merge/Enter/Exit/
+// NextIteration/LoopCond, all FrameworkNode subclasses). After conversion these must be fully
+// fused into a Loop and no such helper op may survive on the resulting model - a surviving helper
+// keeps the TF GraphDef it pins alive (that was the memory leak). Conditional-flow markers may
+// still be present in rt_info: they now hold Switch nodes via weak_ptr, so they no longer own
+// (leak) anything - hence this test checks for leftover helper ops, not for marker absence.
+TEST(FrontEndConvertTrickyModels, ModelTF1WhileNoLeftoverControlFlow) {
+    shared_ptr<Model> model = nullptr;
+    ASSERT_NO_THROW(model = convert_model("model_tf1_while/model_tf1_while.pbtxt"));
+    ASSERT_NE(model, nullptr);
+
+    for_each_op_recursive(model, [](const shared_ptr<Node>& op) {
+        EXPECT_FALSE(ov::as_type_ptr<ov::op::util::FrameworkNode>(op))
+            << "unconverted framework/helper node survived: '" << op->get_friendly_name()
+            << "' type=" << op->get_type_name();
+    });
 }
