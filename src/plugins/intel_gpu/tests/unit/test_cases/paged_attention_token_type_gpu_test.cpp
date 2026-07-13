@@ -34,6 +34,7 @@ public:
         ASSERT_EQ(data_output_mem->count(), expected_output.size());
         cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
         constexpr float token_type_tolerance = 1e-2f;
+
         for (size_t i = 0; i < data_output_mem->count(); i++) {
             ASSERT_NEAR(static_cast<float>(mem_ptr[i]), expected_output[i], token_type_tolerance) << " at index=" << i;
         }
@@ -98,3 +99,56 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
                          paged_attention_token_type_test,
                          ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestData())),
                          get_token_type_test_name);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Verify that micro SDPA is used for PREFILL when token_type_ids is present,
+// and produces correct results with bidirectional mask.
+class paged_attention_token_type_micro_sdpa_prefill_test : public paged_attention_token_type_test {};
+
+TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
+    auto& engine = tests::get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    // Run micro SDPA path
+    apply_token_type_test_data(pam, p, p.token_type_test_data);
+    auto result = run_gpu_inference(pam, p);
+
+    // Verify micro SDPA kernel was actually executed
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    EXPECT_TRUE(dump_info.get_entries().find("sdpa_micro") != std::string::npos)
+        << "Expected micro SDPA kernel for PREFILL with token_type_ids, got: " << dump_info.get_entries();
+
+    // Compare micro SDPA output against golden data
+    cldnn::memory::ptr output_data_mem = result.outputs.at("output_data").get_memory();
+    compare_token_type_output(output_data_mem, p.token_type_test_data.expectedOutput);
+}
+
+static std::vector<paged_attention_token_type_test_params> make_micro_sdpa_prefill_test_params() {
+    auto test_data = test::PagedAttentionTokenTypeTestData::GetTestData();
+    std::vector<paged_attention_token_type_test_params> params;
+    for (const auto& data : test_data) {
+        params.push_back(make_token_type_test_param(data, ENABLE_FA_V2));
+    }
+    return params;
+}
+
+static std::string get_micro_sdpa_prefill_test_name(const testing::TestParamInfo<paged_attention_token_type_test_params>& obj) {
+    const auto& p = obj.param;
+    return p.token_type_test_data.name + "_SW" + std::to_string(p.sliding_window_size) + "_MicroSDPA_Prefill";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
+                         paged_attention_token_type_micro_sdpa_prefill_test,
+                         ::testing::ValuesIn(make_micro_sdpa_prefill_test_params()),
+                         get_micro_sdpa_prefill_test_name);
+#endif
