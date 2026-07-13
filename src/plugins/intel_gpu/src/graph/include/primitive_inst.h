@@ -377,6 +377,8 @@ public:
     bool all_dependencies_cpu_impl() const;
 
 protected:
+    friend class PrimitiveInstTestHelper;
+
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
