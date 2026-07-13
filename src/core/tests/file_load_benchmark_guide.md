@@ -34,7 +34,7 @@ is printed once at the start of the run.
 
 | Test | Description |
 |------|-------------|
-| `strategies_read_memcpy` | Compares cold-cache load-and-copy performance across three strategies — `ifstream` read into a preallocated buffer, `mmap` + `memcpy`, and `mmap` + `hint_prefetch` + `memcpy`. Reports latency and throughput. |
 | `strategies_mlock` | Measures the cost of making an entire file resident in memory without an additional user copy. |
-| `strategies_compute` | **compute scenario.** Compares a `std::transform` pass over the mapped bytes (mimicking a dequantization/dtype-conversion pass) with and without a preceding synchronous `hint_prefetch`, instead of `mlock()` or `memcpy()`. Files up to 10 GB. |
+| `read_into_mmap_and_compute` | **compute scenario.** Compares a `std::transform` pass over the mapped bytes (mimicking a dequantization/dtype-conversion pass) with and without a preceding synchronous `hint_prefetch`, instead of `mlock()` or `memcpy()`. Files up to 10 GB. |
 | `hint_prefetch_with_offset_table` | Stresses partial-region `hint_prefetch` on a single 1200 MB file across a matrix of starting offsets and region sizes. Highlights alignment and offset effects on prefetch latency. |
+

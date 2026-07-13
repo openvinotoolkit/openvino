@@ -218,45 +218,11 @@ void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
-    constexpr size_t chunk_size = 128 * util::one_mib;
-    std::vector<char> buffer(std::min(chunk_size, file_size));
-    volatile char sink = 0;
-    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
-        const size_t copy_size = std::min(chunk_size, file_size - offset);
-        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
-    }
-}
-
-void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    constexpr size_t chunk_size = 128 * util::one_mib;
-    std::vector<char> buffer(std::min(chunk_size, file_size));
-    volatile char sink = 0;
-    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
-        const size_t copy_size = std::min(chunk_size, file_size - offset);
-        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
-    }
-}
-
-// Strategy: ifstream into a single pre-allocated buffer — one kernel→user copy
-void ifstream_read(const std::filesystem::path& path, size_t file_size) {
-    std::vector<char> read_buffer(file_size);
-    std::ifstream f(path, std::ios::binary);
-    f.read(read_buffer.data(), static_cast<std::streamsize>(file_size));
-    volatile char sink = read_buffer[0] + read_buffer[file_size / 2] + read_buffer[file_size - 1];
-    (void)sink;
-}
-
 // --- "compute" scenario -----------------------------------------------------------------
 // Instead of a raw memcpy or mlock(), run a std::transform pass over the mapped bytes (e.g.
 // mimicking a dequantization/dtype-conversion pass over model weights).
 void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
-    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    constexpr size_t chunk_size = 128 * util::one_mib;  // 128 MiB chunks
     const size_t file_size = mapped->size();
     std::vector<uint64_t> out(std::min(chunk_size, file_size) / sizeof(uint64_t));
     uint64_t acc = 0;
@@ -311,7 +277,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
 
 class FileLoadBenchmark : public ::testing::Test {};
 
-TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
+TEST_F(FileLoadBenchmark, read_into_mmap_and_compute) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -325,37 +291,28 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {mmap_prefetch_memcpy, mmap_memcpy, ifstream}
+    // Collect results: [file_idx] -> {no hint, sync prefetch}
     struct Row {
         size_t mib;
-        long long t_hint_prefetch;
-        long long t_no_prefault;
-        long long t_ifstream;
+        long long t_no_hint;
+        long long t_sync_prefetch;
     };
     std::vector<Row> results;
 
     for (const auto& tf : files) {
         Row r{};
         r.mib = tf.size_mib;
-        r.t_ifstream = bench(
+        r.t_no_hint = bench(
             [&]() {
-                strategy::ifstream_read(tf.path, tf.size_bytes());
+                strategy::mmap_then_compute(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
             warmup,
             runs);
-        r.t_no_prefault = bench(
+        r.t_sync_prefetch = bench(
             [&]() {
-                strategy::mmap_then_memcpy(tf.path, tf.size_bytes());
-            },
-            tf.path,
-            tf.size_bytes(),
-            warmup,
-            runs);
-        r.t_hint_prefetch = bench(
-            [&]() {
-                strategy::parallel_loop_sync_then_memcpy(tf.path, tf.size_bytes());
+                strategy::mmap_prefetch_then_compute(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -365,10 +322,20 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %18s | %13s | %13s\n", "Size (MiB)", "parallel loop sync", "default mmap", "ifstream");
-    printf("%-10s-|-%18s-|-%13s-|-%13s\n", "----------", "------------------", "-------------", "-------------");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
     for (const auto& r : results) {
-        printf("%-10zu | %15lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
+        printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_sync_prefetch, r.t_no_hint);
+    }
+
+    printf("\n--- Throughput (MiB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s\n",
+               r.mib,
+               throughput_mibs(r.mib, r.t_sync_prefetch),
+               throughput_mibs(r.mib, r.t_no_hint));
     }
 }
 
@@ -432,68 +399,6 @@ TEST_F(FileLoadBenchmark, test_speed_load_data_into_mmap_region) {
                r.mib,
                throughput_mibs(r.mib, r.t_prefetch_mlock),
                throughput_mibs(r.mib, r.t_mlock));
-    }
-}
-
-TEST_F(FileLoadBenchmark, strategies_compute) {
-    const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
-    constexpr int warmup = 0;
-    constexpr int runs = 3;
-
-    // Generate all test files
-    std::vector<TestFile> files;
-    for (size_t mb : sizes_mb) {
-        TestFile tf{mb, mb * 1024 * 1024, {}};
-        tf.path = generate_test_file(tf);
-        evict_cache(tf.path, tf.size_bytes);
-        files.push_back(tf);
-    }
-
-    // Collect results: [file_idx] -> {no hint, sync prefetch}
-    struct Row {
-        size_t mb;
-        long long t_no_hint;
-        long long t_sync_prefetch;
-    };
-    std::vector<Row> results;
-
-    for (const auto& tf : files) {
-        Row r{};
-        r.mb = tf.size_mb;
-        r.t_no_hint = bench(
-            [&]() {
-                strategy::mmap_then_compute(tf.path, tf.size_bytes);
-            },
-            tf.path,
-            tf.size_bytes,
-            warmup,
-            runs);
-        r.t_sync_prefetch = bench(
-            [&]() {
-                strategy::mmap_prefetch_then_compute(tf.path, tf.size_bytes);
-            },
-            tf.path,
-            tf.size_bytes,
-            warmup,
-            runs);
-        results.push_back(r);
-    }
-
-    printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s\n", "Size (MB)", "sync prefetch", "mmap+compute");
-    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
-    for (const auto& r : results) {
-        printf("%-10zu | %14lld ms | %10lld ms\n", r.mb, r.t_sync_prefetch, r.t_no_hint);
-    }
-
-    printf("\n--- Throughput (MB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MB)", "parallel loop sync", "mmap+compute");
-    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
-    for (const auto& r : results) {
-        printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
-               r.mb,
-               throughput_mbs(r.mb, r.t_sync_prefetch),
-               throughput_mbs(r.mb, r.t_no_hint));
     }
 }
 
