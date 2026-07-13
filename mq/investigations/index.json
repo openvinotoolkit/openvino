@@ -67,5 +67,15 @@
     "category": "Flaky Test",
     "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
     "signature_hash": "85df26485ff568d8"
+  },
+  {
+    "id": "2026-07-13-10-41-15-000-29234771303",
+    "run_id": "29234771303",
+    "timestamp": "2026-07-13T10:41:15Z",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test",
+    "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+    "pr_number": "36488",
+    "signature_hash": "43e136cf67333978"
   }
 ]

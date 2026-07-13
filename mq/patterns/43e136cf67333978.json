@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-13T10:41:15Z",
+  "last_seen": "2026-07-13T10:41:15Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29234771303"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36488"
+  ],
+  "recent_timestamps": [
+    "2026-07-13T10:41:15Z"
+  ]
+}

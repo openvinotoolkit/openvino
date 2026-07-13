@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-13-10-41-15-000-29234771303",
+  "timestamp": "2026-07-13T10:41:15Z",
+  "run_id": "29234771303",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29234771303",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36488",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36488",
+  "author": "sgbihu",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    "C++ unit tests / C++ unit tests"
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))... Expected: to be called 7 times. Actual: called 6 times - unsatisfied and active",
+    "caching_test.cpp(312): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get()) Actual: false Expected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2055 ms)"
+  ],
+  "root_cause": "A race condition in the CachingTest.LoadMultiWithConfig_race test caused a non-deterministic import_model call count. The test expects exactly 7 calls to import_model during multi-device parallel loading with config, but under timing variation on the Windows runner, only 6 calls occurred. This is a flaky test related to thread scheduling on the CI runner, not a code correctness issue in the PR under test (PR #36488 adds profiling start_time for CPU/GPU/NPU and does not modify caching logic).",
+  "reproduction_steps": "Run CachingTest.LoadMultiWithConfig_race/ByModelName_testCache repeatedly on Windows to observe intermittent import_model count mismatch.",
+  "recommended_actions": [
+    "Re-run the failed CI job - the failure is flaky/transient.",
+    "Consider marking the race test with a retry policy or FLAKY annotation in the test suite.",
+    "Investigate the EXPECT_CALL count assumption in caching_test.cpp line 2667 for sensitivity to thread scheduling."
+  ]
+}
