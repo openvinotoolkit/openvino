@@ -289,7 +289,7 @@ struct OptionBase {
         return OptionMode::Both;
     }
 
-    // Overload this for private options.
+    // Overload this for public options.
     static bool isPublic() {
         return false;
     }
@@ -381,7 +381,8 @@ struct OptionConcept final {
     bool (*isValueSupportedImpl)(std::string_view val) =
         nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
                   // "makeOptionModel"
-    std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
     std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
     bool isValueSupported(std::string_view val) {
         if (customValueCheckerOpt.has_value()) {
@@ -392,11 +393,24 @@ struct OptionConcept final {
 };
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
+std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
     using ValueType = typename Opt::ValueType;
 
     try {
         auto parsedVal = Opt::parse(val);
+        Opt::validateValue(parsedVal);
+        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to parse '", Opt::key().data(), "' option : ", e.what());
+    }
+}
+
+template <class Opt>
+std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
+    using ValueType = typename Opt::ValueType;
+
+    try {
+        auto parsedVal = val.as<ValueType>();
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -414,7 +428,8 @@ OptionConcept makeOptionModel(
             &Opt::mutability,
             &Opt::compilerSupportVersion,
             &Opt::isValueSupported,
-            &validateAndParse<Opt>,
+            &validateAndParseFromString<Opt>,
+            &validateAndParseFromAny<Opt>,
             std::move(customValueCheckerOpt)};
 }
 
@@ -473,6 +488,8 @@ public:
 
     virtual void update(const ConfigMap& options);
 
+    virtual void updateAny(const ov::AnyMap& options);
+
     void parseEnvVars();
 
     template <class Opt>
@@ -528,7 +545,7 @@ typename Opt::ValueType Config::get() const {
     OPENVINO_ASSERT(it->second != nullptr, "Got NULL OptionValue for :", Opt::key().data());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
-#if defined(__CHROMIUMOS__)
+#if defined(__CHROMIUMOS__) || defined(__ANDROID__)
     if (optVal == nullptr) {
         if (Opt::getTypeName() == it->second->getTypeName()) {
             const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);

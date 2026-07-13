@@ -1958,11 +1958,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         CPU_NODE_ASSERT(out_dims == out_idx_dims, "gets incorrect output tensor dimension sizes!");
 
-        if (axis < 0) {
-            axis += in_dims_size;
-        }
-        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
-                        "gets incorrect input parameters dimensions and axis number!");
+        CPU_NODE_ASSERT(axis < in_dims_size, "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -2043,9 +2039,9 @@ void TopK::preset_params() {
         selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
-    topk_innermost = (layout == TopKLayoutType::topk_ncsp &&
-                      axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
-                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
+    topk_innermost =
+        ((layout == TopKLayoutType::topk_ncsp && axis == (getOutputShapeAtPort(TOPK_DATA).getRank() - 1LU)) ||
+         ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1LU));
 
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2078,13 +2074,19 @@ void TopK::prepareParams() {
 
     if (isDynamicNode()) {
         const int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
-        CPU_NODE_ASSERT(static_cast<size_t>(src_k) <= src_dims[axis], "gets top_k out of range!");
         if (top_k != src_k) {
             top_k = src_k;
         }
     } else {
         top_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
     }
+    CPU_NODE_ASSERT(top_k >= 1, "K (", top_k, ") must be greater or equal to 1.");
+    CPU_NODE_ASSERT(static_cast<size_t>(top_k) <= src_dims[axis],
+                    "K (",
+                    top_k,
+                    ") exceeds the axis dimension (",
+                    src_dims[axis],
+                    ").");
 
     if (jit_mode) {
         if (!preset_params_done) {

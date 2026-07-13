@@ -30,7 +30,9 @@ TEST_F(OVDefaultAllocatorTest, canAllocateAndDeallocate) {
 
 TEST_F(OVDefaultAllocatorTest, alignedAllocationNotThrow) {
     ov::Allocator allocator;
-    OV_ASSERT_NO_THROW(allocator.allocate(64, 64));
+    void* ptr = nullptr;
+    OV_ASSERT_NO_THROW(ptr = allocator.allocate(64, 64));
+    OV_ASSERT_NO_THROW(allocator.deallocate(ptr, 64, 64));
 }
 
 TEST_F(OVDefaultAllocatorTest, sizedAndAlignedDeallocationNotThrow) {

@@ -29,6 +29,10 @@ extern const char* OPENVINO_ONNX_DOMAIN;
 extern const char* MICROSOFT_DOMAIN;
 extern const char* PYTORCH_ATEN_DOMAIN;
 extern const char* MMDEPLOY_DOMAIN;
+extern const char* AIONNX_ML_DOMAIN;
+extern const char* AIONNX_CONTRIB_DOMAIN;
+// The default ONNX opset ("ai.onnx") is registered/looked up under an empty domain string.
+extern const char* AIONNX_DOMAIN;
 
 /// \brief Registering a versions range of translator in global map of translators (preferred to use)
 extern bool register_translator(const std::string name,

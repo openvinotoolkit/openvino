@@ -5,7 +5,9 @@
 #include "kernels_cache.hpp"
 #include <regex>
 
+#ifdef ENABLE_CM_FOR_GPU
 #include "impls/cm/utils/kernels_db.hpp"
+#endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
@@ -149,35 +151,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
-            // This is a temporary walk-around to avoid severe performance drop.
-            // It will be removed after OpenCL compiler is updated.
-            auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
-                const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
-
-                if (current_bucket.back().kernels_counter > 0) {
-                    // check if the current kernel name is in special_kernels
-                    for (auto& special_kernel : special_kernels) {
-                        if (entry_point.find(special_kernel) != std::string::npos)
-                            return true;
-                    }
-                }
-
-                // check if the current_batch has one of special_kernels
-                if (current_bucket.back().kernels_counter == 1) {
-                    auto& kernel_in_current_batch = current_bucket.back().entry_point_to_id.begin()->first;
-                    for (auto& special_kernel : special_kernels) {
-                        if (kernel_in_current_batch.find(special_kernel) != std::string::npos)
-                            return true;
-                    }
-                }
-                return false;
-            };
-
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
             if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
-                || need_separate_batch(entry_point)) {
+                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
@@ -234,9 +211,14 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     for (auto& header : new_headers) {
                         if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
                             all_headers.push_front(header);
-                            std::string_view header_code = prog.language == kernel_language::OCLC_V2
+                            std::string_view header_code =
+#ifdef ENABLE_CM_FOR_GPU
+                                prog.language == kernel_language::OCLC_V2
                                 ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
                                 : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
+#else
+                                ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
+#endif
                             sources_to_process.push_back(std::string(header_code) + "\n");
                         }
                     }

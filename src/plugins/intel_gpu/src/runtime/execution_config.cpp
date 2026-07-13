@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
@@ -12,11 +13,13 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
@@ -28,6 +31,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -62,6 +66,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
@@ -152,7 +159,9 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
 }
 
 void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
-    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+    const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
+    OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
+    const auto& info = remote_context->get_engine().get_device_info();
     if (is_paged_attention_model || !info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
@@ -166,11 +175,11 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.
+    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
     if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
         set_property({ov::enable_weightless(*enable_weightless)});
     }
-    if (get_enable_weightless()) {
+    if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
@@ -195,6 +204,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model, has_lora);
 
     const auto& ops = model.get_ops();
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
 
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
@@ -208,7 +218,9 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
+        // Onednn only support on Gen12 (XeLP) and later architectures
+        if ((ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) &&
+            info.arch >= cldnn::gpu_arch::xe_lp) {
             m_use_onednn = true;
         }
 
@@ -223,24 +235,63 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         // w/a : key_by_channel quant mode does not support cache rotation yet
         // CVS-170994
         if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
-            const size_t rotated_block_indices_idx = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
-            auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
-            bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
-            if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
-                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            if (paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES) {
+                const size_t rotated_block_indices_idx = cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+                auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
+                bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
+                if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                    GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                    m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+                }
             }
         }
     };
 
+    // Trace MatMul weight input through the decompression subgraph
+    // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
+    auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
+        if (!ov::is_type<ov::op::v0::MatMul>(op))
+            return false;
+        auto weight = op->get_input_node_shared_ptr(1);
+        for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
+            if (ov::is_type<ov::op::v0::Constant>(weight))
+                break;
+            weight = weight->get_input_node_shared_ptr(0);
+        }
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+            auto et = constant->get_element_type();
+            return et == ov::element::i4 || et == ov::element::u4;
+        }
+        return false;
+    };
+
+    bool has_4bit_weights = false;
     for (const auto& op : ops) {
         process_op(op);
+
+        if (!has_4bit_weights && has_4bit_matmul_weights(op)) {
+            has_4bit_weights = true;
+        }
     }
 
-    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
-
+    // Auxiliary KV-update model (e.g. EAGLE3 reorder graph) has no PA op and no 4-bit MatMul,
+    // so the auto-detection branches below can't see the main model's effective precision.
+    // genai stamps it into rt_info["real_kv_cache_precision"] — honor it here so the auxiliary
+    // graph compiles against the same cache layout as the main PA model.
+    auto get_auxiliary_kv_cache_precision = [](const ov::Model& model) -> ov::element::Type {
+        const auto& rt = model.get_rt_info();
+        auto prec_it = rt.find("auxiliary_kv_cache_precision");
+        return prec_it == rt.end() ? ov::element::dynamic : prec_it->second.as<ov::element::Type>();
+    };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model || !info.supports_immad) {
+        const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
+        if (auxiliary_kv_prec != ov::element::dynamic) {
+            m_kv_cache_precision = auxiliary_kv_prec;
+        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+            // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
+            m_kv_cache_precision = ov::element::u4;
+            GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
+        } else if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
@@ -257,10 +308,17 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
-        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+        GPU_DEBUG_INFO << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
             << "Switching to BY_TOKEN mode." << std::endl;
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
+    // 4-bit KV cache with PA backend does not support BY_TOKEN quantization mode.
+    if (is_paged_attention_model && ov::element::Type(get_kv_cache_precision()).bitwidth() == 4) {
+        OPENVINO_ASSERT(get_key_cache_quant_mode() != ov::internal::CacheQuantMode::BY_TOKEN,
+                        "[GPU] 4-bit KV cache (u4/i4) with PagedAttention backend does not support BY_TOKEN quantization mode. "
+                        "Please use BY_CHANNEL mode or switch to 8-bit (i8) KV cache precision.");
+    }
+
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
@@ -303,11 +361,23 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
     }
+    // Replace INT4 KV-cache compression data type with UINT4, as plugin is supposed to work with UINT4 internally
+    if (get_kv_cache_precision() == ov::element::i4) {
+        m_kv_cache_precision = ov::element::u4;
+    }
 
 #ifdef ENABLE_DEBUG_CAPS
     // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
+
+    // Auto-enable queue-level profiling when a per-primitive timing dump is requested.
+    // Without this, OCL/ZE streams are created without CL_QUEUE_PROFILING_ENABLE and
+    // event::get_profiling_info() yields no data, leaving average_counters with zero times.
+    // Mirrors CPU plugin's Config::applyDebugCapsProperties().
+    if (!get_dump_profiling_data_path().empty() || !get_average_counters().empty()) {
+        m_enable_profiling = true;
+    }
 #endif // ENABLE_DEBUG_CAPS
 }
 

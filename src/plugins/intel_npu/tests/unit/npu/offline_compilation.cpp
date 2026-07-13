@@ -58,6 +58,51 @@ TEST_P(OfflineCompilationUnitTests, ExpectThrowWhenCreateInferRequestWhenDriverN
                                   "No available devices. Failed to create infer request!");
 }
 
+TEST_P(OfflineCompilationUnitTests, ReadMaxTilesAndExpectThrow) {
+    core.set_property(DEVICE_NPU, config);
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.get_property(DEVICE_NPU, ov::intel_npu::max_tiles),
+                                ov::Exception,
+                                "Unsupported configuration key");
+}
+
+TEST_P(OfflineCompilationUnitTests, ReadSupportedPropertiesMaxTilesNotPresent) {
+    core.set_property(DEVICE_NPU, config);
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = core.get_property(DEVICE_NPU, ov::supported_properties));
+    ASSERT_TRUE(std::find(supportedProperties.begin(),
+                          supportedProperties.end(),
+                          ov::intel_npu::max_tiles.name()) == supportedProperties.end());
+}
+
+TEST_P(OfflineCompilationUnitTests, ReadSupportedPropertiesRuntimeRequirementsPresent) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, DEVICE_NPU, config));
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = compiledModel.get_property(ov::supported_properties));
+    ASSERT_TRUE(std::find(supportedProperties.begin(),
+                          supportedProperties.end(),
+                          ov::runtime_requirements.name()) != supportedProperties.end());
+}
+
+TEST_P(OfflineCompilationUnitTests, ReadRuntimeRequirementsOffline) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, DEVICE_NPU, config));
+    std::string requirements;
+    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(requirements.empty());
+}
+
+TEST_P(OfflineCompilationUnitTests, CompatibilityCheckNotSupportedOffline) {
+    core.set_property(DEVICE_NPU, config);
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = core.get_property(DEVICE_NPU, ov::supported_properties));
+    ASSERT_TRUE(std::find(supportedProperties.begin(),
+                          supportedProperties.end(),
+                          ov::compatibility_check.name()) == supportedProperties.end());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     OfflineCompilationPlatforms,
     OfflineCompilationUnitTests,

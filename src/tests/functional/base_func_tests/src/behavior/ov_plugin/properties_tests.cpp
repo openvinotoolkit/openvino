@@ -19,7 +19,7 @@ std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<Properties
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -45,10 +45,10 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     if (!compileModelProperties.empty()) {
-        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
+        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), " "), "_");
     }
     return result.str();
 }
@@ -66,7 +66,7 @@ std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::Tes
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -557,6 +557,21 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getModelDependce
 TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDeviceProperties) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
+
+    // optimal_batch_size / max_batch_size are only meaningful for devices where batching is applicable (e.g. GPU).
+    // Skip rather than fail for devices that don't expose them.
+    // Other model-dependent properties are still required.
+    for (const auto& property_item : properties) {
+        if (!util::contains(supported_properties, property_item.first)) {
+            const bool is_batch_property = property_item.first == ov::optimal_batch_size.name() ||
+                                           property_item.first == ov::max_batch_size.name();
+            if (is_batch_property) {
+                GTEST_SKIP() << "Property " << property_item.first << " is not supported by device " << target_device
+                             << ", skipping";
+            }
+        }
+    }
+
     auto supported = util::contains(supported_properties, ov::hint::model);
     ASSERT_TRUE(supported) << "property is not supported: " << ov::hint::model;
 
@@ -564,9 +579,6 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
     core->compile_model(model, target_device, compileModelProperties);
 
     for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
-        auto supported = util::contains(supported_properties, property_item.first);
-        ASSERT_TRUE(supported) << "property is not supported: " << property_item.first;
-
         ov::Any default_property;
         OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, property_item.first));
         ASSERT_FALSE(default_property.empty());
@@ -839,6 +851,26 @@ TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
         ASSERT_TRUE(res);
     }
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCheckChangePropComplieModleGetPropTests_InferencePrecision);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCheckMetricsPropsTests_ModelDependceProps);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCheckSetIncorrectRWMetricsPropsTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCheckSetSupportedRWMetricsPropsTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelAndCheckSecondaryPropertiesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSetDefaultDeviceIDPropTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSetDevicePriorityConfigPropsTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestDefaultCore);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVGetAvailableDevicesPropsTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVGetMetricPropsOptionalTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVSetPropComplieModleGetPropTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVSpecificDeviceGetConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVSpecificDeviceSetConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVSpecificDeviceTestSetConfig);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVBasicPropertiesTestsP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVSetUnsupportPropCompileModelWithoutConfigTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVPropertiesDefaultSupportedTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVPropertiesDefaultTests);
 
 }  // namespace behavior
 }  // namespace test

@@ -1523,3 +1523,39 @@ TEST_F(TransformationTestsF, SDPAFusionTest_DynamicMaskScores) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+// Regression test that locks in the order of `set_friendly_name` and `try_align_outputs` inside the
+// SDPAFusion callback. The fused SDPA must inherit the match-root's friendly name *before* the
+// alignment step runs, because `try_align_outputs` derives the wrapping reshape's name from the SDPA's
+// name with a "/Reshape" suffix. If a future refactor reorders these steps the assertions below fail.
+TEST(SDPAFusionTest, AlignedOutputFriendlyName) {
+    const PartialShape shape{55, 128};
+
+    auto q_param = make_shared<v0::Parameter>(f16, shape);
+    auto k_param = make_shared<v0::Parameter>(f16, shape);
+    auto v_param = make_shared<v0::Parameter>(f16, shape);
+
+    auto qk = make_shared<v0::MatMul>(q_param, k_param, false, true);
+    auto softmax = make_shared<ov::op::v8::Softmax>(qk, -1);
+    auto qkv = make_shared<v0::MatMul>(softmax, v_param, false, false);
+
+    constexpr auto kMatchRootName = "match_root";
+    qkv->set_friendly_name(kMatchRootName);
+
+    const auto model = make_shared<Model>(OutputVector{qkv}, ParameterVector{q_param, k_param, v_param});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAFusion>();
+    manager.run_passes(model);
+
+    const auto result = model->get_results().front();
+    const auto wrapping = result->get_input_node_shared_ptr(0);
+
+    ASSERT_TRUE(ov::is_type<v0::Squeeze>(wrapping))
+        << "Expected a Squeeze to wrap the SDPA output for 2D inputs (rank-3 SDPA → rank-2 match-root).";
+    EXPECT_EQ(wrapping->get_friendly_name(), std::string(kMatchRootName) + "/Reshape");
+
+    const auto fused_sdpa = wrapping->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(ov::is_type<ov::op::v13::ScaledDotProductAttention>(fused_sdpa));
+    EXPECT_EQ(fused_sdpa->get_friendly_name(), kMatchRootName);
+}

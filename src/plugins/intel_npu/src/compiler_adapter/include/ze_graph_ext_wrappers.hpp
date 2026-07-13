@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <memory>
@@ -13,7 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "model_serializer.hpp"
@@ -41,7 +40,8 @@ public:
 
     GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
-                                       const bool bypassUmdCache = false) const;
+                                       const bool bypassUmdCache = false,
+                                       const bool secureCompile = false) const;
 
     GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
@@ -63,8 +63,8 @@ public:
      * @return `true` if the option is supported, `false` if it is not supported,
      *         and `std::nullopt` if the option-support query itself is not supported.
      */
-    std::optional<bool> isOptionSupported(std::string optName,
-                                          std::optional<std::string> optValue = std::nullopt) const;
+    std::optional<bool> isOptionSupported(const std::string& optName,
+                                          const std::optional<std::string>& optValue = std::nullopt) const;
 
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
@@ -87,6 +87,15 @@ public:
     void initializeGraph(const GraphDescriptor& graphDescriptor) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
+
+    void evict_memory(const GraphDescriptor& graphDescriptor) const;
+
+    /**
+     * @brief Fetches the compatibility descriptor of a compiled graph.
+     * @return The descriptor string if the driver supports the feature and the graph carries one,
+     *         or `std::nullopt` otherwise.
+     */
+    std::optional<std::string> getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,

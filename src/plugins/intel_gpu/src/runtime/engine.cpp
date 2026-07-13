@@ -11,6 +11,9 @@
 
 #include "ocl/ocl_engine_factory.hpp"
 #include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL_RT
 
 #include <string>
 #include <vector>
@@ -258,12 +261,17 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        ret = sycl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
-#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
@@ -309,8 +317,9 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
                         "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
-                        "Please try to reduce batch size or use lower precision.");
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
+                        "Please try to reduce batch size, use lower precision, "
+                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);

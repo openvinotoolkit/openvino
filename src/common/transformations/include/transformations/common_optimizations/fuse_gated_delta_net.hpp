@@ -49,6 +49,19 @@ public:
     FuseL2NormIntoGDN();
 };
 
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Verifies that Q, K, and V inputs of GatedDeltaNet are connected to the same
+ *        Split/Slice/Concat ancestor through a chain of
+ *        Reshape/Transpose/Gather/GatherND/Broadcast/Unsqueeze/Squeeze operations.
+ */
+
+class TRANSFORMATIONS_API FuseGroupedQueryIntoGDN : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseGroupedQueryIntoGDN");
+    FuseGroupedQueryIntoGDN();
+};
+
 /// This pass transforms a loop-based Gated Delta Net sub-graph to a single internal `GatedDeltaNet` operation.
 ///
 /// Before:
