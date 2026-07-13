@@ -1,0 +1,110 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-mq/schemas/index.schema.json",
+    "title": "CI Doctor MQ Investigations Index",
+    "description": "Canonical structure for the append-only aggregate index maintained by the CI Failure Doctor (Merge Queue) workflow at /tmp/gh-aw/repo-memory/default/mq/investigations/index.json. This file references every investigation record ever written; it MUST only ever grow via read-modify-write and must never be recreated from scratch or overwritten in a way that drops previously recorded entries.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "total",
+        "entries"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "description": "Version of this index schema. Always \"1.0\"."
+        },
+        "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of elements in the entries array. Must equal entries.length and must never decrease between consecutive writes."
+        },
+        "entries": {
+            "type": "array",
+            "description": "Append-only list of investigation summaries, one per recorded investigation. New entries are appended; existing entries are never removed or reordered destructively.",
+            "items": {
+                "$ref": "#/$defs/entry"
+            }
+        },
+        "investigations": {
+            "type": "array",
+            "deprecated": true,
+            "description": "Deprecated legacy alias for entries kept only for backward compatibility with historical index files. New writes MUST use entries and MUST NOT drop any element previously present here.",
+            "items": {
+                "$ref": "#/$defs/entry"
+            }
+        }
+    },
+    "$defs": {
+        "entry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "investigation_id",
+                "run_id",
+                "timestamp",
+                "title",
+                "category",
+                "signature_hash"
+            ],
+            "properties": {
+                "investigation_id": {
+                    "type": "string",
+                    "description": "Filesystem-safe identifier of the investigation record file (without extension): <YYYY-MM-DD-HH-MM-SS-sss>-<run-id>. May be an empty string only for legacy entries migrated from older index files."
+                },
+                "id": {
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated legacy alias for investigation_id present in some historical entries."
+                },
+                "run_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "GitHub Actions run ID of the failed merge-queue workflow, encoded as a string. Must always be a non-empty string (never a bare JSON number)."
+                },
+                "run_url": {
+                    "type": "string",
+                    "description": "URL of the failed GitHub Actions workflow run."
+                },
+                "workflow_name": {
+                    "type": "string",
+                    "description": "Name of the failed workflow (e.g., \"Linux (Ubuntu 22.04, Python 3.11)\")."
+                },
+                "timestamp": {
+                    "type": "string",
+                    "description": "ISO 8601 UTC time the investigation was produced (e.g., 2026-05-12T14:30:00Z). May be an empty string only for legacy entries migrated from older index files."
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short, searchable failure description. May be an empty string only for legacy entries migrated from older index files."
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "Code Issue",
+                        "Infrastructure",
+                        "Dependencies",
+                        "Configuration",
+                        "Flaky Test",
+                        "External Service",
+                        "Network"
+                    ],
+                    "description": "Failure category. Must be one of the seven canonical categories."
+                },
+                "signature_hash": {
+                    "type": "string",
+                    "description": "Hash of the failure signature; matches the pattern file name <signature-hash>.json. May be an empty string only for legacy entries migrated from older index files."
+                },
+                "pr_number": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Affected merge-queue PR number encoded as a string, or null when no PR can be identified. Prefer a string; a bare JSON number is tolerated only in legacy entries."
+                }
+            }
+        }
+    }
+}

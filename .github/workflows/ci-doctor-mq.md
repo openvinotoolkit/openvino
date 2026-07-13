@@ -294,15 +294,17 @@ Logs have been pre-downloaded before this session started:
 Every JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:
 
 - **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/investigation.schema.json`
-  Applies to every file under `investigations/` **except** `index.json`.
+  Applies to every `<timestamp>-<run-id>.json` file under `investigations/` **except** the aggregate `index.json`.
 - **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`
   Applies to every `<signature-hash>.json` file under `patterns/`.
+- **Investigations index** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/index.schema.json`
+  Applies to the single aggregate `investigations/index.json` file.
 
-Rules that apply to both artefact types:
+Rules that apply to all artefact types:
 
 - Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout — the previous lack of a schema is the reason older investigation/pattern files had inconsistent structures.
 - Set `"schema_version": "1.0"` on every artefact you write.
-- Both schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
+- These schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
 - Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.
 - Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.
 
@@ -322,7 +324,42 @@ Rules that apply to both artefact types:
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
    - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
-   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
+   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` following the **MANDATORY append-only read-modify-write procedure** in step 1a below. Never recreate this file from scratch.
+
+1a. **Update Investigations Index — MANDATORY append-only read-modify-write procedure**:
+
+   The index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` is a single **append-only** aggregate that references every investigation ever recorded. It MUST conform to the **index schema** (`index.schema.json`). Losing or overwriting previously recorded entries is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly.
+
+   **Step A — Read the existing index (never skip):**
+   - Attempt to read `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`.
+   - If it exists, parse it as JSON into `existing`. If it exists but fails to parse (corrupted/truncated), **do NOT overwrite it**: copy it aside to `index.corrupt-<timestamp>.json`, then reconstruct `existing.entries` by scanning every `*.json` investigation record already present under `investigations/` (excluding `index.json` itself) so no prior investigation is dropped.
+   - If the file does NOT exist, set `existing = { "schema_version": "1.0", "total": 0, "entries": [] }`.
+   - Normalize legacy shapes: if `existing` has a deprecated `investigations` array, merge its elements into `existing.entries` (deduplicating by `investigation_id`+`run_id`) and drop the `investigations` key. Map any legacy `id` field to `investigation_id`.
+   - Record `PREV_COUNT = length(existing.entries)`.
+
+   **Step B — Append the current investigation (never remove or replace prior entries):**
+   - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `pr_number` (string or null).
+   - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.
+   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries`. The only allowed mutations are: appending a new entry, or updating a single matching existing entry in place.
+
+   **Step C — Recompute and write:**
+   - Set `total = length(entries)`.
+   - Assert the **never-shrink invariant**: `total >= PREV_COUNT`. If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index.
+   - Write the object `{ schema_version: "1.0", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.
+
+   **Step D — MANDATORY verification (read-back check):**
+   - Read `index.json` back, parse it, and validate against `index.schema.json` (see the validation procedure in the "Artefact schemas" block).
+   - Verify `total == length(entries)` and `total >= PREV_COUNT`.
+   - Verify the current investigation's `investigation_id` is present in `entries` exactly once.
+   - Verify every entry that was in the pre-write `existing.entries` is still present (no prior entry was dropped).
+   - If any check fails, **do not leave the shrunken/invalid index on disk** — restore from the pre-write copy and redo from Step A.
+
+   **Common failure modes to avoid:**
+   - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.
+   - Skipping Step A and overwriting instead of appending.
+   - Writing a `total` smaller than the previous run's `total`.
+   - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.
+
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
