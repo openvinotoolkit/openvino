@@ -83,5 +83,4 @@ RUN wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages

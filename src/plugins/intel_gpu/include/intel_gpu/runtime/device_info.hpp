@@ -122,8 +122,9 @@ struct device_info {
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
-    bool supports_cp_offload;                   ///< [ZE] Does the command queue support copy offload
-    bool supports_counter_based_events;         ///< [ZE] Does the target runtime support counter based events
+    bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
+    bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
+    bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
@@ -143,6 +144,7 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
+    int32_t cacheline_size;
 
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 

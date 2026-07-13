@@ -29,9 +29,6 @@ concurrency:
 
 permissions: read-all
 
-env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -58,7 +55,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
