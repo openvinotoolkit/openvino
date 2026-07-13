@@ -24,6 +24,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -258,7 +259,7 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 }
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::op::v0::MatMul>(node) &&
+    return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v17::GroupedMatMul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
