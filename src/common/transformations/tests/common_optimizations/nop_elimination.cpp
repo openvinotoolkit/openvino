@@ -1447,6 +1447,21 @@ TEST(nop_elimination, gather_to_squeeze) {
     run_and_check(func_axis_3);
 }
 
+TEST(nop_elimination, keep_gather_with_dynamic_dimension) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 1});
+    auto indices = op::v0::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
+    auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+    auto model = std::make_shared<ov::Model>(OutputVector{gather}, ParameterVector{arg});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    pass_manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type<op::v8::Gather>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(model), 0);
+}
+
 TEST(nop_elimination, not_gather_to_squeeze_with_vector_indices) {
     auto generate_func = [](int64_t gather_axis) {
         ov::Shape shape{3, 3, 4, 4};
