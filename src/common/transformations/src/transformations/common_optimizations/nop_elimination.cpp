@@ -71,7 +71,14 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
         auto indices = gather->input_value(1);
 
         // we need to know data and indices shape to infer if gather is Nop
-        if (data.get_partial_shape().is_dynamic() || indices.get_partial_shape().is_dynamic()) {
+        const auto has_only_static_dimensions = [](const PartialShape& shape) {
+            return shape.rank().is_static() &&
+                   std::all_of(shape.begin(), shape.end(), [](const Dimension& dimension) {
+                       return dimension.is_static();
+                   });
+        };
+        if (!has_only_static_dimensions(data.get_partial_shape()) ||
+            !has_only_static_dimensions(indices.get_partial_shape())) {
             return false;
         }
 

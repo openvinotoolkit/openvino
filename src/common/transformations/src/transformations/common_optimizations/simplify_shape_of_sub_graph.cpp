@@ -136,6 +136,14 @@ pass::GatherNopElimination::GatherNopElimination() {
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto gather = m.get_match_root();
+        const auto& data_shape = gather->get_input_partial_shape(0);
+        if (data_shape.rank().is_dynamic() ||
+            std::any_of(data_shape.begin(), data_shape.end(), [](const Dimension& dimension) {
+                return dimension.is_dynamic();
+            })) {
+            return false;
+        }
+
         const auto& number_of_indices = shape_size(gather->get_input_shape(1));
         if (gather->get_input_shape(0) != gather->get_output_shape(0) || shape_size(gather->get_input_shape(2)) != 1 ||
             number_of_indices > 10)

@@ -93,8 +93,12 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
             const auto& num_images = has_rois_num ? rois_num_shape[0] : scores_shape[0];
 
             auto& selected_boxes = output_shapes[0][0];
-            selected_boxes =
-                (nms_top_k > -1) ? TDim(std::min<V>(boxes_shape[1].get_max_length(), nms_top_k)) : boxes_shape[1];
+            if (nms_top_k > -1) {
+                const auto boxes_upper_bound = boxes_shape[1].get_max_length();
+                selected_boxes = TDim(boxes_upper_bound < 0 ? nms_top_k : std::min<V>(boxes_upper_bound, nms_top_k));
+            } else {
+                selected_boxes = boxes_shape[1];
+            }
 
             if (ignore_bg_class && (background_class > -1) && (background_class < num_classes.get_max_length())) {
                 selected_boxes *= std::max<V>(1, num_classes.get_max_length() - 1);
@@ -102,7 +106,8 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
                 selected_boxes *= num_classes;
             }
 
-            if (keep_top_k > -1 && (keep_top_k < selected_boxes.get_max_length())) {
+            if (keep_top_k > -1 &&
+                (selected_boxes.get_max_length() < 0 || keep_top_k < selected_boxes.get_max_length())) {
                 selected_boxes = TDim(keep_top_k);
             }
 
