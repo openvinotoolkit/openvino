@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-13-18-31-40-077-29265037907",
+  "timestamp": "2026-07-13T18:31:40Z",
+  "run_id": "29265037907",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29265037907",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36853",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36853",
+  "author": "akashchi",
+  "category": "Flaky Test",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+  "signature": "benchmark_app returned non-zero exit status 3221225477|Flaky Test",
+  "signature_hash": "51203fa3d66f0e88",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples",
+      "conclusion": "failure",
+      "symptom": "benchmark_app process crashes with exit code 3221225477 (STATUS_ACCESS_VIOLATION) in async-CPU-Python test"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+    "subprocess.CalledProcessError: Command '('benchmark_app', '-i', ..., '-d', 'CPU', '-niter', '1', '-nireq', '1', '-api', 'async', '-no_warmup')' returned non-zero exit status 3221225477.",
+    "1 failed, 186 passed, 15 skipped in 142.34s"
+  ],
+  "root_cause": "benchmark_app crashes with Windows STATUS_ACCESS_VIOLATION (0xC0000005) when running in async API mode with no warmup on CPU. This is a known flaky crash in the Windows benchmark_app sample test unrelated to the PR change (which modifies CI/GHA workflow files only). The identical failure was observed in run 29257338803 (PR #36843) just hours earlier, confirming this is a pre-existing intermittent issue.",
+  "reproduction_steps": "Run: benchmark_app -i <image> -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 -api async -no_warmup on a Windows runner",
+  "recommended_actions": [
+    "Re-run the failed Samples job as this is a known transient crash",
+    "Investigate and fix the underlying access violation in benchmark_app async path on Windows",
+    "Consider adding a skip/xfail marker for this specific test variant on Windows until root cause is fixed"
+  ],
+  "prevention_strategies": "Track the recurring Windows benchmark_app STATUS_ACCESS_VIOLATION pattern and fix the root cause in the async inference path to prevent continued flakiness.",
+  "historical_context": "Same signature (hash 51203fa3d66f0e88) seen previously in run 29257338803 (PR #36843) at 2026-07-13T16:41:56Z. This is the second occurrence today."
+}

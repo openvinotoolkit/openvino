@@ -1,102 +1,115 @@
-[
-  {
-    "investigation_id": "2026-07-09-13-58-10-000-29022024794",
-    "timestamp": "2026-07-09T13:58:10Z",
-    "run_id": "29022024794",
-    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-    "category": "Configuration",
-    "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
-    "signature_hash": "926d0537c057e523",
-    "pr_number": "36774"
-  },
-  {
-    "investigation_id": "2026-07-09-14-21-23-000-29023574901",
-    "timestamp": "2026-07-09T14:21:23Z",
-    "run_id": "29023574901",
-    "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
-    "category": "Configuration",
-    "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
-    "signature_hash": "926d0537c057e523",
-    "pr_number": "36774"
-  },
-  {
-    "investigation_id": "2026-07-09-15-32-32-477-29029047050",
-    "timestamp": "2026-07-09T15:32:32Z",
-    "run_id": "29029047050",
-    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-    "category": "Configuration",
-    "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
-    "signature_hash": "926d0537c057e523",
-    "pr_number": "36774"
-  },
-  {
-    "investigation_id": "2026-07-09-15-46-39-000-29030218781",
-    "timestamp": "2026-07-09T15:46:39Z",
-    "run_id": "29030218781",
-    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-    "category": "Configuration",
-    "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
-    "signature_hash": "926d0537c057e523",
-    "pr_number": "36774"
-  },
-  {
-    "investigation_id": "2026-07-09-16-28-39-874-29030218709",
-    "timestamp": "2026-07-09T16:28:39Z",
-    "run_id": "29030218709",
-    "pr_number": "36774",
-    "category": "Dependencies",
-    "title": "Docker build fails: libpython3-dev:riscv64 unmet deps libncursesw6/libtinfo6 after docker_tag bump",
-    "signature_hash": "493bf4a71d007127"
-  },
-  {
-    "investigation_id": "2026-07-09-16-59-02-000-29030218412",
-    "timestamp": "2026-07-09T16:59:02Z",
-    "run_id": "29030218412",
-    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
-    "category": "External Service",
-    "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
-    "signature_hash": "9cb03e077ef3024a",
-    "pr_number": "36773"
-  },
-  {
-    "investigation_id": "2026-07-10-07-45-37-000-29072781821",
-    "timestamp": "2026-07-10T07:45:37Z",
-    "run_id": "29072781821",
-    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-    "pr_number": "36763",
-    "category": "Flaky Test",
-    "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
-    "signature_hash": "85df26485ff568d8"
-  },
-  {
-    "id": "2026-07-13-10-41-15-000-29234771303",
-    "run_id": "29234771303",
-    "timestamp": "2026-07-13T10:41:15Z",
-    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-    "category": "Flaky Test",
-    "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
-    "pr_number": "36488",
-    "signature_hash": "43e136cf67333978"
-  },
-  {
-    "investigation_id": "2026-07-13-13-40-20-000-29245921214",
-    "timestamp": "2026-07-13T13:40:20Z",
-    "run_id": "29245921214",
-    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-    "pr_number": "36413",
-    "category": "Flaky Test",
-    "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
-    "signature_hash": "18324e8563a426a9",
-    "confidence": "High"
-  },
-  {
-    "investigation_id": "2026-07-13-16-41-56-000-29257338803",
-    "timestamp": "2026-07-13T16:41:56Z",
-    "run_id": "29257338803",
-    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-    "category": "Flaky Test",
-    "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_flag[CPU-Python]",
-    "signature_hash": "51203fa3d66f0e88",
-    "pr_number": "36843"
-  }
-]
+{
+  "schema_version": "1.0",
+  "total": 11,
+  "entries": [
+    {
+      "investigation_id": "2026-07-09-13-58-10-000-29022024794",
+      "timestamp": "2026-07-09T13:58:10Z",
+      "run_id": "29022024794",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "category": "Configuration",
+      "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "signature_hash": "926d0537c057e523",
+      "pr_number": "36774"
+    },
+    {
+      "investigation_id": "2026-07-09-14-21-23-000-29023574901",
+      "timestamp": "2026-07-09T14:21:23Z",
+      "run_id": "29023574901",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+      "category": "Configuration",
+      "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "signature_hash": "926d0537c057e523",
+      "pr_number": "36774"
+    },
+    {
+      "investigation_id": "2026-07-09-15-32-32-477-29029047050",
+      "timestamp": "2026-07-09T15:32:32Z",
+      "run_id": "29029047050",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "category": "Configuration",
+      "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "signature_hash": "926d0537c057e523",
+      "pr_number": "36774"
+    },
+    {
+      "investigation_id": "2026-07-09-15-46-39-000-29030218781",
+      "timestamp": "2026-07-09T15:46:39Z",
+      "run_id": "29030218781",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "category": "Configuration",
+      "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "signature_hash": "926d0537c057e523",
+      "pr_number": "36774"
+    },
+    {
+      "investigation_id": "2026-07-09-16-28-39-874-29030218709",
+      "timestamp": "2026-07-09T16:28:39Z",
+      "run_id": "29030218709",
+      "pr_number": "36774",
+      "category": "Dependencies",
+      "title": "Docker build fails: libpython3-dev:riscv64 unmet deps libncursesw6/libtinfo6 after docker_tag bump",
+      "signature_hash": "493bf4a71d007127"
+    },
+    {
+      "investigation_id": "2026-07-09-16-59-02-000-29030218412",
+      "timestamp": "2026-07-09T16:59:02Z",
+      "run_id": "29030218412",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "category": "External Service",
+      "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+      "signature_hash": "9cb03e077ef3024a",
+      "pr_number": "36773"
+    },
+    {
+      "investigation_id": "2026-07-10-07-45-37-000-29072781821",
+      "timestamp": "2026-07-10T07:45:37Z",
+      "run_id": "29072781821",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "pr_number": "36763",
+      "category": "Flaky Test",
+      "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
+      "signature_hash": "85df26485ff568d8"
+    },
+    {
+      "id": "2026-07-13-10-41-15-000-29234771303",
+      "run_id": "29234771303",
+      "timestamp": "2026-07-13T10:41:15Z",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "category": "Flaky Test",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+      "pr_number": "36488",
+      "signature_hash": "43e136cf67333978"
+    },
+    {
+      "investigation_id": "2026-07-13-13-40-20-000-29245921214",
+      "timestamp": "2026-07-13T13:40:20Z",
+      "run_id": "29245921214",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "pr_number": "36413",
+      "category": "Flaky Test",
+      "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
+      "signature_hash": "18324e8563a426a9",
+      "confidence": "High"
+    },
+    {
+      "investigation_id": "2026-07-13-16-41-56-000-29257338803",
+      "timestamp": "2026-07-13T16:41:56Z",
+      "run_id": "29257338803",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "category": "Flaky Test",
+      "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_flag[CPU-Python]",
+      "signature_hash": "51203fa3d66f0e88",
+      "pr_number": "36843"
+    },
+    {
+      "investigation_id": "2026-07-13-18-31-40-077-29265037907",
+      "run_id": "29265037907",
+      "timestamp": "2026-07-13T18:31:40Z",
+      "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+      "category": "Flaky Test",
+      "signature_hash": "51203fa3d66f0e88",
+      "pr_number": "36853"
+    }
+  ]
+}
