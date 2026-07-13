@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "artifact download failed unable to make request ECONNREFUSED|Network",
+  "signature_hash": "c903843ea6da862b",
+  "title": "Tokenizers job fails with ECONNREFUSED downloading artifacts from GitHub",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-07-13T19:25:37Z",
+  "last_seen": "2026-07-13T19:25:37Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29268143021"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36796"
+  ],
+  "recent_timestamps": [
+    "2026-07-13T19:25:37Z"
+  ]
+}

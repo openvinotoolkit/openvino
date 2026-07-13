@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-13-19-25-37-000-29268143021",
+  "timestamp": "2026-07-13T19:25:37Z",
+  "run_id": "29268143021",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29268143021",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36796",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36796",
+  "author": "Maxim-Doronin",
+  "category": "Network",
+  "title": "Windows CI fails with ECONNREFUSED downloading artifacts and Electron cleanup Permission Denied",
+  "signature": "artifact download failed unable to make request ECONNREFUSED|Network",
+  "signature_hash": "c903843ea6da862b",
+  "confidence": "High",
+  "failed_jobs": [
+    "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+    "JS API (22)"
+  ],
+  "key_errors": [
+    "Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied"
+  ],
+  "root_cause": "Two independent infrastructure failures: (1) The tokenizers job runner could not reach GitHub's artifact API (ECONNREFUSED), preventing the openvino_wheels artifact download, which in turn caused the .whl upload to fail. (2) The JS API E2E test cleanup hook failed with Permission Denied trying to delete electron.exe on Windows \u2014 the actual 2 E2E tests passed. Both are transient infrastructure issues unrelated to code changes in PR #36796.",
+  "recommended_actions": [
+    "Re-run failed jobs \u2014 both failures are transient",
+    "Monitor ECONNREFUSED rate on Windows self-hosted runners",
+    "Fix JS E2E cleanup to use Windows-safe cleanup (e.g., rd /s /q) instead of rm -rf"
+  ]
+}

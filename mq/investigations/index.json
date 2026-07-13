@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 11,
+  "total": 12,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -110,6 +110,15 @@
       "category": "Flaky Test",
       "signature_hash": "51203fa3d66f0e88",
       "pr_number": "36853"
+    },
+    {
+      "investigation_id": "2026-07-13-19-25-37-000-29268143021",
+      "run_id": "29268143021",
+      "timestamp": "2026-07-13T19:25:37Z",
+      "title": "Windows CI fails with ECONNREFUSED downloading artifacts and Electron cleanup Permission Denied",
+      "category": "Network",
+      "signature_hash": "c903843ea6da862b",
+      "pr_number": "36796"
     }
   ]
 }
