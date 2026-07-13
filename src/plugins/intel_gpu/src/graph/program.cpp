@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <thread>
+#include <chrono>
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
@@ -502,7 +504,6 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-
 #ifdef GPU_DEBUG_CONFIG
     if (get_config().get_dry_run_path().empty() || is_internal) {
 #else
@@ -724,7 +725,6 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
@@ -732,6 +732,10 @@ void program::transfer_memory_to_device() {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
+            auto prim = data_node.get_primitive();
+            if (prim->skip_device_transfer()) {
+                continue;
+            }
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
@@ -2018,10 +2022,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     memory_ptr model_tensor_base_ptr = nullptr;
     if (can_use_mmap_zero_copy) {
         model_tensor_base_ptr =
-            ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
-                                                   ib.get_stream_size(),
-                                                   allocation_type::usm_host,
-                                                   layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+            ib.get_engine().create_hostbuffer(ib.get_mmap_tensor(),
+                                              ib.get_stream_size(),
+                                              allocation_type::cl_mem,
+                                              layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
     size_t num_nodes;
