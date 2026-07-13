@@ -28,6 +28,7 @@
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/container_util.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "

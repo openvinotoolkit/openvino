@@ -6,6 +6,7 @@
 
 #    pragma once
 
+#    include <algorithm>
 #    include <bitset>
 #    include <memory>
 #    include <utility>
