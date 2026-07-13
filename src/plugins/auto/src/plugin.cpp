@@ -753,7 +753,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (has_device_utilization_threshold) {
-                const auto device_utilization = get_device_utilization(device->device_name);
+                const std::string device_luid = parsed.get_device_name() == "CPU" ? "" : device->default_device_id;
+                const auto device_utilization = get_device_utilization(device->device_name, device_luid);
                 if (!device_utilization.has_value()) {
                     LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list",
                                   device->device_name.c_str());

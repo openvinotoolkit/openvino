@@ -274,9 +274,9 @@ public:
     void SetUp() override {
         std::tie(threshold, devices, deviceUtilization, selectedDeviceInfo) = GetParam();
         std::map<std::string, unsigned> properties_thresholds(threshold.begin(), threshold.end());
-        std::vector<std::string> npuCability = {"FP32", "FP16", "INT8", "BIN"};
+        std::vector<std::string> npuCapability = {"FP32", "FP16", "INT8", "BIN"};
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
-            .WillByDefault(RETURN_MOCK_VALUE(npuCability));
+            .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::devices_utilization_threshold.name()), config))
             .WillByDefault(Return(ov::Any(properties_thresholds)));

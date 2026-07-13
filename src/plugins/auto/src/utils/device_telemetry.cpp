@@ -7,6 +7,7 @@
 #ifdef OV_AUTO_ENABLE_IPF
 
 #    include <memory>
+#    include <cmath>
 
 #    include "ClientApi.h"
 #    include "nlohmann/json.hpp"
@@ -40,7 +41,7 @@ public:
         }
     }
 
-    std::optional<float> utilization(const std::string& device_name) {
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_luid) {
         if (!m_client) {
             LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
             return std::nullopt;
@@ -68,7 +69,13 @@ public:
             LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
                           value_as_string.c_str(),
                           device_name.c_str());
-            const float utilization_percent = value * 100.0f;
+            if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
+                LOG_DEBUG_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
+                              value_as_string.c_str(),
+                              device_name.c_str());
+                return std::nullopt;
+            }
+            const float utilization_percent = (value <= 1.0f) ? value * 100.0f : value;
             const std::string utilization_percent_as_string = std::to_string(utilization_percent);
             LOG_DEBUG_TAG("TelemetryClient: converted utilization=%s for device=%s",
                           utilization_percent_as_string.c_str(),
@@ -88,14 +95,27 @@ private:
 
 std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
     LOG_DEBUG_TAG("query_device_utilization called: device_name=%s", device_name.c_str());
-    static_cast<void>(device_luid);
     static TelemetryClient* const client = new TelemetryClient();
-    return client->utilization(device_name);
+    return client->utilization(device_name, device_luid);
 }
 
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
+
+#ifdef MULTIUNITTEST
+namespace ov {
+namespace mock_auto_plugin {
+namespace device_monitor {
+
+std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
+    return ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
+}
+
+}  // namespace device_monitor
+}  // namespace mock_auto_plugin
+}  // namespace ov
+#endif
 
 #else  // OV_AUTO_ENABLE_IPF
 
@@ -112,5 +132,19 @@ std::optional<float> query_device_utilization(const std::string& device_name, co
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
+
+#ifdef MULTIUNITTEST
+namespace ov {
+namespace mock_auto_plugin {
+namespace device_monitor {
+
+std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
+    return ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
+}
+
+}  // namespace device_monitor
+}  // namespace mock_auto_plugin
+}  // namespace ov
+#endif
 
 #endif  // OV_AUTO_ENABLE_IPF

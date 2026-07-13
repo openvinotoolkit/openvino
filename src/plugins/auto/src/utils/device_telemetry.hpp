@@ -51,3 +51,15 @@ std::optional<float> query_device_utilization(const std::string& device_name, co
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
+
+#ifdef MULTIUNITTEST
+namespace ov {
+namespace mock_auto_plugin {
+namespace device_monitor {
+
+std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid);
+
+}  // namespace device_monitor
+}  // namespace mock_auto_plugin
+}  // namespace ov
+#endif

@@ -7,8 +7,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
-#include <map>
 #include <limits>
+#include <map>
 #include <set>
 #include <string>
 #include <tuple>
@@ -345,20 +345,20 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             for (const auto& item : dict) {
                 if (!py::isinstance<py::str>(item.first)) {
                     OPENVINO_THROW("The key type of ",
-                                  ov::intel_auto::devices_utilization_threshold.name(),
-                                  " should be dict[str, int>=0] with string keys");
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int>=0] with string keys");
                 }
                 if (!py::isinstance<py::int_>(item.second) || py::isinstance<py::bool_>(item.second)) {
                     OPENVINO_THROW("The value type of ",
-                                  ov::intel_auto::devices_utilization_threshold.name(),
-                                  " should be dict[str, int>=0] with integer values");
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int>=0] with integer values");
                 }
                 const auto key = py::str(item.first).cast<std::string>();
                 const auto value = py::cast<long long>(item.second);
                 if (value < 0 || value > std::numeric_limits<unsigned>::max()) {
                     OPENVINO_THROW("The value type of ",
-                                  ov::intel_auto::devices_utilization_threshold.name(),
-                                  " should be dict[str, int>=0] with values fitting into unsigned");
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int>=0] with values fitting into unsigned");
                 }
                 thresholds[key] = static_cast<unsigned>(value);
             }
@@ -368,24 +368,6 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         }
     }
     return properties_to_cpp;
-}
-
-std::string convert_path_to_string(const py::object& path) {
-    // import pathlib.Path
-    py::object Path = py::module_::import("pathlib").attr("Path");
-    // check if model path is either a string or pathlib.Path
-    if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return py::str(path);
-    }
-    // Convert bytes to string
-    if (py::isinstance<py::bytes>(path)) {
-        return path.cast<std::string>();
-    }
-    std::stringstream str;
-    str << "Path: '" << path << "'"
-        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
-           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    OPENVINO_THROW(str.str());
 }
 
 std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
