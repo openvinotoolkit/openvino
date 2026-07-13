@@ -57,12 +57,19 @@ bool ze_counter_based_event::get_profiling_info_impl(std::list<instrumentation::
     auto &dev_info = m_factory.get_engine().get_device_info();
     auto wallclock_time = timestamp_to_duration(dev_info, timestamp.global);
     auto exec_time = timestamp_to_duration(dev_info, timestamp.context);
+    auto submit_time = wallclock_time - exec_time;
 
-    auto period_exec = std::make_shared<instrumentation::profiling_period_basic>(timestamp_to_duration(dev_info, timestamp.context));
-    auto period_submit = std::make_shared<instrumentation::profiling_period_basic>(wallclock_time - exec_time);
+    // abs_start is the absolute device time (ns) when the command was submitted.
+    auto abs_start = tick_to_nanoseconds(dev_info, timestamp.global.kernelStart);
 
-    info.push_back({ instrumentation::profiling_stage::executing, period_exec });
-    info.push_back({ instrumentation::profiling_stage::submission, period_submit });
+    auto period_exec = std::make_shared<instrumentation::profiling_period_basic>(exec_time);
+    auto period_submit = std::make_shared<instrumentation::profiling_period_basic>(submit_time);
+
+    // Report start + duration for upper-layer profiling. Real end timestamp is intentionally omitted.
+    auto exec_start = abs_start + submit_time;
+
+    info.push_back({ instrumentation::profiling_stage::submission, period_submit, abs_start, true });
+    info.push_back({ instrumentation::profiling_stage::executing, period_exec, exec_start, true });
 
     return true;
 }

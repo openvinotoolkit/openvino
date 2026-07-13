@@ -51,6 +51,12 @@ static constexpr Property<std::string, PropertyMutability::RO> uarch_version{"GP
 static constexpr Property<int32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
 
 /**
+ * @brief Read-only property to get cache line size for current GPU
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> cacheline_size{"GPU_CACHELINE_SIZE"};
+
+/**
  * @brief Read-only property to get statistics of GPU memory allocated by engine for each allocation type
  * It contains information about current memory usage
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
@@ -168,6 +174,16 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
 
 }  // namespace hint
+
+/**
+ * @brief Percentage (0–100) of model weights to offload to disk.
+ * When set to 0 (default), all weights are resident on GPU. A value of N means
+ * N% of eligible weights are streamed from host memory on demand via an LRU cache,
+ * reducing GPU memory usage at the cost of inference latency.
+ * Currently supported for MoE expert weights only.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
