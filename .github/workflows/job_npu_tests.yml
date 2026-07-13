@@ -17,11 +17,6 @@ on:
         type: string
         required: false
         default: null
-      test-device:
-        description: 'OpenVINO device to test against'
-        type: string
-        required: false
-        default: 'NPU'
       npu-platforms:
         description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020"]'
         type: string
@@ -57,7 +52,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      TEST_DEVICE: ${{ inputs.test-device }}
+      TEST_DEVICE: 'NPU'
       NPU_PLATFORM: ${{ matrix.npu-platform }}
       MODEL_SCOPE: ${{ inputs.model-scope }}
     steps:
@@ -104,11 +99,11 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: Install TF Models tests requirements
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
+
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: TensorFlow Models Tests - NPU compile-only (convert_model)
         shell: cmd
@@ -128,7 +123,6 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-
         # To debug locally/manually, uncomment:
         # env:
         #   OV_NPU_LOG_LEVEL: LOG_INFO
@@ -159,7 +153,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      TEST_DEVICE: ${{ inputs.test-device }}
+      TEST_DEVICE: 'NPU'
       NPU_PLATFORM: ${{ matrix.npu-platform }}
       MODEL_SCOPE: ${{ inputs.model-scope }}
     steps:
@@ -206,11 +200,11 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: Install JAX Models tests requirements
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
+
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: JAX/Flax Models Tests - NPU compile-only
         shell: cmd
@@ -218,8 +212,9 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\jax\test_hf_transformers.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-
-        # To debug locally/manually, uncomment:
+        # TODO: NPU plugin logging is disabled for now (LOG_INFO is very verbose).
+        # Pending decision with the pipeline owners on how to expose it (input param
+        # vs. leave off). To debug locally/manually, uncomment:
         # env:
         #   OV_NPU_LOG_LEVEL: LOG_INFO
 
@@ -251,7 +246,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      TEST_DEVICE: ${{ inputs.test-device }}
+      TEST_DEVICE: 'NPU'
       NPU_PLATFORM: ${{ matrix.npu-platform }}
       MODEL_SCOPE: ${{ inputs.model-scope }}
     steps:
@@ -298,9 +293,6 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       # Group A: torchvision + timm + edsr share compatible deps (installed together).
       - name: "Install PyTorch tests requirements (group A: torchvision/timm/edsr)"
         run: |
@@ -308,6 +300,9 @@ jobs:
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\torchvision.txt `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\timm.txt `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\edsr.txt
+
+      - name: Set SSL_CERT_FILE for model downloading
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: PyTorch Models Tests - NPU compile-only (group A)
         shell: cmd

@@ -9,11 +9,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-      test-device:
-        description: 'OpenVINO device to test against'
-        type: string
-        required: false
-        default: 'NPU'
       npu-platforms:
         description: 'JSON list of NPU platforms to compile for (offline), each on its own runner. e.g. ["3720","4000","5010","5020"]'
         type: string
@@ -106,7 +101,6 @@ jobs:
     with:
       runner: 'aks-win-8-cores-16gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      test-device: ${{ inputs.test-device || 'NPU' }}
       npu-platforms: ${{ inputs.npu-platforms || '["3720","4000","5010","5020"]' }}
       model-scope: ${{ inputs.model-scope || 'precommit' }}
 
