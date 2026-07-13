@@ -40,8 +40,8 @@ protected:
     bool _isTensorChanged = false;
 
 private:
-    // Store the vm context before predicted output shapes
-    std::shared_ptr<DynamicArguments> _arguments;
+    // VM execution context shared with the pipeline; created lazily, reused across inferences.
+    std::shared_ptr<VMExecutionContext> _executionContext = std::make_shared<VMExecutionContext>();
 };
 
 }  //  namespace intel_npu

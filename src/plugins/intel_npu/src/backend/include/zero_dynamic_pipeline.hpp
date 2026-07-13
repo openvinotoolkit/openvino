@@ -10,6 +10,22 @@
 
 namespace intel_npu {
 
+// RAII owner of a VM runtime execution context. The handle is created lazily and shared between
+// shape prediction (infer request) and execution (pipeline) so the same context is reused.
+struct VMExecutionContext {
+    npu_vm_runtime_execution_context_handle_t _handle = nullptr;
+
+    VMExecutionContext() = default;
+    VMExecutionContext(const VMExecutionContext&) = delete;
+    VMExecutionContext& operator=(const VMExecutionContext&) = delete;
+    VMExecutionContext(VMExecutionContext&&) = delete;
+    VMExecutionContext& operator=(VMExecutionContext&&) = delete;
+    ~VMExecutionContext();
+
+    // Create the context for vmRuntime if not created yet; returns the handle.
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
+};
+
 struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
@@ -18,7 +34,8 @@ struct DynamicArguments {
     std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
 
-    // Share runtime_execution_context in param during VM execution and forecasting
+    // Scratch params for a single VM execute call. The executionContext field is filled from the
+    // shared VMExecutionContext on each execute; DynamicArguments no longer owns the context.
     npu_vm_runtime_execute_params_t _executeParams = {};
 
     DynamicArguments() = default;
@@ -26,10 +43,7 @@ struct DynamicArguments {
     DynamicArguments& operator=(const DynamicArguments&) = delete;
     DynamicArguments(DynamicArguments&&) = delete;
     DynamicArguments& operator=(DynamicArguments&&) = delete;
-    ~DynamicArguments();
-
-    // Create the VM execution context for vmRuntime. No-op if already created.
-    void ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime);
+    ~DynamicArguments() = default;
 
     void setArgumentProperties(uint32_t argi,
                                const void* argv,
@@ -46,8 +60,7 @@ class DynamicPipeline final : public IPipeline {
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
         PipelinedCommandLists(size_t numCommandLists,
-                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              std::shared_ptr<DynamicArguments> requestArguments) {
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -57,11 +70,7 @@ class DynamicPipeline final : public IPipeline {
                 _commandListHandles.push_back(_commandLists[i]->handle());
             }
 
-            if (requestArguments != nullptr) {
-                _arguments = requestArguments;
-            } else {
-                _arguments = std::make_shared<DynamicArguments>();
-            }
+            _arguments = std::make_shared<DynamicArguments>();
         }
 
         size_t size() const {
@@ -137,7 +146,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    std::shared_ptr<DynamicArguments> requestArguments,
+                    std::shared_ptr<VMExecutionContext> executionContext,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
@@ -158,7 +167,7 @@ public:
     // Predicts VM runtime output shape. Independent of pipeline instance state, this depends only on the VM runtime
     // handle and argument-provided context, making it a static method.
     static void predict_output_shape(const IGraph& graph,
-                                     DynamicArguments& args,
+                                     VMExecutionContext& executionContext,
                                      std::vector<MemRefType>& inputsMemRef,
                                      std::vector<MemRefType>& outputsMemRef);
 
@@ -170,6 +179,8 @@ private:
                             ze_fence_handle_t fence,
                             ze_event_handle_t event);
 
+    // Shared VM execution context (owned by the infer request), reused across all command lists.
+    std::shared_ptr<VMExecutionContext> _executionContext;
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 

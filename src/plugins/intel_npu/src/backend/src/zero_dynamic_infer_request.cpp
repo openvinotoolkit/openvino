@@ -28,7 +28,7 @@ void ZeroDynamicInferRequest::create_pipeline_impl() {
                                           _config,
                                           _levelZeroInputTensors,
                                           _levelZeroOutputTensors,
-                                          _arguments,
+                                          _executionContext,
                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("create_pipeline_impl - completed");
@@ -220,10 +220,6 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<MemRefType>& out
     // bool reCreatePipeline = false;
     // Predict output shapes based on current inputs
 
-    if (_arguments == nullptr) {
-        _arguments = std::make_shared<DynamicArguments>();
-    }
-
     if (_graph->get_handle() != nullptr && _isTensorChanged) {
         std::vector<MemRefType> inputsMemRef(_metadata.inputs.size());
         outputsMemRef.clear();
@@ -284,9 +280,8 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<MemRefType>& out
             originalOutputMemRef[i]._strides = outputsMemRef[i]._strides;
         }
 
-        // Get VM context before invoking VM shape prediction.
-        DynamicArguments& dynamicArguments = *_arguments;
-        DynamicPipeline::predict_output_shape(*_graph, dynamicArguments, inputsMemRef, outputsMemRef);
+        // Predict output shapes using the shared VM execution context.
+        DynamicPipeline::predict_output_shape(*_graph, *_executionContext, inputsMemRef, outputsMemRef);
 
         for (size_t i = 0; i < outputsMemRef.size(); i++) {
             if (!originalOutputMemRef[i].compare(outputsMemRef[i])) {
