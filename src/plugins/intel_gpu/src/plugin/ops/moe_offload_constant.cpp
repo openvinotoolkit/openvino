@@ -49,18 +49,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     const size_t otd_ratio = p.get_config().get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
     // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
-    // Only 3GEMM (GEMM3_SWIGLU) supports partial upload. 2GEMM needs full allocation
-    // because the grouped matmul requires all active experts in the weight buffer.
-    bool is_3gemm_constant = false;
-    const auto users = op->get_output_target_inputs(0);
-    for (const auto& input : users) {
-        const auto* node = input.get_node();
-        if (auto moe_op = dynamic_cast<const ov::op::internal::MOECompressed*>(node)) {
-            if (moe_op->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU)
-                is_3gemm_constant = true;
-        }
-    }
-    const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert && is_3gemm_constant;
+    const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }

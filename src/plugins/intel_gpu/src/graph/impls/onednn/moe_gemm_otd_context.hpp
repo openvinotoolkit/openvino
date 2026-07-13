@@ -33,11 +33,17 @@ struct Moe2GemmOtdContext {
     static constexpr size_t DOWN_S = 4;
     static constexpr size_t DOWN_Z = 5;
 
-    size_t capacity = 0;  // Total expert count (= num_experts for 2GEMM)
+    size_t capacity = 0;      // LRU slot count (= lru_expert_num)
+    size_t num_experts = 0;    // Total experts in the model (for per-expert-size computation)
     ov::op::internal::MOECompressed::Config moe_config{};
     std::vector<size_t> weight_bin_offsets;
-    std::vector<bool> loaded_up;    // loaded_up[expert_id] = true if up weights loaded
-    std::vector<bool> loaded_down;  // loaded_down[expert_id] = true if down weights loaded
+    // Per-slot tracking: slot_contents_up[slot] = expert_id loaded there (-1 if empty)
+    std::vector<int32_t> slot_contents_up;
+    std::vector<int32_t> slot_contents_down;
+    // Per-slot last-use tick for LRU eviction on the decode (non-relocating) path.
+    std::vector<uint64_t> slot_used_up;
+    std::vector<uint64_t> slot_used_down;
+    uint64_t lru_tick = 0;
     std::unique_ptr<ov::intel_gpu::ocl::moe_otd::ParallelWeightReader> weight_reader;
 
     // Resident GPU memory buffers (one slot per LRU entry)
@@ -51,19 +57,30 @@ struct Moe2GemmOtdContext {
     } resident{};
     bool bound = false;
 
-    // Slot mapping from current iteration
-    std::vector<size_t> current_slots;
-    std::vector<int32_t> current_expert_ids;  // active expert IDs for this iteration
+    // One-slot scratch buffers used to swap expert weights between resident slots
+    // (GPU->GPU) without a disk round-trip. Sized to the largest per-expert tensor of
+    // each direction, allocated on first use and never reallocated afterwards so that
+    // in-flight async copies keep a valid backing pointer.
+    memory::ptr swap_tmp_up;
+    memory::ptr swap_tmp_down;
+
+    // Slot mapping from current iteration (set by gemm_up, reused by gemm_down)
+    std::unordered_map<uint32_t, size_t> expert_to_slot;  // expert_id → LRU slot
+    bool slots_valid = false;  // true after gemm_up loaded, cleared after gemm_down executes
 
     Moe2GemmOtdContext(size_t lru_capacity,
+                       size_t total_experts,
                        const ov::op::internal::MOECompressed::Config& config,
                        std::vector<size_t> bin_offsets,
                        const std::filesystem::path& weights_path)
         : capacity(lru_capacity),
+          num_experts(total_experts),
           moe_config(config),
           weight_bin_offsets(std::move(bin_offsets)),
-          loaded_up(lru_capacity, false),
-          loaded_down(lru_capacity, false),
+          slot_contents_up(lru_capacity, -1),
+          slot_contents_down(lru_capacity, -1),
+          slot_used_up(lru_capacity, 0),
+          slot_used_down(lru_capacity, 0),
           weight_reader(std::make_unique<ov::intel_gpu::ocl::moe_otd::ParallelWeightReader>(weights_path)) {}
 
     void bind(memory::ptr up_w, memory::ptr up_s, memory::ptr up_z,
@@ -79,6 +96,16 @@ struct Moe2GemmOtdContext {
 
     // Load requested experts for the given direction (is_up=true → up weights, false → down weights).
     std::vector<size_t> load_experts(stream& s, const std::vector<uint32_t>& expert_ids, bool is_up);
+
+    // Decode path: acquire a resident slot for each expert using a pure LRU cache WITHOUT
+    // relocating experts to contiguous slots. Returns slot[i] for expert_ids[i]. Hits reuse
+    // the existing slot (no copy); misses load from disk into a free/evicted slot. Callers
+    // then issue one matmul per expert reading its weight from slot[i], avoiding the GPU->GPU
+    // swaps required by the grouped (contiguous-slot) prefill path.
+    std::vector<size_t> acquire_experts_lru(stream& s, const std::vector<uint32_t>& expert_ids, bool is_up);
+
+    // Load a single expert's W/S/Z from disk into the given slot (read + transpose + upload).
+    void load_expert_from_disk(stream& s, bool is_up, size_t slot, uint32_t expert);
 };
 
 /// @brief Global registry for Moe2GemmOtdContext instances, keyed by MOE layer base name.
@@ -92,6 +119,7 @@ public:
 
     std::shared_ptr<Moe2GemmOtdContext> get_or_create(const std::string& moe_layer_id,
                                                        size_t capacity,
+                                                       size_t num_experts,
                                                        const ov::op::internal::MOECompressed::Config& config,
                                                        const std::vector<size_t>& bin_offsets,
                                                        const std::filesystem::path& weights_path) {
@@ -100,7 +128,7 @@ public:
         if (it != _contexts.end()) {
             return it->second;
         }
-        auto ctx = std::make_shared<Moe2GemmOtdContext>(capacity, config, bin_offsets, weights_path);
+        auto ctx = std::make_shared<Moe2GemmOtdContext>(capacity, num_experts, config, bin_offsets, weights_path);
         _contexts[moe_layer_id] = ctx;
         return ctx;
     }
