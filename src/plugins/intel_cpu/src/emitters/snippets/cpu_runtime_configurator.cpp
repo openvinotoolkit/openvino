@@ -45,6 +45,8 @@ CPURuntimeConfig::CPURuntimeConfig(const CPURuntimeConfig& other)
       repacking_impl_type(other.repacking_impl_type),
       input_repackers(other.input_repackers),
       loop_args(other.loop_args) {
+    // Kernel executors keep mutable, shape-dependent state, so sharing the table
+    // between a configurator and its clone would let one instance affect the other.
     kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 }
 
