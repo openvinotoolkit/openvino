@@ -49,7 +49,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -190,7 +190,7 @@ jobs:
           -- --quiet -k 0
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_clang_tidy_x86_64
@@ -275,7 +275,7 @@ jobs:
         # TODO: add --quiet after switch to Ubuntu 24.04+
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_clang_tidy_aarch64
@@ -362,7 +362,7 @@ jobs:
         # TODO: add --quiet after switch to Ubuntu 24.04+
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_clang_tidy_riscv64

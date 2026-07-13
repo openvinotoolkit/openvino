@@ -14,7 +14,7 @@ Before editing anything, confirm with the user:
 - Target versions for `torch`, `torchvision`:
   - `torchvision` minor = torch minor **+ 15** — e.g. torch `2.9.0` ↔ torchvision `0.24.0`, torch `2.12.0` ↔ torchvision `0.27.0`. Always confirm against the official release matrix.
   - `torchaudio` is **not** pinned by [tests/requirements_pytorch](../../../tests/requirements_pytorch): it is unused by these tests and PyTorch removed it from the official installation instructions starting with the 2.8 release. **Do not re-add it.** If a future task genuinely needs torchaudio, note that it is in a maintenance phase and its latest release can lag torch by one or more minors (e.g. torch `2.12.0` ↔ torchaudio `2.11.0`), so `torchaudio==<torch version>` may not exist — look up the latest available wheel at `https://download.pytorch.org/whl/cpu/torchaudio/`. Recent torchaudio wheels carry **no** `Requires-Dist: torch` pin, so a slightly older torchaudio installs cleanly alongside a newer torch.
-- Whether `tests/model_hub_tests/pytorch/envs/compile_gptq.txt` (pinned at `torch==2.3.1`, `torchaudio==2.3.1` for auto-gptq) should be touched. **Default: leave it alone.**
+- Whether [tests/model_hub_tests/pytorch/envs/compile_gptq.txt](../../../tests/model_hub_tests/pytorch/envs/compile_gptq.txt) (pinned at `torch==2.3.1`, `torchaudio==2.3.1` for auto-gptq) should be touched. **Default: leave it alone.**
 - Both the default TorchScript path **and** `PYTORCH_TRACING_MODE=EXPORT` (FX) path must be validated. Skip the FX run only if the user explicitly opts out.
 
 ## Step 1: Update Version Pins

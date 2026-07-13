@@ -208,6 +208,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.dev_type = get_device_type(device);
     info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
+    info.cacheline_size = device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE>();
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
     info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
@@ -355,6 +356,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.device_memory_ordinal = 0;
     info.supports_cp_offload = false;
     info.supports_counter_based_events = false;
+    info.supports_leo = false;
 
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
     using namespace dnnl::impl::gpu::intel::jit;

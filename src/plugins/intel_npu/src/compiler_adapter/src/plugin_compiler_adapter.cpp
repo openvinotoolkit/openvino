@@ -16,7 +16,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
@@ -28,22 +27,23 @@
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ov_lib_path);
+        auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    } catch (const std::exception& vcl_exception) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vcl_exception.what());
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
     }
 
     if (_zeroInitStruct == nullptr) {
@@ -65,11 +65,44 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    // specify HostCompile_Interpreter mode for dynamic model (inputs and outputs both dynamic) if NPU_COMPILATION_MODE
+    // is not set
+    FilteredConfig effectiveConfig = config;
+    if (!config.has<COMPILATION_MODE>() &&
+        !(config.has<DYNAMIC_SHAPE_TO_STATIC>() && config.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        const auto isDynamic = [](const auto& port) {
+            auto& shape = port.get_partial_shape();
+            return shape.is_dynamic() && (shape.rank().get_length() == 4) && shape[0].is_static();
+        };
+
+        if (model) {
+            const auto& inputs = model->inputs();
+            const auto& outputs = model->outputs();
+            const bool inputsDynamic = std::any_of(inputs.begin(), inputs.end(), isDynamic);
+            const bool outputsDynamic = std::any_of(outputs.begin(), outputs.end(), isDynamic);
+            if (inputsDynamic && outputsDynamic) {
+                _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+                             "for fully-dynamic model (inputs and outputs both dynamic)");
+                effectiveConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+            }
+        }
+    }
+
     _logger.debug("compile start");
-    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, effectiveConfig);
     _logger.debug("compile end");
 
-    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+    auto isHostCompiledBlob = [&](ov::Tensor& tensor) {
+        const size_t headerSize = std::min(tensor.get_byte_size(), size_t{20});
+        const std::string_view header(static_cast<const char*>(tensor.data()), headerSize);
+        if (header.find("llvm") != std::string_view::npos || header.find("NPUByte\x00") != std::string_view::npos) {
+            _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
+            return true;
+        }
+        return false;
+    };
+
+    if (isHostCompiledBlob(tensor)) {
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
@@ -120,9 +153,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
                  SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
-    int64_t compile_model_mem_start = 0;
+    int64_t compileModelMemStart = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
-        compile_model_mem_start = get_peak_memory_usage();
+        compileModelMemStart = get_peak_memory_usage();
     }
 
     std::vector<ov::Tensor> tensorsInits;
@@ -224,14 +257,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
-        auto compile_model_mem_end = get_peak_memory_usage();
-        _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
-        _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+        auto compileModelMemEnd = get_peak_memory_usage();
+        _logger.debug("Start of compilation memory usage: Peak %lld KB", compileModelMemStart);
+        _logger.debug("End of compilation memory usage: Peak %lld KB", compileModelMemEnd);
         // Note: Following log is parsed by CI. Take care when modifying it.
-        _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
+        _logger.info("Compilation memory usage: Peak %lld KB", compileModelMemEnd - compileModelMemStart);
     }
 
     _logger.debug("compile end");
+
+    auto constants = get_all_constants_in_topological_order(model);
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    model = nullptr;
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
@@ -242,7 +280,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        std::move(model),
+        std::move(constants),
         localConfig,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
@@ -283,10 +321,11 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
+bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
+                                                const std::optional<std::string>& optValue) const {
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
-    if (_compiler->is_option_supported(optname, std::move(optValue))) {
+    if (_compiler->is_option_supported(optname, optValue)) {
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
                       hasValue ? value.c_str() : "null");
@@ -297,29 +336,6 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
                       hasValue ? value.c_str() : "null");
         return false;
     }
-}
-
-bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
-        ze_device_properties_t device_properties = {};
-        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
-
-        if (result == ZE_RESULT_SUCCESS) {
-            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
-                                          device_properties.deviceId,
-                                          static_cast<uint16_t>(device_properties.subdeviceId),
-                                          device_properties.numSlices};
-
-            _logger.info("Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
-                         vcl_desc.deviceID,
-                         vcl_desc.tileCount);
-
-            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
-        }
-    }
-
-    return false;
 }
 
 }  // namespace intel_npu

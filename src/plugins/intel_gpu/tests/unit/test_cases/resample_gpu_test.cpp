@@ -2779,6 +2779,59 @@ INSTANTIATE_TEST_SUITE_P(resample_cubic_bfyx_smoke,
                             }
                         ));
 
+// Test bugfix for identity resample with BILINEAR_PILLOW / BICUBIC_PILLOW. When input spatial size
+// equals output spatial size on both axes, the pil_ref kernel previously emitted zero passes and crashed.
+TEST(resample_gpu, pillow_identity_resample_no_crash) {
+    auto& engine = get_test_engine();
+
+    const int32_t b = 1, f = 3, y = 8, x = 8;
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
+
+    // Fill with sequential values
+    std::vector<float> input_data(b * f * y * x);
+    for (size_t i = 0; i < input_data.size(); ++i)
+        input_data[i] = static_cast<float>(i + 1);
+    set_values(input_mem, input_data);
+
+    // Test both BILINEAR_PILLOW and BICUBIC_PILLOW with identity spatial size
+    std::vector<resample::InterpolateOp::InterpolateMode> modes = {
+        resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW,
+        resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW,
+    };
+
+    for (auto mode : modes) {
+        topology topology;
+        topology.add(input_layout("input", input_mem->get_layout()));
+        // output size == input size on spatial axes (identity)
+        topology.add(resample("resample", input_info("input"),
+                              std::vector<int64_t>{y, x},   // sizes: same as input
+                              std::vector<float>{},          // scales: unused
+                              std::vector<int64_t>{2, 3},    // axes: Y, X
+                              {},                            // pads_begin
+                              {},                            // pads_end
+                              0,                             // antialias
+                              -0.75f,                        // cube_coeff
+                              mode,
+                              resample::InterpolateOp::ShapeCalcMode::SIZES));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        cldnn::network net(engine, topology, config);
+        net.set_input_data("input", input_mem);
+
+        auto outputs = net.execute();
+        auto output_mem = outputs.at("resample").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+        // Identity resample: output must equal input
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], input_data[i], 1e-3f)
+                << "Mismatch at index " << i << " for mode " << static_cast<int>(mode);
+        }
+    }
+}
+
 TEST(resample_gpu, basic_in2x3x2x2_nearest_cached) {
     test_basic_in2x3x2x2_nearest<float>(true);
 }

@@ -38,7 +38,7 @@ struct GridSampleKernelConfParams {
     ov::element::Type gridPrc;
     uint64_t batchNum = 1LU;
     uint64_t cannelNum = 1LU;
-    uint64_t srcBatchStepB = 0LU;
+    uint32_t srcBatchStepB = 0LU;
 };
 
 struct GridSamplesKernelExecArgs {
@@ -80,7 +80,7 @@ public:
     explicit GridSampleKernelBase(const char* name,
                                   const GridSampleKernelConfParams& jcp,
                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                  uint64_t vlen)
+                                  uint32_t vlen)
         : JitKernelBase(name, isa),
 
           jcp(jcp),
@@ -91,23 +91,23 @@ public:
           gridElPerVec(vlen / gridTypeSize) {}
 
     virtual void create_ker() = 0;
-    uint64_t getVecLen() const {
+    uint32_t getVecLen() const {
         return vlen;
     }
-    uint64_t getDataElPerVec() const {
+    uint32_t getDataElPerVec() const {
         return dataElPerVec;
     }
-    uint64_t getGridElPerVec() const {
+    uint32_t getGridElPerVec() const {
         return gridElPerVec;
     }
 
 protected:
     GridSampleKernelConfParams jcp;
-    uint64_t vlen = 16LU;
-    uint64_t dataTypeSize = 1LU;
-    uint64_t gridTypeSize = 1LU;
-    uint64_t dataElPerVec = 1LU;
-    uint64_t gridElPerVec = 1LU;
+    uint32_t vlen = 16LU;
+    uint32_t dataTypeSize = 1LU;
+    uint32_t gridTypeSize = 1LU;
+    uint32_t dataElPerVec = 1LU;
+    uint32_t gridElPerVec = 1LU;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
