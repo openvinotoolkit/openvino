@@ -163,7 +163,6 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
-
     if (!ConvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
