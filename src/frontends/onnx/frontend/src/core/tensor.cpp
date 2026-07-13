@@ -421,8 +421,9 @@ std::vector<std::string> Tensor::get_data() const {
         if (data_any.is<std::vector<std::string>>()) {
             return data_any.as<std::vector<std::string>>();
         } else if (data_any.is<const std::string*>()) {
-            const std::string* str_ptr = data_any.as<const std::string*>();
-            size_t count = m_tensor_place->get_data_size();
+            const auto* str_ptr = data_any.as<const std::string*>();
+            const auto count = m_tensor_place->get_data_size();
+            FRONT_END_GENERAL_CHECK(str_ptr != nullptr || count == 0, "String tensor data pointer is null");
             return std::vector<std::string>(str_ptr, str_ptr + count);
         }
 
