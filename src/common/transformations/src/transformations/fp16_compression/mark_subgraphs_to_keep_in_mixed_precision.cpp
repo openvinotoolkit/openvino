@@ -49,9 +49,10 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
@@ -130,7 +131,7 @@ public:
             for (const auto& output : node->outputs()) {
                 for (const auto& out_inputs : output.get_target_inputs()) {
                     if (out_inputs.get_element_type().is_real() &&
-                        fp16_compression_is_disabled(out_inputs.get_node()->shared_from_this())) {
+                        is_conversion_disabled(out_inputs.get_node()->shared_from_this(), element::f16)) {
                         has_marked_output = true;
                     }
                 }
@@ -148,7 +149,7 @@ public:
                     return false;
             }
 
-            disable_fp16_compression(node);
+            disable_conversion(node, element::f16);
             return true;
         };
 
@@ -182,12 +183,12 @@ public:
                 if (!in_node.get_element_type().is_real())
                     continue;
                 if (is_fq_path(in_node.get_node_shared_ptr())) {
-                    enable_fp16_compression(node);
+                    enable_conversion(node, element::f16);
                     return true;
                 }
 
-                if (fp16_compression_is_disabled(in_node.get_node_shared_ptr())) {
-                    disable_fp16_compression(node);
+                if (is_conversion_disabled(in_node.get_node_shared_ptr(), element::f16)) {
+                    disable_conversion(node, element::f16);
                     is_changed = true;
                     break;
                 }
@@ -262,7 +263,7 @@ public:
             if (!is_reduceop_path(node))
                 return false;
 
-            disable_fp16_compression(node);
+            disable_conversion(node, element::f16);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
@@ -283,7 +284,7 @@ public:
             if (!node)
                 return false;
 
-            disable_fp16_compression(node);
+            disable_conversion(node, element::f16);
             for (const auto& output : node->outputs()) {
                 auto target_inputs = output.get_target_inputs();
                 for (const auto& input : target_inputs) {
@@ -390,11 +391,33 @@ public:
                     if (val > float16_min_normalized)
                         return false;
             }
-            disable_fp16_compression(m.get_match_root());
+            disable_conversion(m.get_match_root(), element::f16);
             return true;
         };
 
         auto m = make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class MarkRMS : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkRMS");
+    MarkRMS() {
+        MATCHER_SCOPE(MarkRMS);
+        auto rms_pattern = pattern::wrap_type<ov::op::internal::RMS>([](const Output<Node>& output) -> bool {
+            return !is_conversion_disabled(output.get_node_shared_ptr(), element::f16);
+        });
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            disable_conversion(node, element::f16);
+            return true;
+        };
+        auto m = make_shared<pattern::Matcher>(rms_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -448,7 +471,7 @@ public:
                 auto is_quantize = as_type_ptr<v0::FakeQuantize>(input_node);
                 if (is_quantize || is_fq_path(input_node)) {
                     mark_fq_path(node);
-                    enable_fp16_compression(node);
+                    enable_conversion(node, element::f16);
                     is_changed = true;
                 }
             }
@@ -470,6 +493,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, MarkRandomUniform)
+    REGISTER_PASS(manager, MarkRMS)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
 
     // both Up and Down propagations are needed.

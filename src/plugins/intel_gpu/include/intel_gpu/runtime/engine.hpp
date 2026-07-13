@@ -13,6 +13,7 @@
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
 #include "kernel_builder.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <memory>
 #include <set>
@@ -42,6 +43,8 @@ public:
     virtual engine_types type() const = 0;
     /// Returns runtime type used in the engine
     virtual runtime_types runtime_type() const = 0;
+    /// Returns backend type used in the engine
+    virtual backend_types backend_type() const = 0;
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.
@@ -61,11 +64,22 @@ public:
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
+    /// Created memory object by wrapping a writable host-allocated layout region.
+    /// Backends that support access flags should use read-write permissions.
+    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
+    /// Created memory object by wrapping a read-only host-allocated layout region.
+    /// Backends that support access flags should use read-only permissions.
+    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
 
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
+
+    // Create memory object from user-supplied shared handle e.g from system HANDLE created by DX12
+    virtual memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) = 0;
 
     /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout
     memory_ptr share_usm(const layout& layout, shared_handle usm_ptr);
@@ -104,8 +118,8 @@ public:
     /// Returns device object associated with the engine
     const device::ptr get_device() const;
 
-    /// Returns user context handle which was used to create the engine
-    virtual void* get_user_context() const = 0;
+    /// Returns L0 or OpenCL user context handle which was used to create the engine.
+    virtual void* get_user_context(runtime_types rt_type) const = 0;
 
     /// Returns the total maximum amount of GPU memory allocated by engine in current process for all allocation types
     uint64_t get_max_used_device_memory() const;
@@ -180,7 +194,7 @@ protected:
     std::unique_ptr<stream> _service_stream;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    std::mutex onednn_mutex;
+    mutable std::mutex onednn_mutex;
     std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 

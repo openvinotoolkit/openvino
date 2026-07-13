@@ -4,14 +4,15 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
 #include <transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace testing;
@@ -50,51 +51,44 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
     return readvalue;
 }
 
-TEST(TransformationTests, ReadValueWithSubgraph_1) {
-    std::shared_ptr<ov::Model> model(nullptr), model_ref(nullptr);
+TEST_F(TransformationTestsF, ReadValueWithSubgraph_1) {
+    disable_rt_info_check();
+    const ov::PartialShape shape{1, 1, 2};
+    const ov::element::Type type = ov::element::f32;
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{1, 1, 2}, type, "var_id"});
+
     {
-        const ov::PartialShape shape{1, 1, 2};
-        const ov::element::Type type = ov::element::f32;
-        std::shared_ptr<ov::op::util::Variable> variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{1, 1, 2}, type, "var_id"});
+        auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
 
-        {
-            auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto mm_weights =
+            std::make_shared<ov::op::v0::Constant>(type, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
 
-            auto mm_weights =
-                std::make_shared<ov::op::v0::Constant>(type, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mm_weights, false, false);
 
-            auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mm_weights, false, false);
+        auto readvalue = std::make_shared<ov::op::v6::ReadValue>(matmul, variable);
 
-            auto readvalue = std::make_shared<ov::op::v6::ReadValue>(matmul, variable);
+        auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
 
-            auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+        auto result = std::make_shared<ov::op::v0::Result>(readvalue);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result},
+                                            ov::SinkVector{assign},
+                                            ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
 
-            auto result = std::make_shared<ov::op::v0::Result>(readvalue);
-            model = std::make_shared<ov::Model>(ov::ResultVector{result},
+        auto readvalue = constructRVWithSubGraph(input, type, variable);
+
+        auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+
+        auto result = std::make_shared<ov::op::v0::Result>(readvalue);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result},
                                                 ov::SinkVector{assign},
                                                 ov::ParameterVector{input});
-
-            ov::pass::Manager manager;
-            manager.register_pass<ov::intel_cpu::MoveReadValueInputsToSubgraph>();
-            manager.run_passes(model);
-        }
-        {
-            auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
-
-            auto readvalue = constructRVWithSubGraph(input, type, variable);
-
-            auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
-
-            auto result = std::make_shared<ov::op::v0::Result>(readvalue);
-
-            model_ref = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                                    ov::SinkVector{assign},
-                                                    ov::ParameterVector{input});
-        }
-        auto res = compare_functions(model, model_ref, 0, 0, 0, 0, 0, 0);
-        ASSERT_TRUE(res.first) << res.second;
     }
+    manager.register_pass<ov::intel_cpu::MoveReadValueInputsToSubgraph>();
 }
 
 /***************************************************************************************************
@@ -153,80 +147,119 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
     return readvalue;
 }
 
-TEST(TransformationTests, ReadValueWithSubgraph_2) {
-    std::shared_ptr<ov::Model> model(nullptr), model_ref(nullptr);
+TEST_F(TransformationTestsF, ReadValueWithSubgraph_2) {
+    disable_rt_info_check();
+    const ov::PartialShape shape{1, 2, 4};
+    const ov::element::Type in_type = ov::element::f32;
+    const ov::element::Type out_type = ov::element::i32;
+
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, out_type, "var_id"});
+
     {
-        const ov::PartialShape shape{1, 2, 4};
-        const ov::element::Type in_type = ov::element::f32;
-        const ov::element::Type out_type = ov::element::i32;
+        auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
+        input->set_friendly_name("input");
 
-        std::shared_ptr<ov::op::util::Variable> variable =
-            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, out_type, "var_id"});
+        auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
+        convert->set_friendly_name("convert");
 
-        {
-            auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
-            input->set_friendly_name("input");
+        auto add1 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
+        add1->set_friendly_name("add1");
 
-            auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
-            convert->set_friendly_name("convert");
+        auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
+        add2->set_friendly_name("add2");
 
-            auto add1 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
-            add1->set_friendly_name("add1");
+        auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
+        add3->set_friendly_name("add3");
 
-            auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
-            add2->set_friendly_name("add2");
+        auto add4 = std::make_shared<ov::op::v1::Add>(add2, add3);
+        add4->set_friendly_name("add4");
 
-            auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
-            add3->set_friendly_name("add3");
+        auto add5 = std::make_shared<ov::op::v1::Add>(add1, add4);
+        add5->set_friendly_name("add5");
 
-            auto add4 = std::make_shared<ov::op::v1::Add>(add2, add3);
-            add4->set_friendly_name("add4");
+        auto readvalue = std::make_shared<ov::op::v6::ReadValue>(add5, variable);
+        readvalue->set_friendly_name("readvalue");
 
-            auto add5 = std::make_shared<ov::op::v1::Add>(add1, add4);
-            add5->set_friendly_name("add5");
+        auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+        assign->set_friendly_name("assign");
 
-            auto readvalue = std::make_shared<ov::op::v6::ReadValue>(add5, variable);
-            readvalue->set_friendly_name("readvalue");
+        auto result1 = std::make_shared<ov::op::v0::Result>(readvalue);
+        result1->set_friendly_name("result1");
 
-            auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
-            assign->set_friendly_name("assign");
+        auto result2 = std::make_shared<ov::op::v0::Result>(add3);
+        result2->set_friendly_name("result2");
 
-            auto result1 = std::make_shared<ov::op::v0::Result>(readvalue);
-            result1->set_friendly_name("result1");
+        model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
+                                            ov::SinkVector{assign},
+                                            ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
 
-            auto result2 = std::make_shared<ov::op::v0::Result>(add3);
-            result2->set_friendly_name("result2");
+        auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
 
-            model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
+        auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
+
+        auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
+
+        auto readvalue = constructRVWithSubGraph2({convert, add2, add3}, out_type, variable);
+
+        auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+
+        auto result1 = std::make_shared<ov::op::v0::Result>(readvalue);
+
+        auto result2 = std::make_shared<ov::op::v0::Result>(add3);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
                                                 ov::SinkVector{assign},
                                                 ov::ParameterVector{input});
-
-            ov::pass::Manager manager;
-            manager.register_pass<ov::intel_cpu::MoveReadValueInputsToSubgraph>();
-            manager.run_passes(model);
-        }
-        {
-            auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
-
-            auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
-
-            auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
-
-            auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
-
-            auto readvalue = constructRVWithSubGraph2({convert, add2, add3}, out_type, variable);
-
-            auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
-
-            auto result1 = std::make_shared<ov::op::v0::Result>(readvalue);
-
-            auto result2 = std::make_shared<ov::op::v0::Result>(add3);
-
-            model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
-                                                    ov::SinkVector{assign},
-                                                    ov::ParameterVector{input});
-        }
-        auto res = compare_functions(model, model_ref, 0, 0, 0, 0, 0, 0);
-        ASSERT_TRUE(res.first) << res.second;
     }
+    manager.register_pass<ov::intel_cpu::MoveReadValueInputsToSubgraph>();
+}
+
+static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubGraph3(
+    std::shared_ptr<ov::op::v0::Parameter> input_lhs,
+    std::shared_ptr<ov::op::v0::Parameter> input_rhs,
+    std::shared_ptr<ov::op::util::Variable> variable) {
+    auto func_input_lhs =
+        std::make_shared<ov::op::v0::Parameter>(input_lhs->get_element_type(), input_lhs->get_output_partial_shape(0));
+    auto func_input_rhs =
+        std::make_shared<ov::op::v0::Parameter>(input_rhs->get_element_type(), input_rhs->get_output_partial_shape(0));
+
+    auto add = std::make_shared<ov::op::v1::Add>(func_input_lhs, func_input_rhs);
+    auto func_output = std::make_shared<ov::op::v0::Result>(add);
+
+    auto func = std::make_shared<ov::Model>(ov::OutputVector({func_output}),
+                                            ov::ParameterVector{func_input_lhs, func_input_rhs},
+                                            "state_init_submodel_no_const");
+
+    auto readvalue = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(variable, func);
+    readvalue->set_input(input_lhs->output(0), func_input_lhs);
+    readvalue->set_input(input_rhs->output(0), func_input_rhs);
+    readvalue->set_output(func_output);
+    readvalue->validate_and_infer_types();
+
+    return readvalue;
+}
+
+TEST(TransformationTests, ReadValueWithSubgraph_Serialize) {
+    const ov::PartialShape shape{1, 1, 2};
+    const ov::element::Type type = ov::element::f32;
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{1, 1, 2}, type, "var_id"});
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto input_rhs = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto readvalue = constructRVWithSubGraph3(input, input_rhs, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+    auto result = std::make_shared<ov::op::v0::Result>(readvalue);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result},
+                                             ov::SinkVector{assign},
+                                             ov::ParameterVector{input, input_rhs});
+
+    std::stringstream model_ss;
+    std::stringstream weights_ss;
+    ASSERT_NO_THROW(ov::pass::Serialize(model_ss, weights_ss).run_on_model(model));
 }

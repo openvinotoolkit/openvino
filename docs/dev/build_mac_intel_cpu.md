@@ -1,7 +1,7 @@
 # Build OpenVINO™ Runtime for macOS systems (Intel CPU)
 
 This guide shows how to build OpenVINO Runtime for later inference on Intel CPU on macOS with Intel CPU underneath. This can be done using two ways:
-- Compile on Intel CPU host using native compilation. Note, that [Build steps](#build-steps) show this scenario.
+- Compile on Intel CPU host using native compilation. Note, that [Build steps](#how-to-build) show this scenario.
 - Cross-compile on OSX Apple Silicon.
 
 The software was validated on:
@@ -20,7 +20,7 @@ The software was validated on:
   % brew install python@3.11
   ```
   - **arm64** Select universal2 installer from [Python releases](https://www.python.org/downloads/macos/) download page and install `python-3.X.Y-macos11.pkg` image. This allows to have universal python libraries of OpenVINO Python API (build x86_64) .
-- [CMake](https://cmake.org/download/) 3.13 or higher and other development tools:
+- [CMake](https://cmake.org/download/) 3.26 or higher and other development tools:
   ```sh
   % brew install cmake scons fdupes git-lfs ninja
   ```

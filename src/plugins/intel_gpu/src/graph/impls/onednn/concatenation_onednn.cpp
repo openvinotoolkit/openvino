@@ -70,7 +70,7 @@ protected:
         return std::make_shared<dnnl::concat::primitive_desc>(
             engine.get_onednn_engine(),
             output_md,
-            axis,
+            static_cast<int>(axis),
             input_mds,
             attr);
     }

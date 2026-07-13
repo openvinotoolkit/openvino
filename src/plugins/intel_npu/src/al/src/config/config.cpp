@@ -245,7 +245,16 @@ void Config::parseEnvVars() {
                            envVar,
                            opt.envVar().data());
 
-                _impl[opt.key().data()] = opt.validateAndParse(envVar);
+                try {
+                    _impl[opt.key().data()] = opt.validateAndParseFromString(envVar);
+                } catch (const std::exception& e) {
+                    _log.warning(
+                        "Environment variable '%s' with value '%s' was ignored for option '%s' due to error:\n%s",
+                        opt.envVar().data(),
+                        envVar,
+                        opt.key().data(),
+                        e.what());
+                }
             }
         }
     });
@@ -260,7 +269,16 @@ void Config::update(const ConfigMap& options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+    }
+}
+
+void Config::updateAny(const ov::AnyMap& options) {
+    for (const auto& p : options) {
+        _log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
+
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
     }
 }
 

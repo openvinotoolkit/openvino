@@ -53,6 +53,9 @@ class TestROIAlign(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
+    # TracerWarning fires inside torch.assert inside torchvision roi_align;
+    # shape is constant for all parametrize cases.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python boolean:torch.jit.TracerWarning")
     def test_roi_align(self, ie_device, precision, ir_version, input_shape, boxes, output_size,
                        spatial_scale, sampling_ratio, aligned):
         self.input_tensor = self.random.randn(*input_shape)

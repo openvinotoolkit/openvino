@@ -5,15 +5,31 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <initializer_list>
 #include <string>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+
+namespace ov {
+#ifdef _WIN32
+// Windows uses HANDLE (void*) for file handles
+using FileHandle = void*;
+// Value matches the Windows SDK: ((HANDLE)(ULONG_PTR)-1).
+// In C++20 can be constexpr if replaced with std::bit_cast<void*>(-1).
+inline const FileHandle invalid_handle = reinterpret_cast<void*>(static_cast<uintptr_t>(-1));
+#else
+// Linux/Unix uses int for file descriptors
+using FileHandle = int;
+inline constexpr FileHandle invalid_handle = -1;
+#endif
+}  // namespace ov
 
 namespace ov::util {
 
@@ -91,10 +107,15 @@ inline auto path_to_string(const std::filesystem::path& path) -> decltype(path_t
     return path_to_string(path.native());
 }
 
-/// \brief Remove path components which would allow traversing up a directory tree.
-/// \param path A path to file
-/// \return A sanitized path
-std::string sanitize_path(const std::string& path);
+/**
+ * @brief Resolves and validates a path relative to a base directory to prevent path traversal.
+ *
+ * @param base          Base directory. If empty, the current working directory is used.
+ * @param relative_path Path relative to @p dir .
+ * @return              Absolute, normalized path within @p dir.
+ * @throw std::runtime_error if the resolved path escapes the base directory.
+ */
+std::filesystem::path sanitize_path(const std::filesystem::path& base, const std::filesystem::path& relative_path);
 
 /**
  * @brief Interface function to get absolute path of file
@@ -169,7 +190,6 @@ inline bool file_exists(const Path& path) noexcept {
 std::filesystem::path get_directory(const std::filesystem::path& path);
 
 std::filesystem::path path_join(std::initializer_list<std::filesystem::path>&& paths);
-std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 /**
  * @brief Iterates over files in given directory and applies provided function to each file found.
@@ -273,5 +293,53 @@ void save_binary(const std::filesystem::path& path, const void* binary, size_t b
  * @return Pointer to trimmed file name path.
  */
 const char* trim_file_name(const char* const fname);
+
+inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
+    return util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+}
+
+/**
+ * @brief Flags controlling how a file is opened via @ref open_file.
+ */
+enum class FileMode : unsigned {
+    READ = 1u << 0,  //!< Open for reading.
+    // WRITE = 1u << 1, //!< (reserved) Open for writing.
+    DIRECT = 1u << 2,  //!< Bypass the OS page cache.
+};
+
+/// @brief Combine two @ref FileMode values.
+constexpr FileMode operator|(FileMode a, FileMode b) noexcept {
+    return static_cast<FileMode>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+
+/**
+ * @brief Returns true when **all** bits of @p flags are set in @p mode.
+ *
+ * @param mode   The @ref FileMode value to test.
+ * @param flags  The flag or combination of flags that must all be present in @p mode.
+ * @return       True if every bit in @p flags is set in @p mode; False otherwise.
+ */
+constexpr bool mode_set(FileMode mode, FileMode flags) noexcept {
+    const auto mask = static_cast<unsigned>(flags);
+    return (static_cast<unsigned>(mode) & mask) == mask;
+}
+
+/**
+ * @brief Open a file with the specified access mode.
+ *
+ * @param path  Path to the file.
+ * @param mode  Access flags. Defaults to @c FileMode::READ.
+ * @return A valid @ref FileHandle on success, or @c ov::invalid_handle on failure.
+ */
+FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::READ);
+
+/**
+ * @brief Close a file handle previously opened by @ref open_file.
+ *
+ * Safe to call with @c ov::invalid_handle (no-op).
+ *
+ * @param handle  The handle to close.
+ */
+void close_file(FileHandle handle);
 
 }  // namespace ov::util

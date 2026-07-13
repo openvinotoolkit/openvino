@@ -77,6 +77,8 @@ public:
  */
 class IContextStore {
 public:
+    virtual ~IContextStore() = default;
+
     /**
      * @brief Writes context to the storage
      * @param context The context to be stored
@@ -87,7 +89,13 @@ public:
      * @brief Gets context from the storage
      * @return The stored context
      */
-    virtual ov::weight_sharing::Context get_context() const = 0;
+    virtual std::shared_ptr<ov::wsh::Context> get_context() const = 0;
+
+    /**
+     * @brief Initializes the context store with the provided weight sharing context
+     * @param weight_sharing_context The weight sharing context to initialize the store with.
+     */
+    virtual void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context) = 0;
 };
 
 /**

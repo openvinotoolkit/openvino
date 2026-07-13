@@ -28,6 +28,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -37,6 +38,7 @@
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
+#include "shared_context_manager.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -291,6 +293,11 @@ std::string get_blob_id_or_compute(const ov::AnyMap& user_config, std::function<
     } else {
         return calculate_blob_id();
     }
+}
+
+ov::SharedContextManager& get_cache_wsh_ctx_manager() {
+    static ov::SharedContextManager s_cache_wsh_ctx_manager;
+    return s_cache_wsh_ctx_manager;
 }
 }  // namespace
 
@@ -863,36 +870,29 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
-    auto res = import_compiled_model(plugin, {}, config, model);
+    auto compiled_model = import_compiled_model(plugin, {}, config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (res) {
+    if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
+
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
-
-        const auto& cache_mode_it = config.find(cache_mode.name());
-        if (cache_mode_it != config.end() && cache_mode_it->second == CacheMode::OPTIMIZE_SIZE) {
-            const auto& rt_info = model->get_rt_info();
-            auto weights_path = rt_info.find("__weights_path");
-            if (weights_path != rt_info.end()) {
-                parsed.m_config[ov::weights_path.name()] = weights_path->second;
-            }
-        }
-
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
-        res = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
+        compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
         });
     } else {
-        res = plugin.compile_model(model, parsed.m_config);
+        compiled_model = plugin.compile_model(model, parsed.m_config);
     }
-    return res;
+    return compiled_model;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
@@ -910,25 +910,29 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         parse_device_name_into_config(device_name, m_core_config, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
-    auto res = import_compiled_model(plugin, context, parsed.m_config, model);
+    auto compiled_model = import_compiled_model(plugin, context, parsed.m_config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (res) {
+    if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
-        res = load_model_from_cache(cache_content, plugin, parsed.m_config, context, [&]() {
+
+        const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
+        compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, context, cache_content);
         });
     } else {
-        res = plugin.compile_model(model, context, parsed.m_config);
+        compiled_model = plugin.compile_model(model, context, parsed.m_config);
     }
-    return res;
+    return compiled_model;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem::path& model_path,
@@ -948,6 +952,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         });
@@ -978,6 +984,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
         });
@@ -1487,13 +1495,23 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& plugin,
                                                                     const std::shared_ptr<const ov::Model>& model,
-                                                                    const ov::AnyMap& parsedConfig,
+                                                                    const ov::AnyMap& parsed_config,
                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                    const CacheContent& cacheContent) const {
+                                                                    const CacheContent& cache_content) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
-    ov::SoPtr<ov::ICompiledModel> compiled_model =
-        context ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
-    if (cacheContent.m_cache_manager && device_supports_model_caching(plugin)) {
+
+    const auto get_cfg_with_shared_ctx = [](auto&& parsed_config, auto&& cache_content) {
+        auto config_with_shared_ctx = parsed_config;
+        config_with_shared_ctx.emplace(ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
+        return config_with_shared_ctx;
+    };
+    const auto& cfg =
+        cache_content.m_shared_ctx && device_supports_internal_property(plugin, ov::internal::model_sharing_context)
+            ? get_cfg_with_shared_ctx(parsed_config, cache_content)
+            : parsed_config;
+
+    auto compiled_model = context ? plugin.compile_model(model, context, cfg) : plugin.compile_model(model, cfg);
+    if (cache_content.m_cache_manager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
@@ -1502,21 +1520,38 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                 compiled_model_runtime_properties =
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
-            cacheContent.m_cache_manager->write_cache_entry(cacheContent.m_blob_id, [&](std::ostream& networkStream) {
+            try {
+                if (cache_content.m_shared_ctx) {
+                    compiled_model->m_weight_context = cache_content.m_shared_ctx->get_context();
+                    auto ctx = compiled_model->get_property(ov::internal::model_sharing_context.name())
+                                   .as<ov::internal::WeightSharingCtxPtr>();
+                    if (ctx) {
+                        cache_content.m_shared_ctx->write_context(*ctx);
+                    }
+                }
+            } catch (const ov::Exception&) {
+                // do nothing if compile model will not return it
+            }
+            // write compiled blob
+            cache_content.m_cache_manager->write_cache_entry(cache_content.m_blob_id, [&](std::ostream& stream) {
                 uint32_t header_size_alignment{};
                 if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
                     header_size_alignment =
                         plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
                 }
 
-                networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
-                                                        ov::ModelCache::calculate_file_info(cacheContent.m_model_path),
-                                                        compiled_model_runtime_properties,
-                                                        header_size_alignment);
-                compiled_model->export_model(networkStream);
+                stream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
+                                                 ov::ModelCache::calculate_file_info(cache_content.m_model_path),
+                                                 compiled_model_runtime_properties,
+                                                 header_size_alignment);
+                compiled_model->export_model(stream);
             });
+        } catch (const std::ios_base::failure&) {
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+        } catch (const ov::Exception&) {
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (...) {
-            cacheContent.m_cache_manager->remove_cache_entry(cacheContent.m_blob_id);
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
             throw;
         }
     }
@@ -1524,7 +1559,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
-    const CacheContent& cacheContent,
+    const CacheContent& cache_content,
     ov::Plugin& plugin,
     const ov::AnyMap& config,
     const ov::SoPtr<ov::IRemoteContext>& context,
@@ -1532,13 +1567,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};
 
-    OPENVINO_ASSERT(cacheContent.m_cache_manager != nullptr);
+    OPENVINO_ASSERT(cache_content.m_cache_manager != nullptr);
 
     try {
-        cacheContent.m_cache_manager->read_cache_entry(
-            cacheContent.m_blob_id,
-            cacheContent.m_mmap_enabled &&
-                device_supports_internal_property(plugin, ov::internal::caching_with_mmap.name()),
+        cache_content.m_cache_manager->read_cache_entry(
+            cache_content.m_blob_id,
+            cache_content.m_mmap_enabled && device_supports_internal_property(plugin, ov::internal::caching_with_mmap),
             [&](ICacheManager::CompiledBlobVariant& compiled_blob) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
@@ -1557,13 +1591,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                                            }};
                     std::visit(header_reader, compiled_blob);
 
-                    if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.m_model_path)) {
+                    if (header.get_file_info() != ov::ModelCache::calculate_file_info(cache_content.m_model_path)) {
                         // Original file is changed, don't use cache
                         OPENVINO_THROW("Original model file is changed");
                     }
-                    if (device_supports_internal_property(
-                            plugin,
-                            ov::internal::compiled_model_runtime_properties_supported.name())) {
+                    if (device_supports_internal_property(plugin,
+                                                          ov::internal::compiled_model_runtime_properties_supported)) {
                         ov::AnyMap compiled_model_runtime_properties = {
                             {ov::internal::compiled_model_runtime_properties.name(),
                              std::string(header.get_runtime_info())}};
@@ -1588,8 +1621,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
-                if (cacheContent.model && plugin.is_property_supported(ov::hint::model.name())) {
-                    update_config[ov::hint::model.name()] = cacheContent.model;
+                if (cache_content.model && plugin.is_property_supported(ov::hint::model.name())) {
+                    update_config[ov::hint::model.name()] = cache_content.model;
                 }
 
                 if (plugin.is_property_supported(ov::weights_path.name())) {
@@ -1599,12 +1632,18 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         path_hint != update_config.end()) {
                         weights_path = path_hint->second.as<std::string>();
                     } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
-                        weights_path = cacheContent.m_model_path;
+                        weights_path = cache_content.m_model_path;
                     }
                     weights_path.replace_extension(".bin");
 
                     if (ov::util::file_exists(weights_path)) {
                         update_config[ov::weights_path.name()] = util::path_to_string(weights_path);
+                    }
+                }
+                if (device_supports_internal_property(plugin, ov::internal::model_sharing_context)) {
+                    if (cache_content.m_shared_ctx) {
+                        update_config.emplace(
+                            ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
                     }
                 }
 
@@ -1624,9 +1663,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
-        cacheContent.m_cache_manager->remove_cache_entry(cacheContent.m_blob_id);
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
     } catch (...) {
-        cacheContent.m_cache_manager->remove_cache_entry(cacheContent.m_blob_id);
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
     }
@@ -1635,6 +1674,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     if (!compiled_model) {
         OPENVINO_WARN("Could not load model from cache.");
         compiled_model = compile_model_lambda();
+    }
+    if (compiled_model && cache_content.m_shared_ctx) {
+        compiled_model->m_weight_context = cache_content.m_shared_ctx->get_context();
     }
 
     return compiled_model;
@@ -1735,9 +1777,8 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
     auto cfg = CacheConfig{dir, nullptr};
     if (dir.extension() == ".bin") {
-        OPENVINO_NOT_IMPLEMENTED;
+        cfg.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(dir);
     } else if (!dir.empty()) {
-        ov::util::create_directory_recursive(dir);
         cfg.m_cache_manager = std::make_shared<FileStorageCacheManager>(dir);
     }
     return cfg;

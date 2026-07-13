@@ -4,6 +4,9 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"  // For CACHE_PAGE_SIZE
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+
 #include "ocl_kernel.hpp"
 #include "ocl_kernel_builder.hpp"
 #include "ocl_common.hpp"
@@ -13,8 +16,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <set>
 #include <stdexcept>
+#include <cstdint>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -46,6 +49,16 @@ ocl_error::ocl_error(cl::Error const& err)
     : ov::Exception("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err())) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+namespace {
+cl_platform_id get_platform_id_for_device(const cl::Device& device) {
+    cl_platform_id platform = nullptr;
+    cl_int err = clGetDeviceInfo(device.get(), CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    OPENVINO_ASSERT(err == CL_SUCCESS && platform != nullptr,
+                    "[GPU] Failed to retrieve CL_DEVICE_PLATFORM, error: ", err);
+    return platform;
+}
+}  // namespace
+
 ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
@@ -65,7 +78,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
 #endif
@@ -94,6 +107,72 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
 allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const {
     return use_unified_shared_memory() ? ocl::gpu_usm::detect_allocation_type(this, memory)
                                        : allocation_type::unknown;
+}
+
+memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+#ifdef __linux__
+    OPENVINO_ASSERT(external_handle >= 0, "[GPU] External memory handle must be a valid file descriptor");
+#else
+    OPENVINO_ASSERT(external_handle != nullptr, "[GPU] External memory handle must not be null");
+#endif
+    OPENVINO_ASSERT(extension_supported("cl_khr_external_memory"),
+                    "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
+                    "external memory import is not supported");
+
+#ifndef CL_VERSION_3_0
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#else
+#ifdef _WIN32
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
+#elif defined(__linux__)
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
+#else
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#endif
+
+    cl_mem_properties props[] = {
+        static_cast<cl_mem_properties>(handle_type_token),
+#ifdef __linux__
+        static_cast<cl_mem_properties>(external_handle),
+#else
+        static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(external_handle)),
+#endif
+        0,
+    };
+
+    cl_int errcode = CL_SUCCESS;
+    auto cl_ctx = static_cast<cl_context>(get_user_context(runtime_types::ocl));
+    OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
+    const auto byte_size = layout.bytes_count();
+    cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
+    OPENVINO_ASSERT(errcode == CL_SUCCESS && imported != nullptr,
+                    "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
+                    errcode);
+
+    cl_platform_id platform = get_platform_id_for_device(get_cl_device());
+    auto& svc_stream = downcast<ocl_stream>(get_service_stream());
+    cl_command_queue q = svc_stream.get_cl_queue().get();
+    cl_int acquire_err = cl::ExternalMemoryHelper::acquire(platform, q, imported);
+    if (acquire_err != CL_SUCCESS) {
+        clReleaseMemObject(imported);
+        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR failed or unavailable, error: ", acquire_err);
+    }
+    clFinish(q);
+    cl::Buffer buf(imported, true);
+    auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, buf.get(), byte_size, allocation_type::cl_mem);
+    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(this, layout, buf, mem_tracker);
+    clReleaseMemObject(imported);
+    return memory;
+#endif
+}
+
+void ocl_engine::release_external_memory(cl_mem mem) const {
+    cl_platform_id platform = get_platform_id_for_device(get_cl_device());
+    auto& opencl_stream = downcast<ocl_stream>(get_service_stream());
+    cl_command_queue q = opencl_stream.get_cl_queue().get();
+    // If the extension entrypoint is missing, the cl_mem refcount drop on dtor will still proceed.
+    cl::ExternalMemoryHelper::release(platform, q, mem);
+    clFinish(q);
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
@@ -131,6 +210,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
     }
 }
+
 memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to create a subbuffer from a buffer allocated by a different engine");
     try {
@@ -148,7 +228,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
                                      memory.get_mem_tracker());
         } else {
             auto buffer = reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer();
-            cl_buffer_region sub_buffer_region = { byte_offset, new_layout.get_linear_size() };
+            cl_buffer_region sub_buffer_region = {byte_offset, new_layout.bytes_count()};
             auto sub_buffer = buffer.createSubBuffer({}, CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
 
             return std::make_shared<ocl::gpu_buffer>(this,
@@ -160,6 +240,18 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
+
+memory_ptr ocl_engine::create_hostbuffer(void* cpu_address,
+                                         size_t data_size,
+                                         allocation_type _allocation_type,
+                                         const layout output_layout) {
+    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
+}
+
+memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY);
+}
+
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
@@ -253,7 +345,9 @@ bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                 reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
 }
 
-void* ocl_engine::get_user_context() const {
+void* ocl_engine::get_user_context(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl,
+        "[GPU] OCL engine can only provide OCL context but requested context for ", rt_type);
     auto& cl_device = downcast<ocl_device>(*_device);
     return static_cast<void*>(cl_device.get_context().get());
 }
@@ -280,9 +374,45 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
     return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
+memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
+    cl_int err = CL_SUCCESS;
+    cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
+
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size);
+    OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
+                    "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
+    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
+                    "[GPU] shared buffer size must be a multiple of ", minimal_alignment, " bytes");
+    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
+#endif
+    cl::Buffer buffer(get_cl_context(), flags, data_size, cpu_address, &err);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
+#else
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
+#endif
+
+    std::shared_ptr<MemoryTracker> tracker = nullptr;
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    tracker = std::make_shared<MemoryTracker>(nullptr,
+                                              cpu_address,
+                                              data_size,
+                                              allocation);
+#else
+    tracker = std::make_shared<MemoryTracker>(this,
+                                              cpu_address,
+                                              data_size,
+                                              allocation);
+#endif
+
+    return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
+}
+
+
 std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type) {
     return ocl_engine::create(device, runtime_type);
 }
-
 }  // namespace ocl
 }  // namespace cldnn

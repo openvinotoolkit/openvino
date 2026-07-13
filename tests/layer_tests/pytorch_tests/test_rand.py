@@ -6,6 +6,11 @@ import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
+# Random ops produce different outputs on each trace run, so the tracer always
+# warns that the traced output doesn't match the Python function output.
+# This is expected and not actionable at the test level.
+pytestmark = pytest.mark.filterwarnings("ignore::torch.jit.TracerWarning")
+
 
 class TestInplaceNormal(PytorchLayerTest):
     def _prepare_input(self):

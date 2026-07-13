@@ -7,19 +7,23 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "npuw_transformations/kv_axes_position.hpp"
 
-namespace {
-struct KVAxesPosition {
-    uint32_t batch;
-    uint32_t seq_len;
-};
-}  // anonymous namespace
+namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
 
 namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+class LLMBlockKVCacheStrategy;
+class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
@@ -43,9 +47,24 @@ public:
         bool v_tensors_transposed_gen = false;  // generate
     };
 
+    // Factory type for creating sub-compiled-models (prefill / generate / lm_head).
+    // The default builds an ov::npuw::CompiledModel via ICompiledModel::create().
+    // Tests may inject a custom factory to inspect the transformed IR or stub the
+    // compilation stage entirely.
+    using CompiledModelFactory =
+        std::function<std::shared_ptr<ov::npuw::ICompiledModel_v0>(const std::shared_ptr<ov::Model>&,
+                                                                   const std::shared_ptr<const ov::IPlugin>&,
+                                                                   const ov::AnyMap&)>;
+
+    static std::shared_ptr<ov::npuw::ICompiledModel_v0> make_compiled_model(
+        const std::shared_ptr<ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties);
+
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                     const ov::AnyMap& properties);
+                     const ov::AnyMap& properties,
+                     CompiledModelFactory factory = make_compiled_model);
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
@@ -66,6 +85,9 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class LLMBlockKVCacheStrategy;
+    friend class LLMContinuousKVCacheStrategy;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
@@ -91,29 +113,33 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    bool m_is_block_kv_cache = false;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
-    std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
+
+    CompiledModelFactory m_compiled_model_factory;
 
     // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
-    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_generate_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
     // Support LoRA
-    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
 
     // Support prefix caching
     bool m_enable_prefix_caching = false;
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
+    uint64_t m_longrope_context_limit = 0;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 
     bool m_is_whisper = false;
     uint64_t m_eos_token_id = 0;
+    size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
 

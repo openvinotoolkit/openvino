@@ -377,6 +377,7 @@ size_t RoiPoolingKey::hash() const {
     seed = hash_combine(seed, refParams.mb);
     seed = hash_combine(seed, refParams.c);
     seed = hash_combine(seed, refParams.nb_c);
+    seed = hash_combine(seed, refParams.b_num);
     seed = hash_combine(seed, refParams.c_block);
     seed = hash_combine(seed, refParams.nb_c_blocking);
     seed = hash_combine(seed, refParams.ih);
@@ -546,9 +547,12 @@ void ROIPooling::prepareParams() {
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
 
+    const auto& featureShape = getParentEdgeAt(0)->getMemory().getStaticDims();
+
     refParams.mb = outDims[0];
     refParams.c = rnd_up(inDims[1], refParams.c_block);
     refParams.nb_c = refParams.c / refParams.c_block;
+    refParams.b_num = featureShape[0];
     refParams.ih = inDims[2];
     refParams.iw = inDims[3];
     refParams.oh = outDims[2];
@@ -619,6 +623,9 @@ private:
             if (roi_batch_ind == -1) {
                 break;
             }
+            OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                            "takes incorrect roi_ind, max roi_ind = ",
+                            jpp.b_num);
         }
 
         cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
@@ -636,6 +643,9 @@ private:
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                                "takes incorrect roi_ind, max roi_ind = ",
+                                jpp.b_num);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
                     auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
@@ -758,6 +768,9 @@ public:
             if (roi_batch_ind == -1) {
                 break;
             }
+            OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                            "takes incorrect roi_ind, max roi_ind = ",
+                            jpp.b_num);
         }
 
         cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
@@ -780,6 +793,9 @@ public:
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                                "takes incorrect roi_ind, max roi_ind = ",
+                                jpp.b_num);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
                     auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));

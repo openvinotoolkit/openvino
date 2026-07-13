@@ -9,9 +9,9 @@
 
 namespace intel_npu {
 
-struct DynamicPipeline : public Pipeline {
+class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable IDynamicGraph::GraphArguments _binding;
+        mutable std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -19,14 +19,17 @@ struct DynamicPipeline : public Pipeline {
 
         PipelinedCommandLists(size_t numCommandLists,
                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              const uint32_t& group_ordinal) {
+                              std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
+                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
             }
 
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandListHandles.push_back(_commandLists[i]->handle());
+            }
+            if (requestBinding != nullptr) {
+                _binding = requestBinding;
             }
         }
 
@@ -39,7 +42,10 @@ struct DynamicPipeline : public Pipeline {
         }
 
         void bind(IDynamicGraph* graph) {
-            graph->getBinding(_binding);
+            if (_binding == nullptr) {
+                _binding = std::make_shared<IDynamicGraph::GraphArguments>();
+                graph->getBinding(*_binding);
+            }
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
@@ -47,46 +53,24 @@ struct DynamicPipeline : public Pipeline {
         }
 
         IDynamicGraph::GraphArguments& getBinding() {
-            return _binding;
+            return *_binding;
         }
 
         void updateMutableCommandList(uint32_t arg_index,
                                       const void* arg_value,
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
-            if (arg_index < _binding._inputs.size()) {
-                _binding._inputs[arg_index].setArg(arg_value);
-                // Only store the valid shape dimensions
-                for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
-                    _binding._inputs[arg_index]._sizes[i] = shapes[i];
-                }
-
-                if (!strides.empty()) {
-                    for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
-                        _binding._inputs[arg_index]._strides[i] = strides[i];
-                    }
-                } else {
-                    // Need stride based on element but not byte, calc from shape
-                    _binding._inputs[arg_index].updateStride();
-                }
+            // The strides are already divided by element size
+            if (arg_index < _binding->_inputs.size()) {
+                _binding->_inputs[arg_index].setArg(arg_value);
+                _binding->_inputs[arg_index].setSize(shapes);
+                _binding->_inputs[arg_index].setStrides(strides);
             } else {
-                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
-                if (output_index < _binding._outputs.size()) {
-                    _binding._outputs[output_index].setArg(arg_value);
-
-                    // Only store the valid shape dimensions
-                    for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
-                        _binding._outputs[output_index]._sizes[i] = shapes[i];
-                    }
-
-                    if (!strides.empty()) {
-                        for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
-                            _binding._outputs[output_index]._strides[i] = strides[i];
-                        }
-                    } else {
-                        // Need stride based on element but not byte, calc from shape
-                        _binding._outputs[output_index].updateStride();
-                    }
+                size_t output_index = static_cast<size_t>(arg_index) - _binding->_inputs.size();
+                if (output_index < _binding->_outputs.size()) {
+                    _binding->_outputs[output_index].setArg(arg_value);
+                    _binding->_outputs[output_index].setSize(shapes);
+                    _binding->_outputs[output_index].setStrides(strides);
                 }
             }
         }
@@ -99,31 +83,30 @@ struct DynamicPipeline : public Pipeline {
     };
 
 public:
-    DynamicPipeline(const Config& config,
-                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
+                    const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                    std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
-    virtual ~DynamicPipeline() = default;
+    ~DynamicPipeline() override = default;
 
     void push() override;
     void pull() override;
     void reset() const override;
-    virtual void update_graph_arguments(uint32_t index,
-                                        const std::shared_ptr<ZeroTensor>& tensor,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
-    virtual void update_graph_arguments(uint32_t index,
-                                        const std::shared_ptr<ZeroTensor>& tensor,
-                                        size_t batch_index,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                size_t batch_index,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-protected:
+private:
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 

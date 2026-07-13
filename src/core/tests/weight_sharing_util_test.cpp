@@ -84,9 +84,9 @@ const auto create_test_model_weights_from_file = [](const std::filesystem::path&
                                                                                 w_buff->size() / 2,
                                                                                 w_buff);
 
-    auto param = std::make_shared<Parameter>(ov::element::f32, Shape{2, 200});
-    auto add = std::make_shared<Add>(param, std::make_shared<Constant>(element::f32, Shape{1, 200}, w1));
-    add = std::make_shared<Add>(add, std::make_shared<Constant>(element::f32, Shape{1, 200}, w2));
+    auto param = std::make_shared<Parameter>(ov::element::f32, Shape{2, 2000});
+    auto add = std::make_shared<Add>(param, std::make_shared<Constant>(element::f32, Shape{1, 2000}, w1));
+    add = std::make_shared<Add>(add, std::make_shared<Constant>(element::f32, Shape{1, 2000}, w2));
     return std::make_shared<ov::Model>(add->outputs(), "Test model weight from file");
 };
 
@@ -102,7 +102,7 @@ TEST_F(WeightShareExtensionTest, get_constant_id_with_descriptor) {
     create_test_weights_file(w_path);
     auto w_buffer = ov::load_mmap_object(w_path);
     auto w1 = std::make_shared<SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(w_buffer->data() + 200,
-                                                                                w_buffer->size() - 200,
+                                                                                sizeof(float) * 200,
                                                                                 w_buffer);
     auto constant = Constant(element::f32, Shape{200}, w1);
 
@@ -111,13 +111,12 @@ TEST_F(WeightShareExtensionTest, get_constant_id_with_descriptor) {
 }
 
 TEST_F(WeightShareExtensionTest, get_constant_source_buffer_check_id) {
-    GTEST_SKIP() << "Shared buffer with descriptor must but improved to pass this test";
     const auto w_path = test_dir / "weights.bin";
     create_test_weights_file(w_path);
 
     auto w_buffer = ov::load_mmap_object(w_path);
     auto w1 = std::make_shared<SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(w_buffer->data() + 200,
-                                                                                w_buffer->size() - 200,
+                                                                                sizeof(float) * 200,
                                                                                 w_buffer);
     auto constant = Constant(element::f32, Shape{200}, w1);
 
@@ -239,15 +238,15 @@ TEST_F(WeightShareExtensionTest, set_constant_buffer_with_id) {
     auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
     auto wt_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
         buffer->get_ptr<char>() + 100,
-        buffer->size(),
+        buffer->size() - 100,
         buffer,
         ov::create_base_descriptor(12, 0, buffer));
-    auto c = Constant(element::f32, Shape{1000}, wt_buffer);
+    auto c = Constant(element::f32, Shape{975}, wt_buffer);
 
     ASSERT_TRUE(weight_sharing::set_constant(shared_ctx, c));
     const auto& [const_offset, const_size, const_type] = shared_ctx.m_weight_registry[12][100];
     EXPECT_EQ(const_offset, 100);
-    EXPECT_EQ(const_size, 4000);
+    EXPECT_EQ(const_size, 4000 - 100);
     EXPECT_EQ(const_type, element::f32);
 }
 

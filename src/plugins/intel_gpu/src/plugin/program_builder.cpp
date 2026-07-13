@@ -70,6 +70,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_task_executor(task_executor)
     , m_compilation_context(compilation_context)
     , m_is_inner_program(is_inner_program) {
+    // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
+    m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
+
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
@@ -107,6 +110,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
+
+    GPU_DEBUG_LOG << "Build model name: " << m_model->get_name() << " friendly name: " << m_model->get_friendly_name() << std::endl;
     m_program = build(ops, is_inner_program);
 }
 

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,7 +31,7 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::shared_ptr<const ov::Model>&& model,
+                    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 
@@ -39,10 +41,13 @@ public:
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
-     * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
-     * init schedules are run and the result of this is set as inputs to the main compiled model.
+     * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
+     * In addition to this, the init schedules are run and the result of this is set as inputs to the main
+     * compiled model.
      */
-    void initialize(const FilteredConfig& config) override;
+    void initialize_impl(const FilteredConfig& config) override;
+
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
@@ -105,13 +110,11 @@ private:
     std::vector<GraphDescriptor> _initsGraphDesc;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
-    std::shared_ptr<const ov::Model> _model;
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> _constants;
 
-    std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
     std::shared_ptr<CommandQueue> _initsCommandQueue;
-    uint32_t _initsCommandQueueGroupOrdinal = 0;
 
     /**
      * @brief Tensors holding the L0 buffers corresponding to the inputs of the main schedule.

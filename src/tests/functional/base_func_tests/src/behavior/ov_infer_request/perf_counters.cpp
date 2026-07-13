@@ -54,6 +54,7 @@ TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
 TEST_P(OVInferRequestPerfCountersExceptionTest, perfCountWereNotEnabledExceptionTest) {
     EXPECT_ANY_THROW(req.get_profiling_info());
 }
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestPerfCountersExceptionTest);
 
 TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     req = execNet.create_infer_request();

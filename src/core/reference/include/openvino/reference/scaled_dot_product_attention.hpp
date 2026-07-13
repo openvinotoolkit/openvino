@@ -44,7 +44,7 @@ std::vector<T> create_attention_mask_from_ov_boolean(const char* mask_bool, cons
     return mask_data;
 }
 
-void slice_last_dimension(const char* input, char* output, const Shape& input_shape, size_t element_size) {
+inline void slice_last_dimension(const char* input, char* output, const Shape& input_shape, size_t element_size) {
     std::vector<int64_t> start_indices(input_shape.size(), 0);
     std::vector<int64_t> steps(input_shape.size(), 1);
     Shape output_shape = input_shape;

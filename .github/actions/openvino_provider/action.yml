@@ -43,7 +43,7 @@ inputs:
   pip_extra_url:
     description: 'Source URL hosting OpenVINO wheels, for passing to pip as --extra-index-url'
     required: false
-    default: 'https://storage.openvinotoolkit.org/simple/wheels'
+    default: 'https://storage.openvinotoolkit.org/simple/wheels/nightly'
 
 outputs:
   ov_artifact_name:
@@ -150,7 +150,7 @@ runs:
 
     - name: Upload commit OpenVINO archives
       if: steps.openvino_commit_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
       with:
         name: ${{ steps.openvino_commit_output.outputs.ov_artifact_name }}
         path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
@@ -193,7 +193,7 @@ runs:
 
     - name: Upload OpenVINO archives
       if: steps.openvino_s3_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
       with:
         name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
         path: ${{ github.workspace }}/${{ steps.openvino_s3_download.outputs.ov_package_path }}
@@ -215,8 +215,7 @@ runs:
 
         version=${rc_version:-${dev_version:-$release_version}}
 
-        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}/nightly \
-          --extra-index-url ${{ inputs.pip_extra_url }}/pre-release"
+        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}"
 
         echo "ov_version=$version" >> $GITHUB_OUTPUT
         echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT

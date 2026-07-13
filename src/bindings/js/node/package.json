@@ -1,7 +1,7 @@
 {
   "name": "openvino-node",
-  "version": "2026.1.0",
-  "description": "OpenVINO™ utils for using from Node.js environment",
+  "version": "2026.3.0",
+  "description": "OpenVINO™ Runtime for Node.js: high-performance deep learning inference on Intel CPU, GPU, and NPU.",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
     "type": "git"
@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test_setup": "node ./tests/setup.js",
-    "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
+    "test": "npm run test_setup && node --expose-gc --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
@@ -55,17 +55,17 @@
     "host": "https://storage.openvinotoolkit.org"
   },
   "keywords": [
-    "OpenVINO",
     "openvino",
     "openvino-node",
-    "openvino npm",
-    "openvino binding",
-    "openvino node.js",
-    "openvino library",
-    "intel openvino",
-    "openvino toolkit",
-    "openvino API",
-    "openvino SDK",
-    "openvino integration"
+    "intel",
+    "inference",
+    "deep-learning",
+    "machine-learning",
+    "neural-network",
+    "computer-vision",
+    "ai",
+    "ml",
+    "nodejs",
+    "typescript"
   ]
 }

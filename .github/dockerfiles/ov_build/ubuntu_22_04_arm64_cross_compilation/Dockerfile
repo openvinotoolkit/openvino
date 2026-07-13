@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -120,12 +123,14 @@ RUN cd Python-3.11.3 && make distclean && \
     make -j4 && make altinstall
 
 ENV PATH="$SCCACHE_HOME:$PATH"
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
+
+# Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 # Install Node
 ENV NODE_VERSION=21.7.3

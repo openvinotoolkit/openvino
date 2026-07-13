@@ -71,7 +71,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
   Docker:
     needs: Smart_CI
@@ -126,6 +126,8 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -183,7 +185,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCPACK_GENERATOR=TGZ \
             -DENABLE_OV_TF_FRONTEND=ON \
             -DENABLE_OV_TF_LITE_FRONTEND=ON \
@@ -202,7 +204,15 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: |
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Upload compile_commands
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: compile_commands_linux_sanitizer_${{ matrix.SANITIZER }}
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
       - name: Cmake install - OpenVINO
         run: |
@@ -231,7 +241,7 @@ jobs:
       #
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -239,7 +249,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -267,13 +277,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -351,7 +361,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_paddle_tests --gtest_print_time=1 \
                 ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
@@ -491,7 +501,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: ${{ !cancelled() }}
         with:
           name: unit-test-results-cpp_${{ matrix.SANITIZER }}
@@ -532,14 +542,14 @@ jobs:
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -584,7 +594,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests-${{ matrix.SHARD }}.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         with:
           name: func-test-results-cpp_${{ matrix.SANITIZER }}_${{ matrix.SHARD }}
