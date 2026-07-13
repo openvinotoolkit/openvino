@@ -130,7 +130,12 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (weights_pshape.size() != 2) {
-        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        // Detect 3D weights being passed to oneDNN
+        if (supports_immad && weights_pshape.size() == 4 && weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+            return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
+        } else {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
     }
 
     if (supports_immad) {
