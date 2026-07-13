@@ -127,36 +127,35 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     return cache.at(device);
 }
 
-// Mirrors oneDNN's dnnl::impl::gpu::intel::compute::mayiuse_microkernels() fast path
-// (thirdparty/onednn_gpu/.../gpu/intel/compute/ukernels.cpp). Driver/runtime versions at or
-// above runtime_version_t(24, 22, 29735) are known to support the vISA features required by
-// microkernels, so the igc_check probe build can be skipped. The parsing follows
-// xpu::runtime_version_t::set_from_string() (integer value of the first three dot-separated
-// fields); keeping it identical to oneDNN guarantees OpenVINO's decision matches oneDNN's own
-// microkernel acceptance. Versions below the threshold, or strings without at least two dot
-// separators, return false and fall back to the authoritative igc_check build below.
-static bool driver_version_supports_microkernels(const std::string& driver_version) {
-    const auto dot1 = driver_version.find('.');
-    if (dot1 == std::string::npos)
-        return false;
-    const auto dot2 = driver_version.find('.', dot1 + 1);
-    if (dot2 == std::string::npos)
-        return false;
-    int major = 0, minor = 0, build = 0;
-    try {
-        major = std::stoi(driver_version.substr(0, dot1));
-        minor = std::stoi(driver_version.substr(dot1 + 1, dot2 - dot1 - 1));
-        build = std::stoi(driver_version.substr(dot2 + 1));
-    } catch (const std::exception&) {
-        return false;
+static bool parse_driver_version(const std::string& driver_version, size_t num_components, std::vector<int>& components) {
+    components.assign(num_components, 0);
+    const char* first = driver_version.data();
+    const char* last = driver_version.data() + driver_version.size();
+    for (size_t i = 0; i < num_components; i++) {
+        auto [ptr, ec] = std::from_chars(first, last, components[i]);
+        if (ec != std::errc())
+            return false;
+        if (i + 1 < num_components) {
+            // Expect a '.' separator before the next component
+            if (ptr == last || *ptr != '.')
+                return false;
+            first = ptr + 1;
+        }
     }
+    return true;
+}
 
-    // Lexicographic comparison against oneDNN's threshold runtime_version_t(24, 22, 29735).
-    if (major != 24)
-        return major > 24;
-    if (minor != 22)
-        return minor > 22;
-    return build >= 29735;
+static bool driver_version_supports_microkernels(const std::string& driver_version) {
+    std::vector<int> v;
+#ifdef _WIN32
+    if (!parse_driver_version(driver_version, 4, v))
+        return false;
+    return std::tie(v[0], v[1], v[2], v[3]) >= std::make_tuple(31, 0, 101, 6987);
+#else
+    if (!parse_driver_version(driver_version, 3, v))
+        return false;
+    return std::tie(v[0], v[1], v[2]) >= std::make_tuple(24, 22, 29735);
+#endif
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
