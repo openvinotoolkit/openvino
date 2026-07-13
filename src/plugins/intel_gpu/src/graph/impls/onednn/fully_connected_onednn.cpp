@@ -292,19 +292,23 @@ public:
         bool has_decompression_zp = prim->decompression_zero_point.is_valid() || prim->decompression_zero_point_scalar.has_value();
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            auto decompression_zp_idx = ++idx;
-            auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
+            if (prim->decompression_zero_point.is_valid()) {
+                auto decompression_zp_idx = ++idx;
+                auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
 
-            if (dzp_layout.count() == 1) {
-                _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
-            } else {
-                auto ngroups = dzp_layout.get_dim(1);
-                if (ngroups == 1) {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
+                if (dzp_layout.count() == 1) {
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
+                    auto ngroups = dzp_layout.get_dim(1);
+                    if (ngroups == 1) {
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
+                    } else {
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
+                    }
                 }
             }
+            // Note: scalar ZP (decompression_zero_point_scalar) requires no dependency node,
+            // so skip get_dependency(). The scalar value is used during inference directly.
         }
 
         const auto input_dt = impl_params->get_input_layout(0).data_type;
