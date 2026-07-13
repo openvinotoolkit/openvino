@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-13-16-41-56-000-29257338803",
+  "timestamp": "2026-07-13T16:41:56Z",
+  "run_id": "29257338803",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29257338803",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36843",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36843",
+  "author": "akashchi",
+  "category": "Flaky Test",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_flag[CPU-Python]",
+  "signature": "benchmark_app returned non-zero exit status 3221225477|Flaky Test",
+  "signature_hash": "51203fa3d66f0e88",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "Samples"
+  ],
+  "key_errors": [
+    "FAILED tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_no_warmup_flag[CPU-Python] - subprocess.CalledProcessError: Command '('benchmark_app', ...)' returned non-zero exit status 3221225477.",
+    "Exit code 3221225477 = 0xC0000005 = Windows STATUS_ACCESS_VIOLATION (access violation crash).",
+    "benchmark_app completed all 11 steps including inference and stats dumping, crash occurred on process exit."
+  ],
+  "root_cause": "benchmark_app.exe crashed with Windows STATUS_ACCESS_VIOLATION (exit code 0xC0000005) after completing all 11 inference steps successfully. The crash occurs during process teardown/cleanup, not during inference. This is a known intermittent crash in Windows benchmark_app likely due to heap corruption or use-after-free in C++ static destructors or TBB thread pool teardown. The PR being merged (#36843) is a CI Doctor configuration change and does not touch benchmark_app or the CPU plugin, making this a pre-existing flaky test unrelated to the PR changes.",
+  "reproduction_steps": "Run: benchmark_app -i dog-224x224.bmp -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 on Windows. The crash is intermittent and may not reproduce consistently.",
+  "recommended_actions": [
+    "Re-run the failed job - the crash is transient and unrelated to the PR changes.",
+    "If the crash persists, investigate TBB thread pool teardown and static destructor ordering in benchmark_app on Windows.",
+    "Consider adding a known flaky test skip/xfail marker for this test variant on Windows."
+  ],
+  "prevention_strategies": "Mark test_benchmark_app_no_warmup_flag[CPU-Python] as conditionally skipped or xfail on Windows if the access violation recurs. Alternatively, investigate root cause in TBB/CPU plugin teardown on Windows Release builds.",
+  "historical_context": "Similar crash (test_benchmark_app_no_warmup_with_api_modes, same exit code 3221225477) observed on 2026-07-07 in run 28837974056 (PR #36738). Pattern signature_hash 058ea9d678d180f9."
+}

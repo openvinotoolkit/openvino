@@ -88,5 +88,15 @@
     "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
     "signature_hash": "18324e8563a426a9",
     "confidence": "High"
+  },
+  {
+    "investigation_id": "2026-07-13-16-41-56-000-29257338803",
+    "timestamp": "2026-07-13T16:41:56Z",
+    "run_id": "29257338803",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test",
+    "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_flag[CPU-Python]",
+    "signature_hash": "51203fa3d66f0e88",
+    "pr_number": "36843"
   }
 ]

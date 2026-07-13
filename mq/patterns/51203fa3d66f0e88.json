@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "benchmark_app returned non-zero exit status 3221225477|Flaky Test",
+  "signature_hash": "51203fa3d66f0e88",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in no_warmup test",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-13T16:41:56Z",
+  "last_seen": "2026-07-13T16:41:56Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29257338803"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36843"
+  ],
+  "recent_timestamps": [
+    "2026-07-13T16:41:56Z"
+  ]
+}
