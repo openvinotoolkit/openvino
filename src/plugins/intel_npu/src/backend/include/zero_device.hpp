@@ -37,6 +37,10 @@ public:
 
     void updateInfo(const ov::AnyMap& properties) override;
 
+    bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const override;
+
+    DeviceProperties getDeviceProperties() const override;
+
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
 

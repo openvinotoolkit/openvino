@@ -4,6 +4,7 @@
 
 #include "ze_device.hpp"
 #include "ze_common.hpp"
+#include "ze_ocl_interop.hpp"
 #include "compute_runtime/zex_common.h"
 
 #include "compute_runtime/ze_intel_gpu.h"
@@ -173,7 +174,15 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     // ZE returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
-
+    ze_device_cache_line_size_ext_t devCacheLineSize = {ZE_STRUCTURE_TYPE_DEVICE_CACHELINE_SIZE_EXT, nullptr};
+    ze_device_cache_properties_t devCacheProps = {ZE_STRUCTURE_TYPE_DEVICE_CACHE_PROPERTIES, &devCacheLineSize};
+    uint32_t count = 1;
+    info.cacheline_size = 0;
+    OV_ZE_EXPECT(ze::zeDeviceGetCacheProperties(device, &count, &devCacheProps));
+    if (count > 0) {
+        info.cacheline_size = static_cast<int32_t>(devCacheLineSize.cacheLineSize);
+    }
+    
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
 
     info.gpu_frequency = device_properties.coreClockRate;
@@ -219,6 +228,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_immad = supports_dp_properties && (dp_properties.flags & ZE_INTEL_DEVICE_MODULE_EXP_FLAG_DPAS) != 0;
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
+    info.supports_leo = ze_ocl_interop::get_instance().check_support(device);
 
     // FIXME: Could not find how to retrieve those from ZE
     info.supports_work_group_collective_functions = false;
@@ -321,6 +331,9 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
         }
         if (device_memory_access_properties.deviceAllocCapabilities) {
             memory_caps.push_back(allocation_type::usm_device);
+            if (info.supports_leo) {
+                memory_caps.push_back(allocation_type::cl_mem);
+            }
         }
     }
     if (info.supports_image) {
@@ -333,48 +346,44 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
 }  // namespace
 
 
-ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool initialize)
-: _driver(driver)
-, _device(device)
-, _info(init_device_info(driver, device))
-, _mem_caps(init_memory_caps(device, _info)) {
-    if (initialize) {
-        this->initialize();
+ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, ze_context_resource context, bool initialize_device)
+: _driver(std::move(driver))
+, _device(std::move(device))
+, _context(std::move(context))
+, _info(init_device_info(_driver.handle(), _device.handle()))
+, _mem_caps(init_memory_caps(_device.handle(), _info)) {
+    OPENVINO_ASSERT(!_driver.is_empty(), "[GPU] Expected non-empty driver when creating ze_device");
+    OPENVINO_ASSERT(!_device.is_empty(), "[GPU] Expected non-empty device when creating ze_device");
+    if (initialize_device) {
+        initialize();
     }
 }
 
 void ze_device::initialize() {
-    if (_is_initialized)
+    if (is_initialized())
         return;
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
-    OV_ZE_EXPECT(ze::zeContextCreate(_driver, &context_desc, &_context));
-    _is_initialized = true;
+    ze_context_handle_t ctx = nullptr;
+    OV_ZE_EXPECT(ze::zeContextCreate(_driver.handle(), &context_desc, &ctx));
+    _context = ze_context_resource{ctx};
 }
 
 bool ze_device::is_initialized() const {
-    return _is_initialized;
+    return _context.is_empty() == false;
 }
 
 bool ze_device::is_same(const device::ptr other) {
-    auto casted = downcast<ze_device>(other.get());
+    auto casted = std::dynamic_pointer_cast<ze_device>(other);
     if (!casted)
         return false;
 
-    if (is_initialized() && casted->is_initialized()) {
-        // Do not compare contexts as one driver can have many different contexts
-        return _device == casted->get_device() && _driver == casted->get_driver();
-    }
-    return _info.is_same_device(casted->_info);
+    return _device.handle() == casted->get_device().handle()
+        && _driver.handle() == casted->get_driver().handle();
 }
 
 void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
-}
-
-ze_device::~ze_device() {
-    if (_is_initialized)
-        OV_ZE_WARN(ze::zeContextDestroy(_context));
 }
 
 }  // namespace ze

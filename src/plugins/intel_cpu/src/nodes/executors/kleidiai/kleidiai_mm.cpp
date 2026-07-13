@@ -7,9 +7,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -23,15 +25,20 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
+#include "nodes/executors/common/offset_helper.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/arm_isa_support.h"
 #include "utils/cpu_utils.hpp"
-#include "utils/precision_support.h"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN (-3.4028235e38f)
@@ -52,7 +59,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
+    if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
 
@@ -60,6 +67,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
@@ -99,7 +107,12 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     if (!useDynamicQuant) {
         auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
         auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-        packedWeights = acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
+        if (!attrs.weightsNonTransposed) {
+            dnnlDstDesc = acl_fc_executor::makeTransposedWeightDescriptor(dnnlDstDesc, dnnlSrcDesc);
+            aclfcAttrs.isWeightsRepacked = true;
+        }
+        MemoryCPtr packedWeights =
+            acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
 
         const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
         auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(u8, Shape({rhsPackedSize}));
@@ -131,7 +144,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         MemoryPtr weightsMemory = memory.at(ARG_WEI);
         INT4_IMPL = weightsMemory->getDescPtr()->getPrecision() == element::i4;
         if (INT4_IMPL) {
-            ukernel_i4 = hasInt8MMSupport() ? &ukernel_i4_imm : &ukernel_i4_dotprod;
+            ukernel_i4 = hasArmISASupport(ArmISA::I8MM) ? &ukernel_i4_imm : &ukernel_i4_dotprod;
             BLOCK_SIZE_M_LOWP = ukernel_i4->get_m_step();
 
             mr = ukernel_i4->get_mr();
@@ -181,7 +194,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             }
 
         } else {
-            ukernel_i8 = hasInt8MMSupport() ? &ukernel_i8_imm : &ukernel_i8_dotprod;
+            ukernel_i8 = hasArmISASupport(ArmISA::I8MM) ? &ukernel_i8_imm : &ukernel_i8_dotprod;
             BLOCK_SIZE_M_LOWP = 16;
             if (!attrs.weightsNonTransposed) {
                 auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
@@ -218,33 +231,62 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                      0,
                                                      &params);
         }
-        // Create scratchpad to initialize memory for LHS in update()
-        scratchPad = context->getScratchPad();
     }
+    // Create scratchpad to initialize memory for LHS in update()
+    scratchPad = context->getScratchPad();
+}
+
+void MatMulKleidiAIExecutor::setKaiExecutorImplAsGatherMatmul() {
+    KaiExecutorImpl = IMPL_TYPE::GatherMatmul;
+}
+
+void MatMulKleidiAIExecutor::set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap) {
+    OPENVINO_ASSERT(KaiExecutorImpl == IMPL_TYPE::GatherMatmul,
+                    "gather_idx is supported only for GatherMatmul Implementation");
+    gather_idx = idxMap;
 }
 
 bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
     const auto& wgtDims = weiDesc->getShape().getStaticDims();
     // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
     // the weight is reshaped to [-1, K] in ConvertMatMulToFC
+    OPENVINO_ASSERT(wgtDims.size() == 2, "Weights Shape must be 2D");
     K = wgtDims[1];
     N = wgtDims[0];
 
     const auto& outDims = dstDesc->getShape().getStaticDims();
-    if (outDims.size() > 2) {
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul && outDims.size() == 3) {
+        M = outDims[1];
+    } else if (outDims.size() > 2) {
         M = std::accumulate(outDims.begin(), outDims.end() - 1, 1, std::multiplies<>());
     } else {
         M = outDims[0];
     }
     // Assign LHS memory
+    size_t totalScratchpadSize = 0;
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto srcPrc = srcDesc->getPrecision();
+        const auto dstPrc = dstDesc->getPrecision();
+        m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
+        m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstPrc, Shape({M, N}));
+        auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto dstSize = rnd_up(m_tmpOutputDesc->getCurrentMemSize(), 64);
+        totalScratchpadSize = srcSize + dstSize;
+    }
     if (useDynamicQuant) {
         const size_t _m_blocks = (M + BLOCK_SIZE_M_LOWP - 1) / BLOCK_SIZE_M_LOWP;
         packedlhs_block_in_bytes = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(BLOCK_SIZE_M_LOWP, K, mr, kr, sr);
-        const size_t lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
-        auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({lhsPackedSize}));
+        lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
+        lhsPackedSize = rnd_up(lhsPackedSize, 64);
+        totalScratchpadSize += lhsPackedSize;
+    }
+    if (totalScratchpadSize > 0) {
+        auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({totalScratchpadSize}));
         lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
     return true;
@@ -255,12 +297,39 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
-    auto srcDims = normalizeDimsTo2D(srcMem->getDesc().getShape().getDims());
+    auto srcDims = srcMem->getDesc().getShape().getDims();
     auto weiDims = weiMem->getDesc().getShape().getDims();
-    auto M = srcDims[0];
-    auto K = srcDims[1];
-    auto N = weiDims[0];
-
+    size_t M = 0, K = 0, N = 0;
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        OPENVINO_ASSERT(!gather_idx.empty(), "gather_idx is not set");
+        M = srcDims[1];
+        K = srcDims[2];
+        N = weiDims[0];
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        auto* input_ptr = lhsPackedMem->getDataAs<uint8_t>() + lhsPackedSize;
+        auto* output_ptr =
+            input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto tmpInput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpInputDesc, input_ptr);
+        auto tmpOutput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpOutputDesc, output_ptr);
+        auto src_offset = OffsetHelper::createOffsetHelper(*srcMem);
+        auto tmp_input_offset = OffsetHelper::createOffsetHelper(*tmpInput);
+        cpu_parallel->parallel_for(gather_idx.size(), [&](size_t m) {
+            auto* dst_row = tmp_input_offset(m);
+            const auto row_id = gather_idx[m].first;
+            const auto batch_index = gather_idx[m].second;
+            const auto* src_data = src_offset(batch_index, row_id);
+            std::memcpy(dst_row, src_data, K * element_size);
+        });
+        // update M
+        M = gather_idx.size();
+        srcMem = tmpInput;
+        dstMem = tmpOutput;
+    } else {
+        srcDims = normalizeDimsTo2D(srcDims);
+        M = srcDims[0];
+        K = srcDims[1];
+        N = weiDims[0];
+    }
     const size_t lhs_stride = K * sizeof(float);
     const size_t dst_stride_row = N * sizeof(float);
     const size_t dst_stride_col = sizeof(float);
@@ -383,6 +452,25 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                 });
             });
         }
+    }
+
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        dstMem = memory.at(ARG_DST);
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        auto* input_ptr = lhsPackedMem->getDataAs<uint8_t>() + lhsPackedSize;
+        auto* output_ptr =
+            input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto tmpInput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpInputDesc, input_ptr);
+        auto tmpOutput = std::make_shared<Memory>(executorContext->getEngine(), m_tmpOutputDesc, output_ptr);
+        auto dst_offset = OffsetHelper::createOffsetHelper(dstMem);
+        auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
+        cpu_parallel->parallel_for(gather_idx.size(), [&](size_t m) {
+            const auto* src_row = tmp_dst_offset(m);
+            const auto row_id = gather_idx[m].first;
+            const auto batch_index = gather_idx[m].second;
+            auto* dst_row = dst_offset(batch_index, row_id);
+            std::memcpy(dst_row, src_row, N * element_size);
+        });
     }
 }
 
