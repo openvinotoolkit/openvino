@@ -183,14 +183,17 @@ public:
                                 << err;
                         } else {
                             static constexpr char err[] = "in case of fp16 precision, attention_mask producer should "
-                                                          "have convert layer from fp32 to fp16";
-                            ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(result))
+                                                          "have saturation clamp + convert layer from fp32 to fp16";
+                            ASSERT_TRUE(ov::is_type<ov::op::v0::Clamp>(result))
                                 << err << ", actual type: " << result->get_type_name();
-                            ;
-                            ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(result)->get_destination_type(),
-                                      ov::element::f16)
+                            auto clamp_readers = result->output(0).get_target_inputs();
+                            ASSERT_EQ(clamp_readers.size(), 1) << err;
+                            auto cvt = clamp_readers.begin()->get_node();
+                            ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(cvt))
+                                << err << ", actual type: " << cvt->get_type_name();
+                            ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(cvt)->get_destination_type(), ov::element::f16)
                                 << err;
-                            ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(result)->get_input_element_type(0),
+                            ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(cvt)->get_input_element_type(0),
                                       ov::element::f32)
                                 << err;
                         }

@@ -14,6 +14,7 @@
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -481,7 +482,20 @@ std::shared_ptr<ov::Node> Partitioner::new_f16ic_cvt(ov::Output<ov::Node> out, o
     // The below code workarounds the issue by forcing these Convert names be
     // unique. Again, there's no guarantee we won't see such Convert names in the
     // original model(s), but the probability is quite low here.
-    auto new_src = std::make_shared<ov::op::v0::Convert>(out, type);
+    ov::Output<ov::Node> src = out;
+    if (type == ov::element::f16 && out.get_element_type() == ov::element::f32) {
+        // Downcasting an activation to f16 overflows to +-inf for values beyond
+        // the f16 finite range, and the inf turns into NaN downstream. Models
+        // with a large residual stream (e.g. gemma3, ~50-70k vs the f16 max of
+        // 65504) hit this on every f32 boundary. NPU hardware saturates on f16
+        // overflow, so saturate here too to keep the interconnect cast finite
+        // on all devices.
+        constexpr double f16_max = 65504.0;
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(out, -f16_max, f16_max);
+        clamp->set_friendly_name("Clamp_f16ic_" + std::to_string(m_f16ic_counter));
+        src = clamp;
+    }
+    auto new_src = std::make_shared<ov::op::v0::Convert>(src, type);
     new_src->set_friendly_name("Convert_f16ic_" + std::to_string(m_f16ic_counter++));
     return new_src;
 }
@@ -1231,12 +1245,16 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
     auto& bank = ens.repeated.at(func_name).matches;
 
     // Nodes we're looking for:
-    // 1. Converts
+    // 1. Converts (or the f16ic saturation Clamps standing in front of them)
     // 2. Missing in our match banks
     // 3. Its producer should be present in our match banks
-    // 4. Standing in front of results
+    // 4. Standing in front of results (a Clamp - in front of such a Convert)
+    // Note: a Clamp is visited before its Convert (topological order), so once
+    // the Clamp is registered in the bank, the Convert passes check 3 on the
+    // same sweep.
     auto test = [&](const std::shared_ptr<ov::Node>& node_ptr) {
-        if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) {  // 1
+        const bool is_convert = ov::is_type<ov::op::v0::Convert>(node_ptr);
+        if (!is_convert && !ov::is_type<ov::op::v0::Clamp>(node_ptr)) {  // 1
             return false;
         }
         const auto& this_layer_name = node_ptr->get_friendly_name();
@@ -1248,8 +1266,19 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
             return false;
         }
         const auto& these_readers = node_ptr->output(0).get_target_inputs();
-        return these_readers.size() == 1 &&
-               ov::op::util::is_output(these_readers.begin()->get_node()->shared_from_this());  // 4
+        if (these_readers.size() != 1) {
+            return false;
+        }
+        const auto reader_ptr = these_readers.begin()->get_node()->shared_from_this();
+        if (ov::op::util::is_output(reader_ptr)) {  // 4
+            return is_convert;
+        }
+        if (!is_convert && ov::is_type<ov::op::v0::Convert>(reader_ptr)) {  // 4 (Clamp)
+            const auto& cvt_readers = reader_ptr->output(0).get_target_inputs();
+            return cvt_readers.size() == 1 &&
+                   ov::op::util::is_output(cvt_readers.begin()->get_node()->shared_from_this());
+        }
+        return false;
     };
 
     for (auto&& model : model_group) {
