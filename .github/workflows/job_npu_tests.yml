@@ -116,9 +116,10 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          # Make the NPU plugin log the chosen compiler/platform.
-          OV_NPU_LOG_LEVEL: LOG_INFO
+        
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
         if: ${{ !cancelled() }}
@@ -127,9 +128,10 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          # Make the NPU plugin log the chosen compiler/platform.
-          OV_NPU_LOG_LEVEL: LOG_INFO
+
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -216,9 +218,10 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\jax\test_hf_transformers.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          # Make the NPU plugin log the chosen compiler/platform.
-          OV_NPU_LOG_LEVEL: LOG_INFO
+
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -315,8 +318,10 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          OV_NPU_LOG_LEVEL: LOG_INFO
+
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: "Install PyTorch tests requirements (group B: hf_transformers/easyocr/gfpgan/tpsmm)"
@@ -337,8 +342,10 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          OV_NPU_LOG_LEVEL: LOG_INFO
+
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       # Group C: llm is isolated. llm_build_deps.txt must be installed BEFORE llm.txt
       # (pypcre is a build-time dep of gptqmodel); llm.txt needs --no-build-isolation.
@@ -356,8 +363,10 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_llm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_llm_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        env:
-          OV_NPU_LOG_LEVEL: LOG_INFO
+
+        # To debug locally/manually, uncomment:
+        # env:
+        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
