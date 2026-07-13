@@ -123,15 +123,7 @@ OutputVector translate_to_fx(const NodeContext& context) {
     auto data = context.get_input(0);
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
-        // Skip a no-op Convert when the requested dtype already matches the
-        // input's element type. PyTorch's `_to_copy.default(dtype=same)` is
-        // semantically an identity; emitting a Convert here forces every
-        // downstream pass (precision alignment, snippets) to carry it
-        // through, where it eventually becomes a per-step jit Subgraph that
-        // scans the activation tensor for nothing.
-        if (dtype != data.get_element_type()) {
-            data = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));
-        }
+        data = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));
     }
     return {data};
 }
