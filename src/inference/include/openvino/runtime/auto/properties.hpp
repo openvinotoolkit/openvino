@@ -76,7 +76,7 @@ inline std::istream& operator>>(std::istream& is, SchedulePolicy& policy) {
 static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
 
 /**
- * @brief setting the target device utilization threshold used for hw selection logic hw in AUTO
+ * @brief Device utilization thresholds (in percent) used by AUTO for device selection.
  */
 static constexpr Property<std::map<std::string, unsigned>> devices_utilization_threshold{
     "DEVICES_UTILIZATION_THRESHOLD"};

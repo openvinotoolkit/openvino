@@ -42,6 +42,8 @@ public:
     }
 
     std::optional<float> utilization(const std::string& device_name, const std::string& device_luid) {
+        // Keep device_luid for API compatibility; current IPF metric is per device type.
+        static_cast<void>(device_luid);
         if (!m_client) {
             LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
             return std::nullopt;
