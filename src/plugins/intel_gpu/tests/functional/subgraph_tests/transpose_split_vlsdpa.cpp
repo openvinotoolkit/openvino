@@ -272,8 +272,12 @@ protected:
                                  size_t output_index) const {
         const auto* expected_data = expected.data<T>();
         const auto* actual_data = actual.data<T>();
-        constexpr float abs_tol = 1e-4f;
-        constexpr float rel_tol = 1e-4f;
+        // Use the SubgraphBaseTest-level abs_threshold / rel_threshold set in
+        // SetUp() (0.02–0.05 depending on head_size). f16 SDPA accumulates
+        // enough rounding error over head_size to invalidate a hardcoded
+        // 1e-4 tolerance — the previous 1e-4 constants matched only f32.
+        const float abs_tol = static_cast<float>(abs_threshold);
+        const float rel_tol = static_cast<float>(rel_threshold);
         for (size_t i = 0; i < expected.get_size(); ++i) {
             const float expected_value = static_cast<float>(expected_data[i]);
             const float actual_value = static_cast<float>(actual_data[i]);
