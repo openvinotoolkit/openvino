@@ -235,7 +235,8 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,       impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgemm_avx512, impl_desc_type::brgemm_avx2,
-        impl_desc_type::gemm_acl,      impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_acl,      impl_desc_type::gemm_kleidiai,
+        impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,   impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,      impl_desc_type::gemm_sse42,
         impl_desc_type::gemm_any,      impl_desc_type::gemm,
