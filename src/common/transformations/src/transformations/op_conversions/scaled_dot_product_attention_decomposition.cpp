@@ -131,8 +131,11 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
 
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
-
-    if (node->get_causal() || node->get_input_size() > 3) {
+    //if GQA node does not have mask as direct input, we set the causal true and disable explicit mask input
+    //before above change, cases either have causal = true with explict build mask or casual = false and direct mask input
+    //after above change, cases have mask = null and causual = true
+    if ((node->get_causal() || node->get_input_size() > 3) &&
+        !(node->get_causal() && node->get_input_size() < 4)) {
         Output<Node> mask;
         Output<Node> atten_mask;
         if (!node->get_causal()) {

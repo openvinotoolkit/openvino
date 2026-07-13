@@ -508,7 +508,7 @@ KERNEL(sdpa_opt)(
                         qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
 
                         // Apply attention mask
-#if IS_CAUSAL
+#if IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
