@@ -10,6 +10,7 @@ namespace ov::intel_cpu::riscv64 {
 
 class jit_exp_emitter;
 class jit_tanh_emitter;
+class jit_sigmoid_emitter;
 
 class jit_abs_emitter : public jit_emitter {
 public:
@@ -519,6 +520,40 @@ private:
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
+
+class jit_swish_emitter : public jit_emitter {
+public:
+    jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                      float alpha,
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      ov::element::Type exec_prc = ov::element::f32);
+    jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const std::shared_ptr<ov::Node>& node,
+                      ov::element::Type exec_prc = ov::element::f32);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+    size_t get_inputs_num() const override;
+
+    size_t aux_gprs_count() const override;
+
+    size_t aux_vecs_count() const override;
+
+    size_t aux_fp_gprs_count() const override;
+
+    void register_table_entries() override;
+
+    void emit_data() const override;
+
+private:
+    std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr};
+    float alpha_ = 1.0F;
+
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+};
+
 class jit_less_emitter : public jit_emitter {
 public:
     jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
