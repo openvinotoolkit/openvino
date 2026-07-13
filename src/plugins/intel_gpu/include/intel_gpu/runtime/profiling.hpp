@@ -89,8 +89,10 @@ private:
 
 /// @brief Represents profiling interval as its type and value.
 struct profiling_interval {
-    profiling_stage stage;                    ///< @brief Display name.
-    std::shared_ptr<profiling_period> value;  ///< @brief Interval value.
+    profiling_stage stage;                                              ///< @brief Display name.
+    std::shared_ptr<profiling_period> value;                            ///< @brief Interval value.
+    std::chrono::nanoseconds start = std::chrono::nanoseconds::zero();  ///< @brief Interval start timestamp.
+    bool is_valid_start = false;                                        ///< @brief Whether start is valid.
 };
 
 /// @brief Represents list of @ref profiling_interval
