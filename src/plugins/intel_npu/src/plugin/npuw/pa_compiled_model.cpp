@@ -5,6 +5,7 @@
 #include "pa_compiled_model.hpp"
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 #include <vector>
 
@@ -47,6 +48,81 @@ std::string abbrev(const std::vector<int64_t>& vals, std::size_t limit = 8) {
     }
     out << ']';
     return out.str();
+}
+
+bool try_fix_token_dim(const std::string& name, ov::PartialShape& shape, std::size_t token_dim) {
+    if (!shape.rank().is_static()) {
+        return false;
+    }
+
+    const auto rank = shape.rank().get_length();
+    const auto set_dim = [&](std::size_t idx) {
+        if (idx >= shape.size()) {
+            return false;
+        }
+        shape[idx] = static_cast<int64_t>(token_dim);
+        return true;
+    };
+
+    if (name == "input_ids" || name == "token_type_ids") {
+        return set_dim(static_cast<std::size_t>(rank - 1));
+    }
+    if (name == "position_ids") {
+        return set_dim(static_cast<std::size_t>(rank - 1));
+    }
+    if (name == "inputs_embeds" || name == "per_layer_inputs") {
+        if (rank < 2) {
+            return false;
+        }
+        return set_dim(static_cast<std::size_t>(rank - 2));
+    }
+    return false;
+}
+
+std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
+                                                       std::size_t token_dim) {
+    auto derived = base_model->clone();
+    std::map<std::string, ov::PartialShape> new_shapes;
+    bool touched = false;
+
+    for (const auto& input : derived->inputs()) {
+        auto shape = input.get_partial_shape();
+        if (try_fix_token_dim(input.get_any_name(), shape, token_dim)) {
+            new_shapes.emplace(input.get_any_name(), std::move(shape));
+            touched = true;
+        }
+    }
+
+    OPENVINO_ASSERT(touched,
+                    "PA semi-static derivation (token_dim=",
+                    token_dim,
+                    ") did not find token-driven inputs to reshape");
+    derived->reshape(new_shapes);
+    derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(token_dim));
+    return derived;
+}
+
+std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
+    const std::shared_ptr<ov::Model>& base_model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const std::string& device,
+    const ov::AnyMap& inner_config) {
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
+    constexpr std::array<std::size_t, 3> kVariantTokenDims = {1024u, 128u, 1u};
+
+    for (const auto token_dim : kVariantTokenDims) {
+        auto derived = derive_pa_semi_static_model(base_model, token_dim);
+        auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
+        OPENVINO_ASSERT(compiled != nullptr,
+                        "PA semi-static derivation failed to compile token_dim=",
+                        token_dim,
+                        " on ",
+                        device);
+        LOG_INFO("PA: compiled semi-static variant token_dim=" << token_dim << " on " << device);
+        variants.emplace(token_dim, std::move(compiled));
+    }
+
+    return variants;
 }
 
 }  // anonymous namespace
@@ -110,7 +186,8 @@ ov::npuw::PACompiledModel::PreparedState ov::npuw::PACompiledModel::prepare(
     }
     model->validate_nodes_and_infer_types();
 
-    return PreparedState{model, std::move(compiled), std::move(device)};
+    auto semi_static_compiled = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+    return PreparedState{model, std::move(compiled), std::move(semi_static_compiled), std::move(device)};
 }
 
 ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -121,7 +198,8 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
 ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::npuw::ICompiledModel(prepared.model, plugin),
       m_device(std::move(prepared.device)),
-      m_compiled_model(std::move(prepared.compiled)) {
+            m_compiled_model(std::move(prepared.compiled)),
+            m_semi_static_models(std::move(prepared.semi_static_compiled)) {
     LOG_BLOCK();
     // Trace the compiled signature -- the model expectations this story is
     // about. The device fixes the KV cache geometry at compile time.
@@ -152,6 +230,13 @@ ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::sh
                         << output.get_partial_shape());
     }
     LOG_INFO("KV block_size fixed by " << m_device << ": " << m_block_size);
+    if (!m_semi_static_models.empty()) {
+        std::ostringstream variants;
+        for (const auto& [token_dim, _] : m_semi_static_models) {
+            variants << (variants.tellp() > 0 ? ", " : "") << token_dim;
+        }
+        LOG_INFO("PA: semi-static variants ready (token_dim): " << variants.str());
+    }
 }
 
 void ov::npuw::PACompiledModel::export_model(std::ostream&) const {
