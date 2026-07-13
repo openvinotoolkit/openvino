@@ -77,6 +77,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
@@ -100,6 +101,7 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_nms_boundary_precision.hpp"
+#include "plugin/transformations/convert_batched_nms_to_multiclass_nms.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -716,6 +718,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        manager.register_pass<ov::intel_gpu::MarkBatchedNmsStaticClassCount>();
+        manager.register_pass<ov::intel_gpu::ConvertBatchedNmsToMulticlassNms>();
         manager.register_pass<ov::intel_gpu::KeepNMSBoundaryPrecision>();
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
@@ -1026,7 +1030,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
-        type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
+        type_to_fuse_map type_to_fuse = {
+            {ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert},
+            {ov::op::internal::MulticlassNmsIEInternal::get_type_info_static(),
+             [](const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+                 auto multiclass_nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(node);
+                 if (!multiclass_nms) {
+                     return false;
+                 }
+
+                 const auto output_type = multiclass_nms->get_attrs().output_type;
+                 const auto precision = precisions.find(output_type);
+                 if (precision == precisions.end()) {
+                     return false;
+                 }
+
+                 multiclass_nms->set_output_type(precision->second);
+                 return true;
+             }},
+        };
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_2,

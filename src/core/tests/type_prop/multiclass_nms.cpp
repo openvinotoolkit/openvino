@@ -275,6 +275,19 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
+TYPED_TEST(type_prop, multiclass_nms_dynamic_boxes_with_finite_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 80, Dimension::dynamic()});
+    this->attrs.nms_top_k = -1;
+    this->attrs.keep_top_k = 100;
+
+    const auto nms = make_shared<TypeParam>(boxes, scores, this->attrs);
+
+    EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 100}, 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 100}, 1}));
+    EXPECT_EQ(nms->get_output_partial_shape(2), (PartialShape{1}));
+}
+
 TYPED_TEST(type_prop, multiclass_nms_input_f16) {
     const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{2, 7, 4});
     const auto scores = make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 7});
