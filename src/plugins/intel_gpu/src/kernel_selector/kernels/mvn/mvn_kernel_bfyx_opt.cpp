@@ -6,10 +6,35 @@
 #include "kernel_selector_utils.h"
 
 #include <algorithm>
+#include <cctype>
 #include <vector>
 #include <string>
 
 namespace kernel_selector {
+namespace {
+static constexpr size_t target_items_per_wi = 8;
+static constexpr size_t max_register_stack = 16;
+
+size_t get_generalized_lws(size_t data_set_size, size_t max_lws) {
+    size_t lws = 1;
+    const size_t limit = std::max<size_t>(1, std::min(max_lws, data_set_size / target_items_per_wi));
+    while (2 * lws <= limit) {
+        lws *= 2;
+    }
+    return lws;
+}
+
+size_t get_stack_size(size_t data_set_size, size_t lws) {
+    return (data_set_size + lws - 1) / lws;
+}
+
+bool is_decimal_number(const std::string& value) {
+    return !value.empty() && std::all_of(value.begin(), value.end(), [](char c) {
+        return std::isdigit(static_cast<unsigned char>(c));
+    });
+}
+}  // namespace
+
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -43,31 +68,26 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
-    if (!params.has_dynamic_tensors()) {
-        if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-            dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v;
-            dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
-        } else {
-            dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
-            dispatchData.dataSetsCount = input.Batch().v;
-        }
+    if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
+    } else {
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
+        dispatchData.dataSetsCount = input.Batch().v;
+    }
 
-        // start with 1 thread per data set
+    if (dispatchData.dataSetSize != 0 && dispatchData.dataSetsCount != 0) {
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataSetsCount;
         dispatchData.gws[2] = 1;
-        dispatchData.itemsNum = dispatchData.dataSetSize;
 
-        dispatchData.lws[0] = 1;
+        // Generalized aboutSHW rule: choose the largest power-of-two LWS that leaves at
+        // least 8 normalized elements per work-item. This hit the physical DRAM roofline
+        // for Omni C6 vit/merger without shape-specific buckets.
+        dispatchData.lws[0] = get_generalized_lws(dispatchData.dataSetSize, max_lws);
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
-        // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
-        // reads.
-        // WA: itemsNum value has been adjusted less than or equal to 8 to increase the number of work items.
-        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
-            dispatchData.lws[0] *= 2;
-            dispatchData.itemsNum /= 2;
-        }
+        dispatchData.itemsNum = dispatchData.dataSetSize / dispatchData.lws[0];
 
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
@@ -90,17 +110,36 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
             data_set_count = dims.b();
         }
-        const std::string lws_0 = "get_local_size(0)";
+        std::string lws_0 = "get_local_size(0)";
+        size_t stack_size = max_register_stack;
+        bool reread_input = true;
+        bool uses_runtime_lws = true;
+        if (is_decimal_number(data_set_size)) {
+            const size_t static_data_set_size = std::stoul(data_set_size);
+            const size_t lws = get_generalized_lws(static_data_set_size, dispatchData.maxSlmSize);
+            const size_t required_stack = get_stack_size(static_data_set_size, lws);
+            lws_0 = std::to_string(lws);
+            stack_size = std::min(required_stack, max_register_stack);
+            reread_input = required_stack > max_register_stack;
+            uses_runtime_lws = false;
+        }
         jit.AddConstants({
+            MakeJitConstant("IS_DYNAMIC", uses_runtime_lws),
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            MakeJitConstant("MVN_STACK_SIZE", stack_size),
+            MakeJitConstant("MVN_REREAD_INPUT", reread_input),
         });
     } else {
+        const size_t stack_size = get_stack_size(dispatchData.dataSetSize, dispatchData.lws[0]);
         jit.AddConstants({
+            MakeJitConstant("IS_DYNAMIC", false),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
+            MakeJitConstant("MVN_STACK_SIZE", std::min(stack_size, max_register_stack)),
+            MakeJitConstant("MVN_REREAD_INPUT", stack_size > max_register_stack),
         });
     }
     auto activation_dt = GetActivationType(params);
