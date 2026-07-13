@@ -417,7 +417,8 @@ std::vector<std::string> Tensor::get_data() const {
         FRONT_END_GENERAL_CHECK(!m_tensor_place->is_raw(), "Loading strings from raw data isn't supported");
         const auto& data_any = m_tensor_place->get_data_any();
 
-        // Support both std::vector<std::string> (with copy) and const std::string* (without copy)
+        // Support both std::vector<std::string> and const std::string*; both are copied into the
+        // returned std::vector, but the const std::string* path avoids an intermediate copy during decode
         if (data_any.is<std::vector<std::string>>()) {
             return data_any.as<std::vector<std::string>>();
         } else if (data_any.is<const std::string*>()) {
