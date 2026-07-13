@@ -352,8 +352,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_ceil_last_window_start
     const auto model = convert_model("average_pool_2d_ceil_last_window_starts_on_pad.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({0.858f, 0.0786f, 0.2692f, 0.1537f, 0.8816f, 0.4353f, 0.5772f, 0.6623f, 0.9067f,
-                                0.9483f, 0.597f, 0.763f});
+    test_case.add_input<float>(
+        {0.858f, 0.0786f, 0.2692f, 0.1537f, 0.8816f, 0.4353f, 0.5772f, 0.6623f, 0.9067f, 0.9483f, 0.597f, 0.763f});
     test_case.add_expected_output<float>(Shape{1, 3, 1, 1}, {0.15105554f, 0.28404441f, 0.35722222f});
     test_case.run();
 }
