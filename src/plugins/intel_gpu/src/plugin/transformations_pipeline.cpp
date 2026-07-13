@@ -733,6 +733,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const auto& [original_type, target_type] = *it;
 
+            // Nothing to preserve when f16 is not actually converted away
+            if (original_type == target_type) {
+                return false;
+            }
+
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
                 node->input(i).replace_source_output(convert);

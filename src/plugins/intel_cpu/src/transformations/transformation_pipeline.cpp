@@ -587,6 +587,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
         const auto& [original_type, target_type] = *it;
 
+        // Nothing to preserve when f16 is not actually converted away (guards a f16->f16 entry)
+        if (original_type == target_type) {
+            return false;
+        }
+
         // Convert inputs back to the original f16 type so the node keeps f16 I/O
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
