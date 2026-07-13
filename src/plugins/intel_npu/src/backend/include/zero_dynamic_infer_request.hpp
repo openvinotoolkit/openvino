@@ -32,16 +32,16 @@ protected:
                                       const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                       const std::optional<size_t>& batchSize = std::nullopt) override;
 
-    void predict_output_shapes(std::vector<MemRefType>& outputMemRef);
-    void check_tensor_and_predicted_shapes(const std::vector<MemRefType>& outputMemRef);
+    void predict_output_shapes(std::vector<ov::Shape>& predictedShapes);
+    void check_tensor_and_predicted_shapes(const std::vector<ov::Shape>& predictedShapes);
 
-    void update_tensor(const std::vector<MemRefType>& outputMemRef);
+    void update_tensor(const std::vector<ov::Shape>& predictedShapes);
 
     bool _isTensorChanged = false;
 
 private:
-    // Store the vm context before predicted output shapes
-    std::shared_ptr<DynamicArguments> _arguments;
+    // VM execution context shared with the pipeline; created lazily, reused across inferences.
+    std::shared_ptr<VMExecutionContext> _executionContext = std::make_shared<VMExecutionContext>();
 };
 
 }  //  namespace intel_npu

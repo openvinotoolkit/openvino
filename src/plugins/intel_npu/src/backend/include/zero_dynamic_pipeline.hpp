@@ -10,26 +10,36 @@
 
 namespace intel_npu {
 
+// VM runtime execution context owner. The handle is created lazily and shared between
+// shape prediction (infer request) and execution (pipeline) so the same context is reused.
+struct VMExecutionContext {
+    npu_vm_runtime_execution_context_handle_t _handle = nullptr;
+
+    VMExecutionContext() = default;
+    VMExecutionContext(const VMExecutionContext&) = delete;
+    VMExecutionContext& operator=(const VMExecutionContext&) = delete;
+    VMExecutionContext(VMExecutionContext&&) = delete;
+    VMExecutionContext& operator=(VMExecutionContext&&) = delete;
+    ~VMExecutionContext();
+
+    // Create the context for vmRuntime if not created yet; returns the handle.
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
+};
+
 struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
 
-    // Save the memref handle to a vector for VM execution and prediction to extend its lifetime.
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
-
-    // Share runtime_execution_context in param during VM execution and forecasting
-    npu_vm_runtime_execute_params_t _executeParams = {};
+    // True once the command lists have been recorded by a first npuVMRuntimeExecute call. Subsequent
+    // executions can be replayed without re-recording when no tensor changed (see execute_vm_runtime).
+    bool _commandListsRecorded = false;
 
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;
     DynamicArguments& operator=(const DynamicArguments&) = delete;
     DynamicArguments(DynamicArguments&&) = delete;
     DynamicArguments& operator=(DynamicArguments&&) = delete;
-    ~DynamicArguments();
-
-    // Create the VM execution context for vmRuntime. No-op if already created.
-    void ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime);
+    ~DynamicArguments() = default;
 
     void setArgumentProperties(uint32_t argi,
                                const void* argv,
@@ -45,9 +55,7 @@ class DynamicPipeline final : public IPipeline {
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists,
-                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              std::shared_ptr<DynamicArguments> requestArguments) {
+        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -57,11 +65,7 @@ class DynamicPipeline final : public IPipeline {
                 _commandListHandles.push_back(_commandLists[i]->handle());
             }
 
-            if (requestArguments != nullptr) {
-                _arguments = requestArguments;
-            } else {
-                _arguments = std::make_shared<DynamicArguments>();
-            }
+            _arguments = std::make_shared<DynamicArguments>();
         }
 
         size_t size() const {
@@ -137,7 +141,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    std::shared_ptr<DynamicArguments> requestArguments,
+                    std::shared_ptr<VMExecutionContext> executionContext,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
@@ -155,12 +159,13 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    // Predicts VM runtime output shape. Independent of pipeline instance state, this depends only on the VM runtime
+    // Predicts VM runtime output shapes for the given input/output tensors. A nullptr tensor entry falls
+    // back to the graph metadata max shape. Independent of pipeline instance state, this depends only on the VM runtime
     // handle and argument-provided context, making it a static method.
-    static void predict_output_shape(const IGraph& graph,
-                                     DynamicArguments& args,
-                                     std::vector<MemRefType>& inputsMemRef,
-                                     std::vector<MemRefType>& outputsMemRef);
+    static std::vector<ov::Shape> predict_output_shapes(const IGraph& graph,
+                                                        VMExecutionContext& executionContext,
+                                                        const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+                                                        const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
@@ -170,6 +175,8 @@ private:
                             ze_fence_handle_t fence,
                             ze_event_handle_t event);
 
+    // Shared VM execution context (owned by the infer request), reused across all command lists.
+    std::shared_ptr<VMExecutionContext> _executionContext;
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 
