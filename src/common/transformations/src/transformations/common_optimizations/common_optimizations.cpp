@@ -35,6 +35,8 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
+#include "transformations/common_optimizations/normalize_vllm_rope.hpp"
+#include "transformations/common_optimizations/erase_redundant_convert_pair.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -258,6 +260,16 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // that didn't enabled BitwiseOps from opset13 and to allow for constant
     // folding for bool inputs
     REGISTER_PASS(manager, ConvertBitwiseToLogical)
+
+    // vLLM torch.compile canonicalization: rewrite RoPE subgraph into the
+    // form plugin RoPEFusion matches; elide identity / round-trip Converts
+    // that mixed-precision passes leave behind. Runs late in
+    // CommonOptimizations so ConvertSubtract has already fired. All plugins
+    // that invoke CommonOptimizations inherit these; NormalizeVLLMMLP stays
+    // in the plugin postLPT phase because LPT re-inserts Converts around
+    // MatMul that only the postLPT position can canonicalize.
+    REGISTER_PASS(manager, NormalizeVLLMRoPE)
+    REGISTER_PASS(manager, EraseRedundantConvertPair)
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
