@@ -417,14 +417,17 @@ std::vector<std::string> Tensor::get_data() const {
         FRONT_END_GENERAL_CHECK(!m_tensor_place->is_raw(), "Loading strings from raw data isn't supported");
         const auto& data_any = m_tensor_place->get_data_any();
 
-        // Support both std::vector<std::string> and const std::string*; both are copied into the
-        // returned std::vector, but the const std::string* path avoids an intermediate copy during decode
+        // Support both std::vector<std::string> (copy is already owned) and const std::string*
+        // (no intermediate copy at decode time; still copied here when returning std::vector)
         if (data_any.is<std::vector<std::string>>()) {
             return data_any.as<std::vector<std::string>>();
         } else if (data_any.is<const std::string*>()) {
             const auto* str_ptr = data_any.as<const std::string*>();
             const auto count = m_tensor_place->get_data_size();
-            FRONT_END_GENERAL_CHECK(str_ptr != nullptr || count == 0, "String tensor data pointer is null");
+            if (count == 0) {
+                return {};
+            }
+            FRONT_END_GENERAL_CHECK(str_ptr != nullptr, "String tensor data pointer is null");
             return std::vector<std::string>(str_ptr, str_ptr + count);
         }
 

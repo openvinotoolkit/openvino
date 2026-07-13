@@ -93,18 +93,18 @@ private:
     bool m_done = false;
 };
 
-std::shared_ptr<ov::Model> convert_single_string_tensor(TensorMetaInfo info) {
+void convert_single_string_tensor(TensorMetaInfo info, std::shared_ptr<ov::Model>& model) {
     auto decoder = std::make_shared<SingleTensorDecoder>(std::move(info));
     auto iterator = std::make_shared<SingleTensorGraphIterator>(decoder);
     auto graph_iter = std::dynamic_pointer_cast<GraphIterator>(iterator);
 
     auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
-    EXPECT_NE(frontend, nullptr);
-    EXPECT_TRUE(frontend->supported(graph_iter));
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iter));
 
     auto input_model = frontend->load(graph_iter);
-    EXPECT_NE(input_model, nullptr);
-    return frontend->convert(input_model);
+    ASSERT_NE(input_model, nullptr);
+    model = frontend->convert(input_model);
 }
 
 }  // namespace
@@ -128,7 +128,7 @@ TEST(StringTensorExternalData, ConstStringPointerPath_ThroughConvert) {
     info.m_is_raw = false;
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_single_string_tensor(info));
+    ASSERT_NO_THROW(ASSERT_NO_FATAL_FAILURE(convert_single_string_tensor(info, model)));
     ASSERT_NE(model, nullptr);
 
     ASSERT_EQ(model->get_results().size(), 1u);
@@ -154,7 +154,7 @@ TEST(StringTensorExternalData, VectorStringPath_ThroughConvert) {
     info.m_is_raw = false;
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_single_string_tensor(info));
+    ASSERT_NO_THROW(ASSERT_NO_FATAL_FAILURE(convert_single_string_tensor(info, model)));
     ASSERT_NE(model, nullptr);
 
     ASSERT_EQ(model->get_results().size(), 1u);
