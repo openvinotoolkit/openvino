@@ -378,6 +378,19 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 def dump_exec_graph(compiled_model, model_path):
     serialize(compiled_model.get_runtime_model(), model_path)
 
+def get_gpu_exec_time_ms(profiling_info):
+    """Return GPU execution time in milliseconds for one inference request.
+
+    Sums real_time of all EXECUTED nodes (compute kernels, copy-engine operations,
+    and inter-kernel synchronisation), giving the elapsed GPU timeline from the
+    start of the first kernel to the end of the last kernel.
+    """
+    total = timedelta()
+    for pi in profiling_info:
+        if str(pi.status) == "Status.EXECUTED":
+            total += pi.real_time
+    return total / timedelta(milliseconds=1)
+
 def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
     """ Print opts time cost and can be sorted according by each opts time cost
     """

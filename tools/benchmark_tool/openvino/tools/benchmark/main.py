@@ -19,7 +19,8 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     process_help_inference_string, print_perf_counters, print_perf_counters_sort, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static, can_measure_as_static, parse_value_for_virtual_device, is_virtual_device, is_virtual_device_found
+    check_for_static, can_measure_as_static, parse_value_for_virtual_device, is_virtual_device, is_virtual_device_found, \
+    get_gpu_exec_time_ms
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
 
@@ -233,6 +234,10 @@ def main():
                 logger.warning(f"Turn on performance counters for {device} device " +
                                f"since pcsort value is {args.perf_counts_sort}.")
                 config[device][properties.enable_profiling()] = True if args.perf_counts_sort else False
+            elif is_flag_set_in_command_line('gpu_exec_time') and args.gpu_exec_time:
+                logger.warning(f"Turn on performance counters for {device} device " +
+                               "since -gpu_exec_time is enabled.")
+                config[device][properties.enable_profiling()] = True
             else:
                 ## set to default value
                 config[device][properties.enable_profiling()] = args.perf_counts
@@ -641,7 +646,18 @@ def main():
         if static_mode or len(benchmark.latency_groups) == 1:
             pcseq = False
 
-        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, pcseq)
+        if args.enqueue_time_us and benchmark.api_type == 'sync':
+            logger.warning("-enqueue_time_us is available only for async API and will be skipped in sync mode.")
+
+        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration, \
+            enqueue_avg_us, enqueue_min_us, enqueue_max_us = benchmark.main_loop(
+                requests,
+                data_queue,
+                batch_size,
+                args.latency_percentile,
+                pcseq,
+                args.enqueue_time_us,
+            )
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -721,7 +737,6 @@ def main():
                                       [
                                           ('throughput', f'{fps:.2f}'),
                                       ])
-            statistics.dump()
 
         try:
             exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
@@ -753,6 +768,39 @@ def main():
                     logger.info(f'   Max:        {group.max:.2f} ms')
 
         logger.info(f'Throughput:   {fps:.2f} FPS')
+
+        if args.enqueue_time_us and enqueue_avg_us is not None:
+            logger.info('Enqueue walltime (host-side start_async only):')
+            logger.info(f'   Average:       {enqueue_avg_us:.2f} us')
+            logger.info(f'   Min:           {enqueue_min_us:.2f} us')
+            logger.info(f'   Max:           {enqueue_max_us:.2f} us')
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('enqueue walltime avg (us)', f'{enqueue_avg_us:.2f}'),
+                                              ('enqueue walltime min (us)', f'{enqueue_min_us:.2f}'),
+                                              ('enqueue walltime max (us)', f'{enqueue_max_us:.2f}'),
+                                          ])
+
+        if args.gpu_exec_time:
+            gpu_times_ms = [get_gpu_exec_time_ms(request.profiling_info) for request in requests]
+            avg_gpu_ms = sum(gpu_times_ms) / len(gpu_times_ms)
+            min_gpu_ms = min(gpu_times_ms)
+            max_gpu_ms = max(gpu_times_ms)
+            logger.info('GPU execution time (first kernel start to last kernel end):')
+            logger.info(f'   Average:       {avg_gpu_ms:.2f} ms')
+            logger.info(f'   Min:           {min_gpu_ms:.2f} ms')
+            logger.info(f'   Max:           {max_gpu_ms:.2f} ms')
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('gpu exec time avg (ms)', f'{avg_gpu_ms:.2f}'),
+                                              ('gpu exec time min (ms)', f'{min_gpu_ms:.2f}'),
+                                              ('gpu exec time max (ms)', f'{max_gpu_ms:.2f}'),
+                                          ])
+
+        if statistics:
+            statistics.dump()
 
         del compiled_model
 

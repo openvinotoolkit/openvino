@@ -187,6 +187,14 @@ def parse_args():
                            '  simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order', )
     stat.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report latencies for each shape in -data_shape sequence.', )
+    stat.add_argument('-gpu_exec_time', '--gpu_exec_time', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Measure and report GPU execution time per inference: elapsed GPU timeline '
+                           'from the start of the first kernel to the end of the last kernel (sum of real_time '
+                           'for all EXECUTED nodes including copy-engine and sync operations, excluding host overhead). '
+                           'Enables performance counters automatically.')
+        stat.add_argument('-enqueue_time_us', '--enqueue_time_us', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Measure and report host-side enqueue walltime per inference request in microseconds '
+                          '(time spent in start_async API call only). Does not require performance counters.')
     advs.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
     stat.add_argument('-dump_config', type=str, required=False, default='',

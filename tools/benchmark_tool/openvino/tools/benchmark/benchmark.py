@@ -112,11 +112,12 @@ class Benchmark:
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         return sorted(times), total_duration_sec, iteration
 
-    def async_inference_only(self, infer_queue, data_queue):
+    def async_inference_only(self, infer_queue, data_queue, collect_enqueue_time=False):
         processed_frames = 0
         exec_time = 0
         iteration = 0
         times = []
+        enqueue_times_us = []
         in_fly = set()
         start_time = datetime.utcnow()
         while (self.niter and iteration < self.niter) or \
@@ -128,7 +129,12 @@ class Benchmark:
                 times.append(infer_queue[idle_id].latency)
             else:
                 in_fly.add(idle_id)
-            infer_queue.start_async()
+            if collect_enqueue_time:
+                enqueue_start = time.perf_counter_ns()
+                infer_queue.start_async()
+                enqueue_times_us.append((time.perf_counter_ns() - enqueue_start) / 1000.0)
+            else:
+                infer_queue.start_async()
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
@@ -138,13 +144,14 @@ class Benchmark:
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
-        return sorted(times), total_duration_sec, iteration
+        return sorted(times), total_duration_sec, iteration, enqueue_times_us
 
-    def async_inference_full_mode(self, infer_queue, data_queue, pcseq):
+    def async_inference_full_mode(self, infer_queue, data_queue, pcseq, collect_enqueue_time=False):
         processed_frames = 0
         exec_time = 0
         iteration = 0
         times = []
+        enqueue_times_us = []
         num_groups = len(self.latency_groups)
         start_time = datetime.utcnow()
         in_fly = set()
@@ -161,7 +168,12 @@ class Benchmark:
                 in_fly.add(idle_id)
             group_id = data_queue.current_group_id
             infer_queue[idle_id].set_input_tensors(data_queue.get_next_input())
-            infer_queue.start_async(userdata=group_id)
+            if collect_enqueue_time:
+                enqueue_start = time.perf_counter_ns()
+                infer_queue.start_async(userdata=group_id)
+                enqueue_times_us.append((time.perf_counter_ns() - enqueue_start) / 1000.0)
+            else:
+                infer_queue.start_async(userdata=group_id)
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
@@ -174,18 +186,38 @@ class Benchmark:
             if pcseq:
                 self.latency_groups[infer_queue.userdata[infer_request_id]].times.append(infer_queue[infer_request_id].latency)
 
-        return sorted(times), total_duration_sec, processed_frames, iteration
+        return sorted(times), total_duration_sec, processed_frames, iteration, enqueue_times_us
 
-    def main_loop(self, requests, data_queue, batch_size, latency_percentile, pcseq):
+    def main_loop(self, requests, data_queue, batch_size, latency_percentile, pcseq, collect_enqueue_time=False):
+        enqueue_avg_us = None
+        enqueue_min_us = None
+        enqueue_max_us = None
+
+        def fill_enqueue_stats(enqueue_times_us):
+            if enqueue_times_us:
+                return sum(enqueue_times_us) / len(enqueue_times_us), min(enqueue_times_us), max(enqueue_times_us)
+            return None, None, None
+
         if self.api_type == 'sync':
             times, total_duration_sec, iteration = self.sync_inference(requests[0], data_queue)
             fps = len(batch_size) * iteration / total_duration_sec
         elif self.inference_only:
-            times, total_duration_sec, iteration = self.async_inference_only(requests, data_queue)
+            times, total_duration_sec, iteration, enqueue_times_us = self.async_inference_only(
+                requests,
+                data_queue,
+                collect_enqueue_time,
+            )
             fps = len(batch_size) * iteration / total_duration_sec
+            enqueue_avg_us, enqueue_min_us, enqueue_max_us = fill_enqueue_stats(enqueue_times_us)
         else:
-            times, total_duration_sec, processed_frames, iteration = self.async_inference_full_mode(requests, data_queue, pcseq)
+            times, total_duration_sec, processed_frames, iteration, enqueue_times_us = self.async_inference_full_mode(
+                requests,
+                data_queue,
+                pcseq,
+                collect_enqueue_time,
+            )
             fps = processed_frames / total_duration_sec
+            enqueue_avg_us, enqueue_min_us, enqueue_max_us = fill_enqueue_stats(enqueue_times_us)
 
         median_latency_ms = percentile(times, latency_percentile)
         avg_latency_ms = sum(times) / len(times)
@@ -200,4 +232,15 @@ class Benchmark:
                     group.avg = sum(group.times) / len(group.times)
                     group.min = group.times[0]
                     group.max = group.times[-1]
-        return fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration
+        return (
+            fps,
+            median_latency_ms,
+            avg_latency_ms,
+            min_latency_ms,
+            max_latency_ms,
+            total_duration_sec,
+            iteration,
+            enqueue_avg_us,
+            enqueue_min_us,
+            enqueue_max_us,
+        )
