@@ -759,7 +759,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
 
-    jit.make("MERGED_Q_NUM", PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / _xattn_block_size);
+    jit.make("MERGED_Q_NUM", XAttentionEstimateGeneratorBase::get_wg_seq_len(params) / _xattn_block_size);
 
     return jit;
 }

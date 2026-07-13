@@ -47,6 +47,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
@@ -82,6 +83,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -104,7 +106,8 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
@@ -211,6 +214,9 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
@@ -238,6 +244,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
                                                           ov::op::internal::MOE::get_type_info_static(),
                                                           ov::op::v8::Gather::get_type_info_static(),
+                                                          ov::op::v17::GroupedMatMul::get_type_info_static(),
                                                           ov::op::v1::Convolution::get_type_info_static(),
                                                           ov::opset1::Convolution::get_type_info_static(),
                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
@@ -486,6 +493,43 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+    // OTD: Stamp a plain "otd_bin_offset" rt_info entry on each constant that has
+    // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
+    // are automatically propagated by copy_runtime_info through all transformations.
+    // This allows moe.cpp to find bin offsets even when WCA is lost.
+    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100) {
+        // First stamp WCA on constants with mmap descriptors but no WCA yet
+        for (const auto& op : func->get_ops()) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!const_node)
+                continue;
+            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()))
+                continue;
+            auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
+            if (source_buf) {
+                size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
+                size_t byte_size = const_node->get_byte_size();
+                auto dtype = const_node->get_element_type();
+                const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                    ov::WeightlessCacheAttribute(byte_size, bin_offset, dtype);
+            }
+        }
+
+        // Stamp "otd_bin_offset" as a plain int64_t on every constant with WCA.
+        // Plain ov::Any entries survive copy_runtime_info automatically.
+        for (const auto& op : func->get_ops()) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!const_node)
+                continue;
+            const auto& rt = const_node->get_rt_info();
+            auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (it != rt.end()) {
+                const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
+                const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
+            }
+        }
+    }
+
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
         {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
@@ -596,11 +640,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
         if (device_info.supports_immad && config.get_use_onednn()) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToGatherMatmul>();
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
+                supported_compressed_weights_types);
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
@@ -1552,7 +1597,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
-        manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        manager.register_pass<ov::pass::MoveFCReshapeToWeights<ov::intel_gpu::op::FullyConnected>>();
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
