@@ -30,13 +30,9 @@ struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
 
-    // Save the memref handle to a vector for VM execution and prediction to extend its lifetime.
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
-
-    // Scratch params for a single VM execute call. The executionContext field is filled from the
-    // shared VMExecutionContext on each execute; DynamicArguments no longer owns the context.
-    npu_vm_runtime_execute_params_t _executeParams = {};
+    // True once the command lists have been recorded by a first npuVMRuntimeExecute call. Subsequent
+    // executions can be replayed without re-recording when no tensor changed (see execute_vm_runtime).
+    bool _commandListsRecorded = false;
 
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;

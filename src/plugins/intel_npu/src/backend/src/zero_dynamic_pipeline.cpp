@@ -336,9 +336,10 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                          ze_event_handle_t event) {
     _logger.debug("Start to execute graph with runtime engine");
 
-    npu_vm_runtime_execute_params_t* params = &args._executeParams;
-    bool firstInference = params->graphDdiTableExt == nullptr;
+    const bool firstInference = !args._commandListsRecorded;
     bool noTensorChange = true;
+
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefHandles, outputMemRefHandles;
 
     auto processMemRefs = [&](auto& memRefs, auto& targetMemRefHandles) {
         targetMemRefHandles.clear();
@@ -361,8 +362,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         }
     };
 
-    processMemRefs(args._inputsMemRef, args._inputMemRefHandles);
-    processMemRefs(args._outputsMemRef, args._outputMemRefHandles);
+    processMemRefs(args._inputsMemRef, inputMemRefHandles);
+    processMemRefs(args._outputsMemRef, outputMemRefHandles);
 
     if (!firstInference && noTensorChange) {
         _logger.debug("Reuse command list without update since no tensor change detected");
@@ -386,29 +387,31 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         }
     }
 
-    // Use the shared VM execution context (created lazily, owned by the infer request).
-    params->executionContext = _executionContext->ensure(vmRuntime);
-
-    params->pInputs = args._inputMemRefHandles.data();
-    params->numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
-    params->pOutputs = args._outputMemRefHandles.data();
-    params->numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
-    params->ctx = _init_structs->getContext();
-    params->device = _init_structs->getDevice();
-    params->graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
-    params->commandLists = commandLists.data();
-    params->numCommandLists = static_cast<uint64_t>(commandLists.size());
-    params->commandQueue = commandQueue;
-    params->inferenceFence = fence;
-    params->event = event;
+    // Parameters for a single npuVMRuntimeExecute call. The runtime records the bindings into the command
+    // lists during this call (the reuse path above replays the recorded command lists without params), so
+    // this block and the memref handle vectors only need to live for the duration of the call.
+    npu_vm_runtime_execute_params_t params = {};
+    params.executionContext = _executionContext->ensure(vmRuntime);
+    params.pInputs = inputMemRefHandles.data();
+    params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
+    params.pOutputs = outputMemRefHandles.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+    params.ctx = _init_structs->getContext();
+    params.device = _init_structs->getDevice();
+    params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
+    params.commandLists = commandLists.data();
+    params.numCommandLists = static_cast<uint64_t>(commandLists.size());
+    params.commandQueue = commandQueue;
+    params.inferenceFence = fence;
+    params.event = event;
 
     _logger.debug("Execute graph with runtime engine");
-    if (npuVMRuntimeExecute(vmRuntime, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
-    } else {
-        _logger.debug("Execution runtime engine is created successfully.");
     }
+    _logger.debug("Execution runtime engine is created successfully.");
 
+    args._commandListsRecorded = true;
     _logger.debug("Completed to execute graph with runtime engine");
 }
 
