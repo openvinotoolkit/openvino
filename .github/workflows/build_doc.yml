@@ -146,6 +146,28 @@ jobs:
           (cd ${OPENVINO_REPO}/docs/openvino_sphinx_theme && python3 -m pip install .)
           python3 -m pip install ${OPENVINO_REPO}/docs/openvino_custom_sphinx_sitemap
 
+      - name: Ensure required CMake version
+        run: |
+          python3 - <<'PY'
+          import re
+          import subprocess
+          import sys
+
+          required = (3, 26, 0)
+
+          try:
+              output = subprocess.check_output(["cmake", "--version"], text=True)
+          except (FileNotFoundError, subprocess.CalledProcessError):
+              current = None
+          else:
+              match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)", output)
+              current = tuple(map(int, match.groups())) if match else None
+
+          if current is None or current < required:
+              subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "cmake==3.26.4"])
+          PY
+          cmake --version
+
       - name: Validate benchmarks files
         run: python3 ${OPENVINO_REPO}/docs/scripts/tests/validate_benchmarks.py ${OPENVINO_REPO}/docs/sphinx_setup/_static/benchmarks_files/
 
