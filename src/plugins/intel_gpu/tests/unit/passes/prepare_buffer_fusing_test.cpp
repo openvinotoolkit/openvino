@@ -2577,6 +2577,123 @@ TEST(prepare_buffer_fusing, in_place_crop_along_feature_runtime_updates_reshape_
 }
 
 // =============================================================================
+// UNIT TEST: build-time and runtime must agree on which axis carries the
+//            dyn-pad mask for the TransposeSplitMatcher pattern.
+// -----------------------------------------------------------------------------
+// Contract under test:
+//   OCL consumers (RoPE, eltwise, MVN, ...) JIT-compile against the layout
+//   snapshot produced by prepare_buffer_fusing at build time. The JIT bakes in
+//   which shape_info slot to read pad_before / pad_after from — that slot is
+//   fixed for the lifetime of the compiled kernel. fill_shape_info_data then
+//   writes the runtime _lower_size / _upper_size into that fixed slot.
+//
+//   If the along-feature runtime helper places the mask on a DIFFERENT axis
+//   than the build-time simple_data_format algorithm, three things break:
+//     1. The JIT'd kernel reads pad_before from the wrong shape_info slot.
+//     2. fill_shape_info_data pulls _lower_size / _upper_size from an axis
+//        that carries 0 at runtime (because the actual padding migrated).
+//     3. The consumer walks memory as if the input had no padding, silently
+//        addressing the wrong slice.
+//
+// Setup: same TransposeSplitMatcher pattern as
+//   in_place_crop_along_feature_runtime_updates_reshape_padding — dynamic
+//   input [-1, 3, H, S], variadic_split axis=1 with 3 unit slices, each crop
+//   followed by a rank-reducing reshape to [-1, H, S] (base mode).
+//
+// Expectations:
+//   For every reshape output, the dyn-pad mask axis chosen by the build-time
+//   simple_data_format branch MUST match the axis on which the runtime
+//   along-feature helper writes the concrete _lower/_upper values (bfyx dim
+//   1, i.e. the H axis). Otherwise the runtime fix is invisible to any
+//   consumer that reads shape_info instead of taking the layout directly.
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_reshape_pad_axis_matches_between_build_and_runtime) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t L = 32, H = 4, S = 8;
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+    auto scale_mem      = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    const std::vector<int64_t> rs_pattern   = {-1, H, S};
+    const auto                 rs_shape_dyn = ov::PartialShape{-1, H, S};
+
+    topology topo(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("scale",      scale_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out2", {input_info("reshape2"), input_info("scale")}, eltwise_mode::prod)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto prog = program::build_program(engine, topo, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    // Runtime along-feature helper writes concrete padding on the H axis
+    // (bfyx dim 1). Build-time simple_data_format MUST place the dyn-pad mask
+    // on the same axis so downstream OCL consumers JIT'd from the build-time
+    // layout read the right shape_info slot at runtime.
+    auto assert_build_time_mask_on_h_axis = [&](const std::string& id) {
+        const auto& lo   = prog->get_node(id).get_output_layout();
+        const auto& mask = lo.data_padding._dynamic_dims_mask;
+        ASSERT_TRUE(mask[1])
+            << id << ": build-time dyn-pad mask must be attached to the H axis (dim 1) "
+            << "to match the runtime along-feature helper";
+        ASSERT_FALSE(mask[2])
+            << id << ": build-time dyn-pad mask must NOT sit on dim 2 (S axis); "
+            << "otherwise consumers JIT'd against dim 2 will read 0 padding at runtime "
+            << "while the actual padding migrates to dim 1";
+    };
+    assert_build_time_mask_on_h_axis("reshape0");
+    assert_build_time_mask_on_h_axis("reshape1");
+    assert_build_time_mask_on_h_axis("reshape2");
+
+    // Execute and verify that the runtime mask location is IDENTICAL to the
+    // build-time one — no silent migration between axes.
+    network net(prog, 0);
+    net.set_input_data("input", input_mem);
+    net.execute();
+
+    auto assert_masks_agree = [&](const std::string& id) {
+        const auto& build_mask   = prog->get_node(id).get_output_layout().data_padding._dynamic_dims_mask;
+        const auto& runtime_mask = net.get_primitive(id)->get_output_layout().data_padding._dynamic_dims_mask;
+        ASSERT_EQ(build_mask, runtime_mask)
+            << id << ": build-time and runtime dyn-pad masks must sit on the same axis; "
+            << "otherwise fill_shape_info_data writes 0 into the JIT-baked slot";
+    };
+    assert_masks_agree("reshape0");
+    assert_masks_agree("reshape1");
+    assert_masks_agree("reshape2");
+}
+
+// =============================================================================
 // UNIT TEST: runtime along-feature path with no reshape user (regression guard).
 // -----------------------------------------------------------------------------
 // Contract under test:

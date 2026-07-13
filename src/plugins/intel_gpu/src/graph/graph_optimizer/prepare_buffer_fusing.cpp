@@ -804,18 +804,43 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_mode = reshape_desc->mode;
             auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
-                if (crop_axis == 0 && !crop_layout.get_partial_shape()[0].is_dynamic() &&
-                    crop_layout.get_partial_shape()[0].get_length() == 1 &&
-                    !reshape_desc->output_pattern.empty() &&
-                    reshape_desc->output_pattern[0] != 0 && reshape_desc->output_pattern[0] != 1) {
+                const auto crop_ps = crop_layout.get_partial_shape();
+                const auto reshape_ps = user_info.second.get_partial_shape();
+
+                // TransposeSplitMatcher pattern: crop_axis == 1 with a unit
+                // slice feeding a base-mode reshape that drops the size-1
+                // feature dim ([L, 1, H, S(, ...)] -> [L, H, S(, ...)]).
+                //
+                // The runtime along-feature helper (see
+                // update_in_place_crop_padding_along_feature) places scaled
+                // padding on the reshape's dim 1 (H axis) so that
+                // get_linear_offset() == k * H * S(...) and get_pitches()[0]
+                // == F * H * S(...). Downstream OCL consumers (RoPE,
+                // eltwise, MVN, ...) JIT-compile against this build-time
+                // layout snapshot and bake in "read pad from shape_info slot
+                // for axis N" from the dyn-pad mask set here. If the
+                // build-time mask sits on a different axis than the runtime
+                // one, fill_shape_info_data writes 0 into the JIT-baked slot
+                // and consumers walk the wrong memory. Mirror the runtime
+                // helper's axis choice to keep build-time and runtime in
+                // sync.
+                const bool is_axis1_size1_squeeze = crop_axis == 1 && crop_ps[crop_axis].is_static() &&
+                                                    crop_ps[crop_axis].get_length() == 1 &&
+                                                    reshape_ps.size() + 1 == crop_ps.size() && reshape_ps.size() >= 2 &&
+                                                    reshape_ps[1].is_static();
+
+                if (is_axis1_size1_squeeze) {
+                    reshape_axis = 1;
+                } else if (crop_axis == 0 && !crop_ps[0].is_dynamic() && crop_ps[0].get_length() == 1 &&
+                           !reshape_desc->output_pattern.empty() && reshape_desc->output_pattern[0] != 0 &&
+                           reshape_desc->output_pattern[0] != 1) {
                     // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
                 } else {
                     ov::Dimension::value_type mul = 1;
-                    auto reshape_ps = user_info.second.get_partial_shape();
                     reshape_axis = reshape_ps.size() - 1;
-                    auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+                    auto crop_dim_val = crop_ps[crop_axis].get_length();
                     for (size_t i = reshape_ps.size(); i > 1; i--) {
                         if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
                             break;
