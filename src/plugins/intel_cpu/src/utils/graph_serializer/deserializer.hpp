@@ -13,6 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/xml_util/weights_provider.hpp"
 #include "utils/codec_xor.hpp"
 
 namespace ov {
@@ -29,14 +30,29 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 class XmlDeserializer : public ov::util::XmlDeserializer {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
+                             std::shared_ptr<ov::util::WeightsProvider> weights_provider,
+                             const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
+                             const std::unordered_map<std::string, ov::OpSet>& opsets,
+                             const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+                             std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
+                             size_t version)
+        : ov::util::XmlDeserializer(node, std::move(weights_provider), opsets, extensions, variables, version),
+          m_origin_weights{origin_weights} {}
+
+    explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ov::AlignedBuffer>& weights,
                              const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
-        : ov::util::XmlDeserializer(node, weights, opsets, extensions, variables, version),
-          m_origin_weights{origin_weights} {}
+        : XmlDeserializer(node,
+                          weights ? std::make_shared<ov::util::BufferWeightsProvider>(weights) : nullptr,
+                          origin_weights,
+                          opsets,
+                          extensions,
+                          variables,
+                          version) {}
 
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ov::AlignedBuffer>& weights,
@@ -54,13 +70,12 @@ protected:
 private:
     std::unique_ptr<ov::util::XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
-        const std::shared_ptr<ov::AlignedBuffer>& weights,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const override {
         return std::make_unique<XmlDeserializer>(node,
-                                                 weights,
+                                                 get_weights_provider(),
                                                  m_origin_weights,
                                                  opsets,
                                                  extensions,
