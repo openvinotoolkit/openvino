@@ -12,6 +12,8 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::intel_gpu {
@@ -81,5 +83,15 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              cldnn::data_types out_dtype,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
+
+/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 99].
+/// Computes the offloadable MoE routed-expert weight size and the fixed (non-offloadable)
+/// weight size from @p model, compares them against the available memory budget
+/// (device memory for dGPU, min(device, free system RAM) for iGPU) minus a model-derived
+/// runtime reserve (KV cache), and returns the percentage of routed-expert weights that
+/// should be streamed from disk. Returns 0 when everything fits or the model has no MoE.
+/// @param model    Transformed model containing MOECompressed op(s).
+/// @param info     Target device info (memory size and integrated/discrete type).
+size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_info& info);
 
 }  // namespace ov::intel_gpu

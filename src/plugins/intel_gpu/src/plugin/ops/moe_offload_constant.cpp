@@ -4,6 +4,30 @@
 
 #include "moe_offload_constant.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <string>
+#include <unordered_set>
+
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+
+#if defined(_WIN32)
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#elif defined(__linux__)
+#    include <unistd.h>
+#endif
+
 namespace ov::intel_gpu {
 
 // Input indices 3..11 are routed expert weights/scales/zps (WEIGHT_0..ZP_2).
@@ -83,6 +107,264 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                        desc.upload_bytes,
                                        const_layout.bytes_count());
     return desc;
+}
+
+namespace {
+
+// Returns the amount of currently-free physical system RAM in bytes, or 0 if unavailable.
+// Used only on integrated GPUs, where device "global memory" is shared with system RAM.
+uint64_t get_free_system_ram_bytes() {
+#if defined(_WIN32)
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    if (GlobalMemoryStatusEx(&status)) {
+        return static_cast<uint64_t>(status.ullAvailPhys);
+    }
+    return 0;
+#elif defined(__linux__)
+    const long pages = sysconf(_SC_AVPHYS_PAGES);
+    const long page_size = sysconf(_SC_PAGE_SIZE);
+    if (pages > 0 && page_size > 0) {
+        return static_cast<uint64_t>(pages) * static_cast<uint64_t>(page_size);
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+
+// Parses a positive size_t from an environment variable, returning default_value if unset/invalid.
+size_t env_size_t(const char* name, size_t default_value) {
+    const char* v = std::getenv(name);
+    if (!v)
+        return default_value;
+    char* end = nullptr;
+    const unsigned long long parsed = std::strtoull(v, &end, 10);
+    if (end == v || parsed == 0)
+        return default_value;
+    return static_cast<size_t>(parsed);
+}
+
+// Parses a double in (0, 1] from an environment variable, returning default_value if unset/invalid.
+double env_fraction(const char* name, double default_value) {
+    const char* v = std::getenv(name);
+    if (!v)
+        return default_value;
+    char* end = nullptr;
+    const double parsed = std::strtod(v, &end);
+    if (end == v || !(parsed > 0.0) || parsed > 1.0)
+        return default_value;
+    return parsed;
+}
+
+// Recursively accumulates weight-constant bytes across the model and any subgraphs.
+// w_total counts every Constant once (deduped by node identity); w_moe counts only
+// routed-expert Constants (the offloadable subset).
+void accumulate_weight_bytes(const ov::Model& model,
+                             std::unordered_set<const ov::Node*>& visited,
+                             uint64_t& w_total,
+                             uint64_t& w_moe) {
+    for (const auto& op : model.get_ops()) {
+        if (auto sub = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_model : sub->get_functions()) {
+                accumulate_weight_bytes(*sub_model, visited, w_total, w_moe);
+            }
+        }
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!constant)
+            continue;
+        if (!visited.insert(constant.get()).second)
+            continue;  // already counted (shared constant referenced from multiple places)
+        const uint64_t bytes = constant->get_byte_size();
+        w_total += bytes;
+        if (get_moe_constant_role(constant) == MoEConstantRole::RoutedExpert) {
+            w_moe += bytes;
+        }
+    }
+}
+
+// Reads a scalar integer from a node input if it is a Constant, returning fallback otherwise.
+int64_t read_scalar_input(const ov::Node& op, size_t input_idx, int64_t fallback) {
+    if (input_idx >= op.get_input_size())
+        return fallback;
+    auto c = ov::as_type_ptr<ov::op::v0::Constant>(op.get_input_node_shared_ptr(input_idx));
+    if (!c || ov::shape_size(c->get_shape()) < 1)
+        return fallback;
+    return c->cast_vector<int64_t>().front();
+}
+
+// Estimates the runtime memory reserve (KV cache + activations/scratch) from model structure.
+// KV cache dominates for LLMs; it is derived from PagedAttention layers using their rt_info
+// (k/v head size and kv-head count) and a per-layer effective context length. Layers that use
+// sliding-window attention only retain a bounded window of KV, so their context is capped at the
+// window size (PagedAttention input #10) rather than the full max_ctx -- this avoids grossly
+// over-reserving for hybrid models (e.g. gemma-style 25 sliding + 5 full-attention layers, or
+// qwen3.5-moe where only the full-attention layers keep a growing KV cache). Activations/scratch
+// are approximated as a fixed fraction of the KV cache. This is model-derived (not a % of device
+// memory) so it stays constant across machines of different memory sizes.
+// Outputs the number of PagedAttention layers found and the raw KV bytes for diagnostics.
+uint64_t estimate_runtime_reserve(const ov::Model& model, size_t max_ctx, size_t& pa_layers, uint64_t& kv_bytes_out) {
+    uint64_t kv_bytes = 0;
+    pa_layers = 0;
+    // PagedAttentionExtension input layout: index 10 is the sliding_window scalar (0 = unlimited).
+    constexpr size_t sliding_window_input_idx = 10;
+    // Conservative KV element size: assume uncompressed f16 (2 bytes) to over-reserve rather
+    // than risk OOM. If KV compression is active the real footprint is smaller, covered by slack.
+    constexpr uint64_t kv_elem_bytes = 2;
+
+    std::function<void(const ov::Model&)> walk = [&](const ov::Model& m) {
+        for (const auto& op : m.get_ops()) {
+            if (auto sub = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+                for (const auto& sub_model : sub->get_functions()) {
+                    walk(*sub_model);
+                }
+            }
+            if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                ++pa_layers;
+                const auto& rt = op->get_rt_info();
+                auto read = [&](const char* key) -> int64_t {
+                    auto it = rt.find(key);
+                    return it == rt.end() ? 0 : it->second.as<int64_t>();
+                };
+                const int64_t k_head_size = read("k_head_size");
+                const int64_t v_head_size = read("v_head_size");
+                const int64_t num_k_heads = read("num_k_heads");
+                if (k_head_size > 0 && v_head_size > 0 && num_k_heads > 0) {
+                    // Sliding-window layers only retain a bounded KV window; cap the effective
+                    // context at the window size when present (>0). 0 means unlimited (full ctx).
+                    uint64_t eff_ctx = max_ctx;
+                    const int64_t window = read_scalar_input(*op, sliding_window_input_idx, 0);
+                    if (window > 0) {
+                        eff_ctx = std::min<uint64_t>(eff_ctx, static_cast<uint64_t>(window));
+                    }
+                    // Per layer: (K + V) * num_kv_heads * eff_ctx * bytes.
+                    kv_bytes += static_cast<uint64_t>(k_head_size + v_head_size) * static_cast<uint64_t>(num_k_heads) *
+                                eff_ctx * kv_elem_bytes;
+                }
+            }
+        }
+    };
+    walk(model);
+
+    kv_bytes_out = kv_bytes;
+    // Add ~25% on top of KV for activations and scratch buffers.
+    return kv_bytes + kv_bytes / 4;
+}
+
+}  // namespace
+
+size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_info& info) {
+    uint64_t w_total = 0;
+    uint64_t w_moe = 0;
+    std::unordered_set<const ov::Node*> visited;
+    accumulate_weight_bytes(model, visited, w_total, w_moe);
+
+    // No offloadable MoE weights -> auto resolves to "no offload".
+    if (w_moe == 0) {
+        GPU_DEBUG_INFO << "[MOE OTD auto] no offloadable MoE routed-expert weights found; resolved offload_ratio=0" << std::endl;
+        return 0;
+    }
+
+    // Memory budget: device memory for dGPU; for iGPU cap by free system RAM since the
+    // device "global memory" is shared with (and overstated relative to) actual free RAM.
+    uint64_t m_budget = info.max_global_mem_size;
+    const bool is_igpu = info.dev_type == cldnn::device_type::integrated_gpu;
+    if (is_igpu) {
+        const uint64_t free_ram = get_free_system_ram_bytes();
+        if (free_ram > 0) {
+            m_budget = std::min<uint64_t>(m_budget, free_ram);
+        }
+    }
+    if (m_budget == 0) {
+        GPU_DEBUG_INFO << "[MOE OTD auto] could not determine memory budget; resolved offload_ratio=0" << std::endl;
+        return 0;
+    }
+
+    const size_t max_ctx = env_size_t("OV_MOE_AUTO_MAX_CTX", 8192);
+    const double safety = env_fraction("OV_MOE_AUTO_SAFETY", 0.9);
+    const uint64_t w_fixed = w_total - w_moe;
+    size_t pa_layers = 0;
+    uint64_t kv_bytes = 0;
+    const uint64_t reserve = estimate_runtime_reserve(model, max_ctx, pa_layers, kv_bytes);
+
+    // Memory-mapped weight-file headroom (iGPU only). On a shared-memory iGPU the OTD weight
+    // file stays memory-mapped and its hot pages compete with USM allocations for the same
+    // physical RAM: resident experts hold a USM copy while offloaded experts are read on demand
+    // from the mapped .bin, keeping those pages in the OS page cache. This pressure scales with
+    // the total weight size (bin size), so it is modeled as an additive fraction of W_total
+    // rather than a blunt budget divisor -- smaller models (smaller bins) thus keep more budget.
+    //
+    // The page cache is reclaimable, so its pressure cannot exceed the memory budget itself:
+    // when W_total >> M_budget (a large model on a small machine) the OS simply reclaims the
+    // mapped pages and streams from disk, so the headroom must NOT grow unboundedly with W_total.
+    // We therefore cap the reference size at M_budget. Without this cap, e.g. a 29GB-weight model
+    // on a 16GB iGPU would reserve ~9GB and be driven to ~99% offload, whereas in practice such a
+    // model runs at a much lower ratio (the reclaimed bin pages do not need reserving).
+    // Tuned on a 32GB iGPU so a ~18GB-weight model offloads (avoids thrash) while a ~13GB one
+    // stays mostly resident. Not applied on dGPU (weights live in dedicated VRAM).
+    const double mmap_headroom_frac = is_igpu ? env_fraction("OV_MOE_AUTO_MMAP_HEADROOM", 0.30) : 0.0;
+    const double mmap_headroom = mmap_headroom_frac * static_cast<double>(std::min<uint64_t>(w_total, m_budget));
+
+    const uint64_t free_ram_now = get_free_system_ram_bytes();
+
+    // Full-residency fit gate. If the whole model fits in available memory at full residency,
+    // do NOT offload: on a shared-memory iGPU, offloading a model that already fits is strictly
+    // harmful. Offloaded experts are read from the memory-mapped .bin, which keeps the entire
+    // bin hot in the page cache ON TOP of the resident USM copies -- raising peak memory AND
+    // adding read latency (measured: a ~13GB model peaks ~21GB fully-resident but ~26GB when
+    // partially offloaded, and runs slower). At full residency the USM copy is authoritative so
+    // the bin pages get evicted; hence this gate excludes the mmap headroom that only applies to
+    // the partially-offloaded regime. The ceiling is free system RAM on iGPU (USM host allocs
+    // may exceed the GPU's reported max_global_mem_size) and device memory on dGPU.
+    const double fit_safety = env_fraction("OV_MOE_AUTO_FIT_SAFETY", 0.80);
+    const uint64_t fit_ceiling = (is_igpu && free_ram_now > 0) ? free_ram_now : m_budget;
+    const uint64_t full_resident = w_total + reserve;
+    if (static_cast<double>(full_resident) <= static_cast<double>(fit_ceiling) * fit_safety) {
+        GPU_DEBUG_INFO << "[MOE OTD auto] model fits at full residency (" << full_resident << " <= "
+                       << fit_ceiling << " * " << fit_safety << "); resolved offload_ratio=0" << std::endl;
+        std::cerr << "[MOE OTD auto] dev_type=" << (is_igpu ? "iGPU" : "dGPU")
+                  << " W_total=" << static_cast<uint64_t>(w_total / (1024.0 * 1024.0)) << "MiB"
+                  << " Reserve=" << static_cast<uint64_t>(reserve / (1024.0 * 1024.0)) << "MiB"
+                  << " fit_ceiling=" << static_cast<uint64_t>(fit_ceiling / (1024.0 * 1024.0)) << "MiB"
+                  << " FIT_SAFETY=" << fit_safety << " -> fits at full residency -> offload_ratio=0" << std::endl;
+        return 0;
+    }
+
+    const double budget_for_moe =
+        static_cast<double>(m_budget) * safety - static_cast<double>(w_fixed) - static_cast<double>(reserve) - mmap_headroom;
+
+    size_t ratio;
+    if (budget_for_moe >= static_cast<double>(w_moe)) {
+        ratio = 0;  // everything fits, no offload
+    } else if (budget_for_moe <= 0.0) {
+        ratio = 99;  // extreme pressure: keep a single LRU slot resident (100 == all-on-disk is invalid)
+    } else {
+        const double resident_fraction = budget_for_moe / static_cast<double>(w_moe);
+        const long r = std::lround((1.0 - resident_fraction) * 100.0);
+        ratio = static_cast<size_t>(std::clamp<long>(r, 0, 99));
+    }
+
+    constexpr double to_mib = 1.0 / (1024.0 * 1024.0);
+    // Emit unconditionally (compile-time, once per model) so the decision is visible even in
+    // release builds where GPU_DEBUG_INFO is compiled out.
+    std::cerr << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+              << " dev_mem=" << static_cast<uint64_t>(info.max_global_mem_size * to_mib) << "MiB"
+              << " free_ram_now=" << static_cast<uint64_t>(free_ram_now * to_mib) << "MiB"
+              << " M_budget=" << static_cast<uint64_t>(m_budget * to_mib) << "MiB"
+              << " W_total=" << static_cast<uint64_t>(w_total * to_mib) << "MiB"
+              << " W_moe=" << static_cast<uint64_t>(w_moe * to_mib) << "MiB"
+              << " W_fixed=" << static_cast<uint64_t>(w_fixed * to_mib) << "MiB"
+              << " Reserve=" << static_cast<uint64_t>(reserve * to_mib) << "MiB"
+              << " (pa_layers=" << pa_layers << " kv=" << static_cast<uint64_t>(kv_bytes * to_mib) << "MiB)"
+              << " mmap_headroom=" << static_cast<uint64_t>(mmap_headroom * to_mib) << "MiB"
+              << " budget_for_moe=" << static_cast<long long>(budget_for_moe * to_mib) << "MiB"
+              << " SAFETY=" << safety << " mmap_frac=" << mmap_headroom_frac << " max_ctx=" << max_ctx
+              << " -> offload_ratio=" << ratio << std::endl;
+
+    GPU_DEBUG_INFO << "[MOE OTD auto] M_budget=" << m_budget << " (dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+                   << "), W_total=" << w_total << ", W_moe=" << w_moe << ", W_fixed=" << w_fixed << ", Reserve=" << reserve
+                   << ", SAFETY=" << safety << ", max_ctx=" << max_ctx << " -> resolved offload_ratio=" << ratio << std::endl;
+    return ratio;
 }
 
 }  // namespace ov::intel_gpu
