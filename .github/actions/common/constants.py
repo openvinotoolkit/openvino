@@ -10,7 +10,6 @@ class EventType(Enum):
 
 
 productTypes = (
-    'public_linux_debian_10_arm_release',
     'public_linux_fedora_29_x86_64_release',
     'public_linux_ubuntu_20_04_x86_64_release',
     'public_linux_ubuntu_22_04_arm64_release',
@@ -36,7 +35,6 @@ ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
 platformKeys = (
     'almalinux8_x86_64',
-    'debian10_armhf',
     'rhel8_x86_64',
     'ubuntu22_arm64',
     'ubuntu22_arm64_cross_compile',
@@ -54,7 +52,6 @@ platformKeys = (
 PlatformKey = Enum('PlatformKey', {t.upper(): t for t in platformKeys})
 
 PlatformMapping = {
-    PlatformKey.DEBIAN10_ARMHF: ProductType.PUBLIC_LINUX_DEBIAN_10_ARM_RELEASE,
     PlatformKey.UBUNTU20_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_20_04_X86_64_RELEASE,
     PlatformKey.UBUNTU22_ARM64: ProductType.PUBLIC_LINUX_UBUNTU_22_04_ARM64_RELEASE,
     PlatformKey.UBUNTU22_ARM64_CROSS_COMPILE: ProductType.PUBLIC_LINUX_UBUNTU_22_04_ARM64_CROSS_COMPILE_RELEASE,
