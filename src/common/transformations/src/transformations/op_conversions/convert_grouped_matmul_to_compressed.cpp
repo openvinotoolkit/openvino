@@ -22,7 +22,6 @@
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 
 ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed(
     const std::vector<ov::element::Type>& supported_weights_types) {
@@ -69,19 +68,6 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         // into sub-groups that each share a scale, e.g. shape [G, N, K/group_size, group_size].
         const auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
         const bool grouped = scale_shape.size() == weights_shape.size() + 1;
-
-        // Mark the low-precision weight/ZP leaves with `keep_const_precision` so ConvertPrecision
-        // does not upcast them (e.g. u4 -> u8). The regular MarkDequantization/KeepConstPrecision
-        // pair cannot do this here because in the GPU pipeline KeepConstPrecision is scheduled
-        // AFTER this transformation, by which point the Multiply/Subtract dequantization subgraph
-        // has already been folded into GroupedMatMulCompressed and its pattern no longer matches.
-        // The propagation logic in process_compressed_weights() carries the mark through any fresh
-        // Constants it may synthesize (combine_groups reshape, make_try_fold on Unsqueeze).
-        ov::enable_keep_const_precision(
-            weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
-        if (const auto sub_const_anchor = weights_block->get_anchor("sub_const", pattern_map)) {
-            ov::enable_keep_const_precision(sub_const_anchor->get_node_shared_ptr());
-        }
 
         ov::NodeVector result_nodes;
         // `batched_weights=true` selects a final weights rank of 3 in the shared helper, which
