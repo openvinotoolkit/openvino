@@ -142,12 +142,28 @@ std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
     return allocated;
 }
 
-void KVCacheBlockManager::clear_all() {
-    LOG_DEBUG("KVCacheBlockManager: Clearing all blocks");
+void KVCacheBlockManager::release(uint32_t keep_warm_count) {
+    LOG_DEBUG("KVCacheBlockManager: Resetting blocks (keep_warm_count=" << keep_warm_count << ")");
 
+    // Iterate allocated blocks in ascending block-ID order.
+    // The first keep_warm_count retain their device tensors (warm reuse next round).
+    // The remainder have tensors dropped to reduce RSS.
+    uint32_t warm_seen = 0;
     for (auto& block : blocks_) {
-        block.num_tokens = 0;
+        if (!block.is_allocated) {
+            continue;
+        }
         block.is_allocated = false;
+        block.num_tokens = 0;
+        if (warm_seen >= keep_warm_count) {
+            block.tensor = {};  // Drop SoPtr — returns device memory to allocator
+        }
+        ++warm_seen;
+    }
+
+    if (warm_seen > keep_warm_count) {
+        LOG_DEBUG("KVCacheBlockManager: Released " << (warm_seen - keep_warm_count) << " block tensor(s), kept "
+                                                   << keep_warm_count << " warm");
     }
 
     // Rebuild free stack (push in reverse order so block 0 is on top)
@@ -156,6 +172,10 @@ void KVCacheBlockManager::clear_all() {
     for (uint32_t i = max_blocks_; i > 0; --i) {
         free_block_ids_.push(i - 1);
     }
+}
+
+void KVCacheBlockManager::clear_all() {
+    release(0);
 }
 
 void KVCacheBlockManager::validate_block_id(uint32_t block_id) const {

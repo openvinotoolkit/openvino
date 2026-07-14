@@ -30,8 +30,8 @@
 #         If the file is present, its content will be printed in cmake output.
 #     lib folder with the following libraries that will be copied to the output directory
 #     and included in the installation package:
-#         WINDOWS: openvino_intel_npu_compiler.dll, openvino_intel_npu_compiler_loader.dll
-#         LINUX: libopenvino_intel_npu_compiler.so, libopenvino_intel_npu_compiler_loader.so
+#         WINDOWS: openvino_intel_npu_compiler.dll, openvino_intel_npu_compiler_loader.dll, npu_interpreter_runtime.dll
+#         LINUX: libopenvino_intel_npu_compiler.so, libopenvino_intel_npu_compiler_loader.so, libnpu_interpreter_runtime.so
 
 function(print_build_manifest extracted_file)
     if(NOT EXISTS "${extracted_file}")
@@ -49,10 +49,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_MAJOR 8)
     set(PLUGIN_COMPILER_VERSION_MINOR 2)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA 04eb7b8)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 7177f86848af215b11d02de4a617ac71222bea2c6ff298531af3346cf488cff0)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 61fbb48ca069e0ebb5b9ce3b9959fc38b08795a78f42b2ae334487da8c43e3f3)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 88a76e0ea6502952e7abbd15cf791f8731411f7c1de93c194182a08732eb08eb)
+    set(PLUGIN_COMPILER_COMMIT_SHA bd011ec)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 90f015809d902fb4b5bb8aa725c65dbf4a83a7aa1db4832cf1667df3d38a1fca)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM d2507d9f028c53af10970844bf209d7acd6ace37497af5dfe0ac216c0a5ae34e)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM c7f46e083836fe00faa26e26e1785542a128c02c0dfa96680fae54d7d1ea4b83)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -140,9 +140,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
         install(FILES ${PLUGIN_COMPILER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
         install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
-        if(ENABLE_INTEL_NPU_INTERNAL)
-            install(FILES ${PLUGIN_COMPILER_VM_RT_RENAMED_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_INTERNAL_COMPONENT} ${OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL})
-        endif()
+        install(FILES ${PLUGIN_COMPILER_VM_RT_RENAMED_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 
         if(WIN32)
             set(PLUGIN_COMPILER_PDB "${PLUGIN_COMPILER_PDB_PATH}/${PLUGIN_COMPILER_PDB_NAME}")
@@ -156,6 +154,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
             install(FILES ${PLUGIN_COMPILER_PDB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT pdb EXCLUDE_FROM_ALL)
             install(FILES ${PLUGIN_COMPILER_LOADER_PDB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT pdb EXCLUDE_FROM_ALL)
+            install(FILES ${PLUGIN_COMPILER_VM_RT_RENAMED_PDB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT pdb EXCLUDE_FROM_ALL)
         endif()
     else()
         message(FATAL_ERROR "Failed to download prebuilt NPU Plugin Compiler libraries. Can not use plugin compiler libraries!")
