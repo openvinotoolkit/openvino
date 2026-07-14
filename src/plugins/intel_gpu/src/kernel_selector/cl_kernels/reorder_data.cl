@@ -7,7 +7,7 @@
 #if IS_LOW_BIT_FP
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
-#include "include/batch_headers/f4_utils.cl"
+#include "include/f4_utils.cl"
 #endif
 
 #include "include/reshape_dims.cl"

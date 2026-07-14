@@ -3,6 +3,8 @@
 //
 
 // TODO: Replace `_intel_convert*` with builtins when ready, current implementations are copied from XeTLA:
+#ifndef OV_GPU_OCL_F4_UTILS_H
+#define OV_GPU_OCL_F4_UTILS_H
 
 #define FP4_MASK       0x0F
 #define FP4_SHIFT      4
@@ -391,3 +393,6 @@ uchar16 __attribute__((overloadable)) _as_uchar16(fp4e2m1_t16 val) {
                      unpack_nibbles(val.data.s4), unpack_nibbles(val.data.s5),
                      unpack_nibbles(val.data.s6), unpack_nibbles(val.data.s7));
 }
+
+#endif
+

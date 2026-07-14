@@ -9,7 +9,7 @@
 #if IS_F8_F4
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
-#include "include/batch_headers/f4_utils.cl"
+#include "include/f4_utils.cl"
 #endif
 
 #if F4E2M1_OUTPUT
