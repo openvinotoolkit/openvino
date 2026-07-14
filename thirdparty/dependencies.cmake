@@ -400,6 +400,13 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             set(PROTOC_EXECUTABLE protobuf::protoc)
         endif()
     else()
+        # Workaround for compilation issues of Protobuf 4.25.1 on MSVC with C++20.
+        # Remove once Protobuf is updated further.
+        if(MSVC)
+            ov_apply_patch(
+                PATCH "${CMAKE_SOURCE_DIR}/cmake/patches/protobuf/0001-fix-msvc-constexpr-kvtable.patch")
+        endif()
+
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
         # protobuf fails to build with -fsanitize=thread by clang
         if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
