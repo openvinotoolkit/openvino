@@ -1014,6 +1014,48 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+    // OTD: Stamp a plain "otd_bin_offset" rt_info entry on each constant that has
+    // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
+    // are automatically propagated by copy_runtime_info through all transformations.
+    // This allows moe.cpp to find bin offsets even when WCA is lost.
+    // Note: this runs on the pre-resolution config, so the ratio may still be
+    // OFFLOAD_RATIO_AUTO (size_t(-1)) here. Stamping is cheap and harmless even if OTD ends
+    // up disabled, so we also stamp for AUTO to keep bin offsets available once auto resolves.
+    const size_t otd_ratio = config.get_offload_ratio();
+    const bool otd_maybe_enabled = otd_ratio == static_cast<size_t>(-1) || (otd_ratio > 0 && otd_ratio <= 100);
+    if (otd_maybe_enabled) {
+        // First stamp WCA on constants with mmap descriptors but no WCA yet
+        for (const auto& op : func->get_ops()) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!const_node)
+                continue;
+            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u)
+                continue;
+            auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
+            if (source_buf) {
+                size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
+                size_t byte_size = const_node->get_byte_size();
+                auto dtype = const_node->get_element_type();
+                const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                    ov::WeightlessCacheAttribute(byte_size, bin_offset, dtype);
+            }
+        }
+
+        // Stamp "otd_bin_offset" as a plain int64_t on every constant with WCA.
+        // Plain ov::Any entries survive copy_runtime_info automatically.
+        for (const auto& op : func->get_ops()) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!const_node)
+                continue;
+            const auto& rt = const_node->get_rt_info();
+            auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (it != rt.end()) {
+                const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
+                const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
+            }
+        }
+    }
+
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
         {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
