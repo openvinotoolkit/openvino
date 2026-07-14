@@ -78,8 +78,25 @@ public:
         desc.num_stored_tokens = desc.max_prompt_size;
     }
 
-    const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc() const {
-        return ov::npuw::LLMInferRequest::kvcache_desc();
+    std::pair<ov::SoPtr<ov::ITensor>, ov::SoPtr<ov::ITensor>> make_non_chunked_copy_views(
+        const std::string& output_name,
+        const ov::SoPtr<ov::ITensor>& src_tensor,
+        const ov::SoPtr<ov::ITensor>& dst_tensor) const {
+        const auto& desc = ov::npuw::LLMInferRequest::kvcache_desc();
+        const auto is_value_tensor = output_name.find("value") != std::string::npos;
+        const auto kv_dim = [&](bool v_transposed) {
+            return (is_value_tensor && v_transposed) ? 3u : desc.dim;
+        };
+
+        const auto pre_kv_dim = kv_dim(desc.v_tensors_transposed_pre);
+        const auto gen_kv_dim = kv_dim(desc.v_tensors_transposed_gen);
+
+        auto src_view = ov::npuw::util::make_tensor_slice(src_tensor,
+                                                          pre_kv_dim,
+                                                          desc.max_prompt_size - desc.num_stored_tokens,
+                                                          desc.max_prompt_size);
+        auto dst_view = ov::npuw::util::make_tensor_slice(dst_tensor, gen_kv_dim, 0u, desc.num_stored_tokens);
+        return {src_view, dst_view};
     }
 
     const ov::npuw::LLMInferBaseRequest::PortsMap& prefill_in_ports() const {
@@ -109,28 +126,6 @@ public:
 
 bool is_kv_name(std::string_view name) {
     return ov::npuw::util::isKVCacheName(std::string(name));
-}
-
-std::pair<ov::SoPtr<ov::ITensor>, ov::SoPtr<ov::ITensor>> make_non_chunked_copy_views(
-    const TestableLLMInferRequest& request,
-    const std::string& output_name,
-    const ov::SoPtr<ov::ITensor>& src_tensor,
-    const ov::SoPtr<ov::ITensor>& dst_tensor) {
-    const auto& desc = request.kvcache_desc();
-    const auto is_value_tensor = output_name.find("value") != std::string::npos;
-    const auto kv_dim = [&](bool v_transposed) {
-        return (is_value_tensor && v_transposed) ? 3u : desc.dim;
-    };
-
-    const auto pre_kv_dim = kv_dim(desc.v_tensors_transposed_pre);
-    const auto gen_kv_dim = kv_dim(desc.v_tensors_transposed_gen);
-
-    auto src_view = ov::npuw::util::make_tensor_slice(src_tensor,
-                                                      pre_kv_dim,
-                                                      desc.max_prompt_size - desc.num_stored_tokens,
-                                                      desc.max_prompt_size);
-    auto dst_view = ov::npuw::util::make_tensor_slice(dst_tensor, gen_kv_dim, 0u, desc.num_stored_tokens);
-    return {src_view, dst_view};
 }
 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_key_input_matrix() {
@@ -634,7 +629,7 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheCopiesQuantizedAuxTensorsBy
     for (const auto& pair : copied_pairs) {
         auto src_tensor = request.prefill_request()->get_tensor(request.prefill_out_ports().at(pair.output_name));
         auto dst_tensor = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(pair.input_name));
-        auto [src_view, dst_view] = make_non_chunked_copy_views(request, pair.output_name, src_tensor, dst_tensor);
+        auto [src_view, dst_view] = request.make_non_chunked_copy_views(pair.output_name, src_tensor, dst_tensor);
 
         ASSERT_EQ(src_view->get_byte_size(), dst_view->get_byte_size())
             << "Byte-size mismatch for output/input pair: " << pair.output_name << " -> " << pair.input_name;

@@ -1032,6 +1032,60 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& st
     return std::nullopt;
 }
 
+std::string ov::npuw::util::present_to_past_key_values_name(const std::string& output_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (output_name.rfind(present_prefix, 0) == 0) {
+        return past_prefix + output_name.substr(present_prefix.size());
+    }
+
+    auto mapped_name = output_name;
+    const auto pos = mapped_name.find(present_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, present_prefix.size(), past_prefix);
+    }
+    return mapped_name;
+}
+
+std::string ov::npuw::util::past_key_values_to_present_name(const std::string& input_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (input_name.rfind(past_prefix, 0) == 0) {
+        return present_prefix + input_name.substr(past_prefix.size());
+    }
+
+    auto mapped_name = input_name;
+    const auto pos = mapped_name.find(past_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, past_prefix.size(), present_prefix);
+    }
+    return mapped_name;
+}
+
+std::optional<std::string> ov::npuw::util::resolveKVInputName(
+    const std::string& output_name,
+    const std::function<bool(const std::string&)>& has_input_name) {
+    auto input_name = present_to_past_key_values_name(output_name);
+    if (has_input_name(input_name)) {
+        return input_name;
+    }
+
+    const auto marker = std::string(constants::past_key_values);
+    const auto marker_pos = input_name.find(marker);
+    if (marker_pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    auto canonical_name = input_name.substr(marker_pos);
+    if (has_input_name(canonical_name)) {
+        return canonical_name;
+    }
+
+    return std::nullopt;
+}
+
 namespace {
 
 std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model,

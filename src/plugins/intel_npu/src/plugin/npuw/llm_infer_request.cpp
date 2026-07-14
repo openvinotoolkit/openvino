@@ -24,22 +24,6 @@ std::optional<std::string> resolve_kv_input_name(
     });
 }
 
-std::string past_key_values_to_present_name(const std::string& input_name) {
-    const std::string present_prefix = ov::npuw::util::constants::present;
-    const std::string past_prefix = ov::npuw::util::constants::past_key_values;
-
-    if (input_name.rfind(past_prefix, 0) == 0) {
-        return present_prefix + input_name.substr(past_prefix.size());
-    }
-
-    auto mapped_name = input_name;
-    const auto pos = mapped_name.find(past_prefix);
-    if (pos != std::string::npos) {
-        mapped_name.replace(pos, past_prefix.size(), present_prefix);
-    }
-    return mapped_name;
-}
-
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
 
@@ -553,7 +537,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
         const auto& past_input_name = m_kvcache_past_names[out_idx];
 
-        const auto output_name = past_key_values_to_present_name(past_input_name);
+        const auto output_name = ov::npuw::util::past_key_values_to_present_name(past_input_name);
         OPENVINO_ASSERT(m_prefill_out_ports.find(output_name) != m_prefill_out_ports.end(),
                         "Incosistent input/output naming for KV cache: ",
                         past_input_name,
