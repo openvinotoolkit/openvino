@@ -978,6 +978,10 @@ bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
     return std::regex_match(str, pattern);
 }
 
+bool ov::npuw::util::isPastKVCache(const std::string& str) {
+    return isPastKeyParam(str) || isPastValueParam(str) || isDQScaleOrZPKey(str) || isDQScaleOrZPValue(str);
+}
+
 bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
@@ -1053,6 +1057,22 @@ std::string ov::npuw::util::present_to_past_key_values_name(const std::string& o
     const auto pos = mapped_name.find(present_prefix);
     if (pos != std::string::npos) {
         mapped_name.replace(pos, present_prefix.size(), past_prefix);
+    }
+    return mapped_name;
+}
+
+std::string ov::npuw::util::past_key_values_to_present_name(const std::string& input_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (input_name.rfind(past_prefix, 0) == 0) {
+        return present_prefix + input_name.substr(past_prefix.size());
+    }
+
+    auto mapped_name = input_name;
+    const auto pos = mapped_name.find(past_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, past_prefix.size(), present_prefix);
     }
     return mapped_name;
 }

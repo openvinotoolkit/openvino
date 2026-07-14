@@ -108,8 +108,7 @@ public:
 };
 
 bool is_kv_name(std::string_view name) {
-    return name.find(ov::npuw::util::constants::present) != std::string_view::npos ||
-           name.find(ov::npuw::util::constants::past_key_values) != std::string_view::npos;
+    return ov::npuw::util::isKVCacheName(std::string(name));
 }
 
 std::pair<ov::SoPtr<ov::ITensor>, ov::SoPtr<ov::ITensor>> make_non_chunked_copy_views(
@@ -437,8 +436,7 @@ TEST_P(ConvertKVCacheHintPrecisionTest, GenerateModelKvOutputsResolveToPastInput
     bool checked_any_kv_output = false;
     for (const auto& output : generate.model->outputs()) {
         const auto& output_name = output.get_any_name();
-        const bool is_kv_output = output_name.find(ov::npuw::util::constants::present) != std::string::npos ||
-                                  output_name.find(ov::npuw::util::constants::past_key_values) != std::string::npos;
+        const bool is_kv_output = ov::npuw::util::isKVCacheName(output_name);
         if (!is_kv_output) {
             continue;
         }

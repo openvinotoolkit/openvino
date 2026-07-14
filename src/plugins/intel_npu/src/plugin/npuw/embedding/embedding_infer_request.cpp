@@ -25,8 +25,7 @@ ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLM
     m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
-        // Cache past_key_values ports for efficient clearing
-        if (input_port.get_any_name().find(layer_names::past_key_values) != std::string::npos) {
+        if (ov::npuw::util::isPastKVCache(input_port.get_any_name())) {
             m_prefill_past_kv_ports.push_back(input_port);
         }
     }

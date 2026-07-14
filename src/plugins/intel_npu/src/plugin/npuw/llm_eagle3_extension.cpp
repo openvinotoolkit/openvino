@@ -464,13 +464,13 @@ void Eagle3Extension::trim_kvcache_by_sampling(
     // Iterate through all KV cache outputs.
     // Each "present.<layer>" output corresponds to a "past_key_values.<layer>" input.
     // Non-KV outputs (e.g. logits) are filtered out by the prefix check below.
-    static const std::string present_prefix = ov::npuw::util::constants::present;
     for (const auto& output : compiled->outputs()) {
         const auto& output_name = output.get_any_name();
 
         // Convert present layer name to past layer name:
         // "present.<layer>" -> "past_key_values.<layer>"
-        if (output_name.compare(0, present_prefix.size(), present_prefix) != 0) {
+        if (!ov::npuw::util::isPresentKeyValuesKey(output_name).has_value() &&
+            !ov::npuw::util::isPresentKeyValuesValue(output_name).has_value()) {
             continue;  // Not a present KV layer
         }
         const std::string input_name = ov::npuw::util::present_to_past_key_values_name(output_name);

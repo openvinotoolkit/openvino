@@ -355,6 +355,7 @@ inline constexpr const char* present = "present";
 }  // namespace constants
 
 std::string present_to_past_key_values_name(const std::string& output_name);
+std::string past_key_values_to_present_name(const std::string& input_name);
 std::optional<std::string> resolveKVInputName(const std::string& output_name,
                                               const std::function<bool(const std::string&)>& has_input_name);
 
@@ -367,6 +368,9 @@ bool isPastValueParam(const std::string& str);
 // Returns true if the parameter name matches the DQ naming pattern.
 bool isDQScaleOrZPKey(const std::string& str);
 bool isDQScaleOrZPValue(const std::string& str);
+
+// Returns true if the name is any past KV cache input: key, value, or DQ scale/zp auxiliary.
+bool isPastKVCache(const std::string& str);
 
 // To remove input KV params that got badly matched in StatefulToStateless pass
 // in Whisper model.

@@ -106,7 +106,7 @@ TEST(StartsWithPastLincacheTest, ClassifiesInputNamesCorrectly) {
     };
 
     for (const auto& name : all_inputs) {
-        if (ov::npuw::util::starts_with(name, "past_key_values")) {
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name)) {
             kvcache_names.push_back(name);
         } else if (ov::npuw::util::starts_with_past_lincache(name)) {
             lincache_names.push_back(name);

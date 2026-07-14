@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -328,7 +329,7 @@ TEST(StatefulToStatelessTest, TinyLlama_ConvertsToStateless) {
     auto input_names = collect_input_names(model);
     std::vector<std::string> kv_inputs;
     for (const auto& name : input_names) {
-        if (name.find("past_key_values") != std::string::npos) {
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name)) {
             kv_inputs.push_back(name);
         }
     }
@@ -342,7 +343,8 @@ TEST(StatefulToStatelessTest, TinyLlama_ConvertsToStateless) {
     auto output_names = collect_output_names(model);
     std::vector<std::string> kv_outputs;
     for (const auto& name : output_names) {
-        if (name.find("present") != std::string::npos) {
+        if (ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+            ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
             kv_outputs.push_back(name);
         }
     }
@@ -430,7 +432,7 @@ TEST(StatefulToStatelessTest, LFM2_KVCacheBeforeConv) {
 
     std::vector<std::string> cache_inputs;
     for (const auto& name : input_names) {
-        if (name.find("past_key_values") != std::string::npos ||
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name) ||
             name.find("cache_params") != std::string::npos) {
             cache_inputs.push_back(name);
         }
@@ -451,7 +453,9 @@ TEST(StatefulToStatelessTest, LFM2_KVCacheBeforeConv) {
     auto output_names = collect_output_names(model);
     std::vector<std::string> cache_outputs;
     for (const auto& name : output_names) {
-        if (name.find("present") != std::string::npos) {
+        if (ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+            ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
+            name.find("cache_params.present") != std::string::npos) {
             cache_outputs.push_back(name);
         }
     }
@@ -473,7 +477,7 @@ TEST(StatefulToStatelessTest, LFM2_ShapesAndElementsTypeArePreserved) {
         const auto& name = input.get_any_name();
         const auto& shape = input.get_partial_shape();
 
-        if (name.find("past_key_values") != std::string::npos) {
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name)) {
             // KV cache: {?,8,?,64}, f32
             ASSERT_EQ(shape.rank().get_length(), 4) << "KV input " << name << " should be rank 4";
             EXPECT_EQ(shape[1].get_length(), 8) << "Num heads mismatch for " << name;
@@ -531,7 +535,7 @@ TEST(StatefulToStatelessTest, Qwen35_KVCacheBeforeLinearCaches) {
     int lin_first_pos = static_cast<int>(input_names.size());
 
     for (int i = 0; i < static_cast<int>(input_names.size()); ++i) {
-        if (input_names[i].find("past_key_values") != std::string::npos) {
+        if (ov::npuw::util::isPastKeyParam(input_names[i]) || ov::npuw::util::isPastValueParam(input_names[i])) {
             kv_last_pos = i;
         }
         if (input_names[i].find("cache_params") != std::string::npos) {
@@ -547,7 +551,8 @@ TEST(StatefulToStatelessTest, Qwen35_KVCacheBeforeLinearCaches) {
     int kv_out_last_pos = -1;
     int lin_out_first_pos = static_cast<int>(output_names.size());
     for (int i = 0; i < static_cast<int>(output_names.size()); ++i) {
-        if (output_names[i].find("present") != std::string::npos &&
+        if ((ov::npuw::util::isPresentKeyValuesKey(output_names[i]).has_value() ||
+             ov::npuw::util::isPresentKeyValuesValue(output_names[i]).has_value()) &&
             output_names[i].find("cache_params") == std::string::npos) {
             kv_out_last_pos = i;
         }
@@ -568,7 +573,7 @@ TEST(StatefulToStatelessTest, Qwen35_KeyBeforeValueOrdering) {
 
     std::vector<std::string> kv_inputs;
     for (const auto& name : input_names) {
-        if (name.find("past_key_values") != std::string::npos) {
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name)) {
             kv_inputs.push_back(name);
         }
     }
@@ -584,7 +589,8 @@ TEST(StatefulToStatelessTest, Qwen35_KeyBeforeValueOrdering) {
     auto output_names = collect_output_names(model);
     std::vector<std::string> kv_outputs;
     for (const auto& name : output_names) {
-        if (name.find("present") != std::string::npos &&
+        if ((ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+             ov::npuw::util::isPresentKeyValuesValue(name).has_value()) &&
             name.find("cache_params") == std::string::npos) {
             kv_outputs.push_back(name);
         }
@@ -605,7 +611,7 @@ TEST(StatefulToStatelessTest, Qwen35_ShapesAndElementTypesPreserved) {
         const auto& name = input.get_any_name();
         const auto& shape = input.get_partial_shape();
 
-        if (name.find("past_key_values") != std::string::npos) {
+        if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name)) {
             // KV cache: {?,2,?,256}, f32
             ASSERT_EQ(shape.rank().get_length(), 4) << "KV input " << name << " should be rank 4";
             EXPECT_EQ(shape[1].get_length(), 2) << "Num heads mismatch for " << name;
