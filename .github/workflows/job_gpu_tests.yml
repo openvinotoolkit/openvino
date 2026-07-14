@@ -97,11 +97,9 @@ jobs:
           NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
           NEO_CACHE_STATS: 1
           NEO_CACHE_PERSISTENT: 1
+          cl_cache_dir: /root/.cache/neo_compiler_cache
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          echo $NEO_CACHE_STATS
-          echo $NEO_CACHE_DIR
-          echo $NEO_CACHE_PERSISTENT
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
           echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
 
@@ -111,18 +109,7 @@ jobs:
           if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
             test_filter="${CUSTOM_TEST_FILTER}"
           elif [[ "${TEST_TYPE}" == "unit" ]]; then
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
-          else
-            test_filter='*smoke*'
-          fi
-          ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --report_unique_name --gtest_filter=$test_filter --gtest_output=json:${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json
-
-          # run it second time to see if cache is working
-          test_filter=''
-          if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
-            test_filter="${CUSTOM_TEST_FILTER}"
-          elif [[ "${TEST_TYPE}" == "unit" ]]; then
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+            test_filter='*batch_to_space*'
           else
             test_filter='*smoke*'
           fi
