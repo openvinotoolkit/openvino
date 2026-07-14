@@ -23,8 +23,8 @@ constexpr const char* ROUTER_TAG = "router";
 constexpr const char* EXPERT_TAG = "expert";
 
 // MoE layer name patterns for model detection
-constexpr const char* MLP_ROUTER_NAME = ".mlp.router";
-constexpr const char* MLP_EXPERT_NAME = ".mlp.expert";
+constexpr const char* MLP_ROUTER_NAME = ".router";
+constexpr const char* MLP_EXPERT_NAME = ".expert";
 
 // RT info key used to propagate the Router's K value from pattern-matching
 // callbacks to the partition stage (written by Router matchers, read by
@@ -99,6 +99,58 @@ public:
     // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
     //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
     Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+/*
+ * Gemma4 Expert Pattern:
+ *
+ * Expert compute with stacked weights for all N experts:
+ *   Tile -> Reshape -> MatMul(gate, DQ_weights) -> Gelu -> Multiply <- MatMul(up, DQ_weights)
+ *                                                              |
+ *                                                     MatMul(down, DQ_weights) -> Reshape1
+ *
+ * Pattern root: Reshape1 * scattered_router_scores -> Multiply_output
+ */
+class Gemma4Expert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Expert");
+    static constexpr const char* pattern_name() {
+        return "Gemma4Expert";
+    }
+    static constexpr const char* isolation_tag() {
+        return EXPERT_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+/*
+ * Gemma4 Router Pattern:
+ *
+ * FP32 weights (no dequantization), per-expert scale, extra Slice before scatter:
+ *   MatMul -> Softmax -> TopK(values, indices)
+ *   TopK(values) -> ReduceSum -> Divide    [renormalize over K]
+ *   Gather(per_expert_scale, topk_indices) -> Multiply(Divide, Gather) -> Slice
+ *   Slice -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
+ */
+class Gemma4Router : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Router");
+    static constexpr const char* pattern_name() {
+        return "Gemma4Router";
+    }
+    // NOTE: Gemma4Router does NOT isolate any nodes.  It only tags the matched
+    // TopK with RT_INFO_MOE_K for downstream K retrieval.
+    static constexpr const char* isolation_tag() {
+        return ROUTER_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused.
+    Gemma4Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 }  // namespace moe
