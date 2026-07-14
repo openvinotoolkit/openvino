@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "GQA_decomposition_fusion.hpp"
+#include "KVCache_GQA_Broadcast_Elimination.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -13,7 +13,7 @@
 #include <openvino/util/pp.hpp>
 
 namespace ov::intel_gpu {
-    GQADecompositionfusion::GQADecompositionfusion() {
+    KVCacheGQABroadcastElimination::KVCacheGQABroadcastElimination() {
         using namespace ov::pass::pattern;
 
         auto reshape_4d_to_5d = [](const ov::Output<ov::Node>& output) {
@@ -75,7 +75,7 @@ namespace ov::intel_gpu {
             }
             return true;
             };
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "GQADecompositionfusion");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "KVCacheGQABroadcastElimination");
 
         this->register_matcher(m, callback);
     }

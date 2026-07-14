@@ -8,10 +8,10 @@
 
 namespace ov::intel_gpu {
 
-class GQADecompositionfusion : public ov::pass::MatcherPass {
+class KVCacheGQABroadcastElimination : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("GQADecompositionfusion");
-    GQADecompositionfusion();
+    OPENVINO_MATCHER_PASS_RTTI("KVCacheGQABroadcastElimination");
+    KVCacheGQABroadcastElimination();
 };
 
 }   // namespace ov::intel_gpu
