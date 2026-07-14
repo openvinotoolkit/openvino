@@ -98,7 +98,17 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)});  // input: cu_seq_lens
 
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // need_wg_mapping
+
+        // Per-input token-axis discontinuity descriptors (populated in the dispatch lambda
+        // from each input layout's get_linear_offset() and get_pitches()[0]). See
+        // cm_sdpa_vlen.cm for the exact memory-layout contract with the kernel.
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // token_offset_q
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_k
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_offset_v
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // q_token_pitch
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // k_token_pitch
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // v_token_pitch
 
         return args;
     }
@@ -162,7 +172,28 @@ protected:
             wgs.global = {num_q_heads, wg_count * wg_size, 1};
             wgs.local = {1, wg_size, 1};
 
-            std::vector<int32_t> scalars{need_wg_mapping};
+            // Element-count offsets and per-input token strides taken directly from the
+            // input layouts. Non-zero token_offset_x arises when an in-place crop
+            // (e.g. TransposeSplitMatcher axis=1) leaves the SVM base pointing at the
+            // packed parent buffer and expresses the slice view via layout padding on
+            // the token axis; the kernel shifts the Q/K/V pointers accordingly.
+            // Contract with the CM kernel (see cm_sdpa_vlen.cm): only the token (outer)
+            // axis of each input layout may be padded — the head and head_size strides
+            // are hardcoded in the kernel and are NOT parameterized here.
+            int32_t token_offset_q = static_cast<int32_t>(params.input_layouts[0].get_linear_offset());
+            int32_t token_offset_k = static_cast<int32_t>(params.input_layouts[1].get_linear_offset());
+            int32_t token_offset_v = static_cast<int32_t>(params.input_layouts[2].get_linear_offset());
+            const auto q_token_pitch = static_cast<int32_t>(params.input_layouts[0].get_pitches()[0]);
+            const auto k_token_pitch = static_cast<int32_t>(params.input_layouts[1].get_pitches()[0]);
+            const auto v_token_pitch = static_cast<int32_t>(params.input_layouts[2].get_pitches()[0]);
+
+            std::vector<int32_t> scalars{need_wg_mapping,
+                                         token_offset_q,
+                                         token_offset_k,
+                                         token_offset_v,
+                                         q_token_pitch,
+                                         k_token_pitch,
+                                         v_token_pitch};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc s;
