@@ -13,7 +13,9 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_counter_based_event::wait_impl() {
-    OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
+    if (!is_set_impl()) {
+        OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
+    }
 }
 
 void ze_counter_based_event::set_impl() {
