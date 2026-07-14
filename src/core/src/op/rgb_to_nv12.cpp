@@ -20,7 +20,7 @@ ov::op::v17::RGBtoNV12::RGBtoNV12(const Output<Node>& arg, bool single_plane)
 
 std::shared_ptr<ov::Node> ov::op::v17::RGBtoNV12::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v17_RGBtoNV12_clone_with_new_inputs);
-    OPENVINO_ASSERT(new_args.size() == 1, "RGBtoNV12 shall have exactly one input node");
+    check_new_args_count(this, new_args);
     return std::make_shared<RGBtoNV12>(new_args.at(0), m_single_plane);
 }
 

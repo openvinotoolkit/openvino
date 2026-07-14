@@ -13,7 +13,7 @@ using ::testing::ElementsAre;
 namespace ov::tests {
 
 template <class T>
-class ConvertToNV12BaseTest : public testing::Test {};
+class ConvertToNV12BaseTest : public TypePropOpTest<T> {};
 
 TYPED_TEST_SUITE_P(ConvertToNV12BaseTest);
 
@@ -23,7 +23,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_default_ctor) {
     auto out_shape = ov::PartialShape{5, 6, 6, 1};  // H*3/2 = 4*3/2 = 6
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
 
-    auto op = std::make_shared<TypeParam>();
+    auto op = this->make_op();
     op->set_argument(0, param);
     op->validate_and_infer_types();
 
@@ -39,7 +39,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane) {
     auto symbols = set_shape_symbols(param_shape);
     auto out_shape = ov::PartialShape{1, 6, 6, 1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    auto op = std::make_shared<TypeParam>(param);
+    auto op = this->make_op(param);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::u8);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
@@ -51,7 +51,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_explicit_true) 
     auto param_shape = ov::PartialShape{2, 8, 10, 3};
     auto out_shape = ov::PartialShape{2, 12, 10, 1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
-    auto op = std::make_shared<TypeParam>(param, true);
+    auto op = this->make_op(param, true);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::f32);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
@@ -61,7 +61,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_dynamic) {
     auto param_shape = ov::PartialShape::dynamic();
     auto out_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
-    auto op = std::make_shared<TypeParam>(param);
+    auto op = this->make_op(param);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::f32);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
@@ -71,7 +71,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_dynamic_dims) {
     auto param_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 8, 3};
     auto out_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 8, 1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    auto op = std::make_shared<TypeParam>(param);
+    auto op = this->make_op(param);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::u8);
 }
@@ -80,7 +80,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_dynamic_type) {
     auto param_shape = ov::PartialShape{1, 4, 6, 3};
     auto out_shape = ov::PartialShape{1, 6, 6, 1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, param_shape);
-    auto op = std::make_shared<TypeParam>(param);
+    auto op = this->make_op(param);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::dynamic);
 }
@@ -90,7 +90,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane) {
     auto y_shape = ov::PartialShape{1, 480, 640, 1};
     auto uv_shape = ov::PartialShape{1, 240, 320, 2};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::u8);
     EXPECT_EQ(op->output(0).get_partial_shape(), y_shape);
@@ -103,7 +103,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic) {
     auto out_y_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1};
     auto out_uv_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::f32);
     EXPECT_EQ(op->output(1).get_element_type(), ov::element::f32);
@@ -117,7 +117,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_small) {
     auto y_shape = ov::PartialShape{2, 4, 6, 1};
     auto uv_shape = ov::PartialShape{2, 2, 3, 2};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_partial_shape(), y_shape);
     EXPECT_EQ(op->output(1).get_partial_shape(), uv_shape);
@@ -126,37 +126,37 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_small) {
 TYPED_TEST_P(ConvertToNV12BaseTest, error_channels_not_3) {
     auto param_shape = ov::PartialShape{1, 4, 6, 1};  // C=1, not 3
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, error_rank_5) {
     auto param_shape = ov::PartialShape{1, 4, 6, 3, 1};  // 5 dims
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, error_rank_3) {
     auto param_shape = ov::PartialShape{4, 6, 3};  // 3 dims
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, error_height_odd) {
     auto param_shape = ov::PartialShape{1, 5, 6, 3};  // H=5 is odd
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, error_width_odd) {
     auto param_shape = ov::PartialShape{1, 4, 5, 3};  // W=5 is odd
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, error_unsupported_type_i8) {
     auto param_shape = ov::PartialShape{1, 4, 6, 3};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, param_shape);
-    EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(param), ov::AssertFailure);
+    EXPECT_THROW(std::ignore = this->make_op(param), ov::AssertFailure);
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_interval_dims) {
@@ -164,7 +164,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_single_plane_interval_dims) 
     auto symbols = set_shape_symbols(param_shape);
     auto out_shape = ov::PartialShape{{2, 10}, {6, 30}, 8, 1};  // H*3/2
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    auto op = std::make_shared<TypeParam>(param);
+    auto op = this->make_op(param);
     EXPECT_EQ(op->output(0).get_partial_shape(), out_shape);
     EXPECT_EQ(op->output(0).get_element_type(), ov::element::u8);
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
@@ -177,7 +177,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic_dims) {
     auto expected_uv_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4, 2};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
 
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_partial_shape(), expected_y_shape);
@@ -192,7 +192,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_interval_dims_and_
     auto expected_uv_shape = ov::PartialShape{{2, 10}, {2, 10}, {3, 6}, 2};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
 
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_partial_shape(), expected_y_shape);
@@ -210,7 +210,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic_type) {
     auto out_uv_shape = ov::PartialShape{1, 240, 320, 2};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, param_shape);
-    auto op = std::make_shared<TypeParam>(param, false);
+    auto op = this->make_op(param, false);
 
     EXPECT_EQ(op->get_output_size(), 2);
 
