@@ -146,7 +146,13 @@ class BenchmarkLayerTest : public BaseLayerTest {
 
         // Benchmark
         for (int i = 0; i < num_attempts_; ++i) {
+#ifdef GRAPH_COMPILER
+            const auto start = std::chrono::steady_clock::now();
             this->inferRequest.infer();
+            const auto end = std::chrono::steady_clock::now();
+#else
+            this->inferRequest.infer();
+#endif
             const auto& profiling_info = this->inferRequest.get_profiling_info();
             for (auto& res : results_us) {
                 const std::string node_type_name = res.first;
@@ -155,6 +161,23 @@ class BenchmarkLayerTest : public BaseLayerTest {
                     [&node_type_name](const ProfilingInfo& profile) {
                         return profile.node_type == node_type_name;
                     });
+#ifdef GRAPH_COMPILER
+                if (node_type_name == "MLIROp") {
+                    uint64_t profile_time = 0;
+                    for (const auto& profile : profiling_info) {
+                        if (profile.node_type == "Parameter" || profile.node_type == "Result") {
+                            continue;
+                        }
+                        profile_time += profile.real_time.count();
+                    }
+
+                    if (profile_time)
+                        time += profile_time;
+                    else
+                        time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+                    continue;
+                }
+#endif
                 if (found_profile == profiling_info.end()) {
                     OPENVINO_THROW("Cannot find operator by node type: ", node_type_name);
                 }

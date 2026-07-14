@@ -39,6 +39,10 @@ ov_add_test_target(
             OV GPU
 )
 
+if(ENABLE_GRAPH_COMPILER)
+    target_compile_definitions(${TARGET_NAME} PRIVATE GRAPH_COMPILER)
+endif()
+
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)

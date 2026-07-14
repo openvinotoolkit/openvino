@@ -4,18 +4,13 @@
 
 #pragma once
 
-#include "mlir/IR/OwningOpRef.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
-#include "mlir/ExecutionEngine/JitRunner.h"
-#include "mlir/ExecutionEngine/OptUtils.h"
 
 #include "openvino/op/op.hpp"
-#include "openvino/core/shape.hpp"
 
 #include "common/convert_common.hpp"
 
-#include "gc/Utils/Error.h"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 
 namespace ov {
@@ -55,7 +50,7 @@ private:
 using DimensionsMap = std::vector<std::vector<std::tuple<size_t, size_t>>>;
 
 
-class OPENVINO_API MLIROp : public ov::op::Op {
+class MLIROp : public ov::op::Op {
     std::shared_ptr<MLIREvaluateBase> engine;
     OVOutputTypes output_types;
     DimensionsMap dimensions_map;

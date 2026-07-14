@@ -143,15 +143,6 @@ endfunction()
 
 
 #
-# Graph Compiler
-#
-if (ENABLE_GRAPH_COMPILER)
-    include(cmake/graph-compiler.cmake)
-    add_definitions(-DGRAPH_COMPILER)
-    add_definitions(-DGC_USE_GPU)
-endif()
-
-#
 # Build
 #
 

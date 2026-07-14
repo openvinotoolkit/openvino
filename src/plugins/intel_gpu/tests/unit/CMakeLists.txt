@@ -34,6 +34,10 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/simple_math.cpp"
   )
 
+if(TARGET openvino_intel_gpu_plugin)
+    list(REMOVE_ITEM SOURCES_MAIN ${GPU_MLIR_SOURCES})
+endif()
+
 # Those tests have dependency on OpenCL runtime
 # Need to be excluded from the build with a different runtime
 file(GLOB_RECURSE SOURCES_WITH_OCL_RT
@@ -114,6 +118,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              common_test_utils
                                              openvino::reference
                                              gmock)
+
+if(ENABLE_GRAPH_COMPILER)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_plugin)
+endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/

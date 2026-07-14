@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/util/env_util.hpp"
-#include "transformations_visibility.hpp"
 
 namespace ov {
 
@@ -17,8 +17,8 @@ inline bool is_mlir_transform_enabled() {
     return util::getenv_bool("OV_MLIR", false);
 }
 
-void TRANSFORMATIONS_API transformMLIR(std::shared_ptr<ov::Model> model,
-                                       std::shared_ptr<ov::EvaluationContext> loweringContext);
+OPENVINO_API void transformMLIR(std::shared_ptr<ov::Model> model,
+                                std::shared_ptr<ov::EvaluationContext> loweringContext);
 
 }
 
@@ -28,7 +28,7 @@ namespace mlir {
 // the op's dimensions_map. Asserts if the node is not an MLIROp.
 // Exposed here so callers outside transformations (e.g. Intel GPU plugin) can
 // invoke shape inference without depending on the private MLIROp header.
-std::vector<ov::PartialShape> TRANSFORMATIONS_API mlir_op_shape_infer(
+OPENVINO_API std::vector<ov::PartialShape> mlir_op_shape_infer(
         const std::shared_ptr<const ov::Node>& op,
         const std::vector<ov::PartialShape>& input_shapes);
 

@@ -84,7 +84,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "subgraph_tracker.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations_visibility.hpp"
 
 namespace {
 
@@ -392,20 +391,12 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     model->validate_nodes_and_infer_types();
 }
 
-void loadDialects(MLIRContext* context) {
-    context->loadAllAvailableDialects();
-}
-
 MLIRContext* get_shared_mlir_context() {
-    // Gives MLIRContext instance shared for entire OV process and initialized once upon the initial request
-    // FIXME: Bind with OpenVINO lifetime in the sutable class instead of dirty tricking with static lifetime
-
-    static std::shared_ptr<MLIRContext> context = [] {
-        auto ctx = std::make_shared<MLIRContext>(gc::getDialectRegistry());
-        loadDialects(ctx.get());
+    static auto context = [] {
+        auto ctx = std::make_unique<MLIRContext>(gc::getDialectRegistry());
+        ctx->loadAllAvailableDialects();
         return ctx;
     }();
-
     return context.get();
 }
 

@@ -49,28 +49,15 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
-if(ENABLE_GRAPH_COMPILER)
-    find_package(MLIR REQUIRED CONFIG)
-
-    if (LLVM_DYLINK)
-        set(MLIR_ALL_LIBS LLVM MLIR)
-    endif()
-endif()
-
 target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
     openvino::shape_inference
     openvino::pugixml
     ${CMAKE_DL_LIBS}
-    ${GRAPH_COMPILER_LIBS}
-    ${MLIR_ALL_LIBS}
     Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
-if(ENABLE_GRAPH_COMPILER AND NOT LLVM_DYLINK)
-    target_link_options(${TARGET_NAME} PRIVATE -Wl,--gc-sections)
-endif()
 
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
