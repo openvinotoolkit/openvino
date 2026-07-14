@@ -64,7 +64,8 @@ public:
             OPENVINO_ASSERT(!is_required || exists,
                             "Missing required GroupQueryAttention input at original position ",
                             original_pos);
-            return exists ? node->input_value(node->get_input_index(original_pos)) : ov::Output<ov::Node>{};
+            return exists ? node->input_value(static_cast<size_t>(node->get_input_index(original_pos)))
+                          : ov::Output<ov::Node>{};
         };
 
         auto Q = get_input(ov::op::internal::GroupQueryAttentionInputs::QUERY);
