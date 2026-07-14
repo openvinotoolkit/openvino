@@ -64,13 +64,11 @@ namespace ov::intel_gpu {
             auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
 
             if (pattern_map.count(in_key) > 0) {
-                const auto key = pattern_map.at(in_key).get_node_shared_ptr();
-                sdpa->input(1).replace_source_output(key->output(1));
+                sdpa->input(1).replace_source_output(pattern_map.at(in_key));
             }
 
             if (pattern_map.count(in_value) > 0) {
-                const auto value = pattern_map.at(in_value).get_node_shared_ptr();
-                sdpa->input(2).replace_source_output(value->output(1));
+                sdpa->input(2).replace_source_output(pattern_map.at(in_value));
             }
             return false;
             };
