@@ -23,6 +23,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -73,6 +74,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         auto otd_it = constant->get_rt_info().find("otd_bin_offset");
         if (otd_it != constant->get_rt_info().end()) {
             new_constant->get_rt_info()["otd_bin_offset"] = otd_it->second;
+        }
+        // Preserve `keep_const_precision` set by MarkDequantization::KeepConstPrecision on the
+        // original low-precision weight/ZP Constant. Constant's copy ctor does not carry rt_info,
+        // so without this the mark would be lost and ConvertPrecision would re-quantize u4 to u8.
+        if (ov::is_keep_const_precision(constant)) {
+            ov::enable_keep_const_precision(new_constant);
         }
         return new_constant;
     };
@@ -131,6 +138,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                 auto inner = wrapping_convert ? wrapping_convert->get_input_node_shared_ptr(0) : node;
                 auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
                 auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(inner, axis);
+                // If make_try_fold collapsed the Unsqueeze into a fresh Constant, re-apply the
+                // `keep_const_precision` mark that the original leaf carried from MarkDequantization.
+                if (ov::is_type<v0::Constant>(unsqueezed) && ov::is_keep_const_precision(inner)) {
+                    ov::enable_keep_const_precision(unsqueezed);
+                }
                 result_nodes.push_back(unsqueezed);
                 if (wrapping_convert) {
                     auto rewrapped =

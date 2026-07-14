@@ -70,6 +70,19 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         const auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
         const bool grouped = scale_shape.size() == weights_shape.size() + 1;
 
+        // Mark the low-precision weight/ZP leaves with `keep_const_precision` so ConvertPrecision
+        // does not upcast them (e.g. u4 -> u8). The regular MarkDequantization/KeepConstPrecision
+        // pair cannot do this here because in the GPU pipeline KeepConstPrecision is scheduled
+        // AFTER this transformation, by which point the Multiply/Subtract dequantization subgraph
+        // has already been folded into GroupedMatMulCompressed and its pattern no longer matches.
+        // The propagation logic in process_compressed_weights() carries the mark through any fresh
+        // Constants it may synthesize (combine_groups reshape, make_try_fold on Unsqueeze).
+        ov::enable_keep_const_precision(
+            weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
+        if (const auto sub_const_anchor = weights_block->get_anchor("sub_const", pattern_map)) {
+            ov::enable_keep_const_precision(sub_const_anchor->get_node_shared_ptr());
+        }
+
         ov::NodeVector result_nodes;
         // `batched_weights=true` selects a final weights rank of 3 in the shared helper, which
         // matches the rank-3 mat_b of GroupedMatMul.
@@ -113,29 +126,6 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         new_gmm->set_friendly_name(gmm->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(gmm, new_gmm);
-
-        // Preserve low-precision (e.g. u4) weights and zero-point Constants through the
-        // later ConvertPrecision pass. MarkDequantization marks the *original* Constants,
-        // but process_compressed_weights() may synthesize fresh Constants (e.g. when
-        // combine_groups reshapes a grouped rank-4 scale/zp), dropping that rt_info.
-        // Walk down single-source wrapper ops (Transpose/Convert/Unsqueeze) to the leaf
-        // Constant and re-apply the marker on whatever actually feeds the new op.
-        auto keep_leaf_const_precision = [](const std::shared_ptr<ov::Node>& start) {
-            auto cur = start;
-            while (cur && !ov::is_type<ov::op::v0::Constant>(cur)) {
-                if (cur->get_input_size() == 0) {
-                    return;
-                }
-                cur = cur->get_input_node_shared_ptr(0);
-            }
-            if (cur) {
-                ov::enable_keep_const_precision(cur);
-            }
-        };
-        keep_leaf_const_precision(gmm_input_b);
-        if (with_zero_point) {
-            keep_leaf_const_precision(gmm_input_zp);
-        }
         return true;
     };
 
