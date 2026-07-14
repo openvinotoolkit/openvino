@@ -11,7 +11,7 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "intel_gpu/op/sdpa.hpp"
-#include "plugin/transformations/GQA_decomposition_fusion.hpp"
+#include "plugin/transformations/KVCache_GQA_Broadcast_Elimination.hpp"
 #include <memory>
 
 using namespace testing;
@@ -21,7 +21,7 @@ namespace ov {
 namespace test {
 namespace intel_gpu {
 
-TEST_F(TransformationTestsF, GQADecompositionFusion1) {
+TEST_F(TransformationTestsF, KVCacheGQABroadcastEliminationTest1) {
     std::vector<int64_t> in0_order = {0, 1, 2, 3};
     std::vector<int64_t> in1_order = {0, 1, 2, 3};
     std::vector<int64_t> in2_order = {0, 1, 2, 3};
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, GQADecompositionFusion1) {
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{ sdpa }, ov::ParameterVector{input_q, input_k, input_v});
-        manager.register_pass<GQADecompositionfusion>();
+        manager.register_pass<KVCacheGQABroadcastElimination>();
     }
     {
         auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 16});
