@@ -72,7 +72,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                paddingBottom,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
-    // Instead of checking ==1 ==2 branch, iterate throught he vector
+    // Instead of checking ==1 ==2 branch, iterate throught the vector
     for (const auto& postOp : attrs.postOps ){
         if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
