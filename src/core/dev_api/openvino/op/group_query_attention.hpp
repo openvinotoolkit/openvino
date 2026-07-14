@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 #include "openvino/op/op.hpp"
 

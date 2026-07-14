@@ -90,9 +90,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_key = node->input_value(static_cast<size_t>(GQAInputs::PAST_KEY));
     auto past_value = node->input_value(static_cast<size_t>(GQAInputs::PAST_VALUE));
     auto seqlens_k = node->input_value(static_cast<size_t>(GQAInputs::SEQLENS_K));
-    auto total_sequence_length = node->input_value(static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH));
 
-    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8 and are dequantized before the
+    // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
     // attention math and (re)quantized when appended to the cache. Scales live at ONNX K_SCALE / V_SCALE positions.
     const bool kv_quantized = node->is_kv_quantized();
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
@@ -104,7 +103,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Get k_scale and v_scale from their actual input indices by accounting for null ONNX inputs.
     // Note: validate_and_infer_types() already verified these indices are valid when kv_quantized is true,
     // so we skip redundant bounds checks here.
-
     if (kv_quantized) {
         auto k_scale_idx = node->get_input_index(static_cast<int64_t>(GQAInputs::K_SCALE));
         auto v_scale_idx = node->get_input_index(static_cast<int64_t>(GQAInputs::V_SCALE));
