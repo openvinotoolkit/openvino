@@ -404,6 +404,7 @@ Rules that apply to all artefact types:
            → deduplicate by URL, then truncate to first 10 entries
        record.recent_timestamps = [NOW] + existing.recent_timestamps
            → keep only entries where timestamp >= (NOW - 24 hours)
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← recompute per Step C.1 (refresh always)
    ELSE:
        record.schema_version = "1.0"
        record.signature   = the <normalized-error>|<category> signature string from Step A
@@ -416,7 +417,16 @@ Rules that apply to all artefact types:
        record.recent_run_urls = [CURRENT_RUN_URL]
        record.affected_prs = (if CURRENT_PR_URL: [CURRENT_PR_URL] else [])
        record.recent_timestamps = [NOW]
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← compute per Step C.1
    ~~~
+
+   **Step C.1 — Compute and verify `RERUN_SEARCH_STRING` (the workflow_rerunner hook):**
+   This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), which greps the failed run's logs for this string and, on a match, re-runs the failed jobs — exactly like the static entries in `.github/scripts/workflow_rerun/errors_to_look_for.json`. A rerun only helps for **transient** failures, and a string that never matches is useless:
+   - IF `category` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service` (i.e. a deterministic `Code Issue`/`Dependencies`/`Configuration` failure a restart cannot fix): set `RERUN_SEARCH_STRING = null`. A search string here would make the rerunner loop on an unfixable failure.
+   - ELSE: set `RERUN_SEARCH_STRING` to a **short, stable substring taken verbatim from a single raw log line** that uniquely identifies this failure (e.g., `Could not resolve host`, `Connection reset by peer`, `runner has received a shutdown signal`). Strip everything volatile that changes between runs or across jobs: absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and embedded job/runner/OS/shard names.
+   - Always recompute on update so a category change (e.g. `Flaky Test` → `Code Issue`) correctly clears or sets the string.
+
+   **Verify a non-null value against the rerunner's exact matcher** ([`log_analyzer.py`](../scripts/workflow_rerun/log_analyzer.py)): it normalizes a string by replacing each run of non-alphanumeric chars (`[^A-Za-z0-9]+`) with one space, lower-casing, and stripping (so `Could not resolve host: github.com` → `could not resolve host github com`), then checks whether the normalized string is a plain substring of a **single** normalized log line (matches never span line breaks). Confirm the normalized `RERUN_SEARCH_STRING` is a substring of a normalized real log line from the pre-downloaded logs, is non-empty after normalization, and is specific enough to avoid matching benign lines (no bare `error`/`failed`/`warning`). If you cannot satisfy this, set `RERUN_SEARCH_STRING = null` rather than store an unverified guess.
 
    **Step D — Write the file:**
    Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
@@ -429,6 +439,8 @@ Rules that apply to all artefact types:
    - `recent_timestamps` contains the current timestamp `NOW` as the first entry
    - `last_seen` equals `NOW`
    - `first_seen` has NOT changed from `existing.first_seen` (if file existed before)
+   - `rerun_search_string` is present and is either a non-empty string (only for the transient categories `Flaky Test`/`Infrastructure`/`Network`/`External Service`) or `null` (for every other category)
+   - if `rerun_search_string` is non-null, it still satisfies the Step C.1 verification (normalized substring of a single actual failure-log line, non-empty after normalization); otherwise set it to `null`
 
    If any check fails, you have a bug in your write logic. Fix it before proceeding.
 
