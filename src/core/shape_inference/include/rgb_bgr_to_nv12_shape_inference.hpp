@@ -41,9 +41,11 @@ std::vector<TRShape> shape_infer(const util::ConvertColorToNV12Base* op, const s
     NODE_SHAPE_INFER_CHECK(op, input_shapes, dim::is_divisible(shape_rgb[2], 2), "Image width must be even");
 
     if (op->is_single_plane()) {
-        auto height = shape_rgb[1] * 3 / 2;
+        auto out = TRShape{shape_rgb[0], shape_rgb[1], shape_rgb[2], 1};
+        auto& height = out[1];
+        height = height * 3 / 2;
         NODE_SHAPE_INFER_CHECK(op, input_shapes, !dim::is_empty(height), "Image height computation failed");
-        return {TRShape{shape_rgb[0], std::move(height), shape_rgb[2], 1}};
+        return {std::move(out)};
     } else {
         return {TRShape{shape_rgb[0], shape_rgb[1], shape_rgb[2], 1},           // Y plane
                 TRShape{shape_rgb[0], shape_rgb[1] / 2, shape_rgb[2] / 2, 2}};  // UV plane
