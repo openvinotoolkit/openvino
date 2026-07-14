@@ -13,6 +13,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -21,6 +22,7 @@
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed(
     const std::vector<ov::element::Type>& supported_weights_types) {
@@ -111,6 +113,29 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
         new_gmm->set_friendly_name(gmm->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(gmm, new_gmm);
+
+        // Preserve low-precision (e.g. u4) weights and zero-point Constants through the
+        // later ConvertPrecision pass. MarkDequantization marks the *original* Constants,
+        // but process_compressed_weights() may synthesize fresh Constants (e.g. when
+        // combine_groups reshapes a grouped rank-4 scale/zp), dropping that rt_info.
+        // Walk down single-source wrapper ops (Transpose/Convert/Unsqueeze) to the leaf
+        // Constant and re-apply the marker on whatever actually feeds the new op.
+        auto keep_leaf_const_precision = [](const std::shared_ptr<ov::Node>& start) {
+            auto cur = start;
+            while (cur && !ov::is_type<ov::op::v0::Constant>(cur)) {
+                if (cur->get_input_size() == 0) {
+                    return;
+                }
+                cur = cur->get_input_node_shared_ptr(0);
+            }
+            if (cur) {
+                ov::enable_keep_const_precision(cur);
+            }
+        };
+        keep_leaf_const_precision(gmm_input_b);
+        if (with_zero_point) {
+            keep_leaf_const_precision(gmm_input_zp);
+        }
         return true;
     };
 
