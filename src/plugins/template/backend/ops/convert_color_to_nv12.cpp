@@ -28,27 +28,14 @@ bool evaluate_nv12(const ov::op::util::ConvertColorToNV12Base* op,
     const auto image_w = rgb_tensor.get_shape()[2];
     const bool single_plane = op->get_output_size() == 1;
 
-    if (single_plane) {
-        ov::reference::color_convert_to_nv12(rgb_tensor.data<T>(),
-                                             outputs[0].data<T>(),
-                                             outputs[0].data<T>() + image_w * image_h,
-                                             batch_size,
-                                             image_h,
-                                             image_w,
-                                             image_w * image_h * 3 / 2,
-                                             image_w * image_h * 3 / 2,
-                                             color_format);
-    } else {
-        ov::reference::color_convert_to_nv12(rgb_tensor.data<T>(),
-                                             outputs[0].data<T>(),
-                                             outputs[1].data<T>(),
-                                             batch_size,
-                                             image_h,
-                                             image_w,
-                                             image_w * image_h,
-                                             image_w * image_h / 2,
-                                             color_format);
-    }
+    ov::reference::color_convert_to_nv12(rgb_tensor.data<T>(),
+                                         outputs[0].data<T>(),
+                                         single_plane ? nullptr : outputs[1].data<T>(),
+                                         batch_size,
+                                         image_h,
+                                         image_w,
+                                         single_plane,
+                                         color_format);
     return true;
 }
 }  // namespace

@@ -33,12 +33,16 @@ void color_convert_to_nv12(const T* rgb_ptr,
                            size_t batch_size,
                            size_t image_h,
                            size_t image_w,
-                           size_t stride_y,
-                           size_t stride_uv,
+                           bool single_plane,
                            ov::op::util::ConvertColorToNV12Base::ColorConversion color_format) {
     const bool is_rgb = (color_format == ov::op::util::ConvertColorToNV12Base::ColorConversion::RGB_TO_NV12);
     const size_t r_offset = is_rgb ? 0 : 2;
     const size_t b_offset = is_rgb ? 2 : 0;
+
+    const size_t frame_size = image_w * image_h;
+    const size_t stride_y = single_plane ? frame_size * 3 / 2 : frame_size;
+    const size_t stride_uv = single_plane ? frame_size * 3 / 2 : frame_size / 2;
+    T* uv_base = single_plane ? out_y + frame_size : out_uv;
 
     auto round_cast = [](float a) -> T {
         if constexpr (std::is_integral<T>::value) {
@@ -48,9 +52,9 @@ void color_convert_to_nv12(const T* rgb_ptr,
         }
     };
     for (size_t batch = 0; batch < batch_size; batch++) {
-        const T* rgb = rgb_ptr + batch * image_w * image_h * 3;
+        const T* rgb = rgb_ptr + batch * frame_size * 3;
         T* y_ptr = out_y + batch * stride_y;
-        T* uv_ptr = out_uv + batch * stride_uv;
+        T* uv_ptr = uv_base + batch * stride_uv;
         for (size_t h = 0; h < image_h; h += 2) {
             for (size_t w = 0; w < image_w; w += 2) {
                 float u_sum = 0.f;
