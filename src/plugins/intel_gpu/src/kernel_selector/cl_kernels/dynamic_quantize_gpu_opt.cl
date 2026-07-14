@@ -26,14 +26,15 @@
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
+    #define TO_TYPE_N_(type, n, x) convert_##type##n(x)
+    #define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
 #else
     #define SCALE_TYPE half
     #define TO_SCALE_TYPE(x) convert_half(x)
     #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+    #define TO_TYPE_N_(type, n, x) convert_##type##n(x)
+    #define TO_TYPE_N_SAT_(type, n, x) convert_##type##n##_sat(x)
 #endif
-
-#define TO_TYPE_N_(type, n, x) convert_##type##n(x)
-#define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
 
 #define VLOAD_N CAT(vload, VEC_SIZE)
 #define VSTORE_N CAT(vstore, VEC_SIZE)
@@ -176,10 +177,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint blockid = (uint)get_global_id(1) % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0) / ELEMENTS_PER_BYTE;
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0)) / ELEMENTS_PER_BYTE;
 #else
     const uint input_offset = INPUT0_GET_INDEX (0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0) / ELEMENTS_PER_BYTE;
+    const uint output_offset = (OUTPUT_GET_INDEX(0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0)) / ELEMENTS_PER_BYTE;
 #endif
 
     const uint block_size = SIMD * VEC_SIZE;

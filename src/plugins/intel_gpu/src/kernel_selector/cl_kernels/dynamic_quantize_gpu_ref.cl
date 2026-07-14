@@ -7,7 +7,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8_F4
-#include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
 #endif
@@ -41,6 +40,12 @@
 #else
     #define TO_OUTPUT_TYPE_CUSTOM(val)  convert_char_rte(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  convert_char8_rte(val)
+#endif
+
+#if GENERATE_PRECOMPUTED_REDUCTION
+    #define FOR_PRECOMPUTED_REDUCTION(x)  x
+#else
+    #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
 #if F4E2M1_OUTPUT
@@ -253,15 +258,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-<<<<<<< HEAD
 #if F4E2M1_OUTPUT
             vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[byte_offset + x * 4]));
 #elif IS_F8
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[byte_offset + x * 8]));
-=======
-#if IS_F8
-            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[out_offset + x * 8]));
->>>>>>> origin/merge_open_source_6b94f3de7e
 #else
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_CUSTOM(val);
             vstore8(ival, 0, output + byte_offset + x * 8);
@@ -310,12 +310,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
             OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
-<<<<<<< HEAD
             uint out_idx = out_offset + x;
             output[out_idx] = ival;
-=======
-            output[out_offset + x] = ival;
->>>>>>> origin/merge_open_source_6b94f3de7e
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
         }
 #endif  // F4E2M1_OUTPUT (tail)
@@ -324,11 +320,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
 
-<<<<<<< HEAD
     output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0f / scale);
-=======
-    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
->>>>>>> origin/merge_open_source_6b94f3de7e
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[scale_idx] = precomputed_reduction);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
