@@ -114,10 +114,10 @@ void GroupQueryAttention::validate_and_infer_types() {
         // Verify that the computed input indices for k_scale and v_scale are valid
         auto k_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE));
         auto v_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE));
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_element_type(k_scale_idx) == element::f32 && get_input_element_type(v_scale_idx) == element::f32,
-            "GroupQueryAttention k_scale/v_scale must be f32");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(static_cast<size_t>(k_scale_idx)) == element::f32 &&
+                                  get_input_element_type(static_cast<size_t>(v_scale_idx)) == element::f32,
+                              "GroupQueryAttention k_scale/v_scale must be f32");
     }
 
     if (m_do_rotary) {

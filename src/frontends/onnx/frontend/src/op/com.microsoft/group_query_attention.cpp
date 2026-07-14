@@ -138,7 +138,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // Process optional inputs: only add non-NullNode inputs and record omitted positions.
     FRONT_END_OP_CONVERSION_CHECK(
         common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
-        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must not be NullNode.");
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
     for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
         if (!ov::op::util::is_null(onnx_op_inputs[i])) {
             ov_op_inputs.push_back(onnx_op_inputs[i]);
