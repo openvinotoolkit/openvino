@@ -27,11 +27,13 @@ struct GatedMLPBlock {
     std::shared_ptr<ov::Node> source;
     std::shared_ptr<ov::op::v1::Add> residual_add;
     std::shared_ptr<ov::Node> residual_input;
+    std::vector<std::shared_ptr<ov::op::v0::MatMul>> input_projections;
 };
 
 struct SensitiveMatch {
     std::shared_ptr<ov::Node> suffix_boundary;
     std::vector<std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> attentions;
+    std::unordered_set<const ov::Node*> fp16_mlp_input_projections;
 };
 
 std::optional<GatedMLPBlock> match_gated_mlp_block(const std::shared_ptr<ov::Node>& node) {
@@ -87,7 +89,7 @@ std::optional<GatedMLPBlock> match_gated_mlp_block(const std::shared_ptr<ov::Nod
     if (!residual_input)
         return std::nullopt;
 
-    return GatedMLPBlock{gate->input_value(0).get_node_shared_ptr(), residual_add, residual_input};
+    return GatedMLPBlock{gate->input_value(0).get_node_shared_ptr(), residual_add, residual_input, {gate, up}};
 }
 
 bool depends_on(const std::shared_ptr<ov::Node>& node, const ov::Node* ancestor) {
@@ -298,45 +300,37 @@ std::optional<SensitiveMatch> find_sensitive_regions(const std::shared_ptr<ov::M
         if (match)
             return std::nullopt;
 
+        std::unordered_set<const ov::Node*> fp16_mlp_input_projections;
+        for (const auto block_idx : {candidate, next, last}) {
+            for (const auto& projection : blocks[block_idx].input_projections)
+                fp16_mlp_input_projections.insert(projection.get());
+        }
         match = SensitiveMatch{blocks[candidate].residual_input,
                                {links[first].attention,
                                 links[previous].attention,
                                 links[candidate].attention,
                                 links[next].attention,
-                                links[last].attention}};
+                                links[last].attention},
+                               std::move(fp16_mlp_input_projections)};
     }
     return match;
 }
 
-std::vector<std::shared_ptr<ov::op::v0::MatMul>> find_nearest_matmuls(const ov::Output<ov::Node>& output) {
+void protect_attention_input(const ov::Output<ov::Node>& output, bool protect_projection) {
     std::deque<std::shared_ptr<ov::Node>> pending{output.get_node_shared_ptr()};
     std::unordered_set<const ov::Node*> visited;
-    std::vector<std::shared_ptr<ov::op::v0::MatMul>> result;
     while (!pending.empty()) {
         auto node = pending.front();
         pending.pop_front();
         if (!node || !visited.insert(node.get()).second)
             continue;
-        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
-            result.push_back(matmul);
+        if (ov::is_type<ov::op::v0::MatMul>(node)) {
+            if (protect_projection)
+                ov::disable_conversion(node, ov::element::f16);
             continue;
         }
-        for (const auto& input : node->input_values())
-            pending.push_back(input.get_node_shared_ptr());
-    }
-    return result;
-}
-
-void protect_attention_input(const ov::Output<ov::Node>& output) {
-    std::deque<std::shared_ptr<ov::Node>> pending{output.get_node_shared_ptr()};
-    std::unordered_set<const ov::Node*> visited;
-    while (!pending.empty()) {
-        auto node = pending.front();
-        pending.pop_front();
-        if (!node || !visited.insert(node.get()).second)
-            continue;
         ov::disable_conversion(node, ov::element::f16);
-        if (ov::is_type<ov::op::v0::MatMul>(node) || ov::is_type<ov::op::v6::ReadValue>(node))
+        if (ov::is_type<ov::op::v6::ReadValue>(node))
             continue;
         for (const auto& input : node->input_values())
             pending.push_back(input.get_node_shared_ptr());
@@ -350,21 +344,17 @@ static bool mark_qwen3_omni_code_predictor_precision(const std::shared_ptr<ov::M
     if (!match || !match->suffix_boundary || match->attentions.size() != 5)
         return false;
 
-    const auto query_projections = find_nearest_matmuls(match->attentions.front()->input_value(0));
-    if (query_projections.empty())
-        return false;
-    for (const auto& projection : query_projections)
-        ov::disable_conversion(projection, ov::element::f16);
-
-    // Trial-3: preserve the complete Q/K/V frontiers, SDPA reductions, and
-    // their paired recurrent KV state. This removes both attention arithmetic
-    // rounding and cross-step cache rounding while leaving the first two MLPs
-    // on the native FP16 path.
+    // Preserve SDPA arithmetic, the recurrent KV state, and all non-projection
+    // Q/K/V frontier operations. Layer 0 projections stay FP32; layers 1-2 use
+    // FP16; layers 3-4 are kept FP32 by the downstream suffix.
     std::unordered_set<std::string> protected_variable_ids;
-    for (const auto& attention : match->attentions) {
+    for (size_t layer = 0; layer < match->attentions.size(); ++layer) {
+        const auto& attention = match->attentions[layer];
         ov::disable_conversion(attention, ov::element::f16);
         for (size_t input_idx = 0; input_idx < 3; ++input_idx) {
-            protect_attention_input(attention->input_value(input_idx));
+            // Layer 0 projections remain FP32. Layers 1-2 use FP16, while
+            // layers 3-4 are protected again by the downstream suffix.
+            protect_attention_input(attention->input_value(input_idx), layer == 0);
             for (const auto& state : collect_read_values(attention->input_value(input_idx)))
                 protected_variable_ids.insert(state->get_variable_id());
         }
@@ -395,7 +385,8 @@ static bool mark_qwen3_omni_code_predictor_precision(const std::shared_ptr<ov::M
             continue;
         if (ov::is_type<ov::op::v6::Assign>(node)) {
             continue;
-        } else if (!ov::is_type<ov::op::v0::Result>(node)) {
+        } else if (!ov::is_type<ov::op::v0::Result>(node) &&
+                   !match->fp16_mlp_input_projections.count(node.get())) {
             ov::disable_conversion(node, ov::element::f16);
         }
         for (const auto& output : node->outputs()) {

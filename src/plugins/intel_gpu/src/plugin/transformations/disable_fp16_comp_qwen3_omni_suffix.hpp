@@ -12,11 +12,11 @@ namespace ov::intel_gpu {
  * @brief Runs GPU floating-point precision conversion with the Trial-3
  *        protection required by Qwen3-Omni's stateful code predictor.
  *
- * The protected regions are the first layer's fused Q/K/V projection and a
- * suffix starting after layer 2 attention that contains layer 2 MLP, layers
- * 3-4, final normalization, head, and sampling. The five structurally matched
- * SDPA reductions, their Q/K/V compute frontiers, and stateful KV caches are
- * also protected. The first two MLPs remain FP16.
+ * The protected regions are the first layer's Q/K/V projections, all five
+ * SDPA reductions and stateful KV caches, and a suffix starting after layer 2
+ * attention. Layers 1-2 Q/K/V projections and the gate/up projections in
+ * layers 2-4 use FP16. Down projections, residual accumulation, normalization,
+ * final head, and sampling remain FP32. The first two MLPs remain FP16.
  *
  * Before the ordinary ConvertPrecision implementation runs, this pass marks
  * the sensitive nodes. A successful match selects a conversion configuration
