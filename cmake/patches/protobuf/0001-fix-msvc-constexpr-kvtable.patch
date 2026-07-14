@@ -1,0 +1,18 @@
+﻿diff --git a/thirdparty/protobuf/protobuf/src/google/protobuf/map_field.h b/thirdparty/protobuf/protobuf/src/google/protobuf/map_field.h
+--- a/thirdparty/protobuf/protobuf/src/google/protobuf/map_field.h
++++ b/thirdparty/protobuf/protobuf/src/google/protobuf/map_field.h
+@@ -678,6 +678,13 @@
+ template <typename Derived, typename Key, typename T,
+           WireFormatLite::FieldType kKeyFieldType_,
+           WireFormatLite::FieldType kValueFieldType_>
+-constexpr MapFieldBase::VTable
++// MSVC (C2370): out-of-class definition storage class must match declaration
++// The in-class declaration uses 'static const', so 'constexpr' on the
++// definition causes a redefinition error with different storage class on MSVC.
++#if defined(_MSC_VER)
++const MapFieldBase::VTable
++#else
++constexpr MapFieldBase::VTable
++#endif
+     MapField<Derived, Key, T, kKeyFieldType_, kValueFieldType_>::kVTable =
+         MapField::template MakeVTable<MapField>();
