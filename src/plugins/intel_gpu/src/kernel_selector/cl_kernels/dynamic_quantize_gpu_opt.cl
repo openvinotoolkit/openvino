@@ -46,8 +46,124 @@
 
 
 // ***********************************************
-#if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
+#if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS_SG
 // ***********************************************
+// Sub-group cooperative version: SIMD threads process one quantization group together.
+// Each thread reads QUANTIZE_GROUP_SIZE/SIMD elements, uses sub_group_reduce_max.
+
+#if ASYMMETRIC_QUANTIZATION
+#error "UNIMPLMENTED: asymmetric quantization when group size is small (SG mode)"
+#endif
+
+#define ELEMS_PER_THREAD (QUANTIZE_GROUP_SIZE / SIMD)
+
+REQD_SUB_GROUP_SIZE(SIMD)
+KERNEL(dynamic_quantize_gpu_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global OUTPUT1_TYPE* output_scale
+#if GENERATE_PRECOMPUTED_REDUCTION
+    , __global OUTPUT2_TYPE* output_precomputed_reduction
+#endif
+    ) {
+
+    const uint sglid = get_sub_group_local_id();
+
+#if OUTPUT_DIMS == 2
+    const uint b = get_global_id(1);
+    const uint f_grp = get_global_id(2);
+    const uint input_offset = INPUT0_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+#else
+    const uint bf = get_global_id(1);
+    const uint b = bf / INPUT0_FEATURE_NUM;
+    const uint f = bf % INPUT0_FEATURE_NUM;
+    const uint y_grp = get_global_id(2);
+    const uint input_offset = INPUT0_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
+#endif
+
+    // Each thread reads ELEMS_PER_THREAD consecutive elements
+    const uint thread_offset = sglid * ELEMS_PER_THREAD;
+    half local_max = ACT_MIN_VAL;
+
+#if ELEMS_PER_THREAD == 4
+    half4 my_data = vload4(0, &input[input_offset + thread_offset]);
+    local_max = fmax(fmax(fabs(my_data[0]), fabs(my_data[1])), fmax(fabs(my_data[2]), fabs(my_data[3])));
+#elif ELEMS_PER_THREAD == 2
+    half2 my_data = vload2(0, &input[input_offset + thread_offset]);
+    local_max = fmax(fabs(my_data[0]), fabs(my_data[1]));
+#else
+    half my_data[ELEMS_PER_THREAD];
+    unroll_for (uint i = 0; i < ELEMS_PER_THREAD; ++i) {
+        my_data[i] = input[input_offset + thread_offset + i];
+        local_max = fmax(local_max, fabs(my_data[i]));
+    }
+#endif
+
+    // Sub-group cooperative max reduction
+    half max_value = sub_group_reduce_max(local_max);
+    max_value = fmax(max_value, ACT_MIN_VAL);
+
+#if IS_MXFP
+    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_value)))));
+#else
+    SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
+    FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
+#endif
+
+    // Quantize and store
+#if ELEMS_PER_THREAD == 4
+    #if IS_F8
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) qval = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(my_data) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
+    vstore4(qval.data, 0, (char*)(&output[output_offset + thread_offset]));
+    #else
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) qval = convert_char4_rte(my_data * (half4)quan_scale);
+    FOR_PRECOMPUTED_REDUCTION(precomputed_reduction = qval[0] + qval[1] + qval[2] + qval[3]);
+    vstore4(qval, 0, &output[output_offset + thread_offset]);
+    #endif
+#elif ELEMS_PER_THREAD == 2
+    #if IS_F8
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) qval = TO_TYPE_N_SAT(OUTPUT_TYPE, 2, convert_float2(my_data) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 2))quan_scale);
+    vstore2(qval.data, 0, (char*)(&output[output_offset + thread_offset]));
+    #else
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) qval = convert_char2_rte(my_data * (half2)quan_scale);
+    FOR_PRECOMPUTED_REDUCTION(precomputed_reduction = qval[0] + qval[1]);
+    vstore2(qval, 0, &output[output_offset + thread_offset]);
+    #endif
+#else
+    unroll_for (uint i = 0; i < ELEMS_PER_THREAD; ++i) {
+    #if IS_F8
+        output[output_offset + thread_offset + i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 1, convert_float(my_data[i]) * quan_scale);
+    #else
+        output[output_offset + thread_offset + i] = convert_char_rte(my_data[i] * quan_scale);
+        FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += output[output_offset + thread_offset + i]);
+    #endif
+    }
+#endif
+
+#if !IS_MXFP && GENERATE_PRECOMPUTED_REDUCTION
+    precomputed_reduction = sub_group_reduce_add(precomputed_reduction);
+#endif
+
+    if (sglid == 0) {
+#if OUTPUT_DIMS == 2
+        const uint output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
+#else
+        const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
+#endif
+        output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
+#if !(IS_MXFP)
+        FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
+#endif
+    }
+}
+
+// ***********************************************
+#elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
+// ***********************************************
+// Original single-WI version for MODE_SMALL_GS
 
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
