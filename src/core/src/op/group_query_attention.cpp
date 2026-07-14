@@ -34,20 +34,6 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_sliding_window_cache(sliding_window_cache),
       m_smooth_softmax(smooth_softmax),
       m_null_input_positions(null_input_positions) {
-    const auto original_input_count = static_cast<int64_t>(args.size() + m_null_input_positions.size());
-    std::vector<uint8_t> seen_positions(static_cast<size_t>(original_input_count), 0);
-    for (const auto pos : m_null_input_positions) {
-        OPENVINO_ASSERT(pos >= 0 && pos < original_input_count,
-                        "GroupQueryAttention null_input_positions contains out-of-range position: ",
-                        pos,
-                        ", expected in [0, ",
-                        original_input_count,
-                        ")");
-        OPENVINO_ASSERT(seen_positions[static_cast<size_t>(pos)] == 0,
-                        "GroupQueryAttention null_input_positions contains duplicate position: ",
-                        pos);
-        seen_positions[static_cast<size_t>(pos)] = 1;
-    }
     constructor_validate_and_infer_types();
 }
 
@@ -77,6 +63,21 @@ void GroupQueryAttention::validate_and_infer_types() {
     // with front eviction instead of growing. Otherwise present = past + current.
     if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic())) {
         output_kv_len += sequence_len;
+    }
+
+    const auto original_input_count = get_original_input_count();
+    std::vector<uint8_t> seen_positions(static_cast<size_t>(original_input_count), 0);
+    for (const auto pos : m_null_input_positions) {
+        OPENVINO_ASSERT(pos >= 0 && pos < original_input_count,
+                        "GroupQueryAttention null_input_positions contains out-of-range position: ",
+                        pos,
+                        ", expected in [0, ",
+                        original_input_count,
+                        ")");
+        OPENVINO_ASSERT(seen_positions[static_cast<size_t>(pos)] == 0,
+                        "GroupQueryAttention null_input_positions contains duplicate position: ",
+                        pos);
+        seen_positions[static_cast<size_t>(pos)] = 1;
     }
 
     // Query/activation (input 0) is always float; attention itself is computed in float precision.
