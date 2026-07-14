@@ -4,18 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <tuple>
-
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/bgr_to_nv12.hpp"
 #include "openvino/op/rgb_to_nv12.hpp"
 
-using namespace reference_tests;
-
 namespace ov::tests {
-class ReferenceConvertColorToNV12LayerTest : public testing::Test, public CommonReferenceTest {
+class ReferenceConvertColorToNV12LayerTest : public testing::Test, public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
