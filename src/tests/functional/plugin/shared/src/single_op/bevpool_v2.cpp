@@ -73,16 +73,16 @@ void BevPoolV2LayerTest::SetUp() {
     const ov::op::v15::Bound d_bound{0.f, static_cast<float>(depth_bins), 1.f};
 
     const auto bevpool = std::make_shared<ov::op::v15::BevPoolV2>(ov::OutputVector{cf, dw, idx, itv},
-                                                                   input_channels,
-                                                                   output_channels,
-                                                                   image_width,
-                                                                   image_height,
-                                                                   feature_width,
-                                                                   feature_height,
-                                                                   x_bound,
-                                                                   y_bound,
-                                                                   z_bound,
-                                                                   d_bound);
+                                                                  input_channels,
+                                                                  output_channels,
+                                                                  image_width,
+                                                                  image_height,
+                                                                  feature_width,
+                                                                  feature_height,
+                                                                  x_bound,
+                                                                  y_bound,
+                                                                  z_bound,
+                                                                  d_bound);
 
     function = std::make_shared<ov::Model>(bevpool->outputs(), ov::ParameterVector{cf, dw, idx, itv});
 }

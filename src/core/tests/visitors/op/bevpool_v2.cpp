@@ -26,16 +26,16 @@ TEST(attributes, bevpool_v2) {
     const ov::op::v15::Bound d_bound{1.0f, 60.0f, 1.0f};
 
     const auto op = std::make_shared<ov::op::v15::BevPoolV2>(ov::OutputVector{cf, dw, idx, itv},
-                                                              5,
-                                                              5,
-                                                              3,
-                                                              4,
-                                                              128,
-                                                              128,
-                                                              x_bound,
-                                                              y_bound,
-                                                              z_bound,
-                                                              d_bound);
+                                                             5,
+                                                             5,
+                                                             3,
+                                                             4,
+                                                             128,
+                                                             128,
+                                                             x_bound,
+                                                             y_bound,
+                                                             z_bound,
+                                                             d_bound);
 
     NodeBuilder builder(op, {cf, dw, idx, itv});
     const auto g_op = ov::as_type_ptr<ov::op::v15::BevPoolV2>(builder.create());

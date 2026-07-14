@@ -36,19 +36,14 @@ struct BevPoolV2 : public ImplementationManager {
         const auto& in3_layout = node.get_input_layout(3);
         const auto& out_layout = node.get_output_layout(0);
 
-        if (!one_of(in0_layout.data_type, supported_float_types) ||
-            !one_of(in1_layout.data_type, supported_float_types) ||
-            !one_of(in2_layout.data_type, supported_index_types) ||
-            !one_of(in3_layout.data_type, supported_index_types) ||
+        if (!one_of(in0_layout.data_type, supported_float_types) || !one_of(in1_layout.data_type, supported_float_types) ||
+            !one_of(in2_layout.data_type, supported_index_types) || !one_of(in3_layout.data_type, supported_index_types) ||
             !one_of(out_layout.data_type, supported_float_types)) {
             return false;
         }
 
-        if (!one_of(in0_layout.format, supported_fmts) ||
-            !one_of(in1_layout.format, supported_fmts) ||
-            !one_of(in2_layout.format, supported_fmts) ||
-            !one_of(in3_layout.format, supported_fmts) ||
-            !one_of(out_layout.format, supported_fmts)) {
+        if (!one_of(in0_layout.format, supported_fmts) || !one_of(in1_layout.format, supported_fmts) || !one_of(in2_layout.format, supported_fmts) ||
+            !one_of(in3_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;
         }
 

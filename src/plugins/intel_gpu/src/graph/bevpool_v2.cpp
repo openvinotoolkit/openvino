@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <json_object.h>
 #include <bevpool_v2_inst.h>
+#include <json_object.h>
 
 #include <sstream>
 #include <type_traits>
@@ -13,14 +13,14 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(bevpool_v2)
 
-bevpool_v2_inst::typed_primitive_inst(network& network, bevpool_v2_node const& node) : parent(network, node) {}
+bevpool_v2_inst::typed_primitive_inst(network& network, const bevpool_v2_node& node) : parent(network, node) {}
 
-layout bevpool_v2_inst::calc_output_layout(bevpool_v2_node const& node, kernel_impl_params const& impl_param) {
+layout bevpool_v2_inst::calc_output_layout(const bevpool_v2_node& node, const kernel_impl_params& impl_param) {
     return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
 template <typename ShapeType>
-std::vector<layout> bevpool_v2_inst::calc_output_layouts(bevpool_v2_node const& node, kernel_impl_params const& impl_param) {
+std::vector<layout> bevpool_v2_inst::calc_output_layouts(const bevpool_v2_node& node, const kernel_impl_params& impl_param) {
     auto primitive = impl_param.typed_desc<bevpool_v2>();
     const auto& input_layout = impl_param.get_input_layout(0);
     const auto input_shape = input_layout.get<ShapeType>();
@@ -47,7 +47,7 @@ std::vector<layout> bevpool_v2_inst::calc_output_layouts(bevpool_v2_node const& 
     return {layout{output_shape, input_layout.data_type, input_layout.format}};
 }
 
-std::string bevpool_v2_inst::to_string(bevpool_v2_node const& node) {
+std::string bevpool_v2_inst::to_string(const bevpool_v2_node& node) {
     auto node_info = node.desc_to_json();
     json_composite bevpool_v2_info;
     bevpool_v2_info.add("input", node.input(0).id());

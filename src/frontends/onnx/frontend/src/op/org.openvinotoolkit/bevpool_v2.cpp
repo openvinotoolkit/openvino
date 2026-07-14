@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/bevpool_v2.hpp"
+
 #include <limits>
 #include <string>
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "openvino/op/bevpool_v2.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 
@@ -70,11 +71,7 @@ ov::op::v15::Bound get_bound_attr(const ov::frontend::onnx::Node& node, const st
     bound.max = static_cast<float>(node.get_attribute_value<double>(prefix + "_max", 0.0));
     bound.step = static_cast<float>(node.get_attribute_value<double>(prefix + "_step", 1.0));
 
-    CHECK_VALID_NODE(node,
-                     bound.step != 0.0f,
-                     "Attribute '",
-                     prefix,
-                     "_step' must not be zero.");
+    CHECK_VALID_NODE(node, bound.step != 0.0f, "Attribute '", prefix, "_step' must not be zero.");
     return bound;
 }
 }  // namespace
@@ -107,9 +104,8 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
         const auto feat_ps = cf_input.get_partial_shape();
         const auto dw_ps = dw_input.get_partial_shape();
 
-        if (feat_ps.rank().is_static() && dw_ps.rank().is_static() &&
-            feat_ps.rank().get_length() == 4 && dw_ps.rank().get_length() == 4 &&
-            feat_ps[2].is_static() && feat_ps[3].is_static() &&
+        if (feat_ps.rank().is_static() && dw_ps.rank().is_static() && feat_ps.rank().get_length() == 4 &&
+            dw_ps.rank().get_length() == 4 && feat_ps[2].is_static() && feat_ps[3].is_static() &&
             dw_ps[2].is_static() && dw_ps[3].is_static()) {
             // Detect NCHW by matching feat H/W against depth H/W at dims [2]/[3].
             const auto feat_h = feat_ps[2].get_length();
@@ -128,31 +124,23 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
     }
 
-    const auto input_channels = get_u32_attr_alias(
-        node,
-        {"input_channels", "in_channels", "channels"},
-        get_static_dim_or_default(cf_input, 3, 1));
+    const auto input_channels = get_u32_attr_alias(node,
+                                                   {"input_channels", "in_channels", "channels"},
+                                                   get_static_dim_or_default(cf_input, 3, 1));
 
-    const auto output_channels = get_u32_attr_alias(
-        node,
-        {"output_channels", "out_channels", "channels_out", "bev_channels"},
-        get_static_dim_or_default(dw_input, 1, input_channels));
+    const auto output_channels = get_u32_attr_alias(node,
+                                                    {"output_channels", "out_channels", "channels_out", "bev_channels"},
+                                                    get_static_dim_or_default(dw_input, 1, input_channels));
 
-    const auto image_width = get_u32_attr_alias(node,
-                                                {"image_width", "in_width", "width"},
-                                                get_static_dim_or_default(cf_input, 2, 1));
+    const auto image_width =
+        get_u32_attr_alias(node, {"image_width", "in_width", "width"}, get_static_dim_or_default(cf_input, 2, 1));
 
-    const auto image_height = get_u32_attr_alias(node,
-                                                 {"image_height", "in_height", "height"},
-                                                 get_static_dim_or_default(cf_input, 1, 1));
+    const auto image_height =
+        get_u32_attr_alias(node, {"image_height", "in_height", "height"}, get_static_dim_or_default(cf_input, 1, 1));
 
-    const auto feature_width = get_u32_attr_alias(node,
-                                                  {"feature_width", "out_width", "bev_width"},
-                                                  1);
+    const auto feature_width = get_u32_attr_alias(node, {"feature_width", "out_width", "bev_width"}, 1);
 
-    const auto feature_height = get_u32_attr_alias(node,
-                                                   {"feature_height", "out_height", "bev_height"},
-                                                   1);
+    const auto feature_height = get_u32_attr_alias(node, {"feature_height", "out_height", "bev_height"}, 1);
 
     CHECK_VALID_NODE(node, output_channels > 0, "Attribute 'output_channels' must be greater than zero.");
     CHECK_VALID_NODE(node, feature_width > 0, "Attribute 'feature_width' must be greater than zero.");
@@ -162,7 +150,8 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
     const auto y_bound = get_bound_attr(node, "y_bound");
     const auto z_bound = get_bound_attr(node, "z_bound");
     auto d_bound = get_bound_attr(node, "d_bound");
-    if (!node.has_attribute("d_bound_min") && !node.has_attribute("d_bound_max") && !node.has_attribute("d_bound_step")) {
+    if (!node.has_attribute("d_bound_min") && !node.has_attribute("d_bound_max") &&
+        !node.has_attribute("d_bound_step")) {
         const auto depth_bins = get_static_dim_or_default(dw_input, 1, 1);
         d_bound.min = 0.0f;
         d_bound.max = static_cast<float>(depth_bins);

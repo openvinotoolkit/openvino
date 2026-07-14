@@ -4,13 +4,13 @@
 
 #include "bevpool_v2.hpp"
 
+#include <algorithm>
+
 #include "bevpool_v2_inst.h"
 #include "common_utils/dispatch_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
-
-#include <algorithm>
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -150,9 +150,8 @@ bool support_opt_kernel(const kernel_impl_params& params) {
         return false;
 
     if (!info.supported_simd_sizes.empty()) {
-        const bool has_required_simd = std::find(info.supported_simd_sizes.begin(),
-                                                 info.supported_simd_sizes.end(),
-                                                 BlockSize) != info.supported_simd_sizes.end();
+        const bool has_required_simd =
+            std::find(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end(), BlockSize) != info.supported_simd_sizes.end();
         if (!has_required_simd)
             return false;
     }

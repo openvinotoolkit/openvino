@@ -17,15 +17,16 @@ using BevPoolV2Params = std::tuple<std::vector<InputShape>,
                                    ov::element::Type,  // index type (idx, itv)
                                    ov::test::TargetDevice>;
 
-class BevPoolV2LayerTest : public testing::WithParamInterface<BevPoolV2Params>, virtual public ov::test::SubgraphBaseTest {
+class BevPoolV2LayerTest : public testing::WithParamInterface<BevPoolV2Params>,
+                           virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BevPoolV2Params>& obj);
 
-    using TGenData = testing::internal::CartesianProductHolder<
-        testing::internal::ParamGenerator<std::vector<ov::test::InputShape>>,
-        testing::internal::ParamGenerator<ov::element::Type>,
-        testing::internal::ParamGenerator<ov::element::Type>,
-        testing::internal::ValueArray<const char*>>;
+    using TGenData =
+        testing::internal::CartesianProductHolder<testing::internal::ParamGenerator<std::vector<ov::test::InputShape>>,
+                                                  testing::internal::ParamGenerator<ov::element::Type>,
+                                                  testing::internal::ParamGenerator<ov::element::Type>,
+                                                  testing::internal::ValueArray<const char*>>;
 
     static const TGenData GetTestDataForDevice(const char* deviceName);
 

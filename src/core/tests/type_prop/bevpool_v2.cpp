@@ -57,16 +57,16 @@ TEST_F(TypePropBevPoolV2Test, static_shapes) {
     const auto itv = std::make_shared<Parameter>(element::i64, PartialShape{3, 3});
 
     const auto op = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                          8,
-                                                          8,
-                                                          12,
-                                                          10,
-                                                          20,
-                                                          30,
-                                                          default_bound(),
-                                                          default_bound(),
-                                                          default_bound(),
-                                                          default_bound());
+                                                         8,
+                                                         8,
+                                                         12,
+                                                         10,
+                                                         20,
+                                                         30,
+                                                         default_bound(),
+                                                         default_bound(),
+                                                         default_bound(),
+                                                         default_bound());
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
@@ -79,16 +79,16 @@ TEST_F(TypePropBevPoolV2Test, invalid_input_count) {
     const auto idx = std::make_shared<Parameter>(element::i64, PartialShape{6});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx},
-                                                                        4,
-                                                                        2,
-                                                                        5,
-                                                                        3,
-                                                                        7,
-                                                                        6,
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound()),
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound()),
                     NodeValidationFailure,
                     HasSubstr("BevPoolV2 expects exactly 4 inputs"));
 }
@@ -100,16 +100,16 @@ TEST_F(TypePropBevPoolV2Test, cf_rank_must_be_4d) {
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                                        4,
-                                                                        2,
-                                                                        5,
-                                                                        3,
-                                                                        7,
-                                                                        6,
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound()),
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound()),
                     NodeValidationFailure,
                     HasSubstr("Input 0 (cf) rank must be compatible with 4"));
 }
@@ -121,16 +121,16 @@ TEST_F(TypePropBevPoolV2Test, cf_channel_dim_must_match_attribute) {
     const auto itv = std::make_shared<Parameter>(element::i64, PartialShape{6});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                                        4,
-                                                                        2,
-                                                                        5,
-                                                                        3,
-                                                                        7,
-                                                                        6,
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound()),
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound()),
                     NodeValidationFailure,
                     HasSubstr("Input 0 (cf) channel dimension does not match input_channels attribute"));
 }
@@ -142,16 +142,16 @@ TEST_F(TypePropBevPoolV2Test, itv_1d_length_must_be_divisible_by_3) {
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{7});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                                        4,
-                                                                        2,
-                                                                        5,
-                                                                        3,
-                                                                        7,
-                                                                        6,
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound()),
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound()),
                     NodeValidationFailure,
                     HasSubstr("Input 3 (itv) 1D length must be divisible by 3"));
 }
@@ -163,16 +163,16 @@ TEST_F(TypePropBevPoolV2Test, idx_must_be_integral) {
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                                        4,
-                                                                        2,
-                                                                        5,
-                                                                        3,
-                                                                        7,
-                                                                        6,
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound(),
-                                                                        default_bound()),
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound()),
                     NodeValidationFailure,
                     HasSubstr("Input 2 (idx) must be an integer tensor"));
 }

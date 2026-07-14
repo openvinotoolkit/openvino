@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <intel_gpu/primitives/bevpool_v2.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
-
-#include <cmath>
 #include <limits>
 
 #include "test_utils.h"
@@ -16,10 +15,7 @@ using namespace ::tests;
 namespace {
 
 template <typename T>
-void assert_with_error_stats(const memory::ptr& output,
-                             const std::vector<float>& expected,
-                             float abs_threshold,
-                             float rel_threshold) {
+void assert_with_error_stats(const memory::ptr& output, const std::vector<float>& expected, float abs_threshold, float rel_threshold) {
     mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected.size());
 
@@ -109,8 +105,9 @@ TEST(BevPoolV2GpuTest, ref_comp_f16_with_error_stats) {
     const auto itv = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfyx}, allocation_type::usm_host);
 
     set_values<ov::float16>(cf, {ov::float16(10.f), ov::float16(20.f), ov::float16(30.f), ov::float16(40.f)});
-    set_values<ov::float16>(dw, {ov::float16(1.f), ov::float16(2.f), ov::float16(3.f), ov::float16(4.f),
-                                 ov::float16(5.f), ov::float16(6.f), ov::float16(7.f), ov::float16(8.f)});
+    set_values<ov::float16>(
+        dw,
+        {ov::float16(1.f), ov::float16(2.f), ov::float16(3.f), ov::float16(4.f), ov::float16(5.f), ov::float16(6.f), ov::float16(7.f), ov::float16(8.f)});
     set_values<int32_t>(idx, {0, 1, 2, 3, 4});
     set_values<int32_t>(itv, {0, 2, 0, 2, 5, 1});
 

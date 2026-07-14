@@ -82,24 +82,12 @@ struct bevpool_v2 : public primitive_base<bevpool_v2> {
             return false;
 
         auto rhs_casted = downcast<const bevpool_v2>(rhs);
-        return input_channels == rhs_casted.input_channels &&
-               output_channels == rhs_casted.output_channels &&
-               image_width == rhs_casted.image_width &&
-               image_height == rhs_casted.image_height &&
-               feature_width == rhs_casted.feature_width &&
-               feature_height == rhs_casted.feature_height &&
-               x_bound.min == rhs_casted.x_bound.min &&
-               x_bound.max == rhs_casted.x_bound.max &&
-               x_bound.step == rhs_casted.x_bound.step &&
-               y_bound.min == rhs_casted.y_bound.min &&
-               y_bound.max == rhs_casted.y_bound.max &&
-               y_bound.step == rhs_casted.y_bound.step &&
-               z_bound.min == rhs_casted.z_bound.min &&
-               z_bound.max == rhs_casted.z_bound.max &&
-               z_bound.step == rhs_casted.z_bound.step &&
-               d_bound.min == rhs_casted.d_bound.min &&
-               d_bound.max == rhs_casted.d_bound.max &&
-               d_bound.step == rhs_casted.d_bound.step;
+        return input_channels == rhs_casted.input_channels && output_channels == rhs_casted.output_channels && image_width == rhs_casted.image_width &&
+               image_height == rhs_casted.image_height && feature_width == rhs_casted.feature_width && feature_height == rhs_casted.feature_height &&
+               x_bound.min == rhs_casted.x_bound.min && x_bound.max == rhs_casted.x_bound.max && x_bound.step == rhs_casted.x_bound.step &&
+               y_bound.min == rhs_casted.y_bound.min && y_bound.max == rhs_casted.y_bound.max && y_bound.step == rhs_casted.y_bound.step &&
+               z_bound.min == rhs_casted.z_bound.min && z_bound.max == rhs_casted.z_bound.max && z_bound.step == rhs_casted.z_bound.step &&
+               d_bound.min == rhs_casted.d_bound.min && d_bound.max == rhs_casted.d_bound.max && d_bound.step == rhs_casted.d_bound.step;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

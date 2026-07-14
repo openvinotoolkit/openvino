@@ -34,11 +34,11 @@ class typed_primitive_inst<bevpool_v2> : public typed_primitive_inst_base<bevpoo
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, bevpool_v2_node const& desc);
+    typed_primitive_inst(network& network, const bevpool_v2_node& desc);
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(bevpool_v2_node const& node, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(bevpool_v2_node const& node, kernel_impl_params const& impl_param);
-    static std::string to_string(bevpool_v2_node const& node);
+    static std::vector<layout> calc_output_layouts(const bevpool_v2_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const bevpool_v2_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const bevpool_v2_node& node);
 };
 
 using bevpool_v2_inst = typed_primitive_inst<bevpool_v2>;

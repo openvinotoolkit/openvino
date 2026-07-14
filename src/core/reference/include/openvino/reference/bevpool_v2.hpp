@@ -62,8 +62,9 @@ bool bevpool_v2(const T* cf_data,
 
                 const auto camera_idx = dw_index / depth_span;
                 const auto feature_idx = dw_index % feature_area;
-                const auto cf_offset = (camera_idx * feature_area + feature_idx) * static_cast<int64_t>(input_channels) +
-                                       static_cast<int64_t>(c);
+                const auto cf_offset =
+                    (camera_idx * feature_area + feature_idx) * static_cast<int64_t>(input_channels) +
+                    static_cast<int64_t>(c);
                 if (cf_offset < 0 || cf_offset >= static_cast<int64_t>(cf_len)) {
                     continue;
                 }

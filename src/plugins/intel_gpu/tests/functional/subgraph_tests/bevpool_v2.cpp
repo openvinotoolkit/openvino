@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
 #include "openvino/op/bevpool_v2.hpp"
+
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 
@@ -25,20 +25,9 @@ protected:
         const ov::op::v15::Bound z_bound{-5.f, 3.f, 0.5f};
         const ov::op::v15::Bound d_bound{0.f, 2.f, 1.f};
 
-        const auto bevpool = std::make_shared<ov::op::v15::BevPoolV2>(ov::OutputVector{cf, dw, idx, itv},
-                                                                       1,
-                                                                       1,
-                                                                       2,
-                                                                       2,
-                                                                       1,
-                                                                       2,
-                                                                       x_bound,
-                                                                       y_bound,
-                                                                       z_bound,
-                                                                       d_bound);
+        const auto bevpool = std::make_shared<ov::op::v15::BevPoolV2>(ov::OutputVector{cf, dw, idx, itv}, 1, 1, 2, 2, 1, 2, x_bound, y_bound, z_bound, d_bound);
 
-        function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(bevpool)},
-                               ov::ParameterVector{cf, dw, idx, itv});
+        function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(bevpool)}, ov::ParameterVector{cf, dw, idx, itv});
     }
 };
 

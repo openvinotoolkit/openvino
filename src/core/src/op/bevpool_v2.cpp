@@ -53,17 +53,17 @@ std::vector<int64_t> to_i64_vector(const ov::Tensor& t) {
 
 template <typename T>
 bool evaluate_bevpool_v2(const ov::Tensor& cf,
-                        const ov::Tensor& dw,
-                        const ov::Tensor& idx,
-                        const ov::Tensor& itv,
-                        ov::Tensor& output,
-                        uint32_t input_channels,
-                        uint32_t output_channels,
-                        uint32_t image_width,
-                        uint32_t image_height,
-                        uint32_t feature_width,
-                        uint32_t feature_height,
-                        const ov::op::v15::Bound& d_bound) {
+                         const ov::Tensor& dw,
+                         const ov::Tensor& idx,
+                         const ov::Tensor& itv,
+                         ov::Tensor& output,
+                         uint32_t input_channels,
+                         uint32_t output_channels,
+                         uint32_t image_width,
+                         uint32_t image_height,
+                         uint32_t feature_width,
+                         uint32_t feature_height,
+                         const ov::op::v15::Bound& d_bound) {
     const auto& cf_shape = cf.get_shape();
     if (cf_shape.size() != 4 || cf_shape[0] == 0) {
         return false;
@@ -151,7 +151,9 @@ void BevPoolV2::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, m_input_channels > 0, "input_channels must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_output_channels > 0, "output_channels must be greater than zero.");
-    NODE_VALIDATION_CHECK(this, m_output_channels <= m_input_channels, "output_channels must be less than or equal to input_channels.");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_channels <= m_input_channels,
+                          "output_channels must be less than or equal to input_channels.");
     NODE_VALIDATION_CHECK(this, m_image_width > 0, "image_width must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_image_height > 0, "image_height must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_feature_width > 0, "feature_width must be greater than zero.");
@@ -161,38 +163,34 @@ void BevPoolV2::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_y_bound.step > 0.f, "y_bound_step must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_z_bound.step > 0.f, "z_bound_step must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_d_bound.step > 0.f, "d_bound_step must be greater than zero.");
-    NODE_VALIDATION_CHECK(this, m_x_bound.max >= m_x_bound.min, "x_bound_max must be greater than or equal to x_bound_min.");
-    NODE_VALIDATION_CHECK(this, m_y_bound.max >= m_y_bound.min, "y_bound_max must be greater than or equal to y_bound_min.");
-    NODE_VALIDATION_CHECK(this, m_z_bound.max >= m_z_bound.min, "z_bound_max must be greater than or equal to z_bound_min.");
-    NODE_VALIDATION_CHECK(this, m_d_bound.max >= m_d_bound.min, "d_bound_max must be greater than or equal to d_bound_min.");
+    NODE_VALIDATION_CHECK(this,
+                          m_x_bound.max >= m_x_bound.min,
+                          "x_bound_max must be greater than or equal to x_bound_min.");
+    NODE_VALIDATION_CHECK(this,
+                          m_y_bound.max >= m_y_bound.min,
+                          "y_bound_max must be greater than or equal to y_bound_min.");
+    NODE_VALIDATION_CHECK(this,
+                          m_z_bound.max >= m_z_bound.min,
+                          "z_bound_max must be greater than or equal to z_bound_min.");
+    NODE_VALIDATION_CHECK(this,
+                          m_d_bound.max >= m_d_bound.min,
+                          "d_bound_max must be greater than or equal to d_bound_min.");
 
     const auto cf_et = get_input_element_type(0);
     const auto dw_et = get_input_element_type(1);
     const auto idx_et = get_input_element_type(2);
     const auto itv_et = get_input_element_type(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          cf_et.is_real(),
-                          "Input 0 (cf) must be a floating-point tensor. Got: ",
-                          cf_et);
-    NODE_VALIDATION_CHECK(this,
-                          dw_et.is_real(),
-                          "Input 1 (dw) must be a floating-point tensor. Got: ",
-                          dw_et);
+    NODE_VALIDATION_CHECK(this, cf_et.is_real(), "Input 0 (cf) must be a floating-point tensor. Got: ", cf_et);
+    NODE_VALIDATION_CHECK(this, dw_et.is_real(), "Input 1 (dw) must be a floating-point tensor. Got: ", dw_et);
     NODE_VALIDATION_CHECK(this,
                           cf_et.compatible(dw_et),
                           "Input 0 (cf) and input 1 (dw) element types must be compatible. Got: ",
                           cf_et,
                           " and ",
                           dw_et);
-    NODE_VALIDATION_CHECK(this,
-                          idx_et.is_integral_number(),
-                          "Input 2 (idx) must be an integer tensor. Got: ",
-                          idx_et);
-    NODE_VALIDATION_CHECK(this,
-                          itv_et.is_integral_number(),
-                          "Input 3 (itv) must be an integer tensor. Got: ",
-                          itv_et);
+    NODE_VALIDATION_CHECK(this, idx_et.is_integral_number(), "Input 2 (idx) must be an integer tensor. Got: ", idx_et);
+    NODE_VALIDATION_CHECK(this, itv_et.is_integral_number(), "Input 3 (itv) must be an integer tensor. Got: ", itv_et);
 
     const auto cf_ps = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
@@ -248,10 +246,7 @@ void BevPoolV2::validate_and_infer_types() {
                                   itv_ps);
         } else if (itv_ps[0].is_static()) {
             const auto v = itv_ps[0].get_length();
-            NODE_VALIDATION_CHECK(this,
-                                  v % 3 == 0,
-                                  "Input 3 (itv) 1D length must be divisible by 3. Got: ",
-                                  v);
+            NODE_VALIDATION_CHECK(this, v % 3 == 0, "Input 3 (itv) 1D length must be divisible by 3. Got: ", v);
         }
     }
 

@@ -31,8 +31,7 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                     std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     template <typename T, typename IdxT>
