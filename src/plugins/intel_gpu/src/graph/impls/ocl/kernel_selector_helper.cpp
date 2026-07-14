@@ -169,9 +169,7 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     }
 
     // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
-    // known to support microkernels, skip building the igc_check probe kernel (~100 ms during the
-    // first compilation of a session). Older or unparseable versions fall through to the
-    // authoritative igc_check build below, so behavior is unchanged on drivers that need probing.
+    // known to support microkernels, skip building the igc_check probe kernel.
     if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
         cache[device] = true;
         return true;
