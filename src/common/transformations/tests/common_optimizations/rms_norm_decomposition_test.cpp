@@ -667,3 +667,28 @@ TEST_F(TransformationTestsF, RMSNormFusionTest19_MulSquare_NoGamma_DynamicScale)
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+// Power(-0.5) direct path without gamma, no trailing Multiply (unit normalization)
+TEST_F(TransformationTestsF, RMSNormFusionTest20_PowerNegHalf_NoGamma) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 256});
+        auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto neg_half = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-0.5f});
+        auto rsqrt = std::make_shared<ov::op::v1::Power>(add_eps, neg_half);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(input, rsqrt);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+        manager.register_pass<RMSFusion>(false, true, true);
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 256});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-6f, ov::element::f32);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
