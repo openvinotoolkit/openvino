@@ -4,6 +4,8 @@
 
 #include "llm_infer_request.hpp"
 
+#include <regex>
+
 #include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
@@ -168,8 +170,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
-            if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name) ||
-                ov::npuw::util::isDQScaleOrZPKey(name) || ov::npuw::util::isDQScaleOrZPValue(name)) {
+            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
                 m_kvcache_past_names.push_back(name);
                 break;
             }
@@ -276,7 +277,7 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
     // Only reuse KV cache related tensors (past_key_values)
     for (const auto& [input_name, prefill_in_port] : m_prefill_in_ports) {
         // Only process KV cache inputs (past_key_values)
-        if (!ov::npuw::util::isKVCacheName(input_name)) {
+        if (input_name.find(layer_names::past_key_values) == std::string::npos) {
             continue;
         }
 
@@ -312,7 +313,7 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_kv_tensors;
     for (const auto& input_port : largest_generate_request->get_compiled_model()->inputs()) {
         const auto& input_name = input_port.get_any_name();
-        if (ov::npuw::util::isKVCacheName(input_name)) {
+        if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
             largest_past_kv_tensors[input_name] = largest_generate_request->get_tensor(input_port);
         }
     }
@@ -339,17 +340,19 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
             // Share past KV tensors from the largest variant
             for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
                 const auto& input_name = input_port.get_any_name();
-                if (ov::npuw::util::isKVCacheName(input_name)) {
-                    if (largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end()) {
-                        auto largest_tensor = largest_past_kv_tensors[input_name];
-                        auto small_shape = input_port.get_shape();
-                        // Wrap the largest tensor's data pointer with smaller shape
-                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
-                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
-                            nullptr);
+                if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
+                    OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
+                                    "Unexpected input name: ",
+                                    input_name);
+                    auto largest_tensor = largest_past_kv_tensors[input_name];
+                    auto small_shape = input_port.get_shape();
 
-                        generate_request->set_tensor(input_port, shared_tensor);
-                    }
+                    // Wrap the largest tensor's data pointer with smaller shape
+                    auto shared_tensor = ov::SoPtr<ov::ITensor>(
+                        ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
+                        nullptr);
+
+                    generate_request->set_tensor(input_port, shared_tensor);
                 } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
                     OPENVINO_ASSERT(past_lin_tensors.find(input_name) != past_lin_tensors.end(),
                                     "Unexpected input name: ",
@@ -652,21 +655,18 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
 
     for (std::size_t i = 0; i < m_kvcache_past_names.size(); ++i) {
         const auto& input_name = m_kvcache_past_names[i];
-        const auto output_name = past_key_values_to_present_name(input_name);
-        OPENVINO_ASSERT(out_ports.find(output_name) != out_ports.end(),
-                        "There is no matching output for input ",
+        OPENVINO_ASSERT(in_ports.find(input_name) != in_ports.end(),
+                        "There is no ",
                         input_name,
+                        " in input ports map, while it is expected!");
+        const auto& output_name = std::regex_replace(input_name, std::regex(layer_names::past_key_values), "present");
+        OPENVINO_ASSERT(out_ports.find(output_name) != out_ports.end(),
+                        "There is no ",
+                        output_name,
                         " in output ports map, while it is expected!");
 
-        const auto resolved_input_name = resolve_kv_input_name(output_name, in_ports);
-        OPENVINO_ASSERT(resolved_input_name.has_value(),
-                        "There is no matching input for output ",
-                        output_name,
-                        " in input ports map, while it is expected!");
-
-        auto dst_tensor = request->get_tensor(in_ports.at(resolved_input_name.value()));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u
-                                                                                                : kvcache_desc.dim;
+        auto dst_tensor = request->get_tensor(in_ports.at(input_name));
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,
