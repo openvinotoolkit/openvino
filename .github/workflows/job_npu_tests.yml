@@ -249,6 +249,9 @@ jobs:
       TEST_DEVICE: 'NPU'
       NPU_PLATFORM: ${{ matrix.npu-platform }}
       MODEL_SCOPE: ${{ inputs.model-scope }}
+      # Force UTF-8 stdio so third-party progress bars (e.g. easyocr's block
+      # glyph) don't crash on the cp1252 Windows console.
+      PYTHONUTF8: '1'
     steps:
       - name: Download OpenVINO artifacts (tests)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
