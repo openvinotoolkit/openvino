@@ -660,8 +660,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        type_to_fuse_map empty_fuse_map = {};
-
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
@@ -706,15 +704,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
-        manager.register_pass<DisableFP16CompForQwen3OmniCodePredictorSuffix>();
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
         // when the same Sin was already marked above.
         pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
             [](const_node_ptr& node) -> bool { return ov::is_conversion_disabled(node, ov::element::f16); });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
-        const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
-        const bool store_original_precision_as_rt_attribute = true;
         const auto add_precision_sensitive_convert = true;
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
@@ -722,11 +717,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
-        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                          empty_fuse_map,
-                                                          keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision,
-                                                          store_original_precision_as_rt_attribute);
+        manager.register_pass<ConvertPrecisionForQwen3OmniCodePredictor>(fp_convert_precision_map);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
