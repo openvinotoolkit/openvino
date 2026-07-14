@@ -145,6 +145,7 @@ struct device_info {
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
     int32_t cacheline_size;
+    uint32_t sub_buffer_base_alignment;
 
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 

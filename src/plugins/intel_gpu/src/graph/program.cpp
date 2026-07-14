@@ -12,6 +12,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
+#include "openvino/util/memory.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -1985,9 +1986,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
-
-    if (!ob.is_encrypted() && !ob.is_offset_page_aligned()) {
-        std::vector<uint8_t> pad(ob.get_bytes_to_page_boundary(), 0);
+    if (!ob.is_encrypted() && !ob.is_offset_aligned(get_engine().get_device_info().cacheline_size)) {
+        std::vector<uint8_t> pad(ob.get_bytes_to_aligned_boundary(get_engine().get_device_info().cacheline_size), 0);
         ob << make_data(pad.data(), pad.size());
     }
 }
@@ -2017,12 +2017,13 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    const bool can_use_mmap_zero_copy = ib.is_mmap_tensor_4K_aligned() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
+    const bool can_use_mmap_zero_copy = ib.is_tensor_aligned(ov::util::min_page_alignment) &&
+                                        _engine.get_device_info().arch >= gpu_arch::xe2 &&
                                         _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
     memory_ptr model_tensor_base_ptr = nullptr;
     if (can_use_mmap_zero_copy) {
         model_tensor_base_ptr =
-            ib.get_engine().create_hostbuffer(ib.get_mmap_tensor(),
+            ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
                                               allocation_type::cl_mem,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
@@ -2215,8 +2216,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     }
 
     // At the end of load
-    if (!ib.is_encrypted() && !ib.is_offset_page_aligned()) {
-        std::vector<uint8_t> pad(ib.get_bytes_to_page_boundary(), 0);
+    if (!ib.is_encrypted() && !ib.is_offset_aligned(get_engine().get_device_info().cacheline_size)) {
+        std::vector<uint8_t> pad(ib.get_bytes_to_aligned_boundary(get_engine().get_device_info().cacheline_size), 0);
         ib >> make_data(pad.data(), pad.size());
     }
 }

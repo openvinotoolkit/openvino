@@ -4,7 +4,6 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"  // For CACHE_PAGE_SIZE
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include "ocl_kernel.hpp"
