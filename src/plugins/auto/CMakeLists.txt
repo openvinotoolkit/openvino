@@ -51,7 +51,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 # Enable the IPF-backed device utilization monitor when IPF was built.
 if(OV_AUTO_IPF_AVAILABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF)
-    target_link_libraries(${TARGET_NAME} PRIVATE ClientApiLib)
+    target_link_libraries(${TARGET_NAME} PRIVATE ClientApiLib nlohmann_json::nlohmann_json)
     message(STATUS "[AUTO] IPF support successfully enabled for ${TARGET_NAME}")
 else()
     message(STATUS "[AUTO] IPF support disabled")

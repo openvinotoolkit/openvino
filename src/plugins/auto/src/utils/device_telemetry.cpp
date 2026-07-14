@@ -41,6 +41,10 @@ public:
         }
     }
 
+    ~TelemetryClient() {
+        m_client.release();
+    }
+
     std::optional<float> utilization(const std::string& device_name, const std::string& device_luid) {
         // Keep device_luid for API compatibility; current IPF metric is per device type.
         static_cast<void>(device_luid);
@@ -97,8 +101,8 @@ private:
 
 std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
     LOG_DEBUG_TAG("query_device_utilization called: device_name=%s", device_name.c_str());
-    static TelemetryClient* const client = new TelemetryClient();
-    return client->utilization(device_name, device_luid);
+    static TelemetryClient client;
+    return client.utilization(device_name, device_luid);
 }
 
 }  // namespace device_monitor

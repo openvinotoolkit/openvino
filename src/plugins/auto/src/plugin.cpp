@@ -772,14 +772,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                 }
             }
             if (is_excluded) {
-                // remove the device from valid devices
-                auto iter =
-                    std::find_if(valid_devices.begin(), valid_devices.end(), [device](const DeviceInformation& dev) {
-                        return (dev.unique_name == device->unique_name);
-                    });
-                if (iter != valid_devices.end()) {
-                    valid_devices.erase(iter);
-                }
+                // Remove the excluded candidate at the front in O(1).
+                valid_devices.erase(valid_devices.begin());
             } else {
                 ptr_select_device = device;
             }

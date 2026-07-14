@@ -7,7 +7,6 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
-#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -346,19 +345,19 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 if (!py::isinstance<py::str>(item.first)) {
                     OPENVINO_THROW("The key type of ",
                                    ov::intel_auto::devices_utilization_threshold.name(),
-                                   " should be dict[str, int>=0] with string keys");
+                                   " should be dict[str, int in [0, 100]] with string keys");
                 }
                 if (!py::isinstance<py::int_>(item.second) || py::isinstance<py::bool_>(item.second)) {
                     OPENVINO_THROW("The value type of ",
                                    ov::intel_auto::devices_utilization_threshold.name(),
-                                   " should be dict[str, int>=0] with integer values");
+                                   " should be dict[str, int in [0, 100]] with integer values");
                 }
                 const auto key = py::str(item.first).cast<std::string>();
                 const auto value = py::cast<long long>(item.second);
-                if (value < 0 || value > std::numeric_limits<unsigned>::max()) {
+                if (value < 0 || value > 100) {
                     OPENVINO_THROW("The value type of ",
                                    ov::intel_auto::devices_utilization_threshold.name(),
-                                   " should be dict[str, int>=0] with values fitting into unsigned");
+                                   " should be dict[str, int in [0, 100]]");
                 }
                 thresholds[key] = static_cast<unsigned>(value);
             }
