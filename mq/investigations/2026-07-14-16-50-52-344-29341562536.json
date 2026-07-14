@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-14-16-50-52-344-29341562536",
+  "timestamp": "2026-07-14T16:50:52Z",
+  "run_id": "29341562536",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29341562536",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36872",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36872",
+  "author": "p-durandin",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: import_model expected 8 calls but got 7"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 8 times\n           Actual: called 7 times - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2053 ms)"
+  ],
+  "root_cause": "The test LoadMultiWithConfig_race stresses concurrent model loading with caching enabled, expecting a fixed number of import_model calls. Under Windows CI runner load variability, a race in scheduling threads causes one import_model call to be elided or deduplicated by the caching layer, resulting in the mock expectation of 8 calls being satisfied only 7 times. This is a known intermittent timing-sensitive test that has failed before (prior occurrence: 2026-07-13, run 29234771303, PR #36488). The merged PR #36872 only touches GPU plugin linking order and is unrelated to this test or caching code.",
+  "reproduction_steps": "Run the test on a Windows machine with high load: ov_inference_functional_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache --gtest_repeat=20",
+  "recommended_actions": [
+    "Re-run the failed jobs — this is a flaky race-condition test unrelated to the merged PR",
+    "Consider marking LoadMultiWithConfig_race as DISABLED_* on Windows or adding retry logic in the test",
+    "Track occurrences of this flaky test to determine if it needs a permanent fix to synchronization logic in the caching code"
+  ],
+  "prevention_strategies": "Add retry logic or tolerance for timing-sensitive caching tests on Windows, or move race tests to a separate suite that allows N retries before marking as failed.",
+  "historical_context": "Same signature seen on 2026-07-13 (run 29234771303, PR #36488). Pattern count is now 2."
+}
