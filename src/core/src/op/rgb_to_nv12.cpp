@@ -24,6 +24,12 @@ std::shared_ptr<ov::Node> ov::op::v17::RGBtoNV12::clone_with_new_inputs(const Ou
     return std::make_shared<RGBtoNV12>(new_args.at(0), m_single_plane);
 }
 
+namespace {
+bool is_type_supported(const ov::element::Type& type) {
+    return type.is_dynamic() || type.is_real() || type == ov::element::u8;
+}
+}
+
 void ov::op::v17::RGBtoNV12::validate_and_infer_types() {
     OV_OP_SCOPE(v17_RGBtoNV12_validate_and_infer_types);
 

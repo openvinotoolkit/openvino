@@ -61,8 +61,6 @@ public:
     }
 
 protected:
-    bool is_type_supported(const ov::element::Type& type) const;
-
     ColorConversion m_format = ColorConversion::RGB_TO_NV12;
     bool m_single_plane = true;
 };

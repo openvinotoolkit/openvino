@@ -20,7 +20,3 @@ bool ov::op::util::ConvertColorToNV12Base::visit_attributes(AttributeVisitor& vi
     visitor.on_attribute("single_plane", m_single_plane);
     return true;
 }
-
-bool ov::op::util::ConvertColorToNV12Base::is_type_supported(const ov::element::Type& type) const {
-    return type.is_dynamic() || type.is_real() || type == ov::element::u8;
-}
