@@ -29,6 +29,7 @@
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
@@ -60,8 +61,9 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
     auto convAddMul_conv = wrap_type<ov::op::v1::Convolution>();
     auto convAddMul_add = wrap_type<ov::op::v1::Add>({convAddMul_conv, any_input()});
     auto convAddMul_mul = wrap_type<ov::op::v1::Multiply>({convAddMul_add, any_input()});
+    auto convAddMul_act = optional<ov::op::v4::Swish>({convAddMul_mul});
     auto convAddMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul, any_input(), any_input(), any_input(), any_input()});
+        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_act, any_input(), any_input(), any_input(), any_input()});
     Matcher convAddMul_matcher(convAddMul_fq);
     auto matcher = (pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_matcher : convAddMul_matcher;
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
@@ -195,32 +197,6 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
     }
 
     return false;
-}
-
-bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& node) {
-    if (!node || !ov::is_type<const ov::op::v0::FakeQuantize>(node)) {
-        return false;
-    }
-
-    // After ConvertConvolutionBias swaps Mul and Add:
-    // Conv -> Add(bias) -> Mul(scales) -> Swish -> FQ
-    auto conv  = wrap_type<ov::op::v1::Convolution>();
-    auto add   = wrap_type<ov::op::v1::Add>({conv, any_input()});
-    auto mul   = wrap_type<ov::op::v1::Multiply>({add, any_input()});
-    auto swish = wrap_type<ov::op::v4::Swish>({mul});
-    auto fq    = wrap_type<ov::op::v0::FakeQuantize>(
-                     {swish, any_input(), any_input(), any_input(), any_input()});
-
-    Matcher matcher(fq);
-    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
-
-    return any_of(conv_node->get_input_element_type(0), ov::element::Type_t::i8, ov::element::Type_t::u8) &&
-           conv_node->get_input_element_type(0) == node->get_output_element_type(0);
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,

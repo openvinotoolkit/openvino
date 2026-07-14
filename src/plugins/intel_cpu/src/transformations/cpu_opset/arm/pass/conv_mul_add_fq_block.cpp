@@ -51,13 +51,12 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
-    auto activation = wrap_type<ov::op::v4::Swish, ov::op::v0::Relu>({add});
-    auto activation_or_add = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{activation, add});
+    auto activation = optional<ov::op::v4::Swish, ov::op::v0::Relu>({add});
 
     ov::pass::pattern::op::Predicate predicate =
         require_int_fq_output ? type_matches_any({element::i8, element::u8}) : ov::pass::pattern::op::Predicate();
     auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({activation_or_add, any_input(), any_input(), any_input(), any_input()}, predicate);
+        wrap_type<ov::op::v0::FakeQuantize>({activation, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};
