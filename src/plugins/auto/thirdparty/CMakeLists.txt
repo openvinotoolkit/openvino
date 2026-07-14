@@ -24,5 +24,8 @@ endif()
 
 add_subdirectory("${_ipf_ef_dir}" "${CMAKE_CURRENT_BINARY_DIR}/ipf" EXCLUDE_FROM_ALL)
 
+# install static libraries
+ov_install_static_lib(ClientApiLib ${OV_CPACK_COMP_CORE})
+
 message(STATUS "[AUTO] IPF: successfully configured, IPF_AVAILABLE = ON")
 set(OV_AUTO_IPF_AVAILABLE ON PARENT_SCOPE)

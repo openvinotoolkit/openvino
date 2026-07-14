@@ -228,7 +228,7 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
     }
     // clean up
     for (auto& item : metaDevices) {
-        plugin->unregister_priority(item.device_priority, item.device_name);
+        plugin->unregister_priority(item.device_priority, item.unique_name);
     }
 }
 

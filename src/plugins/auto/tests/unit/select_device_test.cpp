@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include <cctype>
 
 using namespace ov::mock_auto_plugin;
 using ConfigParams = std::tuple<std::string,                     // netPrecision
@@ -58,7 +59,6 @@ public:
         } else {
             result << "_reverseTotalDevice_false";
         }
-
         return result.str();
     }
     // combine select_num devices from devices and make them to ConfigParams
@@ -262,7 +262,18 @@ public:
 
         result << "expectedSelectedDevice_";
         result << selectedDeviceInfo.device_name << "_priority_" << selectedDeviceInfo.device_priority << "_";
-        return result.str();
+
+        auto sanitize_for_gtest = [](std::string name) {
+            for (char& ch : name) {
+                const unsigned char c = static_cast<unsigned char>(ch);
+                if (!std::isalnum(c) && ch != '_') {
+                    ch = '_';
+                }
+            }
+            return name;
+        };
+
+        return sanitize_for_gtest(result.str());
     }
 
     void compare(DeviceInformation& a, DeviceInformation& b) {
