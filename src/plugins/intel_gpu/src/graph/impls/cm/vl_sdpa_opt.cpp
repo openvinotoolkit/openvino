@@ -134,10 +134,15 @@ protected:
 
             // Read cu_seqlens via mem_lock — zero-cost on USM-host (PC), no GPU sync stall.
             const auto cu_seqlens_mem = params.memory_deps.at(params.input_layouts.size() - 1);
+            OPENVINO_ASSERT(cu_seqlens_mem->get_layout().data_type == ov::element::i32,
+                                        "VLSDPA expects cu_seqlens input to be i32");
             mem_lock<int32_t, mem_lock_type::read> cu_seqlens_lock(cu_seqlens_mem, *params.strm);
 
+            const auto cu_seqlens_sz = cu_seqlens_lock.size();
+            OPENVINO_ASSERT(cu_seqlens_sz >= 2 && cu_seqlens_sz % 2 == 0,
+                             "VLSDPA expects cu_seqlens to contain at least two elements (start/end) and be even-sized");
             size_t max_seq_len = 0;
-            for (size_t i = 1; i < cu_seqlens_lock.size(); i++) {
+            for (size_t i = 1; i < cu_seqlens_sz; i++) {
                 auto start_idx = cu_seqlens_lock[i - 1];
                 auto end_idx   = cu_seqlens_lock[i];
                 max_seq_len = std::max(max_seq_len, static_cast<size_t>(end_idx - start_idx));
@@ -159,13 +164,13 @@ protected:
             if (need_wg_mapping) {
                 wg_count = 0;
                 const auto wg_seq_len = wg_size * q_step;
-                for (size_t i = 1; i < cu_seqlens_lock.size(); i++) {
+                for (size_t i = 1; i < cu_seqlens_sz; i++) {
                     auto start_idx = cu_seqlens_lock[i - 1];
                     auto end_idx   = cu_seqlens_lock[i];
                     wg_count += static_cast<size_t>((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len);
                 }
             } else {
-                wg_count = cu_seqlens_lock.size() - 1;
+                wg_count = cu_seqlens_sz - 1;
             }
 
             auto& wgs = kd.params.workGroups;
@@ -180,12 +185,22 @@ protected:
             // Contract with the CM kernel (see cm_sdpa_vlen.cm): only the token (outer)
             // axis of each input layout may be padded — the head and head_size strides
             // are hardcoded in the kernel and are NOT parameterized here.
-            int32_t token_offset_q = static_cast<int32_t>(params.input_layouts[0].get_linear_offset());
-            int32_t token_offset_k = static_cast<int32_t>(params.input_layouts[1].get_linear_offset());
-            int32_t token_offset_v = static_cast<int32_t>(params.input_layouts[2].get_linear_offset());
-            const auto q_token_pitch = static_cast<int32_t>(params.input_layouts[0].get_pitches()[0]);
-            const auto k_token_pitch = static_cast<int32_t>(params.input_layouts[1].get_pitches()[0]);
-            const auto v_token_pitch = static_cast<int32_t>(params.input_layouts[2].get_pitches()[0]);
+             constexpr size_t i32_max = 0x7fffffff;
+             const auto token_offset_q_sz = params.input_layouts[0].get_linear_offset();
+             const auto token_offset_k_sz = params.input_layouts[1].get_linear_offset();
+             const auto token_offset_v_sz = params.input_layouts[2].get_linear_offset();
+             const auto q_token_pitch_sz  = params.input_layouts[0].get_pitches()[0];
+             const auto k_token_pitch_sz  = params.input_layouts[1].get_pitches()[0];
+             const auto v_token_pitch_sz  = params.input_layouts[2].get_pitches()[0];
+             OPENVINO_ASSERT(token_offset_q_sz <= i32_max && token_offset_k_sz <= i32_max && token_offset_v_sz <= i32_max &&
+                             q_token_pitch_sz <= i32_max && k_token_pitch_sz <= i32_max && v_token_pitch_sz <= i32_max,
+                             "VLSDPA token offsets/pitches must fit into int32");
+             const int32_t token_offset_q = static_cast<int32_t>(token_offset_q_sz);
+             const int32_t token_offset_k = static_cast<int32_t>(token_offset_k_sz);
+             const int32_t token_offset_v = static_cast<int32_t>(token_offset_v_sz);
+             const int32_t q_token_pitch  = static_cast<int32_t>(q_token_pitch_sz);
+             const int32_t k_token_pitch  = static_cast<int32_t>(k_token_pitch_sz);
+             const int32_t v_token_pitch  = static_cast<int32_t>(v_token_pitch_sz);
 
             std::vector<int32_t> scalars{need_wg_mapping,
                                          token_offset_q,
