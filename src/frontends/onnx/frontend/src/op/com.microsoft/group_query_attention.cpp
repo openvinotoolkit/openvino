@@ -136,8 +136,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     }
 
     // Process optional inputs: only add non-NullNode inputs and record omitted positions.
-    // ONNX GroupQueryAttention optional input positions:
-    // 3: past_key, 4: past_value, 7: cos_cache, 8: sin_cache, 9: position_ids, 10: mask, 12: k_scale, 13: v_scale
+    FRONT_END_OP_CONVERSION_CHECK(
+        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must not be NullNode.");
     for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
         if (!ov::op::util::is_null(onnx_op_inputs[i])) {
             ov_op_inputs.push_back(onnx_op_inputs[i]);

@@ -110,10 +110,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         v_scale = node->input_value(static_cast<size_t>(v_scale_idx));
     }
 
-    auto is_null = [](const ov::Output<ov::Node>& output) {
-        return output.get_node_shared_ptr()->description() == "NullNode";
-    };
-
     // The length of all tokens (past + current) is `seqlens_k` + 1.
     // current = Q.shape[2], past = `seqlens_k` + 1 - current
 
