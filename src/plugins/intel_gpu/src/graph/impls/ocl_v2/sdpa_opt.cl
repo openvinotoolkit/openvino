@@ -511,6 +511,8 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
+                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
+                        INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
                         INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
