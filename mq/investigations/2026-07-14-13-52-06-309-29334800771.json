@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-14-13-52-06-309-29334800771",
+  "timestamp": "2026-07-14T13:52:06Z",
+  "run_id": "29334800771",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29334800771",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "36822",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36822",
+  "author": "praasz",
+  "category": "Infrastructure",
+  "title": "Build job fails on artifact upload step for debian packages",
+  "signature": "debian packages artifact upload step fails sub-second Build job|Infrastructure",
+  "signature_hash": "edfaf9946abc4dee",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "Build / Build"
+  ],
+  "key_errors": [
+    "Step 37 'Upload OpenVINO debian packages' failed (conclusion: failure) within sub-second — all preceding build steps including 'Build Debian packages' (step 22) succeeded; artifact upload infrastructure failure suspected"
+  ],
+  "root_cause": "The 'Upload OpenVINO debian packages' step (step 37) in the Build / Build job failed almost instantly (< 1 second) despite the preceding 'Build Debian packages' step (step 22) completing successfully. The debian .deb files were confirmed present (step 40 'Prepare debian packages for storage on share' successfully ran mv *.deb deb/). The upload step uses ababushk/upload-artifact action with path $BUILD_DIR/*.deb and if-no-files-found: error. The sub-second failure strongly suggests a transient artifact service error or infrastructure issue rather than a missing file problem. Run attempt 2 was automatically triggered and is already in progress.",
+  "recommended_actions": [
+    "Wait for run attempt 2 (job 87102048922) to complete — it was auto-triggered and is in progress.",
+    "If attempt 2 also fails at the same step, investigate the artifact upload service health.",
+    "Consider adding retry logic to the artifact upload step or switching to a more resilient upload mechanism."
+  ]
+}

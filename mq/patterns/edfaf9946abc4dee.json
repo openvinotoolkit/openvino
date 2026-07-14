@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "debian packages artifact upload step fails sub-second Build job|Infrastructure",
+  "signature_hash": "edfaf9946abc4dee",
+  "title": "Build job fails on artifact upload step for debian packages",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-14T13:52:06Z",
+  "last_seen": "2026-07-14T13:52:06Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29334800771"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36822"
+  ],
+  "recent_timestamps": [
+    "2026-07-14T13:52:06Z"
+  ]
+}
