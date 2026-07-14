@@ -22,6 +22,22 @@ std::optional<std::string> resolve_kv_input_name(
     });
 }
 
+std::string past_key_values_to_present_name(const std::string& input_name) {
+    const std::string present_prefix = ov::npuw::util::constants::present;
+    const std::string past_prefix = ov::npuw::util::constants::past_key_values;
+
+    if (input_name.rfind(past_prefix, 0) == 0) {
+        return present_prefix + input_name.substr(past_prefix.size());
+    }
+
+    auto mapped_name = input_name;
+    const auto pos = mapped_name.find(past_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, past_prefix.size(), present_prefix);
+    }
+    return mapped_name;
+}
+
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
 
@@ -152,7 +168,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
-            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
+            if (ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name) ||
+                ov::npuw::util::isDQScaleOrZPKey(name) || ov::npuw::util::isDQScaleOrZPValue(name)) {
                 m_kvcache_past_names.push_back(name);
                 break;
             }
@@ -533,12 +550,11 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
         const auto& past_input_name = m_kvcache_past_names[out_idx];
 
-        const auto& output_name =
-            std::regex_replace(past_input_name, std::regex(layer_names::past_key_values), "present");
+        const auto output_name = past_key_values_to_present_name(past_input_name);
         OPENVINO_ASSERT(m_prefill_out_ports.find(output_name) != m_prefill_out_ports.end(),
                         "Incosistent input/output naming for KV cache: ",
-                        output_name,
-                        " not found in prefill model outputs.");
+                        past_input_name,
+                        " has no matching output in prefill model.");
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
         const auto input_name = resolve_kv_input_name(output_name, m_kvcache_in_ports);
         if (!input_name.has_value()) {
@@ -636,18 +652,21 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
 
     for (std::size_t i = 0; i < m_kvcache_past_names.size(); ++i) {
         const auto& input_name = m_kvcache_past_names[i];
-        OPENVINO_ASSERT(in_ports.find(input_name) != in_ports.end(),
-                        "There is no ",
-                        input_name,
-                        " in input ports map, while it is expected!");
-        const auto& output_name = std::regex_replace(input_name, std::regex(layer_names::past_key_values), "present");
+        const auto output_name = past_key_values_to_present_name(input_name);
         OPENVINO_ASSERT(out_ports.find(output_name) != out_ports.end(),
-                        "There is no ",
-                        output_name,
+                        "There is no matching output for input ",
+                        input_name,
                         " in output ports map, while it is expected!");
 
-        auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        const auto resolved_input_name = resolve_kv_input_name(output_name, in_ports);
+        OPENVINO_ASSERT(resolved_input_name.has_value(),
+                        "There is no matching input for output ",
+                        output_name,
+                        " in input ports map, while it is expected!");
+
+        auto dst_tensor = request->get_tensor(in_ports.at(resolved_input_name.value()));
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u
+                                                                                                : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,
