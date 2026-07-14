@@ -22,7 +22,7 @@ std::tuple<T, T, T> rgb_pixel_to_yuv(float r_val, float g_val, float b_val) {
     auto y = clip(0.257f * r_val + 0.504f * g_val + 0.098f * b_val + 16.f);
     auto u = clip(-0.148f * r_val - 0.291f * g_val + 0.439f * b_val + 128.f);
     auto v = clip(0.439f * r_val - 0.368f * g_val - 0.071f * b_val + 128.f);
-    return std::tuple<T, T, T>{y, u, v};
+    return std::make_tuple(y, u, v);
 }
 
 template <typename T, bool IsRGB>
