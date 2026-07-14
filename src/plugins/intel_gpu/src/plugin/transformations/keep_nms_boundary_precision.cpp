@@ -269,3 +269,4 @@ KeepNMSBoundaryPrecision::KeepNMSBoundaryPrecision() {
 }
 
 }  // namespace ov::intel_gpu
+

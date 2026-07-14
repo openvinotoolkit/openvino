@@ -169,3 +169,4 @@ TEST(KeepNMSBoundaryPrecisionTest, IgnoresNmsWithoutBatchedOffsetChain) {
     EXPECT_FALSE(ov::is_conversion_disabled(test_model.nms, ov::element::f16));
     EXPECT_EQ(test_model.class_ids_convert, nullptr);
 }
+
