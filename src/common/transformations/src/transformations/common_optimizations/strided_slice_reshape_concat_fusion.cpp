@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -41,13 +42,6 @@ bool get_vector_i64(const Output<Node>& value, std::vector<int64_t>& out) {
 
     out = constant->cast_vector<int64_t>();
     return !out.empty();
-}
-
-bool normalize_axis(int64_t& axis, int64_t rank) {
-    if (axis < 0) {
-        axis += rank;
-    }
-    return axis >= 0 && axis < rank;
 }
 
 bool get_mask(const std::vector<int64_t>& mask, size_t idx) {
@@ -157,7 +151,13 @@ bool parse_slice_window(const std::shared_ptr<ov::Node>& node, int64_t& start, i
             return false;
         }
 
-        if (!normalize_axis(axis, data_rank.get_length()) || axis != 1 || step != 1 || stop <= start) {
+        const auto rank = data_rank.get_length();
+        if (!ov::util::is_axis_valid(axis, rank)) {
+            return false;
+        }
+        axis = static_cast<int64_t>(ov::util::normalize_axis(axis, rank));
+
+        if (axis != 1 || step != 1 || stop <= start) {
             return false;
         }
 
@@ -211,7 +211,13 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
         }
 
         int64_t concat_axis = concat->get_axis();
-        if (!normalize_axis(concat_axis, output_rank.get_length()) || concat_axis != 1) {
+        const auto rank = output_rank.get_length();
+        if (!ov::util::is_axis_valid(concat_axis, rank)) {
+            return false;
+        }
+        concat_axis = static_cast<int64_t>(ov::util::normalize_axis(concat_axis, rank));
+
+        if (concat_axis != 1) {
             return false;
         }
 
