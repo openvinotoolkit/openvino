@@ -29,8 +29,8 @@ InfoForEDROIFeature get_info_for_ed_roi_feature(
 
     out_shape[1] = input_shapes[1][1];
 
-    result.output_rois_features_shape = out_shape;
-    result.output_rois_shape = out_rois_shape;
+    result.output_rois_features_shape = std::move(out_shape);
+    result.output_rois_shape = std::move(out_rois_shape);
 
     return result;
 }
