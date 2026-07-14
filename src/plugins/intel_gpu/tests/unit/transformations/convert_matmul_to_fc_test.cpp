@@ -848,7 +848,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_rank_a_less_than_
     }
 }
 
-// Large f16 matmul K>=8192, M<=512: non-transposed path (transpose_b=false).
+// Large f16 matmul K>=8192, M<=512: non-transposed path (transpose_b=false, supports_immad=true).
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTransposed_M_Thin) {
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{512, 8192});
@@ -856,7 +856,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
         auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
-        manager.register_pass<ConvertMatMulToFullyConnected>();
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
     }
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{512, 8192});
@@ -868,7 +868,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
     }
 }
 
-// Large f16 matmul K>=8192, N<=4096: non-transposed path (transpose_b=false).
+// Large f16 matmul K>=8192, N<=4096: non-transposed path (transpose_b=false, supports_immad=true).
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTransposed_N_Thin) {
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{4096, 8192});
@@ -876,13 +876,35 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
         auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
-        manager.register_pass<ConvertMatMulToFullyConnected>();
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
     }
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{4096, 8192});
         auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{8192, 256}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Large f16 matmul K>=8192, N<=4096: non-transposed path (transpose_b=false, supports_immad=false).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NoImmad_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 9216});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{9216, 4096}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(false);  // supports_immad=false
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 9216});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{9216, 4096}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
     }
@@ -932,7 +954,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_SmallF16_Transposed) 
     }
 }
 
-// Large f16 matmul with matmul transpose_b=true → non-transposed FC inserts a reverse Transpose.
+// Large f16 matmul with matmul transpose_b=true (supports_immad=true) → non-transposed FC inserts a reverse Transpose.
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_MatMulTransposeB_True_NonTransposedPath) {
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 8192});
@@ -940,7 +962,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_MatMulTransp
         auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, true);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
-        manager.register_pass<ConvertMatMulToFullyConnected>();
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
     }
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 8192});

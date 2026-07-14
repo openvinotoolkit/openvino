@@ -215,7 +215,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Weights normalization
         bool is_small_matmul = true;
-        if (shape_a.is_static() && shape_b.is_static()) {
+        if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
              if (matmul->get_transpose_a())
