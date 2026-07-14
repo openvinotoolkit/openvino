@@ -86,7 +86,13 @@ protected:
                 p = 2.0F;
                 break;
             case reduce_mode::l1:
+#ifdef OV_GPU_VENDOR_NVIDIA
+                // cuDNN: reduction_norm_lp_sum requires p==2; use
+                // reduction_norm_lp_power_p_sum with p==1 instead (mathematically equivalent for L1).
+                alg = dnnl::algorithm::reduction_norm_lp_power_p_sum;
+#else
                 alg = dnnl::algorithm::reduction_norm_lp_sum;
+#endif
                 p = 1.0F;
                 break;
             case reduce_mode::l2:
@@ -141,8 +147,15 @@ public:
         dnnl::algorithm alg;
         ib >> make_data(&alg, sizeof(dnnl::algorithm));
 
-        auto input_md = onednn::layout_to_memory_desc_blocked(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
-        auto output_md = onednn::layout_to_memory_desc_blocked(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+        auto input_layout = impl_params->get_input_layout(0);
+        auto output_layout = impl_params->get_output_layout();
+        auto prim = impl_params->typed_desc<reduce>();
+        // Adjust output layout for keep_dims=false: oneDNN requires src/dst to have
+        // the same ndims, matching the adjustment in get_reduction_primitive_descriptor().
+        reorder_unreduced_axis_no_fusion(*impl_params, input_layout, output_layout, prim->axes);
+
+        auto input_md = onednn::layout_to_memory_desc_blocked(input_layout, dnnl::memory::format_tag::undef);
+        auto output_md = onednn::layout_to_memory_desc_blocked(output_layout, dnnl::memory::format_tag::undef);
 
         float p, eps;
         ib >> p >> eps;

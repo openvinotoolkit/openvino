@@ -134,16 +134,13 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::sum:
             case reduce_mode::prod:
                 break;
+#ifdef OV_GPU_VENDOR_NVIDIA
             case reduce_mode::sum_square:
+#endif
             case reduce_mode::l1:
             case reduce_mode::l2:
                 // modes have a limitation of data type
                 if (one_of(in_dt, {data_types::f16, data_types::f32, data_types::bf16})) {
-#ifdef OV_GPU_VENDOR_NVIDIA
-                    if (reduce_prim->mode != reduce_mode::l2) {
-                        return false;
-                    }
-#endif
                     break;
                 }
             default:
