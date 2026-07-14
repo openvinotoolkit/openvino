@@ -57,15 +57,24 @@ public:
         const auto rotary_interleaved = node->get_rotary_interleaved();
         // TODO: add softcap support
 
-        auto Q = node->input_value(0);
-        auto K = node->input_value(1);
-        auto V = node->input_value(2);
-        auto past_key = node->input_value(3);
-        auto past_value = node->input_value(4);
-        auto seqlens_k = node->input_value(5);
-        auto total_sequence_length = node->input_value(6);
-        auto cos_cache = node->input_value(7);
-        auto sin_cache = node->input_value(8);
+        const auto get_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos,
+                                   const bool is_required = true) -> ov::Output<ov::Node> {
+            const auto original_pos = static_cast<int64_t>(input_pos);
+            const bool exists = node->has_input(original_pos);
+            OPENVINO_ASSERT(!is_required || exists,
+                            "Missing required GroupQueryAttention input at original position ",
+                            original_pos);
+            return exists ? node->input_value(node->get_input_index(original_pos)) : ov::Output<ov::Node>{};
+        };
+
+        auto Q = get_input(ov::op::internal::GroupQueryAttentionInputs::QUERY);
+        auto K = get_input(ov::op::internal::GroupQueryAttentionInputs::KEY);
+        auto V = get_input(ov::op::internal::GroupQueryAttentionInputs::VALUE);
+        auto past_key = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_KEY);
+        auto past_value = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_VALUE);
+        auto seqlens_k = get_input(ov::op::internal::GroupQueryAttentionInputs::SEQLENS_K);
+        auto cos_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::COS_CACHE, do_rotary);
+        auto sin_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::SIN_CACHE, do_rotary);
 
         // The length of all tokens (past + current) is `seqlens_k` + 1.
         // current = Q.shape[2], past = `seqlens_k` + 1 - current
