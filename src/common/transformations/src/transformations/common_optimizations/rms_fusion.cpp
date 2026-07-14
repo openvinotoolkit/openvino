@@ -188,5 +188,4 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     this->register_matcher(m, callback);
 }
 
-
 }  // namespace ov::pass
