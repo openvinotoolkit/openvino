@@ -623,7 +623,7 @@ void GateUpCombine::generate() {
         } else {
             vcvtneps2bf16(ymm_dst, zmm_up);
         }
-        prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+        prefetcht1(ptr[prefetch_dst + loop_i * 2]);
         vmovdqu(ptr[dst + loop_i * 2], ymm_dst);
     }
     add(loop_i, 16);
@@ -668,10 +668,10 @@ void ReduceAdd2bh::generate() {
             if (m_to_f16) {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
-                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                prefetcht1(ptr[prefetch_dst + loop_i * 2]);
             } else {
                 vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                prefetcht1(ptr[prefetch_dst + loop_i * 2]);
                 vmovups(ptr[dst + loop_i * 2], zmm4);
             }
         }
@@ -705,10 +705,10 @@ void ReduceAdd2bh::generate() {
             if (m_to_f16) {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
-                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                prefetcht1(ptr[prefetch_dst + loop_i * 2]);
             } else {
                 vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                prefetcht1(ptr[prefetch_dst + loop_i * 2]);
                 vmovups(ptr[dst + loop_i * 2], zmm4);
             }
         }
