@@ -10,11 +10,16 @@ import torch
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir
 
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_unsupported_npu_precommit
 from PIL import Image
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
+
+# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "edsr": "*",
+}
 
 
 class TestEdsrConvertModel(TestTorchConvertModel):
@@ -69,6 +74,7 @@ class TestEdsrConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
+        skip_unsupported_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.scale = random.randint(2, 4)
         self.run(name, None, ie_device)
 

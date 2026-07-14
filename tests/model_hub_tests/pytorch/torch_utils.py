@@ -44,6 +44,23 @@ def extract_unsupported_ops_from_exception(e: str) -> list:
     return []
 
 
+def skip_unsupported_npu_precommit(model_name, ie_device, skip_map):
+    """Skip a precommit model that fails NPU compile-only on the current NPU_PLATFORM.
+
+    `skip_map` maps a model name to the platforms where it must be skipped: either
+    the string "*" (all platforms) or an iterable of platform ids (e.g. {"3720"}).
+    The active platform is read from the NPU_PLATFORM environment variable.
+    """
+    if "NPU" not in (ie_device or ""):
+        return
+    platforms = skip_map.get(model_name)
+    if not platforms:
+        return
+    current = os.environ.get("NPU_PLATFORM", "")
+    if platforms == "*" or current in platforms:
+        pytest.skip(f"{model_name}: NPU compile-only unsupported on platform {current or 'unknown'}")
+
+
 class TestTorchConvertModel(TestConvertModel):
     cached_model = None
 
