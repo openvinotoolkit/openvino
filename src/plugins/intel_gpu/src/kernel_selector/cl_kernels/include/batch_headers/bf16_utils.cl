@@ -40,8 +40,7 @@ inline float _convert_as_bfloat16_float(ushort source) {
     u += ( ( (source >> 7) & 0b11111111)) << 23;
     //fraction 
     u += (source & 0b1111111) << 16;
-    float* f = (float*)&u;
-    return *f;
+    return as_float(u);
 }
 
 inline ushort _convert_bfloat16_as_ushort(float source) {

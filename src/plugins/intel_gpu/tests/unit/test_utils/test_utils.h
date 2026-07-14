@@ -370,10 +370,18 @@ inline bool floating_point_equal(ov::float16 x, ov::float16 y, int max_ulps_diff
 }
 
 inline bool floating_point_equal(ov::bfloat16 x, ov::bfloat16 y, int max_ulps_diff = 4) {
-    int16_t sign_bit_mask = 1;
-    sign_bit_mask <<= 15;
-    int16_t a = reinterpret_cast<int16_t&>(x), b = reinterpret_cast<int16_t&>(y);
+    const uint16_t sign_bit_mask = uint16_t{1} << 15;
+    uint16_t a = x.to_bits();
+    uint16_t b = y.to_bits();
+
     if ((a & sign_bit_mask) != (b & sign_bit_mask)) {
+        a &= static_cast<uint16_t>(~sign_bit_mask);
+        b &= static_cast<uint16_t>(~sign_bit_mask);
+        return a == 0 && b == 0;
+    }
+
+    return std::abs(int(a) - int(b)) < (1 << max_ulps_diff);
+}
         a &= ~sign_bit_mask;
         b &= ~sign_bit_mask;
         return a == 0 && b == 0;

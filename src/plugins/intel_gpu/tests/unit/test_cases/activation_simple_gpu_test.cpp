@@ -748,8 +748,6 @@ TEST(activation_bf16_fw_gpu, softsign_basic_yxfb) {
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<ov::bfloat16> input_ptr(input, get_test_stream());
-
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
