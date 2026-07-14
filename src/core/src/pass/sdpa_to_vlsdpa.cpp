@@ -105,8 +105,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                         return nullptr;
                     if (transpose->get_output_target_inputs(0).size() != 1)
                         return nullptr;
-                    auto order_const =
-                        ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+                    auto order_const = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
                     if (!order_const || ov::shape_size(order_const->get_shape()) != expected_order.size())
                         return nullptr;
                     if (order_const->cast_vector<int64_t>() != expected_order)
@@ -124,13 +123,12 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
                 std::shared_ptr<v1::Transpose> to;
                 if (sdpa_consumers.size() == 1) {
-                    auto candidate_out = ov::as_type_ptr<v1::Transpose>(
-                        sdpa_consumers.begin()->get_node()->shared_from_this());
+                    auto candidate_out =
+                        ov::as_type_ptr<v1::Transpose>(sdpa_consumers.begin()->get_node()->shared_from_this());
                     if (candidate_out) {
-                        auto out_order_const = ov::as_type_ptr<v0::Constant>(
-                            candidate_out->input_value(1).get_node_shared_ptr());
-                        if (out_order_const &&
-                            ov::shape_size(out_order_const->get_shape()) == expected_order.size() &&
+                        auto out_order_const =
+                            ov::as_type_ptr<v0::Constant>(candidate_out->input_value(1).get_node_shared_ptr());
+                        if (out_order_const && ov::shape_size(out_order_const->get_shape()) == expected_order.size() &&
                             out_order_const->cast_vector<int64_t>() == expected_order) {
                             to = candidate_out;
                         }

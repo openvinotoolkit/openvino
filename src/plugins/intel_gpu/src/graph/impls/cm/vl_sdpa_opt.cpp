@@ -46,10 +46,8 @@ constexpr size_t get_default_kv_blk(size_t head_size) {
 //   Fail fast at compile / dispatch time with an actionable message.
 inline void ensure_fused_transpose_order(const vl_sdpa& desc) {
     const std::vector<int64_t> expected_order{1, 0, 2};
-    OPENVINO_ASSERT(desc.input_q_transpose_order == expected_order &&
-                        desc.input_k_transpose_order == expected_order &&
-                        desc.input_v_transpose_order == expected_order &&
-                        desc.output_transpose_order == expected_order,
+    OPENVINO_ASSERT(desc.input_q_transpose_order == expected_order && desc.input_k_transpose_order == expected_order &&
+                        desc.input_v_transpose_order == expected_order && desc.output_transpose_order == expected_order,
                     "VLSDPA CM impl requires the surrounding Transpose{1,0,2} to be fused into "
                     "VLSDPA (all four transpose orders must be {1,0,2}). If this fires, the "
                     "SDPAToVLSDPA / TransposeVLSDPAMatcher fusion did not run for this pattern; "
@@ -157,17 +155,15 @@ protected:
 
             // Read cu_seqlens via mem_lock — zero-cost on USM-host (PC), no GPU sync stall.
             const auto cu_seqlens_mem = params.memory_deps.at(params.input_layouts.size() - 1);
-            OPENVINO_ASSERT(cu_seqlens_mem->get_layout().data_type == ov::element::i32,
-                                        "VLSDPA expects cu_seqlens input to be i32");
+            OPENVINO_ASSERT(cu_seqlens_mem->get_layout().data_type == ov::element::i32, "VLSDPA expects cu_seqlens input to be i32");
             mem_lock<int32_t, mem_lock_type::read> cu_seqlens_lock(cu_seqlens_mem, *params.strm);
 
             const auto cu_seqlens_sz = cu_seqlens_lock.size();
-            OPENVINO_ASSERT(cu_seqlens_sz >= 2,
-                             "VLSDPA expects cu_seqlens to contain at least two elements (start/end) and be even-sized");
+            OPENVINO_ASSERT(cu_seqlens_sz >= 2, "VLSDPA expects cu_seqlens to contain at least two elements (start/end) and be even-sized");
             size_t max_seq_len = 0;
             for (size_t i = 1; i < cu_seqlens_sz; i++) {
                 auto start_idx = cu_seqlens_lock[i - 1];
-                auto end_idx   = cu_seqlens_lock[i];
+                auto end_idx = cu_seqlens_lock[i];
                 max_seq_len = std::max(max_seq_len, static_cast<size_t>(end_idx - start_idx));
             }
 
@@ -189,7 +185,7 @@ protected:
                 const auto wg_seq_len = wg_size * q_step;
                 for (size_t i = 1; i < cu_seqlens_sz; i++) {
                     auto start_idx = cu_seqlens_lock[i - 1];
-                    auto end_idx   = cu_seqlens_lock[i];
+                    auto end_idx = cu_seqlens_lock[i];
                     wg_count += static_cast<size_t>((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len);
                 }
             } else {
@@ -208,24 +204,18 @@ protected:
             // Contract with the CM kernel (see cm_sdpa_vlen.cm): only the token (outer)
             // axis of each input layout may be padded — the head and head_size strides
             // are hardcoded in the kernel and are NOT parameterized here.
-             constexpr size_t i32_max = 0x7fffffff;
-             const auto token_offset_q = params.input_layouts[0].get_linear_offset();
-             const auto token_offset_k = params.input_layouts[1].get_linear_offset();
-             const auto token_offset_v = params.input_layouts[2].get_linear_offset();
-             const size_t q_token_pitch  = static_cast<size_t>(params.input_layouts[0].get_pitches()[0]);
-             const size_t k_token_pitch  = static_cast<size_t>(params.input_layouts[1].get_pitches()[0]);
-             const size_t v_token_pitch  = static_cast<size_t>(params.input_layouts[2].get_pitches()[0]);
-             OPENVINO_ASSERT(token_offset_q <= i32_max && token_offset_k <= i32_max && token_offset_v <= i32_max &&
-                             q_token_pitch <= i32_max && k_token_pitch <= i32_max && v_token_pitch <= i32_max,
-                             "VLSDPA token offsets/pitches must fit into int32");
+            constexpr size_t i32_max = 0x7fffffff;
+            const auto token_offset_q = params.input_layouts[0].get_linear_offset();
+            const auto token_offset_k = params.input_layouts[1].get_linear_offset();
+            const auto token_offset_v = params.input_layouts[2].get_linear_offset();
+            const size_t q_token_pitch = static_cast<size_t>(params.input_layouts[0].get_pitches()[0]);
+            const size_t k_token_pitch = static_cast<size_t>(params.input_layouts[1].get_pitches()[0]);
+            const size_t v_token_pitch = static_cast<size_t>(params.input_layouts[2].get_pitches()[0]);
+            OPENVINO_ASSERT(token_offset_q <= i32_max && token_offset_k <= i32_max && token_offset_v <= i32_max && q_token_pitch <= i32_max &&
+                                k_token_pitch <= i32_max && v_token_pitch <= i32_max,
+                            "VLSDPA token offsets/pitches must fit into int32");
 
-            std::vector<size_t> scalars{need_wg_mapping,
-                                         token_offset_q,
-                                         token_offset_k,
-                                         token_offset_v,
-                                         q_token_pitch,
-                                         k_token_pitch,
-                                         v_token_pitch};
+            std::vector<size_t> scalars{need_wg_mapping, token_offset_q, token_offset_k, token_offset_v, q_token_pitch, k_token_pitch, v_token_pitch};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc s;

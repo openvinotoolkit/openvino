@@ -63,11 +63,8 @@ std::shared_ptr<ov::Model> build_target_model(const string& mask_name) {
     cuseq_mask->get_output_tensor(0).set_names({mask_name});
 
     const std::vector<int64_t> order{1, 0, 2};
-    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{q, k, v, cuseq_mask},
-                                                             order,
-                                                             order,
-                                                             order,
-                                                             order);
+    auto vlsdpa =
+        std::make_shared<ov::op::internal::VLSDPA>(OutputVector{q, k, v, cuseq_mask}, order, order, order, order);
     vlsdpa->set_friendly_name("transpose_o");
 
     return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
