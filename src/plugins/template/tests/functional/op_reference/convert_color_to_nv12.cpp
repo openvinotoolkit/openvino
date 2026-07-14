@@ -12,9 +12,9 @@
 #include "openvino/op/bgr_to_nv12.hpp"
 #include "openvino/op/rgb_to_nv12.hpp"
 
-using namespace ov;
 using namespace reference_tests;
 
+namespace ov::tests {
 class ReferenceConvertColorToNV12LayerTest : public testing::Test, public CommonReferenceTest {
 public:
     void SetUp() override {
@@ -25,108 +25,109 @@ public:
 
 public:
     template <typename T>
-    static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input) {
-        const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
+    static std::shared_ptr<ov::Model> CreateFunction(const reference_tests::Tensor& input) {
+        const auto in = std::make_shared<ov::op::v0::Parameter>(input.type, input.shape);
         auto conv = std::make_shared<T>(in);
-        auto res = std::make_shared<op::v0::Result>(conv);
-        return std::make_shared<Model>(ResultVector{res}, ParameterVector{in});
+        auto res = std::make_shared<ov::op::v0::Result>(conv);
+        return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in});
     }
 
     template <typename T>
-    static std::shared_ptr<Model> CreateFunction2Plane(const reference_tests::Tensor& input) {
-        const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
+    static std::shared_ptr<ov::Model> CreateFunction2Plane(const reference_tests::Tensor& input) {
+        const auto in = std::make_shared<ov::op::v0::Parameter>(input.type, input.shape);
         auto conv = std::make_shared<T>(in, false);
-        auto res_y = std::make_shared<op::v0::Result>(conv->output(0));
-        auto res_uv = std::make_shared<op::v0::Result>(conv->output(1));
-        return std::make_shared<Model>(ResultVector{res_y, res_uv}, ParameterVector{in});
+        auto res_y = std::make_shared<ov::op::v0::Result>(conv->output(0));
+        auto res_uv = std::make_shared<ov::op::v0::Result>(conv->output(1));
+        return std::make_shared<ov::Model>(ov::ResultVector{res_y, res_uv}, ov::ParameterVector{in});
     }
 };
 
 TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_u8_single_rgb) {
     auto input = std::vector<uint8_t>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0};
-    auto input_shape = Shape{1, 2, 2, 3};
+    auto input_shape = ov::Shape{1, 2, 2, 3};
     auto exp_out = std::vector<uint8_t>{82, 82, 82, 82, 90, 240};
-    auto out_shape = Shape{1, 3, 2, 1};
+    auto out_shape = ov::Shape{1, 3, 2, 1};
 
-    reference_tests::Tensor inp_tensor(input_shape, element::u8, input);
+    reference_tests::Tensor inp_tensor(input_shape, ov::element::u8, input);
     inputData = {inp_tensor.data};
-    function = CreateFunction<op::v17::RGBtoNV12>(inp_tensor);
-    reference_tests::Tensor exp_tensor(out_shape, element::u8, exp_out);
+    function = CreateFunction<ov::op::v17::RGBtoNV12>(inp_tensor);
+    reference_tests::Tensor exp_tensor(out_shape, ov::element::u8, exp_out);
     refOutData = {exp_tensor.data};
     Exec();
 }
 
 TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_green_f32_single_rgb) {
     auto input = std::vector<float>{0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0};
-    auto input_shape = Shape{1, 2, 2, 3};
+    auto input_shape = ov::Shape{1, 2, 2, 3};
     auto exp_out = std::vector<float>{145.f, 145.f, 145.f, 145.f, 54.f, 34.f};
-    auto out_shape = Shape{1, 3, 2, 1};
+    auto out_shape = ov::Shape{1, 3, 2, 1};
 
-    reference_tests::Tensor inp_tensor(input_shape, element::f32, input);
+    reference_tests::Tensor inp_tensor(input_shape, ov::element::f32, input);
     inputData = {inp_tensor.data};
 
-    reference_tests::Tensor exp_tensor(out_shape, element::f32, exp_out);
+    reference_tests::Tensor exp_tensor(out_shape, ov::element::f32, exp_out);
     refOutData = {exp_tensor.data};
 
-    function = CreateFunction<op::v17::RGBtoNV12>(inp_tensor);
+    function = CreateFunction<ov::op::v17::RGBtoNV12>(inp_tensor);
 
     Exec();
 }
 
 TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_blue_u8_single_bgr) {
     auto input = std::vector<uint8_t>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0};
-    auto input_shape = Shape{1, 2, 2, 3};
+    auto input_shape = ov::Shape{1, 2, 2, 3};
     auto exp_out = std::vector<uint8_t>{41, 41, 41, 41, 240, 110};
-    auto out_shape = Shape{1, 3, 2, 1};
+    auto out_shape = ov::Shape{1, 3, 2, 1};
 
-    reference_tests::Tensor inp_tensor(input_shape, element::u8, input);
+    reference_tests::Tensor inp_tensor(input_shape, ov::element::u8, input);
     inputData = {inp_tensor.data};
-    function = CreateFunction<op::v17::BGRtoNV12>(inp_tensor);
-    reference_tests::Tensor exp_tensor(out_shape, element::u8, exp_out);
+    function = CreateFunction<ov::op::v17::BGRtoNV12>(inp_tensor);
+    reference_tests::Tensor exp_tensor(out_shape, ov::element::u8, exp_out);
     refOutData = {exp_tensor.data};
     Exec();
 }
 
 TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_two_rgb) {
     auto input = std::vector<float>{255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0};
-    auto input_shape = Shape{1, 2, 2, 3};
+    auto input_shape = ov::Shape{1, 2, 2, 3};
 
     auto exp_y = std::vector<float>{82.f, 82.f, 82.f, 82.f};
-    auto exp_y_shape = Shape{1, 2, 2, 1};
+    auto exp_y_shape = ov::Shape{1, 2, 2, 1};
 
     auto exp_uv = std::vector<float>{90.f, 240.f};
-    auto exp_uv_shape = Shape{1, 1, 1, 2};
+    auto exp_uv_shape = ov::Shape{1, 1, 1, 2};
 
-    reference_tests::Tensor inp_tensor(input_shape, element::f32, input);
+    reference_tests::Tensor inp_tensor(input_shape, ov::element::f32, input);
     inputData = {inp_tensor.data};
 
-    reference_tests::Tensor exp_y_tensor(exp_y_shape, element::f32, exp_y);
-    reference_tests::Tensor exp_uv_tensor(exp_uv_shape, element::f32, exp_uv);
+    reference_tests::Tensor exp_y_tensor(exp_y_shape, ov::element::f32, exp_y);
+    reference_tests::Tensor exp_uv_tensor(exp_uv_shape, ov::element::f32, exp_uv);
     refOutData = {exp_y_tensor.data, exp_uv_tensor.data};
 
-    function = CreateFunction2Plane<op::v17::RGBtoNV12>(inp_tensor);
+    function = CreateFunction2Plane<ov::op::v17::RGBtoNV12>(inp_tensor);
 
     Exec();
 }
 
 TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_two_bgr) {
     auto input = std::vector<float>{0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f};
-    auto input_shape = Shape{1, 2, 2, 3};
+    auto input_shape = ov::Shape{1, 2, 2, 3};
 
     auto exp_y = std::vector<float>{82.f, 82.f, 82.f, 82.f};
-    auto exp_y_shape = Shape{1, 2, 2, 1};
+    auto exp_y_shape = ov::Shape{1, 2, 2, 1};
 
     auto exp_uv = std::vector<float>{90.f, 240.f};
-    auto exp_uv_shape = Shape{1, 1, 1, 2};
+    auto exp_uv_shape = ov::Shape{1, 1, 1, 2};
 
-    reference_tests::Tensor inp_tensor(input_shape, element::f32, input);
+    reference_tests::Tensor inp_tensor(input_shape, ov::element::f32, input);
     inputData = {inp_tensor.data};
 
-    reference_tests::Tensor exp_y_tensor(exp_y_shape, element::f32, exp_y);
-    reference_tests::Tensor exp_uv_tensor(exp_uv_shape, element::f32, exp_uv);
+    reference_tests::Tensor exp_y_tensor(exp_y_shape, ov::element::f32, exp_y);
+    reference_tests::Tensor exp_uv_tensor(exp_uv_shape, ov::element::f32, exp_uv);
     refOutData = {exp_y_tensor.data, exp_uv_tensor.data};
 
-    function = CreateFunction2Plane<op::v17::BGRtoNV12>(inp_tensor);
+    function = CreateFunction2Plane<ov::op::v17::BGRtoNV12>(inp_tensor);
 
     Exec();
 }
+} // namespace

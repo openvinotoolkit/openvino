@@ -6,6 +6,8 @@
 #include "openvino/op/bgr_to_nv12.hpp"
 #include "openvino/op/rgb_to_nv12.hpp"
 
+namespace ov::tests {
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_rgb_to_nv12, ConvertToNV12BaseTest, ::testing::Types<ov::op::v17::RGBtoNV12>);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bgr_to_nv12, ConvertToNV12BaseTest, ::testing::Types<ov::op::v17::BGRtoNV12>);
+}  // namespace ov::tests

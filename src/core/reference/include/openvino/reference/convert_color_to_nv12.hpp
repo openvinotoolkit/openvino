@@ -9,8 +9,7 @@
 
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
 
-namespace ov {
-namespace reference {
+namespace ov::reference {
 
 template <typename T>
 std::tuple<T, T, T> rgb_pixel_to_yuv(float r_val, float g_val, float b_val) {
@@ -78,5 +77,4 @@ void color_convert_to_nv12(const T* rgb_ptr,
     }
 }
 
-}  // namespace reference
-}  // namespace ov
+}  // namespace ov::reference
