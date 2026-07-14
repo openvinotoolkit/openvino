@@ -19,3 +19,4 @@ public:
 };
 
 }  // namespace ov::intel_gpu
+
