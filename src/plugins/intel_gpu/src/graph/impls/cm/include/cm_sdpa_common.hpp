@@ -69,7 +69,7 @@ void sdpa_kernel_lsc(
         #pragma unroll
         for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -127,7 +127,6 @@ void sdpa_kernel_lsc(
 
         cm_fence(CM_LOCAL_BARRIER);
         cm_sbarrier(0);
-        //if (kv_pos > 1024000) // for debugging
         if (kv_pos + kv_step < kv_stop)
             cm_sbarrier(1);
 
@@ -152,8 +151,7 @@ void sdpa_kernel_lsc(
                 for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
 
-            //show(St);
-            auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+            auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
@@ -227,15 +225,11 @@ void sdpa_kernel_lsc_prefetch(
     if (q_tokens_left > q_step) q_tokens_left = q_step;
 
     if (q_tokens_left > 0) {
-        // Fold log2(e) into the Q pre-scale so St = K@Q^T lands in the log2 domain; the
-        // online softmax then uses cm_exp (== exp2) directly, dropping a *log2e per St
-        // element (16 muls/tile off the softmax critical path). Math is identical.
-        constexpr float qscale = scale_factor * 1.4426950408889634f;
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch_bytes - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)qscale);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -326,7 +320,7 @@ void sdpa_kernel_lsc_prefetch(
         }
 
         // ---- one online-softmax update over the whole block ----
-        auto max_comp = online_softmax_update_tree(St, cur_max, cur_sum);
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         // ---- rescale rO (skip first iter only when KV blocking amortizes the branch) ----
         // The kv_base=0 rescale is mathematically redundant for every head size: max_comp=0
@@ -449,7 +443,7 @@ void sdpa_kernel(
             #pragma unroll
             for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
                 Transpose2DMatrix(QmatI32.select<q_step, 1, REG_K/2, 1>(0, k), rQ[ri].format<uint, REG_K/2, q_step>());
-                rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+                rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
             }
         } else {
             constexpr int num_full_blocks = head_size / REG_K;
@@ -460,7 +454,7 @@ void sdpa_kernel(
                 int k = i * REG_K;
                 cm_load_2d(QmatI32, query, q_off + k * sizeof(uint) / 2, q_pitch_bytes);
                 Transpose2DMatrix(QmatI32, rQ[i].format<uint, REG_K/2, q_step>());
-                rQ[i].format<half>() = cm_mul<half>(rQ[i].format<half>(), (half)scale_factor);
+                rQ[i].format<half>() = cm_mul<half>(rQ[i].format<half>(), (half)q_prescale);
             }
 
             // if with tail, load with head_size_tail
@@ -470,7 +464,7 @@ void sdpa_kernel(
                 matrix<uint, q_step, REG_K/2> QmatI32;
                 cm_load_2d_with_tail<q_step, REG_K/2, (head_size % REG_K) / 2>(QmatI32, query, q_off + k * sizeof(half), q_pitch_bytes);
                 Transpose2DMatrix(QmatI32, rQ[num_full_blocks].format<uint, REG_K/2, q_step>());
-                rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)scale_factor);
+                rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)q_prescale);
             }
         }
     }
@@ -485,7 +479,6 @@ void sdpa_kernel(
     int slm_buff_id_read = 0;
 
     auto load_slm_KV = [&](int kv_pos) {
-        //if (kv_pos < 1024000) return;
         int kv_tokens = kv_stop - kv_pos;
         if (kv_tokens <= 0) return;
         // Calculate valid rows for this block (used to zero out garbage data)
@@ -495,7 +488,6 @@ void sdpa_kernel(
 
         // non-tail branch is faster
         if (wg_local_id < local_size/2) {
-            //if (kv_pos > 1024000) {
             matrix<half, 2*REG_M, REG_K> temp;
             // head_size is split into blocks of <half, REG_K>
             constexpr int num_full_blocks = head_size / REG_K;
@@ -524,13 +516,11 @@ void sdpa_kernel(
                     temp.format<half>());
             }
         } else {
-            //if (kv_pos > 1024000) {
             // read 16x16 XMX-B matrix (1x REG_N in Xe2, 2x REG_N in Xe1)
             constexpr int VK_STEP = 16;
             static_assert((VK_STEP % REG_N) == 0);
             matrix<half, REG_K, VK_STEP> temp2;
             matrix<half, REG_K/2, REG_N*2> temp_vnni;
-            //b2dV.set_block_y(kv_pos);
 
             // head_size is split into blocks of <half, VK_STEP>
             constexpr int num_full_blocks = head_size / VK_STEP;
@@ -569,7 +559,6 @@ void sdpa_kernel(
         }
         k_off += kv_step * k_pitch_bytes;
         v_off += kv_step * v_pitch_bytes;
-        // printf(" diff= %lu\n", get_clock() - clk0);
     };
 
     load_slm_KV(0);
@@ -600,10 +589,8 @@ void sdpa_kernel(
         if (kv_pos + kv_step < kv_stop)
             cm_sbarrier(1);
 
-        //if (kv_pos < 1024000) continue;
         uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
-        //=========================================================== 1807 ~ 3247
         //# St = k @ Qt
         matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
 
@@ -621,7 +608,6 @@ void sdpa_kernel(
                     St[p] = cm_add<float>(St[p], cmask);
                     if (v < q_step - 1) v++;
                 }
-                //if (wg_local_id == 0) show(St);return;
             }
             causal_left -= kv_step;
         }
@@ -630,8 +616,7 @@ void sdpa_kernel(
         int kv_tokens = kv_stop - kv_pos;
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 
-        //show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
         Transpose2DMatrix(St, P);
@@ -657,7 +642,6 @@ void sdpa_kernel(
                     cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
                 }
             }
-            // if (i == args_verbose) show(cur_O_f16);
             cm_store_2d(cur_O_f16, output, o_off + k*sizeof(half), o_pitch);
         }
     }
