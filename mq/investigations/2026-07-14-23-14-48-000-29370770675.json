@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-14-23-14-48-000-29370770675",
+  "timestamp": "2026-07-14T23:14:48Z",
+  "run_id": "29370770675",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29370770675",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36798",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36798",
+  "category": "Flaky Test",
+  "title": "PyTorch FFT Layer Tests crash with Windows fatal exception: access violation in torch.randn",
+  "signature": "Windows fatal exception: access violation in torch.randn during FFT test _prepare_input|Flaky Test",
+  "signature_hash": "c9863a2404e8c8cc",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Windows fatal exception: access violation in torch.randn during test_fft.py::TestFFT::test_2d"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to dependent job failure"
+    }
+  ],
+  "key_errors": [
+    "Windows fatal exception: access violation\n  File pytorch_layer_test_class.py, line 57 in randn\n  File test_fft.py, line 76 in _prepare_input\n  File pytorch_layer_test_class.py, line 310 in _test_impl\n  File test_fft.py, line 125 in test_2d"
+  ],
+  "root_cause": "A Windows access violation (equivalent of SIGSEGV) occurred inside torch.randn() while preparing inputs for test_fft.py::TestFFT::test_2d. The crash happens during memory allocation for a random tensor, which is unrelated to the PR's GPU GroupQueryAttention changes. This is characteristic of a transient Windows runner memory/heap corruption issue or a flaky test environment problem. The PR changes only affect GPU plugin ScatterUpdate/Slice primitives and a new MatcherPass for KV scale precision \u2013 none of which would cause torch.randn to crash on CPU FFT tests.",
+  "reproduction_steps": "N/A \u2013 Windows runner memory corruption is not reproducibly triggered by code changes.",
+  "recommended_actions": [
+    "Re-run the failed jobs to verify this is transient.",
+    "If the failure persists, check Windows runner health and memory availability.",
+    "If it recurs consistently for this test, investigate torch version compatibility with the Windows runner environment."
+  ],
+  "prevention_strategies": "Monitor Windows runner health metrics. Consider adding retry logic for test runs that crash with access violations rather than assertion failures.",
+  "historical_context": "No previous occurrences of this specific Windows access violation in torch.randn for FFT tests found in the investigation database."
+}

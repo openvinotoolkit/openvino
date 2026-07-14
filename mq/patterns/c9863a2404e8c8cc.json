@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Windows fatal exception: access violation in torch.randn during FFT test _prepare_input|Flaky Test",
+  "signature_hash": "c9863a2404e8c8cc",
+  "title": "PyTorch FFT Layer Tests crash with Windows fatal exception: access violation in torch.randn",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-14T23:14:48Z",
+  "last_seen": "2026-07-14T23:14:48Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29370770675"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36798"
+  ],
+  "recent_timestamps": [
+    "2026-07-14T23:14:48Z"
+  ]
+}
