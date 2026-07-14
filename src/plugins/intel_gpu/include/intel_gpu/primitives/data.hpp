@@ -347,7 +347,8 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem) : primitive_base(id, {}), mem(std::move(mem)) {
+    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false)
+        : primitive_base(id, {}), mem(std::move(mem)), _skip_device_transfer(skip_device_transfer) {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
@@ -363,6 +364,14 @@ struct data : public primitive_base<data> {
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
+
+    /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
+    bool skip_device_transfer() const { return _skip_device_transfer; }
+
+private:
+    bool _skip_device_transfer = false;
+
+public:
 
     std::shared_ptr<weightless_cache_manager> cache_info;
 

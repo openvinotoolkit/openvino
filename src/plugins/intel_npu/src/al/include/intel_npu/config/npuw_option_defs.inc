@@ -8,6 +8,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_NO_FOLD, std::string, "", ov::intel_npu::n
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_MIN_SIZE, std::size_t, 10, ov::intel_npu::npuw::partitioning::online, min_size, "NPUW_ONLINE_MIN_SIZE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_KEEP_BLOCKS, std::size_t, 5, ov::intel_npu::npuw::partitioning::online, keep_blocks, "NPUW_ONLINE_KEEP_BLOCKS", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_KEEP_BLOCK_SIZE, std::size_t, 10, ov::intel_npu::npuw::partitioning::online, keep_block_size, "NPUW_ONLINE_KEEP_BLOCK_SIZE", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_KEEP_BLOCKS_TAGGED, std::string, "", ov::intel_npu::npuw::partitioning::online, keep_block_tag, "NPUW_ONLINE_KEEP_BLOCKS_TAGGED", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_DUMP_PLAN, std::string, "", ov::intel_npu::npuw::partitioning::online, dump_plan, "NPUW_ONLINE_DUMP_PLAN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_PLAN, std::string, "", ov::intel_npu::npuw::partitioning, plan, "NPUW_PLAN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FOLD, bool, false, ov::intel_npu::npuw::partitioning, fold, "NPUW_FOLD", ROOT, EXPOSED, CACHED, ALL)

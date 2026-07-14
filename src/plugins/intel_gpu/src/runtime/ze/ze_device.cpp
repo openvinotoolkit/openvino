@@ -174,7 +174,15 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     // ZE returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
-
+    ze_device_cache_line_size_ext_t devCacheLineSize = {ZE_STRUCTURE_TYPE_DEVICE_CACHELINE_SIZE_EXT, nullptr};
+    ze_device_cache_properties_t devCacheProps = {ZE_STRUCTURE_TYPE_DEVICE_CACHE_PROPERTIES, &devCacheLineSize};
+    uint32_t count = 1;
+    info.cacheline_size = 0;
+    OV_ZE_EXPECT(ze::zeDeviceGetCacheProperties(device, &count, &devCacheProps));
+    if (count > 0) {
+        info.cacheline_size = static_cast<int32_t>(devCacheLineSize.cacheLineSize);
+    }
+    
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
 
     info.gpu_frequency = device_properties.coreClockRate;

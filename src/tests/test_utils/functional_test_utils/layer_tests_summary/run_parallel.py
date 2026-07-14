@@ -1025,6 +1025,27 @@ class TestParallelRunner:
         logger.info(
             f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}"
         )
+
+        failed_logs_dir = os.path.join(logs_dir, "failed")
+        if os.path.isdir(failed_logs_dir):
+            # sorted: deterministic preview across CI retries
+            all_failed = sorted(
+                f for f in os.listdir(failed_logs_dir)
+                if os.path.isfile(os.path.join(failed_logs_dir, f))
+            )
+            preview_cnt = min(10, len(all_failed))
+            if preview_cnt > 0:
+                logger.error(f"Printing [{preview_cnt}/{len(all_failed)}] failed tests")
+                for fname in all_failed[:preview_cnt]:
+                    path = os.path.join(failed_logs_dir, fname)
+                    logger.error(f"===== {path} =====")
+                    try:
+                        with open(path, "r", encoding=constants.ENCODING, errors="ignore") as f:
+                            sys.stderr.write(f.read())
+                            sys.stderr.write("\n")
+                    except OSError as e:
+                        logger.error(f"  (cannot read {path}: {e})")
+
         return is_successfull_run
 
 
