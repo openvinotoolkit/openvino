@@ -35,6 +35,27 @@ constexpr size_t get_default_kv_blk(size_t head_size) {
     return 1;
 }
 
+// Enforce the CM kernel memory-layout contract documented in cm_sdpa_vlen.cm:
+//   Q/K/V/output layouts must all carry the fused transpose order {1,0,2}, i.e. the
+//   original SDPA-facing view [H, L, S] is expressed as physical memory [L, H, S] with
+//   the token (outer) axis at dim 0. When this contract is violated (empty or non-{1,0,2}
+//   orders, typically because TransposeVLSDPA fusion did not fire — e.g. surrounding
+//   Transposes were converted to Reshape by TransposeToReshape when a permuted dim
+//   degenerates to size 1), `get_pitches()[0]` no longer represents the per-token stride
+//   and the kernel silently walks out of bounds -> GPU hang (CL_OUT_OF_RESOURCES).
+//   Fail fast at compile / dispatch time with an actionable message.
+inline void ensure_fused_transpose_order(const vl_sdpa& desc) {
+    const std::vector<int64_t> expected_order{1, 0, 2};
+    OPENVINO_ASSERT(desc.input_q_transpose_order == expected_order &&
+                        desc.input_k_transpose_order == expected_order &&
+                        desc.input_v_transpose_order == expected_order &&
+                        desc.output_transpose_order == expected_order,
+                    "VLSDPA CM impl requires the surrounding Transpose{1,0,2} to be fused into "
+                    "VLSDPA (all four transpose orders must be {1,0,2}). If this fires, the "
+                    "SDPAToVLSDPA / TransposeVLSDPAMatcher fusion did not run for this pattern; "
+                    "kernel arg computation (`get_pitches()[0]` as the token stride) is unsafe.");
+}
+
 class VLSDPAGenerator : public KernelGenerator {
 public:
     VLSDPAGenerator() : KernelGenerator("cm_sdpa_vlen") {}
@@ -60,6 +81,7 @@ protected:
         };
 
         auto desc = params.typed_desc<vl_sdpa>();
+        ensure_fused_transpose_order(*desc);
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
 
@@ -117,6 +139,7 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             assert(!params.is_dynamic());
             auto desc = params.typed_desc<vl_sdpa>();
+            ensure_fused_transpose_order(*desc);
 
             // transpose shape into BHLS(4D), or HLS(3D)
             auto transpose_pshape = [](const ov::Shape& pshape, const std::vector<int64_t>& order) {
@@ -234,6 +257,10 @@ public:
 
 std::unique_ptr<primitive_impl> VLSDPAOptImplementationManager::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<vl_sdpa>());
+    // Validate the fused-transpose invariant on the main thread, before triggering async
+    // kernel compilation — the same check inside get_jit_constants would be swallowed by
+    // the kernels cache and surface only as "Kernel for {vlsdpa:sdpa} is not found".
+    ensure_fused_transpose_order(*params.typed_desc<vl_sdpa>());
     return std::make_unique<VLSDPAOptImpl>(node, params);
 }
 

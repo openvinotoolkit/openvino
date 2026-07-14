@@ -58,24 +58,19 @@ std::shared_ptr<ov::Model> build_target_model(const string& mask_name) {
     k->set_friendly_name("k");
     v->set_friendly_name("v");
 
-    auto transpose_q = std::make_shared<Transpose>(q, Constant::create(element::i64, Shape{3}, {1, 0, 2}));
-    auto transpose_k = std::make_shared<Transpose>(k, Constant::create(element::i64, Shape{3}, {1, 0, 2}));
-    auto transpose_v = std::make_shared<Transpose>(v, Constant::create(element::i64, Shape{3}, {1, 0, 2}));
-    transpose_q->set_friendly_name("transpose_q");
-    transpose_k->set_friendly_name("transpose_k");
-    transpose_v->set_friendly_name("transpose_v");
-
     auto cuseq_mask = std::make_shared<Parameter>(element::i32, PartialShape{-1});
     cuseq_mask->set_friendly_name(mask_name);
     cuseq_mask->get_output_tensor(0).set_names({mask_name});
 
-    auto vlsdpa =
-        std::make_shared<ov::op::internal::VLSDPA>(OutputVector{transpose_q, transpose_k, transpose_v, cuseq_mask});
+    const std::vector<int64_t> order{1, 0, 2};
+    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{q, k, v, cuseq_mask},
+                                                             order,
+                                                             order,
+                                                             order,
+                                                             order);
+    vlsdpa->set_friendly_name("transpose_o");
 
-    auto transpose_o = std::make_shared<Transpose>(vlsdpa, Constant::create(element::i64, Shape{3}, {1, 0, 2}));
-    transpose_o->set_friendly_name("transpose_o");
-
-    return std::make_shared<ov::Model>(OutputVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
+    return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
 }
 };  // namespace
 

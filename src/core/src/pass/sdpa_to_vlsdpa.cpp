@@ -9,7 +9,11 @@
 #include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/vl_sdpa.hpp"
@@ -85,14 +89,76 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
                 const auto sdpa_consumers = sdpa->get_output_target_inputs(0);
                 const auto new_args = sdpa->input_values();
-                OutputVector inputs{new_args.at(0), new_args.at(1), new_args.at(2), cu_seqlens_param};
+
+                // Try to fuse the {1,0,2} Transposes surrounding SDPA into the VLSDPA op
+                // at op-creation time. Doing it here (rather than as a later plugin-side
+                // matcher on `Transpose->VLSDPA->Transpose`) is race-free w.r.t. common
+                // optimizations that may convert Transpose->Reshape when one of the
+                // permuted dims degenerates to size 1 (e.g. num_head==1). Constraints
+                // mirror `VLSDPA::validate_and_infer_types`: all four orders must be
+                // equal and, when non-empty, equal to {1,0,2}.
+                const std::vector<int64_t> expected_order{1, 0, 2};
+                auto try_peel_input_transpose =
+                    [&expected_order](ov::Output<ov::Node>& value) -> std::shared_ptr<v1::Transpose> {
+                    auto transpose = ov::as_type_ptr<v1::Transpose>(value.get_node_shared_ptr());
+                    if (!transpose)
+                        return nullptr;
+                    if (transpose->get_output_target_inputs(0).size() != 1)
+                        return nullptr;
+                    auto order_const =
+                        ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+                    if (!order_const || ov::shape_size(order_const->get_shape()) != expected_order.size())
+                        return nullptr;
+                    if (order_const->cast_vector<int64_t>() != expected_order)
+                        return nullptr;
+                    value = transpose->input_value(0);
+                    return transpose;
+                };
+
+                ov::Output<ov::Node> q_in = new_args.at(0);
+                ov::Output<ov::Node> k_in = new_args.at(1);
+                ov::Output<ov::Node> v_in = new_args.at(2);
+                auto tq = try_peel_input_transpose(q_in);
+                auto tk = try_peel_input_transpose(k_in);
+                auto tv = try_peel_input_transpose(v_in);
+
+                std::shared_ptr<v1::Transpose> to;
+                if (sdpa_consumers.size() == 1) {
+                    auto candidate_out = ov::as_type_ptr<v1::Transpose>(
+                        sdpa_consumers.begin()->get_node()->shared_from_this());
+                    if (candidate_out) {
+                        auto out_order_const = ov::as_type_ptr<v0::Constant>(
+                            candidate_out->input_value(1).get_node_shared_ptr());
+                        if (out_order_const &&
+                            ov::shape_size(out_order_const->get_shape()) == expected_order.size() &&
+                            out_order_const->cast_vector<int64_t>() == expected_order) {
+                            to = candidate_out;
+                        }
+                    }
+                }
+
+                const bool fuse_transposes = tq && tk && tv && to;
 
                 std::shared_ptr<op::internal::VLSDPA> vl_sdpa;
-                vl_sdpa = std::make_shared<op::internal::VLSDPA>(inputs);
-                vl_sdpa->set_friendly_name(sdpa->get_friendly_name());
+                if (fuse_transposes) {
+                    OutputVector inputs{q_in, k_in, v_in, cu_seqlens_param};
+                    vl_sdpa = std::make_shared<op::internal::VLSDPA>(inputs,
+                                                                     expected_order,
+                                                                     expected_order,
+                                                                     expected_order,
+                                                                     expected_order);
+                    vl_sdpa->set_friendly_name(to->get_friendly_name());
+                    ov::copy_runtime_info({tq, tk, tv, sdpa->shared_from_this(), to}, vl_sdpa);
+                    ov::replace_node(to, vl_sdpa);
+                } else {
+                    OutputVector inputs{new_args.at(0), new_args.at(1), new_args.at(2), cu_seqlens_param};
+                    vl_sdpa = std::make_shared<op::internal::VLSDPA>(inputs);
+                    vl_sdpa->set_friendly_name(sdpa->get_friendly_name());
+                    ov::copy_runtime_info(sdpa->shared_from_this(), vl_sdpa);
 
-                for (auto& consumer : sdpa_consumers)
-                    consumer.replace_source_output(vl_sdpa);
+                    for (auto& consumer : sdpa_consumers)
+                        consumer.replace_source_output(vl_sdpa);
+                }
             }
         }
     }
