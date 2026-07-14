@@ -40,6 +40,7 @@ struct PassContext {
     size_t min_graph_size = 10;
     size_t keep_blocks = 10;
     size_t keep_block_size = 10;
+    std::unordered_set<std::string> keep_block_tags;
     std::vector<Avoid> avoids;
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
@@ -86,6 +87,7 @@ std::vector<std::string> splitByComma(const std::string& s);
 size_t getMinGraphSize(const ::intel_npu::Config& cfg);
 size_t getMinRepBlocks(const ::intel_npu::Config& cfg);
 size_t getMinRepBlockSize(const ::intel_npu::Config& cfg);
+std::unordered_set<std::string> getKeepBlockTags(const ::intel_npu::Config& cfg);
 std::vector<Avoid> getAvoids(const ::intel_npu::Config& cfg);
 std::vector<Isolate> getIsolates(const ::intel_npu::Config& cfg);
 std::vector<Isolate> getIsolates(const std::string& isolates_unparsed);
@@ -102,7 +104,7 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {
      "P:RMSNorm3/compute,P:RMSNorm4/compute,"
      "P:VariadicSplit/compute"},
     {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"},
-    {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn,P:GQA/attn"},
+    {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn,P:GQA/attn,P:SDPACompressed/attn"},
     {"MOE",
      "P:GPTOSSExpert/expert,P:GPTOSSRouter/router,"
      "P:Qwen3Expert/expert,P:Qwen3Router/router"}};

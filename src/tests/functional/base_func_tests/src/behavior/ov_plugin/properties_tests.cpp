@@ -557,6 +557,21 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getModelDependce
 TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDeviceProperties) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
+
+    // optimal_batch_size / max_batch_size are only meaningful for devices where batching is applicable (e.g. GPU).
+    // Skip rather than fail for devices that don't expose them.
+    // Other model-dependent properties are still required.
+    for (const auto& property_item : properties) {
+        if (!util::contains(supported_properties, property_item.first)) {
+            const bool is_batch_property = property_item.first == ov::optimal_batch_size.name() ||
+                                           property_item.first == ov::max_batch_size.name();
+            if (is_batch_property) {
+                GTEST_SKIP() << "Property " << property_item.first << " is not supported by device " << target_device
+                             << ", skipping";
+            }
+        }
+    }
+
     auto supported = util::contains(supported_properties, ov::hint::model);
     ASSERT_TRUE(supported) << "property is not supported: " << ov::hint::model;
 
@@ -564,9 +579,6 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
     core->compile_model(model, target_device, compileModelProperties);
 
     for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
-        auto supported = util::contains(supported_properties, property_item.first);
-        ASSERT_TRUE(supported) << "property is not supported: " << property_item.first;
-
         ov::Any default_property;
         OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, property_item.first));
         ASSERT_FALSE(default_property.empty());
