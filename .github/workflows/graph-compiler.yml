@@ -1,0 +1,74 @@
+name: Graph Compiler GPU Backend
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GC_REPO: https://x-access-token:${{ secrets.GC_TOKEN }}@github.com/intel-sandbox/graph-compiler
+  GC_TAG: main
+  BUILD_DIR: ${{ github.workspace }}-gc-build
+  OUTPUT_DIR: ${{ github.workspace }}-gc-bin
+
+jobs:
+  ci:
+    runs-on: ${{ vars.RUNNER }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      
+      - name: Build
+        run: |
+          mkdir -p $BUILD_DIR
+          run_build() {
+            [ "$1" = '-c' ] && rm -rf $BUILD_DIR
+            mkdir -p $BUILD_DIR
+            cmake -G Ninja -S "$GITHUB_WORKSPACE" -B "$BUILD_DIR" \
+              -DOUTPUT_ROOT="$OUTPUT_DIR" \
+              -DGRAPH_COMPILER_REPO="$GC_REPO" \
+              -DGRAPH_COMPILER_TAG="$GC_TAG" \
+              -DENABLE_INTEL_GPU=ON \
+              -DENABLE_GRAPH_COMPILER=ON \
+              -DENABLE_TESTS=ON \
+              -DENABLE_ONEDNN_FOR_GPU=OFF \
+              -DENABLE_INTEL_CPU=OFF \
+              -DENABLE_INTEL_NPU=OFF \
+              -DCMAKE_CXX_FLAGS="-DOV_GPU_OPENCL_HPP_HAS_UUID -DOV_GPU_OPENCL_HPP_HAS_BUS_INFO" \
+              -DOpenCL_HPP_INCLUDE_DIR="$GITHUB_WORKSPACE/thirdparty/ocl/clhpp_headers/include" \
+              -DOpenCL_HPP="$GITHUB_WORKSPACE/thirdparty/ocl/clhpp_headers/include/CL/opencl.hpp"
+            cmake --build "$BUILD_DIR" --parallel
+          }
+
+          if [ -d "$BUILD_DIR" ]; then
+            # Reuse build artifacts from previous build. If the build fails, clean and rebuild.
+            run_build || run_build -c
+          else
+            run_build
+          fi
+      
+      - name: Test
+        run: |
+          # These tests require MLIR patches:
+          # https://github.com/llvm/llvm-project/pull/208932
+          # https://github.com/llvm/llvm-project/pull/197281
+          exclude='.*ScaledAttnLayerGPUMlirTest.CompareWithRefs.*|mlir_Transpose.*|mlir_ReshapeAndTranspose.*'
+
+          export OV_MLIR=1
+          func_tests="$OUTPUT_DIR/bin/intel64/Release/ov_gpu_func_tests"
+          filter=$(printf '%s:' \
+            'MLIRExecution.SimpleMatmulf16' \
+            'MLIRExecution.SDPABasic' \
+            '*ScaledAttnLayerGPUMlirTest*' \
+            'mlir_*' \
+          )
+          tests=$("$func_tests" --gtest_list_tests --gtest_filter="${filter%:}" \
+            | awk -v exclude="$exclude" '/^  /{print suite $1} /^[^ ]/{suite=$1}' \
+            | grep -v -E "$exclude")
+          start=$SECONDS
+          echo "$tests" | xargs -P 32 -I{} "$func_tests" --gtest_filter='{}'
+          echo "Run $(echo "$tests" | wc -l) tests in $((SECONDS - start))s"
