@@ -40,6 +40,7 @@
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
+	ignore = dirty
 [submodule "src/bindings/python/thirdparty/pybind11"]
 	path = src/bindings/python/thirdparty/pybind11
 	url = https://github.com/pybind/pybind11.git
