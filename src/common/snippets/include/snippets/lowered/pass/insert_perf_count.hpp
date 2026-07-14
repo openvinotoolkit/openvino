@@ -1,16 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
+
 #include <map>
 #include <string>
 
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#ifdef SNIPPETS_DEBUG_CAPS
-
-#    pragma once
-
-#    include "pass.hpp"
+#include "pass.hpp"
 
 namespace ov::snippets::lowered::pass {
 
@@ -32,5 +30,3 @@ private:
 };
 
 }  // namespace ov::snippets::lowered::pass
-
-#endif  // SNIPPETS_DEBUG_CAPS

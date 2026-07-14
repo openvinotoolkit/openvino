@@ -1,29 +1,27 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef SNIPPETS_DEBUG_CAPS
+#include "snippets/op/perf_count.hpp"
 
-#    include "snippets/op/perf_count.hpp"
+#include <chrono>
+#include <cstdint>
+#include <fstream>
+#include <ios>
+#include <iostream>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
-#    include <chrono>
-#    include <cstdint>
-#    include <fstream>
-#    include <ios>
-#    include <iostream>
-#    include <memory>
-#    include <ostream>
-#    include <string>
-#    include <utility>
-#    include <vector>
-
-#    include "openvino/core/attribute_visitor.hpp"
-#    include "openvino/core/except.hpp"
-#    include "openvino/core/node.hpp"
-#    include "openvino/core/node_output.hpp"
-#    include "openvino/core/node_vector.hpp"
-#    include "openvino/core/type.hpp"
-#    include "openvino/core/type/element_type.hpp"
-#    include "openvino/op/op.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov::snippets {
 
@@ -220,5 +218,3 @@ void PerfCountEnd::init_pc_begin() {
 
 }  // namespace op
 }  // namespace ov::snippets
-
-#endif  // SNIPPETS_DEBUG_CAPS
