@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -125,7 +126,7 @@ protected:
             fqInput = convBiasAdd;
         }
         if (withSwish) {
-            fqInput = std::make_shared<op::v4::Swish>(fqInput);
+            fqInput = ov::test::utils::make_activation(fqInput, inputPrecision, ov::test::utils::ActivationTypes::Swish, {}, {1.0F});
         }
 
         auto fq_after = ov::test::utils::make_fake_quantize(fqInput,
