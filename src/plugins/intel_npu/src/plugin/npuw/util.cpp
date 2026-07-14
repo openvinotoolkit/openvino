@@ -1032,6 +1032,15 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& st
     return std::nullopt;
 }
 
+bool ov::npuw::util::isKVCacheName(const std::string& str) {
+    return isPastKeyValuesKey(str).has_value() ||
+           isPastKeyValuesValue(str).has_value() ||
+           isPresentKeyValuesKey(str).has_value() ||
+           isPresentKeyValuesValue(str).has_value() ||
+           str.find("/" + std::string(constants::past_key_values) + "/") != std::string::npos ||
+           str.find("/" + std::string(constants::present) + "/") != std::string::npos;
+}
+
 std::string ov::npuw::util::present_to_past_key_values_name(const std::string& output_name) {
     const std::string present_prefix = constants::present;
     const std::string past_prefix = constants::past_key_values;

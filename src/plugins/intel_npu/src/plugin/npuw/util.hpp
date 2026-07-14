@@ -340,6 +340,7 @@ inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
 
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
+bool isKVCacheName(const std::string& str);
 
 namespace constants {
 inline constexpr const char* past_key_values = "past_key_values";

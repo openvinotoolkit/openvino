@@ -70,7 +70,7 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
-private:
+protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
