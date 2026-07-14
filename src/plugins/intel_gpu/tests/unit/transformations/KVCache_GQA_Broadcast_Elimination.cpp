@@ -11,7 +11,7 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "intel_gpu/op/sdpa.hpp"
-#include "plugin/transformations/KVCache_GQA_Broadcast_Elimination.hpp"
+#include "plugin/transformations/kvcache_gqa_broadcast_elimination.hpp"
 #include <memory>
 
 using namespace testing;

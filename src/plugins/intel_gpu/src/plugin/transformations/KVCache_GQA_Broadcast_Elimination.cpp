@@ -43,12 +43,12 @@ namespace ov::intel_gpu {
 
         auto in_value = any_input();
         auto reshape1_pattern_value_m = any_input();
-        auto reshape_4d_to_5d_value_m = wrap_type<ov::op::v1::Reshape>({ in_value, reshape1_pattern_value_m });
+        auto reshape_4d_to_5d_value_m = wrap_type<ov::op::v1::Reshape>({ in_value, reshape1_pattern_value_m }, reshape_4d_to_5d);
 
         auto concat_value_m = wrap_type<ov::op::v0::Concat>({ reshape_4d_to_5d_value_m, reshape_4d_to_5d_value_m, reshape_4d_to_5d_value_m, reshape_4d_to_5d_value_m });
 
         auto reshape2_pattern_value_m = any_input();
-        auto reshape_5d_to_4d_value_m = wrap_type<ov::op::v1::Reshape>({ concat_value_m, reshape2_pattern_value_m });
+        auto reshape_5d_to_4d_value_m = wrap_type<ov::op::v1::Reshape>({ concat_value_m, reshape2_pattern_value_m }, reshape_5d_to_4d);
 
         auto sdpa_without_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_5d_to_4d_key_m, reshape_5d_to_4d_value_m });
         auto sdpa_with_attn_mask_m =
@@ -71,9 +71,8 @@ namespace ov::intel_gpu {
             if (pattern_map.count(in_value) > 0) {
                 const auto value = pattern_map.at(in_value).get_node_shared_ptr();
                 sdpa->input(2).replace_source_output(value->output(1));
-
             }
-            return true;
+            return false;
             };
         auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "KVCacheGQABroadcastElimination");
 
