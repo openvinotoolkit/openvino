@@ -9,6 +9,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/xml_util/xml_serialize_util.hpp"
 
 namespace ov {
 namespace op {
@@ -137,6 +138,11 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
 
 bool DynamicQuantize::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(internal_DynamicQuantize_visit_attributes);
+    // This is used for comparison during SharedOpOpt pass.
+    // The attrs are not a part of the official IR format, so we need to skip them during serialization.
+    if (dynamic_cast<ov::util::XmlSerializer*>(&visitor)) {
+        return true;
+    }
     visitor.on_attribute("quantization_type", m_attrs.quantization_type);
     visitor.on_attribute("quantization_dt", m_attrs.quantization_dt);
     visitor.on_attribute("scale_dt", m_attrs.scale_dt);
