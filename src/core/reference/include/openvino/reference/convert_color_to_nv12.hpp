@@ -6,8 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
-
-#include "openvino/op/util/convert_color_to_nv12_base.hpp"
+#include <tuple>
 
 namespace ov::reference {
 
@@ -26,18 +25,16 @@ std::tuple<T, T, T> rgb_pixel_to_yuv(float r_val, float g_val, float b_val) {
     return std::tuple<T, T, T>{y, u, v};
 }
 
-template <typename T>
+template <typename T, bool IsRGB>
 void color_convert_to_nv12(const T* rgb_ptr,
                            T* out_y,
                            T* out_uv,
                            size_t batch_size,
                            size_t image_h,
                            size_t image_w,
-                           bool single_plane,
-                           ov::op::util::ConvertColorToNV12Base::ColorConversion color_format) {
-    const bool is_rgb = (color_format == ov::op::util::ConvertColorToNV12Base::ColorConversion::RGB_TO_NV12);
-    const size_t r_offset = is_rgb ? 0 : 2;
-    const size_t b_offset = is_rgb ? 2 : 0;
+                           bool single_plane) {
+    constexpr size_t r_offset = IsRGB ? 0 : 2;
+    constexpr size_t b_offset = IsRGB ? 2 : 0;
 
     const size_t frame_size = image_w * image_h;
     const size_t stride_y = single_plane ? frame_size * 3 / 2 : frame_size;

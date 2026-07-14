@@ -10,11 +10,10 @@
 #include "rgb_bgr_to_nv12_shape_inference.hpp"
 
 namespace {
-template <ov::element::Type_t ET>
+template <ov::element::Type_t ET, bool IsRGB>
 bool evaluate_nv12(const ov::op::util::ConvertColorToNV12Base* op,
                    ov::TensorVector& outputs,
-                   const ov::TensorVector& inputs,
-                   ov::op::util::ConvertColorToNV12Base::ColorConversion color_format) {
+                   const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
@@ -28,14 +27,13 @@ bool evaluate_nv12(const ov::op::util::ConvertColorToNV12Base* op,
     const auto image_w = rgb_tensor.get_shape()[2];
     const bool single_plane = op->get_output_size() == 1;
 
-    ov::reference::color_convert_to_nv12(rgb_tensor.data<T>(),
-                                         outputs[0].data<T>(),
-                                         single_plane ? nullptr : outputs[1].data<T>(),
-                                         batch_size,
-                                         image_h,
-                                         image_w,
-                                         single_plane,
-                                         color_format);
+    ov::reference::color_convert_to_nv12<T, IsRGB>(rgb_tensor.data<T>(),
+                                                    outputs[0].data<T>(),
+                                                    single_plane ? nullptr : outputs[1].data<T>(),
+                                                    batch_size,
+                                                    image_h,
+                                                    image_w,
+                                                    single_plane);
     return true;
 }
 }  // namespace
@@ -44,20 +42,14 @@ template <ov::element::Type_t ET>
 inline bool evaluate(const std::shared_ptr<ov::op::v17::RGBtoNV12>& op,
                      ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
-    return evaluate_nv12<ET>(op.get(),
-                             outputs,
-                             inputs,
-                             ov::op::util::ConvertColorToNV12Base::ColorConversion::RGB_TO_NV12);
+    return evaluate_nv12<ET, true>(op.get(), outputs, inputs);
 }
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const std::shared_ptr<ov::op::v17::BGRtoNV12>& op,
                      ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
-    return evaluate_nv12<ET>(op.get(),
-                             outputs,
-                             inputs,
-                             ov::op::util::ConvertColorToNV12Base::ColorConversion::BGR_TO_NV12);
+    return evaluate_nv12<ET, false>(op.get(), outputs, inputs);
 }
 
 template <>
