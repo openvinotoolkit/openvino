@@ -168,10 +168,10 @@ bool in_t_range(const U& v) {
                 }
             }
         } else {
-            // Float U: compile-time range inclusion via (max_exponent, digits) lexicographic order
-            if constexpr (std::make_pair(std::numeric_limits<U>::max_exponent, std::numeric_limits<U>::digits) <=
-                          std::make_pair(std::numeric_limits<ConstantT>::max_exponent,
-                                         std::numeric_limits<ConstantT>::digits)) {
+            // Float U: compile-time range inclusion via (max_exponent, digits) lexicographic order.
+            if constexpr (std::numeric_limits<U>::max_exponent < std::numeric_limits<ConstantT>::max_exponent ||
+                          (std::numeric_limits<U>::max_exponent == std::numeric_limits<ConstantT>::max_exponent &&
+                           std::numeric_limits<U>::digits <= std::numeric_limits<ConstantT>::digits)) {
                 return true;
             } else {
                 return static_cast<U>(std::numeric_limits<ConstantT>::lowest()) <= v &&
