@@ -11,7 +11,7 @@
 namespace ov::op {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const util::ConvertColorToNV12Base* op, const std::vector<TShape>& input_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1, "RGBtoNV12/BGRtoNV12 shall have exactly one input");
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     using namespace ov::util;
 
     const auto& shape_rgb = input_shapes[0];

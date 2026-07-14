@@ -27,7 +27,7 @@ void ov::op::v17::BGRtoNV12::validate_and_infer_types() {
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
-    const auto out_type = get_input_element_type(0);
+    const auto& out_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           is_type_supported(out_type),
                           "Input type shall have u8 or floating-point precision, got ",
