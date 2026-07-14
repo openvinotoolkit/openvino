@@ -27,7 +27,8 @@ public:
         , _command_queue(other._command_queue)
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
-        , _last_barrier_ev(other._last_barrier_ev) {}
+        , _last_barrier_ev(other._last_barrier_ev)
+        , _profiling_device(other._profiling_device) {}
 
     ~ocl_stream() = default;
 
@@ -65,6 +66,7 @@ private:
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     cl::Event _last_barrier_ev;
+    cl::Device _profiling_device;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
