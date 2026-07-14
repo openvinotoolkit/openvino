@@ -45,7 +45,7 @@ public:
                         int64_t kv_cache_bit_width = 0,
                         const std::string& k_quant_type = "NONE",
                         const std::string& v_quant_type = "NONE",
-                        const std::vector<int64_t>& null_onnx_input_positions = {});
+                        const std::vector<int64_t>& null_input_positions = {});
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -79,28 +79,35 @@ public:
         return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
     }
 
-    // Get ONNX input positions that are null/missing (were NullNode in ONNX but not included in OV inputs)
-    const std::vector<int64_t>& get_null_onnx_input_positions() const {
-        return m_null_onnx_input_positions;
+    // Get original input positions that are null/missing and therefore omitted from OV inputs.
+    const std::vector<int64_t>& get_null_input_positions() const {
+        return m_null_input_positions;
     }
 
-    // Check if a specific input position exists (was not filtered as NullNode)
-    bool has_input(int64_t onnx_position) const {
-        return std::find(m_null_onnx_input_positions.begin(), m_null_onnx_input_positions.end(), onnx_position) ==
-               m_null_onnx_input_positions.end();
+    int64_t get_original_input_count() const {
+        return static_cast<int64_t>(get_input_size() + m_null_input_positions.size());
     }
 
-    // Calculate the actual input index in the OV graph for a given ONNX input position.
+    // Check if a specific original input position exists and was not filtered as NullNode.
+    bool has_input(int64_t input_position) const {
+        if (input_position < 0 || input_position >= get_original_input_count()) {
+            return false;
+        }
+        return std::find(m_null_input_positions.begin(), m_null_input_positions.end(), input_position) ==
+               m_null_input_positions.end();
+    }
+
+    // Calculate the actual input index in the OV graph for a given original input position.
     // Accounts for optional inputs that were filtered out (NullNode).
-    // For example, if ONNX inputs 3,4 are null and we want ONNX position 12,
+    // For example, if original inputs 3,4 are null and we want position 12,
     // we count null inputs < 12, and return 12 - 2 = 10.
-    int64_t get_input_index(int64_t onnx_position) const {
-        int64_t null_before_count = std::count_if(m_null_onnx_input_positions.begin(),
-                                                  m_null_onnx_input_positions.end(),
-                                                  [onnx_position](int64_t null_pos) {
-                                                      return null_pos < onnx_position;
+    int64_t get_input_index(int64_t input_position) const {
+        int64_t null_before_count = std::count_if(m_null_input_positions.begin(),
+                                                  m_null_input_positions.end(),
+                                                  [input_position](int64_t null_pos) {
+                                                      return null_pos < input_position;
                                                   });
-        return onnx_position - null_before_count;
+        return input_position - null_before_count;
     }
 
 private:
@@ -112,7 +119,7 @@ private:
     int64_t m_kv_cache_bit_width = 0;
     std::string m_k_quant_type = "NONE";
     std::string m_v_quant_type = "NONE";
-    std::vector<int64_t> m_null_onnx_input_positions = {};
+    std::vector<int64_t> m_null_input_positions = {};
 };
 
 }  // namespace ov::op::internal
