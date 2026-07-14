@@ -121,6 +121,8 @@ jobs:
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
       SCCACHE_AZURE_KEY_PREFIX: build_docs
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -165,13 +167,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Upload sphinx.log
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
       - name: Upload docs html
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
@@ -188,7 +190,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/

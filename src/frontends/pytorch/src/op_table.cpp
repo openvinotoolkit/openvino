@@ -229,6 +229,7 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
+OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_replication_pad_nd);
@@ -372,6 +373,7 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ct);
+OP_CONVERTER(translate_embedding_ct);
 OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
@@ -698,6 +700,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Relu>, 1>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
+        {"aten::rrelu", op::translate_rrelu},
+        {"aten::rrelu_", op::inplace_op<op::translate_rrelu>},
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
@@ -806,6 +810,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
         {"ov_ext::ct_gemm", op::translate_linear_ct},
+        {"ov_ext::ct_embedding", op::translate_embedding_ct},
         {"ov_ext::gptq_gemm", op::translate_linear_gptq},
         {"ov_ext::bmm", op::translate_bmm_ext},
         {"ov_ext::embedding", op::translate_embedding_ext},
@@ -1082,6 +1087,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten.rrelu.default", op::translate_rrelu},
+        {"aten.rrelu_.default", op::inplace_op<op::translate_rrelu>},
         {"aten.remainder.default", op::translate_remainder},
         {"aten.remainder.Scalar", op::translate_remainder},
         {"aten.remainder.Tensor", op::translate_remainder},
@@ -1186,6 +1193,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"ov_ext.awq_gemm.default", op::translate_linear_awq},
         {"ov_ext.bit_linear.default", op::translate_linear_bitnet},
         {"ov_ext.ct_gemm.default", op::translate_linear_ct},
+        {"ov_ext.ct_embedding.default", op::translate_embedding_ct},
         {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},

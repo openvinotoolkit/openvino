@@ -57,7 +57,7 @@ jobs:
         run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS -- /verbosity:minimal
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_code_snippets_${{ matrix.os }}

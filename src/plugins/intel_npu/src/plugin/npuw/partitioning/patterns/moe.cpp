@@ -81,7 +81,7 @@ void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
 // Both GPTOSSRouter and Qwen3Router call this after validating the TopK node.
 // expected_k is updated on first call and checked for consistency on subsequent calls;
 // OPENVINO_THROW is raised if two matched layers carry different K values.
-static bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
+bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
     auto k_input = topk_node->input_value(1);
     auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr());
     if (!k_const) {

@@ -12,13 +12,10 @@
 #include <cstddef>
 #include <filesystem>
 
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
-
-#ifndef _WIN32
-inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
-#endif
 
 inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
 inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread

@@ -4,7 +4,9 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
+#include <cstdlib>
 #include <iomanip>
+#include <sstream>
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -334,6 +336,16 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
 namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
+static ov::Shape flat_index_to_nd(size_t flat, const ov::Shape& shape) {
+    ov::Shape nd(shape.size());
+    size_t rem = flat;
+    for (size_t d = shape.size(); d-- > 0;) {
+        nd[d] = rem % shape[d];
+        rem /= shape[d];
+    }
+    return nd;
+}
+
 inline bool less(const double a, const double b) {
     if (std::isnan(a) || std::isnan(b)) {
         return false;
@@ -412,11 +424,7 @@ protected:
     std::vector<IncorrectValue> incorrect_values_abs;
     double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
     size_t tensor_size;
-    // Track the coord with the largest |actual - expected| so release builds (which only
-    // print one failing coord) surface the coord that actually drives the failure —
-    // otherwise the reader sees the first-in-tensor-order fail, which may be far from worst.
-    double worst_diff = -1.0;
-    IncorrectValue worst_value{0.0, 0.0, 0.0, 0};
+    IncorrectValue max_diff{0.0, 0.0, 0.0, 0};
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
@@ -443,15 +451,14 @@ public:
         if (less_or_equal(diff, threshold)) {
             return true;
         }
-        if (diff > worst_diff) {
-            worst_diff = diff;
-            worst_value = IncorrectValue(actual, expected, threshold, coordinate);
+        if (diff > std::fabs(max_diff.expected_value - max_diff.actual_value)) {
+            max_diff = IncorrectValue(actual, expected, threshold, coordinate);
         }
         emplace_back(actual, expected, threshold, coordinate);
         return false;
     }
 
-    void check_results() {
+    void check_results(const ov::Shape& shape = {}) {
         topk_results = static_cast<double>(incorrect_values_abs.size()) / (tensor_size ? tensor_size : 1);
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
@@ -461,37 +468,32 @@ public:
                 .append(std::to_string(abs_threshold))
                 .append(" rel_threshold: ")
                 .append(std::to_string(rel_threshold));
-#ifndef NDEBUG
             msg.append(" incorrect elem counter: ")
                 .append(std::to_string(incorrect_values_abs.size()))
                 .append(" among ")
                 .append(std::to_string(tensor_size))
                 .append(" shapes.");
-            constexpr size_t max_num_to_print = 32;
-#else
-            constexpr size_t max_num_to_print = 1;
-#endif
-            size_t i = 0;
-            if constexpr (max_num_to_print == 1) {
-                if (worst_diff >= 0.0) {
-                    std::cout << "Coordinate: " << std::setw(2) << worst_value.coordinate
-                              << " Expected: " << worst_value.expected_value << " Actual: " << worst_value.actual_value
-                              << " Diff: " << worst_diff << " abs_threshold: " << worst_value.threshold << " (worst of "
-                              << incorrect_values_abs.size() << ")\n";
-                    i = 1;
-                }
-            } else {
-                for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
-                    auto val = incorrect_values_abs[i];
-                    std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
-                              << " Actual: " << val.actual_value
-                              << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                              << " abs_threshold: " << val.threshold << "\n";
-                }
-            }
 
-            if constexpr (max_num_to_print > 1) {
-                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
+            static const char* const num_to_print_env = std::getenv("OV_TEST_MAX_DIFFS_TO_PRINT");
+            static const long num_to_print = num_to_print_env ? std::strtol(num_to_print_env, nullptr, 10) : 0;
+            const size_t max_num_to_print =
+                num_to_print < 0 ? incorrect_values_abs.size() : static_cast<size_t>(num_to_print);
+
+            const auto print = [&shape](const char* label, const IncorrectValue& val) {
+                std::cout << label << ": " << flat_index_to_nd(val.coordinate, shape)
+                          << " Expected: " << val.expected_value << " Actual: " << val.actual_value
+                          << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                          << " abs_threshold: " << val.threshold << "\n";
+            };
+
+            const size_t to_print = std::min(max_num_to_print, incorrect_values_abs.size());
+            if (!incorrect_values_abs.empty()) {
+                std::cout << "Tensor: " << shape << " Mismatch: [" << incorrect_values_abs.size() << "/" << tensor_size
+                          << "] Print: [" << to_print << "/" << incorrect_values_abs.size() << "]\n";
+                print("Coordinate with max diff", max_diff);
+            }
+            for (size_t i = 0; i < to_print; ++i) {
+                print("Coordinate", incorrect_values_abs[i]);
             }
 
             throw std::runtime_error(msg);
@@ -616,14 +618,9 @@ void compare(const ov::Tensor& expected,
             continue;
         }
 
-        bool status = error.update(actual_value, expected_value, i);
-#ifdef NDEBUG
-        if (!status && tensor_comparation::equal(topk_threshold, 1.f)) {
-            break;
-        }
-#endif
+        error.update(actual_value, expected_value, i);
     }
-    error.check_results();
+    error.check_results(expected_shape);
 }
 
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
