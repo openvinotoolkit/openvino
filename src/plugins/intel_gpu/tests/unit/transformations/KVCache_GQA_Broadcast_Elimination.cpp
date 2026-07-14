@@ -82,7 +82,7 @@ TEST_F(TransformationTestsF, KVCacheGQABroadcastEliminationTest1) {
         auto split_k = std::make_shared<ov::op::v1::VariadicSplit>(scatter_k, axis, split_lengths);
         auto split_v = std::make_shared<ov::op::v1::VariadicSplit>(scatter_v, axis, split_lengths);
 
-        auto inputs = ov::OutputVector{ input_q, split_k->output(1), split_v->output(1) };
+        auto inputs = ov::OutputVector{ input_q, split_k->output(0), split_v->output(0) };
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{ sdpa }, ov::ParameterVector{ input_q, input_k, input_v });
