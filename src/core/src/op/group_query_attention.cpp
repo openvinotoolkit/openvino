@@ -28,6 +28,20 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_k_quant_type(k_quant_type),
       m_v_quant_type(v_quant_type),
       m_null_input_positions(null_input_positions) {
+    const auto original_input_count = static_cast<int64_t>(args.size() + m_null_input_positions.size());
+    std::vector<uint8_t> seen_positions(static_cast<size_t>(original_input_count), 0);
+    for (const auto pos : m_null_input_positions) {
+        OPENVINO_ASSERT(pos >= 0 && pos < original_input_count,
+                        "GroupQueryAttention null_input_positions contains out-of-range position: ",
+                        pos,
+                        ", expected in [0, ",
+                        original_input_count,
+                        ")");
+        OPENVINO_ASSERT(seen_positions[static_cast<size_t>(pos)] == 0,
+                        "GroupQueryAttention null_input_positions contains duplicate position: ",
+                        pos);
+        seen_positions[static_cast<size_t>(pos)] = 1;
+    }
     constructor_validate_and_infer_types();
 }
 
@@ -59,14 +73,14 @@ void GroupQueryAttention::validate_and_infer_types() {
     }
 
     // Query/activation (input 0) is always float; attention itself is computed in float precision.
-    const auto& q_type = get_input_element_type(0);
+    const auto& q_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
     NODE_VALIDATION_CHECK(this,
                           q_type == element::f32 || q_type == element::f16,
                           "GroupQueryAttention supports following query element types: {f32, f16}");
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
-    const auto& kv_cache_type = get_input_element_type(3);
+    const auto& kv_cache_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
     NODE_VALIDATION_CHECK(this,
                           kv_cache_type == element::f32 || kv_cache_type == element::f16 ||
                               kv_cache_type == element::i8 || kv_cache_type == element::u8 ||
@@ -100,14 +114,18 @@ void GroupQueryAttention::validate_and_infer_types() {
         // Verify that the computed input indices for k_scale and v_scale are valid
         auto k_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE));
         auto v_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE));
-        NODE_VALIDATION_CHECK(this,
-                              k_scale_idx >= 0 && k_scale_idx < static_cast<int64_t>(get_input_size()) &&
-                                  v_scale_idx >= 0 && v_scale_idx < static_cast<int64_t>(get_input_size()),
-                              "GroupQueryAttention computed OV indices for k_scale and v_scale are out of bounds");
         NODE_VALIDATION_CHECK(
             this,
             get_input_element_type(k_scale_idx) == element::f32 && get_input_element_type(v_scale_idx) == element::f32,
             "GroupQueryAttention k_scale/v_scale must be f32");
+    }
+
+    if (m_do_rotary) {
+        NODE_VALIDATION_CHECK(this,
+                              has_input(static_cast<int64_t>(GroupQueryAttentionInputs::COS_CACHE)) &&
+                                  has_input(static_cast<int64_t>(GroupQueryAttentionInputs::SIN_CACHE)),
+                              "GroupQueryAttention with do_rotary enabled requires cos_cache (ONNX input 7) and "
+                              "sin_cache (ONNX input 8) to be present");
     }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
