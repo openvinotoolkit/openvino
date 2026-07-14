@@ -51,10 +51,8 @@ private:
         std::vector<int64_t> block_indices;
         std::vector<int64_t> block_indices_begins;
         std::vector<int64_t> sampled_tokens_indices;
-        int64_t max_context_len = -1;
         int64_t n_tokens = 0;
         int64_t n_seqs = 0;
-        bool has_sti = false;
     };
 
     // A chunk-capable request (semi-static variant or the dynamic tail
@@ -68,10 +66,7 @@ private:
     const ov::Output<const ov::Node>& map_port_locked(const ov::Output<const ov::Node>& port) const;
     // Validates the control tensors of one dispatch and parses them out.
     Dispatch validate_dispatch_locked();
-    void validate_output_locked(int64_t expected_logits_rows);
 
-    // True when this dispatch fits the chunked-execution input contract.
-    bool can_chunk_locked(const Dispatch& d) const;
     void infer_chunked_locked(const Dispatch& d);
     // Executes `n_chunk_tokens` of subsequence `seq` starting at token
     // `seq_offset` on `chunk`, scattering any sampled logits rows into

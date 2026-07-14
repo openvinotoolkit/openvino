@@ -40,43 +40,50 @@ std::vector<int64_t> as_i64_vec(const ov::SoPtr<ov::ITensor>& tensor) {
     return out;
 }
 
-std::string abbrev(const std::vector<int64_t>& vals, std::size_t limit = 8) {
-    std::ostringstream out;
-    out << '[';
-    for (std::size_t i = 0; i < std::min(vals.size(), limit); ++i) {
-        out << (i ? ", " : "") << vals[i];
+// True when the model matches the plain flat-token LLM contract the chunked
+// path implements: the known control inputs only (embedding inputs, M-RoPE
+// position_ids, per-layer block tables etc. all run 1:1 on the dynamic model),
+// 1-D token streams, and a single logits output with static per-row geometry
+// so the result tensor can be allocated upfront and filled row by row.
+bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
+    static const std::unordered_set<std::string> known = {"input_ids",
+                                                          "position_ids",
+                                                          "past_lens",
+                                                          "subsequence_begins",
+                                                          "block_indices",
+                                                          "block_indices_begins",
+                                                          "max_context_len",
+                                                          "score_aggregation_window",
+                                                          "sampled_tokens_indices"};
+    std::unordered_set<std::string> seen;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        if (is_kv_cache_name(name)) {
+            continue;
+        }
+        if (known.count(name) == 0) {
+            return false;
+        }
+        seen.insert(name);
     }
-    if (vals.size() > limit) {
-        out << ", ... " << vals.size() - limit << " more";
+    for (const char* required : {"input_ids", "position_ids", "block_indices", "sampled_tokens_indices"}) {
+        if (seen.count(required) == 0) {
+            return false;
+        }
     }
-    out << ']';
-    return out.str();
-}
-
-bool try_fix_token_dim(const std::string& name, ov::PartialShape& shape, std::size_t token_dim) {
-    if (!shape.rank().is_static()) {
+    for (const char* name : {"input_ids", "position_ids"}) {
+        const auto& rank = model->input(name).get_partial_shape().rank();
+        if (rank.is_dynamic() || rank.get_length() != 1) {
+            return false;
+        }
+    }
+    const auto& outputs = model->outputs();
+    if (outputs.size() != 1 || outputs.front().get_any_name() != "logits") {
         return false;
     }
-
-    const auto rank = shape.rank().get_length();
-    const auto set_dim = [&](std::size_t idx) {
-        if (idx >= shape.size()) {
-            return false;
-        }
-        shape[idx] = static_cast<int64_t>(token_dim);
-        return true;
-    };
-
-    if (name == "input_ids" || name == "token_type_ids" || name == "position_ids") {
-        return set_dim(static_cast<std::size_t>(rank - 1));
-    }
-    if (name == "inputs_embeds" || name == "per_layer_inputs") {
-        if (rank < 2) {
-            return false;
-        }
-        return set_dim(static_cast<std::size_t>(rank - 2));
-    }
-    return false;
+    const auto& lshape = outputs.front().get_partial_shape();
+    return lshape.rank().is_static() && lshape.rank().get_length() == 3 && lshape[1].is_static() &&
+           lshape[2].is_static();
 }
 
 // A fresh vector tensor with the chunk port's (integer) element type.
@@ -106,23 +113,11 @@ ov::SoPtr<ov::ITensor> slice_1d(const ov::SoPtr<ov::ITensor>& src, int64_t start
 
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
                                                        std::size_t token_dim) {
+    // Only the token-driven inputs get a fixed size (both are 1-D, checked by
+    // is_chunkable_pa_model); the context stays dynamic.
     auto derived = base_model->clone();
-    std::map<std::string, ov::PartialShape> new_shapes;
-    bool touched = false;
-
-    for (const auto& input : derived->inputs()) {
-        auto shape = input.get_partial_shape();
-        if (try_fix_token_dim(input.get_any_name(), shape, token_dim)) {
-            new_shapes.emplace(input.get_any_name(), std::move(shape));
-            touched = true;
-        }
-    }
-
-    OPENVINO_ASSERT(touched,
-                    "PA semi-static derivation (token_dim=",
-                    token_dim,
-                    ") did not find token-driven inputs to reshape");
-    derived->reshape(new_shapes);
+    derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}},
+                      {"position_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}}});
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(token_dim));
     return derived;
 }
@@ -211,7 +206,15 @@ ov::npuw::PACompiledModel::PreparedState ov::npuw::PACompiledModel::prepare(
     }
     model->validate_nodes_and_infer_types();
 
-    auto semi_static_compiled = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+    // The semi-static variants only make sense for the plain flat-token LLM
+    // contract; anything else (VLM, M-RoPE, per-layer block tables, ...) runs
+    // 1:1 on the dynamic model, so don't spend compile time on variants.
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> semi_static_compiled;
+    if (is_chunkable_pa_model(model)) {
+        semi_static_compiled = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+    } else {
+        LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
+    }
     return PreparedState{model, std::move(compiled), std::move(semi_static_compiled), std::move(device)};
 }
 
@@ -225,43 +228,20 @@ ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::sh
       m_device(std::move(prepared.device)),
       m_compiled_model(std::move(prepared.compiled)),
       m_semi_static_models(std::move(prepared.semi_static_compiled)) {
-    LOG_BLOCK();
-    // Trace the compiled signature -- the model expectations this story is
-    // about. The device fixes the KV cache geometry at compile time.
-    std::size_t num_cache_inputs = 0u;
+    // The device fixes the KV cache geometry at compile time; remember the
+    // block size for validating block-table coverage per dispatch.
     for (const auto& input : m_compiled_model->inputs()) {
-        const auto& name = input.get_any_name();
-        if (is_kv_cache_name(name)) {
-            ++num_cache_inputs;
-            if (num_cache_inputs > 2) {
-                continue;
-            }
-        }
-        LOG_INFO("in  " << name << " " << input.get_element_type() << " " << input.get_partial_shape());
-        if (name == "key_cache.0") {
+        if (input.get_any_name() == "key_cache.0") {
             const auto& shape = input.get_partial_shape();
             // [num_blocks (dyn), kv_heads, block_size, head_size]
             if (shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static()) {
                 m_block_size = static_cast<std::size_t>(shape[2].get_length());
             }
+            break;
         }
     }
-    if (num_cache_inputs > 2) {
-        LOG_INFO("in  ... " << num_cache_inputs << " key_cache/value_cache inputs total (" << num_cache_inputs / 2
-                            << " layers)");
-    }
-    for (const auto& output : m_compiled_model->outputs()) {
-        LOG_INFO("out " << output.get_any_name() << " " << output.get_element_type() << " "
-                        << output.get_partial_shape());
-    }
-    LOG_INFO("KV block_size fixed by " << m_device << ": " << m_block_size);
-    if (!m_semi_static_models.empty()) {
-        std::ostringstream variants;
-        for (const auto& [token_dim, _] : m_semi_static_models) {
-            variants << (variants.tellp() > 0 ? ", " : "") << token_dim;
-        }
-        LOG_INFO("PA: semi-static variants ready (token_dim): " << variants.str());
-    }
+    LOG_INFO("PA: KV block_size fixed by " << m_device << ": " << m_block_size << "; "
+                                           << m_semi_static_models.size() << " semi-static variant(s)");
 }
 
 void ov::npuw::PACompiledModel::export_model(std::ostream&) const {
@@ -340,7 +320,8 @@ ov::npuw::PAInferRequest::PAInferRequest(std::shared_ptr<const PACompiledModel> 
 
     // Chunked execution: one request per semi-static variant plus a dynamic
     // request for residual chunks. They run against the same paged KV cache
-    // tensors as the inner request, so they can be prepared upfront.
+    // tensors as the inner request, so they can be prepared upfront. The
+    // variants only exist for chunkable models (single logits output).
     const auto make_chunk_request = [](const ov::SoPtr<ov::ICompiledModel>& compiled) {
         ChunkRequest chunk;
         chunk.request = compiled->create_infer_request();
@@ -348,21 +329,15 @@ ov::npuw::PAInferRequest::PAInferRequest(std::shared_ptr<const PACompiledModel> 
         for (const auto& input : compiled->inputs()) {
             chunk.inputs.emplace(input.get_any_name(), input);
         }
-        for (const auto& output : compiled->outputs()) {
-            if (output.get_any_name() == "logits") {
-                chunk.logits = output;
-            }
-        }
+        chunk.logits = compiled->outputs().front();
         return chunk;
     };
     for (const auto& [token_dim, compiled] : m_compiled_model->m_semi_static_models) {
         m_chunk_requests.emplace(token_dim, make_chunk_request(compiled));
     }
-    m_tail_request = make_chunk_request(m_compiled_model->m_compiled_model);
-    for (const auto& output : m_compiled_model->outputs()) {
-        if (output.get_any_name() == "logits") {
-            m_logits_node = output.get_node();
-        }
+    if (!m_chunk_requests.empty()) {
+        m_tail_request = make_chunk_request(m_compiled_model->m_compiled_model);
+        m_logits_node = m_compiled_model->outputs().front().get_node();
     }
 }
 
@@ -380,171 +355,76 @@ ov::npuw::PAInferRequest::Dispatch ov::npuw::PAInferRequest::validate_dispatch_l
         return m_inner_request->get_tensor(it->second);
     };
 
+    const auto expect = [&](bool cond, const char* what) {
+        OPENVINO_ASSERT(cond, "PA dispatch #", m_dispatch_idx, " violates the PA model expectations: ", what);
+    };
+
     Dispatch d;
     d.past_lens = as_i64_vec(get("past_lens"));
     d.subsequence_begins = as_i64_vec(get("subsequence_begins"));
-    d.block_indices = as_i64_vec(get("block_indices"));
-    d.block_indices_begins = as_i64_vec(get("block_indices_begins"));
     const auto& past = d.past_lens;
     const auto& sub = d.subsequence_begins;
-    const auto& bib = d.block_indices_begins;
-    const auto n_blocks = static_cast<int64_t>(d.block_indices.size());
     const auto mcl_vec = as_i64_vec(get("max_context_len"));
-    const auto mcl = mcl_vec.empty() ? int64_t{-1} : mcl_vec.front();
-    const auto n_seqs = static_cast<int64_t>(past.size());
+    expect(!mcl_vec.empty(), "max_context_len is not set");
+    const auto mcl = mcl_vec.front();
+    d.n_seqs = static_cast<int64_t>(past.size());
     // subsequence_begins is the source of truth for the flat token dimension.
     // input_ids is absent on embedding-input models (inputs_embeds), so it is
     // only cross-checked when present; position_ids may be multi-dimensional
     // (M-RoPE), so its token count is the last shape dim.
-    const auto n_tokens = sub.empty() ? int64_t{0} : sub.back();
-    d.max_context_len = mcl;
-    d.n_seqs = n_seqs;
-    d.n_tokens = n_tokens;
+    d.n_tokens = sub.empty() ? int64_t{0} : sub.back();
 
-    std::vector<std::string> violations;
-    const auto expect = [&](bool cond, const std::string& what) {
-        if (!cond) {
-            violations.push_back(what);
-        }
-    };
-
-    expect(!mcl_vec.empty(), "max_context_len is not set");
     if (m_inner_inputs.count("input_ids") > 0) {
-        expect(static_cast<int64_t>(get("input_ids")->get_size()) == n_tokens,
+        expect(static_cast<int64_t>(get("input_ids")->get_size()) == d.n_tokens,
                "input_ids size != subsequence_begins token count");
     }
     const auto& pos_shape = get("position_ids")->get_shape();
-    expect(!pos_shape.empty() && static_cast<int64_t>(pos_shape.back()) == n_tokens,
+    expect(!pos_shape.empty() && static_cast<int64_t>(pos_shape.back()) == d.n_tokens,
            "position_ids last dim != subsequence_begins token count");
-    expect(static_cast<int64_t>(sub.size()) == n_seqs + 1, "subsequence_begins size != past_lens size + 1");
-    expect(!sub.empty() && sub.front() == 0, "subsequence_begins does not start at 0");
+    expect(static_cast<int64_t>(sub.size()) == d.n_seqs + 1, "subsequence_begins size != past_lens size + 1");
+    expect(sub.front() == 0, "subsequence_begins does not start at 0");
     expect(std::is_sorted(sub.begin(), sub.end()) && std::adjacent_find(sub.begin(), sub.end()) == sub.end(),
            "subsequence_begins is not strictly increasing");
-    expect(static_cast<int64_t>(bib.size()) == n_seqs + 1, "block_indices_begins size != past_lens size + 1");
-    expect(!bib.empty() && bib.front() == 0 && bib.back() == n_blocks && std::is_sorted(bib.begin(), bib.end()),
-           "block_indices_begins is not a prefix-sum over block_indices");
+
+    // The shared block table. Cache-eviction models carry per-layer
+    // block_indices.<L> inputs instead; those dispatches run 1:1 and only the
+    // common controls above are validated.
+    const bool has_block_table = m_inner_inputs.count("block_indices") > 0;
+    if (has_block_table) {
+        d.block_indices = as_i64_vec(get("block_indices"));
+        d.block_indices_begins = as_i64_vec(get("block_indices_begins"));
+        const auto& bib = d.block_indices_begins;
+        expect(static_cast<int64_t>(bib.size()) == d.n_seqs + 1, "block_indices_begins size != past_lens size + 1");
+        expect(bib.front() == 0 && bib.back() == static_cast<int64_t>(d.block_indices.size()) &&
+                   std::is_sorted(bib.begin(), bib.end()),
+               "block_indices_begins is not a prefix-sum over block_indices");
+    }
 
     // Per-subsequence: the provided blocks must cover past + scheduled tokens,
     // and max_context_len bounds every context.
-    const bool verbose = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose;
-    std::ostringstream kinds;
     const auto block_size = static_cast<int64_t>(m_compiled_model->m_block_size);
-    for (int64_t s = 0; s + 1 < static_cast<int64_t>(sub.size()) && s < n_seqs; ++s) {
-        const auto scheduled = sub[s + 1] - sub[s];
-        const auto ctx_after = past[s] + scheduled;
+    for (int64_t s = 0; s < d.n_seqs; ++s) {
+        const auto ctx_after = past[s] + (sub[s + 1] - sub[s]);
         expect(past[s] >= 0, "negative past_lens entry");
         expect(mcl >= ctx_after, "max_context_len < a subsequence's context length");
-        if (block_size > 0 && s + 1 < static_cast<int64_t>(bib.size())) {
-            expect((bib[s + 1] - bib[s]) * block_size >= ctx_after,
+        if (has_block_table && block_size > 0) {
+            expect((d.block_indices_begins[s + 1] - d.block_indices_begins[s]) * block_size >= ctx_after,
                    "block_indices do not cover a subsequence's context");
-        }
-        if (verbose) {
-            kinds << (s ? ", " : "") << (past[s] == 0 ? "prefill" : (scheduled == 1 ? "decode" : "chunked-continue"));
         }
     }
 
     // Gather contract: sampled_tokens_indices picks which flat token rows get
     // logits; an empty selection is legal (intermediate prefill chunks).
     if (m_inner_inputs.count("sampled_tokens_indices") > 0) {
-        d.has_sti = true;
         d.sampled_tokens_indices = as_i64_vec(get("sampled_tokens_indices"));
         for (auto idx : d.sampled_tokens_indices) {
-            expect(idx >= 0 && idx < n_tokens, "sampled_tokens_indices out of token range");
+            expect(idx >= 0 && idx < d.n_tokens, "sampled_tokens_indices out of token range");
         }
     }
 
-    if (verbose) {
-        LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << n_seqs << " subsequence(s) [" << kinds.str() << "], "
-                                 << n_tokens << " token(s)");
-        LOG_VERB("  past_lens              " << abbrev(past));
-        LOG_VERB("  subsequence_begins     " << abbrev(sub));
-        LOG_VERB("  block_indices          " << n_blocks << " entries, begins " << abbrev(bib));
-        LOG_VERB("  max_context_len        " << mcl);
-        if (d.has_sti) {
-            LOG_VERB("  sampled_tokens_indices " << abbrev(d.sampled_tokens_indices) << " -> "
-                                                 << d.sampled_tokens_indices.size() << " logits row(s)");
-        }
-    }
-
-    if (!violations.empty()) {
-        std::ostringstream all;
-        for (const auto& v : violations) {
-            all << "\n  " << v;
-        }
-        OPENVINO_THROW("PA dispatch #", m_dispatch_idx, " violates the PA model expectations:", all.str());
-    }
+    LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << d.n_seqs << " subsequence(s), " << d.n_tokens
+                             << " token(s), " << d.sampled_tokens_indices.size() << " sampled");
     return d;
-}
-
-void ov::npuw::PAInferRequest::validate_output_locked(int64_t expected_logits_rows) {
-    if (expected_logits_rows < 0) {
-        return;
-    }
-    for (const auto& output : m_inner_request->get_compiled_model()->outputs()) {
-        if (output.get_any_name() != "logits") {
-            continue;
-        }
-        const auto rows = static_cast<int64_t>(m_inner_request->get_tensor(output)->get_shape().at(0));
-        OPENVINO_ASSERT(rows == expected_logits_rows,
-                        "PA dispatch #",
-                        m_dispatch_idx,
-                        ": logits rows (",
-                        rows,
-                        ") != sampled_tokens_indices count (",
-                        expected_logits_rows,
-                        ")");
-    }
-}
-
-bool ov::npuw::PAInferRequest::can_chunk_locked(const Dispatch& d) const {
-    // The generation case needs the 1-token model; without it (or without
-    // anything to gather), the base dynamic model handles the dispatch 1:1.
-    if (m_chunk_requests.empty() || m_chunk_requests.count(1u) == 0 || m_logits_node == nullptr) {
-        return false;
-    }
-    if (!d.has_sti || d.n_tokens <= 0) {
-        return false;
-    }
-    for (const auto& [_, chunk] : m_chunk_requests) {
-        if (chunk.logits.get_node() == nullptr) {
-            return false;
-        }
-    }
-    // Only the plain flat-token LLM contract is chunked; embedding inputs,
-    // M-RoPE position_ids and other extras fall back to the 1:1 path.
-    static const std::unordered_set<std::string> known = {"input_ids",
-                                                          "position_ids",
-                                                          "past_lens",
-                                                          "subsequence_begins",
-                                                          "block_indices",
-                                                          "block_indices_begins",
-                                                          "max_context_len",
-                                                          "score_aggregation_window",
-                                                          "sampled_tokens_indices"};
-    for (const auto& [name, port] : m_inner_inputs) {
-        if (!is_kv_cache_name(name) && known.count(name) == 0) {
-            return false;
-        }
-    }
-    if (m_inner_inputs.count("input_ids") == 0 || m_inner_inputs.count("position_ids") == 0) {
-        return false;
-    }
-    if (m_inner_request->get_tensor(m_inner_inputs.at("input_ids"))->get_shape().size() != 1 ||
-        m_inner_request->get_tensor(m_inner_inputs.at("position_ids"))->get_shape().size() != 1) {
-        return false;
-    }
-    // A single logits output whose per-row geometry is static, so the result
-    // tensor can be allocated upfront and filled row by row.
-    const auto& outputs = m_inner_request->get_compiled_model()->outputs();
-    if (outputs.size() != 1 || outputs.front().get_any_name() != "logits") {
-        return false;
-    }
-    const auto& lshape = outputs.front().get_partial_shape();
-    if (lshape.rank().is_dynamic() || lshape.rank().get_length() != 3 || lshape[1].is_dynamic() ||
-        lshape[2].is_dynamic()) {
-        return false;
-    }
-    return true;
 }
 
 void ov::npuw::PAInferRequest::run_chunk_locked(ChunkRequest& chunk,
@@ -668,14 +548,14 @@ void ov::npuw::PAInferRequest::infer_chunked_locked(const Dispatch& d) {
 void ov::npuw::PAInferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
     const auto dispatch = validate_dispatch_locked();
-    if (can_chunk_locked(dispatch)) {
+    // Chunkability of the model was decided at compile time (variants exist
+    // only for the plain flat-token contract); an empty dispatch runs 1:1.
+    if (!m_chunk_requests.empty() && dispatch.n_tokens > 0) {
         infer_chunked_locked(dispatch);
         m_serve_chunked_logits = true;
     } else {
         m_serve_chunked_logits = false;
         m_inner_request->infer();
-        validate_output_locked(dispatch.has_sti ? static_cast<int64_t>(dispatch.sampled_tokens_indices.size())
-                                                : int64_t{-1});
     }
     ++m_dispatch_idx;
 }
