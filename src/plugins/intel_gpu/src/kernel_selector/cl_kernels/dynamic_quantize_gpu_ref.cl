@@ -279,7 +279,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val_hi *= scale;
             OUTPUT_TYPE ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
 
-            output[(out_offset + x) / 2].data = 0;
+            output[(out_offset + x) / 2].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
         }
         // Handle lone final element (when INPUT0_SIZE_X is odd).
         if (x < INPUT0_SIZE_X) {
@@ -299,7 +299,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
                     ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
                 }
 
-                output[cur_out / 2].data = 0;
+                output[cur_out / 2].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
             }
         }
 #else
