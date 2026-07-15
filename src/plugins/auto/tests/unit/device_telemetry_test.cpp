@@ -52,20 +52,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ::testing::ValuesIn(deviceMonitorKeyConfigs),
                          DeviceMonitorKeyTest::getTestCaseName);
 
-// query_device_utilization must never throw and must return a value within
+// TelemetryClient::utilization must never throw and must return a value within
 // [0.0, 100.0] when available, or std::nullopt otherwise. On builds without the
 // telemetry backend it consistently returns std::nullopt.
-TEST(DeviceMonitorTest, query_device_utilization_is_safe) {
+TEST(DeviceMonitorTest, telemetry_client_utilization_is_safe) {
+    device_monitor::TelemetryClient client;
     std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = device_monitor::query_device_utilization("CPU"));
+    ASSERT_NO_THROW(utilization = client.utilization("CPU"));
     if (utilization.has_value()) {
         EXPECT_GE(utilization.value(), 0.0f);
         EXPECT_LE(utilization.value(), 100.0f);
     }
 }
 
-TEST(DeviceMonitorTest, query_unknown_device_returns_nullopt) {
+TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
+    device_monitor::TelemetryClient client;
     std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = device_monitor::query_device_utilization("UNKNOWN_DEVICE"));
+    ASSERT_NO_THROW(utilization = client.utilization("UNKNOWN_DEVICE"));
     EXPECT_FALSE(utilization.has_value());
 }

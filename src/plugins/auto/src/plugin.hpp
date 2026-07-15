@@ -17,6 +17,7 @@
 #include "compiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "plugin_config.hpp"
+#include "utils/device_telemetry.hpp"
 #include "utils/log_util.hpp"
 
 namespace ov {
@@ -75,7 +76,7 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
     MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
-                                                              const std::string& device_luid = "") const;
+                                                              const std::string& device_luid = "");
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
@@ -98,6 +99,7 @@ private:
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
+    std::shared_ptr<device_monitor::TelemetryClient> m_telemetry_client;
 };
 
 }  // namespace auto_plugin

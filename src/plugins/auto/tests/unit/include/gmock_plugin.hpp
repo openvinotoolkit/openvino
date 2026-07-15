@@ -21,7 +21,7 @@ public:
     MOCK_METHOD((std::optional<float>),
                 get_device_utilization,
                 ((const std::string&), (const std::string&)),
-                (const, override));
+                (override));
     MOCK_METHOD((std::string),
                 get_device_list,
                 ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::filesystem::path&),

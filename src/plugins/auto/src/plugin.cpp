@@ -578,8 +578,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
-                                                    const std::string& device_luid) const {
-    auto result = ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
+                                                    const std::string& device_luid) {
+    if (!m_telemetry_client) {
+        m_telemetry_client = std::make_shared<device_monitor::TelemetryClient>();
+    }
+    auto result = m_telemetry_client->utilization(device_name, device_luid);
     if (result.has_value()) {
         LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
                       device_name.c_str(),
@@ -753,7 +756,16 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (has_device_utilization_threshold) {
-                const std::string device_luid = parsed.get_device_name() == "CPU" ? "" : device->default_device_id;
+                std::string device_luid;
+                if (parsed.get_device_name() != "CPU") {
+                    try {
+                        device_luid = get_core()
+                                          ->get_property(device->device_name, ov::device::luid.name(), {})
+                                          .as<std::string>();
+                    } catch (const std::exception&) {
+                        device_luid = device->default_device_id;
+                    }
+                }
                 const auto device_utilization = get_device_utilization(device->device_name, device_luid);
                 if (!device_utilization.has_value()) {
                     LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list",

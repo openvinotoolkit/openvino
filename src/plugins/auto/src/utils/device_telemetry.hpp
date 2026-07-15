@@ -4,12 +4,32 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <string>
+
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define auto_plugin mock_auto_plugin
+#else
+#define MOCKTESTMACRO
+#endif
 
 namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
+
+class TelemetryClient {
+public:
+    TelemetryClient();
+    ~TelemetryClient();
+
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_luid = "");
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+};
 
 /**
  * @brief Map an OpenVINO device name to the platform telemetry metric key.
@@ -34,32 +54,6 @@ inline std::string device_name_to_metric_key(const std::string& device_name) {
     return "";
 }
 
-/**
- * @brief Query the utilization of a device from platform telemetry.
- *
- * The utilization source is provided by the platform telemetry backend. When the
- * backend is unavailable (unsupported platform, backend not initialized, telemetry
- * missing, or a parsing error), std::nullopt is returned so callers can gracefully
- * skip the utilization-based filtering.
- *
- * @param device_name OpenVINO device identifier (e.g. "CPU", "GPU", "GPU.0", "NPU").
- * @param device_luid Optional platform-specific device identifier (reserved).
- * @return Utilization in percent within [0.0, 100.0], or std::nullopt if unavailable.
- */
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid = "");
-
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
-
-#ifdef MULTIUNITTEST
-namespace ov {
-namespace mock_auto_plugin {
-namespace device_monitor {
-
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid);
-
-}  // namespace device_monitor
-}  // namespace mock_auto_plugin
-}  // namespace ov
-#endif

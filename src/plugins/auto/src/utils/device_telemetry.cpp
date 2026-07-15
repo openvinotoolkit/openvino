@@ -6,12 +6,12 @@
 
 #ifdef OV_AUTO_ENABLE_IPF
 
-#    include <memory>
 #    include <cmath>
+#    include <memory>
 
 #    include "ClientApi.h"
-#    include "nlohmann/json.hpp"
 #    include "log_util.hpp"
+#    include "nlohmann/json.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -22,13 +22,9 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-namespace {
-
-// Owns a single platform telemetry client shared across queries. Construction may
-// fail if the telemetry backend is not present; in that case queries return nullopt.
-class TelemetryClient {
+class TelemetryClient::Impl {
 public:
-    TelemetryClient() {
+    Impl() {
         try {
             m_client = std::make_unique<Ipf::ClientApi>();
             LOG_DEBUG_TAG("TelemetryClient: IPF ClientApi initialized successfully");
@@ -41,7 +37,7 @@ public:
         }
     }
 
-    ~TelemetryClient() {
+    ~Impl() {
         m_client.release();
     }
 
@@ -97,31 +93,17 @@ private:
     std::unique_ptr<Ipf::ClientApi> m_client;
 };
 
-}  // namespace
+TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
-    LOG_DEBUG_TAG("query_device_utilization called: device_name=%s", device_name.c_str());
-    static TelemetryClient client;
-    return client.utilization(device_name, device_luid);
+TelemetryClient::~TelemetryClient() = default;
+
+std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_luid) {
+    return m_impl->utilization(device_name, device_luid);
 }
 
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
-
-#ifdef MULTIUNITTEST
-namespace ov {
-namespace mock_auto_plugin {
-namespace device_monitor {
-
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
-    return ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
-}
-
-}  // namespace device_monitor
-}  // namespace mock_auto_plugin
-}  // namespace ov
-#endif
 
 #else  // OV_AUTO_ENABLE_IPF
 
@@ -129,7 +111,13 @@ namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
 
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
+class TelemetryClient::Impl {};
+
+TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
+
+TelemetryClient::~TelemetryClient() = default;
+
+std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_luid) {
     static_cast<void>(device_name);
     static_cast<void>(device_luid);
     return std::nullopt;
@@ -138,19 +126,5 @@ std::optional<float> query_device_utilization(const std::string& device_name, co
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
-
-#ifdef MULTIUNITTEST
-namespace ov {
-namespace mock_auto_plugin {
-namespace device_monitor {
-
-std::optional<float> query_device_utilization(const std::string& device_name, const std::string& device_luid) {
-    return ov::auto_plugin::device_monitor::query_device_utilization(device_name, device_luid);
-}
-
-}  // namespace device_monitor
-}  // namespace mock_auto_plugin
-}  // namespace ov
-#endif
 
 #endif  // OV_AUTO_ENABLE_IPF
