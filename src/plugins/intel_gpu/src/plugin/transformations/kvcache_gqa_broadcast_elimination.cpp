@@ -63,15 +63,14 @@ namespace ov::intel_gpu {
 
             auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
 
-            if (pattern_map.count(in_key) > 0) {
-                sdpa->input(1).replace_source_output(pattern_map.at(in_key));
+            if (pattern_map.count(in_key) == 0 || pattern_map.count(in_value) == 0) {
+                return false;
             }
+            sdpa->input(1).replace_source_output(pattern_map.at(in_key));
+            sdpa->input(2).replace_source_output(pattern_map.at(in_value));
 
-            if (pattern_map.count(in_value) > 0) {
-                sdpa->input(2).replace_source_output(pattern_map.at(in_value));
-            }
-            return false;
-            };
+            return true;
+        };
         auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "KVCacheGQABroadcastElimination");
 
         this->register_matcher(m, callback);
