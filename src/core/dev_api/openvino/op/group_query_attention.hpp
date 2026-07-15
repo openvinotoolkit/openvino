@@ -80,7 +80,6 @@ public:
         return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
     }
 
-    // Get original input positions that are null/missing and therefore omitted from OV inputs.
     const std::vector<int64_t>& get_null_input_positions() const {
         return m_null_input_positions;
     }
@@ -89,7 +88,6 @@ public:
         return static_cast<int64_t>(get_input_size() + m_null_input_positions.size());
     }
 
-    // Check if a specific original input position exists and was not filtered as NullNode.
     bool has_input(int64_t input_position) const {
         if (input_position < 0 || input_position >= get_original_input_count()) {
             return false;
