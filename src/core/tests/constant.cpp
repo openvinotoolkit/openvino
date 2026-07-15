@@ -3380,7 +3380,7 @@ INSTANTIATE_TEST_SUITE_P(
                     RangeParam{element::i32, std::numeric_limits<uint16_t>::max(), {}},
 
                     RangeParam{element::i32, int32_t{0}, {}},
-                    RangeParam{element::i32, std::numeric_limits<int32_t>::min(), {}},
+                    RangeParam{element::i32, std::numeric_limits<int32_t>::lowest(), {}},
                     RangeParam{element::i32, std::numeric_limits<int32_t>::max(), {}},
 
                     RangeParam{element::i32, uint32_t{0}, {}},
@@ -3389,7 +3389,7 @@ INSTANTIATE_TEST_SUITE_P(
 
                     RangeParam{element::i32, int64_t{0}, {}},
                     RangeParam{element::i32, int64_t{2147483647}, {}},
-                    RangeParam{element::i32, int64_t{std::numeric_limits<int32_t>::min()}, {}},
+                    RangeParam{element::i32, int64_t{std::numeric_limits<int32_t>::lowest()}, {}},
 
                     RangeParam{element::i32, uint64_t{0}, {}},
                     RangeParam{element::i32, uint64_t{2147483647}, {}},
@@ -3462,14 +3462,14 @@ INSTANTIATE_TEST_SUITE_P(
                     RangeParam{element::i64, std::numeric_limits<uint16_t>::max(), {}},
 
                     RangeParam{element::i64, int32_t{0}, {}},
-                    RangeParam{element::i64, std::numeric_limits<int32_t>::min(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int32_t>::lowest(), {}},
                     RangeParam{element::i64, std::numeric_limits<int32_t>::max(), {}},
 
                     RangeParam{element::i64, uint32_t{0}, {}},
                     RangeParam{element::i64, std::numeric_limits<uint32_t>::max(), {}},
 
                     RangeParam{element::i64, int64_t{0}, {}},
-                    RangeParam{element::i64, std::numeric_limits<int64_t>::min(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int64_t>::lowest(), {}},
                     RangeParam{element::i64, std::numeric_limits<int64_t>::max(), {}},
 
                     RangeParam{element::i64, uint64_t{0}, {}},
@@ -3782,14 +3782,14 @@ INSTANTIATE_TEST_SUITE_P(
                     RangeParam{element::bf16, std::numeric_limits<uint16_t>::max(), {}},
 
                     RangeParam{element::bf16, int32_t{0}, {}},
-                    RangeParam{element::bf16, std::numeric_limits<int32_t>::min(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<int32_t>::lowest(), {}},
                     RangeParam{element::bf16, std::numeric_limits<int32_t>::max(), {}},
 
                     RangeParam{element::bf16, uint32_t{0}, {}},
                     RangeParam{element::bf16, std::numeric_limits<uint32_t>::max(), {}},
 
                     RangeParam{element::bf16, int64_t{0}, {}},
-                    RangeParam{element::bf16, std::numeric_limits<int64_t>::min(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<int64_t>::lowest(), {}},
                     RangeParam{element::bf16, std::numeric_limits<int64_t>::max(), {}},
 
                     RangeParam{element::bf16, uint64_t{0}, {}},
@@ -3851,14 +3851,14 @@ INSTANTIATE_TEST_SUITE_P(
                     RangeParam{element::f32, std::numeric_limits<uint16_t>::max(), {}},
 
                     RangeParam{element::f32, int32_t{0}, {}},
-                    RangeParam{element::f32, std::numeric_limits<int32_t>::min(), {}},
+                    RangeParam{element::f32, std::numeric_limits<int32_t>::lowest(), {}},
                     RangeParam{element::f32, std::numeric_limits<int32_t>::max(), {}},
 
                     RangeParam{element::f32, uint32_t{0}, {}},
                     RangeParam{element::f32, std::numeric_limits<uint32_t>::max(), {}},
 
                     RangeParam{element::f32, int64_t{0}, {}},
-                    RangeParam{element::f32, std::numeric_limits<int64_t>::min(), {}},
+                    RangeParam{element::f32, std::numeric_limits<int64_t>::lowest(), {}},
                     RangeParam{element::f32, std::numeric_limits<int64_t>::max(), {}},
 
                     RangeParam{element::f32, uint64_t{0}, {}},
@@ -3917,14 +3917,14 @@ INSTANTIATE_TEST_SUITE_P(in_t_range_f64_ct,
                                          RangeParam{element::f64, std::numeric_limits<uint16_t>::max(), {}},
 
                                          RangeParam{element::f64, int32_t{0}, {}},
-                                         RangeParam{element::f64, std::numeric_limits<int32_t>::min(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<int32_t>::lowest(), {}},
                                          RangeParam{element::f64, std::numeric_limits<int32_t>::max(), {}},
 
                                          RangeParam{element::f64, uint32_t{0}, {}},
                                          RangeParam{element::f64, std::numeric_limits<uint32_t>::max(), {}},
 
                                          RangeParam{element::f64, int64_t{0}, {}},
-                                         RangeParam{element::f64, std::numeric_limits<int64_t>::min(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<int64_t>::lowest(), {}},
                                          RangeParam{element::f64, std::numeric_limits<int64_t>::max(), {}},
 
                                          RangeParam{element::f64, uint64_t{0}, {}},
