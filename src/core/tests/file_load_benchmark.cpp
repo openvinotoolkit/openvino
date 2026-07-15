@@ -239,19 +239,6 @@ void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
     (void)sink;
 }
 
-void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();
-    constexpr size_t chunk_size = 128 * util::one_mib;
-    std::vector<char> buffer(std::min(chunk_size, file_size));
-    volatile char sink = 0;
-    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
-        const size_t copy_size = std::min(chunk_size, file_size - offset);
-        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
-    }
-}
-
 void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     compute_over_mapped(mapped);
