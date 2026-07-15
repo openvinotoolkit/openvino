@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-15-16-32-28-000-29426291440",
+  "timestamp": "2026-07-15T16:32:28Z",
+  "run_id": "29426291440",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29426291440",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36880",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36880",
+  "author": "Maxim-Doronin",
+  "category": "Network",
+  "title": "Artifact download fails with ECONNREFUSED on self-hosted runner",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) failed: ECONNREFUSED when listing artifacts"
+    },
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (tests) failed: ECONNREFUSED when listing artifacts"
+    }
+  ],
+  "key_errors": [
+    "##[error]Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "##[error]Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+  ],
+  "root_cause": "The self-hosted runner lost network connectivity to GitHub API endpoints at the time the artifact download steps ran. The download action uses the GitHub Actions artifact API (listArtifacts) to locate the artifact, but received ECONNREFUSED indicating the TCP connection was actively refused or the runner's network interface was temporarily unavailable. This is a transient infrastructure/network failure — the runner could not reach api.github.com at that moment.",
+  "reproduction_steps": "N/A — this is a transient network failure on the self-hosted runner and cannot be reproduced locally.",
+  "recommended_actions": [
+    "Re-run the failed jobs — the failure is transient and a restart is expected to succeed once runner network connectivity is restored.",
+    "Investigate self-hosted runner network configuration if ECONNREFUSED recurs frequently.",
+    "Ensure self-hosted runners have stable connectivity to all GitHub endpoints as described at https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+  ],
+  "prevention_strategies": "Implement retry logic in artifact download steps for transient network failures. Monitor self-hosted runner network health. Consider adding network connectivity checks before artifact download steps.",
+  "historical_context": "Same ECONNREFUSED artifact download failure was observed on 2026-07-01 in run 28532884711."
+}
