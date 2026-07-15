@@ -17,6 +17,10 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
+#include "fused_shape_utils.hpp"
+
+#include "openvino/core/shape.hpp"
+
 #include "kernel_selector_params.h"
 #include "weight_bias_params.h"
 #include "kernel_selector_common.h"
@@ -269,13 +273,30 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                const auto& out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+                const auto& out_layout = updated_impl_params.output_layouts[0];
+                const auto& out_pshape = out_layout.get_partial_shape();
 
                 auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
                 const auto& dep_shape = dep_layout.get_partial_shape();
 
                 if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                    if (dep_shape.size() > out_pshape.size()) {
+                        // extend_shape_to_rank_from_begin() can only prepend unit dims; it leaves a
+                        // higher-rank peer unchanged, so the fused-op kernel would read the peer with a
+                        // rank/format inconsistent with the host iteration space (df1 output-0 defect).
+                        // Fold the peer onto the host rank when it is a provably order-preserving reshape
+                        // (equal-total planar reshape or a legal planar broadcast); otherwise leave it to
+                        // the pre-existing rank-extension path. Optimization inapplicability is not an
+                        // error, so no assertion is raised and valid models always compile.
+                        if (auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout)) {
+                            dep_layout.set_partial_shape(*folded);
+                            dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
+                        } else {
+                            dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                        }
+                    } else {
+                        dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                    }
                 }
             }
         }

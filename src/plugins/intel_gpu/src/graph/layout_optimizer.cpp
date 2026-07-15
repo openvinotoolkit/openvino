@@ -47,6 +47,7 @@
 #include "lstm_seq_inst.h"
 #include "group_normalization_inst.h"
 #include "to_string_utils.h"
+#include "fused_shape_utils.hpp"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -67,6 +68,37 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
+}
+
+// A rank-reducing reorder may be fused into a producer only when every higher-rank external eltwise
+// peer has the same provable lower-rank representation that OCL fused-op canonicalization will use.
+static bool fused_peers_can_fold_to_layout(const program_node& prev, const layout& reduced_layout) {
+    if (!prev.has_fused_primitives())
+        return true;
+
+    const size_t reduced_rank = reduced_layout.get_rank();
+    if (prev.get_output_layout().get_rank() <= reduced_rank)
+        return true;
+
+    for (const auto& fd : prev.get_fused_primitives()) {
+        if (!fd.is_type<eltwise>() || !fd.has_outer_dep())
+            continue;
+
+        const auto outer_idx = static_cast<size_t>(fd.outer_dep_start_idx);
+        const size_t outer_count = fd.deps.size();
+        if (outer_idx >= prev.get_dependencies().size() || outer_count == 0 || outer_count > prev.get_dependencies().size() - outer_idx) {
+            return false;
+        }
+
+        for (size_t i = 0; i < outer_count; ++i) {
+            const auto peer_layout = prev.get_dependency(outer_idx + i).get_output_layout();
+            if (peer_layout.get_rank() > reduced_rank && !fold_higher_rank_fused_peer(peer_layout, reduced_layout).has_value()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
@@ -391,6 +423,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+
+    // Do not fuse a rank-reducing reorder into a producer whose fused higher-rank
+    // eltwise peer cannot be indexed correctly at the reduced rank (inner-spatial
+    // broadcast over the collapsed axes). Keeping the producer at its higher rank
+    // keeps the fused peer rank-consistent so the fused-op kernel reads it right.
+    if (!node.get_output_layout().is_dynamic() && !fused_peers_can_fold_to_layout(prev, node.get_output_layout())) {
+        return false;
+    }
     // Because kernels can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
@@ -398,8 +438,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         // We can void only that case if we can check whether the current node is backedge of the network.
         // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
         // reorders in the body network)
-        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() &&
-        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
+        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         // case for truncate mode
         if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
             prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
