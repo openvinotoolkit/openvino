@@ -49,15 +49,6 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     auto matmul_m =
         ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
 
-    // Cache of the normalized weights output (post Transpose + Convert clone) so that sibling
-    // MatMuls sharing the same decompression Convert reuse a single cloned weights subgraph
-    // (e.g. ALBERT shares one weight set across all transformer layers). Cloning per consumer would
-    // let the subsequent ConstantFolding materialize a separate weight copy for every FullyConnected,
-    // multiplying device weight memory. The key includes the resulting FullyConnected weights layout
-    // (is_small_matmul, which selects transpose_b): siblings can normalize the same weights
-    // differently, and a clone built for one layout must not be reused for the other. The key holds a
-    // shared_ptr to the original Convert so a cached node cannot be freed and its address reused by an
-    // unrelated node.
     auto shared_convert_cache =
         std::make_shared<std::map<std::pair<std::shared_ptr<ov::Node>, bool>, ov::Output<ov::Node>>>();
 
