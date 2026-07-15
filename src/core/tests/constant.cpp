@@ -3395,9 +3395,9 @@ INSTANTIATE_TEST_SUITE_P(
                     RangeParam{element::i32, uint64_t{2147483647}, {}},
                     RangeParam{element::i32, uint64_t{2147483648}, "out of range for i32"},
 
-                    RangeParam{element::i32, int64_t{-2147483648}, {}},
+                    RangeParam{element::i32, int64_t{-2147483648LL}, {}},
                     RangeParam{element::i32, int64_t{2147483648}, "out of range for i32"},
-                    RangeParam{element::i32, int64_t{-2147483649}, "out of range for i32"},
+                    RangeParam{element::i32, int64_t{-2147483649LL}, "out of range for i32"},
 
                     RangeParam{element::i32, float{0.0f}, {}},
                     RangeParam{element::i32, float{-2147483648.0f}, {}},
