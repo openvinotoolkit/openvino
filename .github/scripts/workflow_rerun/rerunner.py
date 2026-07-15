@@ -16,6 +16,7 @@ from requests.packages.urllib3.util.retry import Retry
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
+from typing import Optional
 from workflow_rerun.log_collector import collect_logs_for_run
 
 def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str):
@@ -68,7 +69,7 @@ def rerun_failed_jobs(repository_name: str, run_id: int, session: requests.Sessi
     LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
 
 def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: int,
-                      errors_file: Path, patterns_dir: Path, is_dry_run: bool, session: requests.Session):
+                      errors_file: Path, patterns_dir: Optional[Path], is_dry_run: bool, session: requests.Session):
     with tempfile.TemporaryDirectory() as temp_dir:
         logs_dir = Path(temp_dir)
         collect_logs_for_run(
