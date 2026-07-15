@@ -190,8 +190,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
 
     // Flag fp8 inputs so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
     // (see scatter_update_ref.cl). INPUT0 = dictionary (first kernel), INPUT2 = updates (second).
-    jit.AddConstant(MakeJitConstant("INPUT0_IS_FP8", params.inputs[0].GetDType() == Datatype::F8E4M3));
-    jit.AddConstant(MakeJitConstant("INPUT2_IS_FP8", params.inputs[2].GetDType() == Datatype::F8E4M3));
+    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
+    jit.AddConstant(MakeJitConstant("INPUT2_IS_F8E4M3", params.inputs[2].GetDType() == Datatype::F8E4M3));
 
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 

@@ -70,7 +70,7 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
     // (see concatenation_gpu_ref.cl).
-    cldnnJit.AddConstant(MakeJitConstant("INPUT0_IS_FP8", params.inputs[0].GetDType() == Datatype::F8E4M3));
+    cldnnJit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
 
     if (params.inputs[0].Feature().v != 1) {
         cldnnJit.AddConstant(MakeJitConstant("CHECK_FEATURES", 1));

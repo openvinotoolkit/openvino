@@ -126,7 +126,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
 
     // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
     // (see slice_ref.cl).
-    jit.AddConstant(MakeJitConstant("INPUT0_IS_FP8", params.inputs[0].GetDType() == Datatype::F8E4M3));
+    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
 
     // Define axes size as constant:
     if (params.compile_time_axes.empty()) {

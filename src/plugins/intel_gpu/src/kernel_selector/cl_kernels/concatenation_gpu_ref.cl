@@ -3,7 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#if INPUT0_IS_F8E4M3
 #include "include/f8_utils.cl"  // fp8e4m3_t typedef
+#endif
 
 #define GET_INDEX(prefix, ORDER) CAT(prefix, _GET_INDEX)(ORDER)
 
@@ -35,7 +37,7 @@ KERNEL(concatenation_gpu_ref)(
 #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_offset] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
-#elif INPUT0_IS_FP8
+#elif INPUT0_IS_F8E4M3
         // fp8 is a 1-byte struct; Concat just moves data (in/out dtype match), so copy the byte
         // (TO_OUTPUT_TYPE/ACTIVATION won't compile on it).
         output[output_offset] = result;
