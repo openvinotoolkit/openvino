@@ -249,59 +249,58 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              }
         }
 
-        if (is_small_matmul) {
-            // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
-            bool can_reuse_transpose = false;
-            if (!matmul->get_transpose_b()) {
-                if (transpose_node && transpose_node->get_input_size() == 2) {
-                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-                    if (order_constant) {
-                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
-
-                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
-                        std::iota(expected_order.begin(), expected_order.end(), 0);
-                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
-
-                        can_reuse_transpose = order == expected_order;
-                    }
-                }
-
-                fc_input_b = can_reuse_transpose ? transpose_node
-                                                 : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-            }
-        } else {
-            if (!matmul->get_transpose_b()) {
-                if (transpose_node && transpose_node->get_input_size() == 2) {
-                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-                    if (order_constant) {
-                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
-
-                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
-                        std::iota(expected_order.begin(), expected_order.end(), 0);
-                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
-
-                        if (order == expected_order)
-                            fc_input_b = transpose_node;
-                    }
-                }
-            } else {
-                fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-            }
-        }
-
-        // Input normalization
         if (matmul->get_transpose_a()) {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        // Connect Convert to new input if needed
-        if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            auto cache_key = std::make_pair(convert, is_small_matmul);
-            auto cached = shared_convert_cache->find(cache_key);
-            if (cached != shared_convert_cache->end()) {
-                fc_input_b = cached->second;
+        auto convert = is_convert ? pattern_map.at(weights_m).get_node_shared_ptr() : nullptr;
+        const auto cache_key = std::make_pair(convert, is_small_matmul);
+        const auto cached = is_convert ? shared_convert_cache->find(cache_key) : shared_convert_cache->end();
+        if (is_convert && cached != shared_convert_cache->end()) {
+            fc_input_b = cached->second;
+        } else {
+            if (is_small_matmul) {
+                // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
+                bool can_reuse_transpose = false;
+                if (!matmul->get_transpose_b()) {
+                    if (transpose_node && transpose_node->get_input_size() == 2) {
+                        auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                        if (order_constant) {
+                            std::vector<size_t> order = order_constant->cast_vector<size_t>();
+
+                            std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
+                            std::iota(expected_order.begin(), expected_order.end(), 0);
+                            std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+
+                            can_reuse_transpose = order == expected_order;
+                        }
+                    }
+
+                    fc_input_b = can_reuse_transpose ? transpose_node
+                                                     : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                }
             } else {
+                if (!matmul->get_transpose_b()) {
+                    if (transpose_node && transpose_node->get_input_size() == 2) {
+                        auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                        if (order_constant) {
+                            std::vector<size_t> order = order_constant->cast_vector<size_t>();
+
+                            std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
+                            std::iota(expected_order.begin(), expected_order.end(), 0);
+                            std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+
+                            if (order == expected_order)
+                                fc_input_b = transpose_node;
+                        }
+                    }
+                } else {
+                    fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                }
+            }
+
+            // Connect Convert to new input if needed
+            if (is_convert) {
                 auto new_convert = convert->clone_with_new_inputs({fc_input_b});
                 if (ov::is_decompression(convert)) {
                     ov::mark_as_decompression(new_convert);
