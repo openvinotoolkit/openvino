@@ -21,7 +21,7 @@ Conversion of each pixel from RGB to NV12 (YUV) space is represented by the foll
    \begin{aligned} & Y = 0.257 \cdot R + 0.504 \cdot G + 0.098 \cdot B + 16 \\ & U = -0.148 \cdot R - 0.291 \cdot G + 0.439 \cdot B + 128 \\ & V = 0.439 \cdot R - 0.368 \cdot G - 0.071 \cdot B + 128 \end{aligned}
 
 
-Then Y, U, V values are clipped to range (0, 255).
+Then Y, U, V values are clipped to range (0, 255].
 
 **Attributes:**
 
