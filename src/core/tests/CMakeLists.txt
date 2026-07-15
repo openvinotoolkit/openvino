@@ -99,4 +99,8 @@ target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
     openvino::util)
 target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+if (ENABLE_IO_URING AND LINUX)
+    target_compile_definitions(${BENCHMARK_TARGET_NAME} PRIVATE ENABLE_IO_URING)
+endif()
+
 add_subdirectory(frontend)

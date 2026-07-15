@@ -2,44 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <unistd.h>
+#if defined ENABLE_IO_URING
 
-#include <algorithm>
-#include <cerrno>
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <numeric>
-#include <string>
-#include <thread>
-#include <tuple>
-#include <vector>
+#    include <gtest/gtest.h>
+#    include <unistd.h>
 
-#include "openvino/util/file_util.hpp"
-#include "openvino/util/io.hpp"
-#include "openvino/util/memory.hpp"
-#include "openvino/util/mmap_object.hpp"
+#    include <algorithm>
+#    include <cerrno>
+#    include <chrono>
+#    include <cstdio>
+#    include <cstdlib>
+#    include <cstring>
+#    include <filesystem>
+#    include <fstream>
+#    include <functional>
+#    include <iostream>
+#    include <numeric>
+#    include <string>
+#    include <thread>
+#    include <tuple>
+#    include <vector>
 
-#ifdef __linux__
-#    include <fcntl.h>
-#    include <sys/mman.h>
-#endif
+#    include "openvino/util/file_util.hpp"
+#    include "openvino/util/io.hpp"
+#    include "openvino/util/memory.hpp"
+#    include "openvino/util/mmap_object.hpp"
 
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
+#    ifdef __linux__
+#        include <fcntl.h>
+#        include <sys/mman.h>
+#    endif
+
+#    include "common_test_utils/common_utils.hpp"
+#    include "common_test_utils/file_utils.hpp"
 
 namespace ov::test {
 namespace {
 const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
 
 struct TestFile {
-    // size_t size_mb;
     size_t size_bytes;
     std::filesystem::path path;
 };
@@ -99,19 +100,23 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
     }
 }
 
-long long bench(const std::function<void()>& fn,
+long long bench(const std::function<void(ov::MappedMemory&)>& fn,
                 const std::filesystem::path& path,
                 size_t file_size,
                 int warmup_runs = 1,
                 int measured_runs = 5) {
     for (int i = 0; i < warmup_runs; ++i) {
         evict_cache(path, file_size);
-        fn();
+        auto mapped = load_mmap_object(path);
+        fn(*mapped);
     }
     long long total = 0;
     for (int i = 0; i < measured_runs; ++i) {
         evict_cache(path, file_size);
-        total += measure_ms(fn);
+        auto mapped = load_mmap_object(path);
+        total += measure_ms([&]() {
+            fn(*mapped);
+        });
     }
     return total / measured_runs;
 }
@@ -122,44 +127,19 @@ double throughput_mbs(size_t size_mib, long long ms) {
     return static_cast<double>(size_mib) * 1000.0 / static_cast<double>(ms);
 }
 
-namespace strategy {
-
-// mlock forces every page resident before returning; munlock releases the pin without evicting.
-// Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
-[[maybe_unused]] void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
-    ASSERT_EQ(::mlock(mapped->data(), mapped->size()), 0)
-    /*
-<< "mlock failed (errno=" << errno << "); check RLIMIT_MEMLOCK";
-::munlock(mapped->data(), mapped->size()) */
-    ;
+void page_touch(ov::MappedMemory& mapped, size_t num_threads) {
+    util::vm_prefetch(mapped.data(), mapped.size(), num_threads);
 }
 
-// Note: the mmap destructor (munmap + close) runs inside the timed window;
-void parallel_touch(const std::filesystem::path& path, size_t = 0, size_t = 0) {
-    auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
-    // mlock_munlock(mapped);
+void io_uring(ov::MappedMemory& mapped, size_t depth) {
+    util::io_populate_mmap(mapped.data(), mapped.size(), 0, depth);
 }
-
-void io_uring(const std::filesystem::path& path, size_t file_size, size_t depth) {
-    auto mapped = load_mmap_object(path);
-    util::io_populate_mmap(mapped->data(), mapped->size(), 0, depth);
-    // if (!use_madvise_populate)
-    //     mlock_munlock(mapped);
-}
-}  // namespace strategy
 }  // namespace
 
-TEST(IOBenchmark, io_uring) {
-#if 1
+TEST(FileLoadBench, io_uring_vs_pg_touch) {
     constexpr int warmup = 0;
     constexpr int runs = 3;
     std::vector<size_t> sizes = {10, 100, 500, 1000};
-#else
-    constexpr int warmup = 0;
-    constexpr int runs = 1;
-    std::vector<size_t> sizes = {10 /*, 100, 500, 1000 */};
-#endif
 
     std::vector<TestFile> files;
     for (const auto sz : sizes) {
@@ -169,67 +149,82 @@ TEST(IOBenchmark, io_uring) {
         files.push_back(std::move(tf));
     }
 
-#define BENCH(dep)                                           \
-    bench(                                                   \
-        [&]() {                                              \
-            strategy::io_uring(tf.path, tf.size_bytes, dep); \
-        },                                                   \
-        tf.path,                                             \
-        tf.size_bytes,                                       \
-        warmup,                                              \
-        runs)
+    using BenchFn = void (*)(ov::MappedMemory&, size_t);
+    const std::vector<std::tuple<BenchFn, size_t, std::string>> bench_configs = {
+        {page_touch, 12, "pg touch"},
+        {page_touch, 24, "pg touch"},
+        {io_uring, 8, "io uring"},
+        {io_uring, 32, "io uring"},
+        {io_uring, 128, "io uring"},
+        {io_uring, 256, "io uring"},
+        {io_uring, 1024, "io uring"},
+        {io_uring, 4096, "io uring"},
+    };
 
     struct Row {
         size_t mib;
-        long long t_parallel_touch;
-        long long t_hint_prefetch_uring_1;
-        long long t_hint_prefetch_uring_2;
-        long long t_hint_prefetch_uring_3;
+        std::vector<long long> timings;
     };
     std::vector<Row> results;
     for (const auto& tf : files) {
         Row r{};
         r.mib = tf.size_bytes / 0x100000u;
-        r.t_parallel_touch = bench(
-            [&]() {
-                strategy::parallel_touch(tf.path, tf.size_bytes);
-            },
-            tf.path,
-            tf.size_bytes,
-            warmup,
-            runs);
-
-        r.t_hint_prefetch_uring_1 = BENCH(256);
-        r.t_hint_prefetch_uring_2 = BENCH(1024);
-        r.t_hint_prefetch_uring_3 = BENCH(4096);
-        results.push_back(r);
+        for (const auto& [fn, dep, label] : bench_configs) {
+            r.timings.push_back(bench(
+                [&](ov::MappedMemory& mapped) {
+                    fn(mapped, dep);
+                },
+                tf.path,
+                tf.size_bytes,
+                warmup,
+                runs));
+        }
+        results.push_back(std::move(r));
     }
-#undef BENCH
+
+    std::vector<std::pair<std::string, int>> col_headers;
+    auto make_col = [](std::string s) {
+        return std::pair<std::string, int>{s, static_cast<int>(s.size())};
+    };
+    col_headers.push_back(make_col("Size (MB)"));
+    for (const auto& cfg : bench_configs)
+        col_headers.push_back(make_col(std::get<2>(cfg) + " " + std::to_string(std::get<1>(cfg))));
+
+    auto print_header = [&]() {
+        printf("%-*s", col_headers[0].second, col_headers[0].first.c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf(" | %*s", col_headers[i].second, col_headers[i].first.c_str());
+        printf("\n");
+    };
+
+    auto print_separator = [&]() {
+        printf("%-*s", col_headers[0].second, std::string(col_headers[0].second, '-').c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf("-|-%*s", col_headers[i].second, std::string(col_headers[i].second, '-').c_str());
+        printf("\n");
+    };
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-
-    printf("%-10s | %10s | %10s | %10s | %10s\n", "Size (MB)", "page touch", "uring 1", "uring 2", "uring 3");
-    printf("%-10s-|-%10s-|-%10s-|-%10s-|-%10s\n", "----------", "----------", "----------", "----------", "----------");
+    print_header();
+    print_separator();
     for (const auto& r : results) {
-        printf("%-10zu | %10lld | %10lld | %10lld | %10lld\n",
-               r.mib,
-               r.t_parallel_touch,
-               r.t_hint_prefetch_uring_1,
-               r.t_hint_prefetch_uring_2,
-               r.t_hint_prefetch_uring_3);
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*lld", col_headers[i + 1].second, r.timings[i]);
+        printf("\n");
     }
 
     printf("\n--- Throughput (MB/s) ---\n");
-
-    printf("%-10s | %10s | %10s | %10s | %10s\n", "Size (MB)", "page touch", "uring 1", "uring 2", "uring 3");
-    printf("%-10s-|-%10s-|-%10s-|-%10s-|-%10s\n", "----------", "----------", "----------", "----------", "----------");
+    print_header();
+    print_separator();
     for (const auto& r : results) {
-        printf("%-10zu | %10.0f | %10.0f | %10.0f | %10.0f\n",
-               r.mib,
-               throughput_mbs(r.mib, r.t_parallel_touch),
-               throughput_mbs(r.mib, r.t_hint_prefetch_uring_1),
-               throughput_mbs(r.mib, r.t_hint_prefetch_uring_2),
-               throughput_mbs(r.mib, r.t_hint_prefetch_uring_3));
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*.0f", col_headers[i + 1].second, throughput_mbs(r.mib, r.timings[i]));
+        printf("\n");
     }
+    printf("\n");
 }
 }  // namespace ov::test
+
+#endif

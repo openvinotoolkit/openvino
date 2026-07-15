@@ -20,6 +20,11 @@ constexpr bool is_io_uring_supported() {
     return false;
 #    endif
 }
+
+void fallback_madvise(void* ptr, size_t size) noexcept {
+    madvise(ptr, size, MADV_SEQUENTIAL);
+    madvise(ptr, size, MADV_WILLNEED);
+}
 }  // namespace
 
 bool io_populate_mmap(void* ptr, size_t size, size_t offset, size_t queue_depth) noexcept {
@@ -35,8 +40,7 @@ bool io_populate_mmap(void* ptr, size_t size, size_t offset, size_t queue_depth)
 
         io_uring ring;
         if (io_uring_queue_init(depth, &ring, 0) < 0) {
-            madvise(base, size, MADV_SEQUENTIAL);
-            madvise(base, size, MADV_WILLNEED);
+            fallback_madvise(base, size);
             return true;
         }
 
@@ -68,8 +72,7 @@ bool io_populate_mmap(void* ptr, size_t size, size_t offset, size_t queue_depth)
 
         io_uring_queue_exit(&ring);
     } else {
-        madvise(base, size, MADV_SEQUENTIAL);
-        madvise(base, size, MADV_WILLNEED);
+        fallback_madvise(base, size);
     }
     return true;
 }
