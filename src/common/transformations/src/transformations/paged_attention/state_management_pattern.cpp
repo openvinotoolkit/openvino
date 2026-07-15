@@ -806,6 +806,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
+        // Meant to be used for Gemma family models with bidirectional image attention. If the condition is met for
+        // other models (ex. BERT) it's probably unintended behavior, as token_type_ids has been historically used
+        // in different contexts.
         auto token_type_ids_param = pa_params.get("token_type_ids");
         if (token_type_ids_param && depends_on(sdpa_node->input_value(3), token_type_ids_param.get())) {
             std::shared_ptr<ov::Node> token_type_ids = token_type_ids_param;
