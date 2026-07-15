@@ -86,6 +86,52 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
+// Compact one-line digest of a tensor for the per-dispatch I/O trace:
+// element type, shape, then the values for small tensors or min/max/mean for
+// large ones. KV cache pools pass with_data=false -- the data is the whole
+// paged cache, so only the geometry is shown.
+std::string tensor_brief(const ov::SoPtr<ov::ITensor>& tensor, bool with_data = true) {
+    std::ostringstream os;
+    os << tensor->get_element_type() << " " << tensor->get_shape();
+    const auto type = tensor->get_element_type();
+    const auto n = tensor->get_size();
+    const bool readable =
+        type == ov::element::f32 || type == ov::element::f16 || type == ov::element::i32 || type == ov::element::i64;
+    if (!with_data || !readable || n == 0) {
+        return os.str();
+    }
+    const auto value_at = [&](std::size_t i) -> double {
+        if (type == ov::element::f32) {
+            return tensor->data<float>()[i];
+        }
+        if (type == ov::element::f16) {
+            return static_cast<float>(tensor->data<ov::float16>()[i]);
+        }
+        if (type == ov::element::i32) {
+            return tensor->data<int32_t>()[i];
+        }
+        return static_cast<double>(tensor->data<int64_t>()[i]);
+    };
+    constexpr std::size_t kMaxInline = 16u;
+    if (n <= kMaxInline) {
+        os << " {";
+        for (std::size_t i = 0; i < n; ++i) {
+            os << (i ? ", " : "") << value_at(i);
+        }
+        os << "}";
+    } else {
+        auto lo = value_at(0), hi = lo, sum = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const auto v = value_at(i);
+            lo = std::min(lo, v);
+            hi = std::max(hi, v);
+            sum += v;
+        }
+        os << " min=" << lo << " max=" << hi << " mean=" << sum / static_cast<double>(n);
+    }
+    return os.str();
+}
+
 // A fresh vector tensor with the chunk port's (integer) element type.
 ov::SoPtr<ov::ITensor> make_ctrl_tensor(const ov::Output<const ov::Node>& port, const std::vector<int64_t>& vals) {
     const auto type = port.get_element_type();
@@ -240,8 +286,8 @@ ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::sh
             break;
         }
     }
-    LOG_INFO("PA: KV block_size fixed by " << m_device << ": " << m_block_size << "; "
-                                           << m_semi_static_models.size() << " semi-static variant(s)");
+    LOG_INFO("PA: KV block_size fixed by " << m_device << ": " << m_block_size << "; " << m_semi_static_models.size()
+                                           << " semi-static variant(s)");
 }
 
 void ov::npuw::PACompiledModel::export_model(std::ostream&) const {
@@ -422,8 +468,8 @@ ov::npuw::PAInferRequest::Dispatch ov::npuw::PAInferRequest::validate_dispatch_l
         }
     }
 
-    LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << d.n_seqs << " subsequence(s), " << d.n_tokens
-                             << " token(s), " << d.sampled_tokens_indices.size() << " sampled");
+    LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << d.n_seqs << " subsequence(s), " << d.n_tokens << " token(s), "
+                             << d.sampled_tokens_indices.size() << " sampled");
     return d;
 }
 
@@ -545,8 +591,25 @@ void ov::npuw::PAInferRequest::infer_chunked_locked(const Dispatch& d) {
     }
 }
 
+void ov::npuw::PAInferRequest::log_dispatch_io_locked(bool outputs) const {
+    if (ov::npuw::get_log_level() < ov::npuw::LogLevel::Verbose) {
+        return;
+    }
+    LOG_VERB("PA dispatch #" << m_dispatch_idx << (outputs ? " outputs:" : " inputs:"));
+    LOG_BLOCK();
+    const auto& model = m_inner_request->get_compiled_model();
+    for (const auto& port : outputs ? model->outputs() : model->inputs()) {
+        const auto& name = port.get_any_name();
+        // On the chunked path the inner request was not inferred; the result
+        // lives in m_chunked_logits (the model's single output).
+        const auto tensor = outputs && m_serve_chunked_logits ? m_chunked_logits : m_inner_request->get_tensor(port);
+        LOG_VERB(name << ": " << tensor_brief(tensor, !is_kv_cache_name(name)));
+    }
+}
+
 void ov::npuw::PAInferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
+    log_dispatch_io_locked(/*outputs=*/false);
     const auto dispatch = validate_dispatch_locked();
     // Chunkability of the model was decided at compile time (variants exist
     // only for the plain flat-token contract); an empty dispatch runs 1:1.
@@ -557,6 +620,7 @@ void ov::npuw::PAInferRequest::infer() {
         m_serve_chunked_logits = false;
         m_inner_request->infer();
     }
+    log_dispatch_io_locked(/*outputs=*/true);
     ++m_dispatch_idx;
 }
 

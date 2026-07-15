@@ -66,6 +66,9 @@ private:
     const ov::Output<const ov::Node>& map_port_locked(const ov::Output<const ov::Node>& port) const;
     // Validates the control tensors of one dispatch and parses them out.
     Dispatch validate_dispatch_locked();
+    // Per-dispatch I/O trace (Verbose): one line per input (or output) tensor
+    // with a compact data digest.
+    void log_dispatch_io_locked(bool outputs) const;
 
     void infer_chunked_locked(const Dispatch& d);
     // Executes `n_chunk_tokens` of subsequence `seq` starting at token
