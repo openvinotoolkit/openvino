@@ -142,6 +142,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/swiglu_with_clamp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/topk.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/tp_allreduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/unary.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/unique.cpp

@@ -27,4 +27,5 @@ set(GPU_CPU_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shape_of.cpp
     ${CMAKE_CURRENT_LIST_DIR}/strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp_allreduce.cpp
 )

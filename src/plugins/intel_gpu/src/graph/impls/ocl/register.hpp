@@ -64,6 +64,9 @@
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#ifdef ENABLE_TENSOR_PARALLEL
+#include "intel_gpu/primitives/tp_allreduce.hpp"
+#endif
 
 namespace cldnn {
 namespace ocl {
@@ -155,6 +158,9 @@ REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);
 REGISTER_OCL(sparse_fill_empty_rows);
+#ifdef ENABLE_TENSOR_PARALLEL
+REGISTER_OCL(tp_allreduce);
+#endif
 
 #undef REGISTER_OCL
 
