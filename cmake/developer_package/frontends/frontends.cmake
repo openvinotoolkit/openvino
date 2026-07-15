@@ -348,14 +348,15 @@ macro(ov_add_frontend)
                 # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
                 # no needs to install protobuf
             else()
-                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                # Install protobuf and ALL of its non-imported transitive deps (including
+                # internal abseil targets like absl_log_internal_check_impl).  A shallow
+                # ov_install_static_lib loop over the public protobuf_dependencies list is
+                # insufficient because each public absl target itself depends on many internal
+                # ones that must also be present in OpenVINOTargets for consumers to link.
+                set(_ov_protobuf_roots ${protobuf_target_name} ${protobuf_dependencies})
+                ov_install_static_deps(_ov_protobuf_roots ${OV_CPACK_COMP_CORE})
+                unset(_ov_protobuf_roots)
                 set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
-
-                foreach(protobuf_dependency IN LISTS protobuf_dependencies)
-                    if (TARGET ${protobuf_dependency})
-                        ov_install_static_lib(${protobuf_dependency} ${OV_CPACK_COMP_CORE})
-                    endif()
-                endforeach()
             endif()
         endif()
     endif()
