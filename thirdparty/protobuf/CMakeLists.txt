@@ -37,6 +37,21 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
+# Disable protobuf's own install/export rules.  OpenVINO installs and exports
+# libprotobuf/libprotobuf-lite via ov_install_static_lib → OpenVINOTargets.
+# Keeping protobuf_INSTALL=ON would cause abseil-cpp.cmake to set
+# ABSL_ENABLE_INSTALL=ON (plain local set, overrides any CACHE value), resulting
+# in absl targets landing in both abslTargets and OpenVINOTargets — an error in
+# CMake's export file generator.  Setting it OFF here (before add_subdirectory)
+# prevents option() in protobuf's CMakeLists from re-enabling it.
+set(protobuf_INSTALL OFF CACHE BOOL "Disable protobuf self-install (managed by OpenVINO)" FORCE)
+# utf8_range.cmake sets utf8_range_ENABLE_INSTALL from protobuf_INSTALL but
+# without FORCE, so a stale ON value in the cache survives even when
+# protobuf_INSTALL=OFF.  Force it OFF explicitly here so that
+# utf8_range-targets.cmake is never generated, keeping utf8_validity in a
+# single export set (OpenVINOTargets) and avoiding a CMake multi-export error
+# when ONNXTargets also references libprotobuf → utf8_validity.
+set(utf8_range_ENABLE_INSTALL OFF CACHE BOOL "Disable utf8_range self-install (managed by OpenVINO)" FORCE)
 
 # some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
 unset(HAVE_ZLIB CACHE)
@@ -66,6 +81,20 @@ add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
 set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
+
+# protobuf's cmake/install.cmake normally replaces the bare-path
+# INTERFACE_INCLUDE_DIRECTORIES with $<BUILD_INTERFACE:...>/$<INSTALL_INTERFACE:...>.
+# Since we set protobuf_INSTALL=OFF that file is never included, so we apply
+# the same fix here to avoid a "source-directory path" export error.
+foreach(_proto_lib IN ITEMS libprotobuf libprotobuf-lite)
+    if(TARGET "${_proto_lib}")
+        set_property(TARGET "${_proto_lib}"
+            PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src>"
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+    endif()
+endforeach()
+unset(_proto_lib)
 
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
