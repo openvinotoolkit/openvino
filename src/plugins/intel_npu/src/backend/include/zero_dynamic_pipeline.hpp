@@ -127,12 +127,6 @@ class DynamicPipeline final : public IPipeline {
                 }
             }
         }
-
-        void resetCommandList() {
-            for (auto& cmd_list : _commandLists) {
-                cmd_list->reset();
-            }
-        }
     };
 
 public:

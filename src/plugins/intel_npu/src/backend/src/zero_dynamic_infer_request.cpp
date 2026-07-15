@@ -204,13 +204,12 @@ void ZeroDynamicInferRequest::infer_async() {
     // Create (or reuse) the dynamic pipeline first. Shape prediction now runs through the pipeline instance and
     // shares the pipeline-owned VM execution context with execution.
     prepare_inputs();
-    prepare_outputs();
 
-    // Store the predicted output shapes
-    std::vector<ov::Shape> predictedShapes;
-    predict_output_shapes(predictedShapes);
-    check_tensor_and_predicted_shapes(predictedShapes);
-    update_tensor(predictedShapes);
+    // Predict output shapes and validate user output tensors; prepare_outputs() then allocates and resizes the
+    // Level Zero output buffers to the predicted shapes.
+    predict_output_shapes(_predictedShapes);
+    check_tensor_and_predicted_shapes(_predictedShapes);
+    prepare_outputs();
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     _pipeline->push();
@@ -253,7 +252,8 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<ov::Shape>& pred
             }
         }
 
-        OPENVINO_ASSERT(_pipeline != nullptr, "Dynamic pipeline must be created before predicting output shapes");
+        OPENVINO_ASSERT(_pipeline != nullptr,
+                        "Dynamic pipeline must be created before predicting output shapes");
         // ZeroDynamicInferRequest always constructs a DynamicPipeline in create_pipeline_impl,
         // so this downcast is safe.
         predictedShapes =
@@ -306,25 +306,41 @@ void ZeroDynamicInferRequest::check_tensor_and_predicted_shapes(const std::vecto
     }
 }
 
-void ZeroDynamicInferRequest::update_tensor(const std::vector<ov::Shape>& predictedShapes) {
-    // Update local level zero buffer shape with predicted shape to prepare for comparasion
-    if (predictedShapes.size() > 0 && _isTensorChanged) {
-        for (size_t i = 0; i < _levelZeroOutputTensors.size(); i++) {
-            auto& levelZeroTensor = _levelZeroOutputTensors.at(i);
-            if (levelZeroTensor == nullptr) {
-                // Do not need to update user output tensor
-                continue;
-            }
-            const ov::Shape& predictedShape = predictedShapes[i];
+void ZeroDynamicInferRequest::prepare_outputs() {
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "prepare_outputs");
+    // Resize outputs to the predicted shapes only when a tensor change triggered a fresh prediction.
+    const bool reshapeToPredicted = !_predictedShapes.empty() && _isTensorChanged;
+
+    for (size_t outputIndex = 0; outputIndex < _levelZeroOutputTensors.size(); ++outputIndex) {
+        auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
+        OPENVINO_ASSERT(levelZeroTensor, "Output zero tensor is not allocated.");
+
+        bool graphArgsNeedUpdate = false;
+
+        // Ensure the output buffer is allocated (former base prepare_outputs behavior).
+        if (levelZeroTensor->data() == nullptr) {
+            levelZeroTensor->allocate_data();
+            graphArgsNeedUpdate = true;
+        }
+
+        // Resize the output buffer to the predicted shape (former update_tensor behavior). set_shape may
+        // reallocate the buffer, so the single graph-argument refresh below must run after it.
+        if (reshapeToPredicted) {
+            const ov::Shape& predictedShape = _predictedShapes[outputIndex];
             if (levelZeroTensor->get_shape() != predictedShape) {
-                _logger.info("update_tensor - reshape output tensor %d from %s to predicted shape %s",
-                             i,
+                _logger.info("prepare_outputs - reshape output tensor %zu from %s to predicted shape %s",
+                             outputIndex,
                              levelZeroTensor->get_shape().to_string().c_str(),
                              predictedShape.to_string().c_str());
                 levelZeroTensor->set_shape(predictedShape);
-                _pipeline->update_graph_arguments(_metadata.outputs.at(i).indexUsedByDriver, levelZeroTensor);
+                graphArgsNeedUpdate = true;
             }
         }
+
+        if (graphArgsNeedUpdate) {
+            _pipeline->update_graph_arguments(_metadata.outputs.at(outputIndex).indexUsedByDriver, levelZeroTensor);
+        }
     }
+
     _isTensorChanged = false;
 }
