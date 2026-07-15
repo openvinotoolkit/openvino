@@ -9,6 +9,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
 namespace ov {
