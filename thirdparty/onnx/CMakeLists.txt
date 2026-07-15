@@ -54,16 +54,49 @@ ov_disable_all_warnings(onnx onnx_proto)
 ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
 ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
-# WA for ONNX: protobuf must be in the same export set of ONNX targets
-# in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
-if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
+# WA for ONNX: protobuf must be findable via an export set when CMake validates
+# install(EXPORT ONNXTargets ...) at configure time.
+#
+# The CMake rule is: for a target T in export set A, each dependency of T must
+# be in AT LEAST ONE export set (not necessarily A).  However, in practice CMake
+# generates the reference as the dep's own namespaced name only if the dep is in
+# EXACTLY ONE set; if it is in multiple sets CMake cannot determine which
+# namespace to use and errors.  The safe path is to put libprotobuf in ONNXTargets
+# so onnx's dep is satisfied LOCALLY (onnx → ONNX::libprotobuf-lite, no ambiguity).
+#
+# Static build (NOT BUILD_SHARED_LIBS):
+#   libprotobuf-lite is also added to OpenVINOTargets later by ov_install_static_deps
+#   (called from the ONNX frontend CMakeLists.txt via ov_add_frontend).  Having it
+#   in BOTH ONNXTargets and OpenVINOTargets is allowed; CMake 3.24+ lifted the
+#   one-export-set restriction for the target itself.  The "exported multiple times"
+#   error applies only to the DEPS of a target (absl etc.), not the target itself.
+#
+# Shared build (BUILD_SHARED_LIBS=ON):
+#   ov_install_static_lib's if(NOT BUILD_SHARED_LIBS) guard AND the absence of a
+#   protobuf-targets set (protobuf_INSTALL=OFF) mean libprotobuf is not in any
+#   export set.  Use ov_register_static_deps_in_export to add libprotobuf AND all
+#   its transitive deps to ONNXTargets (bypassing the BUILD_SHARED_LIBS guard).
+if(NOT ENABLE_SYSTEM_PROTOBUF)
     if(ONNX_USE_LITE_PROTO)
-        set(protobuf_target_name libprotobuf-lite)
+        set(_onnx_protobuf_root libprotobuf-lite)
     else()
-        set(protobuf_target_name libprotobuf)
+        set(_onnx_protobuf_root libprotobuf)
     endif()
 
-    install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
-            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+    if(BUILD_SHARED_LIBS)
+        # Shared build: register libprotobuf and ALL transitive deps in ONNXTargets.
+        set(_onnx_pb_roots "${_onnx_protobuf_root}")
+        ov_register_static_deps_in_export(_onnx_pb_roots ONNXTargets)
+        unset(_onnx_pb_roots)
+    else()
+        # Static build: add just libprotobuf to ONNXTargets (original WA).
+        # Its transitive deps (absl, utf8_validity, …) will be in OpenVINOTargets
+        # via ov_install_static_deps and will be referenced as openvino::* there.
+        install(TARGETS "${_onnx_protobuf_root}" EXPORT ONNXTargets
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                COMPONENT ${OV_CPACK_COMP_CORE}
+                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+    endif()
+
+    unset(_onnx_protobuf_root)
 endif()
