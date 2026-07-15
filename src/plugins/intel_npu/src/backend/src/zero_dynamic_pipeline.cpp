@@ -457,13 +457,10 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     const std::vector<MemRefType> originalOutputMemRefs(outputsMemRefs);
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefHandles, outputMemRefHandles;
-    std::vector<std::shared_ptr<MemRefTypeImpl>> inputMemRefImpls, outputMemRefImpls;
 
-    auto processMemRefs = [&](auto& memRefs, auto& destMemRefHandles, auto& destMemRefImpls) {
+    auto processMemRefs = [&](auto& memRefs, auto& destMemRefHandles) {
         destMemRefHandles.clear();
         destMemRefHandles.reserve(memRefs.size());
-        destMemRefImpls.clear();
-        destMemRefImpls.reserve(memRefs.size());
 
         for (auto& memref : memRefs) {
             auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
@@ -473,12 +470,11 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             }
             impl->UpdateMemRefHandleStatus(memref);
             destMemRefHandles.push_back(impl->_memRef);
-            destMemRefImpls.push_back(impl);
         }
     };
 
-    processMemRefs(inputsMemRefs, inputMemRefHandles, inputMemRefImpls);
-    processMemRefs(outputsMemRefs, outputMemRefHandles, outputMemRefImpls);
+    processMemRefs(inputsMemRefs, inputMemRefHandles);
+    processMemRefs(outputsMemRefs, outputMemRefHandles);
 
     npu_vm_runtime_result_t result = NPU_VM_RUNTIME_RESULT_SUCCESS;
     npu_vm_runtime_version_t version{};
@@ -511,7 +507,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     } else {
         for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
             auto& out = outputsMemRefs[i];
-            std::shared_ptr<MemRefTypeImpl> outImpl = outputMemRefImpls[i];
+            auto outImpl = std::static_pointer_cast<MemRefTypeImpl>(out._impl);
 
             if (outImpl == nullptr) {
                 OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
@@ -544,8 +540,8 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     if (_logger.level() >= ov::log::Level::DEBUG) {
         for (size_t i = 0; i < predictedShapes.size(); ++i) {
             _logger.debug("predict_output_shapes - output %zu predicted shape: %s",
-                          i,
-                          predictedShapes[i].to_string().c_str());
+                         i,
+                         predictedShapes[i].to_string().c_str());
         }
     }
     return predictedShapes;
