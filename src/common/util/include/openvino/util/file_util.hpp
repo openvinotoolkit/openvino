@@ -10,6 +10,7 @@
 #include <functional>
 #include <initializer_list>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "openvino/util/common_util.hpp"
@@ -295,8 +296,14 @@ void save_binary(const std::filesystem::path& path, const void* binary, size_t b
 const char* trim_file_name(const char* const fname);
 
 inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
-    return util::u64_hash_combine(static_cast<uint64_t>(std::hash<std::filesystem::path::string_type>{}(path.native())),
-                                  {offset, size});
+    using unsigned_value_type = std::make_unsigned_t<std::filesystem::path::value_type>;
+
+    uint64_t path_hash = 0;
+    for (const auto* value = path.c_str(); *value != 0; ++value) {
+        path_hash = util::u64_hash_combine(path_hash,
+                                           static_cast<uint64_t>(static_cast<unsigned_value_type>(*value)));
+    }
+    return util::u64_hash_combine(path_hash, {offset, size});
 }
 
 /**
