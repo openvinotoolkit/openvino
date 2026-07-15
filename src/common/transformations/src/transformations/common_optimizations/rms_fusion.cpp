@@ -141,6 +141,14 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
         auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
         bool elementwise_affine = pattern_map.count(mul_with_gamma);
 
+        // Avoid partial fusion (fusing without gamma) when gamma Multiply follows
+        if (!elementwise_affine && m.get_match_root() == mul_or_div_node) {
+            for (auto& target : mul_or_div_node->output(0).get_target_inputs()) {
+                if (ov::is_type<v1::Multiply>(target.get_node()))
+                    return false;
+            }
+        }
+
         std::shared_ptr<ov::Node> gamma_node;
         if (elementwise_affine) {
             gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
