@@ -678,7 +678,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bevpool_v2_attributes) {
-    const auto model = convert_model("org.openvinotoolkit/bevpool_v2.prototxt");
+    const auto model = convert_model("org.openvinotoolkit/bevpool_v2.onnx");
 
     std::shared_ptr<ov::op::v15::BevPoolV2> bevpool;
     for (const auto& op : model->get_ordered_ops()) {

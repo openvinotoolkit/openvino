@@ -22,9 +22,9 @@ KERNEL(bevpool_v2_opt)(OPTIONAL_SHAPE_INFO_ARG
         return;
 
     const uint interval_base = interval_idx * 3;
-    const int interval_start = (int)itv[interval_base + 0];
-    const int interval_end = (int)itv[interval_base + 1];
-    const int bev_linear = (int)itv[interval_base + 2];
+    const long interval_start = (long)itv[interval_base + 0];
+    const long interval_end = (long)itv[interval_base + 1];
+    const long bev_linear = (long)itv[interval_base + 2];
 
     const uint depth_bins = (uint)((D_BOUND_MAX - D_BOUND_MIN) / D_BOUND_STEP);
     const uint feature_area = IMAGE_WIDTH * IMAGE_HEIGHT;
@@ -38,9 +38,9 @@ KERNEL(bevpool_v2_opt)(OPTIONAL_SHAPE_INFO_ARG
     float acc[BLOCK_SIZE] = {0.0f};
 #endif
 
-    for (int i = interval_start; i < interval_end; ++i) {
-        const int dw_index_i = (int)idx[i];
-        if (dw_index_i < 0 || (uint)dw_index_i >= INPUT1_LENGTH)
+    for (long i = interval_start; i < interval_end; ++i) {
+        const long dw_index_i = (long)idx[i];
+        if (dw_index_i < 0 || (ulong)dw_index_i >= (ulong)INPUT1_LENGTH)
             continue;
 
         const uint dw_index = (uint)dw_index_i;
@@ -89,8 +89,8 @@ KERNEL(bevpool_v2_opt)(OPTIONAL_SHAPE_INFO_ARG
         if (channel >= OUTPUT_CHANNELS)
             break;
 
-        const int out_index_i = bev_linear + (int)(channel * FEATURE_WIDTH * FEATURE_HEIGHT);
-        if (out_index_i < 0 || (uint)out_index_i >= OUTPUT_LENGTH)
+        const long out_index_i = bev_linear + (long)channel * FEATURE_WIDTH * FEATURE_HEIGHT;
+        if (out_index_i < 0 || (ulong)out_index_i >= (ulong)OUTPUT_LENGTH)
             continue;
 
     #if INPUT0_TYPE_SIZE == 2 && BLOCK_SIZE == 8

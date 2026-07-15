@@ -189,8 +189,17 @@ void BevPoolV2::validate_and_infer_types() {
                           cf_et,
                           " and ",
                           dw_et);
-    NODE_VALIDATION_CHECK(this, idx_et.is_integral_number(), "Input 2 (idx) must be an integer tensor. Got: ", idx_et);
-    NODE_VALIDATION_CHECK(this, itv_et.is_integral_number(), "Input 3 (itv) must be an integer tensor. Got: ", itv_et);
+    const auto is_supported_index_type = [](const element::Type& et) {
+        return et == element::i32 || et == element::i64 || et == element::u32 || et == element::u64;
+    };
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_index_type(idx_et),
+                          "Input 2 (idx) must be an i32, i64, u32 or u64 tensor. Got: ",
+                          idx_et);
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_index_type(itv_et),
+                          "Input 3 (itv) must be an i32, i64, u32 or u64 tensor. Got: ",
+                          itv_et);
 
     const auto cf_ps = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
@@ -333,7 +342,11 @@ bool BevPoolV2::has_evaluate() const {
     const auto itv_et = get_input_element_type(3);
 
     const bool fp_supported = (cf_et == element::f16 || cf_et == element::f32);
-    return fp_supported && cf_et.compatible(dw_et) && idx_et.is_integral_number() && itv_et.is_integral_number();
+    const auto is_supported_index_type = [](const element::Type& et) {
+        return et == element::i32 || et == element::i64 || et == element::u32 || et == element::u64;
+    };
+    return fp_supported && cf_et.compatible(dw_et) && is_supported_index_type(idx_et) &&
+           is_supported_index_type(itv_et);
 }
 
 uint32_t BevPoolV2::get_input_channels() const {

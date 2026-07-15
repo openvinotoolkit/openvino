@@ -13,6 +13,12 @@
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
+
+using cldnn::bevpool_v2;
+using cldnn::kernel_impl_params;
+using cldnn::primitive_impl;
+using cldnn::program_node;
+
 namespace {
 
 enum KernelsTypes {

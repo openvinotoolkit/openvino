@@ -119,17 +119,7 @@ TEST(eval, evaluate_bevpool_v2_f32) {
     auto itv = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{3});
 
     ov::op::v15::Bound b{0.f, 1.f, 1.f};
-    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                        2,
-                                                        2,
-                                                        1,
-                                                        2,
-                                                        1,
-                                                        1,
-                                                        b,
-                                                        b,
-                                                        b,
-                                                        b);
+    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv}, 2, 2, 1, 2, 1, 1, b, b, b, b);
     auto model = make_shared<Model>(OutputVector{bevpool}, ParameterVector{cf, dw, idx, itv});
 
     ov::Tensor out;
@@ -157,17 +147,7 @@ TEST(eval, evaluate_bevpool_v2_f16_with_tolerance) {
     auto itv = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{3});
 
     ov::op::v15::Bound b{0.f, 1.f, 1.f};
-    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
-                                                        2,
-                                                        2,
-                                                        1,
-                                                        2,
-                                                        1,
-                                                        1,
-                                                        b,
-                                                        b,
-                                                        b,
-                                                        b);
+    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv}, 2, 2, 1, 2, 1, 1, b, b, b, b);
     auto model = make_shared<Model>(OutputVector{bevpool}, ParameterVector{cf, dw, idx, itv});
 
     ov::Tensor out;

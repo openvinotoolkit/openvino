@@ -174,7 +174,7 @@ TEST_F(TypePropBevPoolV2Test, idx_must_be_integral) {
                                                                        default_bound(),
                                                                        default_bound()),
                     NodeValidationFailure,
-                    HasSubstr("Input 2 (idx) must be an integer tensor"));
+                    HasSubstr("Input 2 (idx) must be an i32, i64, u32 or u64 tensor"));
 }
 
 }  // namespace test

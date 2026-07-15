@@ -111,13 +111,13 @@ graph {
             dim_value: 2
           }
           dim {
-            dim_value: 4
-          }
-          dim {
             dim_value: 3
           }
           dim {
             dim_value: 5
+          }
+          dim {
+            dim_value: 4
           }
         }
       }

@@ -7,20 +7,19 @@
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
-using namespace cldnn;  // TODO: Remove once namespaces are aligned
-
 namespace ov::intel_gpu::ocl {
 
-struct BevPoolV2 : public ImplementationManager {
+struct BevPoolV2 : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::bevpool_v2")
-    explicit BevPoolV2(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+    explicit BevPoolV2(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr)
+        : cldnn::ImplementationManager(cldnn::impl_types::ocl, shape_type, std::move(vf)) {}
 
-    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
 
-    [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        static constexpr std::array supported_float_types = {data_types::f16, data_types::f32};
-        static constexpr std::array supported_index_types = {data_types::i32, data_types::i64, data_types::u32};
-        static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx};
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        static constexpr std::array supported_float_types = {cldnn::data_types::f16, cldnn::data_types::f32};
+        static constexpr std::array supported_index_types = {cldnn::data_types::i32, cldnn::data_types::i64, cldnn::data_types::u32};
+        static constexpr std::array supported_fmts = {cldnn::format::bfyx, cldnn::format::bfzyx};
 
         if (node.has_fused_primitives()) {
             return false;
@@ -36,14 +35,15 @@ struct BevPoolV2 : public ImplementationManager {
         const auto& in3_layout = node.get_input_layout(3);
         const auto& out_layout = node.get_output_layout(0);
 
-        if (!one_of(in0_layout.data_type, supported_float_types) || !one_of(in1_layout.data_type, supported_float_types) ||
-            !one_of(in2_layout.data_type, supported_index_types) || !one_of(in3_layout.data_type, supported_index_types) ||
-            !one_of(out_layout.data_type, supported_float_types)) {
+        if (!cldnn::one_of(in0_layout.data_type, supported_float_types) || !cldnn::one_of(in1_layout.data_type, supported_float_types) ||
+            !cldnn::one_of(in2_layout.data_type, supported_index_types) || !cldnn::one_of(in3_layout.data_type, supported_index_types) ||
+            !cldnn::one_of(out_layout.data_type, supported_float_types)) {
             return false;
         }
 
-        if (!one_of(in0_layout.format, supported_fmts) || !one_of(in1_layout.format, supported_fmts) || !one_of(in2_layout.format, supported_fmts) ||
-            !one_of(in3_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
+        if (!cldnn::one_of(in0_layout.format, supported_fmts) || !cldnn::one_of(in1_layout.format, supported_fmts) ||
+            !cldnn::one_of(in2_layout.format, supported_fmts) || !cldnn::one_of(in3_layout.format, supported_fmts) ||
+            !cldnn::one_of(out_layout.format, supported_fmts)) {
             return false;
         }
 
