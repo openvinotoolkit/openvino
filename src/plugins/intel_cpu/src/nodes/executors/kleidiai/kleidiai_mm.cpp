@@ -103,7 +103,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     float* rhs_scales = nullptr;
 
     // Whether dynamic quantization is enabled
-    bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
+    const bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
 
     if (!useDynamicQuant) {
         _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
