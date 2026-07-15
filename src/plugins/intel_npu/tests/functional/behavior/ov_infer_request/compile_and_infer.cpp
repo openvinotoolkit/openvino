@@ -12,7 +12,7 @@ namespace {
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> configs = {{}};
+const std::vector<ov::AnyMap> configs = {{ov::log::level(ov::log::Level::ERR)}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVCompileAndInferRequest,

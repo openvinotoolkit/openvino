@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "backends_registry.hpp"
@@ -62,6 +63,21 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
+    // applies ov::log::level from per-call properties and restores on scope exit
+    // permanent level changes belong in set_property(); per-call properties are scoped
+    // self: is this a RAII trait?
+    class LogLevelScope {
+    public:
+        explicit LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger);
+        ~LogLevelScope();
+        LogLevelScope(const LogLevelScope&) = delete;
+        LogLevelScope& operator=(const LogLevelScope&) = delete;
+    private:
+        Logger& _instanceLogger;
+        std::optional<ov::log::Level> _prevGlobal;
+        std::optional<ov::log::Level> _prevInstance;
+    };
+
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**

@@ -13,7 +13,9 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<ov::AnyMap> config = {{{"NPU_COMPILATION_MODE", "ReferenceSW"}}};
+const std::vector<ov::AnyMap> config = {
+    {{"NPU_COMPILATION_MODE", "ReferenceSW"}, {ov::log::level(ov::log::Level::ERR)}}
+};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests,

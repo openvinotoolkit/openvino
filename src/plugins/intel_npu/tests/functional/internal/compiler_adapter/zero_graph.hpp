@@ -83,6 +83,9 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+        _savedLogLevel = ::intel_npu::Logger::global().level();
+        ::intel_npu::Logger::global().setLevel(ov::log::Level::ERR);
+
         std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
         model = ov::test::utils::make_multi_single_conv();
@@ -102,6 +105,7 @@ protected:
         if (blob) {
             ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
         }
+        ::intel_npu::Logger::global().setLevel(_savedLogLevel);
     }
 
     void serializeIR() {
@@ -152,6 +156,7 @@ protected:
     std::string targetDevice;
     std::string blobPath;
     uint32_t zeGraphNpuExtVersion;
+    ov::log::Level _savedLogLevel{ov::log::Level::NO};
 };
 
 using ZeroGraphCompilationTests = ZeroGraphTest;

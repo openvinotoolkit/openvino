@@ -452,6 +452,38 @@ TEST_P(OVClassCompileModel, CompileModelWithDifferentThreadNumbers) {
         testing::HasSubstr("ov::compilation_num_threads must be positive int32 value"));
 }
 
+TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSubsequentCompile) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    ov::Core ie;
+
+    utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
+
+    {
+        std::string firstCompileLogs;
+        std::function<void(std::string_view)> cb = [&](std::string_view msg) {
+            firstCompileLogs.append(msg);
+            firstCompileLogs.push_back('\n');
+        };
+        utils::LogCallbackGuard captureGuard(cb);
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::ERR)}}));
+    }
+
+    std::string secondCompileLogs;
+    {
+        std::function<void(std::string_view)> cb = [&](std::string_view msg) {
+            secondCompileLogs.append(msg);
+            secondCompileLogs.push_back('\n');
+        };
+        utils::LogCallbackGuard captureGuard(cb);
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
+    }
+
+    EXPECT_TRUE(secondCompileLogs.find("[WARNING]") != std::string::npos);
+    EXPECT_FALSE(secondCompileLogs.find("[INFO]") != std::string::npos);
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {

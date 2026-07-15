@@ -42,6 +42,9 @@ protected:
     ov::Any configValue;
     ov::Core ie;
 
+private:
+    ov::log::Level _savedLogLevel{ov::log::Level::NO};
+
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -50,6 +53,12 @@ public:
         std::tie(configKey, configValue) = std::get<1>(GetParam());
 
         model = ov::test::utils::make_conv_pool_relu();
+        _savedLogLevel = ::intel_npu::Logger::global().level();
+    }
+
+    void TearDown() override {
+        ::intel_npu::Logger::global().setLevel(_savedLogLevel);
+        OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(
         testing::TestParamInfo<std::tuple<std::string, std::pair<std::string, ov::Any>>> obj) {
@@ -366,6 +375,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
@@ -397,6 +407,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -433,6 +444,7 @@ TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -466,6 +478,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -515,6 +528,7 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -615,6 +629,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompiler
     ov::Core core_compile, core_import;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -697,6 +712,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
     ov::Core core_for_importing;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core_for_compiler.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -737,6 +753,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
     ov::Core core;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -778,10 +795,6 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
-    ov::log::Level previous_log_level = ov::log::Level::NO;
-    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
-    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
-
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
         std::lock_guard<std::mutex> lock(logs_mutex);
@@ -794,7 +807,6 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
         OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     }
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
@@ -824,10 +836,6 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
-    ov::log::Level previous_log_level = ov::log::Level::NO;
-    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
-    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
-
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
         std::lock_guard<std::mutex> lock(logs_mutex);
@@ -840,7 +848,6 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
         OV_ASSERT_NO_THROW(compiled_model =
                                core.compile_model(model, deviceName, {ov::hint::enable_cpu_pinning(true)}));
     }
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));

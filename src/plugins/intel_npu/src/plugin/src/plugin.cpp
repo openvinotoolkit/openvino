@@ -331,6 +331,27 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
 namespace intel_npu {
 
+Plugin::LogLevelScope::LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger)
+    : _instanceLogger(instanceLogger) {
+    const auto it = props.find(ov::log::level.name());
+    if (it == props.end()) {
+        return;
+    }
+    const auto lvl = it->second.as<ov::log::Level>();
+    _prevGlobal = Logger::global().level();
+    _prevInstance = _instanceLogger.level();
+    Logger::global().setLevel(lvl);
+    _instanceLogger.setLevel(lvl);
+}
+
+Plugin::LogLevelScope::~LogLevelScope() {
+    if (!_prevGlobal) {
+        return;
+    }
+    Logger::global().setLevel(*_prevGlobal);
+    _instanceLogger.setLevel(*_prevInstance);
+}
+
 Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
@@ -389,7 +410,7 @@ bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& ar
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    update_log_level(properties);
+    LogLevelScope logScope(properties, _logger);
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -631,7 +652,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-    update_log_level(properties);
+    LogLevelScope logScope(properties, _logger);
 
     if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
         _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
@@ -698,7 +719,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-    update_log_level(properties);
+    LogLevelScope logScope(properties, _logger);
 
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};
@@ -758,7 +779,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    update_log_level(properties);
+    LogLevelScope logScope(properties, _logger);
 
     auto localProperties = properties;
 
