@@ -315,6 +315,25 @@ static std::shared_ptr<ov::Node> optional_fake_convert(const std::shared_ptr<ov:
     return std::make_shared<Or>(OutputVector{fc_2, fc_3, input});
 }
 
+static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target) {
+    std::unordered_set<const ov::Node*> visited;
+    std::vector<ov::Node*> stack{root.get_node()};
+    while (!stack.empty()) {
+        auto* node = stack.back();
+        stack.pop_back();
+        if (!node || !visited.insert(node).second) {
+            continue;
+        }
+        if (node == target) {
+            return true;
+        }
+        for (const auto& input : node->input_values()) {
+            stack.push_back(input.get_node());
+        }
+    }
+    return false;
+}
+
 StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
     const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
     const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
@@ -787,11 +806,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        // Meant to be used for Gemma family models with bidirectional image attention. If the condition is met for
-        // other models (ex. BERT) it's probably unintended behavior, as token_type_ids has been historically used
-        // in different contexts.
-        if (pa_params.exists("token_type_ids")) {
-            std::shared_ptr<ov::Node> token_type_ids = pa_params["token_type_ids"];
+        auto token_type_ids_param = pa_params.get("token_type_ids");
+        if (token_type_ids_param && depends_on(sdpa_node->input_value(3), token_type_ids_param.get())) {
+            std::shared_ptr<ov::Node> token_type_ids = token_type_ids_param;
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
             }
