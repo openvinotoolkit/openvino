@@ -159,7 +159,7 @@ protected:
             mem_lock<int32_t, mem_lock_type::read> cu_seqlens_lock(cu_seqlens_mem, *params.strm);
 
             const auto cu_seqlens_sz = cu_seqlens_lock.size();
-            OPENVINO_ASSERT(cu_seqlens_sz >= 2, "VLSDPA expects cu_seqlens to contain at least two elements (start/end) and be even-sized");
+            OPENVINO_ASSERT(cu_seqlens_sz >= 2, "VLSDPA expects cu_seqlens to contain at least two elements (start/end)");
             size_t max_seq_len = 0;
             for (size_t i = 1; i < cu_seqlens_sz; i++) {
                 auto start_idx = cu_seqlens_lock[i - 1];
