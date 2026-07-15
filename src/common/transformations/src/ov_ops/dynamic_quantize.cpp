@@ -45,6 +45,19 @@ DynamicQuantize::DynamicQuantize(const Output<Node>& data, const Attributes& att
     validate_and_infer_types();
 }
 
+bool DynamicQuantize::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("quantization_type", m_attrs.quantization_type);
+    visitor.on_attribute("quantization_dt", m_attrs.quantization_dt);
+    visitor.on_attribute("scale_dt", m_attrs.scale_dt);
+    visitor.on_attribute("zp_dt", m_attrs.zp_dt);
+    visitor.on_attribute("precomputed_reduction_dt", m_attrs.precomputed_reduction_dt);
+    visitor.on_attribute("precomputed_reduction", m_attrs.precomputed_reduction);
+    visitor.on_attribute("group_sizes", m_attrs.group_sizes);
+    visitor.on_attribute("scales_zp_output_order", m_attrs.scales_zp_output_order);
+    visitor.on_attribute("output_storage_type", m_attrs.output_storage_type);
+    return true;
+}
+
 void DynamicQuantize::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
 
@@ -136,4 +149,25 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
 
 }  // namespace internal
 }  // namespace op
+
+template <>
+OPENVINO_API EnumNames<op::internal::DynamicQuantize::QuantizationType>&
+EnumNames<op::internal::DynamicQuantize::QuantizationType>::get() {
+    static auto enum_names = EnumNames<op::internal::DynamicQuantize::QuantizationType>(
+        "op::internal::DynamicQuantize::QuantizationType",
+        {{"Symmetric", op::internal::DynamicQuantize::QuantizationType::Symmetric},
+         {"Asymmetric", op::internal::DynamicQuantize::QuantizationType::Asymmetric}});
+    return enum_names;
+}
+
+template <>
+OPENVINO_API EnumNames<op::internal::DynamicQuantize::OutputStorageType>&
+EnumNames<op::internal::DynamicQuantize::OutputStorageType>::get() {
+    static auto enum_names = EnumNames<op::internal::DynamicQuantize::OutputStorageType>(
+        "op::internal::DynamicQuantize::OutputStorageType",
+        {{"Planar", op::internal::DynamicQuantize::OutputStorageType::Planar},
+         {"InterleavedScalesZP", op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP}});
+    return enum_names;
+}
+
 }  // namespace ov

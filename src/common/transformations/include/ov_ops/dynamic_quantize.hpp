@@ -52,6 +52,8 @@ public:
     /// \param config Dynamic quantization configuration
     DynamicQuantize(const Output<Node>& data, const Attributes& attrs);
 
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -89,4 +91,28 @@ protected:
 
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const op::internal::DynamicQuantize::QuantizationType& quantization_type);
+std::ostream& operator<<(std::ostream& s, const op::internal::DynamicQuantize::OutputStorageType& output_storage_type);
+
+template <>
+class AttributeAdapter<op::internal::DynamicQuantize::QuantizationType>
+    : public EnumAttributeAdapterBase<op::internal::DynamicQuantize::QuantizationType> {
+public:
+    AttributeAdapter(op::internal::DynamicQuantize::QuantizationType& value)
+        : EnumAttributeAdapterBase<op::internal::DynamicQuantize::QuantizationType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<op::internal::DynamicQuantize::QuantizationType>");
+};
+
+template <>
+class AttributeAdapter<op::internal::DynamicQuantize::OutputStorageType>
+    : public EnumAttributeAdapterBase<op::internal::DynamicQuantize::OutputStorageType> {
+public:
+    AttributeAdapter(op::internal::DynamicQuantize::OutputStorageType& value)
+        : EnumAttributeAdapterBase<op::internal::DynamicQuantize::OutputStorageType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<op::internal::DynamicQuantize::OutputStorageType>");
+};
+
 }  // namespace ov
