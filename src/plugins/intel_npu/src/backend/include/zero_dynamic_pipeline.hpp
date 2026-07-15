@@ -141,7 +141,6 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    std::shared_ptr<VMExecutionContext> executionContext,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
@@ -160,12 +159,10 @@ public:
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
     // Predicts VM runtime output shapes for the given input/output tensors. A nullptr tensor entry falls
-    // back to the graph metadata max shape. Independent of pipeline instance state, this depends only on the VM runtime
-    // handle and argument-provided context, making it a static method.
-    static std::vector<ov::Shape> predict_output_shapes(const IGraph& graph,
-                                                        VMExecutionContext& executionContext,
-                                                        const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
-                                                        const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
+    // back to the graph metadata max shape. Uses the pipeline's own graph handle and VM execution context,
+    // which is the same context reused by execute_vm_runtime.
+    std::vector<ov::Shape> predict_output_shapes(const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+                                                 const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
@@ -175,8 +172,8 @@ private:
                             ze_fence_handle_t fence,
                             ze_event_handle_t event);
 
-    // Shared VM execution context (owned by the infer request), reused across all command lists.
-    std::shared_ptr<VMExecutionContext> _executionContext;
+    // VM execution context owned by this pipeline; shared between shape prediction and execution.
+    VMExecutionContext _executionContext;
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 

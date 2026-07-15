@@ -38,10 +38,6 @@ protected:
     void update_tensor(const std::vector<ov::Shape>& predictedShapes);
 
     bool _isTensorChanged = false;
-
-private:
-    // VM execution context shared with the pipeline; created lazily, reused across inferences.
-    std::shared_ptr<VMExecutionContext> _executionContext = std::make_shared<VMExecutionContext>();
 };
 
 }  //  namespace intel_npu

@@ -174,14 +174,11 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                                 std::shared_ptr<VMExecutionContext> executionContext,
                                  size_t batch_size)
-    : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline"),
-      _executionContext(std::move(executionContext)) {
+    : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
-    OPENVINO_ASSERT(_executionContext != nullptr, "DynamicPipeline requires a valid execution context");
 
     _logger.debug("Initialization started, batch size: %zu", _batch_size);
 
@@ -393,7 +390,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     }
 
     npu_vm_runtime_execute_params_t params = {};
-    params.executionContext = _executionContext->ensure(vmRuntime);
+    params.executionContext = _executionContext.ensure(vmRuntime);
     params.pInputs = inputMemRefHandles.data();
     params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
     params.pOutputs = outputMemRefHandles.data();
@@ -418,19 +415,16 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 }
 
 std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
-    const IGraph& graph,
-    VMExecutionContext& executionContext,
     const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
     const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors) {
-    Logger logger("DynamicPipeline::predict_output_shapes", Logger::global().level());
-    logger.debug("predict_output_shapes - started");
+    _logger.debug("predict_output_shapes - started");
 
-    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(graph.get_handle());
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shapes requires a valid VM runtime engine");
 
     // Convert OV tensors/metadata into MemRef descriptors. A nullptr tensor falls back to the graph metadata
     // max shape. This keeps MemRef/DynamicArguments knowledge confined to the pipeline layer.
-    const auto& metadata = graph.get_metadata();
+    const auto& metadata = _graph->get_metadata();
     auto buildMemRefs = [](const std::vector<std::shared_ptr<ov::ITensor>>& tensors,
                            const std::vector<IODescriptor>& descriptors) {
         OPENVINO_ASSERT(tensors.size() == descriptors.size(),
@@ -491,7 +485,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     if ((result = npuVMRuntimeGetAPIVersion(&version)) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get VM runtime version, error code: ", result);
     }
-    logger.debug("VM runtime version: %u.%u", ZE_MAJOR_VERSION(version), ZE_MINOR_VERSION(version));
+    _logger.debug("VM runtime version: %u.%u", ZE_MAJOR_VERSION(version), ZE_MINOR_VERSION(version));
 
     if (version == NPU_VM_RUNTIME_VERSION_1_0) {
         npu_vm_runtime_predict_output_shape_params_t params{};
@@ -507,7 +501,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        params.executionContext = executionContext.ensure(vmRuntime);
+        params.executionContext = _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
@@ -524,7 +518,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             }
             outImpl->alignWithHandle(out);
         }
-        logger.debug("Output shape prediction is done successfully.");
+        _logger.debug("Output shape prediction is done successfully.");
     }
 
     // Build predicted output shapes (OV shapes) and detect whether prediction changed any
@@ -544,14 +538,14 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         }
     }
     if (outputShapeChanged) {
-        logger.debug("predict_output_shapes - output shape change detected");
+        _logger.debug("predict_output_shapes - output shape change detected");
     }
 
-    if (logger.level() >= ov::log::Level::DEBUG) {
+    if (_logger.level() >= ov::log::Level::DEBUG) {
         for (size_t i = 0; i < predictedShapes.size(); ++i) {
-            logger.debug("predict_output_shapes - output %zu predicted shape: %s",
-                         i,
-                         predictedShapes[i].to_string().c_str());
+            _logger.debug("predict_output_shapes - output %zu predicted shape: %s",
+                          i,
+                          predictedShapes[i].to_string().c_str());
         }
     }
     return predictedShapes;

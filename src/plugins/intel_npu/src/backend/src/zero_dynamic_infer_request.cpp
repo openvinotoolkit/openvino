@@ -21,14 +21,13 @@ ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitS
 void ZeroDynamicInferRequest::create_pipeline_impl() {
     _logger.debug("create_pipeline_impl - constructing pipeline");
     auto batchSize = _graph->get_batch_size();
-    // Construct pipeline
+    // Construct pipeline. The pipeline owns the VM execution context shared by shape prediction and execution.
     _pipeline =
         std::make_unique<DynamicPipeline>(_initStructs,
                                           _graph,
                                           _config,
                                           _levelZeroInputTensors,
                                           _levelZeroOutputTensors,
-                                          _executionContext,
                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("create_pipeline_impl - completed");
@@ -202,12 +201,15 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
 void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("infer_async - started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+    // Create (or reuse) the dynamic pipeline first. Shape prediction now runs through the pipeline instance and
+    // shares the pipeline-owned VM execution context with execution.
+    prepare_inputs();
+    prepare_outputs();
+
     // Store the predicted output shapes
     std::vector<ov::Shape> predictedShapes;
     predict_output_shapes(predictedShapes);
     check_tensor_and_predicted_shapes(predictedShapes);
-    prepare_inputs();
-    prepare_outputs();
     update_tensor(predictedShapes);
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
@@ -251,8 +253,11 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<ov::Shape>& pred
             }
         }
 
+        OPENVINO_ASSERT(_pipeline != nullptr, "Dynamic pipeline must be created before predicting output shapes");
+        // ZeroDynamicInferRequest always constructs a DynamicPipeline in create_pipeline_impl,
+        // so this downcast is safe.
         predictedShapes =
-            DynamicPipeline::predict_output_shapes(*_graph, *_executionContext, inputTensors, outputTensors);
+            static_cast<DynamicPipeline*>(_pipeline.get())->predict_output_shapes(inputTensors, outputTensors);
     }
 }
 
