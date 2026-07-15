@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
 import os
+from typing import Optional
 import sys
 import tempfile
 import psycopg2
@@ -68,7 +68,8 @@ def rerun_failed_jobs(repository_name: str, run_id: int, session: requests.Sessi
     LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
 
 def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: int,
-                      errors_file: Path, patterns_dir: Path, is_dry_run: bool, session: requests.Session):
+                      errors_file: Path, is_dry_run: bool, session: requests.Session,
+                      patterns_dir: Optional[Path] = None):
     with tempfile.TemporaryDirectory() as temp_dir:
         logs_dir = Path(temp_dir)
         collect_logs_for_run(
@@ -140,4 +141,5 @@ if __name__ == '__main__':
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
 
-    analyze_and_rerun(run, repository_name, run_id, rerunner_run_id, errors_file, patterns_dir, is_dry_run, session)
+    analyze_and_rerun(run, repository_name, run_id, rerunner_run_id, errors_file, is_dry_run, session,
+                      patterns_dir=patterns_dir)
