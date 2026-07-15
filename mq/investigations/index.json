@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 15,
+  "total": 16,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -79,7 +79,8 @@
       "category": "Flaky Test",
       "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
       "pr_number": "36488",
-      "signature_hash": "43e136cf67333978"
+      "signature_hash": "43e136cf67333978",
+      "investigation_id": "2026-07-13-10-41-15-000-29234771303"
     },
     {
       "investigation_id": "2026-07-13-13-40-20-000-29245921214",
@@ -146,6 +147,15 @@
       "category": "Flaky Test",
       "signature_hash": "c9863a2404e8c8cc",
       "pr_number": "36798"
+    },
+    {
+      "investigation_id": "2026-07-15-08-59-25-000-29395509871",
+      "run_id": "29395509871",
+      "timestamp": "2026-07-15T08:59:25Z",
+      "title": "PyTorch Models tests fail with ECONNREFUSED downloading openvino_tokenizers_wheel artifact",
+      "category": "Network",
+      "signature_hash": "c903843ea6da862b",
+      "pr_number": "36840"
     }
   ]
 }

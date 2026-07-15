@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-15-08-59-25-000-29395509871",
+  "timestamp": "2026-07-15T08:59:25Z",
+  "run_id": "29395509871",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29395509871",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36840",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36840",
+  "author": "PatrikStepan",
+  "category": "Network",
+  "title": "PyTorch Models tests fail with ECONNREFUSED downloading openvino_tokenizers_wheel artifact",
+  "signature": "artifact download failed unable to make request ECONNREFUSED|Network",
+  "signature_hash": "c903843ea6da862b",
+  "confidence": "High",
+  "failed_jobs": [
+    "PyTorch Models tests / PyTorch Models tests"
+  ],
+  "key_errors": [
+    "Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+  ],
+  "root_cause": "Self-hosted runner lost network connectivity to GitHub Actions artifact service while trying to download the 'openvino_tokenizers_wheel' artifact. ECONNREFUSED indicates the runner's TCP connection to GitHub's artifact API endpoint was refused. This is a transient infrastructure/network failure unrelated to code changes."
+}
