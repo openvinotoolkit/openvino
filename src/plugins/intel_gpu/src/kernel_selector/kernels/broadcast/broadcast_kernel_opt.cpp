@@ -71,10 +71,17 @@ OptChoices PickStaticChoices(const broadcast_params& p) {
     // Block-write path: handles aligned 128-element chunks plus a scalar tail.
     // Gate requires X >= 128 to make the block-write loop meaningful; smaller X
     // takes the vstore8 splat path which is fine for tiny rows.
-    // intel_sub_group_block_write requires a contiguous, offset-0 output row — reject if the
-    // output has padding or a buffer offset, else fall back to the vstore8 splat path.
+    //
+    // intel_sub_group_block_write requires a 4-byte-aligned base address; the HW
+    // silently rounds a misaligned base down, corrupting output. Two conditions:
+    //  - output must be contiguous & offset-0 (no padding/buffer offset), and
+    //  - every row base (row * out_x elements) must be 4-byte aligned. Since row can be
+    //    any value, this holds for all rows iff one row's byte-width is a multiple of 4:
+    //    (out_x * BytesPerElement) % 4 == 0. f32/i32/i64 always pass; f16 needs even X;
+    //    i8/u8 need X % 4 == 0. Otherwise fall back to the vstore8 splat path.
     const bool output_contiguous = !output.PitchesDifferFromLogicalDims() && output.GetFirstElementOffset() == 0;
-    c.x_broadcast_block_write = c.is_x_broadcast && (c.out_x >= 128) && output_contiguous;
+    const bool row_4byte_aligned = (c.out_x * BytesPerElement(output.GetDType())) % 4 == 0;
+    c.x_broadcast_block_write = c.is_x_broadcast && (c.out_x >= 128) && output_contiguous && row_4byte_aligned;
     return c;
 }
 
