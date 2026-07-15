@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "docker buildx builder boot fails no such image buildkit|Infrastructure",
+  "signature_hash": "966a1b79fea18174",
+  "title": "Docker buildx builder boot fails - buildkit image not found in Azure Container Registry",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-15T11:39:22Z",
+  "last_seen": "2026-07-15T11:39:22Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29410904372"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36892"],
+  "recent_timestamps": ["2026-07-15T11:39:22Z"]
+}

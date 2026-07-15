@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-15-11-39-22-000-29410904372",
+  "timestamp": "2026-07-15T11:39:22Z",
+  "run_id": "29410904372",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29410904372",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36892",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36892",
+  "author": "geunhwan",
+  "category": "Infrastructure",
+  "title": "Docker buildx builder boot fails - buildkit image not found in Azure Container Registry",
+  "signature": "docker buildx builder boot fails no such image buildkit|Infrastructure",
+  "signature_hash": "966a1b79fea18174",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker_arm64",
+      "conclusion": "failure",
+      "symptom": "Docker buildx bootstrap fails: No such image openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1"
+    }
+  ],
+  "key_errors": [
+    "#1 ERROR: Error response from daemon: No such image: openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1",
+    "##[error]ERROR: Error response from daemon: No such image: openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1"
+  ],
+  "root_cause": "The Docker buildx builder could not boot because the required buildkit image (openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1) was not found in the Azure Container Registry mirror. This is an infrastructure/registry issue unrelated to the PR code changes. The image pull appeared to start (0.2s done message) but then creating the container failed with 'No such image', suggesting a transient race condition or temporary registry unavailability.",
+  "reproduction_steps": "N/A - not reproducible outside CI as it requires access to the internal Azure Container Registry.",
+  "recommended_actions": [
+    "Re-run the failed Docker_arm64 job - this is a transient infrastructure failure",
+    "If the issue persists, check the health of openvinogithubactions.azurecr.io registry and the buildkit image availability",
+    "Consider adding retry logic to the docker buildx create/bootstrap step"
+  ],
+  "prevention_strategies": "Add retry logic to the Docker buildx builder bootstrap step. Consider using a public mirror as fallback for the buildkit image.",
+  "historical_context": "A similar Azure Container Registry issue was seen in run 29410904250 (2026-07-15) where OAuth token fetching was refused. Both failures are infrastructure-related registry connectivity issues."
+}
