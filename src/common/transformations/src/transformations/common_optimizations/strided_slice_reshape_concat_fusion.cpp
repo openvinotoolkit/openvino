@@ -73,20 +73,14 @@ bool parse_slice_window(const std::shared_ptr<ov::Node>& node, int64_t& start, i
         const auto& new_axis_mask = strided_slice->get_new_axis_mask();
         const auto& shrink_axis_mask = strided_slice->get_shrink_axis_mask();
         const auto& ellipsis_mask = strided_slice->get_ellipsis_mask();
-        for (const auto v : new_axis_mask) {
-            if (v != 0) {
-                return false;
-            }
-        }
-        for (const auto v : shrink_axis_mask) {
-            if (v != 0) {
-                return false;
-            }
-        }
-        for (const auto v : ellipsis_mask) {
-            if (v != 0) {
-                return false;
-            }
+
+        auto pred = [](int64_t a) {
+            return a != 0;
+        };
+        if (std::any_of(new_axis_mask.begin(), new_axis_mask.end(), pred) ||
+            std::any_of(shrink_axis_mask.begin(), shrink_axis_mask.end(), pred) ||
+            std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), pred)) {
+            return false;
         }
 
         if (strides[0] != 1 || strides[1] != 1) {
@@ -167,7 +161,7 @@ bool parse_slice_window(const std::shared_ptr<ov::Node>& node, int64_t& start, i
     return false;
 }
 
-bool is_reshape_for_concat_axis(const std::shared_ptr<op::v1::Reshape>& reshape, int64_t concat_axis) {
+bool is_reshape_to_unsqueeze_on_axis_1(const std::shared_ptr<op::v1::Reshape>& reshape) {
     const auto input_pshape = reshape->get_input_partial_shape(0);
     const auto output_pshape = reshape->get_output_partial_shape(0);
     if (input_pshape.rank().is_dynamic() || output_pshape.rank().is_dynamic()) {
@@ -178,12 +172,7 @@ bool is_reshape_for_concat_axis(const std::shared_ptr<op::v1::Reshape>& reshape,
         return false;
     }
 
-    if (!input_pshape[0].is_static() || !input_pshape[1].is_static() || !output_pshape[0].is_static() ||
-        !output_pshape[1].is_static() || !output_pshape[2].is_static()) {
-        return false;
-    }
-
-    if (concat_axis != 1) {
+    if (!input_pshape.is_static() || !output_pshape.is_static()) {
         return false;
     }
 
@@ -196,9 +185,9 @@ bool is_reshape_for_concat_axis(const std::shared_ptr<op::v1::Reshape>& reshape,
 StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
     MATCHER_SCOPE(StridedSliceReshapeConcatFusion);
 
-    auto concat_pattern = ov::pass::pattern::wrap_type<op::v0::Concat>();
+    auto concat_pattern = pattern::wrap_type<op::v0::Concat>(pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat = ov::as_type_ptr<op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
         if (!concat || concat->get_input_size() < 2) {
@@ -206,22 +195,16 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
         }
 
         const auto output_rank = concat->get_output_partial_shape(0).rank();
-        if (output_rank.is_dynamic()) {
-            return false;
-        }
-
         int64_t concat_axis = concat->get_axis();
         const auto rank = output_rank.get_length();
         if (!ov::util::is_axis_valid(concat_axis, rank)) {
             return false;
         }
         concat_axis = static_cast<int64_t>(ov::util::normalize_axis(concat_axis, rank));
-
         if (concat_axis != 1) {
             return false;
         }
 
-        std::shared_ptr<Node> common_data_node;
         Output<Node> common_data;
         int64_t window_size = -1;
         std::vector<int64_t> starts;
@@ -230,30 +213,26 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
         NodeVector matched_nodes{concat};
 
         for (size_t i = 0; i < concat->get_input_size(); ++i) {
-            const auto reshape = ov::as_type_ptr<op::v1::Reshape>(concat->get_input_node_shared_ptr(i));
+            auto reshape = ov::as_type_ptr<op::v1::Reshape>(concat->get_input_node_shared_ptr(i));
             if (!reshape || reshape->output(0).get_target_inputs().size() != 1 ||
-                !is_reshape_for_concat_axis(reshape, concat_axis)) {
+                !is_reshape_to_unsqueeze_on_axis_1(reshape)) {
                 return false;
             }
-            matched_nodes.push_back(reshape);
 
             int64_t start = 0;
             int64_t stop = 0;
             Output<Node> data;
-            const auto slice_like = reshape->input_value(0).get_node_shared_ptr();
+            auto slice_like = reshape->input_value(0).get_node_shared_ptr();
+            if (slice_like->output(0).get_target_inputs().size() != 1) {
+                return false;
+            }
             if (!parse_slice_window(slice_like, start, stop, data)) {
                 return false;
             }
 
-            if (slice_like->output(0).get_target_inputs().size() != 1) {
-                return false;
-            }
-            matched_nodes.push_back(slice_like);
-
-            if (!common_data_node) {
-                common_data_node = data.get_node_shared_ptr();
+            if (!common_data.get_node_shared_ptr()) {
                 common_data = data;
-            } else if (common_data_node != data.get_node_shared_ptr()) {
+            } else if (common_data != data) {
                 return false;
             }
 
@@ -264,6 +243,8 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
                 return false;
             }
 
+            matched_nodes.push_back(std::move(reshape));
+            matched_nodes.push_back(std::move(slice_like));
             starts.push_back(start);
         }
 
@@ -291,7 +272,7 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
