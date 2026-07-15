@@ -606,6 +606,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
 
+                    if (infer_precision != ov::element::f16) {
+                        return true;  // CM vlsdpa kernel only supports f16
+                    }
+
                     return false;
                 });
 
