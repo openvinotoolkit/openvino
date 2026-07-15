@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+#include <unordered_map>
+
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "convert_matmul_to_fc.hpp"
@@ -10,7 +13,9 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/subtract.hpp"
@@ -42,6 +47,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         ov::OutputVector{compressed_weights_input_m, general_weights_m});
     auto matmul_m =
         ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
+
+    auto shared_convert_cache =
+        std::make_shared<std::unordered_map<std::shared_ptr<ov::Node>, ov::Output<ov::Node>>>();
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -202,10 +210,22 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         // Connect Convert to new input if needed
         if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            auto new_convert = convert->clone_with_new_inputs({fc_input_b});
-            new_ops.push_back(new_convert);
-            new_convert->validate_and_infer_types();
-            fc_input_b = new_convert;
+            auto cached = shared_convert_cache->find(convert);
+            if (cached != shared_convert_cache->end()) {
+                fc_input_b = cached->second;
+            } else {
+                auto new_convert = convert->clone_with_new_inputs({fc_input_b});
+                if (ov::is_decompression(convert)) {
+                    ov::mark_as_decompression(new_convert);
+                }
+                if (ov::pass::constant_folding_is_disabled(convert)) {
+                    ov::disable_constant_folding(new_convert);
+                }
+                new_ops.push_back(new_convert);
+                new_convert->validate_and_infer_types();
+                fc_input_b = new_convert;
+                shared_convert_cache->emplace(convert, fc_input_b);
+            }
         }
 
         auto no_bias = std::make_shared<op::Placeholder>();
