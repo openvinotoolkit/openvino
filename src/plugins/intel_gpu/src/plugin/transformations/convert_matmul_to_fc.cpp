@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <map>
 #include <memory>
-#include <unordered_map>
+#include <utility>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
@@ -49,7 +50,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
 
     auto shared_convert_cache =
-        std::make_shared<std::unordered_map<std::shared_ptr<ov::Node>, ov::Output<ov::Node>>>();
+        std::make_shared<std::map<std::pair<std::shared_ptr<ov::Node>, bool>, ov::Output<ov::Node>>>();
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -296,7 +297,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         // Connect Convert to new input if needed
         if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            auto cached = shared_convert_cache->find(convert);
+            auto cache_key = std::make_pair(convert, is_small_matmul);
+            auto cached = shared_convert_cache->find(cache_key);
             if (cached != shared_convert_cache->end()) {
                 fc_input_b = cached->second;
             } else {
@@ -310,7 +312,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                 new_ops.push_back(new_convert);
                 new_convert->validate_and_infer_types();
                 fc_input_b = new_convert;
-                shared_convert_cache->emplace(convert, fc_input_b);
+                shared_convert_cache->emplace(cache_key, fc_input_b);
             }
         }
 
