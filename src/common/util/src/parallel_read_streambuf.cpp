@@ -268,8 +268,7 @@ bool ParallelReadStreamBuf::single_read(char* dst, size_t size, size_t file_offs
 // Parallel positional read
 bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_offset) {
     const size_t hw_threads = (std::max)(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
-    const size_t max_by_size = size / (1024 * 1024);  // 1 thread per MB
-    const size_t num_threads = (std::max)(size_t{1}, (std::min)(hw_threads, max_by_size));
+    const size_t num_threads = split_chunk_count(size, one_mib, hw_threads);  // 1 thread per MB, capped by HW
 
     if (num_threads == 1) {
         return single_read(dst, size, file_offset);

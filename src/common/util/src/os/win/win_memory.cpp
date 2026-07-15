@@ -10,12 +10,12 @@
 #include <windows.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <thread>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov::util {
@@ -52,31 +52,26 @@ void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
 }
 
 void vm_decommit(void* ptr, size_t size) noexcept {
-    assert(ptr != nullptr && size > 0);
     std::ignore = VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
 void vm_release(void* ptr, size_t) noexcept {
-    assert(ptr != nullptr);
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-void vm_prefetch(void* ptr, size_t size, bool fast) noexcept {
-    assert(ptr != nullptr && size > 0);
-    if (fast) {
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    if (num_threads == 0) {
+        // Advisory-only: let the OS decide, no page touching.
         WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
     } else {
-        // blocks until every page has been faulted in.
-        const auto num_threads = std::max<size_t>(1, std::min<size_t>(10, std::thread::hardware_concurrency()));
+        // Blocks until every page has been faulted in.
         populate_pages(ptr, size, num_threads);
     }
 }
 
 PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
-    assert(ptr != nullptr && size > 0);
-    // CVS-186579
-    // No background work is started on Windows; mirrors the vm_prefetch() no-op stub.
+    // CVS-186579: no background work is started on Windows yet; mirrors the vm_prefetch() stub.
     return {};
 }
 

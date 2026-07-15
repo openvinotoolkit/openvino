@@ -70,6 +70,7 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/memory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/memory_prefetch.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_stream.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
@@ -94,6 +95,7 @@ if (WIN32)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

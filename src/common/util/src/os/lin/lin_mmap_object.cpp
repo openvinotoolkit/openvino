@@ -16,10 +16,13 @@
 #include <thread>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov {
 namespace util {
@@ -38,55 +41,6 @@ int64_t get_system_page_size() {
 inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
     return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
-}
-
-/**
- * @brief Creates a memory region for madvise operations.
- *
- * @param data         The base address of the mapped memory region.
- * @param mapping_size The size of the mapped memory region.
- * @param offset       The offset within the mapped memory region.
- * @param size         The size of the region.
- * @return AlignedRegion The aligned memory region.
- */
-inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
-        return {};
-    } else {
-        const auto available = mapping_size - offset;
-        const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-        return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-    }
-}
-
-/**
- * @brief Plan computed by @ref make_prefetch_plan, shared between the sync and async
- * hint_prefetch() implementations.
- */
-struct PrefetchPlan {
-    uintptr_t m_address = 0;
-    size_t m_aligned_size = 0;
-};
-
-/**
- * @brief Computes the aligned region and page-aligned size to use for a
- * hint_prefetch()/hint_prefetch_async() call.
- *
- * @param data         The base address of the mapped memory region.
- * @param mapping_size The size of the mapped memory region.
- * @param offset       Offset within the mapping where prefetching starts.
- * @param size         Number of bytes to prefetch.
- * @return PrefetchPlan with m_aligned_size == 0 when the requested region is below the
- * 4 MiB threshold (a real population pass would not be worth it).
- */
-inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) {
-    constexpr size_t one_mb = 1024 * 1024;
-    // Below 4 MiB the overhead of populating pages exceeds the benefit; skip.
-    if (const auto region = make_madvise_region(data, mapping_size, offset, size); region.m_length > 4 * one_mb) {
-        return {region.m_address, align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()))};
-    }
-    return {};
 }
 }  // namespace util
 
@@ -135,16 +89,14 @@ class MapHolder final : public MappedMemory {
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
-    // Tasks handed off via PrefetchToken::detach(): must be waited on before unmapping, see
-    // wait_for_pending_prefetch() / ~MapHolder().
+    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
     std::vector<std::future<void>> m_pending_prefetch;
 
     void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
         std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
-        // Opportunistically reap already-finished futures (non-blocking check via wait_for(0))
-        // so the vector doesn't grow without bound if hint_prefetch_async().detach() is called
-        // repeatedly over the lifetime of this mapping.
+        // Reap already-finished futures so the vector doesn't grow without bound across repeated
+        // hint_prefetch_async() calls over this mapping's lifetime.
         m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
                                                 m_pending_prefetch.end(),
                                                 [](std::future<void>& task) {
@@ -214,8 +166,7 @@ public:
     }
 
     ~MapHolder() {
-        // Detached prefetch tasks (see hint_prefetch_async()) may still be touching this
-        // mapping's pages; they must complete before the mapping is torn down.
+        // Detached prefetch tasks may still be touching this mapping's pages; join them first.
         wait_for_pending_prefetch();
         if (m_mapped_view != MAP_FAILED) {
             munmap(m_mapped_view, m_mapped_view_size);
@@ -232,7 +183,7 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override {
         if (m_mapped_view != MAP_FAILED) {
-            if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
+            if (const auto region = util::clamp_align_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
         }
@@ -240,17 +191,18 @@ public:
 
     void hint_prefetch(size_t offset, size_t size) override {
         if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
-            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size, /*fast=*/false);
+            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address),
+                              plan.m_aligned_size,
+                              util::prefetch_thread_count(plan.m_aligned_size));
         }
     }
 
     void hint_prefetch_async(size_t offset, size_t size) override {
         if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
-            // Never hand the token back to the caller: adopt its tasks into m_pending_prefetch
-            // right here, in this same call, before returning. This guarantees ~MapHolder()
-            // will always join them before munmap, regardless of what the caller does
-            // afterwards (e.g. dropping its last reference to this object right away) — there
-            // is no window where the tasks' lifetime is decoupled from this object's lifetime.
+            // Adopt the token's tasks into m_pending_prefetch within this same call, before
+            // returning, so ~MapHolder() always joins them before munmap regardless of what the
+            // caller does next. The token is never handed back, so there is no window where the
+            // tasks' lifetime is decoupled from this object's.
             auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size);
             adopt_pending_prefetch(token.detach());
         }

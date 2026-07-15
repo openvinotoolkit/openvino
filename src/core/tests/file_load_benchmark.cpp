@@ -204,7 +204,7 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), /*fast=*/false);
+    mapped->hint_prefetch();
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
@@ -241,7 +241,7 @@ void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
 
 void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), /*fast=*/false);
+    mapped->hint_prefetch();
     constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;

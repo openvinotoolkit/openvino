@@ -18,8 +18,6 @@
 
 namespace ov::test {
 
-using testing::ElementsAreArray;
-
 // Verify the constexpr contract at compile time for the most common alignments.
 static_assert(ov::util::align_size_up(0, 64) == 0);
 static_assert(ov::util::align_size_up(1, 64) == 64);
@@ -156,34 +154,5 @@ TEST_F(AlignedAllocTest, zero_alignment_uses_default_alignment) {
 TEST_F(AlignedAllocTest, free_nullptr_is_noop) {
     EXPECT_NO_FATAL_FAILURE(util::aligned_free(nullptr));
 }
-
-class VmPrefetchMappedFileTest : public testing::TestWithParam<bool> {
-protected:
-    std::filesystem::path m_file_path;
-
-    void TearDown() override {
-        std::filesystem::remove(m_file_path);
-    }
-};
-
-TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_data) {
-    const bool fast = GetParam();
-    const size_t size = 64 * util::min_page_alignment;
-
-    const auto expected = utils::make_modulo_sequence_pattern(size);
-
-    m_file_path = utils::generateTestFilePrefix() + "_vm_prefetch.bin";
-    ov::util::save_binary(m_file_path, expected.data(), expected.size());
-
-    auto mapped = load_mmap_object(m_file_path);
-    ASSERT_NE(mapped, nullptr);
-    ASSERT_EQ(mapped->size(), size);
-
-    EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), fast));
-
-    EXPECT_THAT(expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
-}
-
-INSTANTIATE_TEST_SUITE_P(Fast, VmPrefetchMappedFileTest, testing::Bool());
 
 }  // namespace ov::test

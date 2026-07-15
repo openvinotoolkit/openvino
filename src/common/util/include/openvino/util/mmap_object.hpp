@@ -51,18 +51,9 @@ public:
     virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
 
     /**
-     * @brief Asynchronous variant of @ref hint_prefetch.
-     *
-     * Starts populating the given region of the mapping in background threads and returns
-     * immediately. Unlike the lower-level @ref util::vm_prefetch_async, no token is handed back
-     * to the caller: the implementation is fully responsible for tracking the background work
-     * internally and joining it before this object is destroyed (so the mapping is never torn
-     * down while a background task might still be touching it), regardless of what the caller
-     * does afterwards. This avoids requiring the caller to correctly manage a token's lifetime
-     * relative to this object's lifetime, which is an easy way to introduce a use-after-free.
-     *
-     * The default implementation is a no-op, so existing implementers of this interface keep
-     * compiling/behaving unchanged unless they override it.
+     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the given region in the
+     * background and returns immediately. Any background work is joined before this object is
+     * destroyed. The default implementation is a no-op.
      *
      * @param offset Offset within the mapping where prefetching starts.
      * @param size   Number of bytes to prefetch. Defaults to the rest of the

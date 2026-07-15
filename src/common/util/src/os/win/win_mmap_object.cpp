@@ -10,10 +10,13 @@
 #include <stdexcept>
 #include <vector>
 
+#include "memory_prefetch.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_io.hpp"
 
 // clang-format off
 #ifndef NOMINMAX
@@ -745,29 +748,11 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
     return remap_placeholder(proc, placeholder_base, placeholder_size);
 }
 
-namespace {
-
-// Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result.
-// Returns an empty region (m_length == 0) for a null/empty mapping, an offset at or past the end,
-// or a sub-page request.
-util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
-        return {};
-    }
-    const auto available = mapping_size - offset;
-    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-    return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-}
-
-}  // namespace
-
 void MapHolder::hint_prefetch(size_t offset, size_t size) {
-    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-    if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
-        const auto aligned_size =
-            util::align_size_up(region.m_length, static_cast<size_t>(util::get_system_page_size()));
-        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, /*fast=*/false);
+    if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
+        util::vm_prefetch(reinterpret_cast<void*>(plan.m_address),
+                          plan.m_aligned_size,
+                          util::prefetch_thread_count(plan.m_aligned_size));
     }
 }
 

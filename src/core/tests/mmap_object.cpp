@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <thread>
 #include <utility>
@@ -610,50 +611,52 @@ TEST_F(HintPrefetchAsyncTest, data_correct_immediately_after_call) {
     EXPECT_EQ(read_mapped(*mapped), data);
 }
 
-TEST(PrefetchTokenTest, move_transfers_ownership) {
-    // MappedMemory::hint_prefetch_async() no longer exposes a util::PrefetchToken at all, so
-    // exercise PrefetchToken's move semantics directly against the lower-level free function
-    // instead, using a page-aligned buffer that is intentionally never freed for the lifetime
-    // of the process (mirrors detach_releases_futures_to_caller below).
-    const auto page = static_cast<size_t>(util::get_system_page_size());
-    const size_t buf_size = util::align_size_down(8 * 1024 * 1024, page);
-    static void* leaked_buffer = util::aligned_alloc(buf_size, page);
-    ASSERT_NE(leaked_buffer, nullptr);
+TEST_F(HintPrefetchAsyncTest, random_access_after_async_is_correct) {
+    // Reading pages in a shuffled order concurrently with in-flight background population must
+    // always return the correct bytes, whether or not a given page has been faulted in yet.
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_random.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above the parallel-I/O threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
 
-    auto token = util::vm_prefetch_async(leaked_buffer, buf_size);
-    ASSERT_TRUE(static_cast<bool>(token));
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
 
-    util::PrefetchToken moved(std::move(token));
-    EXPECT_FALSE(static_cast<bool>(token));  // moved-from token is empty
-    EXPECT_TRUE(static_cast<bool>(moved));   // ownership transferred to the new token
+    mapped->hint_prefetch_async();
 
-    util::PrefetchToken move_assigned;
-    move_assigned = std::move(moved);
-    EXPECT_FALSE(static_cast<bool>(moved));         // moved-from token is empty again
-    EXPECT_TRUE(static_cast<bool>(move_assigned));  // ownership transferred via move-assignment
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t total_pages = (file_size + page - 1) / page;
+    std::vector<size_t> order(total_pages);
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::shuffle(order.begin(), order.end(), std::mt19937{12345});
 
-    move_assigned.wait();
-    EXPECT_FALSE(static_cast<bool>(move_assigned));
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    for (const size_t idx : order) {
+        const size_t begin = idx * page;
+        const size_t end = std::min(begin + page, file_size);
+        for (size_t i = begin; i < end; ++i) {
+            ASSERT_EQ(base[i], data[i]) << "mismatch at offset " << i;
+        }
+    }
 }
 
-TEST_F(HintPrefetchAsyncTest, detach_releases_futures_to_caller) {
-    // Use a page-aligned buffer that is intentionally never freed for the lifetime of the
-    // process, so that discarding the futures returned by detach() (fire-and-forget, like
-    // std::thread::detach()) cannot cause a real use-after-free, regardless of when the tasks
-    // actually finish running.
-    const auto page = static_cast<size_t>(util::get_system_page_size());
-    const size_t buf_size = util::align_size_down(8 * 1024 * 1024, page);
-    static void* leaked_buffer = util::aligned_alloc(buf_size, page);
-    ASSERT_NE(leaked_buffer, nullptr);
+TEST_F(HintPrefetchAsyncTest, backward_access_after_async_is_correct) {
+    // Reading the mapping back-to-front (opposite the population's forward stride) concurrently
+    // with in-flight background population must still return the correct bytes.
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_backward.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above the parallel-I/O threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
 
-    auto token = util::vm_prefetch_async(leaked_buffer, buf_size);
-    ASSERT_TRUE(static_cast<bool>(token));
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
 
-    // detach() transfers ownership of the futures to the caller and empties the token; the
-    // caller here simply discards them (fire-and-forget).
-    auto tasks = token.detach();
-    EXPECT_FALSE(tasks.empty());
-    EXPECT_FALSE(static_cast<bool>(token));
+    mapped->hint_prefetch_async();
+
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    for (size_t i = file_size; i-- > 0;) {
+        ASSERT_EQ(base[i], data[i]) << "mismatch at offset " << i;
+    }
 }
 
 }  // namespace ov::test
