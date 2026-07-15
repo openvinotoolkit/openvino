@@ -10,9 +10,10 @@
 // broadcast via modulo. Per-row address computation (in_row_base, out_row_base)
 // replaces ref kernel's per-element get_idx_pos().
 //
-// Without fused ops, OpenVINO guarantees input dtype == output dtype (else a Convert
-// is inserted by the plugin). The kernel therefore reads and writes the same scalar
-// type, no per-element cast — only data size matters. Works for any 1/2/4/8-byte type.
+// This kernel does a pure value-broadcast with no per-element type cast, so it reads
+// and writes the same scalar type — only data size matters (any 1/2/4/8-byte type).
+// Broadcast-with-convert (input dtype != output dtype) is a distinct case handled by
+// the ref kernel via TO_OUTPUT_TYPE; the opt kernel declines it (see Validate()).
 
 #if X_BROADCAST_BLOCK_WRITE
 __attribute__((reqd_work_group_size(16, 1, 1)))
@@ -75,7 +76,7 @@ KERNEL(broadcast_gpu_opt)(
     const uint in_row_base = INPUT0_GET_INDEX(in_b, in_f, in_y, 0);
 #endif
 
-    // Linear copy of X dimension with batch replication
+    // Process this row's X dimension; the specific path is selected by the JIT flags below.
     const uint total_wis = get_global_size(0);
     const uint vec_size = OPT_VEC_SIZE;
 
@@ -83,10 +84,12 @@ KERNEL(broadcast_gpu_opt)(
     // X-broadcast: read one scalar, fill consecutive output positions per work-item.
     const OUTPUT_TYPE scalar_val = input[in_row_base];
 #if X_BROADCAST_BLOCK_WRITE
-    // Subgroup block-write path: 16 lanes collectively emit 128 elements per call
-    // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X >= 128.
-    // For X % 128 != 0, a scalar tail handles the remainder. For static X % 128 == 0
-    // the tail compiles away. For dynamic this is a uniform branch (no divergence).
+    // Subgroup block-write path: the sub-group is pinned to width 16 via
+    // intel_reqd_sub_group_size(16) above, so block_write8 (8 elems/lane) emits
+    // 128 elements per collective call. Requires OUTPUT_SIZE_X >= 128.
+    // For X % 128 != 0, a scalar tail handles the remainder (its stride uses the
+    // actual sub-group size). For static X % 128 == 0 the tail compiles away. For
+    // dynamic this is a uniform branch (no divergence).
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out_vec8 = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8))(scalar_val);
     const uint x_aligned_end = (OUTPUT_SIZE_X / 128) * 128;
     for (uint x_start = 0; x_start < x_aligned_end; x_start += 128) {

@@ -17,8 +17,9 @@ static constexpr size_t kWIsPerRow = 32;
 
 ParamsKey BroadcastKernelOpt::GetSupportedKey() const {
     ParamsKey k;
-    // Without fused ops, OpenVINO guarantees input dtype == output dtype (else a Convert
-    // is inserted by the plugin). The kernel only needs the data size, so accept any type.
+    // The kernel only needs the data size (no per-element cast), so accept any type.
+    // Note: EnableDifferentTypes() is deliberately NOT set, so the params-key rejects
+    // input dtype != output dtype — that broadcast-with-convert case stays on the ref kernel.
     k.EnableAllInputDataType();
     k.EnableAllOutputDataType();
 
@@ -112,8 +113,10 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     if (!p.fused_ops.empty())
         return false;
 
-    // Without fused ops the kernel does pure value-broadcast (no type cast).
-    // Different dtypes would require a Convert that the plugin would have already inserted.
+    // This kernel does pure value-broadcast with no type cast. Broadcast-with-convert
+    // (input dtype != output dtype) is handled by the ref kernel via TO_OUTPUT_TYPE.
+    // The params-key already routes mismatches to ref (this kernel does not enable
+    // different_types); this guard makes that invariant explicit.
     if (input.GetDType() != output.GetDType())
         return false;
 
