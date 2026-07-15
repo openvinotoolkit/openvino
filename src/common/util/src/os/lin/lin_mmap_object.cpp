@@ -199,10 +199,6 @@ public:
 
     void hint_prefetch_async(size_t offset, size_t size) override {
         if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
-            // Adopt the token's tasks into m_pending_prefetch within this same call, before
-            // returning, so ~MapHolder() always joins them before munmap regardless of what the
-            // caller does next. The token is never handed back, so there is no window where the
-            // tasks' lifetime is decoupled from this object's.
             auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size);
             adopt_pending_prefetch(token.detach());
         }

@@ -9,30 +9,12 @@
 #include <thread>
 #include <vector>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept;
-
-namespace {
-
-// Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
-// accumulator keeps the compiler from eliminating the read loop.
-struct PageToucher {
-    const uint8_t* m_begin;
-    const uint8_t* m_end;
-    const size_t m_page_size;
-
-    void operator()() const noexcept {
-        volatile uint8_t local = 0;
-        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
-            local += *begin;
-        }
-    }
-};
-
-}  // namespace
 
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     const auto page_size = static_cast<size_t>(get_system_page_size());

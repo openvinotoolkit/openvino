@@ -71,7 +71,6 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
 }
 
 PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
-    // CVS-186579: no background work is started on Windows yet; mirrors the vm_prefetch() stub.
     return {};
 }
 

@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <functional>
 #include <future>
 #include <list>
@@ -20,7 +19,7 @@
 #include <vector>
 
 #include "memory_prefetch.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_io.hpp"
@@ -34,22 +33,6 @@ void madvise_hint(void* ptr, size_t size) noexcept {
     madvise(ptr, size, MADV_WILLNEED);
 }
 
-// Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
-// accumulator keeps the compiler from eliminating the read loop.
-struct PageToucher {
-    const uint8_t* m_begin;
-    const uint8_t* m_end;
-    const size_t m_page_size;
-
-    void operator()() const noexcept {
-        volatile uint8_t local = 0;
-        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
-            local += *begin;
-        }
-    }
-};
-
-// Thread-safe queue of population jobs. Owns only the queueing/notification concern.
 class TaskQueue {
 public:
     void push(std::list<std::function<void()>>&& batch) noexcept {
@@ -89,8 +72,6 @@ private:
     bool m_stop = false;
 };
 
-// Process-wide, bounded pool of worker threads that drain a shared TaskQueue. Keeping the worker
-// count bounded means repeated prefetch calls reuse the same threads instead of spawning new ones.
 class ThreadPool {
 public:
     static ThreadPool& instance() {
@@ -101,9 +82,6 @@ public:
     ThreadPool(const ThreadPool&) = delete;
     ThreadPool& operator=(const ThreadPool&) = delete;
 
-    // Enqueueing is all-or-nothing: every throwing operation (task/future creation) happens on
-    // local state first, and the finished batch is spliced into the queue with a non-throwing
-    // splice. If preparation throws, nothing is enqueued and no job runs.
     std::vector<std::future<void>> submit(std::vector<std::function<void()>>&& jobs) {
         std::vector<std::future<void>> futures;
         futures.reserve(jobs.size());
@@ -151,19 +129,23 @@ private:
     std::vector<std::thread> m_workers;
 };
 
-// Splits [ptr, ptr + size) into num_threads page-toucher jobs and submits them to the shared pool.
-std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) {
-    const auto page_size = static_cast<size_t>(get_system_page_size());
-    const auto chunk_size =
-        std::max<size_t>(align_size_up(size / num_threads, page_size), default_parallel_io_min_chunk);
+std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept {
+    try {
+        const auto page_size = static_cast<size_t>(get_system_page_size());
+        const auto chunk_size =
+            std::max<size_t>(align_size_up(size / num_threads, page_size), default_parallel_io_min_chunk);
 
-    std::vector<std::function<void()>> jobs;
-    jobs.reserve(ceil_div(size, chunk_size));
+        std::vector<std::function<void()>> jobs;
+        jobs.reserve(ceil_div(size, chunk_size));
 
-    for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
-        jobs.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
+        for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last;
+             first += chunk_size) {
+            jobs.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
+        }
+        return ThreadPool::instance().submit(std::move(jobs));
+    } catch (...) {
+        return {};
     }
-    return ThreadPool::instance().submit(std::move(jobs));
 }
 }  // namespace
 
@@ -215,29 +197,14 @@ void vm_release(void* ptr, size_t size) noexcept {
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     if (num_threads == 0) {
-        // Advisory-only: let the OS decide, no page touching.
         madvise_hint(ptr, size);
         return;
     }
-    // Parallel synchronous touch, blocking until every page is resident. Must not run on a pool
-    // worker thread (it would deadlock waiting on the pool). Prefetching is best-effort, so on
-    // allocation failure fall back to an advisory hint rather than escaping this noexcept function.
-    try {
-        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
-    } catch (...) {
-        madvise_hint(ptr, size);
-    }
+    PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
 }
 
 PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
-    // Ownership of the futures is transferred to the token; it waits on them on destruction or via
-    // an explicit wait(). If submission fails, fall back to an advisory hint and return an empty token.
-    try {
-        return PrefetchToken(submit_page_toucher_tasks(ptr, size, prefetch_thread_count(size)));
-    } catch (...) {
-        madvise_hint(ptr, size);
-        return PrefetchToken{};
-    }
+    return PrefetchToken(submit_page_toucher_tasks(ptr, size, prefetch_thread_count(size)));
 }
 
 }  // namespace ov::util

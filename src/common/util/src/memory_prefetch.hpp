@@ -17,6 +17,21 @@
 
 namespace ov::util {
 
+// Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
+// accumulator keeps the compiler from eliminating the read loop.
+struct PageToucher {
+    const uint8_t* m_begin;
+    const uint8_t* m_end;
+    const size_t m_page_size;
+
+    void operator()() const noexcept {
+        volatile uint8_t local = 0;
+        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
+            local += *begin;
+        }
+    }
+};
+
 class PrefetchToken;
 
 /**
