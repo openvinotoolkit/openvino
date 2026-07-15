@@ -71,9 +71,9 @@ void color_convert_to_nv12(const T* rgb_ptr,
                         size_t rgb_idx = pixel_idx * 3;
                         T y, u, v;
                         std::tie(y, u, v) = func::rgb_pixel_to_yuv<T>(
-                            static_cast<double>(rgb[rgb_idx + r_offset]),
-                            static_cast<double>(rgb[rgb_idx + 1]),
-                            static_cast<double>(rgb[rgb_idx + b_offset]));
+                            rgb[rgb_idx + r_offset],
+                            rgb[rgb_idx + 1],
+                            rgb[rgb_idx + b_offset]);
                         y_ptr[pixel_idx] = y;
                         u_sum += static_cast<double>(u);
                         v_sum += static_cast<double>(v);
