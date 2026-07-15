@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "failed to fetch oauth token docker registry connection refused|External Service",
+  "signature_hash": "2831f4ffa148d7b6",
+  "title": "Docker build fails - Azure Container Registry OAuth token fetch refused",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-07-15T11:23:05Z",
+  "last_seen": "2026-07-15T11:23:05Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29410904250"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36892"],
+  "recent_timestamps": ["2026-07-15T11:23:05Z"]
+}

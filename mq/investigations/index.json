@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 16,
+  "total": 17,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -156,6 +156,17 @@
       "category": "Network",
       "signature_hash": "c903843ea6da862b",
       "pr_number": "36840"
+    },
+    {
+      "investigation_id": "2026-07-15-11-23-05-000-29410904250",
+      "run_id": "29410904250",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29410904250",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-15T11:23:05Z",
+      "title": "Docker build fails - Azure Container Registry OAuth token fetch refused",
+      "category": "External Service",
+      "signature_hash": "2831f4ffa148d7b6",
+      "pr_number": "36892"
     }
   ]
 }
