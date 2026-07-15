@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-15-22-23-23-000-29450212856",
+  "timestamp": "2026-07-15T22:23:23Z",
+  "run_id": "29450212856",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29450212856",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36887",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36887",
+  "author": "intelgaoxiong",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "after all hook fails: rm -rf demo-electron-app-project - Permission denied on electron.exe and d3dcompiler_47.dll"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied",
+    "1 failing\n  1) E2E testing for OpenVINO as an Electron dependency.\n       \"after all\" hook for \"should run electron package and verify output\":\n     Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The E2E Electron test suite runs on a Windows runner and uses 'rm -rf' in an 'after all' cleanup hook to remove the demo-electron-app-project directory. On Windows, Electron locks its binary files (electron.exe, d3dcompiler_47.dll) in the node_modules directory after the Electron process completes. The rm command cannot remove these locked files, causing the cleanup hook to fail with Permission denied. The actual functional tests (2 tests) all passed successfully. This is a known Windows file-locking behavior with Electron binaries.",
+  "reproduction_steps": "Run JS E2E tests on Windows with Electron: cd src/bindings/js/node && npm test (the cleanup hook may fail intermittently due to Windows file locking)",
+  "recommended_actions": [
+    "Replace 'rm -rf' in the Electron E2E test cleanup hook with a Windows-safe removal using Node.js fs.rmSync with { force: true, recursive: true } which handles locked files better",
+    "Add retry logic or a delay before cleanup to allow Electron process to fully exit and release file locks",
+    "Alternatively, use rimraf npm package which handles Windows file locking better than native rm",
+    "Consider using PowerShell Remove-Item with -Force -Recurse -ErrorAction SilentlyContinue for the cleanup step on Windows"
+  ],
+  "prevention_strategies": "Use cross-platform file removal utilities (rimraf, fs.rmSync) instead of Unix 'rm -rf' for cleanup in JS tests running on Windows. Add process termination waits before cleanup.",
+  "historical_context": "First recorded occurrence of this specific pattern."
+}
