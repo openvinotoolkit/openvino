@@ -17,6 +17,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLV
     ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-ignored-qualifiers)
+        ov_add_compiler_flags(-Wno-deprecated-declarations)
+        ov_add_compiler_flags(-Wno-attributes)
+        ov_add_compiler_flags(-Wno-sign-conversion)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
