@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-15-12-22-41-000-29410904372b",
+  "timestamp": "2026-07-15T12:22:41Z",
+  "run_id": "29410904372",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29410904372",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36892",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36892",
+  "author": "geunhwan",
+  "category": "Code Issue",
+  "title": "smoke_ConvertCPULayerTest primType is unexpected : unknown_f32 Expected : ref_f32",
+  "signature": "primType is unexpected unknown Expected ref|Code Issue",
+  "signature_hash": "f7a6dd5a16071269",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest_4D_Dynamic ACL variant fails: primType is unexpected : unknown_f32 Expected : ref_f32"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=f32_specialValue=none_targetPRC=i8__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\n  Expected: true\nprimType is unexpected : unknown_f32 Expected : ref_f32"
+  ],
+  "root_cause": "The CPU functional test smoke_ConvertCPULayerTest_4D_Dynamic with ACL primitive expects the primitive type to be ref_f32, but the actual primitive type reported is unknown_f32. This indicates that a Convert node (f32->i8) dispatched via the ACL backend is being handled by an unexpected implementation. PR #36892 reverts GPU RMS normalization changes, which should be unrelated to CPU Convert layer behavior. This test failure may be a pre-existing flaky test or a regression introduced by a different concurrent merge-queue entry, not by this revert.",
+  "reproduction_steps": "Run: ov_cpu_func_tests --gtest_filter=*smoke_ConvertCPULayerTest_4D_Dynamic*primitive=acl* on ARM64 cross-compiled build",
+  "recommended_actions": [
+    "Check whether this test was already failing on master before this PR",
+    "Run the failing test in isolation to confirm reproducibility",
+    "If it is not caused by this revert PR, re-run the failed job",
+    "If consistently failing, investigate ACL backend dispatch for Convert f32->i8 with nchw format on ARM64"
+  ],
+  "prevention_strategies": "Add this ACL Convert test to the expected_failures list if confirmed flaky. Add a CI check that verifies ARM64 ACL primitive dispatch for Convert layers after any CPU plugin or ACL integration changes.",
+  "historical_context": "No prior occurrences of this specific primType unknown_f32 pattern found in the investigation database."
+}
