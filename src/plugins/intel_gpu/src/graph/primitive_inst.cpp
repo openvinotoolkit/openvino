@@ -135,7 +135,11 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
+        // registered as CPU but do not actually access their inputs from the host
+        // (e.g. assign, which only enqueues USM memcpy).
+        // Those impls opt out of forcing their producer into lockable memory.
+        return impl->requires_lockable_input() && !user->is_type<shape_of>();
     return false;
 }
 
