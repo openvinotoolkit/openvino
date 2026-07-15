@@ -41,6 +41,9 @@ public:
     }
 
     ~AsyncInferQueue() {
+        // Release the GIL while clearing requests (which may trigger C++ destructor chains
+        // including executor thread joins that may need to acquire the GIL in callbacks).
+        py::gil_scoped_release release;
         m_requests.clear();
     }
 

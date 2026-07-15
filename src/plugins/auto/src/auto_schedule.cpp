@@ -526,6 +526,19 @@ AutoSchedule::~AutoSchedule() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
+    // Explicitly release compile context compiled models here, before the base-class
+    // Schedule::~Schedule() runs and before the implicit member destruction.
+    // This makes any blocking teardown (e.g. CPU-plugin thread-pool join) visible in logs
+    // and prevents it from happening silently after Schedule::~Schedule() completes.
+    LOG_INFO_TAG("AutoSchedule dtor: resetting compile context models");
+    for (int i = 0; i < CONTEXTNUM; ++i) {
+        if (m_compile_context[i].m_compiled_model) {
+            LOG_INFO_TAG("AutoSchedule dtor: resetting compile context[%d] compiled model", i);
+            m_compile_context[i].m_compiled_model = {};
+            LOG_INFO_TAG("AutoSchedule dtor: compile context[%d] compiled model reset", i);
+        }
+    }
+    LOG_INFO_TAG("AutoSchedule dtor: all compile context models reset");
 }
 }  // namespace auto_plugin
 }  // namespace ov
