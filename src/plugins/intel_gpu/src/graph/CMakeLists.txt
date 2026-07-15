@@ -40,6 +40,11 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/impls>
 )
 
+if(ENABLE_TENSOR_PARALLEL)
+    list(APPEND COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/../tensor_parallel/include>)
+    add_definitions(-DENABLE_TENSOR_PARALLEL)
+endif()
+
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino_intel_gpu_kernels${OV_GPU_SUFFIX} # for cl_kernel_data_serializer
                           openvino_intel_gpu_runtime${OV_GPU_SUFFIX}
@@ -49,7 +54,7 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(OV_GPU_RT STREQUAL "ZE")
+if(OV_GPU_RT STREQUAL "ZE" OR ENABLE_TENSOR_PARALLEL)
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()

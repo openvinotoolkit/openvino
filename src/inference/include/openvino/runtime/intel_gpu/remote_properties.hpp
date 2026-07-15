@@ -87,6 +87,33 @@ static constexpr Property<gpu_handle_param> ocl_context{"OCL_CONTEXT"};
 static constexpr Property<int> ocl_context_device_id{"OCL_CONTEXT_DEVICE_ID"};
 
 /**
+ * @brief This key identifies a Level Zero context handle
+ * (`ze_context_handle_t`) in a shared context parameter map.
+ * The context may span multiple devices (created via `zeContextCreateEx`)
+ * to support cross-device USM and command-list submission, e.g. for
+ * tensor-parallel AllReduce.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<gpu_handle_param> ze_context{"ZE_CONTEXT"};
+
+/**
+ * @brief This key identifies a Level Zero device handle
+ * (`ze_device_handle_t`) in a shared context parameter map.
+ * Used in conjunction with `ze_context` to select the specific device
+ * (out of those covered by the shared context) that the resulting
+ * remote context will operate on.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<gpu_handle_param> ze_device_handle{"ZE_DEVICE"};
+
+/**
+ * @brief This key identifies a Level Zero driver handle
+ * (`ze_driver_handle_t`) corresponding to `ze_context`/`ze_device_handle`.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<gpu_handle_param> ze_driver_handle{"ZE_DRIVER"};
+
+/**
  * @brief In case of multi-tile system,
  * this key identifies tile within given context
  * @ingroup ov_runtime_ocl_gpu_cpp_api

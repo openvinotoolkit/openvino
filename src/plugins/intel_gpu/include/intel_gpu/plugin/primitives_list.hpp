@@ -334,3 +334,8 @@ REGISTER_FACTORY(internal, Atan2);
 #ifdef ENABLE_MLIR_FOR_GPU
 REGISTER_FACTORY(internal, MLIR);
 #endif
+
+// ------------------------- Tensor Parallel ops ----------------------------- //
+#ifdef ENABLE_TENSOR_PARALLEL
+REGISTER_FACTORY(tp, TPAllReduce);
+#endif

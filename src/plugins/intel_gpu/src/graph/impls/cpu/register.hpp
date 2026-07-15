@@ -23,6 +23,9 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
+#ifdef ENABLE_TENSOR_PARALLEL
+#include "intel_gpu/primitives/tp_allreduce.hpp"
+#endif
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 
 namespace cldnn {
@@ -57,6 +60,9 @@ REGISTER_CPU(broadcast);
 REGISTER_CPU(tile);
 REGISTER_CPU(select);
 REGISTER_CPU(reduce);
+#ifdef ENABLE_TENSOR_PARALLEL
+REGISTER_CPU(tp_allreduce);
+#endif
 REGISTER_CPU(fake_convert);
 REGISTER_CPU(moe_mask_gen);
 REGISTER_CPU(moe_mask_gen_reshape);

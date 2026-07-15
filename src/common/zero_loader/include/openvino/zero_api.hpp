@@ -30,6 +30,7 @@ namespace ov {
     symbol_statement(zeCommandQueueCreate)                    \
     symbol_statement(zeCommandQueueDestroy)                   \
     symbol_statement(zeCommandQueueExecuteCommandLists)       \
+    symbol_statement(zeCommandQueueSynchronize)               \
     symbol_statement(zeContextCreate)                         \
     symbol_statement(zeContextDestroy)                        \
     symbol_statement(zeDeviceGet)                             \
@@ -98,6 +99,7 @@ namespace ov {
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
+    symbol_statement(zeContextCreateEx)                       \
     symbol_statement(zeInitDrivers)                           \
     symbol_statement(zelGetLoaderVersion)                     \
     symbol_statement(zelSetDriverTeardown)                    \
@@ -109,10 +111,10 @@ namespace ov {
 /**
  * @class ZeroApi
  * @brief Singleton for dynamically loading and accessing Level Zero API symbols.
- * 
+ *
  * Dynamicaly loads ze_loader during construction and resolves required and optional symbols.
  * Provides wrappers for resolved symbols and throws when missing symbol is called.
- * 
+ *
  * @note User must store shared pointer returned by get_instance() to prevent unloading.
  */
 class ZeroApi {
