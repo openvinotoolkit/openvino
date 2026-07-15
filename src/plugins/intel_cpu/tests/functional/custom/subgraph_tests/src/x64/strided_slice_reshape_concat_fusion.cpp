@@ -14,27 +14,14 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-using StridedSliceReshapeConcatFusionParams = std::tuple<InputShape>;
-
 class StridedSliceReshapeConcatFusionCPUTest
-    : public testing::WithParamInterface<StridedSliceReshapeConcatFusionParams>,
-      virtual public SubgraphBaseTest,
+    : virtual public SubgraphBaseTest,
       public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceReshapeConcatFusionParams>& obj) {
-        const auto& [inputShape] = obj.param;
-        std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_TS=";
-        for (const auto& shape : inputShape.second) {
-            result << ov::test::utils::vec2str(shape);
-        }
-        return result.str();
-    }
-
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        const auto& [inputShape] = GetParam();
+        const InputShape inputShape = {{1, 16}, {{1, 16}}};
         init_input_shapes({inputShape});
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
@@ -64,24 +51,11 @@ public:
     }
 };
 
-TEST_P(StridedSliceReshapeConcatFusionCPUTest, CompareWithRefs) {
+TEST_F(StridedSliceReshapeConcatFusionCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_results();
 }
-
-namespace {
-
-const std::vector<InputShape> input_shapes = {
-    {{1, 16}, {{1, 16}}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_StridedSliceReshapeConcatFusion,
-                         StridedSliceReshapeConcatFusionCPUTest,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes)),
-                         StridedSliceReshapeConcatFusionCPUTest::getTestCaseName);
-
-}  // namespace
 
 }  // namespace test
 }  // namespace ov
