@@ -100,8 +100,10 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane) {
 
 TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic) {
     auto param_shape = ov::PartialShape::dynamic();
-    auto out_y_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1};
-    auto out_uv_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2};
+    auto out_y_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1};
+    auto out_uv_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
     auto op = this->make_op(param, false);
     EXPECT_EQ(op->get_output_size(), 2);

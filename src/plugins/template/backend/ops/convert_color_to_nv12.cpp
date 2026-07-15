@@ -28,12 +28,12 @@ bool evaluate_nv12(const ov::op::util::ConvertColorToNV12Base* op,
     const bool single_plane = op->get_output_size() == 1;
 
     ov::reference::color_convert_to_nv12<T, IsRGB>(rgb_tensor.data<T>(),
-                                                    outputs[0].data<T>(),
-                                                    single_plane ? nullptr : outputs[1].data<T>(),
-                                                    batch_size,
-                                                    image_h,
-                                                    image_w,
-                                                    single_plane);
+                                                   outputs[0].data<T>(),
+                                                   single_plane ? nullptr : outputs[1].data<T>(),
+                                                   batch_size,
+                                                   image_h,
+                                                   image_w,
+                                                   single_plane);
     return true;
 }
 }  // namespace

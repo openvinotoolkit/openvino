@@ -395,4 +395,4 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, RoundTrip_green_f32_NV12toBGRtoNV12
     refOutData = {exp_tensor.data};
     Exec();
 }
-} // namespace
+}  // namespace ov::tests

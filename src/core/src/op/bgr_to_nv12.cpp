@@ -25,7 +25,7 @@ namespace {
 bool is_type_supported(const ov::element::Type& type) {
     return type.is_dynamic() || type.is_real() || type == ov::element::u8;
 }
-}
+}  // namespace
 
 void ov::op::v17::BGRtoNV12::validate_and_infer_types() {
     OV_OP_SCOPE(v17_BGRtoNV12_validate_and_infer_types);
