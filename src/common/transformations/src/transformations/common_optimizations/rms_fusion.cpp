@@ -28,7 +28,7 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_without_gamma) {
+RMSFusion::RMSFusion(bool force_tail_convert, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
@@ -87,15 +87,9 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = pattern::wrap_type<v1::Multiply>({x, div_or_pow});
 
-    std::shared_ptr<pattern::op::Or> mul_or_div;
-    // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
-    if (enable_div_x) {
-        // x / Sqrt(ReduceMean(x^2,axes)+eps)
-        auto div_x = pattern::wrap_type<v1::Divide>({x, sqrt});
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
-    } else {
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
-    }
+    // x / Sqrt(ReduceMean(x^2,axes)+eps)
+    auto div_x = pattern::wrap_type<v1::Divide>({x, sqrt});
+    auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
 
     // Pattern 1: RMS with gamma (learnable parameter)
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant)

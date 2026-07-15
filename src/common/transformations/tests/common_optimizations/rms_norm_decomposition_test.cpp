@@ -273,7 +273,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest8) {
         auto comp = std::make_shared<ov::op::v0::Convert>(mul, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>(true, true);
+        manager.register_pass<RMSFusion>(true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
@@ -307,7 +307,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest9) {
         auto mul = std::make_shared<ov::op::v1::Multiply>(gamma, div);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>(false, true);
+        manager.register_pass<RMSFusion>(false);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
@@ -342,7 +342,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest10) {
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul1, scale);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul2}, ov::ParameterVector{input, scale});
-        manager.register_pass<RMSFusion>(false, false, true);
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
@@ -374,7 +374,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest11) {
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul1, scale);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul2}, ov::ParameterVector{input, scale});
-        manager.register_pass<RMSFusion>(false, false, true);
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
@@ -517,7 +517,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest15_PowerNegHalf_NoGammaScale) {
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul1, scale);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul2}, ov::ParameterVector{input, scale});
-        manager.register_pass<RMSFusion>(false, false, true);
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
@@ -655,7 +655,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest19_MulSquare_NoGamma_DynamicScale)
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul1, scale);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul2}, ov::ParameterVector{input, scale});
-        manager.register_pass<RMSFusion>(false, false, true);
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 2048});
@@ -683,7 +683,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest20_PowerNegHalf_NoGamma) {
         auto mul = std::make_shared<ov::op::v1::Multiply>(input, rsqrt);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>(false, true, true);
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 256});
