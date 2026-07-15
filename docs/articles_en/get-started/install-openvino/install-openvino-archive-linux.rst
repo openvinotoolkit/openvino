@@ -22,7 +22,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
       ===================  =====  =====  =====
        Operating System     CPU    GPU    NPU
       ===================  =====  =====  =====
-       Debian9 armhf         V     n/a    n/a
        Ubuntu20 arm64        V     n/a    n/a
        CentOS7 x86_64        V      V     n/a
        Ubuntu20 x86_64       V      V      V

@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
