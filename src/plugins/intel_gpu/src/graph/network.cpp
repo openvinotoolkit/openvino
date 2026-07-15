@@ -8,6 +8,11 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <chrono>
+#include <iomanip>
+#include <string>
+#include <vector>
+#include <stack>
 #include <memory>
 #include <set>
 #include <stack>
@@ -987,6 +992,20 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
 
+    // DIAG: GPU_PROF_ITER=1 also turns on per-primitive aggregate timers
+    // inside the exec loop.  Without this, the slowdown could be in any of
+    // ~6000 primitive dispatch calls; aggregating prepare/execute/flush
+    // separately localizes the regression to the primitive-prep phase or
+    // the actual kernel-submit phase.
+    static const bool prof_inner = std::getenv("GPU_PROF_ITER") != nullptr;
+    using clk3 = std::chrono::high_resolution_clock;
+    int64_t prep_us = 0, exec_us = 0, flush_us = 0;
+    auto t_loop_begin = prof_inner ? clk3::now() : clk3::time_point{};
+    // Per-primitive (execute_us, id) so we can identify the slowest ones.
+    std::vector<std::pair<int64_t, const char*>> per_prim;
+    if (prof_inner)
+        per_prim.reserve(_exec_order.size());
+
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
@@ -997,19 +1016,65 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             inst->add_dep_events(events);
         }
 
-        inst->prepare_primitive();
-        inst->execute();
+        if (prof_inner) {
+            auto t0 = clk3::now();
+            inst->prepare_primitive();
+            auto t1 = clk3::now();
+            inst->execute();
+            auto t2 = clk3::now();
+            auto p_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+            auto e_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+            prep_us += p_us;
+            exec_us += e_us;
+            per_prim.emplace_back(e_us, inst->id().c_str());
+        } else {
+            inst->prepare_primitive();
+            inst->execute();
+        }
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0) {
-            get_stream().flush();
+            if (prof_inner) {
+                auto t0 = clk3::now();
+                get_stream().flush();
+                flush_us += std::chrono::duration_cast<std::chrono::microseconds>(clk3::now() - t0).count();
+            } else {
+                get_stream().flush();
+            }
         }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    get_stream().flush();
+    if (prof_inner) {
+        auto t0 = clk3::now();
+        get_stream().flush();
+        flush_us += std::chrono::duration_cast<std::chrono::microseconds>(clk3::now() - t0).count();
+    } else {
+        get_stream().flush();
+    }
+
+    if (prof_inner) {
+        auto t_loop_end = clk3::now();
+        auto total_us = std::chrono::duration_cast<std::chrono::microseconds>(t_loop_end - t_loop_begin).count();
+        std::cerr << "[GPU][PROF] exec_loop n=" << _exec_order.size()
+                  << " prepare=" << prep_us
+                  << "us execute=" << exec_us
+                  << "us flush=" << flush_us
+                  << "us total=" << total_us
+                  << "us  this=" << static_cast<const void*>(this) << "\n";
+        std::sort(per_prim.begin(), per_prim.end(),
+                  [](const auto& a, const auto& b) { return a.first > b.first; });
+        size_t top = std::min<size_t>(per_prim.size(), 12);
+        std::cerr << "[GPU][PROF] top " << top
+                  << " slowest primitives in execute() (this="
+                  << static_cast<const void*>(this) << "):\n";
+        for (size_t i = 0; i < top; ++i) {
+            std::cerr << "  " << std::setw(10) << per_prim[i].first
+                      << "us  " << per_prim[i].second << "\n";
+        }
+    }
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {

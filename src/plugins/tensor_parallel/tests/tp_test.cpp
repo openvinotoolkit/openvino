@@ -11,14 +11,287 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <algorithm>
+#include <atomic>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <thread>
 #include <vector>
 
+#include <dlfcn.h>
+
 #include "openvino/openvino.hpp"
+
+// TP_MEM_PROBE=1 emits an iter-boundary marker to stderr.  Use together
+// with GPU_MEM_DUMP=1 (from intel_gpu plugin, see engine.cpp): the plugin
+// dumps `[MEM]` snapshots when its process-wide allocation total crosses
+// a 128 MB threshold vs the previous dump; the markers here let you
+// visually align those snapshots with iter start/end.
+static bool mem_probe_enabled() {
+    static const bool on = std::getenv("TP_MEM_PROBE") != nullptr;
+    return on;
+}
+
+// TP_COOLDOWN_MS=N sleeps N milliseconds between inference iters so the
+// GPU can cool below the throttling threshold.  If iter1/iter2 are fast
+// with e.g. TP_COOLDOWN_MS=30000 but slow with TP_COOLDOWN_MS unset, the
+// per-iter slowdown is thermal, not an intel_gpu correctness/pool bug.
+static int cooldown_ms() {
+    static const int ms = []() {
+        const char* v = std::getenv("TP_COOLDOWN_MS");
+        return v ? std::max(0, std::atoi(v)) : 0;
+    }();
+    return ms;
+}
+
+// TP_STATE_SHAPES=1 prints the shapes of a few representative variable
+// states after each infer (and again after reset()).  Directly tests
+// whether state.reset() actually clears KV cache on TP — if KV grows
+// per iter, iter1/2 attention/FC costs grow linearly with cumulative KV.
+static bool state_shapes_enabled() {
+    static const bool on = std::getenv("TP_STATE_SHAPES") != nullptr;
+    return on;
+}
+
+// TP_VRAM_PROBE=1 starts a background thread that polls Level Zero
+// Sysman VRAM state of every enumerated GPU every TP_VRAM_INTERVAL_MS
+// (default 200) and prints `[VRAM]` lines to stderr with a monotonic
+// timestamp.  Useful to visually correlate iter time spikes with driver-
+// side VRAM pressure without external tools (xpu-smi / nvtop).
+//
+// zes* symbols are loaded via dlopen at runtime so tp_test doesn't gain
+// a build-time Level Zero dependency; when the loader library isn't
+// present the probe silently does nothing.
+namespace vram_probe {
+
+// Minimal ABI mirror of the Level Zero Sysman entry points we need.
+// Kept local to avoid pulling <level_zero/zes_api.h> into tp_test's
+// include path.  Layout follows zes_api.h @ level-zero v1.14+.
+using ze_result_t = uint32_t;
+using zes_driver_handle_t = void*;
+using zes_device_handle_t = void*;
+using zes_mem_handle_t = void*;
+using zes_structure_type_t = uint32_t;
+using zes_mem_health_t = uint32_t;
+
+constexpr zes_structure_type_t kZES_STRUCTURE_TYPE_MEM_STATE = 0x1E;
+
+struct zes_mem_state_t {
+    zes_structure_type_t stype;
+    void*                pNext;
+    zes_mem_health_t     health;
+    uint64_t             free;
+    uint64_t             size;
+};
+
+using pfn_zesInit = ze_result_t (*)(uint32_t /*flags*/);
+using pfn_zesDriverGet = ze_result_t (*)(uint32_t*, zes_driver_handle_t*);
+using pfn_zesDeviceGet = ze_result_t (*)(zes_driver_handle_t, uint32_t*, zes_device_handle_t*);
+using pfn_zesDeviceEnumMemoryModules = ze_result_t (*)(zes_device_handle_t, uint32_t*, zes_mem_handle_t*);
+using pfn_zesMemoryGetState = ze_result_t (*)(zes_mem_handle_t, zes_mem_state_t*);
+
+struct Sysman {
+    void* dl = nullptr;
+    pfn_zesInit                     zesInit = nullptr;
+    pfn_zesDriverGet                zesDriverGet = nullptr;
+    pfn_zesDeviceGet                zesDeviceGet = nullptr;
+    pfn_zesDeviceEnumMemoryModules  zesDeviceEnumMemoryModules = nullptr;
+    pfn_zesMemoryGetState           zesMemoryGetState = nullptr;
+    // Flat list of memory modules across all drivers/devices, ordered so the
+    // device index (dev) can be reconstructed for the print line.
+    struct ModuleRef {
+        int              dev;   // device index within the driver enumeration
+        zes_mem_handle_t handle;
+    };
+    std::vector<ModuleRef> modules;
+
+    bool init() {
+        // Prefer the numbered soname so we bind against the actual loader
+        // (bare "libze_loader.so" is often a devel symlink not present at
+        // runtime on release systems).
+        for (const char* name : {"libze_loader.so.1", "libze_loader.so"}) {
+            dl = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+            if (dl) break;
+        }
+        if (!dl) {
+            std::cerr << "[VRAM] libze_loader not found: " << dlerror() << std::endl;
+            return false;
+        }
+        auto sym = [&](const char* n) { return dlsym(dl, n); };
+        zesInit                    = reinterpret_cast<pfn_zesInit>(sym("zesInit"));
+        zesDriverGet               = reinterpret_cast<pfn_zesDriverGet>(sym("zesDriverGet"));
+        zesDeviceGet               = reinterpret_cast<pfn_zesDeviceGet>(sym("zesDeviceGet"));
+        zesDeviceEnumMemoryModules = reinterpret_cast<pfn_zesDeviceEnumMemoryModules>(sym("zesDeviceEnumMemoryModules"));
+        zesMemoryGetState          = reinterpret_cast<pfn_zesMemoryGetState>(sym("zesMemoryGetState"));
+        if (!zesInit || !zesDriverGet || !zesDeviceGet ||
+            !zesDeviceEnumMemoryModules || !zesMemoryGetState) {
+            std::cerr << "[VRAM] required zes* symbols missing" << std::endl;
+            return false;
+        }
+
+        if (auto r = zesInit(0); r != 0) {
+            std::cerr << "[VRAM] zesInit failed: 0x" << std::hex << r << std::dec << std::endl;
+            return false;
+        }
+        uint32_t n_drv = 0;
+        if (auto r = zesDriverGet(&n_drv, nullptr); r != 0 || n_drv == 0) {
+            std::cerr << "[VRAM] zesDriverGet(count) failed or 0 drivers (r=0x"
+                      << std::hex << r << std::dec << ")" << std::endl;
+            return false;
+        }
+        std::vector<zes_driver_handle_t> drivers(n_drv);
+        zesDriverGet(&n_drv, drivers.data());
+        int dev_idx = 0;
+        for (auto drv : drivers) {
+            uint32_t n_dev = 0;
+            if (zesDeviceGet(drv, &n_dev, nullptr) != 0 || n_dev == 0) continue;
+            std::vector<zes_device_handle_t> devs(n_dev);
+            zesDeviceGet(drv, &n_dev, devs.data());
+            for (auto dev : devs) {
+                uint32_t n_mem = 0;
+                if (zesDeviceEnumMemoryModules(dev, &n_mem, nullptr) != 0 || n_mem == 0) {
+                    ++dev_idx;
+                    continue;
+                }
+                std::vector<zes_mem_handle_t> mems(n_mem);
+                zesDeviceEnumMemoryModules(dev, &n_mem, mems.data());
+                for (auto m : mems)
+                    modules.push_back({dev_idx, m});
+                ++dev_idx;
+            }
+        }
+        if (modules.empty()) {
+            std::cerr << "[VRAM] no memory modules enumerated" << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    // Sample and print each module state as one `[VRAM]` line.
+    void sample(double t_sec) const {
+        for (size_t i = 0; i < modules.size(); ++i) {
+            zes_mem_state_t st{};
+            st.stype = kZES_STRUCTURE_TYPE_MEM_STATE;
+            if (zesMemoryGetState(modules[i].handle, &st) != 0) continue;
+            uint64_t used = (st.size >= st.free) ? (st.size - st.free) : 0;
+            const double MB = 1024.0 * 1024.0;
+            std::fprintf(stderr,
+                         "[VRAM] t=%7.3fs dev=%d mod=%zu used=%7.1f MB free=%7.1f MB total=%7.1f MB util=%5.1f%%\n",
+                         t_sec, modules[i].dev, i,
+                         used / MB, st.free / MB, st.size / MB,
+                         st.size > 0 ? 100.0 * used / st.size : 0.0);
+        }
+    }
+};
+
+// RAII owner: starts a poller thread on construction, joins on dtor.
+struct Poller {
+    std::atomic<bool> stop{false};
+    std::thread th;
+    std::chrono::steady_clock::time_point t0;
+    Sysman sm;
+    int    interval_ms = 200;
+
+    static bool enabled() {
+        static const bool on = std::getenv("TP_VRAM_PROBE") != nullptr;
+        return on;
+    }
+
+    void start() {
+        if (!enabled()) return;
+        if (const char* v = std::getenv("TP_VRAM_INTERVAL_MS")) {
+            int n = std::atoi(v);
+            if (n > 0) interval_ms = n;
+        }
+        if (!sm.init()) return;
+        t0 = std::chrono::steady_clock::now();
+        th = std::thread([this]() {
+            while (!stop.load(std::memory_order_relaxed)) {
+                auto now = std::chrono::steady_clock::now();
+                double t = std::chrono::duration<double>(now - t0).count();
+                sm.sample(t);
+                std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+            }
+        });
+        std::cerr << "[VRAM] poller started, "
+                  << sm.modules.size() << " memory module(s), interval="
+                  << interval_ms << "ms" << std::endl;
+    }
+
+    ~Poller() {
+        stop.store(true, std::memory_order_relaxed);
+        if (th.joinable()) th.join();
+        if (sm.dl) dlclose(sm.dl);
+    }
+};
+
+}  // namespace vram_probe
+
+static void mem_probe(const std::string& tag) {
+    if (!mem_probe_enabled()) return;
+    std::cerr << "[MEM_MARK] " << tag << std::endl;
+}
+
+static void dump_state_shapes(ov::InferRequest& request, const std::string& tag) {
+    if (!state_shapes_enabled()) return;
+    auto states = request.query_state();
+    // Report only the first few to keep the output readable — enough to see
+    // the pattern (KV grows / stable / empty).  Total count also printed
+    // so we notice if states appear/disappear across iters.
+    const size_t max_show = std::min<size_t>(states.size(), 4);
+    std::cerr << "[STATE] " << tag << " total=" << states.size() << " (first "
+              << max_show << ")";
+    for (size_t i = 0; i < max_show; ++i) {
+        std::cerr << "  " << states[i].get_name() << ":";
+        std::string dims_str;
+        std::size_t nbytes = 0;
+        try {
+            auto t = states[i].get_state();
+            const auto& s = t.get_shape();   // throws if any dim is dynamic
+            for (size_t d = 0; d < s.size(); ++d) {
+                if (d) dims_str += "x";
+                dims_str += std::to_string(s[d]);
+            }
+            nbytes = t.get_byte_size();
+            std::cerr << "[" << dims_str << "] bytes=" << nbytes;
+        } catch (const std::exception&) {
+            // Empty/dynamic tensor.  This is expected after reset() or on
+            // the very first pre-infer probe — the KV cache is unset.
+            std::cerr << "<dyn/empty>";
+        }
+    }
+    std::cerr << std::endl;
+}
+
+
+// If TP_OP_PROF=1 in env, dump the slowest ops from a request's profiling
+// info.  Used to localize iter-to-iter regressions to a specific primitive.
+// Requires that compile_model was called with ov::enable_profiling(true).
+static void dump_top_ops(ov::InferRequest& request, const std::string& tag, size_t top_n = 15) {
+    if (!std::getenv("TP_OP_PROF")) return;
+    auto info = request.get_profiling_info();
+    // Sort by real_time descending.
+    std::sort(info.begin(), info.end(),
+              [](const ov::ProfilingInfo& a, const ov::ProfilingInfo& b) {
+                  return a.real_time > b.real_time;
+              });
+    double total_us = 0;
+    for (const auto& pi : info)
+        total_us += std::chrono::duration<double, std::micro>(pi.real_time).count();
+    std::cerr << "[TP][OPS] " << tag << " total=" << total_us << "us  top "
+              << top_n << ":\n";
+    for (size_t i = 0; i < std::min(top_n, info.size()); ++i) {
+        const auto& pi = info[i];
+        double us = std::chrono::duration<double, std::micro>(pi.real_time).count();
+        std::cerr << "  " << std::setw(10) << std::fixed << std::setprecision(1)
+                  << us << "us  " << pi.exec_type << "  " << pi.node_name << "\n";
+    }
+}
 
 // Fill tensor with a fixed value based on element type.
 static void fill_input(ov::Tensor& tensor, const std::string& name) {
@@ -168,11 +441,16 @@ static InferResult run_inference(ov::Core& core,
     double infer_ms_sum = 0.0;
     InferResult result;
     for (int it = 0; it < iters; ++it) {
+        mem_probe("iter" + std::to_string(it) + " pre");
+        dump_state_shapes(request, "iter" + std::to_string(it) + " pre-infer");
         auto ti0 = std::chrono::steady_clock::now();
         request.infer();
         auto ti1 = std::chrono::steady_clock::now();
         infer_ms_last = std::chrono::duration<double, std::milli>(ti1 - ti0).count();
         infer_ms_sum += infer_ms_last;
+        mem_probe("iter" + std::to_string(it) + " post");
+        dump_state_shapes(request, "iter" + std::to_string(it) + " post-infer");
+        dump_top_ops(request, "iter" + std::to_string(it) + " " + device);
         if (it == 0) {
             infer_ms_first = infer_ms_last;
             // iter[0] is the only iteration with guaranteed-clean state in
@@ -188,6 +466,12 @@ static InferResult run_inference(ov::Core& core,
         }
         if (it + 1 < iters) {
             for (auto& state : request.query_state()) state.reset();
+            dump_state_shapes(request, "iter" + std::to_string(it) + " post-reset");
+            if (int cd = cooldown_ms()) {
+                std::cerr << "[COOLDOWN] sleeping " << cd << " ms before iter "
+                          << (it + 1) << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(cd));
+            }
         }
     }
     // For perf: use min across iter[1..] (warm). Fall back to iter[0] if
@@ -431,6 +715,11 @@ static bool has_flag(int argc, char* argv[], const std::string& flag) {
 }
 
 int main(int argc, char* argv[]) {
+    // Top-level scope so the trace spans both ref-GPU and TP phases with a
+    // single wall-clock timeline.  No-op unless TP_VRAM_PROBE=1 is set.
+    vram_probe::Poller vram_poller;
+    vram_poller.start();
+
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <model.xml> [tp_degree=2] [seq_len=4]" << std::endl;
         std::cerr << "  --device GPU.X        Reference single-GPU device (default: GPU.0)" << std::endl;
@@ -527,6 +816,9 @@ int main(int argc, char* argv[]) {
         // --- Run on single GPU ---
         std::cout << "[1] Single GPU (" << ref_device << "):" << std::endl;
         ov::AnyMap gpu_config = {};
+        if (std::getenv("TP_OP_PROF")) {
+            gpu_config[ov::enable_profiling.name()] = true;
+        }
         if (use_f32) {
             gpu_config[ov::hint::inference_precision.name()] = ov::element::f32;
             std::cout << "  (forcing f32 inference precision)" << std::endl;
@@ -560,6 +852,9 @@ int main(int argc, char* argv[]) {
         ov::AnyMap tp_config = {
             {"TENSOR_PARALLEL_DEGREE", tp_degree},
         };
+        if (std::getenv("TP_OP_PROF")) {
+            tp_config[ov::enable_profiling.name()] = true;
+        }
 
         if (!tp_device_list.empty()) {
             tp_config["TENSOR_PARALLEL_DEVICES"] = tp_device_list;

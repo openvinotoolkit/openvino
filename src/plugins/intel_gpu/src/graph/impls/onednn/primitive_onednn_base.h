@@ -24,6 +24,9 @@
 
 #include <oneapi/dnnl/dnnl.hpp>
 
+#include <chrono>
+#include <cstdlib>
+
 namespace cldnn {
 namespace onednn {
 
@@ -587,6 +590,10 @@ protected:
         }
 
         if (!instance.can_be_optimized()) {
+            // DIAG: GPU_PROF_KERNEL=1 logs slow oneDNN dispatches (>50ms)
+            static const bool prof_k = std::getenv("GPU_PROF_KERNEL") != nullptr;
+            using clk_dn = std::chrono::high_resolution_clock;
+            auto t0 = prof_k ? clk_dn::now() : clk_dn::time_point{};
             try {
 #ifdef OV_GPU_WITH_ZE_RT
                 // Prevent race condition issue for Level Zero runtime
@@ -596,6 +603,13 @@ protected:
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
                 OPENVINO_THROW(err.what());
+            }
+            if (prof_k) {
+                auto us = std::chrono::duration_cast<std::chrono::microseconds>(clk_dn::now() - t0).count();
+                if (us > 50000) {
+                    std::cerr << "[GPU][KPROF-ONEDNN] " << instance.id()
+                              << "  prim.execute=" << us << "us\n";
+                }
             }
 
             if (_enable_profiling) {

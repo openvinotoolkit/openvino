@@ -5,9 +5,11 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -37,6 +39,13 @@ private:
 
     /// One infer request per rank.
     std::vector<ov::SoPtr<ov::IAsyncInferRequest>> m_rank_requests;
+
+    /// Cached fan-out wrappers built on first query_state() call; same
+    /// vector is returned on every subsequent call to keep object identity
+    /// stable for downstream consumers and to avoid repeatedly grouping
+    /// per-rank states.
+    mutable std::mutex m_state_mutex;
+    mutable std::vector<ov::SoPtr<ov::IVariableState>> m_fanout_states;
 };
 
 }  // namespace tp

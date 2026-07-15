@@ -21,6 +21,10 @@
 #include <set>
 #include <stdexcept>
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <cstdlib>
+#include <sstream>
 
 #if defined(_WIN32)
 # ifndef NOMINMAX
@@ -243,6 +247,84 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     return statistics;
 }
 
+// ---- Process-wide (cross-engine) memory tracker + env-gated dump ----
+//
+// `_memory_usage_data` is per-engine and hidden behind the plugin's
+// default-context lookup, so external observers cannot see allocations
+// made through user-supplied remote contexts (e.g. TENSOR_PARALLEL's
+// shared L0 context).  We keep a process-wide aggregate here and dump it
+// when the current-usage total shifts by GPU_MEM_DUMP_MB (default 128)
+// MB from the last snapshot.  Setting GPU_MEM_DUMP_EVERY=N (integer)
+// forces one dump every N alloc/free calls regardless of the delta —
+// useful when you need a fixed cadence rather than a magnitude trigger.
+//
+// These counters/prints are DIAGNOSTIC only.  With GPU_MEM_DUMP unset
+// they cost exactly one relaxed atomic RMW per alloc.
+namespace {
+std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> g_global_memory_usage{};
+std::atomic<uint64_t> g_alloc_call_seq{0};
+std::atomic<uint64_t> g_last_dump_bytes{0};
+
+struct MemDumpCfg {
+    bool     enabled     = false;
+    uint64_t every_n     = 0;                        // >0: dump every N calls
+    uint64_t threshold_b = 128ull * 1024 * 1024;     // default 128 MB
+};
+
+const MemDumpCfg& mem_dump_cfg() {
+    static const MemDumpCfg cfg = []() {
+        MemDumpCfg c;
+        const char* v = std::getenv("GPU_MEM_DUMP");
+        if (v == nullptr || *v == '\0') return c;
+        c.enabled = true;
+        if (const char* mb = std::getenv("GPU_MEM_DUMP_MB")) {
+            long n = std::strtol(mb, nullptr, 10);
+            if (n > 0) c.threshold_b = static_cast<uint64_t>(n) * 1024ull * 1024ull;
+        }
+        if (const char* every = std::getenv("GPU_MEM_DUMP_EVERY")) {
+            long n = std::strtol(every, nullptr, 10);
+            if (n > 0) c.every_n = static_cast<uint64_t>(n);
+        }
+        return c;
+    }();
+    return cfg;
+}
+
+void maybe_dump_mem_snapshot(const char* kind, uint64_t bytes, allocation_type type) {
+    const auto& cfg = mem_dump_cfg();
+    if (!cfg.enabled) return;
+
+    uint64_t seq = g_alloc_call_seq.fetch_add(1, std::memory_order_relaxed) + 1;
+    uint64_t cur_total = 0;
+    for (auto& c : g_global_memory_usage) cur_total += c.load(std::memory_order_relaxed);
+
+    bool trigger = false;
+    if (cfg.every_n > 0 && (seq % cfg.every_n) == 0) {
+        trigger = true;
+    } else {
+        uint64_t last = g_last_dump_bytes.load(std::memory_order_relaxed);
+        uint64_t diff = cur_total > last ? cur_total - last : last - cur_total;
+        if (diff >= cfg.threshold_b) trigger = true;
+    }
+    if (!trigger) return;
+
+    g_last_dump_bytes.store(cur_total, std::memory_order_relaxed);
+
+    // Snapshot to string, single-print to avoid interleaved lines.
+    std::ostringstream oss;
+    oss << "[MEM] seq=" << seq << " " << kind << " " << (bytes / (1024ull * 1024ull))
+        << "MB(" << type << ") global:";
+    for (size_t i = 0; i < g_global_memory_usage.size(); ++i) {
+        auto v = g_global_memory_usage[i].load(std::memory_order_relaxed);
+        if (v == 0) continue;
+        oss << " " << static_cast<allocation_type>(i) << "="
+            << (v / (1024ull * 1024ull)) << "MB";
+    }
+    oss << " TOTAL=" << (cur_total / (1024ull * 1024ull)) << "MB";
+    std::cerr << oss.str() << std::endl;
+}
+}  // namespace
+
 void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     auto idx = static_cast<size_t>(type);
     const auto new_val = _memory_usage_data[idx].fetch_add(bytes) + bytes;
@@ -250,6 +332,8 @@ void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     while (new_val > _peak_memory_usage_data[idx]) {
         _peak_memory_usage_data[idx] = new_val;
     }
+    g_global_memory_usage[idx].fetch_add(bytes, std::memory_order_relaxed);
+    maybe_dump_mem_snapshot("alloc", bytes, type);
 }
 
 void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
@@ -258,6 +342,8 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
         throw std::runtime_error("Attempt to free unallocated memory");
     }
     _memory_usage_data[idx] -= bytes;
+    g_global_memory_usage[idx].fetch_sub(bytes, std::memory_order_relaxed);
+    maybe_dump_mem_snapshot("free", bytes, type);
 }
 
 void engine::set_enable_large_allocations(bool enable_large_allocations) {
