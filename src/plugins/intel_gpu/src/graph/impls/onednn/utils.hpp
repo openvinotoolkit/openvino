@@ -70,6 +70,7 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
 size_t get_post_ops_count(const program_node& node);
 bool is_supported_post_ops(const program_node& node);
 bool is_supported_pad(const layout& layout);
+bool is_feature_aligned(const layout& layout);
 
 // Check if data node is per-tensor
 template <typename T>

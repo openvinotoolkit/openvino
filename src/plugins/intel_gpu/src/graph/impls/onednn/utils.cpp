@@ -961,6 +961,26 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
+bool is_feature_aligned(const layout& l) {
+    if (!format::is_blocked(l.format))
+        return true;
+
+    const auto& order = format::internal_order(l.format);
+    const size_t feature_dim_idx = order.find('f');
+    if (feature_dim_idx == std::string::npos)
+        return true;
+
+    const auto feature_dim = l.get_partial_shape()[feature_dim_idx];
+    if (feature_dim.is_dynamic())
+        return false;
+
+    for (const auto& block : format::block_sizes(l.format)) {
+        if (block.first == feature_dim_idx)
+            return feature_dim.get_length() % block.second == 0;
+    }
+    return true;
+}
+
 int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                                                 const std::function<layout(int32_t)>& get_input_layout,
                                                                 int32_t slope_input_idx) {

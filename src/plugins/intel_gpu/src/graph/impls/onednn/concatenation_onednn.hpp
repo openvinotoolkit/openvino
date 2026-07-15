@@ -54,31 +54,6 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
-        auto is_feature_aligned = [](const layout& l) {
-            if (!format::is_blocked(l.format))
-                return true;
-
-            const auto& order = format::internal_order(l.format);
-            const size_t feature_dim_idx = order.find('f');
-            if (feature_dim_idx == std::string::npos)
-                return true;
-
-            auto feature_dim = l.get_partial_shape()[feature_dim_idx];
-            if (feature_dim.is_dynamic())
-                return false;
-
-            const auto& block_sizes = format::block_sizes(l.format);
-            auto block_it = std::find_if(block_sizes.begin(), block_sizes.end(), [&](const auto& block) {
-                return block.first == feature_dim_idx;
-            });
-
-            if (block_it == block_sizes.end())
-                return true;
-
-            const int feature_block_size = block_it->second;
-            return feature_dim.get_length() % feature_block_size == 0;
-        };
-
         // oneDNN blocked format contract requires zero-filled fsv padding lanes for unaligned feature blocks.
         // Apply the same feature alignment requirement to both input and output layouts.
         if (!is_feature_aligned(out_layout)) {
