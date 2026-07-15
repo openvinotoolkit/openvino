@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
@@ -69,6 +70,7 @@ public:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
     LLMCompiledModel() = delete;
+    ~LLMCompiledModel() = default;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
@@ -142,6 +144,9 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+
+    // Attention mask type detected at compile time
+    ov::npuw::MaskInfo m_mask_info;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
