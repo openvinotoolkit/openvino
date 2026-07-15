@@ -37,8 +37,7 @@ inline const float kF16MaxPos = std::numeric_limits<ov::float16>::max();
 inline const float kF16MaxNeg = std::numeric_limits<ov::float16>::lowest();
 inline const float kF16MinPos = ov::float16::from_bits(0x0001);
 inline const float kF16MinNeg = -ov::float16::from_bits(0x0001);
-inline constexpr float kF16CompressionAbsErrVal = static_cast<float>(ov::reference::f16_compression_max_abs_error);
-inline constexpr float kF16CompressionRelErrVal = static_cast<float>(ov::reference::f16_compression_max_rel_error);
+
 inline constexpr uint32_t kAbsMaskVal = 0x7FFFFFFFu;
 
 template <typename src_t, typename dst_t, bool clamp = false>
@@ -412,6 +411,8 @@ public:
         void* rejected_dst;  // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;     // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
+        float max_relative_error;
+        float max_abs_error;
     } args_t;
 
     typedef void (*fn_t)(const args_t*);
@@ -483,8 +484,6 @@ private:
         bcast(f16_max_neg_vec, &kF16MaxNeg);
         bcast(f16_min_pos_vec, &kF16MinPos);
         bcast(f16_min_neg_vec, &kF16MinNeg);
-        bcast(abs_err_vec, &kF16CompressionAbsErrVal);
-        bcast(rel_err_vec, &kF16CompressionRelErrVal);
         bcast(abs_mask_vec, &kAbsMaskVal);
         vpxorq(zero_vec, zero_vec, zero_vec);
 
@@ -493,6 +492,8 @@ private:
         mov(reg_rejected_dst, ptr[param + offsetof(args_t, rejected_dst)]);
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_count, ptr[param + offsetof(args_t, count)]);
+        vbroadcastss(rel_err_vec, dword[param + offsetof(args_t, max_relative_error)]);
+        vbroadcastss(abs_err_vec, dword[param + offsetof(args_t, max_abs_error)]);
 
         constexpr uint8_t cmp_lt_os = 1;
         constexpr uint8_t cmp_neq_uq = 4;
@@ -537,7 +538,7 @@ private:
             kortestw(k_lossy, k_lossy);
             jnz(lossy_exit, T_NEAR);
 
-            // === Relative-error check: (abs_diff > |data| * 1e-4) AND NOT k_oor ===
+            // === Relative-error check: (abs_diff > |data| * max_relative_error) AND NOT k_oor ===
             vpandd(abs_data_vec, data_vec, abs_mask_vec);
             vmulps(rel_thresh_vec, abs_data_vec, rel_err_vec);
             vcmpps(k_rel, diff_vec, rel_thresh_vec, cmp_gt_os);
@@ -631,6 +632,8 @@ public:
         void* rejected_dst;  // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;     // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
+        float max_relative_error;
+        float max_abs_error;
     } args_t;
 
     typedef void (*fn_t)(const args_t*);
@@ -688,7 +691,7 @@ private:
         mov(reg_saved_rsp, rsp);  // save rsp for lossy exit stack cleanup
 
         // --- Load constants ---
-        // 256-bit (8-lane) broadcast arrays for AVX2 (no vbroadcastss on ymm here; we use vmovdqu).
+        // 256-bit (8-lane) broadcast arrays for AVX2.
         // Arrays filled from FP16-derived constants (non-constexpr — see kF16* above) are static const;
         // arrays filled from literal/constexpr thresholds are static constexpr.
         static const float max_pos_bounds[8] =
@@ -700,22 +703,6 @@ private:
         static const float min_neg_bounds[8] =
             {kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg};
         static constexpr int32_t i32_ones[8] = {1, 1, 1, 1, 1, 1, 1, 1};
-        static constexpr float abs_errs[8] = {kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal,
-                                              kF16CompressionAbsErrVal};
-        static constexpr float rel_errs[8] = {kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal,
-                                              kF16CompressionRelErrVal};
         static constexpr uint32_t abs_masks[8] =
             {kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal};
 
@@ -729,8 +716,6 @@ private:
         load_vec(f16_min_pos_vec, reinterpret_cast<size_t>(min_pos_bounds));
         load_vec(f16_min_neg_vec, reinterpret_cast<size_t>(min_neg_bounds));
         load_vec(i32_ones_vec, reinterpret_cast<size_t>(i32_ones));
-        load_vec(abs_err_vec, reinterpret_cast<size_t>(abs_errs));
-        load_vec(rel_err_vec, reinterpret_cast<size_t>(rel_errs));
         load_vec(abs_mask_vec, reinterpret_cast<size_t>(abs_masks));
         vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
         vxorps(rejected_accum, rejected_accum, rejected_accum);
@@ -740,6 +725,8 @@ private:
         mov(reg_rejected_dst, ptr[param + offsetof(args_t, rejected_dst)]);
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_sz, ptr[param + offsetof(args_t, count)]);
+        vbroadcastss(rel_err_vec, dword[param + offsetof(args_t, max_relative_error)]);
+        vbroadcastss(abs_err_vec, dword[param + offsetof(args_t, max_abs_error)]);
 
         constexpr uint8_t cmp_lt_os = 1;
         constexpr uint8_t cmp_neq_uq = 4;
@@ -784,11 +771,11 @@ private:
             vtestps(tmp_vec, tmp_vec);  // ZF=1 if all zeros
             jnz(exit_lossy, T_NEAR);    // bail if any lossy
 
-            // === Relative error check: count elements where |diff| > |value| * 1e-4 ===
-            // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
+            // === Relative error check: count elements where |diff| > |value| * max_relative_error ===
+            // (equivalent to abs_diff / |value| > max_relative_error, but avoids division)
             vandps(tmp_vec, data_vec, abs_mask_vec);        // tmp_vec = |data|
-            vmulps(tmp_vec, tmp_vec, rel_err_vec);          // tmp_vec = |data| * 1e-4
-            vcmpps(tmp_vec, diff_vec, tmp_vec, cmp_gt_os);  // 1 where |diff| > |data|*1e-4
+            vmulps(tmp_vec, tmp_vec, rel_err_vec);          // tmp_vec = |data| * max_relative_error
+            vcmpps(tmp_vec, diff_vec, tmp_vec, cmp_gt_os);  // 1 where |diff| > |data| * max_relative_error
             vandnps(tmp_vec, mask_vec, tmp_vec);            // exclude OOR (avoid double-count)
             vorps(mask_vec, mask_vec, tmp_vec);             // combine OOR + relative-error
 
@@ -950,10 +937,14 @@ namespace {
 // marshal its two size_t outputs into a CompressionCheckResult. Shared by
 // both JIT dispatches in check_f16_compression().
 template <typename Jit>
-CompressionCheckResult run_check_f16_compression_jit(typename Jit::fn_t fn, const float* arg, size_t count) {
+CompressionCheckResult run_check_f16_compression_jit(typename Jit::fn_t fn,
+                                                     const float* arg,
+                                                     size_t count,
+                                                     float max_relative_error,
+                                                     float max_abs_error) {
     CompressionCheckResult result{0, false};
     size_t lossy_count = 0;
-    typename Jit::args_t args = {arg, &result.rejected_count, &lossy_count, count};
+    typename Jit::args_t args = {arg, &result.rejected_count, &lossy_count, count, max_relative_error, max_abs_error};
     fn(&args);
     result.has_lossy = lossy_count > 0;
     return result;
@@ -962,13 +953,25 @@ CompressionCheckResult run_check_f16_compression_jit(typename Jit::fn_t fn, cons
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
+    const double max_relative_error =
+        count == 1 ? f16_scalar_compression_max_rel_error : f16_tensor_compression_max_rel_error;
+    const double max_abs_error = f16_compression_max_abs_error;
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
         if (auto fn = jit_check_f16_compression_avx512::get()) {
-            return run_check_f16_compression_jit<jit_check_f16_compression_avx512>(fn, arg, count);
+            return run_check_f16_compression_jit<jit_check_f16_compression_avx512>(
+                fn,
+                arg,
+                count,
+                static_cast<float>(max_relative_error),
+                static_cast<float>(max_abs_error));
         }
         if (auto fn = jit_check_f16_compression::get()) {
-            return run_check_f16_compression_jit<jit_check_f16_compression>(fn, arg, count);
+            return run_check_f16_compression_jit<jit_check_f16_compression>(fn,
+                                                                            arg,
+                                                                            count,
+                                                                            static_cast<float>(max_relative_error),
+                                                                            static_cast<float>(max_abs_error));
         }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
@@ -980,10 +983,10 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
             const double abs_diff = std::abs(v - roundtripped);
-            if (abs_diff > f16_compression_max_abs_error) {
+            if (abs_diff > max_abs_error) {
                 return {0, true};
             }
-            if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
+            if (v != 0.0f && abs_diff / std::abs(v) > max_relative_error) {
                 ++result.rejected_count;
             }
         }

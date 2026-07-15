@@ -107,7 +107,7 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "transformations/snippets/common/op/load_convert.hpp"
 #    include "transformations/snippets/common/op/store_convert.hpp"
 #endif
@@ -168,6 +168,12 @@ private:
 #    define OP_EXTENSION_ARM64(x)
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    define OP_EXTENSION_RISCV64(x) x,
+#else
+#    define OP_EXTENSION_RISCV64(x)
+#endif
+
 #if defined(SNIPPETS_DEBUG_CAPS)
 #    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x) x,
 #else
@@ -222,6 +228,10 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCPU>>())
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCopyB>>())
+    OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertSaturation>>())
+    OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
+    OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())
+    OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
     // clang-format on
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),

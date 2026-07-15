@@ -57,4 +57,12 @@ foreach(target gtest gtest_main gmock gmock_main)
     # disable warnings
     ov_disable_all_warnings(${target})
     set_target_properties(${target} PROPERTIES FOLDER thirdparty)
+
+    # thirdparty/dependencies.cmake enables CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE for the whole thirdparty scope
+    # when ENABLE_LTO=ON.  Override it per-target for gtest: GCC 15's lto1 emits a false-positive
+    # -Wstringop-overflow through the std::unordered_set<std::string> insertion path in UnitTestFilter
+    # gtest does not benefit from LTO;
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+        set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE)
+    endif()
 endforeach()

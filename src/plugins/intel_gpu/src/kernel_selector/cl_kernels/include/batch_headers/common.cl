@@ -38,6 +38,21 @@
 #define MAKE_VECTOR_TYPE_IMPL_16(elem_type) CAT(elem_type, 16)
 #define MAKE_VECTOR_TYPE(elem_type, size)   CAT(MAKE_VECTOR_TYPE_IMPL_, size)(elem_type)
 
+#define AS_TYPE_PREFIX_uchar as_
+#define AS_TYPE_PREFIX_char as_
+#define AS_TYPE_PREFIX_fp8e5m2_t _as_
+#define AS_TYPE_PREFIX_fp8e4m3_t _as_
+#define AS_TYPE_PREFIX_fp8e8m0_t _as_
+#define AS_TYPE_PREFIX_ushort as_
+#define AS_TYPE_PREFIX_short as_
+#define AS_TYPE_PREFIX_half as_
+#define AS_TYPE_PREFIX_int as_
+#define AS_TYPE_PREFIX_uint as_
+#define AS_TYPE_PREFIX_float as_
+#define AS_TYPE_PREFIX_ulong as_
+#define AS_TYPE_PREFIX_long as_
+
+#define AS_TYPE_EXT(type, val, src_type) CAT(CAT(AS_TYPE_PREFIX_, src_type), type)(val)
 #define AS_TYPE(type, val) CAT(as_, type)(val)
 
 // ====================================================================================================================
@@ -46,6 +61,9 @@
 // ====================================================================================================================
 #define TYPE_SIZE_uchar  1
 #define TYPE_SIZE_char   1
+#define TYPE_SIZE_fp8e5m2_t 1
+#define TYPE_SIZE_fp8e4m3_t 1
+#define TYPE_SIZE_fp8e8m0_t 1
 #define TYPE_SIZE_ushort 2
 #define TYPE_SIZE_short  2
 #define TYPE_SIZE_half   2

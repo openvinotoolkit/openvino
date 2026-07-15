@@ -9,13 +9,18 @@
 
 #include "codecs/codec_kernels.hpp"
 #include "codecs/codecs.hpp"
+#include "codecs/turboq_codec.hpp"
+#include "codecs/turboq_rotation.hpp"
 #include "common.hpp"
 #include "mha_kv_cache_reduce.hpp"
 #include "nodes/kernels/simd/simd.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "softmax_kernel.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
+
+using ov::Extensions::Cpu::CacheSpec;
 
 // Prefetch lookahead: number of records ahead to prefetch.
 // At ~50 cycles/record and ~200 cycle DRAM latency, 4-8 records ahead hides latency.
@@ -25,9 +30,78 @@ static constexpr int PREFETCH_AHEAD = 8;
 // mha_kv_cache — fused multi-head attention over raw or quantized KV cache.
 // ---------------------------------------------------------------------------
 
-using ov::Extensions::Cpu::CacheCodec;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::PlainTensor;
+
+size_t turboq_head_bytes(int head_dim, int bits) {
+    // Packed index bytes only. Per-head norm is stored in a parallel meta-data tensor.
+    return static_cast<size_t>((head_dim * bits + 7) / 8);
+}
+
+size_t turboq_row_bytes(int num_kv_heads, int head_dim, int bits) {
+    return static_cast<size_t>(num_kv_heads) * turboq_head_bytes(head_dim, bits);
+}
+
+// Prepare Q for attention: convert to f32 and optionally rotate.
+// When rotate=true: applies forward rotation (R*q).
+// When rotate=false: just converts Q to f32 (for non-codec K paths).
+static void mha_prepare_query(const PlainTensor& q_input,
+                              PlainTensor& out_q,
+                              bool rotate,
+                              const CpuParallelPtr& cpu_parallel,
+                              ov::element::Type q_precision,
+                              float* per_thread_head_scratch,
+                              size_t per_thread_head_stride,
+                              const float* signs) {
+    auto B = q_input.size(0);
+    auto num_q_heads = q_input.size(1);
+    auto L1 = q_input.size(2);
+    auto S = q_input.size(3);
+
+    out_q.resize<float>({B, num_q_heads, L1, S});
+    const auto dim = static_cast<int>(S);
+    const bool need_convert = q_precision != ov::element::f32;
+
+    cpu_parallel->parallel_for2d(B, num_q_heads, [&](size_t b, size_t h) {
+        float* q_buf =
+            per_thread_head_scratch + static_cast<size_t>(parallel_get_thread_num()) * per_thread_head_stride;
+        for (size_t l = 0; l < L1; l++) {
+            auto* dst = out_q.ptr<float>(b, h, l);
+            const float* q_src = nullptr;
+            if (need_convert) {
+                float* conv_dst = rotate ? q_buf : dst;
+                if (q_precision == ov::element::bf16) {
+                    const auto* src = q_input.ptr<ov::bfloat16>(b, h, l);
+                    int d = 0;
+                    for (; d + simd::f32::width - 1 < dim; d += simd::f32::width) {
+                        store(simd::load<simd::f32>(src + d), conv_dst + d);
+                    }
+                    for (; d < dim; d++) {
+                        conv_dst[d] = static_cast<float>(src[d]);
+                    }
+                } else {  // f16
+                    const auto* src = q_input.ptr<ov::float16>(b, h, l);
+                    int d = 0;
+                    for (; d + simd::f32::width - 1 < dim; d += simd::f32::width) {
+                        store(simd::load<simd::f32>(src + d), conv_dst + d);
+                    }
+                    for (; d < dim; d++) {
+                        conv_dst[d] = static_cast<float>(src[d]);
+                    }
+                }
+                q_src = conv_dst;
+            } else {
+                q_src = q_input.ptr<float>(b, h, l);
+                if (!rotate) {
+                    std::memcpy(dst, q_src, static_cast<size_t>(dim) * sizeof(float));
+                }
+            }
+            if (rotate) {
+                turboq_wht_forward(signs, q_src, dst, dim);
+            }
+        }
+    });
+}
 
 struct NoOpInit {
     void operator()(size_t /*unused*/) const {}
@@ -134,7 +208,11 @@ static void mha_softmax(const PlainTensor& attn_w,
 // ---------------------------------------------------------------------------
 
 template <typename QT, typename View>
-static inline float record_qk_dot(const uint8_t* k, const QT* q, int head_dim, const View& view) {
+static inline float record_qk_dot(const uint8_t* k,
+                                  const QT* q,
+                                  int head_dim,
+                                  const View& view,
+                                  float input_norm = 0.0F) {
     if constexpr (is_affine_v<View>) {
         // Deferred dequant: raw dot per group, then affine correction.
         const int gd = view.group_dim();
@@ -170,11 +248,17 @@ static inline float record_qk_dot(const uint8_t* k, const QT* q, int head_dim, c
             return DecodePlan{D{}, view.params_for(j, a)};
         });
     } else {
-        // RecordView<RawDecoder<T>>: constant plan, no dequant params.
+        // RecordView<Decoder>: constant plan per-record.
         auto plan = DecodePlan{view.decoder, NoParams{}};
-        return codec_dot<QT>(k, q, head_dim, [&](int, auto) {
+        float raw = codec_dot<QT>(k, q, head_dim, [&](int, auto) {
             return plan;
         });
+        if constexpr (is_raw_decoder_v<typename View::decoder_t>) {
+            return raw;
+        } else {
+            // TurboQ: per-token norm comes from the meta-data tensor, passed as input_norm.
+            return raw * turboq_norm_scale(input_norm, head_dim);
+        }
     }
 }
 
@@ -185,7 +269,8 @@ static inline void record_v_accum(const uint8_t* v,
                                   StridedData<float> accum,
                                   int num_group_heads,
                                   int head_dim,
-                                  const View& view) {
+                                  const View& view,
+                                  float input_norm = 0.0F) {
     if constexpr (is_head_grouped_v<View>) {
         const int gd = view.group_dim();
         const int ng = view.n_groups(head_dim);
@@ -219,15 +304,20 @@ static inline void record_v_accum(const uint8_t* v,
             accum,
             num_group_heads);
     } else {
-        // RecordView<RawDecoder<T>>: constant plan, no dequant params.
+        // RecordView<Decoder>: constant plan.
         auto plan = DecodePlan{view.decoder, NoParams{}};
+        float scale = 1.0F;
+        if constexpr (!is_raw_decoder_v<typename View::decoder_t>) {
+            // TurboQ: per-token norm comes from the meta-data tensor, passed as input_norm.
+            scale = turboq_norm_scale(input_norm, head_dim);
+        }
         codec_weighted_accum(
             v,
             head_dim,
             [&](int, auto) {
                 return plan;
             },
-            1.0F,
+            scale,
             weights,
             accum,
             num_group_heads);
@@ -244,6 +334,11 @@ struct KVEntryContext {
     size_t start_pos;
     size_t h_group;
     int head_dim;
+    // TurboQ per-token norm meta-data. Non-null only for TBQ codecs.
+    // Layout: norm[b, h_group, L] — stride values walk batch and position.
+    const float* norm_base = nullptr;
+    size_t norm_stride_batch = 0;
+    size_t norm_stride_pos = 0;
 };
 
 template <typename Q, typename RecordView>
@@ -255,15 +350,18 @@ struct QKScorer {
     float operator()(const uint8_t* k, int g, size_t t, size_t b_kv) const {
         using QT = std::remove_const_t<std::remove_pointer_t<decltype(q.data)>>;
         const QT* q_head = q[g];
+        const float norm = ctx.norm_base
+                               ? ctx.norm_base[b_kv * ctx.norm_stride_batch + (ctx.start_pos + t) * ctx.norm_stride_pos]
+                               : 0.0F;
         if constexpr (has_for_head_v<RecordView>) {
             auto head_view = record_view.for_head(g);
             auto token_view = head_view.for_token(ctx.start_pos, ctx.h_group, t, b_kv);
-            return record_qk_dot<QT>(k, q_head, ctx.head_dim, token_view);
+            return record_qk_dot<QT>(k, q_head, ctx.head_dim, token_view, norm);
         } else if constexpr (is_token_indexed_v<RecordView>) {
             auto token_view = record_view.for_token(ctx.start_pos, ctx.h_group, t, b_kv);
-            return record_qk_dot<QT>(k, q_head, ctx.head_dim, token_view);
+            return record_qk_dot<QT>(k, q_head, ctx.head_dim, token_view, norm);
         } else {
-            return record_qk_dot<QT>(k, q_head, ctx.head_dim, record_view);
+            return record_qk_dot<QT>(k, q_head, ctx.head_dim, record_view, norm);
         }
     }
 };
@@ -288,11 +386,14 @@ struct VAccumulator {
                     int num_group_heads,
                     size_t t,
                     size_t b_kv) const {
+        const float norm = ctx.norm_base
+                               ? ctx.norm_base[b_kv * ctx.norm_stride_batch + (ctx.start_pos + t) * ctx.norm_stride_pos]
+                               : 0.0F;
         if constexpr (is_token_indexed_v<RecordView>) {
             auto token_view = record_view.for_token(ctx.start_pos, ctx.h_group, t, b_kv);
-            record_v_accum(v, w, a, num_group_heads, ctx.head_dim, token_view);
+            record_v_accum(v, w, a, num_group_heads, ctx.head_dim, token_view, norm);
         } else {
-            record_v_accum(v, w, a, num_group_heads, ctx.head_dim, record_view);
+            record_v_accum(v, w, a, num_group_heads, ctx.head_dim, record_view, norm);
         }
     }
 };
@@ -311,7 +412,7 @@ static void score_tokens(const uint8_t* kv_base,
                          StridedData<float> scores,
                          size_t run_len,
                          int num_group_heads,
-                         size_t pf_bytes,
+                         [[maybe_unused]] size_t pf_bytes,
                          TokenScoreFn score_fn) {
     for (size_t t = 0; t < run_len; t++) {
         const size_t b_kv = beam_tbl ? static_cast<size_t>(beam_tbl[t]) : b;
@@ -340,7 +441,7 @@ static void accum_tokens(const uint8_t* kv_base,
                          StridedData<float> accum,
                          int num_group_heads,
                          size_t run_len,
-                         size_t pf_bytes,
+                         [[maybe_unused]] size_t pf_bytes,
                          TokenAccumFn accum_fn) {
     for (size_t t = 0; t < run_len; t++) {
         const size_t b_kv = beam_tbl ? static_cast<size_t>(beam_tbl[t]) : b;
@@ -385,43 +486,63 @@ static void dispatch_q_precision(const PlainTensor& q_input,
 template <typename View>
 static inline size_t codec_record_bytes(const View& view, int head_dim) {
     (void)view;
+    // Packed values only for all codecs. TurboQ norm now lives in a parallel meta-data tensor.
     return static_cast<size_t>(head_dim) * View::decoder_t::bits / 8;
 }
 
 // ---------------------------------------------------------------------------
-// Codec dispatch: maps runtime CacheCodec to concrete HeadCodec type.
+// Codec dispatch: resolves (alg, precision, by_channel) to a concrete RecordView.
+// Outer switch is on algorithm (TURBO vs SCALAR); inner on precision.
 // ---------------------------------------------------------------------------
-template <typename Fn>
-static void dispatch_codec(CacheCodec codec,
+template <typename ProcessTokens>
+static void dispatch_codec(const CacheSpec& spec,
                            int head_dim,
-                           size_t group_size,
                            const PlainTensor& scale_zp,
-                           Fn&& fn,
+                           ProcessTokens&& process_tokens,
                            const float* q_group_sums = nullptr,
                            size_t q_group_sums_stride = 0) {
-    (void)head_dim;
-    switch (codec) {
-    case CacheCodec::U8:
-        if (q_group_sums) {
-            fn(AffineRecordView{scale_zp, group_size, q_group_sums, q_group_sums_stride});
-        } else {
-            fn(GroupedRecordView<U8Decoder>{scale_zp, group_size});
+    switch (spec.alg) {
+    case ov::internal::CacheQuantAlgorithm::TURBO:
+        switch (spec.precision.bitwidth()) {
+        case 4:
+            process_tokens(RecordView<TurboQDecoder4<>>{TurboQDecoder4<>{head_dim}});
+            break;
+        case 3:
+            process_tokens(RecordView<TurboQDecoder3<>>{TurboQDecoder3<>{head_dim}});
+            break;
+        case 2:
+            process_tokens(RecordView<TurboQDecoder2<>>{TurboQDecoder2<>{head_dim}});
+            break;
+        default:
+            OPENVINO_THROW("Unsupported TURBO precision: ", spec.precision);
         }
         break;
-    case CacheCodec::U4:
-        fn(GroupedRecordView<U4Decoder>{scale_zp, group_size});
-        break;
-    case CacheCodec::U8_BY_CHANNEL:
-        fn(ByChannelRecordView{scale_zp, group_size});
-        break;
-    case CacheCodec::RAW_F32:
-        fn(RecordView<RawDecoder<float>>{{}});
-        break;
-    case CacheCodec::RAW_F16:
-        fn(RecordView<RawDecoder<ov::float16>>{{}});
-        break;
-    case CacheCodec::RAW_BF16:
-        fn(RecordView<RawDecoder<ov::bfloat16>>{{}});
+    case ov::internal::CacheQuantAlgorithm::SCALAR:
+        switch (spec.precision) {
+        case ov::element::u8:
+            if (spec.by_channel) {
+                process_tokens(ByChannelRecordView{scale_zp, spec.group_size});
+            } else if (q_group_sums) {
+                process_tokens(AffineRecordView{scale_zp, spec.group_size, q_group_sums, q_group_sums_stride});
+            } else {
+                process_tokens(GroupedRecordView<U8Decoder>{scale_zp, spec.group_size});
+            }
+            break;
+        case ov::element::u4:
+            process_tokens(GroupedRecordView<U4Decoder>{scale_zp, spec.group_size});
+            break;
+        case ov::element::f16:
+            process_tokens(RecordView<RawDecoder<ov::float16>>{{}});
+            break;
+        case ov::element::bf16:
+            process_tokens(RecordView<RawDecoder<ov::bfloat16>>{{}});
+            break;
+        case ov::element::f32:
+            process_tokens(RecordView<RawDecoder<float>>{{}});
+            break;
+        default:
+            OPENVINO_THROW("Unsupported SCALAR precision: ", spec.precision);
+        }
         break;
     }
 }
@@ -439,17 +560,20 @@ void mha_kv_cache(PlainTensor& q_input,
                   PlainTensor& buf_attn_score,
                   bool has_out_transpose,
                   float d_scale,
-                  CacheCodec k_codec,
-                  CacheCodec v_codec,
+                  const CacheSpec& k_spec,
+                  const CacheSpec& v_spec,
                   bool auto_causal,
                   const PlainTensor& sink_input,
                   const CpuParallelPtr& cpu_parallel,
                   const PlainTensor& k_scale_zp,
-                  size_t key_group_size,
                   const PlainTensor& v_scale_zp,
-                  size_t value_group_size,
                   ov::element::Type q_precision,
-                  size_t value_head_dim) {
+                  size_t value_head_dim,
+                  float* per_thread_head_scratch,
+                  size_t per_thread_head_stride,
+                  const PlainTensor& k_quant_meta_data,
+                  const PlainTensor& v_quant_meta_data,
+                  const PlainTensor& wht_signs) {
     // ---------------------------------------------------------------------------
     // Setup: dimensions, scratch buffers, precomputed constants.
     // ---------------------------------------------------------------------------
@@ -468,6 +592,19 @@ void mha_kv_cache(PlainTensor& q_input,
         d_scale = 1.0F / std::sqrt(static_cast<float>(S));
     }
 
+    // Prepare f32 Q only when K has codec — rotation needed for QK dot in rotated domain.
+    PlainTensor prepared_q;
+    if (k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO) {
+        mha_prepare_query(q_input,
+                          prepared_q,
+                          /*rotate=*/true,
+                          cpu_parallel,
+                          q_precision,
+                          per_thread_head_scratch,
+                          per_thread_head_stride,
+                          wht_signs.ptr<float>());
+    }
+
     buf_attn_w.resize<float>({B, num_q_heads, q_len, (kv_len + 15) / 16 * 16});
     buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, num_q_heads, SV});
 
@@ -476,8 +613,9 @@ void mha_kv_cache(PlainTensor& q_input,
     // AVX2-only: defer u8 zp subtraction from per-element to per-group-after-dot.
     // AVX-512 has enough throughput to absorb the per-element sub — not worth the overhead.
     constexpr bool is_avx2 = simd::f32::isa_value == simd::isa::avx2;
-    const bool use_affine_k = is_avx2 && (k_codec == CacheCodec::U8);
-    const size_t n_key_groups = use_affine_k ? S / key_group_size : 0;
+    const bool use_affine_k = is_avx2 && k_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO &&
+                              k_spec.precision == ov::element::u8 && !k_spec.by_channel;
+    const size_t n_key_groups = use_affine_k ? S / k_spec.group_size : 0;
     PlainTensor q_group_sums_buf;
     if (use_affine_k) {
         q_group_sums_buf.resize<float>({B, num_q_heads, q_len, n_key_groups});
@@ -494,13 +632,13 @@ void mha_kv_cache(PlainTensor& q_input,
                     for (size_t g = 0; g < n_key_groups; g++) {
                         constexpr int W = simd::f32::width;
                         simd::f32 acc;
-                        const size_t offset = g * key_group_size;
+                        const size_t offset = g * k_spec.group_size;
                         size_t i = 0;
-                        for (; i + W <= key_group_size; i += W) {
+                        for (; i + W <= k_spec.group_size; i += W) {
                             acc = acc + simd::load<simd::f32>(q_head + offset + i);
                         }
                         sums[g] = reduce(acc);
-                        for (; i < key_group_size; i++) {
+                        for (; i < k_spec.group_size; i++) {
                             sums[g] += static_cast<float>(q_head[offset + i]);
                         }
                     }
@@ -520,13 +658,13 @@ void mha_kv_cache(PlainTensor& q_input,
         mha_foreach_kv(
             kv_traversal,
             S,
-            [&, k_codec, m](size_t run_len,
-                            int num_group_heads,
-                            int head_dim,
-                            size_t b,
-                            size_t h_group,
-                            size_t start_pos,
-                            size_t /*ithr*/) {
+            [&, m](size_t run_len,
+                   int num_group_heads,
+                   int head_dim,
+                   size_t b,
+                   size_t h_group,
+                   size_t start_pos,
+                   size_t /*ithr*/) {
                 const size_t h_start = h_group * heads_per_kv_group;
                 const auto* kv_base = static_cast<const uint8_t*>(key_cache.ptr_v(size_t{0}, h_group, start_pos));
                 const size_t stride_batch = key_cache.stride_bytes(0);
@@ -535,21 +673,28 @@ void mha_kv_cache(PlainTensor& q_input,
                 const int32_t* beam_tbl_ptr = use_beams ? beams.ptr<int32_t>(b) + start_pos : nullptr;
                 float* scores_row_base = buf_attn_w.ptr<float>(b, h_start, m) + start_pos;
                 StridedData<float> scores{scores_row_base, buf_attn_w.stride(1)};
-                const KVEntryContext entry_ctx{start_pos, h_group, head_dim};
+                KVEntryContext entry_ctx{start_pos, h_group, head_dim, nullptr, 0, 0};
+                if (k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO && k_quant_meta_data) {
+                    entry_ctx.norm_base = k_quant_meta_data.ptr<float>(0, h_group, 0);
+                    entry_ctx.norm_stride_batch = k_quant_meta_data.stride(0);
+                    entry_ctx.norm_stride_pos = k_quant_meta_data.stride(2);
+                }
 
                 // q_group_sums base for first head in group; stride to step between heads.
                 const float* q_group_sums = use_affine_k ? q_group_sums_buf.ptr<float>(b, h_start, m) : nullptr;
                 const size_t q_group_sums_stride = use_affine_k ? q_group_sums_buf.stride(1) : 0;
+                const bool encoded = k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+                const auto& q_src = encoded ? prepared_q : q_input;
+                const auto q_prec = encoded ? ov::element::f32 : q_precision;
                 dispatch_q_precision(
-                    q_input,
+                    q_src,
                     b,
                     h_start,
-                    q_precision,
+                    q_prec,
                     [&](auto q) {
                         dispatch_codec(
-                            k_codec,
+                            k_spec,
                             head_dim,
-                            key_group_size,
                             k_scale_zp,
                             [&](auto record_view) {
                                 auto scorer = QKScorer{q, record_view, entry_ctx};
@@ -589,18 +734,19 @@ void mha_kv_cache(PlainTensor& q_input,
     // ---------------------------------------------------------------------------
     // Phases 3+4: V accumulation + reduce, per query position.
     // ---------------------------------------------------------------------------
+    const bool do_inv_rotate = v_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
     for (size_t m = 0; m < q_len; m++) {
         // Phase 3: V accumulation for query position m.
         mha_foreach_kv(
             kv_traversal,
             SV,
-            [&, v_codec, m](size_t run_len,
-                            int num_group_heads,
-                            int head_dim,
-                            size_t b,
-                            size_t h_group,
-                            size_t start_pos,
-                            size_t ithr) {
+            [&, m](size_t run_len,
+                   int num_group_heads,
+                   int head_dim,
+                   size_t b,
+                   size_t h_group,
+                   size_t start_pos,
+                   size_t ithr) {
                 const size_t h_start = h_group * heads_per_kv_group;
                 const auto* kv_base = static_cast<const uint8_t*>(packed_value.ptr_v(size_t{0}, h_group, start_pos));
                 const size_t stride_batch = packed_value.stride_bytes(0);
@@ -611,9 +757,14 @@ void mha_kv_cache(PlainTensor& q_input,
                 StridedData<const float> weights{weights_row_base, buf_attn_w.stride(1)};
                 auto* accum_row_base = buf_attn_score.ptr<float>(ithr, b, m, h_start);
                 StridedData<float> accum{accum_row_base, buf_attn_score.stride(3)};
-                const KVEntryContext entry_ctx{start_pos, h_group, head_dim};
+                KVEntryContext entry_ctx{start_pos, h_group, head_dim, nullptr, 0, 0};
+                if (v_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO && v_quant_meta_data) {
+                    entry_ctx.norm_base = v_quant_meta_data.ptr<float>(0, h_group, 0);
+                    entry_ctx.norm_stride_batch = v_quant_meta_data.stride(0);
+                    entry_ctx.norm_stride_pos = v_quant_meta_data.stride(2);
+                }
 
-                dispatch_codec(v_codec, head_dim, value_group_size, v_scale_zp, [&](auto record_view) {
+                dispatch_codec(v_spec, head_dim, v_scale_zp, [&](auto record_view) {
                     auto vaccum = VAccumulator{record_view, entry_ctx};
                     accum_tokens(kv_base,
                                  stride_batch,
@@ -640,12 +791,14 @@ void mha_kv_cache(PlainTensor& q_input,
         mha_reduce(buf_attn_score,
                    output_emb,
                    has_out_transpose,
+                   do_inv_rotate,
                    B,
                    num_q_heads,
                    1,  // reduce one query position at a time
                    SV,
                    nthr,
                    cpu_parallel,
+                   do_inv_rotate ? wht_signs.ptr<float>() : nullptr,
                    m);
     }
 }

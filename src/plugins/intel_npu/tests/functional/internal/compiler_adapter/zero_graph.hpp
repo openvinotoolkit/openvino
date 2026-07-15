@@ -409,30 +409,17 @@ TEST_P(IsOptionSupported, PropertySupportedByDriver) {
 using EncryptionCallbacks = ZeroGraphTest;
 
 TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
-    model = ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32);
-
-    auto options = std::make_shared<OptionsDesc>();
-    options->add<COMPILER_TYPE>();
-    options->add<CACHE_ENCRYPTION_CALLBACKS>();
-    auto npu_config = std::make_unique<FilteredConfig>(options);
-    for (const auto& [propertyName, propertyValue] : configuration) {
-        npu_config->enable(propertyName, true);
-    }
-    npu_config->updateAny(configuration);
-
-    std::shared_ptr<ICompilerAdapter> compiler;
-    compiler =
-        npu_config->get<COMPILER_TYPE>() == intel_npu::CompilerType::DRIVER
-            ? std::dynamic_pointer_cast<ICompilerAdapter>(std::make_shared<DriverCompilerAdapter>(zeroInitStruct))
-            : std::dynamic_pointer_cast<ICompilerAdapter>(std::make_shared<PluginCompilerAdapter>(zeroInitStruct));
-
+    auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+    serializeIR();
     if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
-        OV_EXPECT_THROW(compiler->compile(model, *npu_config),
-                        ov::Exception,
-                        testing::HasSubstr(
-                            "Secure compilation was requested, but the current driver version does not support it."));
+        OV_EXPECT_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true),
+            ov::Exception,
+            testing::HasSubstr(
+                "Secure compilation was requested, but the current driver version does not support it."));
     } else {
-        OV_ASSERT_NO_THROW(compiler->compile(model, *npu_config));
+        OV_ASSERT_NO_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true));
     }
 }
 

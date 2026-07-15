@@ -87,30 +87,24 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto supported_et_count = utils::get_snippet_lanes();
-    const auto stack_size = static_cast<int>(supported_et_count * sizeof(uint32_t));
 
     auto src = Xbyak_riscv::VReg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);
-    if (src.getIdx() != dst.getIdx()) {
-        h->vmv_v_v(dst, src);
-    }
-
     if (offset == supported_et_count) {
+        if (src.getIdx() != dst.getIdx()) {
+            h->vmv_v_v(dst, src);
+        }
         return;
     }
 
     OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "Fill emitter expects one auxiliary GPR register");
     const auto fill_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
-    h->uni_li(fill_reg, static_cast<int64_t>(fill_value));
 
-    // Write vector to stack, patch tail elements and load vector back.
-    h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, -stack_size);
-    h->vse32_v(dst, Xbyak_riscv::sp);
-    for (size_t i = offset; i < supported_et_count; i++) {
-        h->sw(fill_reg, Xbyak_riscv::sp, static_cast<int32_t>(i * sizeof(uint32_t)));
-    }
-    h->vle32_v(dst, Xbyak_riscv::sp);
-    h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, stack_size);
+    h->vid_v(mask_vreg());
+    h->uni_li(fill_reg, offset - 1);
+    h->vmsgtu_vx(mask_vreg(), mask_vreg(), fill_reg);
+    h->uni_li(fill_reg, static_cast<int64_t>(fill_value));
+    h->vmerge_vxm(dst, src, fill_reg);
 }
 
 }  // namespace ov::intel_cpu::riscv64

@@ -7,6 +7,29 @@
 #include "single_op_tests/group_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+namespace ov {
+namespace test {
+
+class GroupConvBackpropDilationTest : public GroupConvBackpropLayerTest {
+protected:
+    void SetUp() override {
+        GroupConvBackpropLayerTest::SetUp();
+        // FP16 deconv with dilation has inherent quantization error (~0.25 for values >128)
+        const auto& [convParams, model_type, shapes, output_shapes, dev] = this->GetParam();
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
+    }
+};
+
+TEST_P(GroupConvBackpropDilationTest, Inference) {
+    run();
+}
+
+}  // namespace test
+}  // namespace ov
+
 namespace {
 using ov::test::GroupConvBackpropLayerTest;
 
@@ -125,4 +148,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBa
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
+
+/* ============= 2D GroupConvolutionBackpropData with Dilation > 1 ============= */
+const std::vector<ov::element::Type> netPrecisionsDilation = {ov::element::f32, ov::element::f16};
+
+const std::vector<std::vector<ov::Shape>> inputShapesDilation2D = {{{1, 16, 5, 5}}, {{1, 32, 10, 10}}};
+const std::vector<std::vector<size_t>> kernelsDilation2D = {{2, 2}, {3, 3}};
+const std::vector<std::vector<size_t>> stridesDilation2D = {{1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padBeginsDilation2D = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> padEndsDilation2D = {{0, 0}};
+const std::vector<std::vector<size_t>> dilationsDilation2D = {{2, 2}};
+const std::vector<size_t> numOutChannelsDilation = {16, 32};
+const std::vector<size_t> numGroupsDilation = {2, 8};
+
+const auto groupConvBackpropData2DParams_Dilation = ::testing::Combine(::testing::ValuesIn(kernelsDilation2D),
+                                                                       ::testing::ValuesIn(stridesDilation2D),
+                                                                       ::testing::ValuesIn(padBeginsDilation2D),
+                                                                       ::testing::ValuesIn(padEndsDilation2D),
+                                                                       ::testing::ValuesIn(dilationsDilation2D),
+                                                                       ::testing::ValuesIn(numOutChannelsDilation),
+                                                                       ::testing::ValuesIn(numGroupsDilation),
+                                                                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                       ::testing::ValuesIn(emptyOutputPadding));
+
+using ov::test::GroupConvBackpropDilationTest;
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_Dilation,
+                         GroupConvBackpropDilationTest,
+                         ::testing::Combine(groupConvBackpropData2DParams_Dilation,
+                                            ::testing::ValuesIn(netPrecisionsDilation),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesDilation2D)),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
 }  // namespace

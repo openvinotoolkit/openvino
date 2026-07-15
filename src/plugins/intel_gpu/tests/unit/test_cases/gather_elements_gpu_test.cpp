@@ -38,7 +38,7 @@ inline void DoTest(engine& engine,
     network->set_input_data("InputIndices", input1);
     auto outputs = network->execute();
     auto output = outputs.at("gather_elements").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
@@ -1309,7 +1309,7 @@ TEST(gather_elements_gpu, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather_elements").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);

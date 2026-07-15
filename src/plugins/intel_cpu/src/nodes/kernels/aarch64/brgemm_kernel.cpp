@@ -35,14 +35,35 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 
 namespace ov::intel_cpu {
 
-static size_t getVlen() {
+// Highest supported SVE ISA at or above `min_isa`, or isa_undef if none (caller then
+// declines instead of emitting illegal SVE). Default floor sve_128 fits the main brgemm
+// kernel; copy_a/copy_b pass sve_256 since oneDNN only provides sve_256/sve_512 for them
+// (create_brgemm_matmul_copy_* asserts the isa is a superset of sve_256).
+static cpu_isa_t getSupportedSveIsa(cpu_isa_t min_isa = cpu_isa_t::sve_128) {
     if (mayiuse(sve_512)) {
-        return cpu_isa_traits<sve_512>::vlen;
+        return cpu_isa_t::sve_512;
     }
     if (mayiuse(sve_256)) {
+        return cpu_isa_t::sve_256;
+    }
+    if (min_isa == cpu_isa_t::sve_128 && mayiuse(sve_128)) {
+        return cpu_isa_t::sve_128;
+    }
+    return cpu_isa_t::isa_undef;
+}
+
+static size_t getVlen() {
+    const auto isa = getSupportedSveIsa();
+    if (isa == cpu_isa_t::sve_512) {
+        return cpu_isa_traits<sve_512>::vlen;
+    }
+    if (isa == cpu_isa_t::sve_256) {
         return cpu_isa_traits<sve_256>::vlen;
     }
-    return cpu_isa_traits<sve_128>::vlen;
+    if (isa == cpu_isa_t::sve_128) {
+        return cpu_isa_traits<sve_128>::vlen;
+    }
+    THROW_ERROR("requires ARM SVE support");
 }
 
 BrgemmKernel::BrgemmKernel(size_t M,
@@ -152,15 +173,10 @@ size_t BrgemmKernel::get_scratch_b_size() const {
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel) {
     brgemm_t brgDesc;
-    cpu_isa_t isa = [&]() {
-        if (mayiuse(sve_512)) {
-            return cpu_isa_t::sve_512;
-        }
-        if (mayiuse(sve_256)) {
-            return cpu_isa_t::sve_256;
-        }
-        return cpu_isa_t::sve_128;
-    }();
+    const cpu_isa_t isa = getSupportedSveIsa();
+    if (isa == cpu_isa_t::isa_undef) {
+        THROW_ERROR("requires ARM SVE support");
+    }
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -216,15 +232,10 @@ void BrgemmKernel::init_brgemm_copy_a(
     // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = [&]() {
-        if (mayiuse(sve_512)) {
-            return cpu_isa_t::sve_512;
-        }
-        if (mayiuse(sve_256)) {
-            return cpu_isa_t::sve_256;
-        }
-        return cpu_isa_t::sve_128;
-    }();
+    brgCopyKernelConf.isa = getSupportedSveIsa(cpu_isa_t::sve_256);
+    if (brgCopyKernelConf.isa == cpu_isa_t::isa_undef) {
+        THROW_ERROR("copy A kernel requires ARM SVE256 support");
+    }
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -261,15 +272,10 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.tr_b_dt_sz =
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
-    brgCopyKernelConf.isa = []() {
-        if (mayiuse(sve_512)) {
-            return cpu_isa_t::sve_512;
-        }
-        if (mayiuse(sve_256)) {
-            return cpu_isa_t::sve_256;
-        }
-        return cpu_isa_t::sve_128;
-    }();
+    brgCopyKernelConf.isa = getSupportedSveIsa(cpu_isa_t::sve_256);
+    if (brgCopyKernelConf.isa == cpu_isa_t::isa_undef) {
+        THROW_ERROR("copy B kernel requires ARM SVE256 support");
+    }
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;

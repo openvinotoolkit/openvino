@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/gqa.hpp"
 #include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
@@ -658,11 +659,10 @@ void Snapshot::earlyAvoids() {
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
             if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE" &&
-                avoid.pattern != "DownsampleInterpolate" && avoid.pattern != "FloorModFP32" &&
-                avoid.pattern != "CumSumSinGen" && avoid.pattern != "BoxMullerNoise" &&
-                avoid.pattern != "AngleComplex") {
+                avoid.pattern != "FloorModFP32" && avoid.pattern != "CumSumSinGen" &&
+                avoid.pattern != "BoxMullerNoise" && avoid.pattern != "AngleComplex") {
                 LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos, GemmaRoPE, "
-                         "DownsampleInterpolate, FloorModFP32, CumSumSinGen, BoxMullerNoise "
+                         "FloorModFP32, CumSumSinGen, BoxMullerNoise "
                          "and AngleComplex as patterns "
                          "(don't confuse with operations). "
                          "Avoid pattern "
@@ -676,8 +676,6 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
-            } else if (avoid.pattern == "DownsampleInterpolate") {
-                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "FloorModFP32") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "CumSumSinGen") {
@@ -765,10 +763,15 @@ void Snapshot::earlyRegroup() {
                 HNDL(VariadicSplit);
                 HNDL_MOE(GPTOSSExpert);
                 HNDL_MOE(GPTOSSRouter);
+                HNDL_MOE(Qwen3Expert);
+                HNDL_MOE(Qwen3Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(QuantizedSDPAWithGlobalMask);
+                HNDL_ATTN(GQA);
+                HNDL_ATTN(SDPACompressed);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
@@ -1038,7 +1041,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
             return {};
         }
         for (const auto& el : cons) {
-            if (el->dstNodes().size() > 1 || el->srcNodes().size() > 1) {
+            // Note: a consumer group with no destination (e.g. it feeds a Result directly)
+            // has nothing to look up via dstNodes().front() below - reject it here rather
+            // than triggering undefined behavior on an empty vector.
+            if (el->dstNodes().empty() || el->dstNodes().size() > 1 || el->srcNodes().size() > 1) {
                 return {};
             }
         }
@@ -1404,8 +1410,19 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
-        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
+    std::string isolate_tag = (*(gptrs.begin()))->isolatedTag();
+    NPUW_ASSERT(std::all_of(gptrs.begin(), gptrs.end(), [&](const auto& g) {
+        return g->isolatedTag() == isolate_tag;
+    }));
+
+    const bool keep_by_size = gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size;
+    const bool keep_by_isolate_tag =
+        !isolate_tag.empty() && std::find(m_ctx.keep_block_tags.begin(), m_ctx.keep_block_tags.end(), isolate_tag) !=
+                                    m_ctx.keep_block_tags.end();
+    if (keep_by_size || keep_by_isolate_tag) {
+        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                << " layers tagged '" << isolate_tag << "', "
+                                                << "by_size=" << keep_by_size << ",  by_tag=" << keep_by_isolate_tag);
         for (const auto& g : gptrs) {
             g->freeze();
         }
@@ -1554,6 +1571,36 @@ void Snapshot::stripTag(const std::string& tag) {
             gptr->dontIsolate();
         }
     }
+}
+
+void Snapshot::fuseUnfolded() {
+    if (!m_ctx.fuse_unfolded) {
+        return;
+    }
+
+    LOG_INFO("Online partitioning: executing fuseUnfolded pass...");
+    LOG_BLOCK();
+
+    const std::set<std::string> fold_only_set(m_ctx.fold_only_tags.begin(), m_ctx.fold_only_tags.end());
+    size_t stripped = 0;
+
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (!group->isFrozen() || !group->repeated()) {
+            continue;
+        }
+        const auto& tag = group->isolatedTag();
+        if (fold_only_set.count(tag) == 0) {
+            // This group is repeated but not destined for folding: release it so
+            // fuseRemnants can absorb it into adjacent non-folded subgraphs.
+            group->unfreeze();
+            group->setRepeated(nullptr);
+            ++stripped;
+        }
+    }
+
+    LOG_INFO("Stripped reptag from " << stripped << " non-fold-only repeated groups.");
+    LOG_INFO("DONE");
 }
 
 bool Snapshot::isRegularIOCase() const {

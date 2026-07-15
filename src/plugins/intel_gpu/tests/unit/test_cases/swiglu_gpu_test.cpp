@@ -110,7 +110,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
     ASSERT_EQ(outputs.begin()->first, "swiglu");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -153,7 +153,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp) {
     ASSERT_EQ(outputs.begin()->first, "swiglu");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -201,7 +201,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp_swish_beta_up_add_val) {
     ASSERT_EQ(outputs.begin()->first, "swiglu");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {

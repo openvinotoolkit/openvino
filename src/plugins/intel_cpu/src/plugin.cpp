@@ -21,6 +21,11 @@
 #    include <sys/types.h>
 #endif
 
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244 4267 4334)
+#endif
+
 #include "compiled_model.h"
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -63,6 +68,10 @@
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
 #include "xbyak/xbyak_util.h"
+
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
 
 using namespace ov::threading;
 

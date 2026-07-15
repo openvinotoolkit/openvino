@@ -37,14 +37,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             graphExtVersions),
                          ZeroGraphTest::getTestCaseName);
 
-const std::vector<ov::AnyMap> configEncryptionCallbacks = {
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-     ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})}};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          EncryptionCallbacks,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configEncryptionCallbacks),
+                                            ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),
                          ZeroGraphTest::getTestCaseName);
 

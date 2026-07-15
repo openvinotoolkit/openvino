@@ -289,6 +289,7 @@ REGISTER_FACTORY(v16, SegmentMax);
 
 // ------------------------------ Supported v17 ops ----------------------------- //
 REGISTER_FACTORY(v17, ErfInv);
+REGISTER_FACTORY(v17, GroupedMatMul);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -319,8 +320,11 @@ REGISTER_FACTORY(internal, PagedGatedDeltaNet);
 REGISTER_FACTORY(internal, LoraSubgraph);
 REGISTER_FACTORY(internal, LoraSubgraphFused);
 REGISTER_FACTORY(internal, VLSDPA);
-REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY(internal, MOECompressed);
+REGISTER_FACTORY(internal, MoERouterFused);
 REGISTER_FACTORY(internal, GatedDeltaNet);
 REGISTER_FACTORY(internal, PagedCausalConv1D);
+REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
+REGISTER_FACTORY(internal, GroupedMatMulCompressed);
+REGISTER_FACTORY(internal, Atan2);

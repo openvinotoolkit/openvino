@@ -15,7 +15,6 @@ static constexpr size_t simd = 16;
 static constexpr size_t input_load_size = 4;
 static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
-static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 // Per-direction bitmasks of batch sizes where dyn_b is beneficial (based on MTL profiling).
 // IFM << OFM (e.g. 3584→18944): exclude {20, 24}
@@ -96,13 +95,14 @@ bool is_8bit_asym_wei(const fully_connected_params& params) {
 
 bool is_weight_dyn_quantizable(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
-    if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
-        return true;
-    // No validated case of sym 8bit weight
-    if (is_8bit_asym_wei(params))
-        return true;
+    const bool is_4bit_weight = weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4;
 
-    return false;
+    return is_weight_dyn_quantizable(is_4bit_weight, is_8bit_asym_wei(params));
+}
+
+bool is_weight_dyn_quantizable(bool is_4bit_weight, bool is_8bit_asym_weight) {
+    // No validated case of sym 8bit weight.
+    return is_4bit_weight || is_8bit_asym_weight;
 }
 
 bool is_per_token_dynamic_quantize(const fully_connected_params& params) {
@@ -114,52 +114,88 @@ bool is_per_token_dynamic_quantize(const fully_connected_params& params) {
 }
 
 // DYNAMIC_QUANTIZE
-size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
-    auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+size_t get_dynamic_quantize_group_size(size_t requested_group_size,
+                                       size_t scale_group_size,
+                                       size_t zp_group_size,
+                                       bool has_decompression_zp,
+                                       bool is_8bit_asym_weight) {
+    if (requested_group_size == UINT64_MAX) {
+        if ((scale_group_size % min_quantize_grp_size) == 0 && scale_group_size > min_quantize_grp_size) {
+            auto group_size = scale_group_size;
 
+            // For int8 ASYM model, activation_sum should fit to weight zp
+            if (is_8bit_asym_weight && has_decompression_zp &&
+                group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
+                group_size = zp_group_size;
+            }
+
+            return group_size;
+        }
+    }
+
+    // Grouped-size dyn-quan : use aligned sizes which are in descending priority order.
+    constexpr size_t available_quantize_grp_size[] = {128, 64, 32};
+    for (auto group_size : available_quantize_grp_size) {
+        if (requested_group_size >= group_size && (scale_group_size % group_size) == 0) {
+            if (group_size > scale_group_size) {
+                return scale_group_size;
+            }
+
+            return group_size;
+        }
+    }
+
+    return 0;
+}
+
+size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     size_t scale_group_size = get_scale_group_size(params);
     size_t zp_group_num = params.decompression_zero_point.Feature().v;
     size_t zp_group_size = 0;
     if (params.has_decompression_zp)
         zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
 
-    // Per-token dyn-quan
-    if (dynamic_quantization_group_size >= min_quantize_grp_size && is_per_token_dynamic_quantize(params)) {
-        // Validate size to fit dyn-quan group to the size of weight-scale and weight-zp
-        if ((scale_group_size % min_quantize_grp_size) == 0 && scale_group_size > min_quantize_grp_size) {
-            dynamic_quantization_group_size = scale_group_size;
-
-            // For int8 ASYM model, activation_sum should fit to weight zp
-            if (is_8bit_asym_wei(params) && params.has_decompression_zp == true &&
-                dynamic_quantization_group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
-                dynamic_quantization_group_size = zp_group_size;
-            }
-
-            GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size("
-                          << dynamic_quantization_group_size << ") : From scale_group_size (" << scale_group_size
-                          << ", zp_group_size(" << zp_group_size << "), zp_group_num(" << zp_group_num
-                          << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
-            return (size_t)dynamic_quantization_group_size;
-        }
+    const auto dynamic_quantization_group_size = get_dynamic_quantize_group_size(params.dynamic_quantization_group_size,
+                                                                                scale_group_size,
+                                                                                zp_group_size,
+                                                                                params.has_decompression_zp,
+                                                                                is_8bit_asym_wei(params));
+    if (is_per_token_dynamic_quantize(params) && dynamic_quantization_group_size != 0) {
+        GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size("
+                      << dynamic_quantization_group_size << ") : From scale_group_size (" << scale_group_size
+                      << ", zp_group_size(" << zp_group_size << "), zp_group_num(" << zp_group_num
+                      << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
     }
 
-    // Grouped-size dyn-quan : use aligned sizes which are in 'available_quantize_grp_size'
-    for (auto group_size : available_quantize_grp_size) {
-        if (dynamic_quantization_group_size >= group_size && (scale_group_size % group_size) == 0) {
-            dynamic_quantization_group_size = group_size;
+    return dynamic_quantization_group_size;
+}
 
-            if (dynamic_quantization_group_size > scale_group_size) {
-                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size
-                                       << " is smaller than FC dyn-quan group size " << dynamic_quantization_group_size
-                                       << ". Reduce FC dyn-quan group size to scale size." << std::endl;
-                dynamic_quantization_group_size = scale_group_size;
-            }
+bool would_use_slm_with_internal_dq(const slm_dq_eligibility_params& params,
+                                    size_t runtime_batch,
+                                    size_t standalone_dq_group_size) {
+    if (params.device_type != dev_type::integrated_gpu)
+        return false;
 
-            return (size_t)dynamic_quantization_group_size;
-        }
-    }
+    if (!is_weight_dyn_quantizable(params.is_4bit_weight, params.is_8bit_asym_weight))
+        return false;
 
-    return 0;
+    constexpr size_t min_required_slm = 2 * simd * 1 * simd * 2;
+    if (params.max_local_mem_size < min_required_slm)
+        return false;
+
+    constexpr size_t default_alignment = 16;
+    if (runtime_batch + default_alignment <= min_slm_size)
+        return false;
+
+    const auto fc_internal_group_size = get_dynamic_quantize_group_size(params.dq_group_size,
+                                                                        params.scale_group_size,
+                                                                        params.zp_group_size,
+                                                                        params.has_decompression_zp,
+                                                                        params.is_8bit_asym_weight);
+    return fc_internal_group_size != 0 &&
+           params.weight_ifm != 0 &&
+           params.weight_ifm % fc_internal_group_size == 0 &&
+           fc_internal_group_size == standalone_dq_group_size;
 }
 
 bool should_dynamic_quantize(const fully_connected_params& params) {

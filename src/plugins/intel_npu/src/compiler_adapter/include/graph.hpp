@@ -12,6 +12,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -78,6 +79,11 @@ protected:
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
+
+    // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
+    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
+    std::optional<ov::WorkloadType> _workloadType = std::nullopt;
+    std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;

@@ -389,18 +389,25 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
     } else if (variants[0].is<std::istream*>()) {
-        // Validating first stream, it must contain a model
-        // step 1:
-        // PDPD API ParseFromIstream always deconstructs the context in model stream.
-        // So, make a copy for variants[0] to avoid breaking the context in variants[0].
+        // Do not parse stream content in supported_impl. Fuzzed / malformed data can
+        // trigger undefined behavior in protobuf internals while probing support.
+        // Keep this check lightweight and non-destructive, similar to path-based probing.
         const auto p_model_stream = variants[0].as<std::istream*>();
-        std::istream copy_model_stream(p_model_stream->rdbuf());
-        ::paddle::framework::proto::ProgramDesc fw;
-        auto ret = fw.ParseFromIstream(&copy_model_stream);
-        // step 2:
-        // reset the stream position to the beginning.
-        p_model_stream->seekg(0, p_model_stream->beg);
-        return ret;
+        FRONT_END_GENERAL_CHECK(p_model_stream != nullptr, "Cannot use null model stream.");
+
+        auto old_state = p_model_stream->rdstate();
+        auto old_pos = p_model_stream->tellg();
+
+        p_model_stream->clear();
+        auto first = p_model_stream->peek();
+
+        p_model_stream->clear();
+        if (old_pos != std::istream::pos_type(-1)) {
+            p_model_stream->seekg(old_pos);
+        }
+        p_model_stream->clear(old_state);
+
+        return first != std::char_traits<char>::eof() && ((static_cast<unsigned char>(first) & 0x07u) == 2u);
     }
     return false;
 }

@@ -9,6 +9,7 @@
 #include "common/utils.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
 
@@ -187,7 +188,6 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
-    {{ov::internal::exclusive_async_requests.name(), true}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};

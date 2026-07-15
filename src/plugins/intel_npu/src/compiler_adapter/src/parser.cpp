@@ -8,7 +8,9 @@
 #include "graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "weightless_graph.hpp"
+#include "weightless_utils.hpp"
 
 namespace intel_npu {
 
@@ -41,6 +43,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
+        NPUVMRuntimeApi::initializeFromBlob(data, size);
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
 
@@ -94,7 +97,12 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     _logger.debug("inits schedule parse end");
 
-    OPENVINO_ASSERT(model.has_value(), "Model is required for parsing weightless blobs.");
+    auto constants = model.has_value()
+                         ? get_all_constants_in_topological_order(model.value())
+                         : get_all_constants_memory_mapped(config.get<WEIGHTS_PATH>(), initNetworkMetadata);
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    model = std::nullopt;
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
@@ -104,7 +112,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              initBlobs,
-                                             std::move(model.value()),
+                                             std::move(constants),
                                              config,
                                              blobIsPersistent);
 }

@@ -90,7 +90,6 @@ TEST_F(TransformationTestsF, KVCacheFusionTest3) {
         auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(parameter,
                                                                      ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}),
                                                                      ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {32}));
-                                                                     std::cout << var_split->get_output_partial_shape(0) << std::endl;
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
         auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
         auto gather_past = std::make_shared<ov::op::v8::Gather>(past, beam_idx, axis);

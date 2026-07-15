@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -175,6 +176,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             break;
         }
 
+        // Preserve the original B initializer name on the repacked weight constant so it can still be
+        // identified by name downstream (e.g. for weight sharing). Only B is named.
+        if (const auto casted_b_const = ov::as_type_ptr<v0::Constant>(casted_b.get_node_shared_ptr())) {
+            casted_b_const->set_friendly_name(b_const->get_friendly_name());
+            casted_b_const->get_output_tensor(0).set_names(b_const->get_output_tensor(0).get_names());
+        }
+
         ov::Output<ov::Node> converted_zero_points;
         if (!zero_points.get_node_shared_ptr()) {
             converted_zero_points = std::make_shared<v0::Convert>(default_zp, a.get_element_type());
@@ -254,15 +262,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         // use fp16 for compute
 
-        // convert b to fp16
-        auto converted_b = std::make_shared<v0::Convert>(casted_b, a.get_element_type());
-
-        // sub and scale
-        const auto sub_b = std::make_shared<v1::Subtract>(converted_b, converted_zero_points);
+        // sub and scale via the shared low-precision dequantization helper
         const auto scales_fp16 = std::make_shared<v0::Convert>(scales, a.get_element_type());
         const auto scales_reshaped =
             op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
-        const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales_reshaped);
+
+        auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
 
         // reshape b to [N, K]
         auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});

@@ -55,7 +55,7 @@ TEST(data_gpu, attach_host_buffer) {
 
     std::vector<float> expected_output = { 0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5 };
 
-    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
     for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
         ASSERT_EQ(expected_output[i], output_ptr[i]);
@@ -104,7 +104,7 @@ TEST(data_gpu, usm_device_buffer) {
 
     std::vector<float> expected_output = { 0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5 };
 
-    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
     for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
         ASSERT_EQ(expected_output[i], output_ptr[i]);

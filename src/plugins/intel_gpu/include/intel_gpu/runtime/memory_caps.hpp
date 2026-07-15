@@ -18,6 +18,7 @@ enum class allocation_type {
     usm_host,    // Accessible by host and device. Not Migratable
     usm_shared,  // Accessible by host and device. Migrtable.
     usm_device,  // Accessible only by device. Not migratable.
+    sycl_buffer, // Use standard SYCL buffer allocations.
     ze_image,    // Level Zero image allocation. Accessible only by device.
     max_value,   // Used for data array size. Shall be last
 };
@@ -28,6 +29,7 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
         case allocation_type::usm_host:   out << "usm_host";   break;
         case allocation_type::usm_shared: out << "usm_shared"; break;
         case allocation_type::usm_device: out << "usm_device"; break;
+        case allocation_type::sycl_buffer: out << "sycl_buffer"; break;
         case allocation_type::ze_image:    out << "ze_image";    break;
         default: out << "unknown"; break;
     }
@@ -108,7 +110,7 @@ using shared_surface = uint32_t;
 /// @brief Low-level API handles required for using cldnn memory objects in external API calls.
 struct shared_mem_params {
     shared_mem_type mem_type;     ///< shared buffer type
-    shared_handle context;        ///< OpenCL context for external operations
+    shared_handle context;        ///< OpenCL or Level Zero context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
 #ifdef _WIN32

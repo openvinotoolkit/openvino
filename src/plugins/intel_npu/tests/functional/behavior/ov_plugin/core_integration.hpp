@@ -114,19 +114,19 @@ using OVClassNetworkTestPNPU = OVClassBaseTestPNPU;
 using OVClassLoadNetworkTestNPU = OVClassBaseTestPNPU;
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
 }
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
                                         ov::test::utils::DEVICE_HETERO + std::string(":") + target_device,
                                         configuration));
 }
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDevice2NoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
                                         ov::test::utils::DEVICE_HETERO,
@@ -135,7 +135,7 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDevice2NoThrow) {
 }
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     configuration.emplace(ov::enable_profiling(true));
 
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
@@ -145,7 +145,7 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceUsingDevicePropertie
 }
 
 TEST_P(OVClassLoadNetworkTestNPU, LoadNetworkHETEROWithDeviceIDNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     auto supported_properties = ie.get_property(target_device, ov::supported_properties);
 
@@ -455,7 +455,7 @@ TEST_P(OVClassCompileModel, CompileModelWithDifferentThreadNumbers) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
 
     const std::vector<std::string> libs = {pluginName};
 

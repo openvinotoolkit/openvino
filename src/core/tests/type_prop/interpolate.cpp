@@ -26,8 +26,8 @@ TEST(type_prop, interpolate_v0_default_ctor) {
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     auto interp = std::make_shared<op::v0::Interpolate>();
     interp->set_arguments(OutputVector{image, target_shape});
@@ -45,8 +45,8 @@ TEST(type_prop, interpolate_v0_all_inputs_dynamic_rank) {
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     auto interp = std::make_shared<ov::op::v0::Interpolate>(image, target_shape, attrs);
 
@@ -60,8 +60,8 @@ TEST(type_prop, interpolate_v0_all_inputs_static_rank) {
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     auto interp = std::make_shared<ov::op::v0::Interpolate>(image, target_shape, attrs);
 
@@ -75,8 +75,8 @@ TEST(type_prop, interpolate_v0_target_shape_not_constant) {
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{3, 1};
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     auto interp = std::make_shared<ov::op::v0::Interpolate>(image, target_shape, attrs);
 
@@ -96,8 +96,8 @@ TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{3, 1};
-    attrs.pads_begin = {0, 0, 1, 0};
-    attrs.pads_end = {0, 2, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 1, 0};
+    attrs.pads_end = std::vector<size_t>{0, 2, 0, 0};
     auto interp = std::make_shared<op::v0::Interpolate>(image, target_shape, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f64);
@@ -145,8 +145,8 @@ TEST(type_prop, interpolate_v4) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -170,8 +170,8 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -196,8 +196,8 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -218,8 +218,8 @@ TEST(type_prop, interpolate_v4_img_dynamic_rank) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -242,8 +242,8 @@ TEST(type_prop, interpolate_v4_partial_static_rank) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 1, 0, 0};
-    attrs.pads_end = {0, 1, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 1, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 1, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -268,8 +268,8 @@ TEST(type_prop, interpolate_v4_img_intervals_use_scales) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 1};
-    attrs.pads_end = {1, 1, 0, 1};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 1};
+    attrs.pads_end = std::vector<size_t>{1, 1, 0, 1};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -296,8 +296,8 @@ TEST(type_prop, interpolate_v4_use_sizes_as_shape_of) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -322,8 +322,8 @@ TEST(type_prop, interpolate_v4_use_scales_interval_shapes) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
@@ -341,8 +341,8 @@ TEST(type_prop, interpolate_v4_target_shapes_gt_axes_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
@@ -357,8 +357,8 @@ TEST(type_prop, interpolate_v4_scales_gt_axes_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
@@ -374,8 +374,8 @@ TEST(type_prop, interpolate_v4_incorrect_mode) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::BICUBIC_PILLOW;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v4::Interpolate>(image, target_shape, scales, axes, attrs),
                     ov::NodeValidationFailure,
@@ -395,8 +395,8 @@ TEST(type_prop, interpolate_v4_target_shape_not_1d) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
                         image,
@@ -426,8 +426,8 @@ TEST(type_prop, interpolate_v4_scales_not_1d) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
                         image,
@@ -457,8 +457,8 @@ TEST(type_prop, interpolate_v4_axes_not_1d) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
                         image,

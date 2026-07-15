@@ -247,7 +247,7 @@ public:
 
         const auto rois = outputs.at(reorder_result_id).get_memory();
 
-        const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> rois_ptr(rois, get_test_stream());
         ASSERT_EQ(rois_ptr.size(), param.post_nms_count * 4);
 
         cldnn::topology reorder_topology;
@@ -258,7 +258,7 @@ public:
         const auto second_output_result = reorder_net.execute();
         const auto plane_data_mem = second_output_result.at("plane_scores").get_memory();
 
-        const cldnn::mem_lock<T> roi_scores_ptr(plane_data_mem, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> roi_scores_ptr(plane_data_mem, get_test_stream());
         ASSERT_EQ(roi_scores_ptr.size(), param.post_nms_count);
 
         const auto &expected_roi_scores = param.expected_roi_scores;

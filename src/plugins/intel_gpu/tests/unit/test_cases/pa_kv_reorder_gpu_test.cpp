@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <cstring>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/pa_kv_reorder.hpp>
 #include <intel_gpu/primitives/paged_attention.hpp>
-
-#include <cstring>
-#include <type_traits>
 #include <tuple>
+#include <type_traits>
 #include <vector>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -20,17 +19,11 @@ using namespace ::tests;
 namespace {
 
 size_t key_offset(size_t block, size_t head, size_t k, size_t token, size_t kv_heads, size_t k_head_size, size_t block_size) {
-    return block * kv_heads * k_head_size * block_size +
-           head * k_head_size * block_size +
-           k * block_size +
-           token;
+    return block * kv_heads * k_head_size * block_size + head * k_head_size * block_size + k * block_size + token;
 }
 
 size_t value_offset(size_t block, size_t head, size_t token, size_t v, size_t kv_heads, size_t v_head_size, size_t block_size) {
-    return block * kv_heads * block_size * v_head_size +
-           head * block_size * v_head_size +
-           token * v_head_size +
-           v;
+    return block * kv_heads * block_size * v_head_size + head * block_size * v_head_size + token * v_head_size + v;
 }
 
 size_t key_comp_byte_offset(size_t block,
@@ -42,8 +35,7 @@ size_t key_comp_byte_offset(size_t block,
                             size_t k_head_size,
                             size_t adjusted_k_head_size,
                             size_t block_size) {
-    const size_t block_base = block * kv_heads * adjusted_k_head_size * block_size +
-                              head * adjusted_k_head_size * block_size;
+    const size_t block_base = block * kv_heads * adjusted_k_head_size * block_size + head * adjusted_k_head_size * block_size;
     const size_t comp_base = block_base + k_head_size * block_size;
     const size_t token_base = (is_zp ? (block_size + token) : token) * sizeof(ov::float16);
     return comp_base + token_base + byte_in_fp16;
@@ -58,8 +50,7 @@ size_t value_comp_byte_offset(size_t block,
                               size_t v_head_size,
                               size_t adjusted_v_head_size,
                               size_t block_size) {
-    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size +
-                              head * block_size * adjusted_v_head_size;
+    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size + head * block_size * adjusted_v_head_size;
     const size_t comp_base = block_base + v_head_size * block_size;
     const size_t token_base = (is_zp ? (block_size + token) : token) * sizeof(ov::float16);
     return comp_base + token_base + byte_in_fp16;
@@ -73,9 +64,30 @@ size_t value_data_offset_compressed(size_t block,
                                     size_t v_head_size,
                                     size_t adjusted_v_head_size,
                                     size_t block_size) {
-    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size +
-                              head * block_size * adjusted_v_head_size;
+    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size + head * block_size * adjusted_v_head_size;
     return block_base + token * v_head_size + v;
+}
+
+// u4 V BY_TOKEN layout: each token row is `packed_v_head_size` data bytes followed inline
+// by `[fp16 scale][fp16 zp]` (mirrors quantize_and_save_per_token in pa_kv_cache_update_ref.cl
+// when out_data_pitch == 1).
+size_t value_data_offset_int4_per_token(size_t block, size_t head, size_t token, size_t v, size_t kv_heads, size_t adjusted_v_head_size, size_t block_size) {
+    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size + head * block_size * adjusted_v_head_size;
+    return block_base + token * adjusted_v_head_size + v;
+}
+
+size_t value_comp_byte_offset_int4_per_token(size_t block,
+                                             size_t head,
+                                             size_t token,
+                                             size_t byte_in_fp16,
+                                             bool is_zp,
+                                             size_t kv_heads,
+                                             size_t packed_v_head_size,
+                                             size_t adjusted_v_head_size,
+                                             size_t block_size) {
+    const size_t block_base = block * kv_heads * block_size * adjusted_v_head_size + head * block_size * adjusted_v_head_size;
+    const size_t row_base = block_base + token * adjusted_v_head_size + packed_v_head_size;
+    return row_base + (is_zp ? sizeof(ov::float16) : 0) + byte_in_fp16;
 }
 
 void run_copy_between_blocks_single_sequence_compressed_int4_test(data_types cache_dt) {
@@ -119,10 +131,13 @@ void run_copy_between_blocks_single_sequence_compressed_int4_test(data_types cac
 
     set_values<int32_t>(block_indices_mem, {0, 1});
     set_values<int32_t>(block_indices_begins_mem, {0, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        0, 17,
-        15, 16,
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
 
     topology topo;
@@ -174,12 +189,12 @@ void run_copy_between_blocks_single_sequence_compressed_int4_test(data_types cac
     }
 
     for (size_t v = 0; v < packed_v_head_size; v++) {
-        const auto src0 = value_cache_ref[value_data_offset_compressed(0, 0, 0, v, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
-        const auto dst17 = value_ptr[value_data_offset_compressed(1, 0, 1, v, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
+        const auto src0 = value_cache_ref[value_data_offset_int4_per_token(0, 0, 0, v, kv_heads, adjusted_v_head_size, block_size)];
+        const auto dst17 = value_ptr[value_data_offset_int4_per_token(1, 0, 1, v, kv_heads, adjusted_v_head_size, block_size)];
         ASSERT_EQ(dst17, src0);
 
-        const auto src15 = value_cache_ref[value_data_offset_compressed(0, 0, 15, v, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
-        const auto dst16 = value_ptr[value_data_offset_compressed(1, 0, 0, v, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
+        const auto src15 = value_cache_ref[value_data_offset_int4_per_token(0, 0, 15, v, kv_heads, adjusted_v_head_size, block_size)];
+        const auto dst16 = value_ptr[value_data_offset_int4_per_token(1, 0, 0, v, kv_heads, adjusted_v_head_size, block_size)];
         ASSERT_EQ(dst16, src15);
     }
 
@@ -189,10 +204,10 @@ void run_copy_between_blocks_single_sequence_compressed_int4_test(data_types cac
         ASSERT_EQ(key_ptr[key_comp_byte_offset(1, 0, 1, byte, true, kv_heads, packed_k_head_size, adjusted_k_head_size, block_size)],
                   key_cache_ref[key_comp_byte_offset(0, 0, 0, byte, true, kv_heads, packed_k_head_size, adjusted_k_head_size, block_size)]);
 
-        ASSERT_EQ(value_ptr[value_comp_byte_offset(1, 0, 1, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
-                  value_cache_ref[value_comp_byte_offset(0, 0, 0, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
-        ASSERT_EQ(value_ptr[value_comp_byte_offset(1, 0, 1, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
-                  value_cache_ref[value_comp_byte_offset(0, 0, 0, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
+        ASSERT_EQ(value_ptr[value_comp_byte_offset_int4_per_token(1, 0, 1, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
+                  value_cache_ref[value_comp_byte_offset_int4_per_token(0, 0, 0, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
+        ASSERT_EQ(value_ptr[value_comp_byte_offset_int4_per_token(1, 0, 1, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
+                  value_cache_ref[value_comp_byte_offset_int4_per_token(0, 0, 0, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
     }
 }
 
@@ -212,12 +227,7 @@ ov::float16 read_fp16_from_u8_vector(const std::vector<uint8_t>& buffer, size_t 
     return ov::float16::from_bits(bits);
 }
 
-void fill_key_cache(memory::ptr key_cache_mem,
-                    size_t blocks_num,
-                    size_t kv_heads,
-                    size_t k_head_size,
-                    size_t block_size,
-                    std::vector<ov::float16>& values) {
+void fill_key_cache(memory::ptr key_cache_mem, size_t blocks_num, size_t kv_heads, size_t k_head_size, size_t block_size, std::vector<ov::float16>& values) {
     values.resize(key_cache_mem->count());
     for (size_t b = 0; b < blocks_num; b++) {
         for (size_t h = 0; h < kv_heads; h++) {
@@ -284,10 +294,13 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence) {
 
     set_values<int32_t>(block_indices_mem, {0, 1});
     set_values<int32_t>(block_indices_begins_mem, {0, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        0, 17,
-        15, 16,
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
 
     topology topo;
@@ -347,8 +360,7 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence) {
         ASSERT_EQ(dst16, src15);
     }
 
-    ASSERT_EQ(key_ptr[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)],
-              key_cache_ref[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)]);
+    ASSERT_EQ(key_ptr[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)], key_cache_ref[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)]);
     ASSERT_EQ(value_ptr[value_offset(0, 0, 0, 0, kv_heads, v_head_size, block_size)],
               value_cache_ref[value_offset(0, 0, 0, 0, kv_heads, v_head_size, block_size)]);
 }
@@ -384,10 +396,13 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence) {
     // Sequence 0 uses physical block 0, sequence 1 uses physical block 2.
     set_values<int32_t>(block_indices_mem, {0, 2});
     set_values<int32_t>(block_indices_begins_mem, {0, 1, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        1, 3,  // seq0: slot1 -> slot3 in block0
-        2, 4,  // seq1: slot2 -> slot4 in block2
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            1,
+                            3,  // seq0: slot1 -> slot3 in block0
+                            2,
+                            4,  // seq1: slot2 -> slot4 in block2
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 1, 2});
 
     topology topo;
@@ -428,14 +443,11 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence) {
     cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
-        ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, k_head_size, block_size)],
-                  key_cache_ref[key_offset(0, 0, k, 1, kv_heads, k_head_size, block_size)]);
-        ASSERT_EQ(key_ptr[key_offset(2, 0, k, 4, kv_heads, k_head_size, block_size)],
-                  key_cache_ref[key_offset(2, 0, k, 2, kv_heads, k_head_size, block_size)]);
+        ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, k_head_size, block_size)], key_cache_ref[key_offset(0, 0, k, 1, kv_heads, k_head_size, block_size)]);
+        ASSERT_EQ(key_ptr[key_offset(2, 0, k, 4, kv_heads, k_head_size, block_size)], key_cache_ref[key_offset(2, 0, k, 2, kv_heads, k_head_size, block_size)]);
 
         // Unused middle block must stay untouched.
-        ASSERT_EQ(key_ptr[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size)],
-                  key_cache_ref[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size)]);
+        ASSERT_EQ(key_ptr[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size)], key_cache_ref[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size)]);
     }
 
     for (size_t v = 0; v < v_head_size; v++) {
@@ -488,10 +500,13 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed) {
 
     set_values<int32_t>(block_indices_mem, {0, 1});
     set_values<int32_t>(block_indices_begins_mem, {0, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        0, 17,
-        15, 16,
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
 
     topology topo;
@@ -612,10 +627,13 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence_compressed) {
 
     set_values<int32_t>(block_indices_mem, {0, 2});
     set_values<int32_t>(block_indices_begins_mem, {0, 1, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        1, 3,  // seq0: slot1 -> slot3 in block0
-        2, 4,  // seq1: slot2 -> slot4 in block2
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            1,
+                            3,  // seq0: slot1 -> slot3 in block0
+                            2,
+                            4,  // seq1: slot2 -> slot4 in block2
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 1, 2});
 
     topology topo;
@@ -762,24 +780,8 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_key_by_ch
                 const ov::float16 scale = ov::float16(0.25f * static_cast<float>(1 + ((b + t) % 3)));
                 const ov::float16 zp = ov::float16(static_cast<float>((static_cast<int>(t) % 5) - 2));
                 for (size_t byte = 0; byte < sizeof(ov::float16); byte++) {
-                    const auto scale_off = value_comp_byte_offset(b,
-                                                                  h,
-                                                                  t,
-                                                                  byte,
-                                                                  false,
-                                                                  kv_heads,
-                                                                  v_head_size,
-                                                                  adjusted_v_head_size,
-                                                                  block_size);
-                    const auto zp_off = value_comp_byte_offset(b,
-                                                               h,
-                                                               t,
-                                                               byte,
-                                                               true,
-                                                               kv_heads,
-                                                               v_head_size,
-                                                               adjusted_v_head_size,
-                                                               block_size);
+                    const auto scale_off = value_comp_byte_offset(b, h, t, byte, false, kv_heads, v_head_size, adjusted_v_head_size, block_size);
+                    const auto zp_off = value_comp_byte_offset(b, h, t, byte, true, kv_heads, v_head_size, adjusted_v_head_size, block_size);
                     value_cache_ref[scale_off] = reinterpret_cast<const int8_t*>(&scale)[byte];
                     value_cache_ref[zp_off] = reinterpret_cast<const int8_t*>(&zp)[byte];
                 }
@@ -792,10 +794,13 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_key_by_ch
 
     set_values<int32_t>(block_indices_mem, {0, 1});
     set_values<int32_t>(block_indices_begins_mem, {0, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        0, 17,
-        15, 16,
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
 
     topology topo;
@@ -848,8 +853,10 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_key_by_ch
         const float dst_scale_inv = static_cast<float>(read_fp16_from_byte_buffer(key_ptr, comp_scale_byte_offset));
         const float dst_zp = static_cast<float>(read_fp16_from_byte_buffer(key_ptr, comp_zp_byte_offset));
 
-        const float dst17_dequant = (static_cast<float>(key_ptr[key_offset(1, 0, k, 1, kv_heads, k_head_size, adjusted_paged_attention_block_size)]) - dst_zp) * dst_scale_inv;
-        const float dst16_dequant = (static_cast<float>(key_ptr[key_offset(1, 0, k, 0, kv_heads, k_head_size, adjusted_paged_attention_block_size)]) - dst_zp) * dst_scale_inv;
+        const float dst17_dequant =
+            (static_cast<float>(key_ptr[key_offset(1, 0, k, 1, kv_heads, k_head_size, adjusted_paged_attention_block_size)]) - dst_zp) * dst_scale_inv;
+        const float dst16_dequant =
+            (static_cast<float>(key_ptr[key_offset(1, 0, k, 0, kv_heads, k_head_size, adjusted_paged_attention_block_size)]) - dst_zp) * dst_scale_inv;
 
         ASSERT_NEAR(dst17_dequant, static_cast<float>(src0_q), 1.0f);
         ASSERT_NEAR(dst16_dequant, static_cast<float>(src15_q), 1.0f);
@@ -880,16 +887,20 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_u4_key_by
     constexpr size_t blocks_num = 2;
     constexpr size_t kv_heads = 1;
     constexpr size_t k_head_size = 32;
-    constexpr size_t packed_k_head_size = k_head_size / 2;
     constexpr size_t v_head_size = 16;
     constexpr size_t subgroup_size = 16;
-    constexpr size_t packed_v_head_size = ((v_head_size / 2 + subgroup_size - 1) / subgroup_size) * subgroup_size;
-    constexpr size_t scales_zp_size = sizeof(ov::float16) * 4;
-    constexpr size_t adjusted_paged_attention_block_size = cldnn::paged_attention::block_size + scales_zp_size;
-    constexpr size_t adjusted_v_head_size = packed_v_head_size + scales_zp_size;
     constexpr size_t block_size = cldnn::paged_attention::block_size;
+    // u4 BY_CHANNEL key layout: each column = one head dim with 16 tokens packed as 8 bytes
+    // (lo nibble = token 2t, hi nibble = token 2t+1) followed by [scale_inv (f16)][zp (f16)] = 12 bytes/col.
+    // Number of columns = k_head_size (NOT halved, since BY_CHANNEL packs along the token axis).
+    constexpr size_t packed_block_size = block_size / 2;
+    constexpr size_t scales_zp_size = sizeof(ov::float16) * 2;
+    constexpr size_t adjusted_paged_attention_block_size = packed_block_size + scales_zp_size;
+    // u4 V is per-token inline: each token row = packed_v_head_size bytes + [scale][zp] (f16 each).
+    constexpr size_t packed_v_head_size = ((v_head_size / 2 + subgroup_size - 1) / subgroup_size) * subgroup_size;
+    constexpr size_t adjusted_v_head_size = packed_v_head_size + scales_zp_size;
 
-    auto key_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size}, data_types::u8, format::bfyx};
+    auto key_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, k_head_size, adjusted_paged_attention_block_size}, data_types::u8, format::bfyx};
     auto value_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, block_size, adjusted_v_head_size}, data_types::u8, format::bfyx};
     auto block_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto block_indices_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
@@ -912,58 +923,43 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_u4_key_by
         buffer[byte_offset + 1] = static_cast<uint8_t>((bits >> 8) & 0xFF);
     };
 
-    // Fill key cache data and per-packed-dim comp params.
+    // Fill key cache: each head dim h gets a column with 8 packed token bytes (16 tokens / 2)
+    // followed by [scale_inv (f16)][zp (f16)]. Within a packed byte, lo nibble = token 2t, hi = token 2t+1.
     for (size_t b = 0; b < blocks_num; b++) {
-        for (size_t p = 0; p < packed_k_head_size; p++) {
-            const float s0 = 0.10f + 0.01f * static_cast<float>(p);
-            const float z0 = static_cast<float>((static_cast<int>(p) % 4) + 1);
-            const float s1 = 0.08f + 0.01f * static_cast<float>(p);
-            const float z1 = static_cast<float>((static_cast<int>(p) % 5) + 2);
+        for (size_t h = 0; h < k_head_size; h++) {
+            const float scale_inv = 0.10f + 0.01f * static_cast<float>(h);
+            const float zp = static_cast<float>((static_cast<int>(h) % 5) + 1);
 
-            const size_t comp_base = key_offset(b, 0, p, block_size, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size);
-            write_fp16_bytes(key_cache_ref, comp_base + 0 * sizeof(ov::float16), ov::float16(s0));
-            write_fp16_bytes(key_cache_ref, comp_base + 1 * sizeof(ov::float16), ov::float16(z0));
-            write_fp16_bytes(key_cache_ref, comp_base + 2 * sizeof(ov::float16), ov::float16(s1));
-            write_fp16_bytes(key_cache_ref, comp_base + 3 * sizeof(ov::float16), ov::float16(z1));
+            const size_t comp_base = key_offset(b, 0, h, packed_block_size, kv_heads, k_head_size, adjusted_paged_attention_block_size);
+            write_fp16_bytes(key_cache_ref, comp_base + 0 * sizeof(ov::float16), ov::float16(scale_inv));
+            write_fp16_bytes(key_cache_ref, comp_base + 1 * sizeof(ov::float16), ov::float16(zp));
 
-            for (size_t t = 0; t < block_size; t++) {
-                const uint8_t q0 = static_cast<uint8_t>((3 * t + p + b) & 0xF);
-                const uint8_t q1 = static_cast<uint8_t>((2 * t + 2 * p + 1 + b) & 0xF);
-                key_cache_ref[key_offset(b, 0, p, t, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size)] =
-                    static_cast<uint8_t>((q0 & 0xF) | ((q1 & 0xF) << 4));
+            for (size_t byte_in_col = 0; byte_in_col < packed_block_size; byte_in_col++) {
+                const size_t t_lo = byte_in_col * 2;
+                const size_t t_hi = byte_in_col * 2 + 1;
+                const uint8_t q_lo = static_cast<uint8_t>((3 * t_lo + h + b) & 0xF);
+                const uint8_t q_hi = static_cast<uint8_t>((3 * t_hi + h + b) & 0xF);
+                key_cache_ref[key_offset(b, 0, h, byte_in_col, kv_heads, k_head_size, adjusted_paged_attention_block_size)] =
+                    static_cast<uint8_t>((q_lo & 0xF) | ((q_hi & 0xF) << 4));
             }
         }
     }
 
-    // Fill value cache with packed BY_TOKEN style bytes and comp bytes.
+    // Fill value cache with u4 per-token-inline layout: each token row holds packed data
+    // followed by inline [scale][zp] (matches quantize_and_save_per_token, pitch == 1).
     for (size_t b = 0; b < blocks_num; b++) {
         for (size_t t = 0; t < block_size; t++) {
             for (size_t p = 0; p < packed_v_head_size; p++) {
-                value_cache_ref[value_data_offset_compressed(b, 0, t, p, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)] =
+                value_cache_ref[value_data_offset_int4_per_token(b, 0, t, p, kv_heads, adjusted_v_head_size, block_size)] =
                     static_cast<uint8_t>((7 * t + 5 * p + b) % 251);
             }
 
             const ov::float16 scale = ov::float16(0.125f * static_cast<float>(1 + ((b + t) % 3)));
             const ov::float16 zp = ov::float16(static_cast<float>((static_cast<int>(t) % 7) - 3));
             for (size_t byte = 0; byte < sizeof(ov::float16); byte++) {
-                const auto scale_off = value_comp_byte_offset(b,
-                                                              0,
-                                                              t,
-                                                              byte,
-                                                              false,
-                                                              kv_heads,
-                                                              packed_v_head_size,
-                                                              adjusted_v_head_size,
-                                                              block_size);
-                const auto zp_off = value_comp_byte_offset(b,
-                                                           0,
-                                                           t,
-                                                           byte,
-                                                           true,
-                                                           kv_heads,
-                                                           packed_v_head_size,
-                                                           adjusted_v_head_size,
-                                                           block_size);
+                const auto scale_off =
+                    value_comp_byte_offset_int4_per_token(b, 0, t, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size);
+                const auto zp_off = value_comp_byte_offset_int4_per_token(b, 0, t, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size);
                 value_cache_ref[scale_off] = reinterpret_cast<const uint8_t*>(&scale)[byte];
                 value_cache_ref[zp_off] = reinterpret_cast<const uint8_t*>(&zp)[byte];
             }
@@ -975,10 +971,13 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_u4_key_by
 
     set_values<int32_t>(block_indices_mem, {0, 1});
     set_values<int32_t>(block_indices_begins_mem, {0, 2});
-    set_values<int32_t>(block_update_indices_mem, {
-        0, 17,
-        15, 16,
-    });
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
     set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
 
     topology topo;
@@ -1020,72 +1019,60 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_u4_key_by
     cldnn::mem_lock<uint8_t, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
     cldnn::mem_lock<uint8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
-    auto unpack_q_pair = [](uint8_t packed) {
-        return std::make_pair(static_cast<uint8_t>(packed & 0xF), static_cast<uint8_t>((packed >> 4) & 0xF));
+    auto read_nibble_at_token = [&](const auto& buffer, size_t block, size_t h, size_t token) {
+        const size_t byte_off = key_offset(block, 0, h, token / 2, kv_heads, k_head_size, adjusted_paged_attention_block_size);
+        const uint8_t packed = buffer[byte_off];
+        return (token % 2 == 0) ? static_cast<uint8_t>(packed & 0xF) : static_cast<uint8_t>((packed >> 4) & 0xF);
     };
 
-    auto read_comp_output = [&](const cldnn::mem_lock<uint8_t, mem_lock_type::read>& ptr, size_t block, size_t packed_k) {
-        const size_t comp_base = key_offset(block, 0, packed_k, block_size, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size);
-        const float s0 = static_cast<float>(read_fp16_from_byte_buffer(ptr, comp_base + 0 * sizeof(ov::float16)));
-        const float z0 = static_cast<float>(read_fp16_from_byte_buffer(ptr, comp_base + 1 * sizeof(ov::float16)));
-        const float s1 = static_cast<float>(read_fp16_from_byte_buffer(ptr, comp_base + 2 * sizeof(ov::float16)));
-        const float z1 = static_cast<float>(read_fp16_from_byte_buffer(ptr, comp_base + 3 * sizeof(ov::float16)));
-        return std::make_tuple(s0, z0, s1, z1);
+    auto read_col_comp = [&](const auto& buffer, size_t block, size_t h) {
+        const size_t comp_base = key_offset(block, 0, h, packed_block_size, kv_heads, k_head_size, adjusted_paged_attention_block_size);
+        const float scale_inv = static_cast<float>(read_fp16_from_byte_buffer(buffer, comp_base + 0 * sizeof(ov::float16)));
+        const float zp = static_cast<float>(read_fp16_from_byte_buffer(buffer, comp_base + 1 * sizeof(ov::float16)));
+        return std::make_pair(scale_inv, zp);
     };
 
-    auto read_comp_ref = [&](const std::vector<uint8_t>& buffer, size_t block, size_t packed_k) {
-        const size_t comp_base = key_offset(block, 0, packed_k, block_size, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size);
-        const float s0 = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 0 * sizeof(ov::float16)));
-        const float z0 = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 1 * sizeof(ov::float16)));
-        const float s1 = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 2 * sizeof(ov::float16)));
-        const float z1 = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 3 * sizeof(ov::float16)));
-        return std::make_tuple(s0, z0, s1, z1);
+    auto read_col_comp_ref = [&](const std::vector<uint8_t>& buffer, size_t block, size_t h) {
+        const size_t comp_base = key_offset(block, 0, h, packed_block_size, kv_heads, k_head_size, adjusted_paged_attention_block_size);
+        const float scale_inv = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 0 * sizeof(ov::float16)));
+        const float zp = static_cast<float>(read_fp16_from_u8_vector(buffer, comp_base + 1 * sizeof(ov::float16)));
+        return std::make_pair(scale_inv, zp);
     };
 
-    for (size_t p = 0; p < packed_k_head_size; p++) {
-        const uint8_t src_packed_0 = key_cache_ref[key_offset(0, 0, p, 0, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size)];
-        const uint8_t src_packed_15 = key_cache_ref[key_offset(0, 0, p, 15, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size)];
-        const auto [src_q0_0, src_q1_0] = unpack_q_pair(src_packed_0);
-        const auto [src_q0_15, src_q1_15] = unpack_q_pair(src_packed_15);
+    // Reorder maps src token 0 -> dst token 17 (block 1, slot 1) and src token 15 -> dst token 16 (block 1, slot 0).
+    // Compare in dequantized space because the dst column is requantized end-to-end on cross-block copies.
+    for (size_t h = 0; h < k_head_size; h++) {
+        const auto [src_scale_inv, src_zp] = read_col_comp_ref(key_cache_ref, 0, h);
+        const auto [dst_scale_inv, dst_zp] = read_col_comp(key_ptr, 1, h);
 
-        const auto [src_s0, src_z0, src_s1, src_z1] = read_comp_ref(key_cache_ref, 0, p);
-        const auto [dst_s0, dst_z0, dst_s1, dst_z1] = read_comp_output(key_ptr, 1, p);
+        const uint8_t src_q0 = read_nibble_at_token(key_cache_ref, 0, h, 0);
+        const uint8_t src_q15 = read_nibble_at_token(key_cache_ref, 0, h, 15);
+        const float src_val0 = (static_cast<float>(src_q0) - src_zp) * src_scale_inv;
+        const float src_val15 = (static_cast<float>(src_q15) - src_zp) * src_scale_inv;
 
-        const float src_val0_0 = (static_cast<float>(src_q0_0) - src_z0) * src_s0;
-        const float src_val1_0 = (static_cast<float>(src_q1_0) - src_z1) * src_s1;
-        const float src_val0_15 = (static_cast<float>(src_q0_15) - src_z0) * src_s0;
-        const float src_val1_15 = (static_cast<float>(src_q1_15) - src_z1) * src_s1;
+        const uint8_t dst_q1 = read_nibble_at_token(key_ptr, 1, h, 1);
+        const uint8_t dst_q0 = read_nibble_at_token(key_ptr, 1, h, 0);
+        const float dst_val1 = (static_cast<float>(dst_q1) - dst_zp) * dst_scale_inv;
+        const float dst_val0 = (static_cast<float>(dst_q0) - dst_zp) * dst_scale_inv;
 
-        const uint8_t dst_packed_17 = key_ptr[key_offset(1, 0, p, 1, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size)];
-        const uint8_t dst_packed_16 = key_ptr[key_offset(1, 0, p, 0, kv_heads, packed_k_head_size, adjusted_paged_attention_block_size)];
-        const auto [dst_q0_17, dst_q1_17] = unpack_q_pair(dst_packed_17);
-        const auto [dst_q0_16, dst_q1_16] = unpack_q_pair(dst_packed_16);
-
-        const float dst_val0_17 = (static_cast<float>(dst_q0_17) - dst_z0) * dst_s0;
-        const float dst_val1_17 = (static_cast<float>(dst_q1_17) - dst_z1) * dst_s1;
-        const float dst_val0_16 = (static_cast<float>(dst_q0_16) - dst_z0) * dst_s0;
-        const float dst_val1_16 = (static_cast<float>(dst_q1_16) - dst_z1) * dst_s1;
-
-        ASSERT_NEAR(dst_val0_17, src_val0_0, 1.0f);
-        ASSERT_NEAR(dst_val1_17, src_val1_0, 1.0f);
-        ASSERT_NEAR(dst_val0_16, src_val0_15, 1.0f);
-        ASSERT_NEAR(dst_val1_16, src_val1_15, 1.0f);
+        ASSERT_NEAR(dst_val1, src_val0, 1.0f);
+        ASSERT_NEAR(dst_val0, src_val15, 1.0f);
     }
 
     for (size_t p = 0; p < packed_v_head_size; p++) {
-        const auto src0 = value_cache_ref[value_data_offset_compressed(0, 0, 0, p, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
-        const auto dst17 = value_ptr[value_data_offset_compressed(1, 0, 1, p, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
+        const auto src0 = value_cache_ref[value_data_offset_int4_per_token(0, 0, 0, p, kv_heads, adjusted_v_head_size, block_size)];
+        const auto dst17 = value_ptr[value_data_offset_int4_per_token(1, 0, 1, p, kv_heads, adjusted_v_head_size, block_size)];
         ASSERT_EQ(dst17, src0);
 
-        const auto src15 = value_cache_ref[value_data_offset_compressed(0, 0, 15, p, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
-        const auto dst16 = value_ptr[value_data_offset_compressed(1, 0, 0, p, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)];
+        const auto src15 = value_cache_ref[value_data_offset_int4_per_token(0, 0, 15, p, kv_heads, adjusted_v_head_size, block_size)];
+        const auto dst16 = value_ptr[value_data_offset_int4_per_token(1, 0, 0, p, kv_heads, adjusted_v_head_size, block_size)];
         ASSERT_EQ(dst16, src15);
     }
 
     for (size_t byte = 0; byte < sizeof(ov::float16); byte++) {
-        ASSERT_EQ(value_ptr[value_comp_byte_offset(1, 0, 1, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
-                  value_cache_ref[value_comp_byte_offset(0, 0, 0, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
-        ASSERT_EQ(value_ptr[value_comp_byte_offset(1, 0, 1, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
-                  value_cache_ref[value_comp_byte_offset(0, 0, 0, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
+        ASSERT_EQ(value_ptr[value_comp_byte_offset_int4_per_token(1, 0, 1, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
+                  value_cache_ref[value_comp_byte_offset_int4_per_token(0, 0, 0, byte, false, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
+        ASSERT_EQ(value_ptr[value_comp_byte_offset_int4_per_token(1, 0, 1, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)],
+                  value_cache_ref[value_comp_byte_offset_int4_per_token(0, 0, 0, byte, true, kv_heads, packed_v_head_size, adjusted_v_head_size, block_size)]);
     }
 }

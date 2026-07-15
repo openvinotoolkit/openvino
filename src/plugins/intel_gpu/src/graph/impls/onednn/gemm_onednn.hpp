@@ -6,6 +6,8 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 
+#include "utils.hpp"
+
 #include <memory>
 
 namespace cldnn {
@@ -70,14 +72,19 @@ struct GemmImplementationManager : public ImplementationManager {
         }
 
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
+        bool bf16bf16_case = everyone_is(data_types::bf16, in0_dt, in1_dt) &&
+                            one_of(out_dt, {data_types::bf16, data_types::f16, data_types::f32, data_types::i8});
         bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
                          one_of(in1_dt, {data_types::i8, data_types::u8}) &&
-                         one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
+                         one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
 
-        if (!f16f16_case && !u8s8_case)
+        if (!f16f16_case && !bf16bf16_case && !u8s8_case)
             return false;
 
         if (gemm_prim->indirect_a || gemm_prim->indirect_b)
+            return false;
+
+        if (!is_supported_post_ops(node))
             return false;
 
         return true;
