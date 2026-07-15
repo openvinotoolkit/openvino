@@ -22,6 +22,8 @@ from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
 from workflow_rerun.rerunner import analyze_and_rerun
 
+from workflow_rerun.tests.gh_test_utils import find_failed_run_with_logs
+
 
 class IntegrationTest(unittest.TestCase):
     """
@@ -54,8 +56,8 @@ class IntegrationTest(unittest.TestCase):
             gh_repo = cls.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
             oldest_allowed_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-            cls.wf_run = gh_repo.get_workflow_runs(status='failure',
-                                                   created=f">={oldest_allowed_date}")[0]
+            cls.wf_run = find_failed_run_with_logs(gh_repo, created_filter=f">={oldest_allowed_date}")
+
             print(f'Workflow run for testing: {cls.wf_run}', flush=True)
 
     def setUp(self):
