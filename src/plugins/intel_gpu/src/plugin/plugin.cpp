@@ -624,6 +624,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         gops[element::f16] = device->get_gops(cldnn::data_types::f16);
         gops[element::f32] = device->get_gops(cldnn::data_types::f32);
         return decltype(ov::device::gops)::value_type {gops};
+    } else if (name == ov::intel_gpu::cacheline_size) {
+        return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size);
     } else if (name == ov::intel_gpu::execution_units_count) {
         return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
     } else if (name == ov::intel_gpu::uarch_version) {
@@ -751,6 +753,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::cacheline_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
         ov::PropertyName{ov::compatibility_check.name(), PropertyMutability::RO},

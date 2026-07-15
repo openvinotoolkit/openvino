@@ -6,6 +6,8 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 
+#include "utils.hpp"
+
 #include <memory>
 
 namespace cldnn {
@@ -80,6 +82,9 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
 
         if (gemm_prim->indirect_a || gemm_prim->indirect_b)
+            return false;
+
+        if (!is_supported_post_ops(node))
             return false;
 
         return true;

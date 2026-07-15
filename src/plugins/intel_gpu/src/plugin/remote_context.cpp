@@ -182,6 +182,11 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             } else if (ov::intel_gpu::SharedMemType::USM_USER_BUFFER == mem_type) {
                 tensor_type = TensorType::BT_USM_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
+            } else if (ov::intel_gpu::SharedMemType::CPU_VA == mem_type) {
+                tensor_type = TensorType::BT_CPU_VA;
+                mem = extract_object(params, ov::intel_gpu::cpu_va);
+                auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
+                return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
@@ -193,7 +198,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 #endif
             } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
                 tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
-                ov::intel_gpu::os_handle_param handle = extract_object(params, ov::intel_gpu::os_handle);
+                const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
+                SharedBufferHandle handle{os_handle};
                 return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
             } else {
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
@@ -253,9 +259,16 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem);
 }
 
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_cpu_va(const ov::element::Type type,
+                                                                   const ov::Shape& shape,
+                                                                   VirtualAddressMemory cpu_va,
+                                                                   TensorType tensor_type) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, ov::intel_gpu::SharedBufferHandle{}, cpu_va);
+}
+
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_handle(const ov::element::Type type,
                                                                    const ov::Shape& shape,
-                                                                   ov::intel_gpu::os_handle_param handle,
+                                                                   ov::intel_gpu::SharedBufferHandle handle,
                                                                    TensorType tensor_type) {
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, handle);
 }
