@@ -219,7 +219,7 @@ ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NO
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
-ov_dependent_option(ENABLE_IO_URING "Enables i/o uring feature" OFF "LINUX" OFF)
+ov_dependent_option(ENABLE_IO_URING "Enables io_uring feature" OFF "LINUX" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
