@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 28,
+  "total": 29,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -272,6 +272,17 @@
       "category": "Code Issue",
       "signature_hash": "dfef425ba2a21c05",
       "pr_number": "36919"
+    },
+    {
+      "investigation_id": "2026-07-16-14-47-43-000-29498230226",
+      "run_id": "29498230226",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29498230226",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-16T14:47:43Z",
+      "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "36807"
     }
   ]
 }

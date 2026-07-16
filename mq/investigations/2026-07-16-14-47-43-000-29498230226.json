@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-14-47-43-000-29498230226",
+  "timestamp": "2026-07-16T14:47:43Z",
+  "run_id": "29498230226",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29498230226",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36807",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36807",
+  "author": "mvafin",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all cleanup hook fails: rm -rf Permission denied on electron.exe/dll"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project",
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied",
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied",
+    "1) \"after all\" hook for \"should run electron package and verify output\": Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The E2E test for the Electron app ran successfully (2 tests passing), but the 'after all' cleanup hook uses 'rm -rf' (via bash on Windows) to remove the demo-electron-app-project directory. On Windows runners, electron.exe and its DLLs remain locked by the OS after the Electron process exits, causing 'Permission denied' errors. This is a transient Windows file-locking issue unrelated to the PR changes which touch only the PyTorch frontend.",
+  "reproduction_steps": "Run the JS API E2E test on a Windows runner: cd src/bindings/js/node && npm run test:e2e",
+  "recommended_actions": [
+    "Re-run the failed job - the cleanup failure is transient and unrelated to the PR.",
+    "Long-term fix: replace 'rm -rf' in the E2E after hook with a Windows-compatible cleanup that waits for file handles to be released (e.g., using rimraf or a retry loop).",
+    "Consider adding error handling in the 'after all' hook so cleanup failures do not cause test suite failures."
+  ],
+  "prevention_strategies": "Use a Node.js-native directory removal (rimraf / fs.rmSync with retries) instead of shell 'rm -rf' in the E2E test cleanup hook to handle Windows file-locking gracefully.",
+  "historical_context": "This is a known recurring issue: pattern 85df26485ff568d8 has been seen 6 times since 2026-07-09. Previous occurrences resolved with a simple re-run."
+}
