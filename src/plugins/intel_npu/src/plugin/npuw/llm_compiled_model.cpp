@@ -1136,6 +1136,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
 
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            NPUW_ASSERT(is_cw_compressed(generate_model_variants.front()) &&
+                        "MoE DEVICE_ROUTED mode is not supported for group quantized models. "
+                        "NPU compiler does not yet support device-routed expert selection with group "
+                        "quantization. Please use channel-wise (CW) quantized model or switch to "
+                        "HOST_ROUTED MoE hint.");
             // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
             // transformations)
             for (auto&& model_variant : generate_model_variants) {
