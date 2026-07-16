@@ -278,7 +278,15 @@ macro(ov_arm_sve_optimization_flags flags)
                 list(APPEND ${flags} -march=armv8-a+sve+fp16)
             endif()
             if(NOT CMAKE_CL_64)
-                list(APPEND ${flags} -ftree-vectorize)
+                # Do NOT enable the tree/SLP auto-vectorizer for SVE clones. Under -march=+sve GCC
+                # auto-vectorizes generic STL templates (e.g. std::vector<T>::_M_default_append
+                # zero-init/resize) into SVE. Such instantiations are emitted as WEAK COMDAT symbols
+                # with default visibility, so the linker may select the SVE copy as the single
+                # definition used by baseline (non-SVE) translation units too, executing illegal SVE
+                # instructions on cores without SVE (e.g. Cortex-A72) and crashing with SIGILL. The
+                # intentional SVE kernels use explicit ACLE intrinsics (svld1/svmla_f32/...), which do
+                # not rely on the auto-vectorizer.
+                list(APPEND ${flags} -fno-tree-vectorize -fno-tree-slp-vectorize)
             endif()
 
             set(${flags} ${${flags}})
