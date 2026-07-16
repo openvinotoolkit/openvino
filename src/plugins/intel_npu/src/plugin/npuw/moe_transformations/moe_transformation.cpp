@@ -22,36 +22,6 @@ namespace ov {
 namespace npuw {
 namespace function {
 
-// Helper function to extract K value from TopK node in router model
-static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Model>& router_model) {
-    if (!router_model) {
-        LOG_ERROR("Router model is null, cannot extract K from TopK");
-        return std::nullopt;
-    }
-
-    LOG_DEBUG("Searching for TopK node in router model: " << router_model->get_friendly_name());
-
-    for (const auto& node : router_model->get_ordered_ops()) {
-        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(node)) {
-            LOG_DEBUG("Found TopK node: " << topk->get_friendly_name());
-
-            // K is the second input to TopK
-            auto k_input = topk->input_value(1);
-            if (auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr())) {
-                auto k_data = k_const->cast_vector<int64_t>();
-                if (!k_data.empty()) {
-                    size_t k_value = static_cast<size_t>(k_data[0]);
-                    LOG_INFO("Extracted K=" << k_value << " from TopK node in router model");
-                    return k_value;
-                }
-            }
-        }
-    }
-
-    LOG_DEBUG("TopK node not found in router model");
-    return std::nullopt;
-}
-
 // Scan the transformed model for a parameter bearing `tag` and return its new index.
 // Falls back to `original_idx` when the tag is absent (e.g. router_scores is replaced
 // by K closures in EXPERT_BATCH mode and its parameter no longer exists).
@@ -493,25 +463,11 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     return std::nullopt;
 }
 
-std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model,
-                                                   const std::shared_ptr<ov::Model>& router_model) {
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num) {
     LOG_DEBUG("Creating MoEDownstream from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
-    // Extract K from router model (required)
-    if (!router_model) {
-        LOG_ERROR("Router model is required to extract K from TopK node");
-        return std::nullopt;
-    }
-
-    auto k_from_router = extract_k_from_router(router_model);
-    if (!k_from_router.has_value()) {
-        LOG_ERROR("Failed to extract K from router model for downstream");
-        return std::nullopt;
-    }
-
-    size_t active_experts_num = k_from_router.value();
-    LOG_INFO("Extracted K=" << active_experts_num << " from router model for downstream");
+    LOG_INFO("Using K=" << active_experts_num << " active experts for downstream");
 
     auto downstream_info = detect_and_transform_moe_downstream(model, active_experts_num);
     if (downstream_info && downstream_info->is_valid()) {
@@ -909,25 +865,12 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
 }
 
 std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
-                                           const std::shared_ptr<ov::Model>& router_model,
+                                           size_t k_value,
                                            size_t iterative_chunk_size) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
-    // Step 1: Extract K from router model
-    if (!router_model) {
-        LOG_ERROR("Router model is required to extract K from TopK node");
-        return std::nullopt;
-    }
-
-    auto k_from_router = extract_k_from_router(router_model);
-    if (!k_from_router.has_value()) {
-        LOG_ERROR("Failed to extract K from router model");
-        return std::nullopt;
-    }
-
-    size_t k_value = k_from_router.value();
-    LOG_INFO("Extracted K=" << k_value << " from router model");
+    LOG_INFO("Using K=" << k_value << " active experts");
 
     // Step 2: Analyze model structure
     auto structure_info = analyze_moe_structure(model);

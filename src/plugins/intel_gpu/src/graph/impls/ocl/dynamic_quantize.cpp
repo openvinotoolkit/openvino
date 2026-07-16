@@ -64,6 +64,10 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        if (impl_param.can_be_optimized()) {
+            return;
+        }
+
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
