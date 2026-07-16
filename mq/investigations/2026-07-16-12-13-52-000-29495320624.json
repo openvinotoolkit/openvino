@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-12-13-52-000-29495320624",
+  "timestamp": "2026-07-16T12:13:52Z",
+  "run_id": "29495320624",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29495320624",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36902",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36902",
+  "author": "akashchi",
+  "category": "Code Issue",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_i8 Expected : acl_i8",
+  "signature": "primType is unexpected : unknown_i8 Expected : acl_i8|Code Issue",
+  "signature_hash": "a5dbac5de6377592",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest_4D_Dynamic: primType is unexpected : unknown_i8 Expected : acl_i8"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=i8_specialValue=none_targetPRC=i32__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\n  Expected: true\nprimType is unexpected : unknown_i8 Expected : acl_i8"
+  ],
+  "root_cause": "The CPU plugin ACL (ARM Compute Library) backend on ARM64 does not expose the expected acl_i8 primitive type for the Convert op with i8 input precision. The test checks that the primitive type selected for the Convert kernel matches 'acl_i8', but the runtime reports 'unknown_i8', indicating the ACL kernel selection for i8->i32 conversion is failing or falling back to a non-ACL path. This is closely related to a previous failure (run 29465509080) where the same test failed with unknown_i32 Expected: acl_i32.",
+  "reproduction_steps": "Build OpenVINO for ARM64 with ACL enabled. Run: ov_cpu_func_tests --gtest_filter='*smoke_ConvertCPULayerTest_4D_Dynamic*inputPRC=i8*primitive=acl*'",
+  "recommended_actions": [
+    "Check if a recent change to the ACL Convert node implementation (src/plugins/intel_cpu/) dropped or broke i8 type support.",
+    "Review commits touching ACL convert kernel registration for integer types.",
+    "Add the affected test case to the expected_failures_OP.csv skip list if this is a known ACL limitation, or fix the ACL prim type selection logic.",
+    "Cross-reference with run 29465509080 which had the same failure class for i32 type."
+  ],
+  "prevention_strategies": "Add CI coverage for ARM64 ACL primitive type assertions for all supported integer precisions. When adding new ACL kernel support, verify prim type registration for all data types the kernel claims to handle.",
+  "historical_context": "Similar failure seen on 2026-07-16 run 29465509080 (PR #36888): unknown_i32 Expected: acl_i32. Same ConvertCPULayerTest, same ARM64 ACL backend issue, different input precision."
+}
