@@ -177,7 +177,7 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-      
+
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"

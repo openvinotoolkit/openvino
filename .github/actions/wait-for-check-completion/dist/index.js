@@ -22677,6 +22677,7 @@ try {
   supportedHashes = crypto.getHashes().filter((hash) => possibleRelevantHashes.includes(hash))
 /* c8 ignore next 3 */
 } catch {
+
 }
 
 function responseURL (response) {

@@ -75,6 +75,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                     core.info(`Check "${checkName}" is queued...`);
                 }
             }
+
             if (pendingChecks.size) {
                 core.info(`Still waiting for [${Array.from(pendingChecks).join(', ')}]. Waiting ${waitInterval} seconds before next check...`);
                 await new Promise(resolve => setTimeout(resolve, waitIntervalMs));
