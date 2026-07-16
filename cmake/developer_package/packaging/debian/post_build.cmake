@@ -22,7 +22,12 @@ endif()
 set(lintian_passed ON)
 
 foreach(deb_file IN LISTS CPACK_PACKAGE_FILES)
-    execute_process(COMMAND "${lintian_PROGRAM}" ${deb_file}
+    execute_process(COMMAND "${lintian_PROGRAM}"
+                            # absl stub/aggregation static libraries (e.g. libabsl_string_view.a)
+                            # are intentionally code-free on modern platforms where the underlying
+                            # types come from the C++ standard library. Suppress the false-positive.
+                            --suppress-tags no-code-sections
+                            ${deb_file}
                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
                     RESULT_VARIABLE lintian_exit_code
                     OUTPUT_VARIABLE lintian_output)
