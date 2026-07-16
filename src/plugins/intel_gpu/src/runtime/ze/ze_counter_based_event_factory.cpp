@@ -4,6 +4,7 @@
 
 #include "ze_counter_based_event_factory.hpp"
 #include "ze_common.hpp"
+#include "ze_resource.hpp"
 #include "ze_counter_based_event.hpp"
 
 #include "compute_runtime/zex_event.h"
@@ -24,7 +25,7 @@ namespace {
 
 ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_engine &engine, bool enable_profiling)
     : ze_base_event_factory(engine, enable_profiling) {
-    std::call_once(counter_based_ev_init_flag, find_function_address, engine.get_driver());
+    std::call_once(counter_based_ev_init_flag, find_function_address, engine.get_driver().handle());
 }
 
 event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
@@ -35,7 +36,8 @@ event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
     if (is_profiling_enabled()) {
         desc.flags |= ZEX_COUNTER_BASED_EVENT_FLAG_KERNEL_TIMESTAMP;
     }
-    OV_ZE_EXPECT(func_zexCounterBasedEventCreate2(m_engine.get_context(), m_engine.get_device(), &desc, &event));
-    auto cb_event = std::make_shared<ze_counter_based_event>(queue_stamp, *this, event);
+    OV_ZE_EXPECT(func_zexCounterBasedEventCreate2(m_engine.get_context().handle(), m_engine.get_device().handle(), &desc, &event));
+    auto ev_holder = ze_event_resource(event);
+    auto cb_event = std::make_shared<ze_counter_based_event>(queue_stamp, *this, ev_holder);
     return cb_event;
 }

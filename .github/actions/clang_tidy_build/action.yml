@@ -44,7 +44,7 @@ runs:
       uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
       with:
         path: ${{ inputs.openvino-repo }}
-        submodules: 'true'
+        submodules: 'recursive'
 
     - name: CMake configure
       shell: bash
@@ -76,7 +76,7 @@ runs:
           -- ${{ inputs.build-extra-args }}
 
     - name: Upload compile_commands
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
       if: always()
       with:
         name: ${{ inputs.compile-commands-artifact }}
