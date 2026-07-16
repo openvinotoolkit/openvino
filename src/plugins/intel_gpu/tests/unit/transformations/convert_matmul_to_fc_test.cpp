@@ -888,7 +888,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
     }
 }
 
-// Large f16 matmul K>=8192, N<=4096: non-transposed path (transpose_b=false, supports_immad=false).
+// Large f16 matmul K>=8192, N<=4096: transposed path (transpose_b=true) when supports_immad=false.
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NoImmad_Transposed) {
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 9216});
