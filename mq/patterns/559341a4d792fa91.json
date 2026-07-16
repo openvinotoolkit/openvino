@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "cannot grow ilk file; error code 487|Infrastructure",
+  "signature_hash": "559341a4d792fa91",
+  "title": "Windows Debug build fails - LNK1116 cannot grow ilk file for ov_lp_transformations_tests",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-16T09:38:34Z",
+  "last_seen": "2026-07-16T09:38:34Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29484368562"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36859"],
+  "recent_timestamps": ["2026-07-16T09:38:34Z"]
+}

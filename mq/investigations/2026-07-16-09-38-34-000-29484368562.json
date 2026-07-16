@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-09-38-34-000-29484368562",
+  "timestamp": "2026-07-16T09:38:34Z",
+  "run_id": "29484368562",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29484368562",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "pr_number": "36859",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36859",
+  "author": "lxcxjxhx",
+  "category": "Infrastructure",
+  "title": "Windows Debug build fails - LNK1116 cannot grow ilk file for ov_lp_transformations_tests",
+  "signature": "cannot grow ilk file; error code 487|Infrastructure",
+  "signature_hash": "559341a4d792fa91",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "LINK fatal error LNK1116: cannot grow ilk file for ov_lp_transformations_tests.exe; error code 487"
+    }
+  ],
+  "key_errors": [
+    "LINK : fatal error LNK1116: cannot grow ilk file 'C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\bin\\intel64\\Debug\\ov_lp_transformations_tests.ilk'; error code 487",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows MSVC incremental linker failed to grow the .ilk (incremental link) file for ov_lp_transformations_tests.exe during a Debug build. Error code 487 (ERROR_INVALID_ADDRESS) indicates the OS could not find a suitable virtual address range to extend the memory-mapped .ilk file. This is a transient resource exhaustion on the Windows runner - not caused by the PR changes, which only modify a Python test file to use a context manager.",
+  "reproduction_steps": "N/A - transient runner resource exhaustion; not reproducible deterministically.",
+  "recommended_actions": [
+    "Re-run the failed Build job - the failure is transient and unrelated to the PR changes.",
+    "If the failure recurs, consider disabling incremental linking for Debug builds (/INCREMENTAL:NO) to avoid .ilk file growth issues on constrained runners."
+  ],
+  "prevention_strategies": "Monitor Windows Debug build runners for disk/memory resource constraints. Consider adding /INCREMENTAL:NO to CMake link flags for large test binaries on Windows CI.",
+  "historical_context": "No prior occurrences of LNK1116 on this signature found in the investigation database."
+}

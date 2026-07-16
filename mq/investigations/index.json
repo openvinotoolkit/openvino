@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 23,
+  "total": 24,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -225,6 +225,15 @@
       "category": "Code Issue",
       "signature_hash": "75ebbbb77b09e3b0",
       "pr_number": "36888"
+    },
+    {
+      "investigation_id": "2026-07-16-09-38-34-000-29484368562",
+      "run_id": "29484368562",
+      "timestamp": "2026-07-16T09:38:34Z",
+      "title": "Windows Debug build fails - LNK1116 cannot grow ilk file for ov_lp_transformations_tests",
+      "category": "Infrastructure",
+      "signature_hash": "559341a4d792fa91",
+      "pr_number": "36859"
     }
   ]
 }
