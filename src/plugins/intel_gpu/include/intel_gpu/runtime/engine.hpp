@@ -64,8 +64,13 @@ public:
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
-    /// Created memory object by wrapping a host-allocated, memory-mapped layout region
-    virtual memory_ptr create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+    /// Created memory object by wrapping a writable host-allocated layout region.
+    /// Backends that support access flags should use read-write permissions.
+    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
+    /// Created memory object by wrapping a read-only host-allocated layout region.
+    /// Backends that support access flags should use read-only permissions.
+    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
@@ -73,7 +78,7 @@ public:
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 
-    //Create memory object from user-supplied shared handle e.g from system HANDLE created by DX12
+    // Create memory object from user-supplied shared handle e.g from system HANDLE created by DX12
     virtual memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) = 0;
 
     /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout

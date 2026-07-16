@@ -100,13 +100,15 @@
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
@@ -610,6 +612,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
 
+                    if (infer_precision != ov::element::f16) {
+                        return true;  // CM vlsdpa kernel only supports f16
+                    }
+
                     return false;
                 });
 
@@ -764,6 +770,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
+        // Keep GroupQueryAttention quantized-KV scales fp32 through the ConvertPrecision below
+        // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
+        manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -1601,7 +1610,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
-        manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        manager.register_pass<ov::pass::MoveFCReshapeToWeights<ov::intel_gpu::op::FullyConnected>>();
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
