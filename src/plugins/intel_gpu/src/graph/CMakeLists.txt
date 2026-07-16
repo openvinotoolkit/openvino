@@ -97,8 +97,8 @@ macro(ov_gpu_add_backend_target)
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
-    # libraries (the openvino_intel_gpu_graph STATIC lib excludes them), so apply
-    # clang-tidy here to cover them as well.
+    # libraries, which the openvino_intel_gpu_graph STATIC lib links but excludes
+    # from its own sources, so clang-tidy must be applied here to cover them too.
     ov_apply_clang_tidy(TARGET ${ARG_NAME})
 endmacro()
 
@@ -158,6 +158,8 @@ ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
 ov_apply_clang_tidy(TARGET ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

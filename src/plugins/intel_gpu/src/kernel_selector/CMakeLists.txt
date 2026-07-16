@@ -113,6 +113,8 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
         DESTINATION ${CACHE_JSON_INSTALL_DIR}
         COMPONENT ${CACHE_JSON_COMPONENT})
 
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
 ov_apply_clang_tidy(TARGET ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
