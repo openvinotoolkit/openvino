@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 
-from workflow_rerun.log_analyzer import LogAnalyzer
+from workflow_rerun.log_analyzer import CI_DOCTOR_PATTERN_TICKET, LogAnalyzer
 
 
 class LogAnalyzerTest(unittest.TestCase):
@@ -113,8 +113,8 @@ class LogAnalyzerTest(unittest.TestCase):
     def test_patterns_loaded_from_directory(self) -> None:
         """
         Ensure LogAnalyzer loads rerun_search_string values from CI Doctor MQ
-        pattern files (with ticket=None) and skips patterns whose
-        rerun_search_string is null.
+        pattern files (tagged with the CI_DOCTOR_PATTERN_TICKET sentinel ticket)
+        and skips patterns whose rerun_search_string is null.
         """
         analyzer = LogAnalyzer(
             path_to_logs=self.logs_dir_wo_error,
@@ -129,15 +129,16 @@ class LogAnalyzerTest(unittest.TestCase):
             'Only the pattern with a non-null rerun_search_string should be loaded',
         )
         self.assertEqual(pattern_errors[0]['error_text'], 'label empty or too long')
-        self.assertIsNone(
+        self.assertEqual(
             pattern_errors[0]['ticket'],
-            'Pattern-derived errors must not carry a ticket',
+            CI_DOCTOR_PATTERN_TICKET,
+            'Pattern-derived errors must carry the CI_DOCTOR_PATTERN_TICKET sentinel',
         )
 
     def test_analyzer_matches_pattern_search_string(self) -> None:
         """
         Ensure LogAnalyzer can find an error using a rerun_search_string coming
-        from a CI Doctor MQ pattern file, reporting no ticket for it.
+        from a CI Doctor MQ pattern file, reporting the sentinel ticket for it.
         """
         analyzer = LogAnalyzer(
             path_to_logs=self.logs_dir_with_error,
@@ -146,7 +147,7 @@ class LogAnalyzerTest(unittest.TestCase):
         )
         analyzer.analyze()
         self.assertTrue(analyzer.found_matching_error)
-        self.assertIsNone(analyzer.found_error_ticket)
+        self.assertEqual(analyzer.found_error_ticket, CI_DOCTOR_PATTERN_TICKET)
         self.assertEqual(analyzer.matched_error_text, 'label empty or too long')
 
     def test_missing_patterns_dir_is_ignored(self) -> None:

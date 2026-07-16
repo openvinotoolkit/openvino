@@ -98,11 +98,6 @@ def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: i
                                    log_analyzer.found_error_ticket,
                                    rerunner_run_id,
                                    log_analyzer.matched_error_text)
-            elif log_analyzer.matched_error_text:
-                # Pattern-derived matches (from CI Doctor MQ patterns) have no ticket,
-                # so there is nothing to record in the ticket-keyed rerunner stats table.
-                LOGGER.info(f'RERUN TRIGGERED BY CI DOCTOR PATTERN "{log_analyzer.matched_error_text}" '
-                            f'(no ticket), NOT RECORDING TO DATABASE')
             else:
                 LOGGER.error(f'Cannot record to database: missing ticket_number or error_text')
                 raise ValueError('Missing ticket_number or error_text for database recording.')

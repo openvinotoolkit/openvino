@@ -10,6 +10,10 @@ from zipfile import ZipFile
 
 from workflow_rerun.constants import LOGGER
 
+# Sentinel ticket number used for errors sourced from CI Doctor MQ pattern files,
+# which are not tied to a specific JIRA/GitHub ticket.
+CI_DOCTOR_PATTERN_TICKET = 9999999
+
 
 class LogFile(TypedDict):
     file_name: str
@@ -18,7 +22,7 @@ class LogFile(TypedDict):
 
 class ErrorData(TypedDict):
     error_text: str
-    ticket: Optional[int]
+    ticket: int
 
 
 class LogAnalyzer:
@@ -63,7 +67,8 @@ class LogAnalyzer:
         contain a "rerun_search_string" field: a stable, searchable substring of a
         transient failure's log output. When present and non-empty, it is used as an
         additional error to look for, analogous to entries in errors_to_look_for.json.
-        Pattern-derived errors have no associated ticket, so their ticket is None.
+        Pattern-derived errors are not tied to a specific ticket, so they are recorded
+        with the CI_DOCTOR_PATTERN_TICKET sentinel ticket number.
         """
         if self._patterns_dir is None:
             return
@@ -90,7 +95,7 @@ class LogAnalyzer:
                         f'"{rerun_search_string}"')
             self._errors_to_look_for.append(
                 ErrorData(error_text=rerun_search_string,
-                          ticket=None)
+                          ticket=CI_DOCTOR_PATTERN_TICKET)
                 )
 
     def _collect_log_files(self) -> None:
