@@ -328,12 +328,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     }
 }
 
-}  // namespace
-
-namespace intel_npu {
-
-namespace {
-
 std::optional<ov::log::Level> read_log_level(const ov::AnyMap& properties) {
     const auto it = properties.find(ov::log::level.name());
     if (it == properties.end()) {
@@ -344,25 +338,7 @@ std::optional<ov::log::Level> read_log_level(const ov::AnyMap& properties) {
 
 }  // namespace
 
-Plugin::LogLevelScope::LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger)
-    : _instanceLogger(instanceLogger) {
-    const auto lvl = read_log_level(props);
-    if (!lvl) {
-        return;
-    }
-    _prevGlobal = Logger::global().level();
-    _prevInstance = _instanceLogger.level();
-    Logger::global().setLevel(*lvl);
-    _instanceLogger.setLevel(*lvl);
-}
-
-Plugin::LogLevelScope::~LogLevelScope() {
-    if (!_prevGlobal) {
-        return;
-    }
-    Logger::global().setLevel(*_prevGlobal);
-    _instanceLogger.setLevel(*_prevInstance);
-}
+namespace intel_npu {
 
 Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
@@ -1006,6 +982,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+}
+
+Plugin::LogLevelScope::LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger)
+    : _instanceLogger(instanceLogger) {
+    const auto lvl = read_log_level(props);
+    if (!lvl) {
+        return;
+    }
+    _prevGlobal = Logger::global().level();
+    _prevInstance = _instanceLogger.level();
+    Logger::global().setLevel(*lvl);
+    _instanceLogger.setLevel(*lvl);
+}
+
+Plugin::LogLevelScope::~LogLevelScope() {
+    if (!_prevGlobal) {
+        return;
+    }
+    Logger::global().setLevel(*_prevGlobal);
+    _instanceLogger.setLevel(*_prevInstance);
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
