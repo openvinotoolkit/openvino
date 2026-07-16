@@ -115,7 +115,7 @@ jobs:
             test_filter='*smoke*'
           fi
           ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --report_unique_name --gtest_filter=$test_filter --gtest_output=json:${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json
-          sleep 3600 
+          sleep 7200 
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
