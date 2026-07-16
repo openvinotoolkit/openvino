@@ -45,7 +45,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureE
     std::vector<std::vector<float>> input_data;
     std::vector<ov::Shape> input_shapes;
     for (const auto& input : inputs) {
-        const auto current_shape = input.get_shape();
+        const auto& current_shape = input.get_shape();
         input_data.push_back(get_floats(input, current_shape));
         input_shapes.push_back(current_shape);
     }
