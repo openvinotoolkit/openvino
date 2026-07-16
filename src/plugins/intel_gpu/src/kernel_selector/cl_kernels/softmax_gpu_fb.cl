@@ -5,14 +5,14 @@
 #include "include/batch_headers/common.cl"
 
 
-INPUT0_TYPE FUNC(find_max_value)(__local INPUT0_TYPE* partial_max, const int global_id, const int idx, const int batch_offset, const int data_sets_count, const __global INPUT0_TYPE* input)
+INPUT0_COMPUTE_TYPE FUNC(find_max_value)(__local INPUT0_COMPUTE_TYPE* partial_max, const int global_id, const int idx, const int batch_offset, const int data_sets_count, const __global INPUT0_TYPE* input)
 {
-    INPUT0_TYPE value = -UNIT_VAL_MAX;
+    INPUT0_COMPUTE_TYPE value = -INPUT0_VAL_MAX;
     for(int i = 0; i < ITEMS_NUM; i++)
     {
-        value = max(value, input[LWS * i + global_id]);
+        value = max(value, DECODE_INPUT0_COMPUTE_TYPE(input[LWS * i + global_id]));
     }
-    value = max(value, global_id < LEFTOVERS? input[LWS * ITEMS_NUM + global_id] : -UNIT_VAL_MAX);
+    value = max(value, global_id < LEFTOVERS? DECODE_INPUT0_COMPUTE_TYPE(input[LWS * ITEMS_NUM + global_id]) : -INPUT0_VAL_MAX);
     partial_max[global_id] = value;
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -28,8 +28,8 @@ INPUT0_TYPE FUNC(find_max_value)(__local INPUT0_TYPE* partial_max, const int glo
 }
 
 KERNEL (softmax_gpu_continuous_yxfb)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -41,19 +41,19 @@ KERNEL (softmax_gpu_continuous_yxfb)(
 
     const int batch_offset = global_id % data_sets_count;
 
-    __local INPUT0_TYPE partial_max[LWS];
-    const INPUT0_TYPE max_value = FUNC_CALL(find_max_value)(partial_max, global_id, idx, batch_offset, data_sets_count, input);
+    __local INPUT0_COMPUTE_TYPE partial_max[LWS];
+    const INPUT0_COMPUTE_TYPE max_value = FUNC_CALL(find_max_value)(partial_max, global_id, idx, batch_offset, data_sets_count, input);
 
-    INPUT0_TYPE tmp_vals[ITEMS_NUM + 1];
+    INPUT0_COMPUTE_TYPE tmp_vals[ITEMS_NUM + 1];
     for(int i = 0; i < ITEMS_NUM; i++)
     {
-        tmp_vals[i] = native_exp(input[LWS * i + global_id] - max_value);
+        tmp_vals[i] = native_exp(DECODE_INPUT0_COMPUTE_TYPE(input[LWS * i + global_id]) - max_value);
     }
-    tmp_vals[ITEMS_NUM] = global_id < LEFTOVERS ? native_exp(input[LWS * ITEMS_NUM + global_id] - max_value) : UNIT_VAL_ZERO;
+    tmp_vals[ITEMS_NUM] = global_id < LEFTOVERS ? native_exp(DECODE_INPUT0_COMPUTE_TYPE(input[LWS * ITEMS_NUM + global_id] - max_value)) : INPUT0_VAL_ZERO;
 
     // accumulate all values;
-    __local INPUT0_TYPE partial_acc[LWS]; // all values accumulated;
-    partial_acc[global_id] = UNIT_VAL_ZERO;
+    __local INPUT0_COMPUTE_TYPE partial_acc[LWS]; // all values accumulated;
+    partial_acc[global_id] = INPUT0_VAL_ZERO;
     for(int i = 0; i < ITEMS_NUM + 1; i++)
     {
         partial_acc[global_id] += tmp_vals[i];
@@ -84,9 +84,9 @@ KERNEL (softmax_gpu_continuous_yxfb)(
 #else
     for(int i = 0; i < ITEMS_NUM; i++)
     {
-        output[LWS * i + global_id] = ACTIVATION(tmp_vals[i] / partial_acc[batch_offset], ACTIVATION_PARAMS);
+        output[LWS * i + global_id] = TO_OUTPUT_TYPE(ACTIVATION(tmp_vals[i] / partial_acc[batch_offset], ACTIVATION_PARAMS));
     }
     if(global_id < LEFTOVERS)
-        output[LWS * ITEMS_NUM + global_id] = ACTIVATION(tmp_vals[ITEMS_NUM] / partial_acc[batch_offset], ACTIVATION_PARAMS);
+        output[LWS * ITEMS_NUM + global_id] = TO_OUTPUT_TYPE(ACTIVATION(tmp_vals[ITEMS_NUM] / partial_acc[batch_offset], ACTIVATION_PARAMS));
 #endif
 }
