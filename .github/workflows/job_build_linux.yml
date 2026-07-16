@@ -267,7 +267,7 @@ jobs:
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
-            if [[ "${OS}" == 'debian_10' ]]; then
+            if [[ "${ARCH}" == 'arm' ]]; then
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
@@ -282,7 +282,7 @@ jobs:
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
         env:
-          OS: ${{ inputs.os }}
+          ARCH: ${{ inputs.arch }}
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -410,7 +410,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
-        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        if: ${{ inputs.arch != 'arm' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_wheels
@@ -499,5 +499,5 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
         env:
-          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+          STORE_WHEELS: ${{ inputs.arch != 'arm' }}
           STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
