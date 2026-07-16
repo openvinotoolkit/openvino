@@ -133,30 +133,6 @@ uint64_t get_free_system_ram_bytes() {
 #endif
 }
 
-// Parses a positive size_t from an environment variable, returning default_value if unset/invalid.
-size_t env_size_t(const char* name, size_t default_value) {
-    const char* v = std::getenv(name);
-    if (!v)
-        return default_value;
-    char* end = nullptr;
-    const unsigned long long parsed = std::strtoull(v, &end, 10);
-    if (end == v || parsed == 0)
-        return default_value;
-    return static_cast<size_t>(parsed);
-}
-
-// Parses a double in (0, 1] from an environment variable, returning default_value if unset/invalid.
-double env_fraction(const char* name, double default_value) {
-    const char* v = std::getenv(name);
-    if (!v)
-        return default_value;
-    char* end = nullptr;
-    const double parsed = std::strtod(v, &end);
-    if (end == v || !(parsed > 0.0) || parsed > 1.0)
-        return default_value;
-    return parsed;
-}
-
 // Recursively accumulates weight-constant bytes across the model and any subgraphs.
 // w_total counts every Constant once (deduped by node identity); w_moe counts only
 // routed-expert Constants (the offloadable subset).
