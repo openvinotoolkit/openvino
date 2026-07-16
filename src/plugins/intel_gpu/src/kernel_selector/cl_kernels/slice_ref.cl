@@ -91,8 +91,9 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     // fp8 is a 1-byte struct; Slice just moves data, so copy the byte (ACTIVATION won't compile on it).
     output[output_index] = input[input_index];
 #else
-    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+    output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_index]), ACTIVATION_PARAMS));
 #endif
+    
 }
 
 #undef LOAD_BUFFER;
