@@ -83,6 +83,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_ggml_moe_gather_to_gathermatmul.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
@@ -647,6 +648,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
+
+            // Capture the ggml-openvino frontend's public-op top-k expert matmul
+            // (Gather(compressed_weights, ids) -> [Convert] -> Reshape -> MatMul) and turn
+            // it into an internal GatherMatmul, so the frontend needs no internal op / header.
+            manager.register_pass<ov::intel_gpu::ConvertGgmlMoeGatherToGatherMatmul>();
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
             // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
