@@ -15,15 +15,14 @@ set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-Wno-all)
-    # GCC (any version) may emit "overflow in constant expression" for the
-    # static_assert in abseil's ascii.cc when evaluating static_cast<char>(i)
-    # for i >= 128 in a constexpr context. -fpermissive downgrades it from
-    # a hard error to a warning (GCC >= 12 only). For GCC < 12, -fpermissive
-    # does NOT affect static_assert, so we additionally use -funsigned-char
-    # which makes char unsigned — then static_cast<char>(i) for i < 256 is
-    # always in-range and the constexpr evaluator accepts it on all versions.
-    ov_add_compiler_flags(-fpermissive)
     if(CMAKE_COMPILER_IS_GNUCXX)
+        # GCC may emit "non-constant condition for static assertion" in abseil's
+        # ascii.cc because static_cast<char>(i) for i >= 128 is implementation-
+        # defined when char is signed, and older GCC constexpr evaluators reject
+        # it.  -fpermissive downgrades it to a warning on GCC >= 12.
+        # -funsigned-char makes char unsigned so the cast is always in-range,
+        # fixing all GCC versions.
+        ov_add_compiler_flags(-fpermissive)
         ov_add_compiler_flags(-funsigned-char)
     endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
@@ -125,12 +124,16 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-        if(ENABLE_THREAD_SANITIZER)
-            foreach(_lib ${_protoc_libs})
+    endif()
+    # Disable thread sanitizer for all protobuf/abseil targets — protobuf
+    # is incompatible with -fsanitize=thread (especially under clang).
+    if(ENABLE_THREAD_SANITIZER)
+        foreach(_lib protoc libprotoc libprotobuf libprotobuf-lite)
+            if(TARGET ${_lib})
                 target_compile_options(${_lib} PRIVATE -fno-sanitize=thread)
-            endforeach()
-            target_link_options(protoc PRIVATE -fno-sanitize=thread)
-        endif()
+                target_link_options(${_lib} PRIVATE -fno-sanitize=thread)
+            endif()
+        endforeach()
     endif()
     ov_disable_all_warnings(${_protoc_libs} libprotobuf-lite)
     set_target_properties(libprotobuf-lite PROPERTIES

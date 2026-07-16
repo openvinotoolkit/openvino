@@ -100,22 +100,6 @@ macro(ov_frontend_group_files root_dir rel_path file_mask)
 endmacro()
 
 #
-# ov_suppress_version_dependent_warnings(TARGET_NAME)
-# 
-# Suppress version dependent warnings in third-party libraries for specific compilers
-#
-function(ov_suppress_version_dependent_warnings target_name)
-    # Required for abseil lts_20230802 and GCC 14
-    # Remove once abseil is updated to a newer version
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(${target_name} PRIVATE
-            -Wno-error=array-bounds
-            -Wno-error=stringop-overflow
-        )
-    endif()
-endfunction()
-
-#
 # ov_add_frontend(NAME <IR|ONNX|...>
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
@@ -335,7 +319,14 @@ macro(ov_add_frontend)
         endif()
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
-	ov_suppress_version_dependent_warnings(${TARGET_NAME})
+
+        # GCC emits -Warray-bounds / -Wstringop-overflow even from SYSTEM includes
+        # when instantiating header-only abseil code inside frontend translation units.
+        # With -Werror these become hard errors; downgrade to warnings here.
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            target_compile_options(${TARGET_NAME} PRIVATE
+                -Wno-error=array-bounds -Wno-error=stringop-overflow)
+        endif()
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
