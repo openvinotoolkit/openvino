@@ -32,9 +32,9 @@ public:
     // tokens from the right are not the useful ones.
     // However, in NPUW static-shape mode, we place useful current tokens exactly to the right end
     // in the prefill stage.
-    // Therefore, Slice operation will extract the left part of mask, that will be padded
-    // either with zeroes (in the full prefill or first iteration of chunked prefill) or with ones
-    // (subsequent iterations of chunked prefill) but for past tokens.
+    // Therefore, Slice operation will extract the left part of mask, that in case of chunked
+    // prefill will be padded either with zeroes (in the first iteration) or with ones
+    // (in subsequent iterations) but for past tokens.
     // This pass re-align the Slice operation to extract the right part of the mask,
     // that contains useful current tokens.
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::RightAlignMaskSliceForConvImpl");
