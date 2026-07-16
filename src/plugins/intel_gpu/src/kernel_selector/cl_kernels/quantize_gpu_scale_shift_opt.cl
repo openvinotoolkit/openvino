@@ -28,6 +28,11 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
     const int b = get_global_id(GWS_BATCH);
     const int of = get_global_id(GWS_FEATURE);
 
+#if FEATURE_BLOCKED_FORMAT
+    if (of >= OUTPUT_FEATURE_NUM || b >= OUTPUT_BATCH_NUM)
+        return;
+#endif
+
 #if OUTPUT_DIMS <= 4
     const int yx = get_global_id(GWS_YX);
 
@@ -230,9 +235,6 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
 // Common section with results writing //
 // *********************************** //
 
-#if FEATURE_BLOCKED_FORMAT
-    if (of < OUTPUT_FEATURE_NUM)
-#endif
 #if OUTPUT_IS_FP
         output[output_offset] = TO_OUTPUT_TYPE_SAT(val);
 #else

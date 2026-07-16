@@ -15,17 +15,15 @@ namespace {
 using namespace ov::npuw::orc;
 
 // Small sequential TypeIds that fit in u16.
-constexpr TypeId TYPE_NCMD    = 0x0001u;
-constexpr TypeId TYPE_META    = 0x0002u;
-constexpr TypeId TYPE_PART    = 0x0003u;
-constexpr TypeId TYPE_WGHT    = 0x0004u;
-constexpr TypeId TYPE_TEST    = 0x0005u;
+constexpr TypeId TYPE_NCMD = 0x0001u;
+constexpr TypeId TYPE_META = 0x0002u;
+constexpr TypeId TYPE_PART = 0x0003u;
+constexpr TypeId TYPE_WGHT = 0x0004u;
+constexpr TypeId TYPE_TEST = 0x0005u;
 constexpr TypeId TYPE_UNKNOWN = 0xFFFFu;
 
-const SchemaUUID TEST_UUID = {
-    0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
-};
+const SchemaUUID TEST_UUID =
+    {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10};
 
 struct BlobSummary {
     std::uint32_t subgraph_count = 0u;
@@ -74,6 +72,17 @@ void expect_blob_summary(const BlobSummary& expected, const BlobSummary& actual)
     EXPECT_EQ(expected.devices, actual.devices);
 }
 
+struct CounterMeta {
+    static constexpr Version kVersion = 0u;
+    std::uint32_t value = 0u;
+
+    // Tiny fixed payload used to prove that scoped sections can stream inline metadata
+    // before nested ORC children without going through the higher-level Section tree API.
+    void serialize(Stream& stream) {
+        stream & value;
+    }
+};
+
 }  // namespace
 
 TEST(OrcTest, FileRoundTripsNestedSections) {
@@ -81,13 +90,12 @@ TEST(OrcTest, FileRoundTripsNestedSections) {
     const BlobSummary part{7u, {"prefill", "decode"}};
     const BlobSummary wght{1u, {"lazy"}};
 
-    const auto root = Section::container(TYPE_NCMD,
-                                         1u,
-                                         {make_payload_section(TYPE_META, 1u, meta),
-                                          Section::container(TYPE_PART,
-                                                             1u,
-                                                             {make_payload_section(TYPE_TEST, 1u, part)}),
-                                          make_payload_section(TYPE_WGHT, 1u, wght)});
+    const auto root =
+        Section::container(TYPE_NCMD,
+                           1u,
+                           {make_payload_section(TYPE_META, 1u, meta),
+                            Section::container(TYPE_PART, 1u, {make_payload_section(TYPE_TEST, 1u, part)}),
+                            make_payload_section(TYPE_WGHT, 1u, wght)});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     write_file(buffer, root, TEST_UUID);
@@ -109,7 +117,8 @@ TEST(OrcTest, FileRoundTripsNestedSections) {
 }
 
 TEST(OrcTest, RejectsTruncatedFile) {
-    const auto root = Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{3u, {"NPU"}})});
+    const auto root =
+        Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{3u, {"NPU"}})});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     write_file(buffer, root, TEST_UUID);
@@ -122,8 +131,43 @@ TEST(OrcTest, RejectsTruncatedFile) {
     EXPECT_THROW(read_file(truncated), ov::Exception);
 }
 
+TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    write_file_header(buffer, TEST_UUID);
+    with_section(buffer, TYPE_NCMD, CounterMeta::kVersion, 0u, [&] {
+        auto root_stream = Stream::writer(buffer);
+        CounterMeta root_meta{2u};
+        root_stream & root_meta;
+
+        with_section(buffer, TYPE_TEST, CounterMeta::kVersion, 0u, [&] {
+            auto child_stream = Stream::writer(buffer);
+            CounterMeta child_meta{7u};
+            child_stream & child_meta;
+        });
+    });
+
+    EXPECT_EQ(read_file_header(buffer).schema_uuid, TEST_UUID);
+
+    ScopedReadSection root(buffer);
+    EXPECT_EQ(root.header().type, TYPE_NCMD);
+    auto root_stream = Stream::reader(buffer);
+    CounterMeta root_meta;
+    root_stream & root_meta;
+    EXPECT_EQ(root_meta.value, 2u);
+
+    ScopedReadSection child(buffer);
+    EXPECT_EQ(child.header().type, TYPE_TEST);
+    auto child_stream = Stream::reader(buffer);
+    CounterMeta child_meta;
+    child_stream & child_meta;
+    EXPECT_EQ(child_meta.value, 7u);
+    child.expect_end();
+    root.expect_end();
+}
+
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
-    const auto root = Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{1u, {"NPU"}})});
+    const auto root =
+        Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{1u, {"NPU"}})});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     write_file(buffer, root, TEST_UUID);
@@ -131,7 +175,7 @@ TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
     // is_orc must return a header and leave the stream at its original position
     const auto header = is_orc(buffer);
     ASSERT_TRUE(header.has_value());
-    EXPECT_EQ(header->version, 1u);
+    EXPECT_EQ(header->version, 0u);
     EXPECT_EQ(header->schema_uuid, TEST_UUID);
     // read_file must still work after the probe
     EXPECT_NO_THROW(read_file(buffer));
@@ -140,6 +184,21 @@ TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
 TEST(OrcTest, IsOrcReturnsFalseForGarbage) {
     std::stringstream buffer("not an orc blob", std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_FALSE(is_orc(buffer).has_value());
+}
+
+TEST(OrcTest, TryReadBytesAdvancesOnSuccessAndRollsBackOnFailure) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    buffer.write("abcdef", 6);
+
+    std::array<char, 3> prefix{};
+    EXPECT_TRUE(try_read_bytes(buffer, prefix.data(), prefix.size()));
+    EXPECT_EQ(std::string(prefix.data(), prefix.size()), "abc");
+    EXPECT_EQ(buffer.tellg(), std::streampos{3});
+
+    std::array<char, 8> oversized{};
+    const auto pos_before_failure = buffer.tellg();
+    EXPECT_FALSE(try_read_bytes(buffer, oversized.data(), oversized.size()));
+    EXPECT_EQ(buffer.tellg(), pos_before_failure);
 }
 
 TEST(OrcTest, SchemaSkipsUnknownOptionalChildren) {
@@ -215,7 +274,8 @@ TEST(OrcTest, LoadVersionedPayloadMigratesAcrossVersions) {
         return load_versioned_payload<MetaV3, MetaV1, MetaV2, MetaV3>(section);
     });
 
-    const auto meta_v1 = schema.load<MetaV3>(make_payload_section(TYPE_META, MetaV1::kVersion, MetaV1{3u, {"NPU", "CPU"}}));
+    const auto meta_v1 =
+        schema.load<MetaV3>(make_payload_section(TYPE_META, MetaV1::kVersion, MetaV1{3u, {"NPU", "CPU"}}));
     EXPECT_EQ(meta_v1.subgraph_count, 3u);
     EXPECT_EQ(meta_v1.devices, (std::vector<std::string>{"NPU", "CPU"}));
     EXPECT_FALSE(meta_v1.weightless);

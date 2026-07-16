@@ -541,7 +541,7 @@ public:
         auto outputs = network->execute();
 
         auto out_mem = outputs.at("reduce").get_memory();
-        cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<output_t, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
         ASSERT_EQ(out_lay.get_tensor().sizes()[0], reference_result.size());                 // b
@@ -798,7 +798,7 @@ void test_common_bfyx(bool is_caching_test) {
 
     std::vector<T> ref_data = {1.0f};
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -832,7 +832,7 @@ TEST(reduce_gpu, common_bfyx_keepdims) {
 
     std::vector<float> ref_data = {6.0f, 22.0f, 38.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -862,7 +862,7 @@ TEST(reduce_gpu, regr_bfyx_keepdims) {
 
     std::vector<float> ref_data = { 1.0f, 5.0f, 9.0f, 13.0f, 17.0f, 21.0f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -892,7 +892,7 @@ TEST(reduce_gpu, common_bfzyx) {
 
     std::vector<float> ref_data = {1.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -922,7 +922,7 @@ TEST(reduce_gpu, common_bfzyx_keepdims) {
 
     std::vector<float> ref_data = {1.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -952,7 +952,7 @@ TEST(reduce_gpu, common_bfwzyx) {
 
     std::vector<float> ref_data = {6.0f, 22.0f, 38.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -982,7 +982,7 @@ TEST(reduce_gpu, common_bfwzyx_keepdims) {
 
     std::vector<float> ref_data = {66.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1013,7 +1013,7 @@ TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
 
     std::vector<float> ref_data = {20.0f, 21.0f, 22.0f, 23.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1043,7 +1043,7 @@ TEST(reduce_gpu, common_bfwzyx_min) {
 
     std::vector<float> ref_data = {0.0f, 3.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1073,7 +1073,7 @@ TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
 
     std::vector<float> ref_data = {0.0f, 3.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1103,7 +1103,7 @@ TEST(reduce_gpu, common_bfwzyx_mean) {
 
     std::vector<float> ref_data = {1.0f, 4.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1133,7 +1133,7 @@ TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
 
     std::vector<float> ref_data = {1.0f, 4.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1163,7 +1163,7 @@ TEST(reduce_gpu, common_bfwzyx_prod) {
 
     std::vector<float> ref_data = {0.0f, 60.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1193,7 +1193,7 @@ TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
 
     std::vector<float> ref_data = {0.0f, 60.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1224,7 +1224,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
 
     std::vector<float> ref_data = {60.0f, 66.0f, 72.0f, 78.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1254,7 +1254,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and) {
 
     std::vector<char> ref_data = {0, 1};
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1284,7 +1284,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
 
     std::vector<char> ref_data = {0, 1};
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1314,7 +1314,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or) {
 
     std::vector<char> ref_data = {1, 1};
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1344,7 +1344,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
 
     std::vector<char> ref_data = {1, 1};
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1374,7 +1374,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square) {
 
     std::vector<float> ref_data = {5.0f, 50.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1404,7 +1404,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
 
     std::vector<float> ref_data = {5.0f, 50.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1434,7 +1434,7 @@ TEST(reduce_gpu, common_bfwzyx_l1) {
 
     std::vector<float> ref_data = {3.0f, 12.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1464,7 +1464,7 @@ TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
 
     std::vector<float> ref_data = {3.0f, 12.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1494,7 +1494,7 @@ TEST(reduce_gpu, common_bfwzyx_l2) {
 
     std::vector<float> ref_data = {2.236067977f, 7.071067812f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1524,7 +1524,7 @@ TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
 
     std::vector<float> ref_data = {2.236067977f, 7.071067812f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1554,7 +1554,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum) {
 
     std::vector<float> ref_data = {1.0986122887f, 2.4849066498f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1584,7 +1584,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
 
     std::vector<float> ref_data = {1.0986122887f, 2.4849066498f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1614,7 +1614,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
 
     std::vector<float> ref_data = {2.407605964f, 5.407605964f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1644,7 +1644,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
 
     std::vector<float> ref_data = {2.407605964f, 5.407605964f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1676,7 +1676,7 @@ TEST(reduce_gpu, cpu_impl_int32) {
 
     std::vector<int32_t> ref_data = {24};
 
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_EQ(ref_data[i], output_ptr[i]);
@@ -1713,7 +1713,7 @@ TEST(reduce_gpu, dynamic) {
     auto output = outputs.at("reduce").get_memory();
 
     std::vector<float> ref_data = {0.0f, 60.0f};
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1770,7 +1770,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
 
     std::vector<float> ref_data = {1.0f, -9.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1827,7 +1827,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
 
     std::vector<float> ref_data = {9.0f, -1.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1979,7 +1979,7 @@ public:
             auto outputs = network->execute();
 
             auto out_mem = outputs.at("reduce").get_memory();
-            cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+            cldnn::mem_lock<output_t, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
             ASSERT_EQ(out_lay.get_tensor().sizes()[0], reference_result.size());                 // b
@@ -2139,7 +2139,7 @@ public:
         auto outputs = network.execute();
 
         auto out_mem = outputs.at("reduce").get_memory();
-        cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<output_t, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
         ASSERT_EQ(out_lay.get_tensor().sizes()[0], reference_result.size());    // b

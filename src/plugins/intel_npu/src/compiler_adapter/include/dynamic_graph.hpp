@@ -12,6 +12,7 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -141,7 +142,8 @@ public:
                                   ze_fence_handle_t fence,
                                   ze_event_handle_t event,
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
-        virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
+        virtual void predictOutputShape(GraphArguments& args,
+                                        std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
         virtual ~Impl() {};
     };
@@ -191,10 +193,13 @@ public:
 
     uint64_t get_num_subgraphs() const override;
 
-    void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+    void predict_output_shape(GraphArguments& args,
+                              std::vector<MemRefType>& inputDescriptors,
                               std::vector<MemRefType>& outputDescriptors) override;
 
     std::optional<bool> is_profiling_blob() const override;
+
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
 private:
     void initialize_impl(const FilteredConfig& config) override;
@@ -205,6 +210,11 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     NetworkMetadata _metadata;
+
+    // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
+    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
+    std::optional<ov::WorkloadType> _workloadType = std::nullopt;
+    std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
     /**
      * @brief Stores the number of subgraphs for dynamic models

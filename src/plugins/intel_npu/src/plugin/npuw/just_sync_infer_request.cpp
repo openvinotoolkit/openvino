@@ -84,6 +84,10 @@ bool ov::npuw::JustInferRequest::subgraph_needs_copy(std::size_t idx) const {
     return needs_copy(idx);
 }
 
+bool ov::npuw::JustInferRequest::attention_no_copy() const {
+    return m_npuw_model->attention_no_copy();
+}
+
 const ov::SoPtr<ov::ICompiledModel>& ov::npuw::JustInferRequest::compiled_submodel(size_t idx) const {
     return m_npuw_model->m_compiled_submodels.at(idx).compiled_model;
 }
@@ -699,6 +703,24 @@ bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
 
 void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
     m_subrequests[idx]->start_async();
+}
+
+void ov::npuw::JustInferRequest::propagate_params_to_subrequests() {
+    // Handle m_subrequests (primary subrequests for all real subgraphs).
+    IBaseInferRequest::propagate_params_to_subrequests();
+
+    // When function pipelining is active, m_funcall_pipeline[real_idx].subrequest is a
+    // "reserve" request swapped with the primary after each funcall epilogue.  It may
+    // hold live block tensor refs from the last executed or pre-prepared inference step
+    // and must be cleared here, otherwise release() cannot free device memory.
+    if (!m_use_function_pipelining) {
+        return;
+    }
+    for (std::size_t idx = 0; idx < m_funcall_pipeline.size(); ++idx) {
+        if (m_funcall_pipeline[idx].subrequest) {
+            bind_global_params(idx, m_funcall_pipeline[idx].subrequest);
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {

@@ -78,21 +78,22 @@ static inline void l2norm(float* a, size_t n, float eps) {
 #endif
 }
 
-void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
-                           const ov::intel_cpu::PlainTensor& key,
-                           const ov::intel_cpu::PlainTensor& value,
-                           const ov::intel_cpu::PlainTensor& recurrent_state,
-                           const ov::intel_cpu::PlainTensor& gate,
-                           const ov::intel_cpu::PlainTensor& beta,
-                           float q_l2_norm_eps,
-                           float k_l2_norm_eps,
-                           bool use_qk_l2norm,
-                           ov::intel_cpu::PlainTensor& output_attn,
-                           ov::intel_cpu::PlainTensor& output_recurrent_state,
-                           float* temp_buffer,
-                           const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+template <typename T>
+static void recurrent_linear_attn_impl(const ov::intel_cpu::PlainTensor& query,
+                                       const ov::intel_cpu::PlainTensor& key,
+                                       const ov::intel_cpu::PlainTensor& value,
+                                       const ov::intel_cpu::PlainTensor& recurrent_state,
+                                       const ov::intel_cpu::PlainTensor& gate,
+                                       const ov::intel_cpu::PlainTensor& beta,
+                                       float q_l2_norm_eps,
+                                       float k_l2_norm_eps,
+                                       bool use_qk_l2norm,
+                                       ov::intel_cpu::PlainTensor& output_attn,
+                                       ov::intel_cpu::PlainTensor& output_recurrent_state,
+                                       float* temp_buffer,
+                                       const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     size_t B = query.m_dims[0];
-    size_t T = query.m_dims[1];
+    size_t timesteps = query.m_dims[1];
     size_t qk_heads = query.m_dims[2];
     size_t K = query.m_dims[3];
     size_t v_heads = value.m_dims[2];
@@ -108,24 +109,25 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
         float* b_q = temp_buffer + tid * 3 * K_HEAD_DIMS + 2 * K_HEAD_DIMS;
         const size_t hk = i_h / group_size;
         // B, T, qk, K
-        float* q_ptr = query.ptr<float>(i_b, 0, hk);
-        float* k_ptr = key.ptr<float>(i_b, 0, hk);
+        T* q_ptr = query.ptr<T>(i_b, 0, hk);
+        T* k_ptr = key.ptr<T>(i_b, 0, hk);
         // B, T, v_heads, V
-        float* v_ptr = value.ptr<float>(i_b, 0, i_h);
+        T* v_ptr = value.ptr<T>(i_b, 0, i_h);
         // B, v_heads, K, V
+        // Load recurrent state with stride V in K dimension
+        T* state_ptr = recurrent_state.ptr<T>(i_b, i_h, 0, i_v);
         for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-            init_state[j] = recurrent_state.at<float>({i_b, i_h, j, i_v});
+            init_state[j] = static_cast<float>(state_ptr[j * V_HEAD_DIMS]);
         }
 
-        for (size_t i = 0; i < T; i++) {
+        for (size_t i = 0; i < timesteps; i++) {
             // gate: B, T, v_heads
-            float b_g = gate.at<float>({i_b, i, i_h});
-            float b_beta = beta.at<float>({i_b, i, i_h});
-            b_g = exp(b_g);
-            for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-                b_k[j] = k_ptr[i * qk_heads * K_HEAD_DIMS + j];
-                b_q[j] = q_ptr[i * qk_heads * K_HEAD_DIMS + j];
-            }
+            float b_g = static_cast<float>(gate.at<T>({i_b, i, i_h}));
+            float b_beta = static_cast<float>(beta.at<T>({i_b, i, i_h}));
+            b_g = std::exp(b_g);
+            // Vectorized load of contiguous k and q
+            cvt_copy(b_k, k_ptr + i * qk_heads * K_HEAD_DIMS, 1, K_HEAD_DIMS, 0, 0);
+            cvt_copy(b_q, q_ptr + i * qk_heads * K_HEAD_DIMS, 1, K_HEAD_DIMS, 0, 0);
             if (use_qk_l2norm) {
                 l2norm(b_k, K_HEAD_DIMS, k_l2_norm_eps);
                 l2norm(b_q, K_HEAD_DIMS, q_l2_norm_eps);
@@ -135,7 +137,7 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
             multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
             float h_k = dot_product(init_state, b_k, K_HEAD_DIMS, nullptr, nullptr, nullptr, 0);
             // B, T, v_heads, V
-            float b_v = v_ptr[i_v + i * v_heads * V_HEAD_DIMS];
+            float b_v = static_cast<float>(v_ptr[i_v + i * v_heads * V_HEAD_DIMS]);
             b_v -= h_k;
             // b_v * b_k
             b_v *= b_beta;
@@ -143,12 +145,76 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
             // h = h0 + update
             cvt_add(init_state, init_state, b_k, 1, K_HEAD_DIMS, 0, 0, 0);
             float b_output = dot_product(init_state, b_q, K_HEAD_DIMS, nullptr, nullptr, nullptr, 0);
-            output_attn.at<float>({i_b, i, i_h, i_v}) = b_output;
+            output_attn.at<T>({i_b, i, i_h, i_v}) = static_cast<T>(b_output);
         }
+        // Store recurrent state with stride V in K dimension
+        T* state_out_ptr = output_recurrent_state.ptr<T>(i_b, i_h, 0, i_v);
         for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-            output_recurrent_state.at<float>({i_b, i_h, j, i_v}) = init_state[j];
+            state_out_ptr[j * V_HEAD_DIMS] = static_cast<T>(init_state[j]);
         }
     });
+}
+
+void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
+                           const ov::intel_cpu::PlainTensor& key,
+                           const ov::intel_cpu::PlainTensor& value,
+                           const ov::intel_cpu::PlainTensor& recurrent_state,
+                           const ov::intel_cpu::PlainTensor& gate,
+                           const ov::intel_cpu::PlainTensor& beta,
+                           float q_l2_norm_eps,
+                           float k_l2_norm_eps,
+                           bool use_qk_l2norm,
+                           ov::intel_cpu::PlainTensor& output_attn,
+                           ov::intel_cpu::PlainTensor& output_recurrent_state,
+                           float* temp_buffer,
+                           const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    const auto data_prc = query.get_precision();
+
+    if (data_prc == ov::element::f32) {
+        recurrent_linear_attn_impl<float>(query,
+                                          key,
+                                          value,
+                                          recurrent_state,
+                                          gate,
+                                          beta,
+                                          q_l2_norm_eps,
+                                          k_l2_norm_eps,
+                                          use_qk_l2norm,
+                                          output_attn,
+                                          output_recurrent_state,
+                                          temp_buffer,
+                                          cpu_parallel);
+    } else if (data_prc == ov::element::f16) {
+        recurrent_linear_attn_impl<ov::float16>(query,
+                                                key,
+                                                value,
+                                                recurrent_state,
+                                                gate,
+                                                beta,
+                                                q_l2_norm_eps,
+                                                k_l2_norm_eps,
+                                                use_qk_l2norm,
+                                                output_attn,
+                                                output_recurrent_state,
+                                                temp_buffer,
+                                                cpu_parallel);
+    } else if (data_prc == ov::element::bf16) {
+        recurrent_linear_attn_impl<ov::bfloat16>(query,
+                                                 key,
+                                                 value,
+                                                 recurrent_state,
+                                                 gate,
+                                                 beta,
+                                                 q_l2_norm_eps,
+                                                 k_l2_norm_eps,
+                                                 use_qk_l2norm,
+                                                 output_attn,
+                                                 output_recurrent_state,
+                                                 temp_buffer,
+                                                 cpu_parallel);
+    } else {
+        OPENVINO_ASSERT(false, "[CPU] gdn: unsupported precision", data_prc);
+    }
 }
 
 template <typename T>

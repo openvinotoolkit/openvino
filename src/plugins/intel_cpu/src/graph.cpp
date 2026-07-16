@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -45,7 +46,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_state.h"
 #include "node.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
 #include "nodes/input.h"
@@ -58,7 +58,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
@@ -76,6 +75,9 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
+#ifdef CPU_DEBUG_CAPS
+#    include "openvino/core/partial_shape.hpp"
+#endif
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
      OV_THREAD == OV_THREAD_OMP)
@@ -1754,7 +1756,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             ov::ProfilingInfo pc;
             pc.node_name = node->getName();
             uint64_t avg_time = node->PerfCounter().avg();
+            const bool has_measurement = node->PerfCounter().count() > 0;
             pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
+            pc.start_time = has_measurement ? std::chrono::duration_cast<std::chrono::microseconds>(
+                                                  node->PerfCounter().start().time_since_epoch())
+                                            : std::chrono::microseconds::zero();
             pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
             pc.exec_type = node->getPrimitiveDescriptorType();
             pc.node_type = node->typeStr;
@@ -2138,6 +2144,10 @@ void Graph::EnforceInferencePrecision() const {
 
                 // kvcache of PagedAttention should be written directly
                 if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
+                    return true;
+                }
+                // kv cache of PaKVReorder should be written directly
+                if (node->getType() == Type::PaKVReorder && any_of(inPort, 0U, 1U)) {
                     return true;
                 }
                 const auto& parent = node->getParentEdgeAt(inPort)->getParent();

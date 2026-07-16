@@ -1,32 +1,31 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "common/verbose.hpp"
+
+#include <node.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "common/c_types_map.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/util/common_util.hpp"
 #include "utils/general_utils.h"
-#ifdef CPU_DEBUG_CAPS
-
-#    include <node.h>
-
-#    include <cstdlib>
-#    include <iostream>
-#    include <sstream>
-#    include <string>
-#    include <vector>
-
-#    include "common/c_types_map.hpp"
-#    include "common/verbose.hpp"
-#    include "cpu_types.h"
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "openvino/util/common_util.hpp"
-#    include "verbose.h"
+#include "verbose.h"
 
 namespace ov::intel_cpu {
 
@@ -198,5 +197,3 @@ void Verbose::flush() const {
 }
 
 }  // namespace ov::intel_cpu
-
-#endif  // CPU_DEBUG_CAPS

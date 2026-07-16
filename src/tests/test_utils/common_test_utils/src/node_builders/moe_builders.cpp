@@ -21,6 +21,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -43,8 +44,11 @@
 namespace ov {
 namespace test {
 
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size_t number_of_experts, size_t topk) {
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale) {
     using namespace ov::op;
 
     auto router_softmax = std::make_shared<v8::Softmax>(routing_weights, 1);
@@ -59,6 +63,15 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size
                                         true);
     auto scatter_w = ov::Output<ov::Node>{std::make_shared<v1::Divide>(router_topk->output(0), reduce_sm)};
     auto topk_idx = router_topk->output(1);
+
+    if (use_per_expert_scale) {
+        const auto elem_type = routing_weights.get_element_type();
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
+        auto per_expert_scale_const = ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
+        auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        auto gathered_scales = std::make_shared<v8::Gather>(per_expert_scale_const, topk_idx, gather_axis);
+        scatter_w = std::make_shared<v1::Multiply>(scatter_w, gathered_scales);
+    }
 
     auto shapeof = std::make_shared<v3::ShapeOf>(topk_idx);
     auto gather = std::make_shared<v8::Gather>(shapeof,
@@ -460,7 +473,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type) {
+    MoERoutingType routing_type,
+    MoEActivationType activation_type,
+    bool use_per_expert_scale,
+    bool use_layernorm_multiply) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -475,6 +491,14 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     // Create input parameter
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
     ov::Output<ov::Node> input_data = input;
+
+    // Gemma4 pattern: layernorm Multiply sits between Parameter and Reshape.
+    // The fused MOE's hidden_states input must be the Multiply output, not the Parameter.
+    if (use_layernorm_multiply) {
+        auto ln_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 99);
+        auto ln_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, 1, hidden_size}, ln_data);
+        input_data = std::make_shared<ov::op::v1::Multiply>(input_data, ln_scale);
+    }
 
     // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
@@ -517,8 +541,15 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    // Apply Swish activation directly to gate
-    auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    // Apply gate activation (Swish for SwiGLU, Tanh-approximated Gelu for GeGLU, ERF Gelu for GeGLU-ERF)
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == MoEActivationType::GELU) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul, ov::op::GeluApproximationMode::TANH);
+    } else if (activation_type == MoEActivationType::GELU_ERF) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul, ov::op::GeluApproximationMode::ERF);
+    } else {
+        gate_act = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    }
 
     // Second GEMM (up_projection)
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
@@ -537,8 +568,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     up_matmul->set_friendly_name("UpMatMul");
 
-    // Join: Multiply (SwiGLU)
-    auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
+    // Join: Multiply (SwiGLU or GeGLU)
+    auto swiglu = std::make_shared<ov::op::v1::Multiply>(gate_act, up_matmul);
 
     // Third GEMM (down_projection)
     auto down_weights_moe3 = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
@@ -570,14 +601,23 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
                                                     reshape_on_decompression,
                                                     decompression_group_size);
 
-    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
+    // Gemma-4 style: the router uses a separately RMSNorm-scaled hidden state (different node
+    // from the expert path's experts_reshape).
+    ov::Output<ov::Node> router_input = experts_reshape;
+    if (use_per_expert_scale) {
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
+        auto router_norm_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, hidden_size}, pes_data);
+        router_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, router_norm_scale);
+    }
+    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(router_input, router_weights_moe3, false, true);
 
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> routing_outputs;
     switch (routing_type) {
     case MoERoutingType::SOFTMAX:
-        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk);
+        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk, use_per_expert_scale);
         break;
     case MoERoutingType::SIGMOID_BIAS:
+        OPENVINO_ASSERT(!use_per_expert_scale, "Per-expert scale is only supported for SOFTMAX routing");
         routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
     default:

@@ -81,6 +81,8 @@ public:
 
     virtual std::optional<bool> is_encrypted_blob() const;
 
+    virtual std::optional<std::string_view> get_compatibility_descriptor() const;
+
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
@@ -164,6 +166,7 @@ constexpr std::string_view META = "meta";
 constexpr std::string_view OV = "ov";
 constexpr std::string_view WS_INITS = "ws_inits";
 constexpr std::string_view BATCH = "batch";
+constexpr std::string_view COMPAT_DESC = "desc";
 }  // namespace MetadataTextKeys
 
 /**
@@ -172,7 +175,8 @@ constexpr std::string_view BATCH = "batch";
 inline constexpr std::array metadataTextAttributes = {MetadataTextKeys::META,
                                                       MetadataTextKeys::OV,
                                                       MetadataTextKeys::WS_INITS,
-                                                      MetadataTextKeys::BATCH};
+                                                      MetadataTextKeys::BATCH,
+                                                      MetadataTextKeys::COMPAT_DESC};
 
 /**
  * @brief List of supported version formats.
@@ -183,11 +187,12 @@ constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
 constexpr uint32_t METADATA_VERSION_2_5{MetadataBase::make_version(2, 5)};
+constexpr uint32_t METADATA_VERSION_2_6{MetadataBase::make_version(2, 6)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_5};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_6};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -416,6 +421,36 @@ public:
 
 private:
     std::optional<bool> _isEncryptedBlob;
+};
+
+/**
+ * @brief Stores the compiler requirements string.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_6> : public Metadata<METADATA_VERSION_2_5> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t> compilerVersion = std::nullopt,
+             const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
+             const std::optional<std::string_view> compatibilityDescriptor = std::nullopt);
+
+    void read() override;
+
+    void read_as_text() override;
+
+    void write(std::ostream& stream) override;
+
+    void write_as_text(std::ostream& stream) override;
+
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
+
+private:
+    std::optional<std::string> _compatibilityDescriptor;
 };
 
 /**

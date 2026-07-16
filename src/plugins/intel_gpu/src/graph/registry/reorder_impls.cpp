@@ -48,8 +48,10 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reord
                 const auto& out_layout = node.get_output_layout(0);
                 if (!one_of(in_layout.format, supported_dyn_formats) || !one_of(out_layout.format, supported_dyn_formats))
                     return false;
-                // WA: CPU impl does not support b_fs_yx_fsv16 format
-                if (node.is_in_shape_of_subgraph() && format::is_simple_data_format(out_layout.format))
+                // CPU impl does not support b_fs_yx_fsv16 format, so prefer CPU impl only
+                // when both input and output formats are simple (CPU-compatible)
+                if (node.is_in_shape_of_subgraph() && format::is_simple_data_format(out_layout.format)
+                    && format::is_simple_data_format(in_layout.format))
                     return false;
                 return true;
             })

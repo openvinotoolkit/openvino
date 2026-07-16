@@ -105,7 +105,7 @@ void test_d2411_axisB(bool is_caching_test) {
 
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 3.f, 6.f, 5.f, 4.f,
@@ -186,7 +186,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
@@ -279,7 +279,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 9.f, 10.f, 11.f,
@@ -406,7 +406,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 21.f, 31.f,
@@ -519,7 +519,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 40.f, 20.f, 30.f,
@@ -680,7 +680,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -806,7 +806,7 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 30.f, 1.f, 20.f, 40.f,
@@ -908,7 +908,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 1, 2,
@@ -1007,7 +1007,7 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 30, 1, 20, 200, 40,
@@ -1091,7 +1091,7 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
             auto outputs = network.execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     2.f, 0.f, 1.f, 0.f,
@@ -1197,7 +1197,7 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("scatter_update").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 40, 30, 20, 3, 50,
@@ -1289,7 +1289,7 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             auto outputs = network.execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     30.f, 40.f, 2.f, 10.f, 20.f,
@@ -1394,7 +1394,7 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -1484,7 +1484,7 @@ TEST(scatter_update_gpu_int32, d2115_axisX_bfwzyx) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 0, 30, 20, 50, 40,
@@ -1578,7 +1578,7 @@ void test_d21214_bfzyx_axisX_bfwzyx(bool is_caching_test) {
             auto outputs = network->execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     0.f, 40.f, 30.f, 20.f,
@@ -1671,7 +1671,7 @@ TEST(scatter_update_gpu_fp32, dynamic) {
 
     auto outputs = network.execute();
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -2000,7 +2000,7 @@ TEST(scatter_update_gpu_fp32, mixed_input_with_dynamic_static) {
 
     auto outputs = network.execute();
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -2083,7 +2083,7 @@ TEST(scatter_update_cpu_impl_fp32, dynamic) {
 
     auto outputs = network.execute();
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -2185,7 +2185,7 @@ TEST(scatter_update_gpu_fp32, output_padding) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 30.f,   1.f,    20.f,   40.f,
@@ -2275,7 +2275,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
 
         auto output = outputs.at("out").get_memory();
         ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 1.0f, 2.0f, 3.0f, 4.0f, 9.0f, 6.0f, 7.0f, 8.0f
@@ -2286,4 +2286,60 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
+}
+
+// Integer-typed ScatterUpdate (i8/u8). Exercises the byte-movement path enabled for a quantized KV
+// cache (GroupQueryAttention int8/int4). Dictionary is scattered by index; result is exact.
+template <typename T>
+void test_int_d8111_axisB(bool is_caching_test) {
+    //  Dictionary : 8x1x1x1, Indexes : 4x1x1x1, Updates : 4x1x1x1, Axis : 0
+    //  Indexes:    4, 3, 1, 7
+    //  Updates:    9, 10, 11, 12
+    //  Dictionary: 1, 2, 3, 4, 5, 6, 7, 8
+    //  Output:     1, 11, 3, 10, 9, 6, 7, 12
+    const auto dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    for (const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({dt, plain_2d_format, tensor{8, 1, 1, 1}});               // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{4, 1, 1, 1}});  // Indexes
+        auto input3 = engine.allocate_memory({dt, plain_2d_format, tensor{4, 1, 1, 1}});               // Updates
+        auto axis = 0;
+
+        set_values<T>(input1, {T(1), T(2), T(3), T(4), T(5), T(6), T(7), T(8)});
+        set_values(input2, {4.f, 3.f, 1.f, 7.f});
+        set_values<T>(input3, {T(9), T(10), T(11), T(12)});
+
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, dt));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, dt));
+        topology.add(scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, dt));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("InputDictionary", input1);
+        network->set_input_data("InputText", input2);
+        network->set_input_data("InputUpdates", input3);
+        auto outputs = network->execute();
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        std::vector<T> expected_results = {T(1), T(11), T(3), T(10), T(9), T(6), T(7), T(12)};
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i << ", target_format=" << target_format;
+        }
+    }
+}
+
+TEST(scatter_update_gpu_i8, d8111_axisB) {
+    test_int_d8111_axisB<int8_t>(false);
+}
+
+TEST(scatter_update_gpu_u8, d8111_axisB) {
+    test_int_d8111_axisB<uint8_t>(false);
 }

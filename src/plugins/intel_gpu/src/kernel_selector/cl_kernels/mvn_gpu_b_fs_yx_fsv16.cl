@@ -512,6 +512,7 @@ KERNEL(mvn_final)(
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -554,6 +555,7 @@ KERNEL(mvn_final)(
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -616,6 +618,7 @@ KERNEL(mvn_final)(
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -655,6 +658,7 @@ KERNEL(mvn_final)(
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else
@@ -697,6 +701,7 @@ KERNEL(mvn_final)(
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else
@@ -727,6 +732,7 @@ KERNEL(mvn_final)(
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+                ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else

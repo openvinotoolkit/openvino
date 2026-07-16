@@ -9,6 +9,8 @@
 #include "intel_gpu/runtime/device_info.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/impl_forcing_map_read.hpp"
+
 #include <thread>
 
 namespace ov::intel_gpu {

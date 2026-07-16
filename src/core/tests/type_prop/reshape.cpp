@@ -14,17 +14,17 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
-using namespace ov;
-using std::ignore;
-using std::make_shared;
-using testing::Each;
-using testing::ElementsAre;
-using testing::HasSubstr;
+namespace ov::test {
+using ov::op::v0::Constant, ov::op::v0::Parameter;
+using std::ignore, std::make_shared;
+using testing::Each, testing::ElementsAre, testing::HasSubstr;
 
 TEST(type_prop, static_value_propagation) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
@@ -1354,3 +1354,64 @@ TEST(type_prop, reshape_symbol_deducing) {
     EXPECT_EQ(reshape->get_output_partial_shape(0), ov::PartialShape({-1, -1, 12, 64}));
     EXPECT_TRUE(ov::symbol::are_equal(B, C));
 }
+
+// Simulate ONNX softmax converted model as a flatten->Softmax->unflatten(ShapeOf) sequence.
+// When this is followed by a Reshape back to 4D (using dims extracted from Shape(x)) and then two consecutive
+// ReduceSum(axis=-1, keepdims=false) ops, the final Reshape to [N, C, 1, 1] must infer the correct shape
+// without raising an error.
+TEST(type_prop, reshape_after_softmax_flatten_double_reduce_sum) {
+    using ov::op::v0::Unsqueeze, op::v1::Gather;
+
+    // Input: [1, 2, 4, 4]  (batch=1, channels=2, H=4, W=4)
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 4, 4});
+
+    // Dynamically extract each spatial dimension via ShapeOf + Gather
+    const auto shape_of = std::make_shared<op::v3::ShapeOf>(input);
+    const auto gather_axis = Constant::create(element::i64, {}, {0});
+    const auto dim_0 = std::make_shared<Gather>(shape_of, Constant::create(element::i64, {}, {0}), gather_axis);
+    const auto dim_1 = std::make_shared<Gather>(shape_of, Constant::create(element::i64, {}, {1}), gather_axis);
+    const auto dim_2 = std::make_shared<Gather>(shape_of, Constant::create(element::i64, {}, {2}), gather_axis);
+    const auto dim_3 = std::make_shared<Gather>(shape_of, Constant::create(element::i64, {}, {3}), gather_axis);
+
+    // Compute H*W for the flat reshape
+    const auto hw = std::make_shared<op::v1::Multiply>(dim_2, dim_3);
+
+    // Unsqueeze scalars to 1-element vectors for Concat
+    const auto unsq_axis = Constant::create(element::i64, {1}, {0});
+    const auto dim_0_1d = std::make_shared<Unsqueeze>(dim_0, unsq_axis);
+    const auto dim_1_1d = std::make_shared<Unsqueeze>(dim_1, unsq_axis);
+    const auto dim_2_1d = std::make_shared<Unsqueeze>(dim_2, unsq_axis);
+    const auto dim_3_1d = std::make_shared<Unsqueeze>(dim_3, unsq_axis);
+    const auto hw_1d = std::make_shared<Unsqueeze>(hw, unsq_axis);
+
+    // Reshape: [1, 2, 4, 4] -> [1, 2, H*W] (flat for Softmax)
+    const auto flat_shape = std::make_shared<op::v0::Concat>(OutputVector{dim_0_1d, dim_1_1d, hw_1d}, 0);
+    const auto flat = std::make_shared<op::v1::Reshape>(input, flat_shape, false);
+
+    // ONNX opset9 Softmax(axis=2): OV frontend converts this to:
+    // flatten(flat, axis=2) -> Softmax -> Reshape(result, ShapeOf(flat))
+    // For shape-inference purposes the ShapeOf captures the pre-Softmax shape.
+    const auto shape_of_flat = std::make_shared<op::v3::ShapeOf>(flat);
+    const auto sm = std::make_shared<op::v8::Softmax>(flat, 2);
+    const auto sm_restored = std::make_shared<op::v1::Reshape>(sm, shape_of_flat, false);
+
+    // restore from [1, 2, H*W] back to [1, 2, H, W]
+    const auto orig_shape = std::make_shared<op::v0::Concat>(OutputVector{dim_0_1d, dim_1_1d, dim_2_1d, dim_3_1d}, 0);
+    const auto sm_4d = std::make_shared<op::v1::Reshape>(sm_restored, orig_shape, false);
+
+    // Two consecutive ReduceSum(axis=-1, keepdims=false):
+    //   [1, 2, 4, 4] -> [1, 2, 4] -> [1, 2]
+    const auto reduce_axes1 = Constant::create(element::i64, {1}, {-1});
+    const auto reduce_axes2 = Constant::create(element::i64, {1}, {-1});
+    const auto reduce1 = std::make_shared<op::v1::ReduceSum>(sm_4d, reduce_axes1, false);
+    const auto reduce2 = std::make_shared<op::v1::ReduceSum>(reduce1, reduce_axes2, false);
+
+    // Final Reshape: [1, 2] -> [1, 2, 1, 1] using shape built from ShapeOf(input)
+    const auto const_1 = Constant::create(element::i64, {1}, {1});
+    const auto out_shape = std::make_shared<op::v0::Concat>(OutputVector{dim_0_1d, dim_1_1d, const_1, const_1}, 0);
+    const auto result = std::make_shared<op::v1::Reshape>(reduce2, out_shape, false);
+
+    ASSERT_EQ(result->get_element_type(), element::f32);
+    ASSERT_EQ(result->get_output_partial_shape(0), (PartialShape{1, 2, 1, 1}));
+}
+}  // namespace ov::test

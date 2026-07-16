@@ -1916,7 +1916,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 //     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract
-//     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
+//     Const(S) ---------------------> Multiply -> [to(f32) ->] MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
 PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
@@ -1928,7 +1928,8 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
     auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
     std::shared_ptr<Node> qres;
@@ -1963,8 +1964,13 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
+        const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&
+                                     !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b();
+        // Pre-transposed layout: weight [IC, OC], scale [1, OC], transpose_b=false
+        const bool pretransposed_layout = qcoeff_shape.size() == 2 && qcoeff_shape[0] == 1 &&
+                                          !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
+        if (ov::element::u8 == matched_qweight->get_element_type() && (standard_layout || pretransposed_layout)) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);

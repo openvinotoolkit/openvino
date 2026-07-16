@@ -26,6 +26,7 @@
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
@@ -76,6 +77,22 @@ protected:
         }
     }
 };
+
+// Validate that non-PA SDPA with f16 K/V inputs is not incorrectly blocked
+// from using micro kernel when KV_CACHE_PRECISION is globally set to u4.
+// This simulates a Vision Encoder SDPA node running alongside a PA-based LLM
+// that uses INT4 KV cache. The global config should not affect the Vision Encoder path.
+class SDPAWithInt4KVCacheConfig : public SDPA {
+protected:
+    void SetUp() override {
+        SDPA::SetUp();
+        configuration.insert(ov::hint::kv_cache_precision(ov::element::u4));
+    }
+};
+
+TEST_F(SDPAWithInt4KVCacheConfig, smoke_Inference) {
+    run();
+}
 
 class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
                    public testing::WithParamInterface<std::tuple<ov::PartialShape,  // 0: query shape

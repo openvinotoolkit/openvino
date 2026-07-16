@@ -137,6 +137,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     is_valid = true;
                 } else {
                     is_valid = false;
+                    break;
                 }
             }
             if (!end.empty() && !is_valid)

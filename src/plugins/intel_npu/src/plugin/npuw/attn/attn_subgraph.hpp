@@ -16,8 +16,11 @@ struct Attention;
 struct PyramidAttention;
 struct HostFlashAttention;
 }  // namespace compiled
-namespace s11n {
+namespace orc {
 class Stream;
+}
+namespace s11n {
+using Stream = ::ov::npuw::orc::Stream;
 struct SubmodelDeserializeCtx;
 }  // namespace s11n
 namespace attn {

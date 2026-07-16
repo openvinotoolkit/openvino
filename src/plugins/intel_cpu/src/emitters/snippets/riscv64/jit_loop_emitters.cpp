@@ -86,6 +86,11 @@ void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                        const std::vector<size_t>& out) const {
+    if (evaluate_once && !is_work_amount_dynamic) {
+        // If the loop evaluates once, we can skip loop begin code emission
+        return;
+    }
+
     auto reg_work_amount = Xbyak_riscv::Reg(out[0]);
     if (is_work_amount_dynamic) {
         // Acquire two scratch regs
@@ -107,10 +112,6 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         h->uni_li(reg_work_amount, static_cast<size_t>(work_amount));
     }
     h->L(*loop_begin_label);
-    // If evaluate_once and not dynamic increment, skip branch to end
-    if (evaluate_once && !ov::snippets::utils::is_dynamic_value(wa_increment)) {
-        return;
-    }
     // Compare work amount with increment and jump to end if less
     size_t eff_inc = (evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment)) ? 1 : wa_increment;
     // Use scratch for increment immediate

@@ -15,6 +15,8 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "orc.hpp"
+#include "orc/schema_npuw.hpp"
 
 namespace ov {
 namespace npuw {
@@ -25,6 +27,12 @@ namespace weights {
 
 class Bank {
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::WeightsBank::ID);
+    // Version 0 is the frozen baseline on the wire. Any further layout changes
+    // must be introduced through a new versioned payload rather than by mutating v0.
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
@@ -43,7 +51,7 @@ public:
 private:
     friend class ov::npuw::LLMCompiledModel;
     friend class ov::npuw::CompiledModel;
-    friend void ov::npuw::s11n::serialize(ov::npuw::s11n::Stream& stream, ov::npuw::weights::Bank& var);
+    friend void ov::npuw::orc::serialize(ov::npuw::orc::Stream& stream, ov::npuw::weights::Bank& var);
 
     struct StoredTensor {
         LazyTensor lt;
@@ -61,8 +69,8 @@ private:
                                          const std::vector<LazyTensor>& to_process,
                                          const std::string& device);
 
-    void serialize(ov::npuw::s11n::Stream& stream);
-    void read_and_add_tensor(ov::npuw::s11n::Stream& stream, int64_t uid, const std::string& device);
+    void serialize(ov::npuw::orc::Stream& stream);
+    void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

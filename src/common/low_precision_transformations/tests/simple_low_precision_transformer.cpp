@@ -5,6 +5,7 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/markup_bias.hpp"
@@ -45,6 +46,8 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     markup->register_pass<ov::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
     markup->register_pass<ov::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     markup->register_pass<ov::pass::low_precision::MarkupBias>();
+    auto filterPass = markup->register_pass<ov::pass::GraphRewrite>();
+    filterPass->add_matcher<ov::pass::low_precision::ResolvePrecisionAttribute>();
 
     common = std::make_shared<ov::pass::Manager>(passConfig);
     commonGraphRewrite = common->register_pass<ov::pass::GraphRewrite>();

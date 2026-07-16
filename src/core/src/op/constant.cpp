@@ -18,6 +18,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"

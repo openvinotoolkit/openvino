@@ -34,6 +34,14 @@ std::vector<std::vector<ov::Shape>>  inShapes = {
         {{1, 3, 2, 2, 2, 3, 2}, {1, 3, 2, 2, 2, 3, 2}},
 };
 
+std::vector<std::vector<ov::Shape>> numpyBroadcastDivShapes = {
+        {{1, 1, 1, 8}, {1, 4, 1, 8}},
+};
+
+std::vector<std::vector<ov::Shape>> numpyBroadcastPowerShapes = {
+        {{2}, {1, 1, 1, 1}},
+};
+
 std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::f32,
         ov::element::f16,
@@ -137,6 +145,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_IntModulo_CompareWithRefs,
                                             ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::Values(OpType::VECTOR),
                                             ::testing::ValuesIn(intModuloPrecisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_NumpyBroadcastDiv,
+    EltwiseLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpyBroadcastDivShapes)),
+                       ::testing::Values(EltwiseTypes::DIVIDE),
+                       ::testing::Values(InputLayerType::PARAMETER),
+                       ::testing::Values(OpType::VECTOR),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::Values(additional_config)),
+    EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NumpyBroadcastPower,
+                         EltwiseLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpyBroadcastPowerShapes)),
+                                            ::testing::Values(EltwiseTypes::POWER),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::Values(OpType::VECTOR),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),

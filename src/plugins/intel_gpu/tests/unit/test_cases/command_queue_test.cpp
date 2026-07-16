@@ -45,7 +45,7 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);

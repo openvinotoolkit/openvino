@@ -30,7 +30,6 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi4cxp_qs4cxs1s0.h"
 
 namespace ov::intel_cpu {
-
 class MatMulKleidiAIExecutor : public Executor {
 public:
     MatMulKleidiAIExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
@@ -47,6 +46,9 @@ public:
     static bool supports(const FCConfig& config);
 
     void moveMemToNumaNode(int numaNodeID) override;
+
+    void setKaiExecutorImplAsGatherMatmul();
+    void set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap);
 
 private:
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel_f32{
@@ -109,12 +111,21 @@ private:
         kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm,
         kai_run_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm};
 
+    //  IMPL_TYPE :: Default
+    //      [M, K] * [N, K] -> [M, N]
+    //  IMPL_TYPE :: GatherMatmul
+    //      [B, M, K] -> gather -> [M', K] * [N', K] -> scatter -> [B, N, K]
+    enum class IMPL_TYPE : uint8_t { Default, GatherMatmul };
     DnnlScratchPadPtr scratchPad;
+    IMPL_TYPE KaiExecutorImpl = IMPL_TYPE::Default;
+    std::vector<std::pair<int32_t, int32_t>> gather_idx;
+    MemoryDescPtr m_tmpInputDesc = nullptr;
+    MemoryDescPtr m_tmpOutputDesc = nullptr;
+    size_t lhsPackedSize = 0;
     ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
-    MemoryCPtr packedWeights;
     size_t M = 0UL, N = 0UL, K = 0UL;
     size_t mr, nr, kr, sr;
     // F32 Kernel block size

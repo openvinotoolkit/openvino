@@ -32,8 +32,10 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/softmax.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 
 using namespace dnnl;
 
@@ -171,7 +173,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                 algorithm::softmax_accurate,
                                                 in_candidate,
                                                 in_candidate,
-                                                axis,
+                                                static_cast<int>(axis),
                                                 *attr,
                                                 true);
 
@@ -197,7 +199,7 @@ void SoftMax::prepareParams() {
                                                          algorithm::softmax_accurate,
                                                          key.inp0->getDnnlDesc(),
                                                          key.inp0->getDnnlDesc(),
-                                                         key.axis,
+                                                         static_cast<int>(key.axis),
                                                          key.attr,
                                                          true);
 

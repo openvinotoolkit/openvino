@@ -1557,6 +1557,8 @@ std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11()
     const std::vector<std::vector<InterpolateV11TestParams>> allTypeParamsV11{
         generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f32>(),
         generateParamsForInterpolate_bicubic_pil_float<element::Type_t::f32>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f64>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::f64>(),
         generateParamsForInterpolate_bilinear_pil_float<element::Type_t::bf16>(),
         generateParamsForInterpolate_bicubic_pil_float<element::Type_t::bf16>(),
         generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f16>(),

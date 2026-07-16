@@ -180,7 +180,7 @@ CM_INLINE void find(uint slm, int m_block,
 #endif
 
 #if DEBUG_ACC == 1
-    kq_sum += m_block * k_block_pad * (int)sizeof(half);
+    kq_sum += m_block * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
 #endif
     vector<uchar, TOKEN_SHARE_MAX> zero = 0;
     for (int j = 0; j < k_block_pad; j += TOKEN_SHARE_MAX) {
@@ -210,44 +210,50 @@ CM_INLINE void find(uint slm, int m_block,
 #else
         off_sum += TOKEN_SHARE_MAX * sizeof(SOFTMAX_TYPE);
 #endif
-        // the sum type is always half in the reference code of the paper: https://github.com/mit-han-lab/x-attention/blob/fb2ac200a23d20568f7d166ddb5ee247926d2b2b/xattn/src/kernels.py#L248
-        vector<half, TOKEN_SHARE_MAX> data_half = data.row(0);  // 32 -> 16
-        sum_m_after_add += data_half;
-        cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_exp_partial_sum, j * (int)sizeof(half), data_half.format<int>());
+        // The paper reference keeps this accumulation in half, but Xe1 long
+        // sparse prefill over-masks if we follow that literally here. Keep the
+        // thresholding path in float while storing scores using SOFTMAX_TYPE.
+        sum_m_after_add += data.row(0);
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_exp_partial_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #if DEBUG_ACC == 1
-        cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_sum, j * (int)sizeof(half), data_half.format<int>());
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #endif
         cm_ptr_store<int, TOKEN_SHARE_MAX / 4>((int*)block_mask, j, zero.format<int>());
     }
     auto thresh_act = cm_sum<float>(sum_m_after_add) * thresh;
 
-    // content of 8(aka stride) lines:
-    // line 0: score
-    // line 1: sorted value
-    // line 3: sorted index
-    // line 5: sorted tmp
-    // line 6: accumalative score
-    auto score        = kq_exp_partial_sum + 0 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_value = kq_exp_partial_sum + 1 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_index = kq_exp_partial_sum + 3 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_tmp   = kq_exp_partial_sum + 5 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto acc_score    = kq_exp_partial_sum + 6 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    // Repack the per-block scratch space by actual byte size instead of the
+    // historical half-based line layout. Score/value keep SOFTMAX_TYPE storage;
+    // index/tmp remain ushort arrays even when scores are float.
+    const int score_bytes = k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    const int sorted_value_bytes = k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    const int sorted_index_bytes = k_block_pad * (int)sizeof(ushort);
+    const int sorted_tmp_bytes = k_block_pad * (int)sizeof(ushort);
+
+    auto score        = kq_exp_partial_sum;
+    auto sorted_value = score + score_bytes;
+    auto sorted_index = sorted_value + sorted_value_bytes;
+    auto sorted_tmp   = sorted_index + sorted_index_bytes;
+    auto acc_score    = sorted_tmp + sorted_tmp_bytes;
 
 #if IS_CAUSAL == 1
-    auto score_p = (half*)score;
-    half s_0 = score_p[0];
-    half s_causal = score_p[causal_start_index + m_block];
+    auto score_p = (SOFTMAX_TYPE*)score;
+    SOFTMAX_TYPE s_0 = score_p[0];
+    SOFTMAX_TYPE s_causal = score_p[causal_start_index + m_block];
     float s_sum = s_0;
     if (causal_start_index + m_block) s_sum += s_causal;
-    score_p[0] = -1;
-    score_p[causal_start_index + m_block] = -1;
-    sort<half>(slm, score, sorted_value + 2 * sizeof(half), sorted_index + 2 * sizeof(half), sorted_tmp, k_block_pad);
+    score_p[0] = SOFTMAX_TYPE(-1);
+    score_p[causal_start_index + m_block] = SOFTMAX_TYPE(-1);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (half*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (half*)acc_score;
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
+    // Preserve the historical debug/acc buffer contract while using
+    // float-based causal block selection on Xe1.
     sorted_value_p[0] = 0;
     sorted_value_p[1] = s_sum;
+    sorted_index_p[0] = 0;
+    sorted_index_p[1] = causal_start_index + m_block;
     block_mask_p[0] = 1;
     block_mask_p[causal_start_index + m_block] = 1;
     float sum_cur = s_sum;
@@ -260,19 +266,29 @@ CM_INLINE void find(uint slm, int m_block,
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
-        if (sum_cur < thresh_act) {
-            auto k_idx = sorted_index_p[j];
-            if (k_idx <= causal_start_index + m_block)
-                block_mask_p[k_idx] = 1;
-        } else {
+        if (sum_cur >= thresh_act) {
             break;
         }
-        sum_cur += sorted_value_p[j];
+        float best_score = -1.f;
+        int best_idx = -1;
+        for (int k_idx = 1; k_idx <= (int)(causal_start_index + m_block); k_idx++) {
+            if (score_p[k_idx] > best_score) {
+                best_score = score_p[k_idx];
+                best_idx = k_idx;
+            }
+        }
+        if (best_idx < 0) {
+            break;
+        }
+        sorted_index_p[j] = static_cast<ushort>(best_idx);
+        sorted_value_p[j] = best_score;
+        block_mask_p[best_idx] = 1;
+        score_p[best_idx] = SOFTMAX_TYPE(-1);
+        sum_cur += best_score;
     }
 #if DEBUG_ACC == 1
     for (; j < k_block_pad; j++) {
         acc_score_p[j] = sum_cur;
-        sum_cur += sorted_value_p[j];
     }
 #endif
 
@@ -280,11 +296,11 @@ CM_INLINE void find(uint slm, int m_block,
     //     block_mask_p[j] = 0;
 
 #else
-    sort<half>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
+    sort<SOFTMAX_TYPE>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (half*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (half*)acc_score;
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
     block_mask_p[0] = 1;
     float sum_cur = 0;
 #if DEBUG_ACC == 1

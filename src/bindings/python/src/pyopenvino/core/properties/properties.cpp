@@ -28,8 +28,7 @@ void regmodule_properties(py::module m) {
 
     py::enum_<ov::CompatibilityCheck>(m_properties, "CompatibilityCheck", py::arithmetic())
         .value("NOT_APPLICABLE", ov::CompatibilityCheck::NOT_APPLICABLE)
-        .value("OPTIMAL", ov::CompatibilityCheck::OPTIMAL)
-        .value("PREFER_RECOMPILATION", ov::CompatibilityCheck::PREFER_RECOMPILATION)
+        .value("SUPPORTED", ov::CompatibilityCheck::SUPPORTED)
         .value("UNSUPPORTED", ov::CompatibilityCheck::UNSUPPORTED);
 
     // Submodule properties - properties

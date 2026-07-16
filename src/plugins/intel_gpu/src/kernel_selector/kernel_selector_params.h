@@ -256,6 +256,9 @@ public:
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
                 uint32_t BF16 : 1;
+                uint32_t F8E4M3 : 1;
+                uint32_t F8E5M2 : 1;
+                uint32_t F8E8M0 : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
@@ -366,9 +369,7 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
-    xe3p_35_10 = 9,
-    xe3p_35_11 = 10,
-    xe3p_unknown = 11,
+    xe3p = 9,
 };
 
 

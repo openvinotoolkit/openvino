@@ -67,6 +67,11 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
          make_key_value_field(MetadataTextKeys::WS_INITS, "0"),
      false},
+    // compatibility descriptor value is not bracket-enclosed
+    {make_key_value_field(MetadataTextKeys::META, "2.6") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
+         make_key_value_field(MetadataTextKeys::COMPAT_DESC, "platform=NPU3720"),
+     false},
     // unmatched closing bracket in value
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=]VALUE",

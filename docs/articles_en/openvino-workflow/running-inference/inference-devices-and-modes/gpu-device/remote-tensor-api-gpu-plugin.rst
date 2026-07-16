@@ -254,6 +254,19 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [wrap_cl_image]
 
+         .. tab-item:: external shared handle
+            :sync: external-shared-handle
+
+            Use this overload when your application already owns an OS-level shared memory handle
+            (for example, DX12 NT handle on Windows or DMA-BUF file descriptor on Linux).
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_shared_handle]
+
+            The ``shape`` and ``element type`` must describe the same memory layout as the external buffer.
+            The handle must remain valid for the whole lifetime of the created remote tensor.
+
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 

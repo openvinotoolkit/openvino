@@ -40,7 +40,9 @@ struct DispatchDataFunc {
     explicit DispatchDataFunc(std::nullptr_t) {}
 
     void operator()(const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params = nullptr) const {
-        m_dispatch_data_func(params, kd, rt_params);
+        if (m_dispatch_data_func) {
+            m_dispatch_data_func(params, kd, rt_params);
+        }
     }
 };
 

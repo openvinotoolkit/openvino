@@ -13,12 +13,14 @@
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 using namespace intel_npu;
@@ -401,6 +403,23 @@ TEST_P(IsOptionSupported, PropertySupportedByDriver) {
     } else {
         ASSERT_TRUE(isOptionSupportedResult.has_value());
         ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
+
+using EncryptionCallbacks = ZeroGraphTest;
+
+TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
+    auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+    serializeIR();
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true),
+            ov::Exception,
+            testing::HasSubstr(
+                "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true));
     }
 }
 

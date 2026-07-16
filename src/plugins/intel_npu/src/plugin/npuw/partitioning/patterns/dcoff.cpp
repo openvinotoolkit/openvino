@@ -14,6 +14,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace npuw {
@@ -855,7 +856,7 @@ CWAI1::CWAI1(CWAI1::Results scales) {
             LOG_DEBUG("Matched: " << matched_valueC);
             scales.get().push_back(matched_valueC);
         }
-        return true;
+        return false;  // passive collector - graph unchanged, let other matchers run on the same root
     };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), std::move(matcher_callback));
@@ -908,7 +909,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
             LOG_DEBUG("Matched: " << matched_valueC);
             scales.get().push_back(matched_valueC);
         }
-        return true;
+        return false;  // passive collector - graph unchanged, let other matchers run on the same root
     };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), std::move(matcher_callback));
@@ -1123,7 +1124,185 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
     };
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape"), std::move(callback));
 }
+
+// Soft CWAI for asymmetric per-channel quantization. Unlike the active
+// DCOFFPassReshape above, this is a passive collector: it identifies the
+// zero-point and scale Constants feeding the dequantization chain and
+// asks the partitioner to keep them as Constants in the function body
+// (via consts_to_keep). Only the quantized weight Const is then cut to
+// a Parameter and routed to the shared bank, so prefill/decode dedup the
+// large weight tensors while the NPU compiler still sees a fully
+// const-folded dequant chain at the MatMul input.
+//
+//   "tensor"     "zero point" "scale"
+//   Const:A      Const:B      Const:C
+//      u2|u4|u8     f32         f16|f32
+//        :          :            :
+//        V          :            :
+//      Convert      :            :
+//       f32         :            :
+//        :          :            :
+//        V          V            :
+//        Subtract                :
+//          f32                   :
+//           :                    :
+//           V                    V
+//           Multiply
+//            f16|f32
+//
+CWAI::CWAI(CWAI::Results to_keep) {
+    auto constA = opp::wrap_type<ov::op::v0::Constant>();
+    auto constB = opp::wrap_type<ov::op::v0::Constant>();
+    auto constC = opp::wrap_type<ov::op::v0::Constant>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
+
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
+
+        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+
+        const auto& tA = matched_valueA->get_element_type();
+        const auto& tB = matched_valueB->get_element_type();
+        const auto& tC = matched_valueC->get_element_type();
+
+        const bool weight_ok = (tA == ov::element::u2 || tA == ov::element::u4 || tA == ov::element::u8);
+        const bool zp_ok = (tB == ov::element::f32);
+        const bool scale_ok = (tC == ov::element::f16 || tC == ov::element::f32);
+
+        if (weight_ok && zp_ok && scale_ok) {
+            LOG_DEBUG("Matched (asymm CWAI): keep ZP " << matched_valueB << " and scale " << matched_valueC);
+            to_keep.get().push_back(matched_valueB);
+            to_keep.get().push_back(matched_valueC);
+        }
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagAsymmCWAI"), std::move(matcher_callback));
+}
 }  // namespace AsymmZP
+
+//------------------------------------------------------------------------------
+// Pattern: RMSNorm soft CWAI
+//
+// Soft CWAI for the RMSNorm decomposition emitted by ov::decomposition::rms_norm
+// (see src/common/transformations/src/decompositions/rms_norm.cpp). Like
+// AsymmZP::CWAI above this is a passive collector: it matches the canonical
+// decomposition graph and asks the partitioner to keep its Constants in the
+// function body (via consts_to_keep) so they don't get promoted to Parameters
+// by the CWAI cut. Without this, gamma (per-channel weight, the largest of the
+// constants) becomes a Parameter, defeating the const-folding the NPU compiler
+// expects on the RMSFusion input chain.
+//
+//          x                         (any input — Parameter or activation)
+//          :       Const:exp2 (==2)
+//          V       :
+//          Power ..:
+//           :        Const:axes
+//           V        :
+//           ReduceMean
+//             :       Const:eps
+//             V       :
+//             Add ....:
+//              :
+//              V
+//              Sqrt
+//               :     Const:expN1 (==-1)
+//               V     :
+//               Power :
+//                :
+//                V
+//   x .........> Multiply
+//                  :         Const:gamma
+//                  V         :
+//                  Multiply <:
+//                    :
+//                    V
+//
+// All five Constants (exp2, axes, eps, expN1, gamma) are recorded so they are
+// preserved in the function body when func_group.consts_to_keep is consulted
+// during the parameter-cut pass.
+
+namespace RMSNorm {
+CWAI::CWAI(CWAI::Results to_keep) {
+    auto x = opp::any_input();
+
+    auto exp2 = opp::wrap_type<ov::op::v0::Constant>();
+    auto power_sq = opp::wrap_type<ov::op::v1::Power>({x, exp2});
+
+    auto axes = opp::wrap_type<ov::op::v0::Constant>();
+    auto reduce_mean = opp::wrap_type<ov::op::v1::ReduceMean>({power_sq, axes});
+
+    auto eps = opp::wrap_type<ov::op::v0::Constant>();
+    auto add_eps = opp::wrap_type<ov::op::v1::Add>({reduce_mean, eps});
+
+    auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({add_eps});
+
+    auto exp_neg1 = opp::wrap_type<ov::op::v0::Constant>();
+    auto inv_rms = opp::wrap_type<ov::op::v1::Power>({sqrt, exp_neg1});
+
+    auto x_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), inv_rms});
+
+    auto gamma = opp::wrap_type<ov::op::v0::Constant>();
+    auto gamma_mul = opp::wrap_type<ov::op::v1::Multiply>({gamma, x_mul});
+
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_exp2 = node_to_output.at(exp2).get_node_shared_ptr();
+        auto matched_axes = node_to_output.at(axes).get_node_shared_ptr();
+        auto matched_eps = node_to_output.at(eps).get_node_shared_ptr();
+        auto matched_exp_neg1 = node_to_output.at(exp_neg1).get_node_shared_ptr();
+        auto matched_gamma = node_to_output.at(gamma).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_constant(matched_exp2));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_axes));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_eps));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_exp_neg1));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_gamma));
+
+        auto exp2_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_exp2);
+        auto axes_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_axes);
+        auto eps_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_eps);
+        auto exp_neg1_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_exp_neg1);
+        auto gamma_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_gamma);
+
+        // Confirm the two Power exponents are the rms_norm sentinels (2 and -1):
+        // the pattern is otherwise generic (Power-ReduceMean-Add-Sqrt-Power-Mul-Mul)
+        // and could match unrelated chains in the body.
+        float exp2_val = 0.f;
+        float exp_neg1_val = 0.f;
+        if (!ov::op::util::get_single_value(exp2_const, exp2_val) || exp2_val != 2.f) {
+            return false;
+        }
+        if (!ov::op::util::get_single_value(exp_neg1_const, exp_neg1_val) || exp_neg1_val != -1.f) {
+            return false;
+        }
+
+        LOG_DEBUG("Matched (RMSNorm CWAI): keep gamma " << gamma_const << ", axes " << axes_const << ", eps "
+                                                        << eps_const << ", exp2 " << exp2_const << ", expN1 "
+                                                        << exp_neg1_const);
+        to_keep.get().push_back(gamma_const);
+        to_keep.get().push_back(axes_const);
+        to_keep.get().push_back(eps_const);
+        to_keep.get().push_back(exp2_const);
+        to_keep.get().push_back(exp_neg1_const);
+        return false;  // passive collector
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(gamma_mul, "TagRMSNormCWAI"), std::move(matcher_callback));
+}
+}  // namespace RMSNorm
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov

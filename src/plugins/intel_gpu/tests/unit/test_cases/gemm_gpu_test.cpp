@@ -7,10 +7,15 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/grouped_matmul.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/reference/reshape.hpp"
+#include "openvino/reference/grouped_matmul.hpp"
+
+ #include <numeric>
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
@@ -18,6 +23,7 @@
 #include "layout_optimizer.h"
 
 #include <cstddef>
+#include <algorithm>
 #include <vector>
 
 using namespace cldnn;
@@ -156,7 +162,7 @@ public:
         }
         auto outputs = network->execute();
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), out_data.size());
         const auto abs_error = type == data_types::f16 ? 0.1 : 0.0001;
@@ -301,7 +307,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -355,7 +361,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -758,7 +764,7 @@ public:
             ASSERT_TRUE(impl->is_dynamic());
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data1.size(); ++i) {
@@ -775,7 +781,7 @@ public:
             ASSERT_EQ(outputs.begin()->first, "gemm");
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data2.size(); ++i) {
@@ -847,7 +853,7 @@ public:
             ASSERT_TRUE(impl->is_dynamic());
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data1.size(); ++i) {
@@ -864,7 +870,7 @@ public:
             ASSERT_EQ(outputs.begin()->first, "gemm");
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)4);
             for (uint32_t i = 0; i < out_data2.size(); ++i) {
@@ -950,7 +956,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape = { BATCH_SIZE, 1, M_SIZE, K_SIZE };
         ov::Shape ref_input1_shape = { BATCH_SIZE, 1, K_SIZE, N_SIZE };
@@ -1091,7 +1097,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
         ov::Shape ref_input1_unsqueezed_shape;
@@ -1263,7 +1269,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
         ov::Shape ref_input1_shape;
@@ -1399,7 +1405,7 @@ public:
 
         auto outputs = network->execute();
         auto output_mem = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         // Compute CPU reference with double precision
         std::vector<double> ref_output(batch_size * m_size * n_size, 0.0);
@@ -1537,7 +1543,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<float> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape_default));
@@ -1586,6 +1592,74 @@ public:
         const auto abs_error = 0.0001;
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
             ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
+        }
+    }
+
+    void test_transpose_matmul_1d_weight(bool is_input_dynamic, size_t M) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+
+        const size_t K = 33;
+        ov::Shape in0_shape = {M, K};
+        ov::Shape in1_shape = {K};
+
+        auto in0_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx};
+        auto in1_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
+        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx});
+        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+
+        auto input0_data = rg.generate_random_1d<float>(ov::shape_size(in0_shape), -2, 2);
+        auto input1_data = rg.generate_random_1d<float>(ov::shape_size(in1_shape), -2, 2);
+        set_values(input0_mem, input0_data);
+        set_values(input1_mem, input1_data);
+
+        topology topology;
+        topology.add(input_layout("input0", in0_layout),
+                     input_layout("input1", in1_layout),
+                     gemm("gemm", { input_info("input0"), input_info("input1") },
+                          data_types::f32, false, true, 1.0f, 0.0f, 2, 1)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+
+        if (is_input_dynamic) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+
+        auto outputs = network->execute();
+        auto output_mem = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        ov::Shape out_shape = {M};
+        std::vector<float> ref_out(M, 0.f);
+        ov::reference::matmul<float>(input0_data.data(),
+                                     input1_data.data(),
+                                     ref_out.data(),
+                                     in0_shape,
+                                     in1_shape,
+                                     out_shape,
+                                     false,
+                                     true);
+
+        ASSERT_EQ(output_ptr.size(), ref_out.size());
+        for (size_t i = 0; i < ref_out.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], ref_out[i], 0.001f) << "at " << i;
         }
     }
 
@@ -1653,7 +1727,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<ov::float16> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape_default));
@@ -1740,7 +1814,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<ov::float16> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape));
@@ -1811,6 +1885,16 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f16) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f32) {
     this->test_transpose_matmul_f32(1, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_static) {
+    // 1D weight with transpose_input1=true
+    this->test_transpose_matmul_1d_weight(false, 1200);
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_dynamic) {
+    // Dynamic shape variant of 1D weight transpose test
+    this->test_transpose_matmul_1d_weight(true, 1200);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_2d_f16) {
@@ -2718,6 +2802,13 @@ public:
 
         ov::intel_gpu::ImplementationDesc gemm_impl = getImplementationDesc(p);
 
+        // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
+        const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
+        if (p.kernel_name == "gemm_mmad_int8_slm" &&
+            std::none_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
+        }
+
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
@@ -3285,7 +3376,7 @@ public:
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
                                  ov::intel_gpu::optimize_data(true),
                                  ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -3805,4 +3896,91 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d_cached) {
     this->test_transpose_matmul_transpose(4, true, true);
 }
 #endif
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Smoke test: cldnn::grouped_matmul (2D x 3D case of GroupedMatMul-17) via onednn.
+// Compared against ov::reference::grouped_matmul_2d_3d.
+TEST(grouped_matmul_gpu_tests, smoke_2d_3d_f16) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "grouped_matmul onednn impl requires XMX/DPAS support (Xe-HPG+)";
+
+    // Small shapes to keep the smoke test cheap.
+    constexpr size_t G = 3;    // number of experts
+    constexpr size_t K = 128;  // hidden size (multiple of 16 for onednn tile)
+    constexpr size_t N = 64;   // output features
+
+    // Token distribution across experts: [4, 0, 6] -> total 10 rows.
+    const std::vector<int32_t> tokens_per_expert = {4, 0, 6};
+    const size_t total_tokens = std::accumulate(tokens_per_expert.begin(), tokens_per_expert.end(), size_t{0});
+
+    // Cumulative end-offsets: [4, 4, 10].
+    std::vector<int32_t> offsets(G);
+    offsets[0] = tokens_per_expert[0];
+    for (size_t i = 1; i < G; ++i)
+        offsets[i] = offsets[i - 1] + tokens_per_expert[i];
+
+    tests::random_generator rg("grouped_matmul_smoke");
+    auto mat_a_f32 = rg.generate_random_1d<float>(total_tokens * K, -0.5f, 0.5f);
+    auto mat_b_f32 = rg.generate_random_1d<float>(G * N * K, -0.5f, 0.5f);
+
+    std::vector<ov::float16> mat_a_f16(mat_a_f32.size());
+    std::vector<ov::float16> mat_b_f16(mat_b_f32.size());
+    for (size_t i = 0; i < mat_a_f32.size(); ++i) mat_a_f16[i] = ov::float16(mat_a_f32[i]);
+    for (size_t i = 0; i < mat_b_f32.size(); ++i) mat_b_f16[i] = ov::float16(mat_b_f32[i]);
+
+    // Allocate device memory.
+    auto mat_a_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(total_tokens), K},
+                                             data_types::f16, format::bfyx});
+    auto mat_b_mem = engine.allocate_memory({ov::PartialShape{G, N, K}, data_types::f16, format::bfyx});
+    auto off_mem   = engine.allocate_memory({ov::PartialShape{G}, data_types::i32, format::bfyx});
+
+    set_values(mat_a_mem, mat_a_f16);
+    set_values(mat_b_mem, mat_b_f16);
+    set_values(off_mem, offsets);
+
+    // Dynamic input layouts: total_tokens and G are unknown at compile time.
+    layout mat_a_dyn_layout{ov::PartialShape{-1, static_cast<int64_t>(K)}, data_types::f16, format::bfyx};
+    layout offsets_dyn_layout{ov::PartialShape{-1}, data_types::i32, format::bfyx};
+
+    topology tp;
+    tp.add(input_layout("mat_a", mat_a_dyn_layout));
+    tp.add(data("mat_b", mat_b_mem));
+    tp.add(input_layout("offsets", offsets_dyn_layout));
+    tp.add(grouped_matmul("gmm",
+                          {input_info("mat_a"), input_info("mat_b"), input_info("offsets")},
+                          data_types::f16));
+    tp.add(reorder("output", input_info("gmm"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net(engine, tp, config);
+    net.set_input_data("mat_a", mat_a_mem);
+    net.set_input_data("offsets", off_mem);
+    auto out_mem = net.execute().at("output").get_memory();
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    std::vector<float> gpu_out(out_ptr.begin(), out_ptr.end());
+
+    // Reference computed on f16 inputs to match GPU accumulation precision profile.
+    std::vector<ov::float16> ref_out_f16(total_tokens * N, ov::float16(0.f));
+    ov::reference::grouped_matmul_2d_3d<ov::float16, int32_t>(mat_a_f16.data(),
+                                                              mat_b_f16.data(),
+                                                              offsets.data(),
+                                                              ref_out_f16.data(),
+                                                              ov::Shape{total_tokens, K},
+                                                              ov::Shape{G, N, K});
+    std::vector<float> ref_out(ref_out_f16.size());
+    for (size_t i = 0; i < ref_out_f16.size(); ++i) ref_out[i] = static_cast<float>(ref_out_f16[i]);
+
+    ASSERT_EQ(gpu_out.size(), ref_out.size());
+    // f16 GEMM accumulation over K -> relative tolerance ~ few percent.
+    for (size_t i = 0; i < gpu_out.size(); ++i) {
+        const float diff = std::abs(gpu_out[i] - ref_out[i]);
+        const float tol = 0.05f * std::max(1.f, std::abs(ref_out[i]));
+        ASSERT_LE(diff, tol) << "mismatch at i=" << i << ": gpu=" << gpu_out[i] << ", ref=" << ref_out[i];
+    }
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 } // namespace

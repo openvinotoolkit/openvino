@@ -420,7 +420,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f,   2.f,   1.f,   2.f,   1.f,   2.f,
@@ -527,7 +527,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,
@@ -638,7 +638,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f,   2.f,   1.f,   2.f,   1.f,   2.f,
@@ -742,7 +742,7 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         69.f, 10.f, 69.f, 13.f,
@@ -817,7 +817,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 1.f,
@@ -880,7 +880,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 1.f, 4.f,
@@ -942,7 +942,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 1.f,
@@ -1010,7 +1010,7 @@ TEST(gather_gpu_fp16, d14_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 4.f, 3.f, 4.f, 1.f, 2.f
@@ -1072,7 +1072,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 5.f, 6.f, 7.f, 8.f
@@ -1133,7 +1133,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 2.f, 4.f, 5.f, 6.f, 5.f, 7.f, 8.f, 9.f, 8.f, 10.f, 11.f, 12.f, 11.f
@@ -1194,7 +1194,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 3.f, 4.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 9.f, 10.f
@@ -1285,7 +1285,7 @@ TEST(gather_gpu_fp32, d14_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 4.f, 3.f, 4.f, 1.f, 2.f
@@ -1346,7 +1346,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 5.f, 6.f, 7.f, 8.f
@@ -1407,7 +1407,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 2.f, 3.f, 2.f, 4.f, 5.f, 6.f, 5.f, 7.f, 8.f, 9.f, 8.f, 10.f, 11.f, 12.f, 11.f
@@ -1468,7 +1468,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 3.f, 4.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 9.f, 10.f
@@ -1529,7 +1529,7 @@ TEST(gather_gpu_int32, d22_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
             1, 2, 3, 4, 5, 6, 3, 4, 7, 8, 9, 10, 11, 12, 9, 10
@@ -1587,7 +1587,7 @@ TEST(gather_gpu_int32, d14_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
             1, 2, 3, 4, 3, 4, 1, 2
@@ -1648,7 +1648,7 @@ TEST(gather_gpu_int32, d222_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 5, 6, 7, 8
@@ -1709,7 +1709,7 @@ TEST(gather_gpu_int32, d22_axisY) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
             1, 2, 3, 2, 4, 5, 6, 5, 7, 8, 9, 8, 10, 11, 12, 11
@@ -1773,7 +1773,7 @@ TEST(gather_gpu_fp32, d41_axisB) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
@@ -1836,7 +1836,7 @@ TEST(gather_gpu_fp32, d41_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             3.f, 4.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
@@ -1895,7 +1895,7 @@ TEST(gather_gpu_fp32, d2_axisX) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             1.f, 1.f, 2.f, 2.f,
@@ -1945,7 +1945,7 @@ TEST(gather_gpu_fp32, 322_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
         1, 0, 2, 1,   11, 10, 12, 11,   21, 20, 22, 21
@@ -1990,7 +1990,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 1,  11, 10, 12, 11,  21, 20, 22, 21};
 
@@ -2028,7 +2028,7 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 0,  11, 10, 12, 0,  21, 20, 22, 0};
 
@@ -2072,7 +2072,7 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 1,  11, 10, 12, 11,  21, 20, 22, 21};
 
@@ -2112,7 +2112,7 @@ TEST(gather_cpu_fp32, indice_out_of_bound_disable_usm) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 0,  11, 10, 12, 0,  21, 20, 22, 0};
 
@@ -2155,7 +2155,7 @@ void test_gather_gpu_u8_322_axisF(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
         1, 0, 2, 1, 11, 10, 12, 11, 21, 20, 22, 21};
@@ -2209,7 +2209,7 @@ TEST(gather_single_axis, simple_Baxis) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> expected_results = {
         5, 6, 7, 8
@@ -2486,7 +2486,7 @@ TEST(gather_gpu_fp32, dynamic_support_neg_ind) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = { 2.f, 5.f, 8.f };
 
@@ -2531,7 +2531,7 @@ TEST(gather_gpu_fp32, dynamic_support_scalar_indice_empty_memory) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = { 2.f, 5.f, 8.f };
 

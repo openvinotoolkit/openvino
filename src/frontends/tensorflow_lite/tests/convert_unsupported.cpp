@@ -85,3 +85,15 @@ INSTANTIATE_TEST_SUITE_P(BadBufferSize,
                          MalformedModelLoadTest,
                          ::testing::Values("bad_buffer_size/undersized_buffer.tflite",
                                            "bad_buffer_size/empty_buffer_nonempty_shape.tflite"));
+
+// Tensor with no `name` field set in its vtable: load() throws in safe_tensor_name() instead of segfault
+INSTANTIATE_TEST_SUITE_P(MissingTensorName,
+                         MalformedModelLoadTest,
+                         ::testing::Values("malformed_tensor_name/missing_tensor_name.tflite"));
+
+// SDL505 fuzzing finding: out-of-range operator codes must throw, not crash (CWE-125).
+INSTANTIATE_TEST_SUITE_P(OobBuiltinOpcode,
+                         MalformedModelLoadTest,
+                         ::testing::Values("oob_builtin_opcode/oob_deprecated_builtin_code.tflite",
+                                           "oob_builtin_opcode/oob_builtin_code.tflite",
+                                           "oob_builtin_opcode/null_sentinel_builtin_code.tflite"));

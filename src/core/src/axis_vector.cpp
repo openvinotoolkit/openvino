@@ -7,10 +7,7 @@
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisVector& axis_vector) {
-    s << "AxisVector{";
-    s << ov::util::join(axis_vector);
-    s << "}";
-    return s;
+    return s << "AxisVector{" << ov::util::join<std::ostream>(axis_vector) << "}";
 }
 
 ov::AxisVector::AxisVector(const std::initializer_list<size_t>& axes) : std::vector<size_t>(axes) {}

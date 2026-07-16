@@ -55,7 +55,9 @@ public:
 private:
     void init();
     bool is_graph_input_node(const ov::Node* node) const;
-    void split_cyclic_dependencies();
+    // Splits cyclic subgraph dependencies and returns the final SubgraphIdsMap valid
+    // w.r.t. the resulting _subgraph_inputs, so the caller does not need to recompute it.
+    SubgraphIdsMap split_cyclic_dependencies();
     void split_subgraphs_by_parameter_results();
     SubgraphIdsMap collect_subgraphs_ids();
     std::unordered_map<SubgraphId, Subgraph> collect_subgraphs();
