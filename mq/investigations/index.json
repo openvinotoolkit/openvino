@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 30,
+  "total": 31,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -294,6 +294,17 @@
       "category": "Flaky Test",
       "signature_hash": "85df26485ff568d8",
       "pr_number": "36917"
+    },
+    {
+      "investigation_id": "2026-07-16-19-58-36-000-29522352360",
+      "run_id": "29522352360",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29522352360",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-16T19:58:36Z",
+      "title": "Windows Python API Tests fail to download artifacts due to ECONNREFUSED",
+      "category": "Network",
+      "signature_hash": "1808e665f1f70825",
+      "pr_number": "36925"
     }
   ]
 }

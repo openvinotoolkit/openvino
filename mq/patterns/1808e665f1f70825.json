@@ -4,19 +4,21 @@
   "signature_hash": "1808e665f1f70825",
   "title": "Artifact download fails with ECONNREFUSED on self-hosted runner",
   "category": "Network",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-07-01T18:01:12Z",
-  "last_seen": "2026-07-15T16:32:28Z",
+  "last_seen": "2026-07-16T19:58:36Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29522352360",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29426291440",
     "https://github.com/openvinotoolkit/openvino/actions/runs/28532884711"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36925",
     "https://github.com/openvinotoolkit/openvino/pull/36880",
     "https://github.com/openvinotoolkit/openvino/pull/36423"
   ],
   "recent_timestamps": [
-    "2026-07-15T16:32:28Z"
+    "2026-07-16T19:58:36Z"
   ],
   "rerun_search_string": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
 }

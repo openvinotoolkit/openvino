@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-19-58-36-000-29522352360",
+  "timestamp": "2026-07-16T19:58:36Z",
+  "run_id": "29522352360",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29522352360",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36925",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36925",
+  "author": "p-durandin",
+  "category": "Network",
+  "title": "Windows Python API Tests fail to download artifacts due to ECONNREFUSED",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO Python API Tests (3.12)",
+      "conclusion": "failure",
+      "symptom": "Download artifacts step failed with ECONNREFUSED connecting to GitHub Actions API"
+    }
+  ],
+  "key_errors": [
+    "Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints"
+  ],
+  "root_cause": "The self-hosted Windows runner hosting the 'OpenVINO Python API Tests (3.12)' job lost network connectivity to the GitHub Actions artifact API at the moment the job started downloading artifacts. The ECONNREFUSED error indicates the TCP connection was actively refused (or the runner could not reach the GitHub endpoints), which is a transient network or runner infrastructure issue unrelated to the PR code changes. The run was already on attempt 2 when investigated.",
+  "reproduction_steps": "N/A - cannot reproduce outside CI infrastructure.",
+  "recommended_actions": [
+    "Re-run only the failed job once network connectivity is restored on the self-hosted runner.",
+    "Investigate the self-hosted Windows runner's network configuration and GitHub endpoint reachability.",
+    "Check if the runner proxy/firewall settings block connections to artifacts.githubusercontent.com."
+  ],
+  "prevention_strategies": "Monitor self-hosted Windows runner network health. Consider adding retry logic in the download-artifact action for transient connection failures.",
+  "historical_context": "First recorded occurrence of ECONNREFUSED on artifact download for this workflow."
+}
