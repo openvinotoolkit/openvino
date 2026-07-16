@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-02-28-32-000-29465509080",
+  "timestamp": "2026-07-16T02:28:32Z",
+  "run_id": "29465509080",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29465509080",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36888",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36888",
+  "author": "geunhwan",
+  "category": "Code Issue",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_i32 Expected : acl_i32",
+  "signature": "primType is unexpected : unknown_i32 Expected : acl_i32|Code Issue",
+  "signature_hash": "75ebbbb77b09e3b0",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest assertion failed: primType is unexpected : unknown_i32 Expected : acl_i32"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=i32_specialValue=none_targetPRC=i8__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure",
+    "Value of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_i32 Expected : acl_i32",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/..."
+  ],
+  "root_cause": "The CPU functional test smoke_ConvertCPULayerTest_4D_Dynamic expects the ACL (ARM Compute Library) backend to handle i32-to-i8 Convert operations with primitive type 'acl_i32', but the runtime returns 'unknown_i32'. This indicates that the ACL-based Convert kernel is not being selected for the i32 input type, possibly because the ACL plugin's type support or kernel selection logic does not include i32 as a supported input type for the Convert operation on this ARM64 cross-compiled build. The PR (#36888) is a revert of a GPU-related change (#36504), and the failing test is specific to CPU/ARM ACL; this may be a pre-existing issue surfacing in the merge queue or a regression from the revert.",
+  "reproduction_steps": "Run ov_cpu_func_tests on ARM64 with filter: --gtest_filter=smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/*inputPRC=i32*primitive=acl*",
+  "recommended_actions": [
+    "Investigate ACL Convert kernel type support: check if i32 is listed as a supported input type for ACL Convert in src/plugins/intel_cpu/src/nodes/convert.cpp or equivalent ACL dispatch code",
+    "Check if the issue is pre-existing by running the same test on the current releases/2026/3 base without this PR",
+    "If pre-existing, add the test to the expected_failures_OP.csv for ARM64/ACL or fix the ACL kernel to support i32",
+    "If introduced by the revert, identify what code in PR #36504 enabled ACL i32 support for Convert and ensure it is preserved"
+  ],
+  "prevention_strategies": "Add a CI gate that validates ACL primitive type coverage for all supported input types in ConvertCPULayerTest before merging changes to the CPU plugin or related GPU/CPU shared code.",
+  "historical_context": "No prior occurrences of this exact failure pattern in the investigation database."
+}

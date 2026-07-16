@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 22,
+  "total": 23,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -215,6 +215,15 @@
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
       "signature_hash": "85df26485ff568d8",
+      "pr_number": "36888"
+    },
+    {
+      "investigation_id": "2026-07-16-02-28-32-000-29465509080",
+      "run_id": "29465509080",
+      "timestamp": "2026-07-16T02:28:32Z",
+      "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_i32 Expected : acl_i32",
+      "category": "Code Issue",
+      "signature_hash": "75ebbbb77b09e3b0",
       "pr_number": "36888"
     }
   ]
