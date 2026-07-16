@@ -32,6 +32,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/linux_perf.hpp"
 
 namespace ov::intel_cpu {
 
@@ -720,7 +721,6 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
 
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
                 rtParams.weights = compressedData + compressedWeightsAddr;
-                rtParams.weightsStride = preparedWeights.jitWeightsNonTransposed ? 0 : preparedWeights.packedIcCount;
                 rtParams.dst = unpackCache.data();
                 (*selectedKernel)(&rtParams);
 
@@ -784,6 +784,7 @@ void decompressWeights(const FCAttrs& attrs,
                        const MemoryPtr& decompressedWeights,
                        const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitKernels,
                        std::vector<uint8_t>& canonicalCompressedWeights) {
+    auto prof = LinuxPerf::Profile("decomp_wei_#", "decomp");
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto scalesIt = memory.find(ARG_WEI | ARG_ATTR_SCALES);
     const auto zeroPointsIt = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS);
@@ -819,6 +820,8 @@ void decompressWeights(const FCAttrs& attrs,
     const auto* compressedData = preparedWeights.jitData;
     const auto* fallbackCompressedData = preparedWeights.fallbackData;
 
+    {
+    auto prof = LinuxPerf::Profile("decomp_wei_#", "decomp_kernel");
     for (size_t icIdx = 0; icIdx < ic; icIdx++) {
         const size_t scaleGroup = std::min(icIdx / scaleGroupSize, scaleGroups - 1);
         const size_t zeroPointGroup = std::min(icIdx / zeroPointGroupSize, zeroPointGroups - 1);
@@ -842,7 +845,6 @@ void decompressWeights(const FCAttrs& attrs,
 
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
                 rtParams.weights = compressedData + compressedWeightsAddr;
-                rtParams.weightsStride = preparedWeights.jitWeightsNonTransposed ? 0 : preparedWeights.packedIcCount;
                 rtParams.dst = decompressedData + icIdx * oc + ocIdx;
                 rtParams.scales = scalesPtr;
                 rtParams.zeroPoints = zeroPointsPtr;
@@ -859,6 +861,7 @@ void decompressWeights(const FCAttrs& attrs,
             const float value = static_cast<float>(readPackedValue(fallbackCompressedData, compressedType, compressedWeightIndex));
             decompressedData[decompressedWeightIndex] = (value - zeroPoint) * scale;
         }
+    }
     }
 
     std::memcpy(decompressedWeights->getData(), decompressed.data(), decompressed.size() * sizeof(float));
@@ -1428,7 +1431,6 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
         params.broadcastScales = scaleLayout.scalar;
         params.broadcastZeroPoints = zeroPointLayout.scalar;
         params.weightsType = compressedType;
-        params.stridedWeights = useStridedCompressedWeights;
         params.icIndex = static_cast<int>(icIdx);
 
         if (mayiuse(avx512_core)) {
@@ -1437,7 +1439,6 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
 
             FCWeightDecompressionKernelCompileParams unpackParams{};
             unpackParams.weightsType = compressedType;
-            unpackParams.stridedWeights = useStridedCompressedWeights;
             unpackParams.icIndex = static_cast<int>(icIdx);
             m_jitWeightUnpackKernels.push_back(
                 std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(unpackParams));
@@ -1447,7 +1448,6 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
 
             FCWeightDecompressionKernelCompileParams unpackParams{};
             unpackParams.weightsType = compressedType;
-            unpackParams.stridedWeights = useStridedCompressedWeights;
             unpackParams.icIndex = static_cast<int>(icIdx);
             m_jitWeightUnpackKernels.push_back(
                 std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(unpackParams));
@@ -1516,8 +1516,13 @@ void JitFCDecompBrgemmExecutor::refreshDecompressedWeights(const MemoryArgs& mem
                   m_decompressedWeights ? m_decompressedWeights->getData() : nullptr);
     }
 #endif
-    ensureDecompressedWeightsMemory(memory);
-    decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernels, m_canonicalCompressedWeights);
+    {
+        auto prof = LinuxPerf::Profile("decomp_wei_#", "ensure");
+        ensureDecompressedWeightsMemory(memory);
+    }
+    {
+        decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernels, m_canonicalCompressedWeights);
+    }
 }
 
 void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& memory) {
@@ -1692,6 +1697,7 @@ void JitFCDecompBrgemmExecutor::executeFusedPostOpsBrgemm(const MemoryArgs& memo
     const size_t wspSize = BrgemmKernel::get_wsp_size();
     const size_t mblk = BrgemmKernel::get_mblk_size();
 
+    auto prof = LinuxPerf::Profile("brgemm_#", "fused_postops");
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
@@ -1732,6 +1738,7 @@ void JitFCDecompBrgemmExecutor::executePlainBrgemm(const float* fcSrcData,
     const size_t nBlock = m_brgemmNBlock;
     const size_t fullN = nBlock == 0 ? 0 : (m_n / nBlock) * nBlock;
 
+    auto prof = LinuxPerf::Profile("brgemm_#", "execute_plain_brgemm");
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
@@ -1839,6 +1846,7 @@ void JitFCDecompBrgemmExecutor::executeBrgemm(const MemoryArgs& memory) {
     std::vector<float> biasCache;
     const void* biasData = plan.useFusedBrgemmPostOps ? prepareFusedBiasData(memory, biasCache) : nullptr;
 
+    auto prof = LinuxPerf::Profile("decomp_brgemm_executor_#", "execute_brgemm_wrapper");
     switch (plan.mode) {
     case ExecutionMode::dynamicQuantSeparatePostOps:
     case ExecutionMode::dynamicQuant:
@@ -1875,13 +1883,18 @@ void JitFCDecompBrgemmExecutor::execute(const MemoryArgs& memory) {
                     memory.at(ARG_WEI)->getDesc().getShape().isStatic() &&
                     memory.at(ARG_DST)->getDesc().getShape().isStatic(),
                     "External decompression executor requires static runtime shapes");
-    if (plan.useDynamicQuant && m_brgemmKernel != nullptr) {
-        refreshDynamicQuantWeights(memory);
-    } else {
-        refreshDecompressedWeights(memory);
+    {
+        if (plan.useDynamicQuant && m_brgemmKernel != nullptr) {
+            refreshDynamicQuantWeights(memory);
+        } else {
+            refreshDecompressedWeights(memory);
+        }
     }
 
-    executeBrgemm(memory);
+    {
+        auto prof = LinuxPerf::Profile("decomp_brgemm_executor_#", "execute_brgemm");
+        executeBrgemm(memory);
+    }
 
     if (plan.useSeparateDynamicQuantPostOps) {
         applyDynamicQuantSeparatePostOps(m_attrs, memory, m_m, m_n, m_accum.data());

@@ -52,6 +52,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/linux_perf.hpp"
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
@@ -426,7 +427,10 @@ void FullyConnected::execTensorParallelSync() {
 void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
-    executor->execute(memory);
+    {
+        auto prof = LinuxPerf::Profile("", "FullyConnected::execute");
+        executor->execute(memory);
+    }
 
     execTensorParallelSync();
 }
