@@ -116,34 +116,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
-        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = nullptr;
-        
-        // If the parent already has an identical dynamic quantize as a user, reuse it instead of creating a new one.
-        const auto siblings = m_fc->get_input_node_shared_ptr(0)->get_users();
-        for (const auto& sibling : siblings) {
-            if (auto dyn_quan_sibling = as_type_ptr<ov::op::internal::DynamicQuantize>(sibling)) {
-                const auto& sibling_attrs = dyn_quan_sibling->get_attrs();
-                if (sibling_attrs.quantization_type == config.quantization_type &&
-                    sibling_attrs.quantization_dt == config.quantization_dt &&
-                    sibling_attrs.scale_dt == config.scale_dt &&
-                    sibling_attrs.zp_dt == config.zp_dt &&
-                    sibling_attrs.precomputed_reduction_dt == config.precomputed_reduction_dt &&
-                    sibling_attrs.precomputed_reduction == config.precomputed_reduction &&
-                    sibling_attrs.group_sizes == config.group_sizes &&
-                    sibling_attrs.scales_zp_output_order == config.scales_zp_output_order &&
-                    sibling_attrs.output_storage_type == config.output_storage_type) {
-                    dyn_quan = dyn_quan_sibling;
-                }
-            }
-
-            if (dyn_quan) {
-                break;
-            }
-        }
-
-        if (!dyn_quan) {
-            dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
-        }
+        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
 
         int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?

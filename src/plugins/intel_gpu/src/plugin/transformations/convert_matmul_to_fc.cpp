@@ -10,7 +10,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
