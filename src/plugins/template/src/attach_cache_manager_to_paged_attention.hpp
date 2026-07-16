@@ -22,9 +22,9 @@ public:
 
         auto pa_pattern = pattern::wrap_type<ov::op::PagedAttentionExtension>();
 
-        ov::matcher_pass_callback callback =
-            [shared_handle = std::make_shared<CacheManagerHandle>(),
-             shared_dtype = std::make_shared<ov::element::Type>()](pattern::Matcher& m) -> bool {
+        ov::matcher_pass_callback callback = [shared_handle = std::make_shared<CacheManagerHandle>(),
+                                              shared_dtype =
+                                                  std::make_shared<ov::element::Type>()](pattern::Matcher& m) -> bool {
             auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(m.get_match_root());
             if (!pa || get_cache_manager(pa.get()) != nullptr)
                 return false;
