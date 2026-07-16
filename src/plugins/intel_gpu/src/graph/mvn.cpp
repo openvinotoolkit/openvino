@@ -13,15 +13,24 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
 
 bool mvn::is_aligned_layout_supported(const layout& input_layout) const {
     const auto& input_pshape = input_layout.get_partial_shape();
-    if (!requires_alignment(input_pshape))
-        return true;
-
     const auto& fmt = input_layout.format;
+
+    // Planar (default) layouts are always handled by the bfyx opt / ref kernels.
     if (format::is_default_format(fmt))
         return true;
 
     //defer to dyn_formats
     if (input_pshape.is_dynamic())
+        return true;
+
+    // Across-channels normalization has no optimized blocked-layout kernel: the bfyx opt
+    // kernel is planar-only and the fsv16/fsv32 kernels implement WITHIN_CHANNELS only.
+    // Reject non-planar layouts here so a reorder to planar bfyx is inserted and the fast
+    // bfyx opt kernel runs instead of falling back to the slow reference (mvn_gpu_ref) kernel.
+    if (across_channels())
+        return false;
+
+    if (!requires_alignment(input_pshape))
         return true;
 
     // Mirror the single feature-blocked case handled by mvn_impl::static_canonicalize_shapes.
