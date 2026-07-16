@@ -49,19 +49,19 @@ jobs:
           submodules: 'false'
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (package)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -82,7 +82,16 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
+          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
+          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+
+      # Have to do it explicitly here, because `setup_python` is not executed for Linux
+      - name: Configure pip to use caching proxy
+        if: runner.os == 'Linux' && contains(inputs.runner, 'aks')
+        run: |
+          echo "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> "$GITHUB_ENV"
+          echo "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> "$GITHUB_ENV"
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         if: runner.os == 'Windows'
@@ -123,8 +132,22 @@ jobs:
 
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
+          # Install pytest-timeout to abort hanging samples and dump tracebacks
+          python3 -m pip install pytest-timeout==2.4.0
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
+            -v -ra \
+            -o log_cli=true --log-cli-level=INFO \
+            --timeout=180 \
+            --junitxml=$INSTALL_TEST_DIR/TEST-samples_smoke_tests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        with:
+          name: test-results-samples
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+          if-no-files-found: 'warn'

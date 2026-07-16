@@ -21,7 +21,6 @@
 
 #define AS_FILTER_TYPE8   CAT(as_, FILTER_TYPE8)
 
-
 #if OUTPUT_FORMAT_BFYX
 #   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
 #   define TO_OUTPUTVTYPE       CAT(convert_, OUTPUTVTYPE(OUTPUT_X_BLOCK_SIZE))
@@ -73,6 +72,7 @@ KERNEL(convolution_bfyx_f16)(
     int groups_per_sub_group = 1;
     if (prev_group_leftover < 16)
         groups_per_sub_group += ((FEATURE_SLICE_SIZE - prev_group_leftover - 1) / FILTER_OFM_NUM) + 1;
+    const uint my_group = group + (sglid / FILTER_OFM_NUM);
 #else
     const int group = 0;
     const int groups_per_sub_group = 1;
@@ -82,6 +82,9 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - input_spatial_size_x), 
+                                                INPUT_LINE_SIZE);
+    const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -202,54 +205,46 @@ KERNEL(convolution_bfyx_f16)(
                 else
 #endif  // INPUT_LEFTOVERS
                 {
-                    int valid_start = max(0, -input_x);
-                    int valid_end = min(INPUT_LINE_SIZE, input_spatial_size_x - input_x);
+                    int xb = 0;
+                    for (int i = 0; i < left_unreachable_count_x; i++){
+                        line_cache[xb + i] = 0;
+                    }
+                    xb += left_unreachable_count_x;
+                    const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
+                    for (; xb + 8 <= reachable_size; xb += 8) {
+                        INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
 
-                    if (valid_start <= 0 && valid_end >= INPUT_LINE_SIZE) {
-                        int xb = 0;
-                        for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
-                            INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
-                                                                      icb * input_fs_pitch +
-                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                      xb * input_x_pitch);
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                        line_cache[xb + 4] = vv[4];
+                        line_cache[xb + 5] = vv[5];
+                        line_cache[xb + 6] = vv[6];
+                        line_cache[xb + 7] = vv[7];
+                    }
+                    for (; xb + 4 <= reachable_size; xb += 4) {
+                        INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
 
-                            line_cache[xb + 0] = vv[0];
-                            line_cache[xb + 1] = vv[1];
-                            line_cache[xb + 2] = vv[2];
-                            line_cache[xb + 3] = vv[3];
-                            line_cache[xb + 4] = vv[4];
-                            line_cache[xb + 5] = vv[5];
-                            line_cache[xb + 6] = vv[6];
-                            line_cache[xb + 7] = vv[7];
-                        }
-                        for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
-                            INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
-                                                                      icb * input_fs_pitch +
-                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                      xb * input_x_pitch);
-
-                            line_cache[xb + 0] = vv[0];
-                            line_cache[xb + 1] = vv[1];
-                            line_cache[xb + 2] = vv[2];
-                            line_cache[xb + 3] = vv[3];
-                        }
-                        for (; xb < INPUT_LINE_SIZE; xb++) {
-                            line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
-                                                                     icb * input_fs_pitch +
-                                                                     kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                     xb * input_x_pitch);
-                        }
-                    } else {
-                        for (int xb = 0; xb < INPUT_LINE_SIZE; xb++) {
-                            if (xb < valid_start || xb >= valid_end) {
-                                line_cache[xb] = 0;
-                            } else {
-                                line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
-                                                                         icb * input_fs_pitch +
-                                                                         kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                         xb * input_x_pitch);
-                            }
-                        }
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                    }
+                    for (; xb < reachable_size; xb++) {
+                        line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
+                                                                 icb * input_fs_pitch +
+                                                                 kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                 xb * input_x_pitch);
+                    }
+                    for (int i = 0; i < right_unreachable_count_x; i++){
+                        line_cache[xb + i] = 0;
                     }
                 }
 
@@ -322,6 +317,26 @@ KERNEL(convolution_bfyx_f16)(
                                                                     kh * filter_y_pitch +
                                                                     kw * filter_x_pitch +
                                                                     8 * filter_isv_pitch);
+#if GROUPED
+                    if (groups_per_sub_group > 1) {
+                            uint correct_lane = sglid % FILTER_OFM_NUM;
+                            #if FILTER_TYPE_SIZE == 2
+                               short8 w0 = intel_sub_group_shuffle(as_short8(wei0), correct_lane);
+                               short8 w1 = intel_sub_group_shuffle(as_short8(wei1), correct_lane);
+                               wei0 = AS_FILTER_TYPE8(w0);
+                               wei1 = AS_FILTER_TYPE8(w1);
+                            #else
+                               wei0 = _sub_group_shuffle(wei0, correct_lane);
+                               wei1 = _sub_group_shuffle(wei1, correct_lane);
+                            #endif
+
+                            // Zero weights for lanes not in this group
+                            if (g != my_group) {
+                                wei0 = (FILTER_TYPE8)(0);
+                                wei1 = (FILTER_TYPE8)(0);
+                            }
+                    }
+#endif
                     const vec_t src0  = GET_SRC(src, 0);
                     const vec_t src1  = GET_SRC(src, 1);
                     const vec_t src2  = GET_SRC(src, 2);

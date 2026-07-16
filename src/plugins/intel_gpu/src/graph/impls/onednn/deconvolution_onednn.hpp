@@ -86,13 +86,15 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
         if (spatial_dims_num > 3)
             return false;
 
-        bool f16_deconv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::u8, data_types::i8});
+        bool f16_deconv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::bf16, data_types::u8, data_types::i8});
+        bool bf16_deconv = everyone_is(data_types::bf16, in_dt, wei_dt) &&
+                           one_of(out_dt, {data_types::bf16, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
         bool f32_deconv = everyone_is(data_types::f32, in_dt, wei_dt) && one_of(out_dt, {data_types::u8, data_types::i8});
         bool u8s8_deconv = one_of(in_dt, {data_types::i8, data_types::u8}) &&
                            wei_dt == data_types::i8 &&
-                           one_of(out_dt, {data_types::i32, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
+                           one_of(out_dt, {data_types::i32, data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
 
-        if (!f16_deconv && !f32_deconv && !u8s8_deconv)
+        if (!f16_deconv && !bf16_deconv && !f32_deconv && !u8s8_deconv)
             return false;
 
         if (!is_supported_post_ops(deconv_node))

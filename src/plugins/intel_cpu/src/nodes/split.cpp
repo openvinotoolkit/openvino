@@ -461,7 +461,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 void Split::optimizedNspc2Ncsp(size_t MB) {
     const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
-    const int rank = parentEdge->getMemory().getShape().getRank();
+    const auto rank = parentEdge->getMemory().getShape().getRank();
     const auto parentDims = parentEdge->getMemory().getStaticDims();
     const size_t IC = parentDims[1];
     const size_t D = rank == 5 ? parentDims[rank - 3] : 1;
@@ -519,7 +519,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
                                                       const size_t axis) {
     // find axis order position
     const auto& order = inDesc->getOrder();
-    unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
+    size_t axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] == axis) {
             axisOrderPos = i;
@@ -531,7 +531,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
 
     const auto outputPortsCount = outDescs.size();
 
-    uint8_t srcDataSize = inDesc->getPrecision().size();
+    const auto srcDataSize = inDesc->getPrecision().size();
     const auto& srcDims = inDesc->getBlockDims();
     const auto getRank = srcDims.size();
 
@@ -588,7 +588,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         auto partDim = outputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         "can not use inPlace memory with splitting on dynamic dimension");
-        const auto& childEdges = getChildEdgesAtPort(i);
+        const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
         for (const auto& childEdge : childEdges) {
             CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 

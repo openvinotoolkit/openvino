@@ -87,9 +87,9 @@ struct jitGatherKernelBase {
     }
     explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)
         : jcp(jcp),
-          vlen(vlen),
-          dataElPerVec(vlen / jcp.dataTypeSize),
-          idxElPerVec(vlen / indicesTypeSize),
+          vlen(static_cast<uint32_t>(vlen)),
+          dataElPerVec(static_cast<uint32_t>(vlen / jcp.dataTypeSize)),
+          idxElPerVec(static_cast<uint32_t>(vlen / indicesTypeSize)),
           is_real16_to_f32((jcp.in_prec == element::f16 || jcp.in_prec == element::bf16) &&
                            jcp.out_prec == element::f32),
           is_f32_to_bf16(jcp.in_prec == element::f32 && jcp.out_prec == element::bf16) {}
@@ -109,9 +109,9 @@ struct jitGatherKernelBase {
 
 protected:
     jGatherConfParams jcp;
-    uint64_t vlen = 0LU;
-    uint64_t dataElPerVec = 0LU;
-    uint64_t idxElPerVec = 0LU;
+    uint32_t vlen = 0;
+    uint32_t dataElPerVec = 0;
+    uint32_t idxElPerVec = 0;
     static const unsigned shufMask8bitUni[16];
     static const unsigned permMask8bitA2[8];
     static const unsigned permMask8bitA5[16];

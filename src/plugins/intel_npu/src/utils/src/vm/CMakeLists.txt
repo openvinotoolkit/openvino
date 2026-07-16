@@ -28,3 +28,10 @@ target_include_directories(${TARGET_NAME}
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
+
+# The include directories above use TARGET_PROPERTY expressions instead of
+# target_link_libraries, so CMake creates no build-order edge. Level Zero
+# headers are copied into the build directory by prepare_ze_headers; without
+# this explicit dependency a parallel build may compile ${TARGET_NAME} before
+# the headers are copied, causing a missing-header error
+add_dependencies(${TARGET_NAME} prepare_ze_headers)

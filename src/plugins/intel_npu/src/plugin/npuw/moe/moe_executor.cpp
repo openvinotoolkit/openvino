@@ -4,6 +4,8 @@
 
 #include "moe_executor.hpp"
 
+#include <optional>
+
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
 #include "../logging.hpp"
 #include "moe_infer_utils.hpp"
@@ -213,37 +215,27 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
         OPENVINO_THROW("MoE: Router scores are required but not available");
     }
 
-    // Parse router scores and populate routing maps
-    // Note: parse_selected_experts_from_router() clears the maps internally before populating
-    std::vector<size_t> selected_experts;
+    // Dispatch to appropriate inference function.
+    // EXPERT_BATCH: parse upfront (single token, routing maps needed for cache lookup).
+    // EXPERT_ITERATIVE: parse is fused inside run_expert_iterative, expert-row by row,
+    //   overlapping with NPU execution to hide the per-layer parse overhead.
     if (processing_mode == MoEProcessingMode::EXPERT_BATCH) {
+        std::vector<size_t> selected_experts;
         m_profile->batch["Parse Router Output"].record([&]() {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
         });
-    } else {
-        m_profile->iterative["Parse Router Output"].record([&]() {
-            selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
-                                                                                 num_experts,
-                                                                                 m_token_to_experts,
-                                                                                 m_expert_to_tokens);
-        });
-    }
-
-    if (selected_experts.empty()) {
-        OPENVINO_THROW("MoE: No experts selected by router");
-    }
-
-    // Dispatch to appropriate inference function
-    if (processing_mode == MoEProcessingMode::EXPERT_BATCH) {
+        if (selected_experts.empty()) {
+            OPENVINO_THROW("MoE: No experts selected by router");
+        }
         m_profile->batch["Total Expert Batch"].record([&]() {
             run_expert_batch(idx, real_idx, selected_experts);
         });
     } else {
         m_profile->iterative["Total Expert Iterative"].record([&]() {
-            run_expert_iterative(idx, real_idx, selected_experts);
+            run_expert_iterative(idx);
         });
     }
 
@@ -331,177 +323,255 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     });
 }
 
-void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
-    LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens by iterating through experts");
+void MoEExecutor::run_expert_iterative(size_t idx) {
+    LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens with async inference and overlapping NPU execution");
 
-    const auto input_token_count = m_config.input_token_count;
     const auto& io = m_moe_io[idx];
 
-    // Clear output buffer before accumulating expert outputs
-    if (!m_resources.expert_output_accumulator) {
+    // Precondition checks
+    if (!m_resources.expert_output_accumulator)
         OPENVINO_THROW("MoE: Expert output accumulator is null");
-    }
+    if (!io.expert_input)
+        OPENVINO_THROW("MoE: Expert input tensor is not set — prologue must bind it before run()");
+    if (!m_config.router_scores.compiled.has_value())
+        OPENVINO_THROW("MoE: Router scores index not available");
+    if (!m_config.expert_input.compiled.has_value())
+        OPENVINO_THROW("MoE: Expert input parameter index not available");
+    if (m_resources.sorted_chunk_sizes.empty())
+        OPENVINO_THROW("MoE: Sorted chunk sizes cannot be empty");
+
+    // Clear output accumulator before accumulating expert outputs
     std::memset(m_resources.expert_output_accumulator->data(),
                 0,
                 m_resources.expert_output_accumulator->get_byte_size());
 
-    // Get tensor references (constant across all experts)
-    if (!m_config.router_scores.compiled.has_value()) {
-        OPENVINO_THROW("MoE: Router scores index not available");
-    }
-    if (!m_config.expert_input.compiled.has_value()) {
-        OPENVINO_THROW("MoE: Expert input parameter index not available");
-    }
-
-    auto router_source = io.router_scores;
     auto expert_input_source = io.expert_input;
 
-    // Calculate output embedding dimension from any compiled model (all have same output shape)
-    auto any_compiled_model = m_config.compiled_models.begin()->second;
-    auto output_shape = any_compiled_model->outputs()[0].get_shape();
-    size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
+    // Output embedding dimension
+    const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
+    const size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
-    // Process each expert sequentially
-    for (size_t expert_id : selected_experts) {
-        LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
+    // num_tokens and num_experts come from config, validated once during prepare().
+    // The router tensor's token dimension is guaranteed to match input_token_count because
+    // both are derived from the same compiled model structure at prepare() time.
+    const size_t num_tokens = m_config.input_token_count;
+    const size_t num_experts = m_config.num_experts;
 
-        // Get tokens assigned to this expert
-        const auto& tokens_for_expert = m_expert_to_tokens.at(expert_id);
-        const size_t total_tokens = tokens_for_expert.size();
-
-        LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens");
-
-        // Precompute expert slot for each token
-        // This eliminates map lookup + linear search in scatter_expert_outputs hot loop
-        std::vector<size_t> expert_slots_for_tokens(total_tokens);
-        for (size_t i = 0; i < total_tokens; ++i) {
-            size_t token_id = tokens_for_expert[i];
-            const auto& expert_ids = m_token_to_experts.at(token_id);
-            auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
-            if (it == expert_ids.end()) {
-                OPENVINO_THROW("MoE: Token should have this expert");
-            }
-            expert_slots_for_tokens[i] = std::distance(expert_ids.begin(), it);
+    // Chunk-size selector
+    auto select_chunk = [&](size_t remaining) -> size_t {
+        const size_t smallest = m_resources.sorted_chunk_sizes.back();
+        const size_t largest = m_resources.sorted_chunk_sizes.front();
+        if (remaining <= smallest)
+            return smallest;
+        if (remaining >= largest)
+            return largest;
+        for (auto it = m_resources.sorted_chunk_sizes.rbegin(); it != m_resources.sorted_chunk_sizes.rend(); ++it) {
+            if (*it >= remaining)
+                return *it;
         }
+        return smallest;
+    };
 
-        // Process tokens in dynamic chunks based on available compiled models
-        // Priority: use largest possible chunk_size (256 > 128 > 64 > 32)
-        size_t processed_tokens = 0;
-        size_t last_chunk_size = 0;  // Track last used chunk_size to detect changes
-                                     // Note: When switching to a new expert, last_chunk_size resets to 0,
-                                     // ensuring weights are unpacked for the first chunk of each expert
-        while (processed_tokens < total_tokens) {
-            size_t remaining_tokens = total_tokens - processed_tokens;
+    // Double-buffer request helpers
+    size_t global_slot = 0;
+    auto get_req = [&](size_t cs, size_t slot) -> RqPtr& {
+        return m_resources.chunk_infer_requests.at(cs)[slot & 1];
+    };
+    // Tracks which expert_id is currently loaded into each (chunk_size, slot) request.
+    // Key = cs * 2 + (slot & 1): unique because all chunk_sizes are distinct integers,
+    // so cs1 * 2 + b1 == cs2 * 2 + b2 only when cs1 == cs2 and b1 == b2.
+    std::map<size_t, size_t> req_expert_state;
+    auto do_unpack = [&](size_t cs, size_t slot, RqPtr& req, size_t expert_id) {
+        const size_t key = cs * 2 + (slot & 1);
+        auto it = req_expert_state.find(key);
+        if (it == req_expert_state.end() || it->second != expert_id) {
+            m_profile->iterative["Unpack Closure"].record([&]() {
+                unpack_single_expert_closure(idx, req, expert_id);
+            });
+            req_expert_state[key] = expert_id;
+        }
+    };
 
-            // Chunk selection strategy:
-            // - remaining_tokens <= smallest chunk → use smallest chunk
-            // - remaining_tokens >= largest chunk → use largest chunk
-            // - otherwise → use smallest chunk that is >= remaining_tokens
-            // Pre-sorted in descending order: [256, 128, 64, 32, 16]
-            if (m_resources.sorted_chunk_sizes.empty()) {
-                OPENVINO_THROW("MoE: Sorted chunk sizes cannot be empty");
+    // Expert data ring buffer:
+    // 2 slots alternate per non-empty expert.  At most one slot is "in-flight" for
+    // scatter at any time; the other slot is being filled for the next expert.
+    // Safety: expert[k+2] reuses the slot that expert[k] used, and by then expert[k]'s
+    // last work item has already been drained (pipeline depth = 1).
+    struct ExpertData {
+        std::vector<size_t> tokens;
+        std::vector<size_t> slots;
+    };
+    std::array<ExpertData, 2> expert_ring;
+    size_t expert_ring_idx = 0;  // incremented per non-empty expert
+
+    // In-flight item tracking
+    struct InflightItem {
+        size_t cs;
+        size_t req_slot;
+        size_t chunk_start;
+        size_t chunk_tokens;
+        size_t ring_idx;  // expert_ring slot index at launch time
+    };
+    std::optional<InflightItem> inflight;
+
+    // Drain the in-flight item referenced by `inflight` (wait + scatter).
+    // Called both inside the pipeline loop (to drain the previous item while NPU
+    // runs the current one) and once after the loop to drain the final item.
+    auto do_drain = [&]() {
+        NPUW_ASSERT(inflight.has_value() && "do_drain called with no in-flight item");
+        auto& req = get_req(inflight->cs, inflight->req_slot);
+        m_profile->iterative["NPU Wait"].record([&]() {
+            req->wait();
+        });
+        const auto& data = expert_ring[inflight->ring_idx & 1];
+        const auto cm = m_config.compiled_models.at(inflight->cs);
+        auto output = req->get_tensor(cm->outputs()[0]);
+        m_profile->iterative["Scatter Output"].record([&]() {
+            ov::npuw::moe::scatter_expert_outputs(output,
+                                                  m_resources.expert_output_accumulator,
+                                                  data.tokens,
+                                                  inflight->chunk_start,
+                                                  inflight->chunk_tokens,
+                                                  embed_dim,
+                                                  num_tokens,
+                                                  data.slots);
+        });
+    };
+
+    // Per-token counter: how many earlier experts have already selected this token.
+    // Gives each token's expert-slot index in O(1) without a full two-pass scan.
+    std::vector<size_t> token_slot_count(num_tokens, 0);
+
+    // Parse-ahead buffer: pre-scan the NEXT expert's router row after drain(k-1) but
+    // while NPU k is still executing.  This hides the O(num_tokens) threshold scan
+    // inside the NPU overlap window instead of paying for it on the critical path
+    // before item k+1's dispatch.
+    //
+    // The buffer stores only token IDs that passed the threshold (v > 1e-6).
+    // Slot assignment (O(selected) not O(num_tokens)) is still done at the
+    // top of the next expert iteration.
+    //
+    // Timeline with parse-ahead:
+    //   CPU: [Unpack(k)+Gather(k)] → start(k) → drain(k-1) → [Parse(k+1)] → [Unpack(k+1)+Gather(k+1)] → start(k+1)
+    //   NPU:                         [=================NPU(k)==================] [==NPU(k+1)==]
+    //
+    struct ParseAheadBuffer {
+        std::vector<size_t> tokens;   // pre-filtered token IDs for next expert
+        size_t expert_id = SIZE_MAX;  // which expert was pre-scanned (sentinel = none)
+    };
+    ParseAheadBuffer parse_ahead;
+
+    // Per-expert loop: three phases — Parse, Dispatch, Prefetch.
+    auto stream_and_run = [&](auto* data) {
+        for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
+            // -- Parse: determine which tokens this expert processes --
+            const size_t ring_slot = expert_ring_idx & 1;
+            auto& cur = expert_ring[ring_slot];
+            cur.tokens.clear();
+            cur.slots.clear();
+
+            const auto* row = data + expert_id * num_tokens;
+            // Shared by both the parse-ahead fast path and the full threshold scan below.
+            auto fill_token = [&](size_t token_id) {
+                cur.tokens.push_back(token_id);
+                cur.slots.push_back(token_slot_count[token_id]++);
+            };
+            m_profile->iterative["Parse Router Row"].record([&]() {
+                if (parse_ahead.expert_id == expert_id) {
+                    // Fast path: token IDs already filtered; only slot updates remain.
+                    for (size_t token_id : parse_ahead.tokens) {
+                        fill_token(token_id);
+                    }
+                    parse_ahead.expert_id = SIZE_MAX;  // consumed
+                } else {
+                    // Full O(num_tokens) threshold scan (first expert, or parse-ahead missed).
+                    for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
+                        if (is_nonzero(row[token_id])) {
+                            fill_token(token_id);
+                        }
+                    }
+                }
+            });
+
+            if (cur.tokens.empty()) {
+                continue;  // expert not selected — do not advance ring_idx
             }
 
-            size_t selected_chunk_size;
-            size_t smallest_chunk = m_resources.sorted_chunk_sizes.back();
-            size_t largest_chunk = m_resources.sorted_chunk_sizes.front();
+            // -- Dispatch: slice tokens into chunks and pipeline NPU execution --
+            size_t processed = 0;
+            while (processed < cur.tokens.size()) {
+                const size_t cs = select_chunk(cur.tokens.size() - processed);
+                const size_t actual = std::min(cs, cur.tokens.size() - processed);
+                const size_t s = global_slot & 1;
+                auto& req = get_req(cs, s);
 
-            if (remaining_tokens <= smallest_chunk) {
-                // Use smallest chunk
-                selected_chunk_size = smallest_chunk;
-            } else if (remaining_tokens >= largest_chunk) {
-                // Use largest chunk
-                selected_chunk_size = largest_chunk;
-            } else {
-                // Find smallest chunk >= remaining_tokens
-                // Since sorted descending, iterate from end to find first >= remaining_tokens
-                selected_chunk_size = smallest_chunk;  // Default to smallest
-                for (auto it = m_resources.sorted_chunk_sizes.rbegin(); it != m_resources.sorted_chunk_sizes.rend();
-                     ++it) {
-                    if (*it >= remaining_tokens) {
-                        selected_chunk_size = *it;
-                        break;
+                do_unpack(cs, s, req, expert_id);
+                {
+                    const auto cm = m_config.compiled_models.at(cs);
+                    auto router_dest = req->get_tensor(cm->inputs()[m_config.router_scores.compiled.value()]);
+                    auto input_dest = req->get_tensor(cm->inputs()[m_config.expert_input.compiled.value()]);
+                    m_profile->iterative["Gather Router Scores"].record([&]() {
+                        ov::npuw::moe::gather_router_scores(io.router_scores,
+                                                            router_dest,
+                                                            expert_id,
+                                                            cur.tokens,
+                                                            processed,
+                                                            actual);
+                    });
+                    m_profile->iterative["Gather Expert Input"].record([&]() {
+                        ov::npuw::moe::gather_expert_inputs(expert_input_source,
+                                                            input_dest,
+                                                            cur.tokens,
+                                                            processed,
+                                                            actual);
+                    });
+                }
+
+                // Start NPU first, then drain previous — this creates the CPU/NPU overlap.
+                m_profile->iterative["NPU Start"].record([&]() {
+                    req->start_async();
+                });
+                if (inflight) {
+                    do_drain();
+                }
+
+                inflight = InflightItem{cs, s, processed, actual, ring_slot};
+                ++global_slot;
+                processed += actual;
+            }
+
+            // -- Prefetch: scan next expert's row while the last NPU chunk runs --
+            if ((expert_id + 1) < num_experts) {
+                const size_t next_id = expert_id + 1;
+                const auto* next_row = data + next_id * num_tokens;
+                parse_ahead.tokens.clear();
+                parse_ahead.expert_id = next_id;
+                for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
+                    if (is_nonzero(next_row[token_id])) {
+                        parse_ahead.tokens.push_back(token_id);
                     }
                 }
             }
 
-            // Actual tokens to process in this iteration
-            size_t current_chunk_size = std::min(selected_chunk_size, remaining_tokens);
-
-            LOG_DEBUG("      Processing tokens [" << processed_tokens << ", " << (processed_tokens + current_chunk_size)
-                                                  << ") with chunk_size=" << selected_chunk_size);
-
-            // Get selected infer request from MoEResources
-            auto infer_request_it = m_resources.chunk_infer_requests.find(selected_chunk_size);
-            if (infer_request_it == m_resources.chunk_infer_requests.end()) {
-                OPENVINO_THROW("MoE: Infer request for chunk_size=", selected_chunk_size, " not found");
-            }
-            auto selected_infer_request = infer_request_it->second;
-
-            // Get input/output ports for selected infer request
-            auto selected_compiled_model = m_config.compiled_models.at(selected_chunk_size);
-            const auto& selected_router_iport =
-                selected_compiled_model->inputs()[m_config.router_scores.compiled.value()];
-            const auto& selected_expert_input_iport =
-                selected_compiled_model->inputs()[m_config.expert_input.compiled.value()];
-            const auto& selected_oport = selected_compiled_model->outputs()[0];
-
-            auto selected_router_dest = selected_infer_request->get_tensor(selected_router_iport);
-            auto selected_expert_input_dest = selected_infer_request->get_tensor(selected_expert_input_iport);
-            auto selected_expert_output = selected_infer_request->get_tensor(selected_oport);
-
-            // Step 1: Unpack expert weights when chunk_size changes (different infer request)
-            // This ensures each infer request has correct weights loaded
-            // Important: last_chunk_size is reset to 0 at the start of each expert loop,
-            // so the first chunk of a new expert will always trigger unpacking (0 != selected_chunk_size)
-            if (selected_chunk_size != last_chunk_size) {
-                m_profile->iterative["Unpack Closure"].record([&]() {
-                    unpack_single_expert_closure(idx, selected_infer_request, expert_id);
-                });
-                last_chunk_size = selected_chunk_size;
-            }
-
-            // Step 2: Gather router scores for this chunk
-            m_profile->iterative["Gather Router Scores"].record([&]() {
-                ov::npuw::moe::gather_router_scores(router_source,
-                                                    selected_router_dest,
-                                                    expert_id,
-                                                    tokens_for_expert,
-                                                    processed_tokens,
-                                                    current_chunk_size);
-            });
-
-            // Step 3: Gather expert inputs for this chunk
-            m_profile->iterative["Gather Expert Input"].record([&]() {
-                ov::npuw::moe::gather_expert_inputs(expert_input_source,
-                                                    selected_expert_input_dest,
-                                                    tokens_for_expert,
-                                                    processed_tokens,
-                                                    current_chunk_size);
-            });
-
-            // Step 4: Execute expert inference
-            m_profile->iterative["Expert Inference"].record([&]() {
-                selected_infer_request->infer();
-            });
-
-            // Step 5: Scatter expert outputs back to global buffer
-            m_profile->iterative["Scatter Output"].record([&]() {
-                ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
-                                                      m_resources.expert_output_accumulator,
-                                                      tokens_for_expert,
-                                                      processed_tokens,
-                                                      current_chunk_size,
-                                                      embed_dim,
-                                                      input_token_count,
-                                                      expert_slots_for_tokens);
-            });
-
-            // Move to next chunk
-            processed_tokens += current_chunk_size;
+            ++expert_ring_idx;
         }
-        LOG_DEBUG("    Expert[" << expert_id << "] completed");
+    };
+
+    const auto elem_type = io.router_scores->get_element_type();
+    if (elem_type == ov::element::f32) {
+        stream_and_run(io.router_scores->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        stream_and_run(io.router_scores->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
     }
+
+    if (!inflight) {
+        OPENVINO_THROW("MoE: No experts selected by router");
+    }
+
+    // Drain the last in-flight item
+    do_drain();
 }
 
 void MoEExecutor::set_router_scores(size_t idx,

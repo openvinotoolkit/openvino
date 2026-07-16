@@ -15,19 +15,14 @@
 #include <memory>
 #include <string>
 
+#include "openvino/util/file_util.hpp"
+
 namespace ov {
 
 namespace util {
 int64_t get_system_page_size();
 }  // namespace util
 
-#ifdef _WIN32
-// Windows uses HANDLE (void*) for file handles
-using FileHandle = void*;
-#else
-// Linux/Unix uses int for file descriptors
-using FileHandle = int;
-#endif
 /**
  * @brief Generic constant to indicate automatic size calculation is required.
  */
@@ -45,6 +40,14 @@ public:
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
     virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
+    /**
+     * @brief Hint that the given region of the mapping will be accessed soon.
+     *
+     * @param offset Offset within the mapping where prefetching starts.
+     * @param size   Number of bytes to prefetch. Defaults to the rest of the
+     *               mapping when set to auto_size.
+     */
+    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

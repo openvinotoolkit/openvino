@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "low_precision/low_precision.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/adaptive_pool_to_reduce.hpp"
@@ -33,6 +34,7 @@
 #include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
+#include "transformations/common_optimizations/fq_concat_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp"
@@ -146,7 +148,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
         manager.register_pass<ov::pass::MarkDequantization>(
-            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f8e4m3, f8e5m2, f4e2m1, f8e8m0});
+        manager.register_pass<ov::pass::MarkDequantization>(TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0}, false, false);
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
@@ -282,6 +285,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(fq_fusions, FakeQuantizeConcatFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)

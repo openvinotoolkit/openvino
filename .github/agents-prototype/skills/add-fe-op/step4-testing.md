@@ -1,6 +1,6 @@
 # Skill: FE Op Testing
 
-> Source: `skills/add-fe-op/SKILL.md` (Steps 4, 5, 6)
+> Source: [`skills/add-fe-op/SKILL.md`](SKILL.md) (Steps 4, 5, 6)
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ Look at tests for a similar existing op in the same directory as the starting po
 After writing translator and registration, run the end-to-end conversion check using the
 **`verify-conversion`** skill:
 
-> Read and follow: `skills/verify-conversion/SKILL.md`
+> Read and follow: [`skills/verify-conversion/SKILL.md`](../verify-conversion/SKILL.md)
 
 The skill auto-detects the conversion path (optimum-intel / ovc / convert_model) and
 runs a numerical sanity check. Report the outcome (`validation=pass|fail|blocked`) back

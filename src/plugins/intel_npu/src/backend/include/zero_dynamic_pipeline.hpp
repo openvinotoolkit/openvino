@@ -11,13 +11,15 @@ namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable IDynamicGraph::GraphArguments _binding;
+        mutable std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
+        PipelinedCommandLists(size_t numCommandLists,
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -25,6 +27,9 @@ class DynamicPipeline final : public IPipeline {
 
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandListHandles.push_back(_commandLists[i]->handle());
+            }
+            if (requestBinding != nullptr) {
+                _binding = requestBinding;
             }
         }
 
@@ -37,7 +42,10 @@ class DynamicPipeline final : public IPipeline {
         }
 
         void bind(IDynamicGraph* graph) {
-            graph->getBinding(_binding);
+            if (_binding == nullptr) {
+                _binding = std::make_shared<IDynamicGraph::GraphArguments>();
+                graph->getBinding(*_binding);
+            }
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
@@ -45,7 +53,7 @@ class DynamicPipeline final : public IPipeline {
         }
 
         IDynamicGraph::GraphArguments& getBinding() {
-            return _binding;
+            return *_binding;
         }
 
         void updateMutableCommandList(uint32_t arg_index,
@@ -53,16 +61,16 @@ class DynamicPipeline final : public IPipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             // The strides are already divided by element size
-            if (arg_index < _binding._inputs.size()) {
-                _binding._inputs[arg_index].setArg(arg_value);
-                _binding._inputs[arg_index].setSize(shapes);
-                _binding._inputs[arg_index].setStrides(strides);
+            if (arg_index < _binding->_inputs.size()) {
+                _binding->_inputs[arg_index].setArg(arg_value);
+                _binding->_inputs[arg_index].setSize(shapes);
+                _binding->_inputs[arg_index].setStrides(strides);
             } else {
-                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
-                if (output_index < _binding._outputs.size()) {
-                    _binding._outputs[output_index].setArg(arg_value);
-                    _binding._outputs[output_index].setSize(shapes);
-                    _binding._outputs[output_index].setStrides(strides);
+                size_t output_index = static_cast<size_t>(arg_index) - _binding->_inputs.size();
+                if (output_index < _binding->_outputs.size()) {
+                    _binding->_outputs[output_index].setArg(arg_value);
+                    _binding->_outputs[output_index].setSize(shapes);
+                    _binding->_outputs[output_index].setStrides(strides);
                 }
             }
         }
@@ -80,6 +88,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                    std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;

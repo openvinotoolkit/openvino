@@ -1,84 +1,66 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-
 #include "custom/subgraph_tests/src/classes/concat_sdp.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
-
-using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-
 namespace {
+
 const std::vector<std::vector<InputShape>> inputShapes = {
     // greedy search
     {
-        // B, H, L1, S
         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
-        // B, H, L0, S
         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
     },
     // beam search
     {
-        // B, H, L1, S
         {{-1, 8, -1, 64}, {{4, 8, 10, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}}},
-        // B, H, L0, S
         {{-1, 8, -1, 64}, {{4, 8, 0, 64}, {4, 8, 10, 64}, {4, 8, 11, 64}, {4, 8, 12, 64}, {4, 8, 13, 64}}},
     },
     // big batch to check cvt_copy fast-path inside mha_single_token_kernel
     {
-        // B, H, L1, S
         {{-1, 8, -1, 64}, {{129, 8, 10, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}}},
-        // B, H, L0, S
         {{-1, 8, -1, 64}, {{129, 8, 0, 64}, {129, 8, 10, 64}, {129, 8, 11, 64}, {129, 8, 12, 64}, {129, 8, 13, 64}}},
     },
 };
 
-// @todo claude: enable asymmetric K/V cache precision combinations in a separate PR;
-// for now restrict to symmetric pairs so the SDPA assertion at scaled_attn.cpp:1823 holds.
+// K×V codec matrix: {none, u8, u4 scalar, TBQ4 (u4+TURBO)}.
+enum class KvCodec { NONE, U8, U4, TBQ4 };
+static ov::AnyMap kv_cfg(KvCodec k, KvCodec v) {
+    ov::AnyMap m;
+    auto set = [&](KvCodec c, const char* prec_key, const char* alg_key) {
+        switch (c) {
+            case KvCodec::NONE: break;
+            case KvCodec::U8:   m[prec_key] = "u8"; break;
+            case KvCodec::U4:   m[prec_key] = "u4"; break;
+            case KvCodec::TBQ4: m[prec_key] = "u4"; m[alg_key] = "TURBO"; break;
+        }
+    };
+    set(k, "KEY_CACHE_PRECISION", "KEY_CACHE_QUANT_ALG");
+    set(v, "VALUE_CACHE_PRECISION", "VALUE_CACHE_QUANT_ALG");
+    return m;
+}
+static std::vector<ov::AnyMap> all_kv_cfgs() {
+    std::vector<ov::AnyMap> out;
+    for (auto k : {KvCodec::NONE, KvCodec::U8, KvCodec::U4, KvCodec::TBQ4}) {
+        for (auto v : {KvCodec::NONE, KvCodec::U8, KvCodec::U4, KvCodec::TBQ4}) {
+            out.push_back(kv_cfg(k, v));
+        }
+    }
+    return out;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
-        ConcatSDPTest,
-        ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f16),
-                           ::testing::ValuesIn(inputShapes),
-                           ::testing::Values("none"),
-                           ::testing::Values("none"),
-                           ::testing::Values(true, false),
-                           ::testing::Values(true, false)),
-        ConcatSDPTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest_U8,
-        ConcatSDPTest,
-        ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f16),
-                           ::testing::ValuesIn(inputShapes),
-                           ::testing::Values("u8"),
-                           ::testing::Values("u8"),
-                           ::testing::Values(true, false),
-                           ::testing::Values(true, false)),
-        ConcatSDPTest::getTestCaseName);
-
-// u4 test shapes: first iteration must be single-token (L1=1) because the
-// multi-token kernel doesn't support sub-byte cache dequant.
-const std::vector<std::vector<InputShape>> u4Shapes = {{
-    {{1, 8, -1, 64}, {{1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}}},
-    {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 1, 64}, {1, 8, 2, 64}, {1, 8, 3, 64}, {1, 8, 4, 64}}},
-}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPU4Test,
-        ConcatSDPTest,
-        ::testing::Combine(::testing::Values(ElementType::f32),
-                           ::testing::ValuesIn(u4Shapes),
-                           ::testing::Values("u4"),
-                           ::testing::Values("u4"),
-                           ::testing::Values(false),
-                           ::testing::Values(false)),
-        ConcatSDPTest::getTestCaseName);
+                         ConcatSDPTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(all_kv_cfgs()),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values<int64_t>(8, 2, 1)),
+                         ConcatSDPTest::getTestCaseName);
 
 }  // namespace
-
 }  // namespace test
 }  // namespace ov

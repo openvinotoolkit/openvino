@@ -356,4 +356,4 @@ gdb --args python3 -m pytest tests/layer_tests/pytorch_tests/test_where.py -v -k
 - [PyTorch Operator Documentation](https://pytorch.org/docs/stable/torch.html)
 - [torch.export Reference](https://pytorch.org/docs/stable/export.html)
 - [OpenVINO Available Operations](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html)
-- [OpenVINO PyTorch Frontend README](src/frontends/pytorch/README.md)
+- [OpenVINO PyTorch Frontend README](../../../../src/frontends/pytorch/README.md)

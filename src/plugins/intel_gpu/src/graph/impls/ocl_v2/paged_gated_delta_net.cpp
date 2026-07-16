@@ -26,7 +26,6 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
     default:

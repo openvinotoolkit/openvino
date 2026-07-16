@@ -1,6 +1,6 @@
 # Skill: Core Op Specification
 
-> Source: `skills/add-core-op/SKILL.md` (Step 4)
+> Source: [`skills/add-core-op/SKILL.md`](SKILL.md) (Step 4)
 > Agent: `core_opspec_agent`
 
 ## Prerequisites

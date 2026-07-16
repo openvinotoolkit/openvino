@@ -18,6 +18,7 @@
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 
@@ -276,6 +277,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
+    // TSGeneral runs ConstantFolding; mark dequantization before it.
+    manager.register_pass<ov::pass::MarkDequantization>(
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);

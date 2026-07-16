@@ -2304,7 +2304,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_no_implicit_gpu_onednn_4d_f16,
                         ::testing::Values(
                             TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, true, false),
-                            TestParamType_implicit_concat(2, { 16 }, 2, 2, format::b_fs_yx_fsv16, true, false)
+                            TestParamType_implicit_concat(2, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false)
                         ),
                         concat_gpu_implicit::PrintToStringParamName);
 

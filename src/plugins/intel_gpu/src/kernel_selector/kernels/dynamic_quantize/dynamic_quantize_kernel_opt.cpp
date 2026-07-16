@@ -63,6 +63,9 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bf);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -92,6 +95,9 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
     jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
     size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
@@ -199,6 +205,10 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)

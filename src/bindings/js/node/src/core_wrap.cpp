@@ -107,8 +107,8 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     try {
-        ReadModelArgs* args = new ReadModelArgs(info);
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, args);
+        auto args = std::make_unique<ReadModelArgs>(info);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, std::move(args));
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
