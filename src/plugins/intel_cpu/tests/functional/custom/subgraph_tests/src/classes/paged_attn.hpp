@@ -4,33 +4,7 @@
 
 #pragma once
 
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
-#include "internal_properties.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -45,7 +19,6 @@ using InputShapes = std::vector<InputShape>;
 using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap, bool>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>, virtual public ov::test::SubgraphBaseTest,public CPUTestsBase {
-
     public:
         static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj);
         static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape, element::Type element_type, const std::string& name);

@@ -7,7 +7,6 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -31,25 +30,19 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/general_utils.h"
-
-using namespace ov::test;
-using namespace CPUTestUtils;
-using namespace ov::op;
 
 namespace ov {
 namespace test {
 
 std::string PagedAttnTestBase::getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
     const auto& [inType,
-                    inputShapes,
-                    extendBlockIndices,
-                    enableXattn,
-                    sinkInput,
-                    slidingWindow,
-                    additional_config,
-                    addSharedReader] = obj.param;
+                inputShapes,
+                extendBlockIndices,
+                enableXattn,
+                sinkInput,
+                slidingWindow,
+                additional_config,
+                addSharedReader] = obj.param;
     std::ostringstream result;
     result << "IS=";
     for (const auto& shape : inputShapes) {

@@ -5,32 +5,6 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/general_utils.h"
 #include "utils/arm_isa_support.h"
 #include "custom/subgraph_tests/src/classes/paged_attn.hpp"
 
@@ -47,8 +21,6 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
                  addSharedReader] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-    if (inType == ElementType::f16)
-        GTEST_SKIP();
 
     past_len_count = 0;
 
@@ -145,10 +117,6 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     ASSERT_FALSE(addSharedReader) << "PagedAttnVSMatmulTest does not support shared KV-cache (addSharedReader=true)";
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-    // reference model does not implement f16, hence skip the test for now
-    if (inType == ElementType::f16) {
-        GTEST_SKIP();
-    }
     // If not SVE machine skip the test
     if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
         GTEST_SKIP();
@@ -177,7 +145,7 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(false),
                                             ::testing::Values(false),          // enableXatten = false 
