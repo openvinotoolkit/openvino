@@ -124,6 +124,29 @@ inline FFNFn make_qwen3_moe_ffn(size_t hs, size_t is, size_t ne, size_t k, ov::e
     return Qwen3MoEFFN(hs, is, ne, k, prec);
 }
 
+/// Gemma4 style batched MoE FFN matching NPUW's Gemma4Expert + Gemma4Router patterns (real Gemma4-26B-A4B).
+/// Differences from Qwen3MoEFFN:
+///   - Expert: gate/up share the same Reshape input (no separate Tile per branch); activation
+///     is Gelu (not Swish);
+///   - Router: plain FP32 weight (no dequant chain); per-expert learned scale via Gather;
+///     extra Slice before ScatterElementsUpdate; Gemma4Router pattern root is Unsqueeze.
+/// Select via LLMConfig::moe_factory = make_gemma4_moe_ffn.
+struct Gemma4MoEFFN : BatchedMoEFFN {
+    /// Default weight_fn: CompressedWeight{i4, 0, SYMM_NO_ZP}.
+    Gemma4MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf = {});
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+
+private:
+    std::shared_ptr<ov::Node> reduce_axis_k;  ///< router renormalization axis (over K)
+    std::shared_ptr<ov::Node> per_expert_scale_const;  ///< learned per-expert scale [num_experts]
+};
+
+/// MoEFactoryFn for the Gemma4 topology. Assign to LLMConfig::moe_factory to select it.
+inline FFNFn make_gemma4_moe_ffn(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec) {
+    return Gemma4MoEFFN(hs, is, ne, k, prec);
+}
+
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
