@@ -32,7 +32,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::RightAlignMaskSliceForConvImpl");
     explicit RightAlignMaskSliceForConvImpl() {
         auto attention_mask = opp::wrap_type<ov::op::v0::Parameter>();
-        auto attention_mask_slice = opp::wrap_type<ov::op::v8::Slice>({attention_mask, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto attention_mask_slice = opp::wrap_type<ov::op::v8::Slice>(
+            {attention_mask, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
         auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({attention_mask_slice, opp::any_input()});
         auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
         auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, opp::any_input()});
@@ -41,7 +42,8 @@ public:
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({multiply_with_embedd, opp::any_input()});
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
         // VariadicSplit into B,C,~h in LFM2.
-        auto variadic_split = opp::wrap_type<ov::op::v1::VariadicSplit>({transpose, opp::any_input(), opp::any_input()});
+        auto variadic_split =
+            opp::wrap_type<ov::op::v1::VariadicSplit>({transpose, opp::any_input(), opp::any_input()});
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -63,8 +65,11 @@ public:
             auto current_offset = std::make_shared<ov::op::v1::Subtract>(mask_len, current_len);
 
             auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
-            auto new_slice = std::make_shared<ov::op::v8::Slice>(matched_attention_mask, current_offset,
-                mask_len_rank_one, const_one_rank_one, const_one_rank_one);
+            auto new_slice = std::make_shared<ov::op::v8::Slice>(matched_attention_mask,
+                                                                 current_offset,
+                                                                 mask_len_rank_one,
+                                                                 const_one_rank_one,
+                                                                 const_one_rank_one);
             matched_attention_mask_unsqueeze->input(0).replace_source_output(new_slice);
             return true;
         };
