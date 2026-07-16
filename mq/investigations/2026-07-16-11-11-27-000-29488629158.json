@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-11-11-27-000-29488629158",
+  "timestamp": "2026-07-16T11:11:27Z",
+  "run_id": "29488629158",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29488629158",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36806",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36806",
+  "author": "ankitm3k",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E 'after all' hook fails: rm -rf demo-electron-app-project - Permission denied on electron.exe/d3dcompiler_47.dll/libEGL.dll/libGLESv2.dll"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied",
+    "1 failing\n\"after all\" hook for \"should run electron package and verify output\":\nError: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The Electron binary (electron.exe) and its companion DLLs remain locked by the Windows OS after the Electron process completes in the E2E test. The test's 'after all' cleanup hook executes 'rm -rf demo-electron-app-project' but Windows file system prevents deletion of executables and DLLs that are still open/locked. The two actual E2E tests (install dependencies, run electron package) both pass successfully. This is a recurring infrastructure-level flake on Windows unrelated to the PR changes.",
+  "reproduction_steps": "Run 'npm run test:e2e' inside src/bindings/js/node on a Windows runner after Electron has been launched. The cleanup is timing-dependent.",
+  "recommended_actions": [
+    "Use 'rimraf' or a Windows-aware recursive delete utility in the afterAll hook instead of 'rm -rf'",
+    "Add a sleep/retry loop in the cleanup to wait for file handles to be released",
+    "Use 'taskkill /F /IM electron.exe' before the rm -rf to forcefully terminate any lingering Electron process",
+    "Re-run the failed jobs — this is a transient Windows file-locking issue unrelated to PR #36806"
+  ],
+  "prevention_strategies": "Replace shell 'rm -rf' in the JS E2E test afterAll hook with a Node.js-native recursive directory removal (fs.rmSync with force:true) or use the 'rimraf' package, which handles Windows file-locking gracefully with retries.",
+  "historical_context": "This exact failure has been seen 5 times previously (pattern 85df26485ff568d8): runs 29010970383, 29072781821, 29268143021, 29450212856, 29461222151 on PRs #36780, #36763, #36796, #36887, #36888. It is a known Windows-only flake in the JS API E2E cleanup step."
+}
