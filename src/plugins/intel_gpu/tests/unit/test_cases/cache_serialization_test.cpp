@@ -329,9 +329,18 @@ membuf make_oversized_data_blob(const layout& output_layout, size_t malicious_da
     bool weightless_caching = false;  // take the plain (non-weightless) path
     ob << weightless_caching;
 
+    // Checks if zero-copy host memory binding is supported.
+    // Requires: integrated GPU, XE2+ architecture, USM host allocation
+    const auto supports_hostbuffer = [&](const cldnn::engine& eng) {
+        const auto& info = eng.get_device_info();
+        return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 &&
+               eng.supports_allocation(cldnn::allocation_type::usm_host);
+    };
+    auto& engine = get_test_engine();
     // Mirror the reader's alignment padding so stream offsets stay in sync.
-    if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
-        std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
+    auto sub_buffer_base_alignment = engine.get_device_info().sub_buffer_base_alignment;
+    if (supports_hostbuffer(engine) && !ob.is_encrypted() && !ob.is_offset_aligned(sub_buffer_base_alignment)) {
+        std::vector<uint8_t> pad(ob.get_bytes_to_aligned_boundary(sub_buffer_base_alignment), 0);
         ob << make_data(pad.data(), pad.size());
     }
 

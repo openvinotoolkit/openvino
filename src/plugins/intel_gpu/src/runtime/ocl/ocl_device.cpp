@@ -209,6 +209,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
     info.cacheline_size = device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE>();
+    // Alignment requirement (in bits) for sub-buffer offsets, converting to bytes and ensuring at least 1 byte alignment.
+    auto bits = device.getInfo<CL_DEVICE_MEM_BASE_ADDR_ALIGN>();
+    info.sub_buffer_base_alignment = std::max<uint32_t>(1, bits / 8);
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
     info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
