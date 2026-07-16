@@ -401,15 +401,6 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
-        # protobuf fails to build with -fsanitize=thread by clang
-        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
-            foreach(proto_target protoc libprotobuf libprotobuf-lite)
-                if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                    target_link_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                endif()
-            endforeach()
-        endif()
     endif()
 
     # forward additional variables used in the other places
@@ -435,30 +426,6 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
 
     _ov_fix_protobuf_warnings(protobuf::libprotobuf)
     _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
-
-    function(_ov_fix_absl_warnings target_name)
-        if(TARGET ${target_name})
-            if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-                set(link_type PRIVATE)    
-                get_target_property(target_type ${target_name} TYPE)
-                if(target_type STREQUAL "INTERFACE_LIBRARY")
-                    set(link_type INTERFACE)
-                endif()
-
-                get_target_property(original_name ${target_name} ALIASED_TARGET)
-                if(TARGET ${original_name})
-                    set(target_name ${original_name})
-                endif()
-                
-                target_compile_options(${target_name} ${link_type} -Wno-sign-conversion)
-            endif()
-        endif()
-    endfunction()
-
-    _ov_fix_absl_warnings(absl::base)
-    _ov_fix_absl_warnings(absl::debugging)
-    _ov_fix_absl_warnings(absl::malloc_internal)
-    _ov_fix_absl_warnings(absl::stacktrace)
 endif()
 
 #
