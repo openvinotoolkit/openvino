@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-15-54-12-000-29502462489",
+  "timestamp": "2026-07-16T15:54:12Z",
+  "run_id": "29502462489",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29502462489",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36917",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36917",
+  "author": "artanokhov",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all cleanup hook fails: rm -rf cannot remove electron.exe/dll with Permission denied"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied"
+  ],
+  "root_cause": "The mocha 'after all' cleanup hook in electron-app.test.js runs 'rm -rf demo-electron-app-project' via a shell command. On Windows, electron.exe and its companion DLLs remain locked by the OS after the test process exits. The rm command (running inside Git Bash/MSYS) cannot delete locked files, causing the cleanup hook to throw and mocha to report 1 failure. The two actual test cases (install dependencies, run electron package) both pass. This is a Windows-specific file-locking issue in the test teardown, not a code regression.",
+  "reproduction_steps": "Run 'npm run test:e2e' on Windows inside src/bindings/js/node/ after building. Observe that the after-all hook fails to delete demo-electron-app-project/node_modules/electron/dist/*.exe/*.dll.",
+  "recommended_actions": [
+    "Use rimraf or a PowerShell rm -Force -Recurse command in the after-all hook instead of the bare 'rm -rf' shell call to handle locked files on Windows.",
+    "Add a small delay or process.kill() for electron before deleting to ensure all handles are released.",
+    "Re-run the failed jobs — this is a transient cleanup issue that does not affect test results."
+  ],
+  "prevention_strategies": "Replace the shell 'rm -rf' call in the after-all hook with a Windows-safe deletion strategy (rimraf, robocopy /MIR, or PowerShell Remove-Item -Force -Recurse). This issue has recurred 8 times; a code fix in the test teardown is overdue.",
+  "historical_context": "This exact failure (signature 85df26485ff568d8) was first observed on 2026-07-09 and has recurred on multiple PRs. Prior affected PRs include #36763, #36780, #36796, #36806, #36807, #36887, #36888."
+}
