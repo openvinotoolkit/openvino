@@ -42,8 +42,8 @@ public:
     bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) override;
 
 private:
-    gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext);
-    static void maybe_set_result_event(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx);
+    gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext, std::vector<void*>& waitList);
+    static void maybe_set_result_events(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx);
 };
 
 // Maps [output index][dimension index] -> [input index][dimension index] to infer shapes for entire subgraph

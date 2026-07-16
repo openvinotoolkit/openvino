@@ -161,7 +161,8 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<mlir::ModuleOp> _module, std::s
 };
 
 bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) {
-    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
+    std::vector<void*> waitList;
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
     gc::gpu::StaticExecutor exec(module);
 
     auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
@@ -178,12 +179,14 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector&
     }
 
     exec(ctx);
-    maybe_set_result_event(evaluationContext, ctx);
+
+    maybe_set_result_events(evaluationContext, ctx);
     return true;
 }
 
 bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
-    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
+    std::vector<void*> waitList;
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
     gc::gpu::DynamicExecutor exec(module);
 
     // Layout (5 pointers per memref, see MemRefDescriptor::append_to_packed_args):
@@ -201,23 +204,31 @@ bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::Evalua
         );
     }
     exec(ctx);
-    maybe_set_result_event(evaluationContext, ctx);
+    maybe_set_result_events(evaluationContext, ctx);
     return true;
 }
 
-void MLIREvaluateGcGPU::maybe_set_result_event(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx) {
-    // case with in-order queue where we don't need to return an event
-    if (ctx.lastEvent == nullptr)
+void MLIREvaluateGcGPU::maybe_set_result_events(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx) {
+    auto events_it = evaluationContext.find(ov::internal::mlir_meta::result_events.name());
+    if (events_it == evaluationContext.end())
         return;
-    auto it = evaluationContext.find(ov::internal::mlir_meta::result_event.name());
-    if (it == evaluationContext.end()) {
-        OPENVINO_THROW("No result_event provided for OpenCL execution");
+
+    auto retain_event = [](cl_event event) {
+        const auto err = clRetainEvent(event);
+        if (err != CL_SUCCESS) {
+            OPENVINO_THROW("Failed to retain MLIR result event, error: ", err);
+        }
+    };
+
+    auto* events = events_it->second.as<std::vector<void*>*>();
+    events->reserve(events->size() + ctx.events.size());
+    for (auto event : ctx.events) {
+        retain_event(event);
+        events->push_back(event);
     }
-    cl_event* ev = reinterpret_cast<cl_event*>(it->second.as<void**>());
-    *ev = ctx.lastEvent;
 }
 
-gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext) {
+gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext, std::vector<void*>& waitList) {
     auto it = evaluationContext.find(ov::intel_gpu::ocl_queue.name());
     if (it == evaluationContext.end()) {
         OPENVINO_THROW("No queue provided for OpenCL execution");
@@ -225,17 +236,15 @@ gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationCon
     cl_command_queue queue = reinterpret_cast<cl_command_queue>(it->second.as<void*>());
 
     uint32_t waitListLen = 0;
-    std::vector<void*> waitList;
-    bool foundWaitList = false;
 
     it = evaluationContext.find(ov::internal::mlir_meta::wait_list.name());
     if (it != evaluationContext.end()) {
         waitList = it->second.as<std::vector<void*>>();
         waitListLen = waitList.size();
-        foundWaitList = true;
     }
 
-    return gc::gpu::OclContext(module->runtime, queue, /*createEvents=*/foundWaitList,
+    const bool createEvents = evaluationContext.count(ov::internal::mlir_meta::result_events.name()) != 0;
+    return gc::gpu::OclContext(module->runtime, queue, createEvents,
                                waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
 }
 

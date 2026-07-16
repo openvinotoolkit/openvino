@@ -17,6 +17,7 @@
 #include "openvino/op/transpose.hpp"
 #include "shared_test_classes/base/benchmark.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/mlir/convert.hpp"
 
 namespace {
 
@@ -115,7 +116,10 @@ TEST_P(MatMulRmsnormTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormBenchmark, Inference) {
-    run_benchmark("MLIROp");
+    if (ov::pass::is_mlir_transform_enabled())
+        run_benchmark("MLIROp");
+    else
+        run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS"});
 }
 
 const auto rmsnormParams = ::testing::Combine(::testing::Values(ov::Shape{1, 1024, 1536}), ::testing::Values(ov::Shape{1536, 1536}));
@@ -171,7 +175,10 @@ TEST_P(MatMulRmsnormConcatTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormConcatBenchmark, Inference) {
-    run_benchmark("MLIROp");
+    if (ov::pass::is_mlir_transform_enabled())
+        run_benchmark("MLIROp");
+    else
+        run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS", "Concat"});
 }
 
 const auto concatParams =
