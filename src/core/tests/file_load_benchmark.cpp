@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/io.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -445,5 +446,132 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
         printf("\n");
     }
 }
+
+#if defined ENABLE_IO_URING
+
+namespace {
+/**
+ * @brief Benchmarks provided function that takes reference to preset MappedMemory.
+ */
+long long bench_with_preset(const std::function<void(ov::MappedMemory&)>& fn,
+                            const std::filesystem::path& path,
+                            size_t file_size,
+                            int warmup_runs = 1,
+                            int measured_runs = 5) {
+    for (int i = 0; i < warmup_runs; ++i) {
+        evict_cache(path, file_size);
+        auto mapped = load_mmap_object(path);
+        fn(*mapped);
+    }
+    long long total = 0;
+    for (int i = 0; i < measured_runs; ++i) {
+        evict_cache(path, file_size);
+        auto mapped = load_mmap_object(path);
+        total += measure_ms([&]() {
+            fn(*mapped);
+        });
+    }
+    return total / measured_runs;
+}
+
+void page_touch(ov::MappedMemory& mapped, size_t num_threads) {
+    util::vm_prefetch(mapped.data(), mapped.size(), num_threads);
+}
+
+void io_uring(ov::MappedMemory& mapped, size_t depth) {
+    util::io_populate_mmap(mapped.data(), mapped.size(), 0, depth);
+}
+}  // namespace
+
+TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
+    std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
+
+    std::vector<TestFile> files;
+    for (const auto sz : sizes_mib) {
+        TestFile tf{sz, {}};
+        tf.path = generate_test_file(tf);
+        evict_cache(tf.path, tf.size_bytes());
+        files.push_back(std::move(tf));
+    }
+
+    using BenchFn = void (*)(ov::MappedMemory&, size_t);
+    const std::vector<std::tuple<BenchFn, size_t, std::string>> bench_configs = {
+        {page_touch, 12, "pg touch"},
+        {page_touch, 24, "pg touch"},
+        {io_uring, 8, "io uring"},
+        {io_uring, 32, "io uring"},
+        {io_uring, 128, "io uring"},
+        {io_uring, 256, "io uring"},
+        {io_uring, 1024, "io uring"},
+        {io_uring, 4096, "io uring"},
+    };
+
+    struct Row {
+        size_t mib;
+        std::vector<long long> timings;
+    };
+    std::vector<Row> results;
+    for (const auto& tf : files) {
+        Row r{};
+        r.mib = tf.size_bytes() / 0x100000u;
+        for (const auto& [fn, dep, label] : bench_configs) {
+            r.timings.push_back(bench_with_preset(
+                [&](ov::MappedMemory& mapped) {
+                    fn(mapped, dep);
+                },
+                tf.path,
+                tf.size_bytes(),
+                warmup,
+                runs));
+        }
+        results.push_back(std::move(r));
+    }
+
+    std::vector<std::pair<std::string, int>> col_headers;
+    const auto make_col = [](std::string s) {
+        return std::pair<std::string, int>{s, static_cast<int>(s.size())};
+    };
+    col_headers.push_back(make_col("Size (MB)"));
+    for (const auto& cfg : bench_configs)
+        col_headers.push_back(make_col(std::get<2>(cfg) + " " + std::to_string(std::get<1>(cfg))));
+
+    const auto print_header = [&]() {
+        printf("%-*s", col_headers[0].second, col_headers[0].first.c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf(" | %*s", col_headers[i].second, col_headers[i].first.c_str());
+        printf("\n");
+    };
+
+    const auto print_separator = [&]() {
+        printf("%-*s", col_headers[0].second, std::string(col_headers[0].second, '-').c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf("-|-%*s", col_headers[i].second, std::string(col_headers[i].second, '-').c_str());
+        printf("\n");
+    };
+
+    printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
+    print_header();
+    print_separator();
+    for (const auto& r : results) {
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*lld", col_headers[i + 1].second, r.timings[i]);
+        printf("\n");
+    }
+
+    printf("\n--- Throughput (MB/s) ---\n");
+    print_header();
+    print_separator();
+    for (const auto& r : results) {
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*.0f", col_headers[i + 1].second, throughput_mibs(r.mib, r.timings[i]));
+        printf("\n");
+    }
+    printf("\n");
+}
+#endif
 
 }  // namespace ov::test
