@@ -12,6 +12,17 @@
 #include <intel_gpu/primitives/permute.hpp>
 
 #include <cmath>
+#include <cstdlib>
+
+#include <openvino/runtime/core.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/runtime/exec_model_info.hpp>
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/add.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -774,18 +785,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 // no valid model fails compilation. Because ov::Core loads the installed GPU
 // plugin, validating a source change with these tests requires building AND
 // installing the plugin.
-
-#include <cstdlib>
-
-#include <openvino/runtime/core.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/runtime/exec_model_info.hpp>
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/add.hpp"
 
 namespace {
 // Exact f16 weights of reproducer_v3.bin (branch-1 and branch-2 MatMul, [12,8]).
