@@ -178,7 +178,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     ze_device_cache_properties_t devCacheProps = {ZE_STRUCTURE_TYPE_DEVICE_CACHE_PROPERTIES, &devCacheLineSize};
     uint32_t count = 1;
     if (ze::zeDeviceGetCacheProperties(device, &count, &devCacheProps) == ZE_RESULT_SUCCESS) {
-        info.cacheline_size = static_cast<int32_t>(devCacheLineSize.cacheLineSize);
+        info.cacheline_size = static_cast<uint32_t>(devCacheLineSize.cacheLineSize);
     }
     
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
