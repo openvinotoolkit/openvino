@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../../compiled_model.hpp"
+#include "../../perf.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -96,6 +97,19 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
+    // The public input tensors snapshotted for one infer() call, together with the
+    // batch size derived from them.
+    struct BatchedInputs {
+        std::vector<ov::SoPtr<ov::ITensor>> tensors;  // parallel to get_inputs()
+        std::size_t batch = 1;
+    };
+
+    // Snapshot the public inputs and derive the batch size: the largest leading
+    // dimension across them. Every input must either carry the batch ([N, ...],
+    // sliced per row by infer()) or be shared across rows ([1, ...], bound whole);
+    // anything else throws.
+    BatchedInputs extract_batch() const;
+
     // Make the public output tensors [batch, ...] copies of the inner's [1, ...]
     // outputs, reusing caller-bound tensors that already fit. The wrapped model's
     // ports are dynamic, so this can only run once the first row has been scored
@@ -104,6 +118,10 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
     mutable std::mutex m_mutex;
+
+    // Per-phase timings of the unroll.
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
 };
 
 }  // namespace ov::npuw::batched

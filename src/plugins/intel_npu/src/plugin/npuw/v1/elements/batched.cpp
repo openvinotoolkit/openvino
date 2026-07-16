@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "../../logging.hpp"
 #include "../../util.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
@@ -85,6 +86,9 @@ ov::npuw::batched::InferRequest::InferRequest(const std::shared_ptr<const ov::IC
       m_inner(std::move(inner_request)) {
     OPENVINO_ASSERT(m_inner != nullptr, "Batched element requires a non-null inner request");
 
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = "batched/execution";
+
     // Surface the inner request's own tensors as the public defaults (the ports are
     // the same objects, see CompiledModel::inputs()). Nothing is allocated here: a
     // batch-1 caller works directly on the inner's tensors, and a batched caller
@@ -96,19 +100,12 @@ ov::npuw::batched::InferRequest::InferRequest(const std::shared_ptr<const ov::IC
     }
 }
 
-void ov::npuw::batched::InferRequest::infer() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
+ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::extract_batch() const {
     const auto& in_ports = get_inputs();
-    const auto& out_ports = get_outputs();
     OPENVINO_ASSERT(!in_ports.empty(), "Batched element: the wrapped model has no inputs");
 
-    // Snapshot the public inputs. The batch is the largest leading dimension across
-    // them: every input must either carry the batch ([N, ...], sliced per row) or be
-    // shared across rows ([1, ...], bound whole).
-    std::vector<ov::SoPtr<ov::ITensor>> in_tensors;
-    in_tensors.reserve(in_ports.size());
-    std::size_t batch = 1;
+    BatchedInputs inputs;
+    inputs.tensors.reserve(in_ports.size());
     for (const auto& port : in_ports) {
         auto tensor = get_tensor(port);
         OPENVINO_ASSERT(tensor, "Batched element: no tensor is set for input '", port.get_any_name(), "'");
@@ -121,20 +118,34 @@ void ov::npuw::batched::InferRequest::infer() {
                         "Batched element: input '",
                         port.get_any_name(),
                         "' has a zero-sized batch dimension - batch size must be > 0");
-        batch = std::max(batch, shape[0]);
-        in_tensors.push_back(std::move(tensor));
+        inputs.batch = std::max(inputs.batch, shape[0]);
+        inputs.tensors.push_back(std::move(tensor));
     }
     for (std::size_t i = 0; i < in_ports.size(); ++i) {
-        const std::size_t in_batch = in_tensors[i]->get_shape()[0];
-        OPENVINO_ASSERT(in_batch == batch || in_batch == 1,
+        const std::size_t in_batch = inputs.tensors[i]->get_shape()[0];
+        OPENVINO_ASSERT(in_batch == inputs.batch || in_batch == 1,
                         "Batched element: input '",
                         in_ports[i].get_any_name(),
                         "' has batch dimension ",
                         in_batch,
                         " which is neither the inferred batch size ",
-                        batch,
+                        inputs.batch,
                         " nor 1 (shared).");
     }
+    return inputs;
+}
+
+void ov::npuw::batched::InferRequest::infer() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    const auto& in_ports = get_inputs();
+    const auto& out_ports = get_outputs();
+
+    BatchedInputs inputs;
+    m_profile["1.extract_batch"].record([&]() {
+        inputs = extract_batch();
+    });
+    const std::size_t batch = inputs.batch;
 
     // Unroll row by row: reset the inner variable state so each row is scored as an
     // independent prompt, bind the row's [1, ...] view of every batched input, run
@@ -142,23 +153,30 @@ void ov::npuw::batched::InferRequest::infer() {
     // [N, ...] public output tensors.
     const auto inner_states = m_inner->query_state();
     for (std::size_t row = 0; row < batch; ++row) {
-        for (const auto& state : inner_states) {
-            state->reset();
-        }
-        for (std::size_t i = 0; i < in_ports.size(); ++i) {
-            const auto& full = in_tensors[i];
-            m_inner->set_tensor(in_ports[i], full->get_shape()[0] == 1 ? full : ov::npuw::util::view(full, 0, row, 1));
-        }
-        m_inner->infer();
+        m_profile["2.bind_row"].record([&]() {
+            for (const auto& state : inner_states) {
+                state->reset();
+            }
+            for (std::size_t i = 0; i < in_ports.size(); ++i) {
+                const auto& full = inputs.tensors[i];
+                m_inner->set_tensor(in_ports[i],
+                                    full->get_shape()[0] == 1 ? full : ov::npuw::util::view(full, 0, row, 1));
+            }
+        });
+        m_profile["3.inner_infer"].record([&]() {
+            m_inner->infer();
+        });
 
         if (row == 0) {
             // The wrapped model's ports are dynamic - the output shapes are only
             // known once the first row has been scored.
             ensure_batched_outputs(batch);
         }
-        for (const auto& port : out_ports) {
-            m_inner->get_tensor(port)->copy_to(ov::npuw::util::view(get_tensor(port), 0, row, 1)._ptr);
-        }
+        m_profile["4.copy_row_out"].record([&]() {
+            for (const auto& port : out_ports) {
+                m_inner->get_tensor(port)->copy_to(ov::npuw::util::view(get_tensor(port), 0, row, 1)._ptr);
+            }
+        });
     }
 }
 
