@@ -185,6 +185,10 @@ jobs:
           echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
           echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
           echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "LDFLAGS=-latomic" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "[conf]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "tools.build:exelinkflags=[\"-latomic\"]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "tools.build:sharedlinkflags=[\"-latomic\"]" >> ${CONAN_LINUX_RISCV64_PROFILE}
           # install OpenVINO dependencies
           conan install ${OPENVINO_REPO}/conanfile.txt \
             -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \

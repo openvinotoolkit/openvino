@@ -16,8 +16,44 @@ from openvino import Model, Node, Tensor, Type
 from openvino.utils.types import NumericData, get_shape, get_dtype
 import openvino.properties.hint as hints
 
-from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
-from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
+try:
+    # ONNX <= 1.19
+    from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
+except ImportError:
+    # ONNX >= 1.20 removed helper conversion APIs.
+    import ml_dtypes
+    import onnx.numpy_helper as _onnx_np_helper
+
+    def float32_to_float8e5m2(x, fn=False, uz=False):
+        if fn or uz:
+            raise ValueError("Unsupported float8e5m2 mode for ONNX>=1.20 fallback")
+        arr = _onnx_np_helper.saturate_cast(np.asarray(x, dtype=np.float32), ml_dtypes.float8_e5m2)
+        return arr.view(np.uint8)
+
+    def float32_to_float8e4m3(x, fn=True, uz=False):
+        if not fn or uz:
+            raise ValueError("Unsupported float8e4m3 mode for ONNX>=1.20 fallback")
+        arr = _onnx_np_helper.saturate_cast(np.asarray(x, dtype=np.float32), ml_dtypes.float8_e4m3fn)
+        return arr.view(np.uint8)
+
+try:
+    # ONNX <= 1.19
+    from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
+except ImportError:
+    # ONNX >= 1.20 removed numpy_helper conversion APIs.
+    import ml_dtypes
+
+    def float8e5m2_to_float32(x, fn=False, uz=False):
+        if fn or uz:
+            raise ValueError("Unsupported float8e5m2 mode for ONNX>=1.20 fallback")
+        arr = np.asarray(x, dtype=np.uint8).view(ml_dtypes.float8_e5m2)
+        return arr.astype(np.float32)
+
+    def float8e4m3_to_float32(x, fn=True, uz=False):
+        if not fn or uz:
+            raise ValueError("Unsupported float8e4m3 mode for ONNX>=1.20 fallback")
+        arr = np.asarray(x, dtype=np.uint8).view(ml_dtypes.float8_e4m3fn)
+        return arr.astype(np.float32)
 
 import tests
 
