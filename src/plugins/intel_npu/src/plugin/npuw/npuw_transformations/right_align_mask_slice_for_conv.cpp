@@ -49,10 +49,17 @@ public:
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_attention_mask = node_to_output.at(attention_mask).get_node_shared_ptr();
-            if (matched_attention_mask->output(0).get_names().count(std::string(ov::npuw::attention_mask_name)) == 0) {
+            const auto any_name = matched_attention_mask->output(0).get_any_name();
+             if (any_name != ov::npuw::attention_mask_name &&
+                matched_attention_mask->get_friendly_name() != ov::npuw::attention_mask_name) {
                 return false;
             }
             auto matched_attention_mask_slice = node_to_output.at(attention_mask_slice).get_node_shared_ptr();
+            const auto slice_start_const = ov::as_type_ptr<ov::op::v0::Constant>(
+                 matched_attention_mask_slice->input_value(1).get_node_shared_ptr());
+             if (!slice_start_const || slice_start_const->cast_vector<int64_t>() != std::vector<int64_t>{0}) {
+                 return false;
+             }
             auto matched_attention_mask_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
 
             auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
