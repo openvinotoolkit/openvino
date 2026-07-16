@@ -379,7 +379,7 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
 
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
-    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size);
+    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size.value_or(0));
     OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
     OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
                     "[GPU] shared buffer pointer must be ", minimal_alignment, "-byte aligned");
