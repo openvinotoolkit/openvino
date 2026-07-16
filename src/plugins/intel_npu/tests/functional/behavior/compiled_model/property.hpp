@@ -795,6 +795,10 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
         std::lock_guard<std::mutex> lock(logs_mutex);
@@ -807,6 +811,7 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
         OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
@@ -836,6 +841,10 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
         std::lock_guard<std::mutex> lock(logs_mutex);
@@ -848,6 +857,7 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
         OV_ASSERT_NO_THROW(compiled_model =
                                core.compile_model(model, deviceName, {ov::hint::enable_cpu_pinning(true)}));
     }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));

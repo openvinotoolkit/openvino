@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <numeric>
+#include <optional>
 
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -331,17 +332,28 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
 namespace intel_npu {
 
+namespace {
+
+std::optional<ov::log::Level> read_log_level(const ov::AnyMap& properties) {
+    const auto it = properties.find(ov::log::level.name());
+    if (it == properties.end()) {
+        return std::nullopt;
+    }
+    return it->second.as<ov::log::Level>();
+}
+
+}  // namespace
+
 Plugin::LogLevelScope::LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger)
     : _instanceLogger(instanceLogger) {
-    const auto it = props.find(ov::log::level.name());
-    if (it == props.end()) {
+    const auto lvl = read_log_level(props);
+    if (!lvl) {
         return;
     }
-    const auto lvl = it->second.as<ov::log::Level>();
     _prevGlobal = Logger::global().level();
     _prevInstance = _instanceLogger.level();
-    Logger::global().setLevel(lvl);
-    _instanceLogger.setLevel(lvl);
+    Logger::global().setLevel(*lvl);
+    _instanceLogger.setLevel(*lvl);
 }
 
 Plugin::LogLevelScope::~LogLevelScope() {
@@ -997,10 +1009,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
-    if (properties.count(ov::log::level.name()) != 0) {
-        Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
-        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+    const auto lvl = read_log_level(properties);
+    if (!lvl) {
+        return;
     }
+    Logger::global().setLevel(*lvl);
+    _logger.setLevel(*lvl);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

@@ -63,12 +63,11 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    // applies ov::log::level from per-call properties and restores on scope exit
-    // permanent level changes belong in set_property(); per-call properties are scoped
-    // self: is this a RAII trait?
+    // applies ov::log::level from per-call properties and restores the previous level on scope exit
+    // permanent level changes belong in set_property(); per-call properties are scoped to the call
     class LogLevelScope {
     public:
-        explicit LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger);
+        LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger);
         ~LogLevelScope();
         LogLevelScope(const LogLevelScope&) = delete;
         LogLevelScope& operator=(const LogLevelScope&) = delete;

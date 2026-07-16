@@ -460,15 +460,19 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
 
     utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
+    std::string firstCompileLogs;
     {
-        std::string firstCompileLogs;
         std::function<void(std::string_view)> cb = [&](std::string_view msg) {
             firstCompileLogs.append(msg);
             firstCompileLogs.push_back('\n');
         };
         utils::LogCallbackGuard captureGuard(cb);
-        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::ERR)}}));
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::INFO)}}));
     }
+
+    ASSERT_NE(firstCompileLogs.find("[INFO]"), std::string::npos)
+        << "Expected [INFO] output while compiling with a per-call INFO log level, but captured:\n"
+        << firstCompileLogs.substr(0, 500);
 
     std::string secondCompileLogs;
     {
@@ -480,8 +484,10 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
         OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
     }
 
-    EXPECT_TRUE(secondCompileLogs.find("[WARNING]") != std::string::npos);
-    EXPECT_FALSE(secondCompileLogs.find("[INFO]") != std::string::npos);
+    EXPECT_FALSE(secondCompileLogs.find("[INFO]") != std::string::npos)
+        << "Per-call log::level from first compile contaminated the second compile.\n"
+           "Captured output snippet:\n"
+        << secondCompileLogs.substr(0, 500);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

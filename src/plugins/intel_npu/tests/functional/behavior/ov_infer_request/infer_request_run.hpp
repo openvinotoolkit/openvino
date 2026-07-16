@@ -2306,14 +2306,13 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
     };
 
     utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        auto compile_cfg = configuration;
-        compile_cfg[ov::log::level.name()] = ov::Any(ov::log::Level::ERR);
+        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
-        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, compile_cfg);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
     }
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     logs.clear();
 
     for (size_t i = 0; i < 10; ++i) {
@@ -2372,16 +2371,15 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
 
     utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        auto compile_cfg = configuration;
-        compile_cfg[ov::log::level.name()] = ov::Any(ov::log::Level::ERR);
+        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
-        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, compile_cfg);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
         inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
     }
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     logs.clear();
 
     for (size_t i = 0; i < 10; ++i) {
@@ -2440,18 +2438,17 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
     };
 
     utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        auto compile_cfg = configuration;
-        compile_cfg[ov::log::level.name()] = ov::Any(ov::log::Level::ERR);
+        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
-        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, compile_cfg);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         input_tensor = inference_request.get_input_tensor();
         output_tensor = inference_request.get_output_tensor();
         input_data = input_tensor.data<float>();
         output_data = output_tensor.data<float>();
     }
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     logs.clear();
 
     for (size_t i = 0; i < 10; ++i) {
@@ -2507,16 +2504,15 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
     float* output_data = output_tensor.data<float>();
 
     utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        auto compile_cfg = configuration;
-        compile_cfg[ov::log::level.name()] = ov::Any(ov::log::Level::ERR);
+        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
-        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, compile_cfg);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(input_tensor);
         inference_request.set_output_tensor(output_tensor);
     }
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     logs.clear();
 
     for (size_t i = 0; i < 10; ++i) {

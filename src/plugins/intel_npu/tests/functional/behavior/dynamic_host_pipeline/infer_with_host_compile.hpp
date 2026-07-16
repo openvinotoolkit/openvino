@@ -420,9 +420,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
     }
@@ -491,9 +491,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
     }
@@ -562,9 +562,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
     }
