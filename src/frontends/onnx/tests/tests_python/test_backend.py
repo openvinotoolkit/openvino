@@ -565,8 +565,9 @@ tests_expected_to_fail = [
         xfail_issue_139936,
         "OnnxBackendNodeModelTest.test_maxpool_2d_ceil_output_size_reduce_by_one_cpu",
     ),
-    # NOTE: test_qlinearmatmul_2D_int8_float16 / _float32 (formerly xfail_issue_139937 /
-    # xfail_issue_139938) now pass with ONNX 1.22 and are intentionally no longer marked xfail.
+    # NOTE: the former xfail_issue_139937 / xfail_issue_139938 markers (GroupNorm /
+    # QLinearMatMul) are dropped; the QLinearMatMul cases are re-marked under
+    # xfail_issue_onnx122_accuracy below (int8-saturation reference mismatch on ONNX 1.22).
     (
         xfail_issue_171767,
         "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_FLOAT4E2M1_cpu",
@@ -823,22 +824,13 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_accuracy,
-        "OnnxBackendNodeModelTest.test_cast_DOUBLE_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
+        # NOTE: plain float-width casts (DOUBLE/FLOAT/FLOAT16/BFLOAT16, no float8) are NOT
+        # listed here: they pass on the CI reference environment. They were only observed
+        # failing in a local dev environment (numpy/reference skew), so they must not be xfailed.
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_no_saturate_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_no_saturate_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_no_saturate_FLOAT16_to_FLOAT8E5M2_cpu",
@@ -854,6 +846,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_nonmaxsuppression_iou_threshold_boundary_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_expanded_cpu",
+        # QLinearMatMul light-model reference (random inputs via ReferenceEvaluator) has an
+        # int8-saturation mismatch under ONNX 1.22 on the CI reference environment.
+        "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float16_cpu",
+        "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float32_cpu",
     ),
 ]
 
