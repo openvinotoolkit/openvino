@@ -847,10 +847,10 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
 
     {
         ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model,
-                                                               deviceName,
-                                                               {ov::hint::enable_cpu_pinning(true),
-                                                                ov::log::level(ov::log::Level::WARNING)}));
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(
+                               model,
+                               deviceName,
+                               {ov::hint::enable_cpu_pinning(true), ov::log::level(ov::log::Level::WARNING)}));
     }
 
     bool enable_cpu_pinning = false;
