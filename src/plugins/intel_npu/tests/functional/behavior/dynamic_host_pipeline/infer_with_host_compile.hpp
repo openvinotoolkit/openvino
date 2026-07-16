@@ -5,8 +5,8 @@
 #pragma once
 
 #include <algorithm>
-#include <cstring>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -30,16 +30,18 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     std::shared_ptr<ov::op::v0::Parameter> input;
     if (dynamicBatch) {
         input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
+                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
     } else {
-        input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
+        input = std::make_shared<ov::op::v0::Parameter>(
+            ov::element::f16,
+            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
     }
 
     std::string inputName = "input1";
     input->set_friendly_name(inputName);
     input->get_output_tensor(0).set_names({inputName});
-    if (!nhwcLayout) input->set_layout("NCHW");
+    if (!nhwcLayout)
+        input->set_layout("NCHW");
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
                                                          Strides{1, 1},
                                                          Shape{0, 0},
@@ -51,12 +53,13 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
 
     auto result = std::make_shared<ov::op::v0::Result>(maxpool);
     std::string outputName = "output";
-    if (!nhwcLayout) result->set_layout("NCHW");
+    if (!nhwcLayout)
+        result->set_layout("NCHW");
     result->set_friendly_name(outputName);
     result->get_output_tensor(0).set_names({outputName});
 
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
-    
+
     // making input and output to be NHWC
     if (nhwcLayout) {
         auto preProc = ov::preprocess::PrePostProcessor(model);
@@ -72,8 +75,9 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
 }
 
 inline std::shared_ptr<ov::Model> createCustomNetModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+    auto input = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f16,
+        ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
     input->set_friendly_name("Parameter_59");
 
     auto make_conv_add = [](const ov::Output<ov::Node>& data,
@@ -711,12 +715,9 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     }
 
     if (selectedModelName == "MaxPool_NCHW_DynBatch") {
-        ASSERT_TRUE(isElfBlob(modelStream.str()))
-            << "Expected exported model to be an ELF blob";
-    }
-    else if (selectedModelName == "MaxPool_NCHW") {
-        ASSERT_TRUE(isByteCodeBlob(modelStream.str()))
-            << "Expected exported model to be a bytecode";
+        ASSERT_TRUE(isElfBlob(modelStream.str())) << "Expected exported model to be an ELF blob";
+    } else if (selectedModelName == "MaxPool_NCHW") {
+        ASSERT_TRUE(isByteCodeBlob(modelStream.str())) << "Expected exported model to be a bytecode";
     }
 
     ov::InferRequest reqDynamic;

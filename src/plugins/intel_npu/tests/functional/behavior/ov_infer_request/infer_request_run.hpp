@@ -2584,8 +2584,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     ::operator delete(output_data, std::align_val_t(4096));
 }
 
-class DynamicBoundsTests : public InferRequestRunTests
-{
+class DynamicBoundsTests : public InferRequestRunTests {
 public:
     void SetUp() override {
         InferRequestRunTests::SetUp();

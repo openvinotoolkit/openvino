@@ -71,6 +71,7 @@ private:
         ~LogLevelScope();
         LogLevelScope(const LogLevelScope&) = delete;
         LogLevelScope& operator=(const LogLevelScope&) = delete;
+
     private:
         Logger& _instanceLogger;
         std::optional<ov::log::Level> _prevGlobal;
