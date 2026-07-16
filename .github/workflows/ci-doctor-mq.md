@@ -462,6 +462,22 @@ Rules that apply to all artefact types:
 
 4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.
 
+5. **Backfill Missing `rerun_search_string` Fields — MANDATORY sweep, every run:**
+
+   Some pattern files were written before `rerun_search_string` existed and are missing the field entirely (as opposed to having it explicitly set to `null`). Every time you run Phase 5, after step 2 has written/updated the current failure's pattern file, sweep **all** other files in `/tmp/gh-aw/repo-memory/default/mq/patterns/` and backfill any that lack the key:
+
+   - For each `<signature-hash>.json` file in the patterns directory (including ones untouched by this run):
+     1. Read and parse the file.
+     2. If the `rerun_search_string` key is **already present** (even if its value is `null`), skip it — do not touch a file that already conforms to the schema.
+     3. If the key is **missing**, derive it from the file's own `signature` field (`<normalized-error>|<category>`) using the same rules as Step C.1, without needing the original failure logs:
+        - Split `signature` on the last `|` to recover `<normalized-error>` and `<category>`.
+        - IF `<category>` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service`: set `rerun_search_string = null`.
+        - ELSE: set `rerun_search_string = <normalized-error>` verbatim (the signature's error component was already stripped of volatile tokens per Step A, so no further normalization is needed). Since the original raw logs are unlikely to still be available for a backfill, you do NOT need to re-verify it against a live log line as Step C.1 otherwise requires — only confirm it is non-empty and not just generic noise (e.g., not solely `error`, `failed`, or `warning`). If it fails that minimal check, set it to `null` instead of guessing.
+     4. Write the updated object back to the same file, changing only the `rerun_search_string` key — do not alter `count`, timestamps, `signature`, `signature_hash`, or any other field.
+     5. Validate the rewritten file against `pattern.schema.json` (see the validation procedure in the "Artefact schemas" block) and confirm `rerun_search_string` is now present as either a non-empty string or `null`.
+
+   This step must never modify a file's `count`, `first_seen`, `last_seen`, or timestamp arrays — its only job is adding the missing key.
+
 ### Phase 5.5: Recurring Failure Escalation Check
 
 After updating the pattern database (Phase 5 step 2), check whether the current failure's pattern has occurred **3 or more times in the last 12 hours**.
