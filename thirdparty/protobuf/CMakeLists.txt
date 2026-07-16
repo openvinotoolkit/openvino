@@ -18,13 +18,23 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLV
     # GCC (any version) may emit "overflow in constant expression" for the
     # static_assert in abseil's ascii.cc when evaluating static_cast<char>(i)
     # for i >= 128 in a constexpr context. -fpermissive downgrades it from
-    # a hard error to a warning, scoped to this protobuf/abseil build tree.
+    # a hard error to a warning (GCC >= 12 only). For GCC < 12, -fpermissive
+    # does NOT affect static_assert, so we additionally use -funsigned-char
+    # which makes char unsigned — then static_cast<char>(i) for i < 256 is
+    # always in-range and the constexpr evaluator accepts it on all versions.
     ov_add_compiler_flags(-fpermissive)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ov_add_compiler_flags(-funsigned-char)
+    endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
         ov_add_compiler_flags(-Wno-ignored-qualifiers)
         ov_add_compiler_flags(-Wno-deprecated-declarations)
         ov_add_compiler_flags(-Wno-attributes)
+        ov_add_compiler_flags(-Wno-sign-conversion)
+        ov_add_compiler_flags(-Wno-array-bounds)
+    endif()
+    if(OV_COMPILER_IS_CLANG)
         ov_add_compiler_flags(-Wno-sign-conversion)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -77,10 +87,18 @@ else()
     set(protobuf_dir protobuf/cmake)
 endif()
 
+# Disable warning-as-error for the entire protobuf/abseil subtree.
+# Abseil triggers -Warray-bounds on GCC 14 and -Wsign-conversion on
+# Emscripten/Clang; these are false positives in third-party code that
+# we cannot patch.
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
 set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
+
+include(GNUInstallDirs)
 
 # protobuf's cmake/install.cmake normally replaces the bare-path
 # INTERFACE_INCLUDE_DIRECTORIES with $<BUILD_INTERFACE:...>/$<INSTALL_INTERFACE:...>.
@@ -130,6 +148,13 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
 
     if(ENABLE_THREAD_SANITIZER)
         set(protoc_extra_flags "-fno-sanitize=thread")
+    endif()
+
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # GCC < 9 may emit "overflow in constant expression" inside bundled
+        # abseil-cpp (ascii.cc static_assert) and treats it as a hard error.
+        # -fpermissive downgrades it to a warning, allowing the build to proceed.
+        set(protoc_extra_flags "${protoc_extra_flags} -fpermissive")
     endif()
 
     ov_native_compile_external_project(
