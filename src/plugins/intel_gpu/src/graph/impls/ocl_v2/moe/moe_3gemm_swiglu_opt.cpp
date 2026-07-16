@@ -1105,8 +1105,8 @@ public:
                         }
                     }
                     // weight shape: [ic, oc], type: u4/i8
-                    int64_t wei_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc,
-                                                             moe_fusion_wei_addr.weight[i]->get_layout());
+                    int64_t wei_offset =
+                        j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                     dnnl_weights[i].weight =
                         convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
