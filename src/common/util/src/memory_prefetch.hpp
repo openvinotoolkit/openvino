@@ -52,7 +52,6 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
  */
 PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept;
 
-
 /**
  * @brief Move-only RAII handle for background page-population started by @ref vm_prefetch_async.
  *
@@ -141,7 +140,6 @@ inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, si
     }
     return {};
 }
-
 
 /** @brief Upper bound on the shared page-population pool's worker threads. */
 inline constexpr size_t max_prefetch_threads = 8;

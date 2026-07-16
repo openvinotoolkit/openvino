@@ -577,7 +577,8 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
 
     mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
 
-    const size_t pages_resident = wait_for_resident_pages(mapped->data() + prefetch_offset, prefetch_size, region_pages);
+    const size_t pages_resident =
+        wait_for_resident_pages(mapped->data() + prefetch_offset, prefetch_size, region_pages);
     EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
 
     EXPECT_EQ(read_mapped(*mapped), data);
@@ -660,4 +661,3 @@ TEST_F(HintPrefetchAsyncTest, backward_access_after_async_is_correct) {
 }
 
 }  // namespace ov::test
-

@@ -99,9 +99,8 @@ class MapHolder final : public MappedMemory {
         m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
                                                 m_pending_prefetch.end(),
                                                 [](std::future<void>& task) {
-                                                    return !task.valid() ||
-                                                           task.wait_for(std::chrono::seconds(0)) ==
-                                                               std::future_status::ready;
+                                                    return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
+                                                                                std::future_status::ready;
                                                 }),
                                  m_pending_prefetch.end());
         m_pending_prefetch.insert(m_pending_prefetch.end(),

@@ -62,7 +62,6 @@ public:
     virtual void hint_prefetch_async(size_t offset = 0, size_t size = auto_size) {}
 };
 
-
 /**
  * @brief Returns mapped memory for a file from provided path.
  * Instead of reading files, we can map the memory via mmap for Linux
