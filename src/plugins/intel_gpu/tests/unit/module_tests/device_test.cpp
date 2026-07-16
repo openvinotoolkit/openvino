@@ -38,7 +38,7 @@ public:
     void set_mem_caps(const memory_capabilities& memory_capabilities) override {
         _mem_caps = memory_capabilities;
     }
-    ~dummy_device() override = default;
+    ~dummy_device() = default;
 
 private:
     device_info _info;
