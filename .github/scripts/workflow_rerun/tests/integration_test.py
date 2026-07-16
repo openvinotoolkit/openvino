@@ -56,7 +56,9 @@ class IntegrationTest(unittest.TestCase):
             gh_repo = cls.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
             oldest_allowed_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-            cls.wf_run = find_failed_run_with_logs(gh_repo, created_filter=f">={oldest_allowed_date}")
+            cls.wf_run = find_failed_run_with_logs(gh_repo=gh_repo, 
+                                                   created_filter=f">={oldest_allowed_date}",
+                                                   max_candidates=50)
 
             print(f'Workflow run for testing: {cls.wf_run}', flush=True)
 

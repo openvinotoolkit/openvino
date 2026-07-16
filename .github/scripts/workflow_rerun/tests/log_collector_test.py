@@ -47,7 +47,9 @@ class LogCollectorTest(unittest.TestCase):
                                                                 created=f">={oldest_allowed_date}")[0]
         print(f'Successful workflow run for testing: {cls.successful_workflow_run}', flush=True)
 
-        cls.failed_workflow_run = find_failed_run_with_logs(gh_repo, created_filter=f">={oldest_allowed_date}")
+        cls.failed_workflow_run = find_failed_run_with_logs(gh_repo=gh_repo, 
+                                                            created_filter=f">={oldest_allowed_date}", 
+                                                            max_candidates=50)
         print(f'Failed workflow run for testing: {cls.failed_workflow_run}', flush=True)
 
     def setUp(self):
