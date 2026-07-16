@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_path.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
