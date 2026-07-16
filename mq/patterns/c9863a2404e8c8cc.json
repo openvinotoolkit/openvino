@@ -15,5 +15,6 @@
   ],
   "recent_timestamps": [
     "2026-07-14T23:14:48Z"
-  ]
+  ],
+  "rerun_search_string": "Windows fatal exception: access violation in torch.randn during FFT test _prepare_input"
 }

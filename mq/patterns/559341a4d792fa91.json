@@ -7,7 +7,14 @@
   "count": 1,
   "first_seen": "2026-07-16T09:38:34Z",
   "last_seen": "2026-07-16T09:38:34Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29484368562"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36859"],
-  "recent_timestamps": ["2026-07-16T09:38:34Z"]
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29484368562"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36859"
+  ],
+  "recent_timestamps": [
+    "2026-07-16T09:38:34Z"
+  ],
+  "rerun_search_string": "cannot grow ilk file; error code 487"
 }

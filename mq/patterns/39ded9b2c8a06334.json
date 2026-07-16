@@ -13,5 +13,6 @@
   ],
   "recent_timestamps": [
     "2026-06-30T13:46:31Z"
-  ]
+  ],
+  "rerun_search_string": "Inconsistency detected by ld.so dl-sort-maps.c _dl_sort_maps_dfs Assertion rpo_head == rpo failed|Samples / Samples"
 }

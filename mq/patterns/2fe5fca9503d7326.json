@@ -11,5 +11,6 @@
   "affected_prs": [],
   "recent_timestamps": [
     "2026-06-29T10:53:13Z"
-  ]
+  ],
+  "rerun_search_string": "test_benchmark_app_no_warmup_with_api_modes async-CPU-Python exit status 3221225477|Samples"
 }

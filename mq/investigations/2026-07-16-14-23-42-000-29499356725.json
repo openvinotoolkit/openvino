@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-14-23-42-000-29499356725",
+  "timestamp": "2026-07-16T14:23:42Z",
+  "run_id": "29499356725",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29499356725",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36919",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36919",
+  "author": "mvafin",
+  "category": "Code Issue",
+  "title": "ONNX Python backend tests fail: XPASS(strict) on Cast/CastLike and QLinearMatMul with onnx 1.22",
+  "signature": "xpass strict accuracy reference-data mismatch exposed by onnx cast qlinearmatmul|Code Issue",
+  "signature_hash": "dfef425ba2a21c05",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Python unit tests / Python unit tests",
+      "conclusion": "failure",
+      "symptom": "14 ONNX backend tests marked xfail(strict) unexpectedly pass with onnx 1.22: Cast/CastLike type-cast tests and QLinearMatMul 2D int8 accuracy tests"
+    }
+  ],
+  "key_errors": [
+    "FAILED test_cast_DOUBLE_to_FLOAT_cpu - [XPASS(strict)] Accuracy / reference-data mismatch exposed by ONNX 1.22 (e.g. Cast inf-vs-FLT_MAX saturation, DFT rfft/irfft shape, NonMaxSuppression boundary, Range bfloat16, QLinearMatMul)",
+    "FAILED test_qlinearmatmul_2D_int8_float16_cpu - AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07\nMismatched elements: 1 / 6 (16.7%)\nACTUAL: array([[ 41, -12, -9], [ 1, -75, -128]], dtype=int8)\nDESIRED: array([[ 41, -12, -9], [ 1, -75, 20]], dtype=int8)"
+  ],
+  "root_cause": "The PR bumps the Python onnx package from 1.18.0 to 1.22.0 and updates xfail markers in the ONNX backend test suite. The PR commit message states that test_qlinearmatmul_2D_int8_float16/float32 now pass on 1.22 and their stale xfails were removed. However, in the CI run the tests still FAIL (AssertionError: output mismatch) rather than pass, meaning the actual OV inference result for QLinearMatMul 2D int8 does not match the new onnx-1.22 reference data. Additionally, Cast/CastLike tests marked xfail(strict) are unexpectedly passing (XPASS), which means those xfails should be removed but were not. The net result is 14 test failures: 12 XPASS(strict) from Cast/CastLike and 2 genuine assertion failures from QLinearMatMul whose xfails were prematurely removed before the OV fix was in place.",
+  "reproduction_steps": "pip install onnx==1.22.0 numpy==2.1.3; cd install/tests; python3 -m pytest -sv onnx/tests/tests_python/test_backend.py::OnnxBackendNodeModelTest::test_qlinearmatmul_2D_int8_float32_cpu",
+  "recommended_actions": [
+    "For Cast/CastLike XPASS(strict): Remove those xfail markers (the tests actually pass now) — or remove 'strict' if they should remain xfail.",
+    "For QLinearMatMul int8 accuracy: Either keep the xfail markers until the OV CPU plugin QLinearMatMul implementation is fixed, or fix the QLinearMatMul saturation behavior to match the updated onnx-1.22 reference data.",
+    "Re-verify locally by running the full ONNX backend test suite with onnx==1.22.0 before removing any xfail markers."
+  ],
+  "prevention_strategies": "When bumping the onnx Python package version, always run the full ONNX backend test suite locally with the new version to confirm which tests transition from xfail to pass (and thus need xfail removal) versus which still fail (and must keep xfail). Do not remove xfails speculatively based on expected behavior.",
+  "historical_context": "No prior investigations found for this specific failure pattern."
+}

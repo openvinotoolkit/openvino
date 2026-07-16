@@ -16,5 +16,6 @@
   "recent_timestamps": [
     "2026-06-22T12:21:02Z",
     "2026-06-22T12:08:00Z"
-  ]
+  ],
+  "rerun_search_string": "worker crashed while running tests/smoke_tests/test_classification_sample_async.py|Samples"
 }

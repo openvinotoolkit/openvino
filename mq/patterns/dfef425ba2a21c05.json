@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "xpass strict accuracy reference-data mismatch exposed by onnx cast qlinearmatmul|Code Issue",
+  "signature_hash": "dfef425ba2a21c05",
+  "title": "ONNX Python backend tests fail: XPASS(strict) on Cast/CastLike and QLinearMatMul with onnx 1.22",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-07-16T14:23:42Z",
+  "last_seen": "2026-07-16T14:23:42Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29499356725"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36919"
+  ],
+  "recent_timestamps": [
+    "2026-07-16T14:23:42Z"
+  ],
+  "rerun_search_string": null
+}

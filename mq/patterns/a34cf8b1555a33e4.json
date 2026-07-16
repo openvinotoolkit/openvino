@@ -15,5 +15,6 @@
   ],
   "recent_timestamps": [
     "2026-07-07T14:37:38Z"
-  ]
+  ],
+  "rerun_search_string": "RPC failed; curl 16 Error in the HTTP2 framing layer"
 }

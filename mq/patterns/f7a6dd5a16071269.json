@@ -7,7 +7,14 @@
   "count": 1,
   "first_seen": "2026-07-15T12:22:41Z",
   "last_seen": "2026-07-15T12:22:41Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29410904372"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36892"],
-  "recent_timestamps": ["2026-07-15T12:22:41Z"]
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29410904372"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36892"
+  ],
+  "recent_timestamps": [
+    "2026-07-15T12:22:41Z"
+  ],
+  "rerun_search_string": null
 }

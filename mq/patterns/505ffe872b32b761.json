@@ -15,5 +15,6 @@
   ],
   "recent_timestamps": [
     "2026-07-03T09:30:28Z"
-  ]
+  ],
+  "rerun_search_string": "Inconsistency detected by ld.so dl-sort-maps.c _dl_sort_maps_dfs Assertion maps_head == maps failed"
 }

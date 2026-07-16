@@ -17,5 +17,6 @@
   ],
   "recent_timestamps": [
     "2026-07-01T10:28:17Z"
-  ]
+  ],
+  "rerun_search_string": "AssertionError: Comparing with Framework failed ie_res framework_res|TensorFlow Layer Tests / TensorFlow Layer Tests"
 }

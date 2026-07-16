@@ -15,5 +15,6 @@
   ],
   "recent_timestamps": [
     "2026-07-09T16:59:02Z"
-  ]
+  ],
+  "rerun_search_string": "HTTPError: HTTP Error 504: Gateway Time-out"
 }

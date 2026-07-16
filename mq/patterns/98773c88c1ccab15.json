@@ -16,5 +16,6 @@
   "recent_timestamps": [
     "2026-06-22T11:37:47Z",
     "2026-06-22T10:42:57Z"
-  ]
+  ],
+  "rerun_search_string": "Failed: Timeout (>Xs) from pytest-timeout|Samples / Samples"
 }

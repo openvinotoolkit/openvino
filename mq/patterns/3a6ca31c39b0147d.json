@@ -13,5 +13,6 @@
   ],
   "recent_timestamps": [
     "2026-06-29T15:59:13Z"
-  ]
+  ],
+  "rerun_search_string": "Failed to ListArtifacts Unable to make request ECONNREFUSED|OpenVINO Python API Tests (3.12)"
 }

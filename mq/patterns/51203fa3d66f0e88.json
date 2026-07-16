@@ -18,5 +18,6 @@
   "recent_timestamps": [
     "2026-07-13T18:31:40Z",
     "2026-07-13T16:41:56Z"
-  ]
+  ],
+  "rerun_search_string": "benchmark_app returned non-zero exit status 3221225477"
 }

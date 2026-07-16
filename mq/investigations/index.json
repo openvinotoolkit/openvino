@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 27,
+  "total": 28,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -261,6 +261,17 @@
       "category": "Network",
       "signature_hash": "0c33a04c2cbe783c",
       "pr_number": "36902"
+    },
+    {
+      "investigation_id": "2026-07-16-14-23-42-000-29499356725",
+      "run_id": "29499356725",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29499356725",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-16T14:23:42Z",
+      "title": "ONNX Python backend tests fail: XPASS(strict) on Cast/CastLike and QLinearMatMul with onnx 1.22",
+      "category": "Code Issue",
+      "signature_hash": "dfef425ba2a21c05",
+      "pr_number": "36919"
     }
   ]
 }

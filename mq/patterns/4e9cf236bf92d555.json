@@ -15,5 +15,6 @@
   ],
   "recent_timestamps": [
     "2026-07-07T02:32:06Z"
-  ]
+  ],
+  "rerun_search_string": "Failed to CreateArtifact: Unable to make request: ENOTFOUND"
 }
