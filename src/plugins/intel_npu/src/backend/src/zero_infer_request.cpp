@@ -15,7 +15,7 @@
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "transformations/utils/utils.hpp"
 #include "zero_variable_state.hpp"
 

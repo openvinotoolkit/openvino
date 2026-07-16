@@ -10,7 +10,7 @@ import timm
 import torch
 from models_hub_common.utils import get_models_list, retry
 
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_unsupported_npu_precommit
 
 
 def filter_timm(timm_list: list) -> list:
@@ -111,6 +111,12 @@ def filter_timm(timm_list: list) -> list:
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
+# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "poolformerv2_s12.sail_in1k": {"3720"},
+    "volo_d1_224.sail_in1k": "*",
+}
+
 
 class TestTimmConvertModel(TestTorchConvertModel):
     @retry(3, exceptions=(OSError,), delay=5)
@@ -157,6 +163,7 @@ class TestTimmConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
+        skip_unsupported_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.mode = "trace"
         self.run(name, None, ie_device)
 

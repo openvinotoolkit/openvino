@@ -9,7 +9,7 @@ import torch
 from torchvision.models import list_models, get_model
 from models_hub_common.utils import get_models_list, retry
 
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_unsupported_npu_precommit
 
 
 def get_all_models() -> list:
@@ -19,6 +19,12 @@ def get_all_models() -> list:
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
+
+# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "raft_small": "*",
+    "swin_v2_s": {"4000", "5010", "5020"},
+}
 
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
@@ -100,6 +106,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("model_name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
+        skip_unsupported_npu_precommit(model_name, ie_device, NPU_PRECOMMIT_SKIP)
         self.mode = "trace"
         self.run(model_name, None, ie_device)
 
