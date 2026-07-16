@@ -7,9 +7,9 @@
 #include <openvino/op/multiply.hpp>
 #include <vector>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,8 +19,9 @@ namespace op {
 OutputVector translate_scale(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    float scale = context.get_attribute<float>("scale");
-    float bias = context.get_attribute<float>("bias");
+    // bias is optional in ggml SCALE; default it so a missing op-param does not abort conversion.
+    float scale = context.get_attribute<float>("scale", 1.0f);
+    float bias = context.get_attribute<float>("bias", 0.0f);
 
     auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale});
     auto scaled = std::make_shared<ov::op::v1::Multiply>(context.get_input(0), scale_node);

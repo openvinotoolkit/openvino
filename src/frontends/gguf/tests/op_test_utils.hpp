@@ -19,6 +19,7 @@
 #include <cnpy.h>
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -26,12 +27,11 @@
 #include <vector>
 
 #include "common_test_utils/file_utils.hpp"
-#include "input_model.h"
-#include "op_table.h"
+#include "op_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/frontend/gguf/frontend.h"
+#include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -56,7 +56,7 @@ struct TensorDesc {
 
 // A minimal GgufDecoder that exposes exactly one ggml op.  The op has `inputs`
 // (all of which become graph Parameters) and a single output.  Operation parameters
-// are exposed through the typed get_attribute(node_idx, name) accessor, matching the
+// are exposed through the typed node-scoped get_attribute(name) accessor, matching the
 // decoder API the op translators consume; a real decoder (e.g. the llama.cpp cgraph
 // decoder) populates the same attributes from ggml's op_params.
 class SingleOpDecoder : public GgufDecoder, public std::enable_shared_from_this<SingleOpDecoder> {
@@ -64,13 +64,11 @@ public:
     SingleOpDecoder(std::string op_type,
                     std::vector<TensorDesc> inputs,
                     TensorDesc output,
-                    std::map<std::string, ov::Any> attributes,
-                    int op_case)
+                    std::map<std::string, ov::Any> attributes)
         : m_op_type(std::move(op_type)),
           m_inputs(std::move(inputs)),
           m_output(std::move(output)),
-          m_attributes(std::move(attributes)),
-          m_op_case(op_case) {
+          m_attributes(std::move(attributes)) {
         for (const auto& in : m_inputs) {
             m_input_names.push_back(in.name);
             auto p = std::make_shared<ov::op::v0::Parameter>(in.type, in.shape);
@@ -80,103 +78,51 @@ public:
         }
     }
 
-    // ── typed attribute access (node_idx is always 0; we hold a single op) ──────
+    // ── typed node-scoped attribute access (we hold a single op) ────────────────
     ov::Any get_attribute(const std::string& name) const override {
-        return get_attribute(0, name);
-    }
-    ov::Any get_attribute(int, const std::string& name) const override {
         auto it = m_attributes.find(name);
         return it == m_attributes.end() ? ov::Any{} : it->second;
     }
 
     // ── per-node metadata ───────────────────────────────────────────────────────
-    ov::PartialShape get_input_shape(int, const std::string& name) const override {
-        return find_input(name).shape;
-    }
-    std::vector<size_t> get_input_stride(int, const std::string&) const override {
-        return {};
-    }
-    int64_t get_input_view_offset(int, const std::string&) const override {
+    int64_t get_input_view_element_offset(const std::string&) const override {
         return 0;
     }
-    ov::element::Type get_input_type(int, const std::string& name) const override {
-        return find_input(name).type;
+    ov::PartialShape get_input_shape(const std::string& name) const override {
+        return find_input(name).shape;
     }
     size_t get_input_size() const override {
         return m_inputs.size();
     }
-    size_t get_input_size(int) const override {
-        return m_inputs.size();
-    }
 
-    void get_input_node(size_t, std::string&, std::string&, size_t&) const override {}
-
-    std::vector<std::string> get_input_names(int) const override {
+    std::vector<std::string> get_input_names() const override {
         return m_input_names;
     }
 
-    ov::PartialShape get_output_shape(int) const override {
+    ov::PartialShape get_output_shape() const override {
         return m_output.shape;
     }
-    ov::element::Type get_output_type(int) const override {
-        return m_output.type;
-    }
 
-    std::vector<std::string> get_output_names(int) const override {
+    std::vector<std::string> get_output_names() const override {
         return {m_output.name};
     }
 
     const std::string& get_op_type() const override {
         return m_op_type;
     }
-    const std::string& get_op_type(int) const override {
-        return m_op_type;
-    }
     const std::string& get_op_name() const override {
         return m_output.name;
     }
-    const std::string& get_op_name(int) const override {
-        return m_output.name;
-    }
 
-    void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>, int)> node_visitor) const override {
-        node_visitor(std::const_pointer_cast<SingleOpDecoder>(shared_from_this()), 0);
-    }
-
-    int get_op_case(int) const override {
-        return m_op_case;
+    void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>)> node_visitor) const override {
+        node_visitor(std::const_pointer_cast<SingleOpDecoder>(shared_from_this()));
     }
 
     const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const override {
         return m_model_inputs;
     }
-    const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_extra_inputs() const override {
-        return m_empty;
-    }
     std::vector<std::string> get_model_output_names() const override {
         return {m_output.name};
-    }
-
-    bool has_rope() const override {
-        return false;
-    }
-    bool use_per_op_rope() const override {
-        return false;
-    }
-    RopeConfig get_rope_config() const override {
-        return {};
-    }
-    std::map<std::string, std::string> get_kv_param_res_names() const override {
-        return {};
-    }
-    bool is_static() const override {
-        return false;
-    }
-    bool is_stateful() const override {
-        return false;
-    }
-    bool is_swa_layer(int) const override {
-        return false;
     }
 
 private:
@@ -193,10 +139,8 @@ private:
     std::vector<TensorDesc> m_inputs;
     TensorDesc m_output;
     std::map<std::string, ov::Any> m_attributes;
-    int m_op_case;
     std::vector<std::string> m_input_names;
     std::map<std::string, std::shared_ptr<ov::Node>> m_model_inputs;
-    std::map<std::string, std::shared_ptr<ov::Node>> m_empty;
 };
 
 // Fluent builder: describe a single op and convert it to an ov::Model.
@@ -222,19 +166,22 @@ public:
         return *this;
     }
     SingleOpBuilder& op_case(int c) {
-        m_op_case = c;
+        m_attributes["op_case"] = ov::Any(c);
         return *this;
     }
 
-    // Build the single-op InputModel (naive=true skips the LLM preprocess step -- rope
-    // sin/cos, attention mask -- which is irrelevant for single-op tests).
-    std::shared_ptr<InputModel> input_model() const {
-        auto decoder = std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_output, m_attributes, m_op_case);
-        return std::make_shared<InputModel>(decoder, true);
+    // Build the single-op decoder. A SingleOpDecoder exposes no "rope_config" attribute, so the
+    // frontend's InputModel::get_rope_config returns a default (no shared rope table) and the LLM
+    // preprocess step no-ops -- exactly what a single-op test wants, with no naive flag.
+    std::shared_ptr<GgufDecoder> decoder() const {
+        auto attrs = m_attributes;
+        attrs.emplace("output_type", ov::Any(m_output.type));
+        return std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_output, attrs);
     }
 
     std::shared_ptr<ov::Model> build() const {
-        return FrontEnd().convert(input_model());
+        FrontEnd fe;
+        return fe.convert(fe.load(decoder()));
     }
 
     // Convert through a FrontEnd that has the given extensions registered first.
@@ -244,7 +191,7 @@ public:
         for (const auto& ext : extensions) {
             fe.add_extension(ext);
         }
-        return fe.convert(input_model());
+        return fe.convert(fe.load(decoder()));
     }
 
 private:
@@ -252,7 +199,6 @@ private:
     std::vector<TensorDesc> m_inputs;
     TensorDesc m_output;
     std::map<std::string, ov::Any> m_attributes;
-    int m_op_case = 0;
 };
 
 // ── inference / comparison helpers ──────────────────────────────────────────────
@@ -275,12 +221,21 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
     return req.get_output_tensor(0);
 }
 
-inline void expect_near(const ov::Tensor& actual, const std::vector<float>& expected, float atol = 1e-4f) {
+// Compare against an fp32 reference with a combined absolute + relative tolerance:
+//   |actual - expected| <= atol + rtol * |expected|
+// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU by default),
+// where the rounding error grows with the magnitude of the value; a fixed absolute atol tuned on
+// fp32 x86 is too tight there. rtol defaults to ~fp16 precision (2^-9).
+inline void expect_near(const ov::Tensor& actual,
+                        const std::vector<float>& expected,
+                        float atol = 1e-4f,
+                        float rtol = 2e-3f) {
     ASSERT_EQ(actual.get_element_type(), ov::element::f32);
     ASSERT_EQ(actual.get_size(), expected.size());
     const float* a = actual.data<float>();
     for (size_t i = 0; i < expected.size(); ++i) {
-        EXPECT_NEAR(a[i], expected[i], atol) << "mismatch at index " << i;
+        const float tol = atol + rtol * std::fabs(expected[i]);
+        EXPECT_NEAR(a[i], expected[i], tol) << "mismatch at index " << i;
     }
 }
 

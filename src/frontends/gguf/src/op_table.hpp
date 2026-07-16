@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "node_context.h"
+#include "node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,10 +14,8 @@ namespace op {
 
 #define GGUF_OP_CONVERTER(op) OutputVector op(const NodeContext& context)
 
-GGUF_OP_CONVERTER(translate_add);
 GGUF_OP_CONVERTER(translate_cont);
 GGUF_OP_CONVERTER(translate_get_rows);
-GGUF_OP_CONVERTER(translate_mul);
 GGUF_OP_CONVERTER(translate_mulmat);
 GGUF_OP_CONVERTER(translate_permute);
 GGUF_OP_CONVERTER(translate_reshape);

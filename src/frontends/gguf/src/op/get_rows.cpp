@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 #include <openvino/core/node.hpp>
 #include <openvino/core/node_output.hpp>
@@ -22,7 +22,7 @@ namespace op {
 OutputVector translate_get_rows(const NodeContext & context) {
     num_inputs_check(context, 2, 2);
 
-    int op_case = context.get_op_case();
+    int op_case = context.get_attribute<int>("op_case", 0);
 
     Output<Node> res;
     auto data = context.get_input(0);
@@ -50,20 +50,16 @@ OutputVector translate_get_rows(const NodeContext & context) {
                 std::make_shared<ov::op::v0::Squeeze>(data, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
             res = std::make_shared<ov::op::v8::Gather>(data, indices, axis, 1);
         }
-    } else if (context.is_stateful() && data.get_partial_shape().rank() == 3) {
-        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
-        res = std::make_shared<ov::op::v8::Gather>(data, indices, axis, 1);
     } else {
         auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
         res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
     }
 
-    if (res.get_element_type() != context.get_output_type()) {
-        res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
+    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    if (res.get_element_type() != output_type) {
+        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
-    if (!(context.is_stateful())) {
-        res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    }
+    res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 

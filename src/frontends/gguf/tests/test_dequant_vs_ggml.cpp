@@ -140,20 +140,11 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q5_0", GGUF_TYPE_Q5_0, kTolFaithful},
                                            DeqCase{"q5_1", GGUF_TYPE_Q5_1, kTolFaithful},
                                            DeqCase{"q8_0", GGUF_TYPE_Q8_0, kTolFaithful},
+                                           DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
+                                           DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
                                            DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolIntZp},
                                            DeqCase{"q5_k", GGUF_TYPE_Q5_K, kTolRequant},
                                            DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant}),
-                         [](const ::testing::TestParamInfo<DeqCase>& i) {
-                             return std::string(i.param.stem);
-                         });
-
-// Known-failing: fill_q2_k / fill_q3_k diverge from ggml (sub-scale layout / weight
-// packing).  Neither type is used by the models currently exercised; listed DISABLED to
-// document the gap without failing CI.  Re-enable when fill_q2_k/q3_k are fixed.
-INSTANTIATE_TEST_SUITE_P(DISABLED_KnownFailingQuantTypes,
-                         DequantVsGGML,
-                         ::testing::Values(DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
-                                           DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 #include <climits>
 #include <cstdint>
@@ -31,7 +31,7 @@ namespace op {
 OutputVector translate_mulmat(const NodeContext & context) {
     num_inputs_check(context, 2, 2);
 
-    int op_case = context.get_op_case();
+    int op_case = context.get_attribute<int>("op_case", 0);
 
     ov::Output<Node> res;
     ov::Output<ov::Node> B = context.get_input(0);
@@ -46,9 +46,13 @@ OutputVector translate_mulmat(const NodeContext & context) {
         A = process_view_input(context, 1);
     }
     if (A.get_element_type() != B.get_element_type()) {
-        B = std::make_shared<ov::op::v0::Convert>(context.get_input(0), context.get_input_type(1));
+        // Convert the reprocessed B, not input(0), to preserve the op_case 2/3 rebinding.
+        B = std::make_shared<ov::op::v0::Convert>(B, A.get_element_type());
     }
 
+    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
+    // stateful KV-cache path the OV node's batch/seq dims are dynamic, but the batch/head/feature
+    // dims MUL_MAT needs are static ggml facts the decoder knows by construction.
     auto B_shape = context.get_input_shape(0).to_shape();
     auto A_shape = context.get_input_shape(1).to_shape();
     int64_t A_batch = A_shape[1];

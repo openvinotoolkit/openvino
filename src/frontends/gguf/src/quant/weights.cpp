@@ -40,19 +40,6 @@ const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights
     return it->second;
 }
 
-// Copy a contiguous row range [r0, r1) of a 2D tensor. In the GGUF/parser layout, rows
-// (output features) are independent: quant blocks tile along the last (input) dim, so a
-// row slice is just a contiguous byte copy. Used to split a fused attn_qkv tensor (and its
-// scales/biases) into separate q/k/v weights.
-ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
-    const auto& s = t.get_shape();
-    OPENVINO_ASSERT(s.size() == 2 && r1 <= s[0] && r0 <= r1, "[ggml] bad row slice");
-    ov::Shape out_shape{r1 - r0, s[1]};
-    ov::Tensor out(t.get_element_type(), out_shape);
-    const size_t row_bytes = t.get_byte_size() / s[0];
-    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * row_bytes, (r1 - r0) * row_bytes);
-    return out;
-}
 
 // Shared shape helpers for grouped weight layouts. See make_int8 comment for why we keep
 // all leading dims separate rather than flattening: the trailing Reshape must be
@@ -340,10 +327,8 @@ std::shared_ptr<ov::Node> requantize_q8_0_channelwise(const std::vector<float>& 
     return std::make_shared<ov::op::v0::Convert>(scaled, ov::element::f32);
 }
 
-// Dequantize the extracted weight/scale/zp tensors (the output of gguf_fill_*) to a flat
-// row-major f32 vector, in plain C++ (no OV graph). Handles the forms the requant types
-// produce: i8 symmetric weights, and u32-packed u4 asymmetric weights, both with per-group
-// f16 scales and an optional f16 zero-point. f32 = (w - zp) * scale, grouped along cols.
+// Dequantize the gguf_fill_* output (i8, i4, u2, or u32-packed u4 weights + per-group f16 scale
+// and optional f16 zero-point) to row-major f32: f32 = (w - zp) * scale, grouped along cols.
 std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string, ov::Tensor>& w,
                                             const std::string& base,
                                             size_t rows,
@@ -358,29 +343,41 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
     const ov::Tensor zp = has_zp ? get(w, base + ".zp") : ov::Tensor();
     const ov::float16* z = has_zp ? zp.data<ov::float16>() : nullptr;
 
+    const auto et = weight.get_element_type();
     std::vector<float> out(rows * cols);
-    if (weight.get_element_type() == ov::element::i8) {
+    const auto emit = [&](size_t r, size_t c, float qval) {
+        size_t g = r * num_groups + c / group;
+        float zpf = z ? static_cast<float>(z[g]) : 0.0f;
+        out[r * cols + c] = (qval - zpf) * static_cast<float>(s[g]);
+    };
+    if (et == ov::element::i8) {
         const auto* q = weight.data<int8_t>();
-        for (size_t r = 0; r < rows; ++r) {
+        for (size_t r = 0; r < rows; ++r)
+            for (size_t c = 0; c < cols; ++c)
+                emit(r, c, static_cast<float>(q[r * cols + c]));
+    } else if (et == ov::element::u2) {
+        // Q2_K: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
+        const auto* bytes = static_cast<const uint8_t*>(weight.data());
+        const size_t per_row_bytes = cols / 4;
+        for (size_t r = 0; r < rows; ++r)
             for (size_t c = 0; c < cols; ++c) {
-                size_t g = r * num_groups + c / group;
-                float zpf = z ? static_cast<float>(z[g]) : 0.0f;
-                out[r * cols + c] = (static_cast<float>(q[r * cols + c]) - zpf) * static_cast<float>(s[g]);
+                uint8_t v = (bytes[r * per_row_bytes + c / 4] >> ((c % 4) * 2)) & 0x3;
+                emit(r, c, static_cast<float>(v));
             }
-        }
     } else {
-        // u32-packed u4 (8 nibbles per u32), asymmetric.
+        // u32-packed 4-bit, 8 nibbles per u32. With a zero-point (Q4_1/Q4_K) the nibbles are
+        // unsigned u4; without one (Q4_0 XOR-encoded, Q3_K centered) they are signed i4.
+        const bool signed_u4 = !has_zp;
         const auto* packed = static_cast<const uint32_t*>(weight.data());
         const size_t per_row_u32 = cols / 8;
-        for (size_t r = 0; r < rows; ++r) {
+        for (size_t r = 0; r < rows; ++r)
             for (size_t c = 0; c < cols; ++c) {
                 uint32_t word = packed[r * per_row_u32 + c / 8];
                 uint8_t nib = (word >> ((c % 8) * 4)) & 0xF;
-                size_t g = r * num_groups + c / group;
-                float zpf = z ? static_cast<float>(z[g]) : 0.0f;
-                out[r * cols + c] = (static_cast<float>(nib) - zpf) * static_cast<float>(s[g]);
+                float qval = signed_u4 ? static_cast<float>(nib < 8 ? static_cast<int>(nib) : static_cast<int>(nib) - 16)
+                                       : static_cast<float>(nib);
+                emit(r, c, qval);
             }
-        }
     }
     return out;
 }
@@ -452,51 +449,6 @@ std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
     return node;
 }
 
-std::array<std::shared_ptr<ov::Node>, 3> make_fused_qkv_weights(
-    const std::string& base,
-    const std::unordered_map<std::string, ov::Tensor>& weights,
-    const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
-    size_t n_q,
-    size_t n_k,
-    size_t n_v) {
-    gguf_tensor_type qtype = GGUF_TYPE_F16;
-    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
-        qtype = it->second;
-    }
-    const bool has_scales = qtype == GGUF_TYPE_Q4_0 || qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K ||
-                            qtype == GGUF_TYPE_Q5_0 || qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q8_0 ||
-                            qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_Q5_K ||
-                            qtype == GGUF_TYPE_Q6_K;
-    // Asymmetric types have integer zero-points stored in ".zp".
-    const bool has_zp = qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K ||
-                        qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q2_K;
-
-    const ov::Tensor& w = get(weights, base + ".weight");
-    const size_t total_rows = w.get_shape()[0];
-    OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[ggml] fused qkv row mismatch for ", base);
-
-    const std::array<std::pair<size_t, size_t>, 3> ranges = {std::make_pair(size_t(0), n_q),
-                                                             std::make_pair(n_q, n_q + n_k),
-                                                             std::make_pair(n_q + n_k, total_rows)};
-    const std::array<std::string, 3> parts = {base + ".q", base + ".k", base + ".v"};
-
-    std::array<std::shared_ptr<ov::Node>, 3> out;
-    for (size_t i = 0; i < 3; ++i) {
-        const auto [r0, r1] = ranges[i];
-        std::unordered_map<std::string, ov::Tensor> sub;
-        std::unordered_map<std::string, gguf_tensor_type> subq;
-        sub[parts[i] + ".weight"] = slice_rows(w, r0, r1);
-        if (has_scales) {
-            sub[parts[i] + ".scales"] = slice_rows(get(weights, base + ".scales"), r0, r1);
-            subq[parts[i] + ".qtype"] = qtype;
-        }
-        if (has_zp) {
-            sub[parts[i] + ".zp"] = slice_rows(get(weights, base + ".zp"), r0, r1);
-        }
-        out[i] = make_weight_node(parts[i], sub, subq);
-    }
-    return out;
-}
 
 gguf_tensor_type gguf_type_from_name(const std::string& quant_type) {
     static const std::unordered_map<std::string, gguf_tensor_type> names = {{"F32", GGUF_TYPE_F32},
@@ -659,7 +611,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // faithful group-wise dequant. Reproduce that: dequantize to f32 from the extracted
     // weight/scale/zp tensors (cheap C++ arithmetic, no OV graph fold), then channel-wise
     // re-quantize to Q8_0_C.
-    if (needs_q8_0_c_requant(name, qtype)) {
+    if (requant) {  // computed above; reuse rather than re-running getenv + name scans
         auto f32 = dequant_extracted_to_f32(w, base, rows, cols);
         return requantize_q8_0_channelwise(f32, rows, cols);
     }

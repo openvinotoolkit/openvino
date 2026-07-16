@@ -7,8 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "openvino/frontend/extension/conversion.hpp"
-#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 

@@ -11,9 +11,9 @@
 #include <openvino/op/reduce_mean.hpp>
 #include <openvino/op/sqrt.hpp>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

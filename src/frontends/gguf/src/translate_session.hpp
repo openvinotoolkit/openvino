@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "input_model.h"
-#include "node_context.h"
+#include "input_model.hpp"
+#include "node_context.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,7 +15,8 @@ namespace gguf {
 class TranslateSession {
 public:
     TranslateSession(const frontend::InputModel::Ptr& input_model,
-                     const std::unordered_map<std::string, CreatorFunction>& translator_map, bool naive = false);
+                     const std::unordered_map<std::string, CreatorFunction>& translator_map,
+                     const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions = {});
 
     std::shared_ptr<Model> get_converted_model();
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
@@ -24,7 +26,7 @@ private:
     const frontend::InputModel::Ptr m_input_model;
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<Model> m_ov_model;
-    bool m_naive;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
 };
 
 }  // namespace gguf

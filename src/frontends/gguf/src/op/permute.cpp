@@ -13,9 +13,9 @@
 #include <openvino/op/slice.hpp>
 #include <openvino/op/transpose.hpp>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -25,7 +25,7 @@ namespace op {
 OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    int op_case = context.get_op_case();
+    int op_case = context.get_attribute<int>("op_case", 0);
     FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4,
                                 "Unsupported PERMUTE case");
 
@@ -33,7 +33,7 @@ OutputVector translate_permute(const NodeContext& context) {
     auto src = context.get_input(0);
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
 
-    if (op_case == 1 || context.is_stateful()) {
+    if (op_case == 1) {
         res = std::make_shared<ov::op::v1::Transpose>(src, perm);
     } else if (op_case == 4) {
         auto output_shape = context.get_output_shape().to_shape();
@@ -73,8 +73,7 @@ OutputVector translate_permute(const NodeContext& context) {
             seq_active_end = context.get_input("seq_active_end");
         } else {
             int64_t n_seq_active = output_shape[0];
-            int64_t offset = context.get_input_view_offset(0);
-            int64_t seq_active_start_val = offset / (int64_t)context.get_input_stride(0)[0];
+            int64_t seq_active_start_val = context.get_attribute<int64_t>("view_seq_offset", 0);
             int64_t seq_active_end_val = seq_active_start_val + n_seq_active;
             seq_active_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {seq_active_start_val});
             seq_active_end = ov::op::v0::Constant::create(ov::element::i64, {1}, {seq_active_end_val});

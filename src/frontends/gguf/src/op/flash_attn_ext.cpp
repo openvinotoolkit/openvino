@@ -8,15 +8,17 @@
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/convert.hpp>
+#include <openvino/op/convert_like.hpp>
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/scaled_dot_product_attention.hpp>
+#include <openvino/op/slice.hpp>
 #include <openvino/op/transpose.hpp>
 #include <openvino/op/unsqueeze.hpp>
 #include <string>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -36,10 +38,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<float>{scale});
 
     ov::Output<ov::Node> mask_sliced, res;
-    std::string mask_name = "KQ_mask_sliced";
-    if (context.get_input_names()[3].find("swa") != std::string::npos) {
-        mask_name = "KQ_mask_swa_sliced";
-    }
+    const std::string mask_name = context.get_attribute<bool>("is_swa", false) ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
     if (context.has_input(mask_name)) {
         mask_sliced = context.get_input(mask_name);
     } else {
@@ -75,10 +74,17 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         return kv;
     };
 
+    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
+    // stateful KV-cache path the OV node's batch/seq dims are dynamic (K/V are fed by the cache
+    // concat), but the head-count / head-size dims are static ggml facts the decoder knows.
     auto q_shape = context.get_input_shape(0).to_shape();
     auto k_shape = context.get_input_shape(1).to_shape();
     k = tile_kv(q_shape[1], k_shape[1], q_shape[3], k);
     v = tile_kv(q_shape[1], k_shape[1], q_shape[3], v);
+
+    // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
+    k = std::make_shared<ov::op::v1::ConvertLike>(k, q);
+    v = std::make_shared<ov::op::v1::ConvertLike>(v, q);
 
     auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, false);
     res = std::make_shared<ov::op::v1::Transpose>(sdpa,

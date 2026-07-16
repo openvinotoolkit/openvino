@@ -10,9 +10,9 @@
 #include <openvino/op/sigmoid.hpp>
 #include <openvino/op/slice.hpp>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -51,7 +51,8 @@ OutputVector translate_glu_geglu(const NodeContext& context) {
         std::swap(src0, src1);
     }
 
-    auto gelu = std::make_shared<ov::op::v7::Gelu>(src0);
+    // ggml's GEGLU uses the tanh GELU approximation (ggml_gelu_f32); v7::Gelu defaults to ERF.
+    auto gelu = std::make_shared<ov::op::v7::Gelu>(src0, ov::op::GeluApproximationMode::TANH);
     auto res = std::make_shared<ov::op::v1::Multiply>(gelu, src1);
 
     return rename_outputs_with_suffix({res}, context.get_name());

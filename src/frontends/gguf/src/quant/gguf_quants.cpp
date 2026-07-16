@@ -20,6 +20,12 @@ namespace gguf {
 
 using namespace std;
 
+// Round a fractional zero-point to u8, clamping to avoid a modulo-256 wrap when min/scale > 255.
+static inline uint8_t quantize_zp_u8(float zpval) {
+    long r = std::lround(zpval);
+    return static_cast<uint8_t>(std::min<long>(255, std::max<long>(0, r)));
+}
+
 void unpack_32_4(const uint8_t* data, uint8_t* dst) {
     std::fill_n(dst, 16, 0);
     for (int j = 0; j < 16; ++j) {
@@ -57,7 +63,7 @@ void fill_q4_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
         scales[i] = ov::float16(sc);
         const float zpval = (sc != 0.f) ? (-mn / sc) : 0.f;
         if (int_zp)
-            zp_u8[i] = static_cast<uint8_t>(std::lround(zpval));
+            zp_u8[i] = quantize_zp_u8(zpval);
         else
             zp_f16[i] = ov::float16(zpval);
         unpack_32_4(data + i * bytes_per_block + 4, weights + i * 16);
@@ -160,7 +166,7 @@ void fill_q4_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
             scales[i * 8 + j] = ov::float16(sc);
             const float zpval = (sc != 0.f) ? (mn / sc) : 0.f;
             if (int_zp)
-                zp_u8[i * 8 + j] = static_cast<uint8_t>(std::lround(zpval));
+                zp_u8[i * 8 + j] = quantize_zp_u8(zpval);
             else
                 zp_f16[i * 8 + j] = ov::float16(zpval);
         }
@@ -195,7 +201,7 @@ void fill_q5_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
     const auto store_zp = [&](size_t idx, float scale, float mn) {
         const float zpval = (scale != 0.f) ? (mn / scale) : 0.f;
         if (int_zp)
-            zp_u8[idx] = static_cast<uint8_t>(std::lround(zpval));
+            zp_u8[idx] = quantize_zp_u8(zpval);
         else
             zp_f16[idx] = ov::float16(zpval);
     };
@@ -252,7 +258,7 @@ void fill_q5_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
         scales[i] = ov::float16(d);
         const float zpval = (d != 0.f) ? (-m / d) : 0.f;
         if (int_zp)
-            zp_u8[i] = static_cast<uint8_t>(std::lround(zpval));
+            zp_u8[i] = quantize_zp_u8(zpval);
         else
             zp_f16[i] = ov::float16(zpval);
         uint32_t qh;
@@ -266,9 +272,10 @@ void fill_q5_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
     });
 }
 
-// Q3_K symmetric: super-block = 32(hmask) + 64(qs) + 12(scales 6-bit) + 2(f16 d).
-// 16 sub-blocks of 16 elements each. 3-bit raw values [0..7], centered to [-4..3].
-// Output: i4 weights packed 2-per-byte as u8 + f16 effective scales (d * sub_scale6). No zp.
+// Q3_K symmetric: super-block = 32(hmask) + 64(qs) + 12(scales 6-bit) + 2(f16 d) = 110 bytes.
+// 16 sub-blocks of 16; 3-bit values (2 low bits from qs, 1 inverted high bit from hmask) centered
+// to [-4..3]. Mirrors ggml dequantize_row_q3_K: kmask1/kmask2 scale interleave + strided qs order.
+// Output: i4 weights (2 per byte, low nibble first) + f16 scales (d * (scale6 - 32)). No zp.
 void fill_q3_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 32 + 64 + 12 + 2;  // 110
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
@@ -281,65 +288,90 @@ void fill_q3_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
         const uint8_t* qs = block + 32;       // 64 bytes: 2 low bits per weight
         const uint8_t* sc = block + 32 + 64;  // 12 bytes: 16 x 6-bit sub-scales
         const float d = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 32 + 64 + 12)));
-        // Extract 16 6-bit signed sub-scales from 12 bytes.
-        // Layout: low 4 bits in sc[j/2] nibble j%2; high 2 bits in sc[8+j/4] pair j%4.
+
+        // 16 signed 6-bit sub-scales, interleaved as in ggml dequantize_row_q3_K.
+        constexpr uint32_t kmask1 = 0x03030303, kmask2 = 0x0f0f0f0f;
+        uint32_t aux[4];
+        std::memcpy(aux, sc, 12);
+        const uint32_t tmp = aux[2];
+        aux[2] = ((aux[0] >> 4) & kmask2) | (((tmp >> 4) & kmask1) << 4);
+        aux[3] = ((aux[1] >> 4) & kmask2) | (((tmp >> 6) & kmask1) << 4);
+        aux[0] = (aux[0] & kmask2) | (((tmp >> 0) & kmask1) << 4);
+        aux[1] = (aux[1] & kmask2) | (((tmp >> 2) & kmask1) << 4);
+        const int8_t* isc = reinterpret_cast<const int8_t*>(aux);
         for (int j = 0; j < 16; ++j) {
-            const uint8_t lo4 = (sc[j / 2] >> (4 * (j % 2))) & 0xF;
-            const uint8_t hi2 = (sc[8 + j / 4] >> (2 * (j % 4))) & 0x3;
-            const uint8_t raw6 = lo4 | (hi2 << 4);
-            const int8_t isc = (raw6 > 31) ? static_cast<int8_t>(raw6 - 64) : static_cast<int8_t>(raw6);
-            scales[i * 16 + j] = ov::float16(d * static_cast<float>(isc));
+            scales[i * 16 + j] = ov::float16(d * static_cast<float>(isc[j] - 32));
         }
-        // Unpack 256 3-bit weights (2-bit low from qs, 1-bit high from hmask),
-        // center to [-4..3], pack as i4 nibbles (2 per byte, low nibble first).
+
+        // Unpack in ggml element order; the hmask bit is inverted (set means high bit 0).
         uint8_t* wdst = weights + i * 128;
         std::fill_n(wdst, 128, 0);
-        for (int w = 0; w < 256; ++w) {
-            const uint8_t lo2 = (qs[w / 4] >> (2 * (w % 4))) & 0x3;
-            const uint8_t hi1 = (hmask[w / 8] >> (w % 8)) & 0x1;
-            const int8_t centered = static_cast<int8_t>((lo2 | (hi1 << 2)) - 4);
-            const uint8_t nibble = static_cast<uint8_t>(centered) & 0xF;
-            if (w % 2 == 0)
-                wdst[w / 2] = nibble;
-            else
-                wdst[w / 2] |= (nibble << 4);
+        size_t out = 0;
+        const auto put = [&](int8_t c) {
+            wdst[out / 2] |= static_cast<uint8_t>((static_cast<uint8_t>(c) & 0xF) << ((out % 2) * 4));
+            ++out;
+        };
+        uint8_t m = 1;
+        for (int n = 0; n < 2; ++n) {
+            const uint8_t* q = qs + n * 32;
+            for (int shift = 0; shift < 8; shift += 2) {
+                for (int l = 0; l < 16; ++l)
+                    put(static_cast<int8_t>(((q[l] >> shift) & 3) - ((hmask[l] & m) ? 0 : 4)));
+                for (int l = 0; l < 16; ++l)
+                    put(static_cast<int8_t>(((q[l + 16] >> shift) & 3) - ((hmask[l + 16] & m) ? 0 : 4)));
+                m <<= 1;
+            }
         }
     });
 }
 
-// Q2_K asymmetric: super-block = 64(qs) + 16(scales 4+4 bit) + 2(f16 d) + 2(f16 dmin).
-// 16 sub-blocks of 16 elements each. 2-bit raw values [0..3] (u2, 4 per byte in qs).
-// scales[j] lower nibble = 4-bit sub-scale; upper nibble = 4-bit sub-min.
-// Output: u2 weights (direct memcpy of qs; OV u2 packing matches on-disk layout) +
-//         f16 effective scales (d * sub_scale) + zp per sub-block.
-// Dequant w = dl*q - ml; zp = ml/dl (u8 integer or f16 fractional per element type -- see fill_q4_k).
+// Q2_K asymmetric: super-block = 16(scales 4+4 bit) + 64(qs) + 2(f16 d) + 2(f16 dmin) = 84 bytes,
+// matching ggml block_q2_K (scales first, then qs). 16 sub-blocks of 16; 2-bit values [0..3],
+// scales[j] lower nibble = sub-scale, upper nibble = sub-min. qs is not in element order, so unpack
+// per element into element-order u2 (4 per byte, LSB-first) like ggml dequantize_row_q2_K.
+// Output: u2 weights + f16 scales (d * sub_scale) + zp = ml/dl per sub-block (see fill_q4_k).
 void fill_q2_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = 64 + 16 + 2 + 2;  // 84
+    const uint64_t bytes_per_block = 16 + 64 + 2 + 2;  // 84
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
-    auto weights = static_cast<uint8_t*>(weights_arr.data());  // packed u2 (4 per byte)
+    auto weights = static_cast<uint8_t*>(weights_arr.data());  // packed u2 (4 per byte, LSB-first)
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
     const bool int_zp = (zp_arr.get_element_type() == ov::element::u8);
     auto zp_f16 = int_zp ? nullptr : zp_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
     auto zp_u8 = int_zp ? static_cast<uint8_t*>(zp_arr.data()) : nullptr;
     ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
-        const uint8_t* qs = block;       // 64 bytes: 4 weights per byte, 2 bits each
-        const uint8_t* sc = block + 64;  // 16 bytes: per-sub-block scale+min nibbles
-        const float d = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 64 + 16)));
-        const float dmin = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 64 + 16 + 2)));
+        const uint8_t* sc = block;        // 16 bytes: per-sub-block scale+min nibbles
+        const uint8_t* qs = block + 16;   // 64 bytes: 4 weights per byte, 2 bits each
+        const float d = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 80)));
+        const float dmin = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 82)));
         for (int j = 0; j < 16; ++j) {
             const float dl = d * static_cast<float>(sc[j] & 0xF);
             const float ml = dmin * static_cast<float>(sc[j] >> 4);
             scales[i * 16 + j] = ov::float16(dl);
             const float zpval = (dl != 0.f) ? (ml / dl) : 0.f;
             if (int_zp)
-                zp_u8[i * 16 + j] = static_cast<uint8_t>(std::lround(zpval));
+                zp_u8[i * 16 + j] = quantize_zp_u8(zpval);
             else
                 zp_f16[i * 16 + j] = ov::float16(zpval);
         }
-        // OV u2 packs 4 values per byte LSB-first, matching Q2_K's on-disk qs layout exactly.
-        std::memcpy(weights + i * 64, qs, 64);
+        // Unpack in ggml element order (see dequantize_row_q2_K).
+        uint8_t* wdst = weights + i * 64;
+        std::fill_n(wdst, 64, 0);
+        size_t out = 0;
+        const auto put = [&](uint8_t q2) {
+            wdst[out / 4] |= static_cast<uint8_t>((q2 & 3) << ((out % 4) * 2));
+            ++out;
+        };
+        for (int n = 0; n < 2; ++n) {
+            const uint8_t* q = qs + n * 32;
+            for (int shift = 0; shift < 8; shift += 2) {
+                for (int l = 0; l < 16; ++l)
+                    put((q[l] >> shift) & 3);
+                for (int l = 0; l < 16; ++l)
+                    put((q[l + 16] >> shift) & 3);
+            }
+        }
     });
 }
 
@@ -352,7 +384,10 @@ void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<int8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
-    for (uint64_t i = 0; i < n_super_block; i++) {
+    // Each super-block writes a disjoint 256-element region, so parallelize like the other fill_*
+    // functions (Q6_K is used for the largest tensors -- output/embed -- so the serial loop left
+    // most cores idle on the biggest weight in the model).
+    ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block_data = data + i * bytes_per_block;
         const float d = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data + 104)));  // (128+64+16)/2
         for (size_t j = 0; j < 16; j++) {
@@ -372,7 +407,7 @@ void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
             weights[i * 256 + j + 192] = static_cast<int8_t>(((ql[64 + j] >> 4) | (((qh[32 + j] >> 4) & 3) << 4)) - 32);
             weights[i * 256 + j + 224] = static_cast<int8_t>(((ql[96 + j] >> 4) | (((qh[32 + j] >> 6) & 3) << 4)) - 32);
         }
-    }
+    });
 }
 
 // MXFP4 (gpt-oss): per-32 block = 1-byte E8M0 scale + 16 bytes of 4-bit E2M1 indices.
@@ -387,11 +422,12 @@ void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
     const uint64_t bytes_per_block = 17;
     const uint64_t qk = 32;
-    auto shape = get_shape(tensor);  // [.., cols]
-    const uint64_t cols = shape.back();
+    // GGUF stores dims fastest-first: dim[0] is the innermost (cols); the remaining dims fold
+    // into rows. (Equivalent to the OV-order shape [.., cols] the caller sets.)
+    const uint64_t cols = tensor.dim[0];
     uint64_t rows = 1;
-    for (size_t i = 0; i + 1 < shape.size(); ++i) {
-        rows *= shape[i];
+    for (uint32_t i = 1; i < tensor.ndim; ++i) {
+        rows *= tensor.dim[i];
     }
     const uint64_t groups = cols / qk;
 

@@ -23,9 +23,9 @@
 #include <openvino/op/unsqueeze.hpp>
 #include <vector>
 
-#include "node_context.h"
-#include "op_table.h"
-#include "utils.h"
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -35,7 +35,7 @@ namespace op {
 OutputVector translate_rope(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
 
-    int op_case = context.get_op_case();
+    int op_case = context.get_attribute<int>("op_case", 0);
 
     ov::Output<Node> res;
 
@@ -69,19 +69,11 @@ OutputVector translate_rope(const NodeContext& context) {
         // The input comes from a VIEW
         int slice_len = output_shape[2] * output_shape[3];
         data_node = process_view_input(context, 0, slice_len).get_node_shared_ptr();
-        if (context.is_stateful()) {
-            auto data_shape = ov::op::v0::Constant::create(
-                ov::element::i64,
-                {3},
-                std::vector<int64_t>{-1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-            data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
-        } else {
-            auto data_shape = ov::op::v0::Constant::create(
-                ov::element::i64,
-                {4},
-                std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-            data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
-        }
+        auto data_shape = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+        data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
     }
 
     if (mode == TYPE_NORMAL) {
@@ -92,7 +84,7 @@ OutputVector translate_rope(const NodeContext& context) {
         auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3]});
         Output<Node> even_slice;
         Output<Node> odd_slice;
-        int32_t unsqueeze_dim = context.is_stateful() ? 3 : 4;
+        int32_t unsqueeze_dim = 4;
         even_slice = std::make_shared<ov::op::v8::Slice>(data_node, zero, end, two, neg_one);
         odd_slice = std::make_shared<ov::op::v8::Slice>(data_node, one, end, two, neg_one);
 
@@ -134,7 +126,8 @@ OutputVector translate_rope(const NodeContext& context) {
 
         res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_half_node, second_half_node}, -1);
     } else if (mode == TYPE_IMROPE) {
-        int64_t n_dims = data_node->get_shape()[3];
+        // Use output_shape, not data_node->get_shape() which throws on a dynamic dim.
+        int64_t n_dims = output_shape[3];
         auto cos_sin_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                     ov::Shape{4},
                                                                     std::vector<int64_t>{1, -1, 1, (n_dims >> 1)});
