@@ -10,6 +10,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
+[![NPM](https://img.shields.io/npm/v/openvino-node)](https://www.npmjs.com/package/openvino-node)
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
 [![brew Status](https://img.shields.io/homebrew/v/openvino)](https://formulae.brew.sh/formula/openvino)
 

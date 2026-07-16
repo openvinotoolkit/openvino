@@ -201,7 +201,7 @@ KERNEL(pa_sdpa_opt)(
 
     {
 #if STORE_QUERY_TO_SLM
-        for (uint i = sgid * SUBGROUP_SIZE; i < HEADS_PER_WI * K_HEAD_SIZE; i += SUBGROUP_SIZE) {
+        for (uint i = sgid * SUBGROUP_SIZE; i < HEADS_PER_WI * K_HEAD_SIZE; i += SUBGROUPS_PER_WG*SUBGROUP_SIZE) {
             const uint query_idx_local = i % K_HEAD_SIZE + sglid;
             const uint head_idx = i / K_HEAD_SIZE;
 
