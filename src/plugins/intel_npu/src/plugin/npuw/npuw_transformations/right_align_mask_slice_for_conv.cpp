@@ -25,10 +25,18 @@ namespace {
 class RightAlignMaskSliceForConvImpl : public ov::pass::MatcherPass {
 public:
     // In LFM2-like models, where `attention_mask` is also consumed by the Conv subgraph,
-    // the Slice operation is inserted to extract the current tokens from the `attention_mask`.
-    // The mask is sliced from the left side, what will be an issue in the chunked
-    // prefill's first iteration, as left part of that mask will be filled with zeroes
-    // (due to the right padding of the input_ids in NPUW prefill).
+    // the Slice operation is inserted to extract the current tokens from that `attention_mask`
+    // and pass to the Conv subgraph.
+    // This is done to allow skipping processing of some tokens in the prefill stage.
+    // Slice is done from zero till the number of current tokens, assuming that in most cases
+    // tokens from the right are not the useful ones.
+    // However, in NPUW static-shape mode, we place useful current tokens exactly to the right end
+    // in the prefill stage.
+    // Therefore, Slice operation will extract the left part of mask, that will be padded
+    // either with zeroes (in the full prefill or first iteration of chunked prefill) or with ones
+    // (subsequent iterations of chunked prefill) but for past tokens.
+    // This pass re-align the Slice operation to extract the right part of the mask,
+    // that contains useful current tokens.
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::RightAlignMaskSliceForConvImpl");
     explicit RightAlignMaskSliceForConvImpl() {
         auto attention_mask = opp::wrap_type<ov::op::v0::Parameter>();
@@ -49,8 +57,8 @@ public:
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_attention_mask = node_to_output.at(attention_mask).get_node_shared_ptr();
-            const auto any_name = matched_attention_mask->output(0).get_any_name();
-             if (any_name != ov::npuw::attention_mask_name &&
+            const auto names = matched_attention_mask->output(0).get_names();
+             if (names.count(ov::npuw::attention_mask_name) == 0 &&
                 matched_attention_mask->get_friendly_name() != ov::npuw::attention_mask_name) {
                 return false;
             }
