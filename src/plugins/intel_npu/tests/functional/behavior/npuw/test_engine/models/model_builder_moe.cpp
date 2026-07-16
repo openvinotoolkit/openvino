@@ -331,6 +331,123 @@ ov::Output<ov::Node> Qwen3MoEFFN::operator()(const ov::Output<ov::Node>& input, 
     return weighted_expert_sum(dn_mm, router_scores, original_shape, name);
 }
 
+Gemma4MoEFFN::Gemma4MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf)
+    // const_shape: literal Const reshape shapes, same requirement as Qwen3MoEFFN.
+    : BatchedMoEFFN(hs, is, ne, k, prec, std::move(wf), const_shape) {
+    // Router renormalization sums the K selected scores (last router axis), keepdims.
+    reduce_axis_k = ov::opset11::Constant::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    // Uniform per-expert scale (all ones); real Gemma4 learns this from training data.
+    per_expert_scale_const = ov::opset11::Constant::create(
+        ov::element::f32, ov::Shape{ne}, std::vector<float>(ne, 1.0f));
+}
+
+ov::Output<ov::Node> Gemma4MoEFFN::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+    // Gemma4-style batched MoE matching NPUW's Gemma4Expert + Gemma4Router patterns.
+    //
+    // Router (FP32 weights, per-expert scale, extra Slice before scatter):
+    //   input_2d -> MatMul(FP32 weight) -> Softmax -> TopK(MAX)
+    //           -> ReduceSum(values) -> Divide(values, sum) = renormalized
+    //           -> Gather(per_expert_scale, topk_indices) -> Multiply(renormalized, scale)
+    //           -> Slice -> ScatterElementsUpdate(zeros, indices, slice)
+    //           -> Transpose -> Reshape([N,1,-1]) -> Unsqueeze(axis 3) = router_scores
+    //
+    // Expert (gate/up share the same Reshape; activation is Gelu):
+    //   input_2d -> Tile -> Reshape([N,-1,H]) = expert_3d
+    //   gate:   expert_3d -> MatMul(gate_w) -> Gelu
+    //   up:     expert_3d -> MatMul(up_w)
+    //   merge:  Gelu * up -> Multiply
+    //   down:   Multiply -> MatMul(down_w)
+    //           -> weighted_expert_sum (Reshape -> Multiply(router_scores) -> ReduceSum -> Reshape)
+    const auto prec = precision;
+    const int32_t k_i = static_cast<int32_t>(num_experts_per_tok);
+
+    auto [original_shape, input_2d] = flatten_input(input, name);
+
+    // --- Router ---
+    // Plain FP32 weight (Gemma4 does not quantize the router).
+    auto rw = ov::opset11::Constant::create(
+        ov::element::f32,
+        ov::Shape{num_experts, hidden_size},
+        std::vector<float>(num_experts * hidden_size, 1.0f));
+    rw->set_friendly_name(name + ".router.weight");
+    auto r_mm = std::make_shared<ov::opset11::MatMul>(input_2d, rw, false, true);
+    r_mm->set_friendly_name(name + ".router.matmul");
+
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(r_mm, 1);
+    softmax->set_friendly_name(name + ".router.softmax");
+    auto topk = std::make_shared<ov::opset11::TopK>(softmax, topk_k_const, 1, "max", "value", ov::element::i64);
+    topk->set_friendly_name(name + ".router.topk");
+
+    // Renormalize over the K selected experts.
+    auto reduce_router = std::make_shared<ov::opset11::ReduceSum>(topk->output(0), reduce_axis_k, true);
+    reduce_router->set_friendly_name(name + ".router.reduce");
+    auto divide = std::make_shared<ov::opset11::Divide>(topk->output(0), reduce_router);
+    divide->set_friendly_name(name + ".router.divide");
+
+    // Per-expert learned scale: Gather(per_expert_scale, Convert(topk_indices), axis=0).
+    // Gemma4Router's Gather uses all any_input() ports, so any Gather here will bind.
+    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0LL});
+    auto topk_idx_cast = std::make_shared<ov::opset11::Convert>(topk->output(1), ov::element::i64);
+    topk_idx_cast->set_friendly_name(name + ".router.topk_idx_cast");
+    auto gather = std::make_shared<ov::op::v8::Gather>(per_expert_scale_const, topk_idx_cast, gather_axis);
+    gather->set_friendly_name(name + ".router.per_expert_scale_gather");
+
+    // Combine renormalized scores with per-expert scale.
+    auto scores_multiply = std::make_shared<ov::opset11::Multiply>(divide, gather);
+    scores_multiply->set_friendly_name(name + ".router.scores_multiply");
+
+    // Slice(scores_multiply, start=0, stop=k, step=1, axis=1) — Gemma4-specific.
+    auto sl_begin = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0LL});
+    auto sl_end = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{k_i});
+    auto sl_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1LL});
+    auto sl_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1LL});
+    auto slice = std::make_shared<ov::op::v8::Slice>(scores_multiply, sl_begin, sl_end, sl_step, sl_axes);
+    slice->set_friendly_name(name + ".router.slice");
+
+    // Scatter selected scores back to the full expert dimension.
+    auto zeros = router_zeros(r_mm, name + ".router.shapeof", name + ".router.zeros");
+    auto scatter_indices_cast = std::make_shared<ov::opset11::Convert>(topk->output(1), ov::element::i64);
+    scatter_indices_cast->set_friendly_name(name + ".router.scatter_idx_cast");
+    auto scatter =
+        std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros, scatter_indices_cast, slice, scatter_axis);
+    scatter->set_friendly_name(name + ".router.scatter");
+
+    auto router_scores = broadcast_router_scores(scatter, name);
+
+    // --- Expert ---
+    // Gate and up projections both use the same Tile → Reshape3D (expert_3d).
+    auto expert_3d = tile_to_experts(input_2d, name);
+
+    // Gate projection -> Gelu.
+    auto gate_w = weight_fn(name + ".expert.gate_proj.weight",
+                            ov::Shape{num_experts, intermediate_size, hidden_size},
+                            prec);
+    auto gate_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, gate_w, false, true);
+    gate_mm->set_friendly_name(name + ".expert.gate_matmul");
+    auto gelu = std::make_shared<ov::op::v7::Gelu>(gate_mm);
+    gelu->set_friendly_name(name + ".expert.gelu");
+
+    // Up projection (shares expert_3d input, matching Gemma4Expert's pattern).
+    auto up_w = weight_fn(name + ".expert.up_proj.weight",
+                          ov::Shape{num_experts, intermediate_size, hidden_size},
+                          prec);
+    auto up_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, up_w, false, true);
+    up_mm->set_friendly_name(name + ".expert.up_matmul");
+
+    // SwiGLU merge: Gelu(gate) * up.
+    auto merged = std::make_shared<ov::opset11::Multiply>(gelu, up_mm);
+    merged->set_friendly_name(name + ".expert.merge");
+
+    // Down projection.
+    auto dn_w = weight_fn(name + ".expert.down_proj.weight",
+                          ov::Shape{num_experts, hidden_size, intermediate_size},
+                          prec);
+    auto dn_mm = std::make_shared<ov::opset11::MatMul>(merged, dn_w, false, true);
+    dn_mm->set_friendly_name(name + ".expert.down_matmul");
+
+    return weighted_expert_sum(dn_mm, router_scores, original_shape, name);
+}
+
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
