@@ -1,0 +1,47 @@
+name: Cleanup stale dependabot branches
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only log branches that would be deleted, do not delete them'
+        type: boolean
+        required: false
+        default: true
+  schedule:
+    # at 03:00 every day
+    - cron: '0 3 * * *'
+
+permissions: read-all
+
+jobs:
+  Cleanup_Dependabot_Branches:
+    name: Cleanup stale dependabot branches
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout cleanup script
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: '.github/scripts/dependabot_cleanup'
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Install deps
+        working-directory: ${{ github.workspace }}/.github/scripts/dependabot_cleanup
+        run: pip3 install -r requirements.txt
+
+      - name: Cleanup stale dependabot branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Scheduled runs perform real deletions. Manual runs honor the
+          # dry_run input (defaults to true, i.e. a safe preview).
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+        run: |
+          python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
+            --repository-name ${GITHUB_REPOSITORY}
