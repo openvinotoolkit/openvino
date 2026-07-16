@@ -1129,13 +1129,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
         }
 
-        auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        auto is_lstm_activation_supported = [](const std::string& activation) -> bool {
+            return activation == "sigmoid" || activation == "tanh" || activation == "relu";
+        };
+
+        auto are_lstm_activations_supported = [&](const std::vector<std::string>& activations) -> bool {
+            return activations.size() == 3 && std::all_of(activations.begin(), activations.end(), is_lstm_activation_supported);
+        };
+
+        auto isCellPrimitiveSupported = [&](const_node_ptr &node) -> bool {
             if (ov::as_type_ptr<const ov::op::v0::RNNCell>(node)) {
                 return false;
             } else if (ov::as_type_ptr<const ov::op::v3::GRUCell>(node)) {
                 return false;
             } else if (const auto &lstm_cell = ov::as_type_ptr<const ov::op::v4::LSTMCell>(node)) {
-                return false;
+                return are_lstm_activations_supported(lstm_cell->get_activations());
             } else if (const auto &lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
                 return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
@@ -1485,6 +1493,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [unroll_loop](const std::shared_ptr<const ov::Node> &node) -> bool {
                 auto sub_graph_op = ov::as_type_ptr<const ov::op::util::SubGraphOp>(node);
                 int64_t num_iter = sub_graph_op->get_num_iterations();
+                const auto& input_descriptions = sub_graph_op->get_input_descriptions();
+                const auto merged_inputs = std::count_if(input_descriptions.begin(),
+                                                         input_descriptions.end(),
+                                                         [](const std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>& desc) {
+                                                             return ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc) != nullptr;
+                                                         });
+                if (merged_inputs > 1)
+                    return true;
                 if (!unroll_loop)
                     return num_iter != 1;
                 return num_iter >= 16;

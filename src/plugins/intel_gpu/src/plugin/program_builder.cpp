@@ -243,12 +243,10 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
         // Note: Currently Split/Variadic Split are divided to multiple crops
-        // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
         bool is_legacy_multiple_outputs = !use_new_shape_infer()
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
-                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
-                                          || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp);
 
         // Custom op need to maintain output port index for multiple outputs.
         if (m_custom_layers.find(prevOp->get_type_name()) != m_custom_layers.end()) {
