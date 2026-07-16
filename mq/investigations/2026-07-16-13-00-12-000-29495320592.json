@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-13-00-12-000-29495320592",
+  "timestamp": "2026-07-16T13:00:12Z",
+  "run_id": "29495320592",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29495320592",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36902",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36902",
+  "author": "akashchi",
+  "category": "Network",
+  "title": "JAX Layer Tests artifact upload fails with FinalizeArtifact ECONNREFUSED",
+  "signature": "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "0c33a04c2cbe783c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JAX Layer Tests / JAX Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Upload Test Results step fails: FinalizeArtifact ECONNREFUSED connecting to GitHub artifact service"
+    }
+  ],
+  "key_errors": [
+    "##[error]Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints"
+  ],
+  "root_cause": "The self-hosted runner lost connectivity to the GitHub Actions artifact API endpoint during the FinalizeArtifact call (the final commit step of artifact upload). The artifact content was uploaded successfully (17356 bytes), but the finalization request got ECONNREFUSED, indicating the connection to GitHub's artifact backend was refused at network level. This is a transient infrastructure/network issue with self-hosted runner connectivity.",
+  "reproduction_steps": "N/A - transient network connectivity issue on the self-hosted runner.",
+  "recommended_actions": [
+    "Re-run the failed jobs - the failure is transient and a retry should succeed.",
+    "If ECONNREFUSED recurs frequently on this runner, check the runner's network access to GitHub's artifact endpoints (*.blob.core.windows.net or actions.githubusercontent.com)."
+  ],
+  "prevention_strategies": "Monitor self-hosted runner network connectivity health. Consider adding retry logic around artifact uploads in the workflow or using a network-resilient runner pool.",
+  "historical_context": "Related pattern 1808e665f1f70825 (ListArtifacts ECONNREFUSED) has been seen 2 times previously. Multiple ECONNREFUSED artifact failures have been recorded in the CI Doctor database across different GitHub Actions API calls, indicating recurring transient network issues on self-hosted runners in this environment."
+}
