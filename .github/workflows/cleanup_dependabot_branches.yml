@@ -41,6 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Scheduled runs perform real deletions. Manual runs honor the
           # dry_run input (defaults to true, i.e. a safe preview).
+          # Reads as: if event is 'schedule' -> set to 'false' (delete); else use dry_run that's true by default.
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
         run: |
           python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
