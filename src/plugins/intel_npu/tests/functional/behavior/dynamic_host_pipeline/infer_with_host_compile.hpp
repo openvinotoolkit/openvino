@@ -71,9 +71,11 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     return model;
 }
 
-inline std::shared_ptr<ov::Model> createCustomNetModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false) {
+    const ov::PartialShape inputShape =
+        dynamicBatch ? ov::PartialShape{ov::Dimension(1, 10), 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)}
+                     : ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputShape);
     input->set_friendly_name("Parameter_59");
 
     auto make_conv_add = [](const ov::Output<ov::Node>& data,
@@ -673,6 +675,89 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << logCapture.str();
 }
 
+// Exercise dynamic-batch changes on the host-compile pipeline: changing the batch dimension must rebuild the
+// pipeline (and, with the pipeline-owned VM execution context, re-create that context) and still produce correct
+// results, while repeating the same batch reuses the existing command list.
+TEST_P(InferWithHostCompileTests, CompileAndInferWithBatchChange) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    // Build a dynamic-batch variant of the parameterized model so both MaxPool and CustomNet are exercised.
+    std::shared_ptr<ov::Model> model;
+    if (selectedModelName == "MaxPool") {
+        model = createMaxPoolModel(/*dynamicBatch=*/true, /*nhwcLayout=*/true);
+    } else if (selectedModelName == "CustomNet") {
+        model = createCustomNetModel(/*dynamicBatch=*/true);
+    } else {
+        GTEST_SKIP() << "Batch-change scenario only supports MaxPool and CustomNet; skipping for model "
+                     << selectedModelName;
+    }
+
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+
+    // Compile on NPU (forced HostCompile -> dynamic pipeline) and on the template plugin for reference.
+    ov::CompiledModel compiledModel;
+    try {
+        compiledModel = core->compile_model(model, target_device, configuration);
+    } catch (const ov::Exception& e) {
+        FAIL() << "Failed to compile dynamic-batch model for target device: " << e.what();
+    }
+
+    ov::CompiledModel referenceCompiledModel;
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "Template plugin is not available for reference comparison: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic;
+    ov::InferRequest reqReference;
+    OV_ASSERT_NO_THROW(reqDynamic = compiledModel.create_infer_request());
+    OV_ASSERT_NO_THROW(reqReference = referenceCompiledModel.create_infer_request());
+
+    // First inference with batch = 1: the pipeline is created and its command list recorded for the first time.
+    const ov::Shape shapeBatch1 = {1, 720, 1280, 16};
+    ov::Tensor inBatch1 =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shapeBatch1, 100, 0);
+    setInputInferAndCompare(model, reqDynamic, reqReference, inBatch1, "CompileAndInferWithBatchChange_batch1_first");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected the first inference to record the command list, but got: " << logCapture.str();
+
+    // Same batch again: no tensor change, the command list should be reused.
+    logCapture.clear();
+    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithBatchChange_batch1_second");
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
+        << "Expected the command list to be reused for the same batch, but got: " << logCapture.str();
+
+    // Change the batch dimension to 4: this sets the dynamic-batch-changed flag, rebuilds the pipeline on the next
+    // inference and re-records the command list.
+    logCapture.clear();
+    const ov::Shape shapeBatch4 = {4, 720, 1280, 16};
+    ov::Tensor inBatch4 =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shapeBatch4, 100, 0);
+    setInputInferAndCompare(model, reqDynamic, reqReference, inBatch4, "CompileAndInferWithBatchChange_batch4");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected a batch change to rebuild the pipeline and re-record the command list, but got: "
+        << logCapture.str();
+
+    // Switch the batch dimension back to 1: rebuild again and verify correctness against the reference.
+    logCapture.clear();
+    ov::Tensor inBatch1Again =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shapeBatch1, 100, 0);
+    setInputInferAndCompare(model,
+                            reqDynamic,
+                            reqReference,
+                            inBatch1Again,
+                            "CompileAndInferWithBatchChange_batch1_again");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected switching the batch back to rebuild the pipeline, but got: " << logCapture.str();
+}
+
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
 inline bool isByteCodeBlob(const std::string& blob) {
@@ -729,6 +814,58 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     }
 
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+}
+
+// Compile a dynamic model in the default (no explicit host-compile mode) configuration, run one inference with a
+// concrete shape and compare the output against the template plugin reference.
+// This complements CompileDynamicModelWithNoHostCompileMode (which only checks the exported blob type) by also
+// validating numerical correctness for both dynamic-model kinds:
+//   - MaxPool_NCHW          : dynamic spatial dims  -> bytecode blob, runs through the host-compile DynamicPipeline.
+//   - MaxPool_NCHW_DynBatch : dynamic batch         -> ELF blob, dynamic batch handled by the regular plugin path.
+TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelInferAndCompareWithTemplate) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createModelByName(selectedModelName);
+
+    // Compile on NPU with the parameterized (deferred-executor) configuration.
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    // Compile the reference on the template plugin; skip if it is unavailable.
+    ov::CompiledModel referenceCompiledModel;
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "Template plugin is not available for reference comparison: " << e.what();
+    }
+
+    // With NPU_CREATE_EXECUTOR=0 the runtime library is loaded lazily on create_infer_request. If it cannot be
+    // loaded in this environment, skip like CompileDynamicModelWithNoHostCompileMode does.
+    ov::InferRequest reqDynamic;
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        }
+        GTEST_SKIP() << "Cannot load library, skip test.";
+    }
+
+    ov::InferRequest reqReference;
+    OV_ASSERT_NO_THROW(reqReference = referenceCompiledModel.create_infer_request());
+
+    // Pick a concrete shape inside the dynamic range. Both models use NCHW layout.
+    //   MaxPool_NCHW          : {1, 16, [10..720], [10..1280]} -> {1, 16, 720, 1280}
+    //   MaxPool_NCHW_DynBatch : {[1..10], 16, 720, 1280}       -> {4, 16, 720, 1280}
+    const ov::Shape shape = (selectedModelName == "MaxPool_NCHW_DynBatch") ? ov::Shape{4, 16, 720, 1280}
+                                                                           : ov::Shape{1, 16, 720, 1280};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileDynamicModelInferAndCompareWithTemplate");
 }
 
 }  // namespace behavior
