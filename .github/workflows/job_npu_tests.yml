@@ -33,6 +33,8 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
+  # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
+  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   TensorFlow_NPU_Models_Tests:
@@ -111,10 +113,6 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        
-        # To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
         if: ${{ !cancelled() }}
@@ -123,9 +121,6 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        # To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -212,11 +207,6 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\jax\test_hf_transformers.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-        # TODO: NPU plugin logging is disabled for now (LOG_INFO is very verbose).
-        # Pending decision with the pipeline owners on how to expose it (input param
-        # vs. leave off). To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -314,12 +304,9 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-        # To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
-
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: "Install PyTorch tests requirements (group B: hf_transformers/easyocr/gfpgan/tpsmm)"
+        if: ${{ !cancelled() }}
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\hf_transformers.txt `
@@ -328,6 +315,7 @@ jobs:
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\tpsmm.txt
 
       - name: PyTorch Models Tests - NPU compile-only (group B)
+        if: ${{ !cancelled() }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -338,30 +326,22 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-        # To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
-
-      # Group C: llm is isolated. llm_build_deps.txt must be installed BEFORE llm.txt
-      # (pypcre is a build-time dep of gptqmodel); llm.txt needs --no-build-isolation.
-      # GPTQ/AWQ quantized deps are gated to Linux/x86_64, so on Windows only the
-      # non-quantized precommit models are exercised.
+      # Group C: llm. Disabled on NPU (if: false) - needs additional changes to enable
+      # on Windows (gptqmodel deps + export_mode path). llm_build_deps must precede llm.txt.
       - name: "Install PyTorch tests requirements (group C: llm)"
+        if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm_build_deps.txt
           python3 -m pip install --no-build-isolation -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm.txt
 
-      - name: "PyTorch Models Tests - NPU compile-only (group C: llm)"
+      - name: PyTorch Models Tests - NPU compile-only (group C - llm)
+        if: false
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_llm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_llm_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-
-        # To debug locally/manually, uncomment:
-        # env:
-        #   OV_NPU_LOG_LEVEL: LOG_INFO
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

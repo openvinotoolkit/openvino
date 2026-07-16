@@ -9,16 +9,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-      npu-platforms:
-        description: 'JSON list of NPU platforms to compile for (offline), each on its own runner. e.g. ["3720","4000","5010","5020"]'
-        type: string
-        required: false
-        default: '["3720","4000","5010","5020"]'
-      model-scope:
-        description: 'Scope of models for testing (pytest marker)'
-        type: string
-        required: false
-        default: 'precommit'
   pull_request:
     types:
       - opened
@@ -101,8 +91,6 @@ jobs:
     with:
       runner: 'aks-win-8-cores-16gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      npu-platforms: ${{ inputs.npu-platforms || '["3720","4000","5010","5020"]' }}
-      model-scope: ${{ inputs.model-scope || 'precommit' }}
 
   Overall_Status:
     name: ci/gha_overall_status_windows_npu
