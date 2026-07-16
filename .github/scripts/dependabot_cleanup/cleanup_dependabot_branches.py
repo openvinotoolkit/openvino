@@ -1,197 +1,273 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Delete stale ``dependabot/*`` branches that no longer have an open PR.
+"""Delete stale ``dependabot/*`` branches that no longer have an open pull request.
 
-Sometimes Dependabot branches are not removed automatically after their PR is
-merged or closed. This script enumerates every branch whose name starts with
-``dependabot/`` and deletes the ones that are safe to remove.
+Dependabot branches are sometimes left behind after their pull request is merged
+or closed. This script finds those orphaned branches and removes them.
 
-A branch is considered *stale* (safe to delete) when there is NO open pull
-request using it as the head branch. Branches that still have an open PR are
-always kept.
+The logic is intentionally small and split into clear steps so it is easy to read
+and to extend:
 
-Run it manually (dry-run is the default here to be safe):
+    1. list_dependabot_branches()  -> which branches do we care about?
+    2. get_open_pr_branches()      -> which branches are still in use?
+    3. is_branch_stale()           -> the single rule that decides deletion.
+    4. delete_branch()             -> the side effect.
+    5. run_cleanup()               -> wires the steps together and reports.
+
+To change *what counts as stale* (for example, also require the branch to be a
+few days old), you only need to change ``is_branch_stale``.
+
+Run it manually (dry-run is the default, so nothing is deleted):
 
     GITHUB_TOKEN=<token> GITHUB_REPOSITORY=openvinotoolkit/openvino \\
         python3 cleanup_dependabot_branches.py --dry-run
 
-To actually delete branches pass ``--no-dry-run`` (or set ``DRY_RUN=false``).
+Pass ``--no-dry-run`` (or set ``DRY_RUN=false``) to actually delete branches.
 """
 
 import argparse
 import logging
 import os
 import sys
+from dataclasses import dataclass, field
 
-from github import Github, Auth
+from github import Auth, Github
 from github.GithubException import GithubException
 
-BRANCH_PREFIX = 'dependabot/'
+DEPENDABOT_BRANCH_PREFIX = "dependabot/"
 
-LOGGER = logging.getLogger('dependabot_cleanup')
+# Exit codes, kept explicit so the CI step is easy to reason about.
+EXIT_OK = 0
+EXIT_DELETION_FAILED = 1
+EXIT_BAD_CONFIG = 2
+
+logger = logging.getLogger("dependabot_cleanup")
 
 
-def init_logger() -> None:
-    logging.basicConfig(
-        level=os.environ.get('LOGLEVEL', 'INFO').upper(),
-        format='%(asctime)s %(name)-20s %(levelname)-8s %(message)s',
-        datefmt='%m-%d-%Y %H:%M:%S',
+@dataclass
+class Config:
+    """Everything the script needs to run, gathered in one place."""
+
+    repository_name: str
+    token: str
+    dry_run: bool
+
+
+@dataclass
+class CleanupResult:
+    """A simple record of what happened, used for the final summary."""
+
+    scanned: list[str] = field(default_factory=list)
+    kept: list[str] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Core rules and GitHub queries
+# --------------------------------------------------------------------------- #
+def is_dependabot_branch(branch_name: str) -> bool:
+    """Return True for branches managed by Dependabot."""
+    return branch_name.startswith(DEPENDABOT_BRANCH_PREFIX)
+
+
+def is_branch_stale(branch_name: str, open_pr_branches: set[str]) -> bool:
+    """Decide whether a dependabot branch is safe to delete.
+
+    A branch is stale when it does NOT back an open pull request. That covers
+    branches whose PR was merged or closed, as well as branches that never had a
+    PR. Branches with an open PR are always kept.
+
+    This is the single place to change the deletion policy. For example, to also
+    keep very recent branches you would add that extra condition here.
+    """
+    return branch_name not in open_pr_branches
+
+
+def get_open_pr_branches(repository) -> set[str]:
+    """Return the set of head branch names that currently have an open PR.
+
+    PyGithub returns a ``PaginatedList``, so pagination is handled for us.
+    """
+    return {pull.head.ref for pull in repository.get_pulls(state="open")}
+
+
+def list_dependabot_branches(repository) -> list[str]:
+    """Return the names of all ``dependabot/*`` branches in the repository."""
+    return [
+        branch.name
+        for branch in repository.get_branches()
+        if is_dependabot_branch(branch.name)
+    ]
+
+
+def delete_branch(repository, branch_name: str) -> bool:
+    """Delete a branch via the git refs API. Return True on success."""
+    try:
+        repository.get_git_ref(f"heads/{branch_name}").delete()
+        return True
+    except GithubException as error:
+        logger.error('Failed to delete branch "%s": %s', branch_name, error)
+        return False
+
+
+# --------------------------------------------------------------------------- #
+# Orchestration
+# --------------------------------------------------------------------------- #
+def run_cleanup(repository, dry_run: bool) -> CleanupResult:
+    """Scan dependabot branches and delete the stale ones.
+
+    When ``dry_run`` is True the script only logs what it *would* delete.
+    """
+    open_pr_branches = get_open_pr_branches(repository)
+    logger.info("Found %d open pull request branch(es)", len(open_pr_branches))
+
+    dependabot_branches = list_dependabot_branches(repository)
+    logger.info(
+        'Found %d "%s" branch(es) to inspect',
+        len(dependabot_branches),
+        DEPENDABOT_BRANCH_PREFIX,
     )
 
+    result = CleanupResult(scanned=dependabot_branches)
 
-def _env_flag(name: str) -> bool | None:
-    """Parse a boolean-ish environment variable. Returns None if unset."""
+    for branch_name in dependabot_branches:
+        if not is_branch_stale(branch_name, open_pr_branches):
+            logger.info('Keep    "%s" (still has an open PR)', branch_name)
+            result.kept.append(branch_name)
+            continue
+
+        if dry_run:
+            logger.info('Dry-run "%s" (would be deleted)', branch_name)
+            result.deleted.append(branch_name)
+            continue
+
+        logger.info('Delete  "%s" (no open PR)', branch_name)
+        if delete_branch(repository, branch_name):
+            result.deleted.append(branch_name)
+        else:
+            result.failed.append(branch_name)
+
+    return result
+
+
+def log_summary(result: CleanupResult, dry_run: bool) -> None:
+    """Print a compact, human-friendly summary of the run."""
+    deleted_label = "Would delete" if dry_run else "Deleted"
+
+    logger.info("-" * 60)
+    logger.info("Summary")
+    logger.info("  Scanned            : %d", len(result.scanned))
+    logger.info("  Kept (open PR)     : %d", len(result.kept))
+    logger.info("  %-18s : %d", deleted_label, len(result.deleted))
+    for branch_name in result.deleted:
+        logger.info("      - %s", branch_name)
+    if result.failed:
+        logger.info("  Failed to delete   : %d", len(result.failed))
+        for branch_name in result.failed:
+            logger.info("      - %s", branch_name)
+    logger.info("-" * 60)
+
+
+# --------------------------------------------------------------------------- #
+# Configuration and entry point
+# --------------------------------------------------------------------------- #
+def read_bool_env(name: str) -> bool | None:
+    """Read a boolean-ish environment variable, or None if it is unset/empty."""
     value = os.environ.get(name)
-    if value is None or value == '':
+    if not value:
         return None
-    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return value.strip().lower() in ("1", "true", "yes", "on")
 
 
-def get_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        '-r',
-        '--repository-name',
-        type=str,
-        default=os.environ.get('GITHUB_REPOSITORY'),
-        help='Repository name in the OWNER/REPOSITORY format '
-             '(defaults to the GITHUB_REPOSITORY env var)',
-    )
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments.
 
-    # --dry-run / --no-dry-run. The default is resolved from the DRY_RUN env
-    # var when neither flag is passed, otherwise it falls back to True (safe).
-    dry_run_default = _env_flag('DRY_RUN')
+    The dry-run default is resolved from the ``DRY_RUN`` environment variable and
+    falls back to True (the safe choice) when it is not set. An explicit
+    ``--dry-run`` / ``--no-dry-run`` flag always wins over the environment.
+    """
+    dry_run_default = read_bool_env("DRY_RUN")
     if dry_run_default is None:
         dry_run_default = True
 
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--dry-run',
-        dest='dry_run',
-        action='store_true',
-        help='Only log which branches would be deleted, do not delete anything',
+        "-r",
+        "--repository-name",
+        default=os.environ.get("GITHUB_REPOSITORY"),
+        help="Repository in OWNER/REPO format "
+             "(defaults to the GITHUB_REPOSITORY env var)",
     )
     parser.add_argument(
-        '--no-dry-run',
-        dest='dry_run',
-        action='store_false',
-        help='Actually delete the stale branches',
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="Only log which branches would be deleted (default)",
+    )
+    parser.add_argument(
+        "--no-dry-run",
+        dest="dry_run",
+        action="store_false",
+        help="Actually delete the stale branches",
     )
     parser.set_defaults(dry_run=dry_run_default)
     return parser.parse_args()
 
 
-def get_open_pr_head_refs(gh_repo) -> set[str]:
-    """Return the set of head branch names that currently have an open PR.
+def build_config() -> Config | None:
+    """Build the Config from CLI args and environment, or None if it is invalid."""
+    args = parse_args()
 
-    Pagination is handled transparently by PyGithub's ``PaginatedList``.
-    """
-    open_heads: set[str] = set()
-    for pull in gh_repo.get_pulls(state='open'):
-        # ``head.ref`` is the branch name within the head repository.
-        open_heads.add(pull.head.ref)
-    return open_heads
+    if not args.repository_name:
+        logger.error(
+            "Repository name is required "
+            "(pass --repository-name or set GITHUB_REPOSITORY)"
+        )
+        return None
 
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        logger.error("The GITHUB_TOKEN environment variable is required")
+        return None
 
-def get_dependabot_branches(gh_repo) -> list[str]:
-    """Return all branch names starting with the dependabot prefix."""
-    branches: list[str] = []
-    for branch in gh_repo.get_branches():
-        if branch.name.startswith(BRANCH_PREFIX):
-            branches.append(branch.name)
-    return branches
-
-
-def delete_branch(gh_repo, branch_name: str) -> bool:
-    """Delete a branch via the git refs API. Returns True on success."""
-    try:
-        ref = gh_repo.get_git_ref(f'heads/{branch_name}')
-        ref.delete()
-        return True
-    except GithubException as exc:
-        LOGGER.error('FAILED TO DELETE BRANCH "%s": %s', branch_name, exc)
-        return False
+    return Config(
+        repository_name=args.repository_name,
+        token=token,
+        dry_run=args.dry_run,
+    )
 
 
 def main() -> int:
-    init_logger()
-    args = get_arguments()
-
-    if not args.repository_name:
-        LOGGER.error(
-            'Repository name is required (pass --repository-name or set '
-            'GITHUB_REPOSITORY)'
-        )
-        return 2
-
-    token = os.environ.get('GITHUB_TOKEN')
-    if not token:
-        LOGGER.error('GITHUB_TOKEN env var is required')
-        return 2
-
-    LOGGER.info(
-        'Starting dependabot branch cleanup for "%s" (dry_run=%s)',
-        args.repository_name,
-        args.dry_run,
+    logging.basicConfig(
+        level=os.environ.get("LOGLEVEL", "INFO").upper(),
+        format="%(asctime)s %(name)-20s %(levelname)-8s %(message)s",
+        datefmt="%m-%d-%Y %H:%M:%S",
     )
 
-    github = Github(auth=Auth.Token(token=token))
+    config = build_config()
+    if config is None:
+        return EXIT_BAD_CONFIG
+
+    logger.info(
+        'Cleaning dependabot branches in "%s" (dry_run=%s)',
+        config.repository_name,
+        config.dry_run,
+    )
+
+    github = Github(auth=Auth.Token(token=config.token))
     try:
-        gh_repo = github.get_repo(full_name_or_id=args.repository_name)
-
-        open_heads = get_open_pr_head_refs(gh_repo)
-        LOGGER.info('Found %d open PR head branches', len(open_heads))
-
-        dependabot_branches = get_dependabot_branches(gh_repo)
-        LOGGER.info(
-            'Found %d "%s" branches to inspect',
-            len(dependabot_branches),
-            BRANCH_PREFIX,
-        )
-
-        kept: list[str] = []
-        deleted: list[str] = []
-        failed: list[str] = []
-
-        for branch_name in dependabot_branches:
-            if branch_name in open_heads:
-                LOGGER.info('KEEP   "%s" (has an open PR)', branch_name)
-                kept.append(branch_name)
-                continue
-
-            if args.dry_run:
-                LOGGER.info(
-                    'DRY-RUN would delete "%s" (no open PR)', branch_name
-                )
-                deleted.append(branch_name)
-                continue
-
-            LOGGER.info('DELETE "%s" (no open PR)', branch_name)
-            if delete_branch(gh_repo, branch_name):
-                deleted.append(branch_name)
-            else:
-                failed.append(branch_name)
+        repository = github.get_repo(config.repository_name)
+        result = run_cleanup(repository, config.dry_run)
     finally:
         github.close()
 
-    LOGGER.info('=' * 60)
-    LOGGER.info('SUMMARY')
-    LOGGER.info('  Branches scanned: %d', len(dependabot_branches))
-    LOGGER.info('  Branches kept (open PR): %d', len(kept))
-    LOGGER.info(
-        '  Branches %s: %d',
-        'that would be deleted' if args.dry_run else 'deleted',
-        len(deleted),
-    )
-    if deleted:
-        for branch_name in deleted:
-            LOGGER.info('    - %s', branch_name)
-    LOGGER.info('  Branch deletions failed: %d', len(failed))
-    LOGGER.info('=' * 60)
+    log_summary(result, config.dry_run)
 
     # Only fail the run if a real deletion attempt failed.
-    return 1 if failed else 0
+    return EXIT_DELETION_FAILED if result.failed else EXIT_OK
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
