@@ -100,6 +100,18 @@ protected:
 
 namespace fc_kernel_bf_tiled_utils {
 using namespace kernel_selector;
+struct slm_dq_eligibility_params {
+    dev_type device_type = dev_type::integrated_gpu;
+    size_t max_local_mem_size = 0;
+    bool is_4bit_weight = false;
+    bool is_8bit_asym_weight = false;
+    size_t weight_ifm = 0;
+    size_t scale_group_size = 0;
+    size_t zp_group_size = 0;
+    bool has_decompression_zp = false;
+    size_t dq_group_size = 0;
+};
+
 std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params);
 std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
                                                      bool needs_align,
@@ -107,9 +119,18 @@ std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_param
                                                      int32_t align_f = 1);
 size_t get_scale_group_size(const fully_connected_params& params);
 bool is_8bit_asym_wei(const fully_connected_params& params);
+bool is_weight_dyn_quantizable(bool is_4bit_weight, bool is_8bit_asym_weight);
 bool is_weight_dyn_quantizable(const fully_connected_params& params);
 bool is_per_token_dynamic_quantize(const fully_connected_params& params);
+size_t get_dynamic_quantize_group_size(size_t requested_group_size,
+                                       size_t scale_group_size,
+                                       size_t zp_group_size,
+                                       bool has_decompression_zp,
+                                       bool is_8bit_asym_weight);
 size_t get_dynamic_quantize_group_size(const fully_connected_params& params);
+bool would_use_slm_with_internal_dq(const slm_dq_eligibility_params& params,
+                                    size_t runtime_batch,
+                                    size_t standalone_dq_group_size);
 bool should_dynamic_quantize(const fully_connected_params& params);
 bool is_weight_vertical(const fully_connected_params& params, size_t output_f);
 bool is_weight_horizontal(const fully_connected_params& params, size_t output_f);

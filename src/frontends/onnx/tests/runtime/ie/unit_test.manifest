@@ -359,13 +359,10 @@ IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
-# GroupQueryAttention with a quantized KV cache appends tokens via ScatterUpdate on i8/u8/f8e4m3
-# data, for which the GPU plugin has no layout ("No layout format available for scatterupdate
-# ... data_type: i8"). The numerics are covered on CPU/INTERPRETER; GPU is skipped here.
-IE_GPU.onnx_model_gqa_i8kv_per_channel
-IE_GPU.onnx_model_gqa_i8kv_per_tensor
-IE_GPU.onnx_model_gqa_i4kv_per_channel
-IE_GPU.onnx_model_gqa_i4kv_per_tensor
+# GroupQueryAttention with an f8e4m3 quantized KV cache: the GPU plugin has no f8e4m3 Slice/reorder
+# layout yet ("No layout format available"), so the fp8 variants remain skipped on GPU. The i8/i4
+# variants are enabled (see KeepGQAKVScalePrecision + i8/u8 ScatterUpdate/Slice support). fp8 GPU is
+# tracked as a separate follow-up; numerics stay covered on CPU/INTERPRETER meanwhile.
 IE_GPU.onnx_model_gqa_f8e4m3fnkv_per_channel
 IE_GPU.onnx_model_gqa_f8e4m3fnkv_per_tensor
 

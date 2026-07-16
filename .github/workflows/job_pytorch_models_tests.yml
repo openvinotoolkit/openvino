@@ -58,19 +58,19 @@ jobs:
           submodules: 'false'
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tokenizers_wheel)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -126,7 +126,8 @@ jobs:
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/easyocr.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gfpgan.txt \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/tpsmm.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/tpsmm.txt \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/lightglue.txt
 
       - name: PyTorch Models Tests Not Timm or Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
@@ -247,7 +248,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models-${{ inputs.model_scope }}

@@ -81,6 +81,13 @@ struct primitive_impl {
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
+
+    // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
+    // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
+    // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
+    // between USM buffers) or that never touch tensor data (e.g. shape_of) should override
+    // this to return false so their input producers are not forced to allocate lockable memory.
+    virtual bool requires_lockable_input() const { return is_cpu(); }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
     virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
