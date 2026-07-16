@@ -2,24 +2,27 @@
   "schema_version": "1.0",
   "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
   "signature_hash": "85df26485ff568d8",
-  "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
   "category": "Flaky Test",
-  "count": 4,
+  "count": 5,
   "first_seen": "2026-07-09T11:34:24Z",
-  "last_seen": "2026-07-15T22:23:23Z",
+  "last_seen": "2026-07-16T01:44:02Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29461222151",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29450212856",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29268143021",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29072781821",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29010970383"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36888",
     "https://github.com/openvinotoolkit/openvino/pull/36887",
     "https://github.com/openvinotoolkit/openvino/pull/36796",
     "https://github.com/openvinotoolkit/openvino/pull/36763",
     "https://github.com/openvinotoolkit/openvino/pull/36780"
   ],
   "recent_timestamps": [
+    "2026-07-16T01:44:02Z",
     "2026-07-15T22:23:23Z"
   ]
 }

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-16-01-44-02-000-29461222151",
+  "timestamp": "2026-07-16T01:44:02Z",
+  "run_id": "29461222151",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29461222151",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36888",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36888",
+  "author": "geunhwan",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "Mocha after-all hook fails: rm -rf demo-electron-app-project — Permission denied on electron.exe and DLLs"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied",
+    "1 failing\n  1) E2E testing for OpenVINO as an Electron dependency.\n       \"after all\" hook for \"should run electron package and verify output\":\n     Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The two E2E tests passed successfully (2 passing). The failure occurs only in the Mocha 'after all' cleanup hook which attempts 'rm -rf demo-electron-app-project'. On Windows, the electron process (electron.exe) launched during the test is still running or its loaded DLLs (d3dcompiler_47.dll, libEGL.dll, libGLESv2.dll) are still locked by the OS at cleanup time, preventing deletion. This is a Windows file-locking issue unrelated to the PR changes (which revert GPU RMS normalization FP32 logic). The same pattern has been seen 4 previous times on Windows CI.",
+  "reproduction_steps": "Run 'npm run test:e2e' in src/bindings/js/node on a Windows runner without waiting for the electron process to fully exit before cleanup.",
+  "recommended_actions": [
+    "Add a delay or process-kill step before the rm -rf cleanup in electron-app.test.js to ensure electron.exe has fully exited",
+    "Use rimraf or a Windows-aware delete utility instead of bare rm -rf for cleanup on Windows",
+    "Add a retry loop or use 'robocopy /mir /e /purge' style cleanup that tolerates Windows file locks",
+    "Re-run the failed job — the underlying tests passed; only the cleanup hook is flaky"
+  ],
+  "prevention_strategies": "Fix the Mocha after-all hook in electron-app.test.js to explicitly terminate the electron process before attempting directory cleanup on Windows. Consider using a Windows-compatible file deletion library.",
+  "historical_context": "This is the 5th occurrence of this same pattern. Previous runs: 29450212856 (2026-07-15), 29268143021 (2026-07-13), 29072781821 (2026-07-10), 29010970383 (2026-07-09). All on Windows CI JS API E2E tests."
+}
