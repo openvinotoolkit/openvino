@@ -38,7 +38,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<std::string>& ob
 }
 }  // namespace OVClassNetworkTestName
 
-const std::vector<ov::AnyMap> configs = {{}};
+const std::vector<ov::AnyMap> configs = {{ov::log::level(ov::log::Level::ERR)}};
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassBasicTestP,
