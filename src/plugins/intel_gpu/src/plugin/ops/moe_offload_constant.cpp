@@ -280,58 +280,16 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
         return 0;
     }
 
-    const size_t max_ctx = env_size_t("OV_MOE_AUTO_MAX_CTX", 8192);
-    const double safety = env_fraction("OV_MOE_AUTO_SAFETY", 0.9);
+    const size_t max_ctx = 8192;
+    const double safety = 0.85;
     const uint64_t w_fixed = w_total - w_moe;
     size_t pa_layers = 0;
     uint64_t kv_bytes = 0;
     const uint64_t reserve = estimate_runtime_reserve(model, max_ctx, pa_layers, kv_bytes);
-
-    // Memory-mapped weight-file headroom (iGPU only). On a shared-memory iGPU the OTD weight
-    // file stays memory-mapped and its hot pages compete with USM allocations for the same
-    // physical RAM: resident experts hold a USM copy while offloaded experts are read on demand
-    // from the mapped .bin, keeping those pages in the OS page cache. This pressure scales with
-    // the total weight size (bin size), so it is modeled as an additive fraction of W_total
-    // rather than a blunt budget divisor -- smaller models (smaller bins) thus keep more budget.
-    //
-    // The page cache is reclaimable, so its pressure cannot exceed the memory budget itself:
-    // when W_total >> M_budget (a large model on a small machine) the OS simply reclaims the
-    // mapped pages and streams from disk, so the headroom must NOT grow unboundedly with W_total.
-    // We therefore cap the reference size at M_budget. Without this cap, e.g. a 29GB-weight model
-    // on a 16GB iGPU would reserve ~9GB and be driven to ~99% offload, whereas in practice such a
-    // model runs at a much lower ratio (the reclaimed bin pages do not need reserving).
-    // Tuned on a 32GB iGPU so a ~18GB-weight model offloads (avoids thrash) while a ~13GB one
-    // stays mostly resident. Not applied on dGPU (weights live in dedicated VRAM).
-    const double mmap_headroom_frac = is_igpu ? env_fraction("OV_MOE_AUTO_MMAP_HEADROOM", 0.30) : 0.0;
-    const double mmap_headroom = mmap_headroom_frac * static_cast<double>(std::min<uint64_t>(w_total, m_budget));
-
     const uint64_t free_ram_now = get_free_system_ram_bytes();
 
-    // Full-residency fit gate. If the whole model fits in available memory at full residency,
-    // do NOT offload: on a shared-memory iGPU, offloading a model that already fits is strictly
-    // harmful. Offloaded experts are read from the memory-mapped .bin, which keeps the entire
-    // bin hot in the page cache ON TOP of the resident USM copies -- raising peak memory AND
-    // adding read latency (measured: a ~13GB model peaks ~21GB fully-resident but ~26GB when
-    // partially offloaded, and runs slower). At full residency the USM copy is authoritative so
-    // the bin pages get evicted; hence this gate excludes the mmap headroom that only applies to
-    // the partially-offloaded regime. The ceiling is free system RAM on iGPU (USM host allocs
-    // may exceed the GPU's reported max_global_mem_size) and device memory on dGPU.
-    const double fit_safety = env_fraction("OV_MOE_AUTO_FIT_SAFETY", 0.80);
-    const uint64_t fit_ceiling = (is_igpu && free_ram_now > 0) ? free_ram_now : m_budget;
-    const uint64_t full_resident = w_total + reserve;
-    if (static_cast<double>(full_resident) <= static_cast<double>(fit_ceiling) * fit_safety) {
-        GPU_DEBUG_INFO << "[MOE OTD auto] model fits at full residency (" << full_resident << " <= "
-                       << fit_ceiling << " * " << fit_safety << "); resolved offload_ratio=0" << std::endl;
-        std::cerr << "[MOE OTD auto] dev_type=" << (is_igpu ? "iGPU" : "dGPU")
-                  << " W_total=" << static_cast<uint64_t>(w_total / (1024.0 * 1024.0)) << "MiB"
-                  << " Reserve=" << static_cast<uint64_t>(reserve / (1024.0 * 1024.0)) << "MiB"
-                  << " fit_ceiling=" << static_cast<uint64_t>(fit_ceiling / (1024.0 * 1024.0)) << "MiB"
-                  << " FIT_SAFETY=" << fit_safety << " -> fits at full residency -> offload_ratio=0" << std::endl;
-        return 0;
-    }
-
     const double budget_for_moe =
-        static_cast<double>(m_budget) * safety - static_cast<double>(w_fixed) - static_cast<double>(reserve) - mmap_headroom;
+        static_cast<double>(m_budget) * safety - static_cast<double>(w_fixed) - static_cast<double>(reserve);
 
     size_t ratio;
     if (budget_for_moe >= static_cast<double>(w_moe)) {
@@ -347,7 +305,7 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
     constexpr double to_mib = 1.0 / (1024.0 * 1024.0);
     // Emit unconditionally (compile-time, once per model) so the decision is visible even in
     // release builds where GPU_DEBUG_INFO is compiled out.
-    std::cerr << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+    std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
               << " dev_mem=" << static_cast<uint64_t>(info.max_global_mem_size * to_mib) << "MiB"
               << " free_ram_now=" << static_cast<uint64_t>(free_ram_now * to_mib) << "MiB"
               << " M_budget=" << static_cast<uint64_t>(m_budget * to_mib) << "MiB"
@@ -356,9 +314,8 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
               << " W_fixed=" << static_cast<uint64_t>(w_fixed * to_mib) << "MiB"
               << " Reserve=" << static_cast<uint64_t>(reserve * to_mib) << "MiB"
               << " (pa_layers=" << pa_layers << " kv=" << static_cast<uint64_t>(kv_bytes * to_mib) << "MiB)"
-              << " mmap_headroom=" << static_cast<uint64_t>(mmap_headroom * to_mib) << "MiB"
               << " budget_for_moe=" << static_cast<long long>(budget_for_moe * to_mib) << "MiB"
-              << " SAFETY=" << safety << " mmap_frac=" << mmap_headroom_frac << " max_ctx=" << max_ctx
+              << " SAFETY=" << safety << " max_ctx=" << max_ctx
               << " -> offload_ratio=" << ratio << std::endl;
 
     GPU_DEBUG_INFO << "[MOE OTD auto] M_budget=" << m_budget << " (dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
