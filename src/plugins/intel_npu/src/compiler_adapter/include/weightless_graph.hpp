@@ -31,7 +31,9 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+                    std::variant<std::monostate,
+                                 std::shared_ptr<const ov::Model>,
+                                 std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 

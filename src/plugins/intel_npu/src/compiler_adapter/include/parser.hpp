@@ -22,7 +22,9 @@ public:
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::shared_ptr<ov::ICore>& core,
-        std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+        std::variant<std::monostate,
+                     std::shared_ptr<const ov::Model>,
+                     std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
         const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
 

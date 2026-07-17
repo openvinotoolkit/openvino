@@ -168,12 +168,15 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(zero_init_structs);
 
-    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view> weights_source;
+    std::variant<std::monostate,
+                 std::shared_ptr<const ov::Model>,
+                 std::pair<std::string_view, std::shared_ptr<ov::ICore>>>
+        weights_source;
     if (m_init_schedules.has_value()) {
         if (m_original_model.has_value()) {
             weights_source = m_original_model.value();
         } else if (!m_config.get<WEIGHTS_PATH>().empty()) {
-            weights_source = m_config.get<WEIGHTS_PATH>();
+            weights_source = std::make_pair<>(m_config.get<WEIGHTS_PATH>(), core);
         } else {
             OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
         }

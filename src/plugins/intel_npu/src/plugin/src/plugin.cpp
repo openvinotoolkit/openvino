@@ -679,7 +679,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::shared_ptr<I
 
     const std::shared_ptr<IGraph> graph =
         blobFormatHandler->create_graph(_backend->getInitStructs(),
-                                        "net" + std::to_string(_compiledModelLoadCounter++));
+                                        "net" + std::to_string(_compiledModelLoadCounter++),
+                                        get_core());
 
     return std::make_shared<CompiledModel>(blobFormatHandler->create_dummy_model(),
                                            shared_from_this(),

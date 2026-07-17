@@ -119,14 +119,19 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
 
 // TODO flag to indicate whether or not the weight can be extracted from config
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_constants_map(
-    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
+    std::variant<std::monostate,
+                 std::shared_ptr<const ov::Model>,
+                 std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
     const std::vector<NetworkMetadata>& initNetworkMetadata) {
     if (const std::shared_ptr<const ov::Model>* model = std::get_if<std::shared_ptr<const ov::Model>>(&weightsSource)) {
         return get_all_constants_in_topological_order(*model);
-    } else if (std::string_view* weightsPath = std::get_if<std::string_view>(&weightsSource)) {
+    } else if (const std::pair<std::string_view, std::shared_ptr<ov::ICore>>* weightsPathAndCore =
+                   std::get_if<std::string_view>(&weightsSource)) {
+        auto [weightsPath, core] = *weightsPathAndCore;
+
         auto ext = ov::util::path_to_string(ov::util::make_path(*weightsPath).extension());
         if (ext == ONNX_EXTENSION) {
-            const auto model = get_core()->read_model(*weightsPath, *weightsPath, properties);
+            const auto model = core->read_model(*weightsPath, *weightsPath, properties);
             return get_all_constants_in_topological_order(model);
         } else if (ext == WEIGHTS_IR_EXTENSION) {
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
@@ -241,18 +246,19 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 }  // namespace
 
-WeightlessGraph::WeightlessGraph(
-    const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-    const GraphDescriptor& mainGraphDesc,
-    NetworkMetadata mainMetadata,
-    std::optional<ov::Tensor> mainBlob,
-    const std::vector<GraphDescriptor>& initGraphDesc,
-    std::vector<NetworkMetadata> initMetadata,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
-    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::string_view>&& weightsSource,
-    const FilteredConfig& config,
-    const bool blobIsPersistent)
+WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                 const GraphDescriptor& mainGraphDesc,
+                                 NetworkMetadata mainMetadata,
+                                 std::optional<ov::Tensor> mainBlob,
+                                 const std::vector<GraphDescriptor>& initGraphDesc,
+                                 std::vector<NetworkMetadata> initMetadata,
+                                 std::optional<std::vector<ov::Tensor>> initBlobs,
+                                 std::variant<std::monostate,
+                                              std::shared_ptr<const ov::Model>,
+                                              std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
+                                 const FilteredConfig& config,
+                                 const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
