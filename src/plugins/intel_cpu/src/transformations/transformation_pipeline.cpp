@@ -50,6 +50,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
@@ -311,7 +312,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto benefit_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
         return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
-               all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static());
+               all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static());
     };
 
     const auto consumers = node->get_output_target_inputs(0);
