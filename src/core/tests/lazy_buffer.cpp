@@ -125,18 +125,121 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
-    // After evict(), get_ptr() should load the same file content again
     buffer->hint_evict();
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
-    // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
     buffer->hint_evict();
     overwrite_test_data(offset, second_rewrite);
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
     EXPECT_THAT(second_rewrite, ElementsAreArray(second_ptr, size));
+}
+
+TEST_F(LazyBufferTest, move_constructor_unloaded) {
+    write_test_data(128);
+    constexpr size_t offset = 10;
+    constexpr size_t size = 50;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+
+    LazyBuffer dest{std::move(source)};
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_constructor_loaded) {
+    write_test_data(128);
+    constexpr size_t offset = 5;
+    constexpr size_t size = 30;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+    const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
+
+    // Overwrite file after prefetch; moved object should serve cached data, not re-read
+    overwrite_test_data(offset, std::vector<char>(size, 0xFF));
+
+    LazyBuffer dest{std::move(source)};
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(expected));
+}
+
+TEST_F(LazyBufferTest, move_assignment_unloaded) {
+    write_test_data(128);
+    constexpr size_t offset = 20;
+    constexpr size_t size = 40;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_assignment_loaded) {
+    write_test_data(128);
+    constexpr size_t offset = 15;
+    constexpr size_t size = 20;
+
+    LazyBuffer source{m_file_path, offset, size};
+
+    const auto src_buf_ptr = source.get_ptr<char>();
+    const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
+
+    // Overwrite file after prefetch; dest should keep cached data, not re-read
+    overwrite_test_data(offset, std::vector<char>(size, 0xFF));
+
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(expected));
+}
+
+TEST_F(LazyBufferTest, move_assignment_evict_and_reload) {
+    write_test_data(128);
+    constexpr size_t offset = 10;
+    constexpr size_t size = 30;
+
+    LazyBuffer source{m_file_path, offset, size};
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_NO_THROW(dest.hint_prefetch());
+    dest.hint_evict();
+
+    const auto data_ptr = dest.get_ptr<char>();
+    EXPECT_THAT(std::string_view(data_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_assignment_self_no_op) {
+    write_test_data(64);
+
+    LazyBuffer buf{m_file_path, 0, 64};
+    const auto src_buf_ptr = buf.get_ptr<char>();
+    const auto buf_size = buf.size();
+
+    auto& buf_ref = buf;
+    buf = std::move(buf_ref);
+
+    EXPECT_EQ(buf.get_ptr<char>(), src_buf_ptr);
+    EXPECT_EQ(buf.size(), buf_size);
 }
 }  // namespace ov::test

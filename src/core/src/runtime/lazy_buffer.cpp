@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/lazy_buffer.hpp"
 
+#include <csignal>
 #include <istream>
 #include <mutex>
 #include <utility>
@@ -15,6 +16,42 @@
 #include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
+namespace {
+std::once_flag g_sigsegv_handler_flag;
+struct sigaction g_old_sigsegv_action;
+
+std::vector<std::tuple<LazyBuffer*, std::uintptr_t, std::size_t>> g_reserved_regions;
+
+void sigsegv_handler(int signal, siginfo_t* info, void* context) {
+    for (const auto& [buf, reserved_ptr, reserved_size] : g_reserved_regions) {
+        const auto fault_addr_int = reinterpret_cast<std::uintptr_t>(info->si_addr);
+
+        if (fault_addr_int >= reserved_ptr && fault_addr_int < reserved_ptr + reserved_size) {
+            buf->hint_prefetch();
+            return;
+        }
+    }
+
+    // Chain to the previously registered handler.
+    if (g_old_sigsegv_action.sa_flags & SA_SIGINFO) {
+        g_old_sigsegv_action.sa_sigaction(signal, info, context);
+    } else if (g_old_sigsegv_action.sa_handler == SIG_DFL) {
+        // Restore the default disposition (terminate + core dump) and re-raise so
+        // the OS records the fault address and produces a core file normally.
+        std::signal(SIGSEGV, SIG_DFL);
+        std::raise(SIGSEGV);
+    } else if (g_old_sigsegv_action.sa_handler == SIG_IGN) {
+        // SIGSEGV cannot meaningfully be ignored: returning from the handler would
+        // resume the faulting instruction unchanged, triggering the same fault
+        // again and looping forever.  Force the default crash behaviour instead.
+        std::signal(SIGSEGV, SIG_DFL);
+        std::raise(SIGSEGV);
+    } else {
+        g_old_sigsegv_action.sa_handler(signal);
+    }
+}
+}  // namespace
+
 LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size)
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
@@ -40,9 +77,25 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
     std::error_code ec;
     m_aligned_buffer = static_cast<char*>(util::vm_reserve(m_byte_size, ec));
     OPENVINO_ASSERT(m_aligned_buffer != nullptr, "Failed to reserve memory for LazyBuffer. Error: ", ec.message());
+
+    g_reserved_regions.emplace_back(this, reinterpret_cast<std::uintptr_t>(m_aligned_buffer), m_byte_size);
+
+    std::call_once(g_sigsegv_handler_flag, []() {
+        struct sigaction sa;
+        std::memset(&sa, 0, sizeof(sa));
+        sa.sa_sigaction = sigsegv_handler;
+        sa.sa_flags = SA_SIGINFO;
+        sigaction(SIGSEGV, &sa, &g_old_sigsegv_action);
+    });
 }
 
 LazyBuffer::~LazyBuffer() {
+    g_reserved_regions.erase(std::remove_if(g_reserved_regions.begin(),
+                                            g_reserved_regions.end(),
+                                            [this](const auto& entry) {
+                                                return std::get<0>(entry) == this;
+                                            }),
+                             g_reserved_regions.end());
     if (m_aligned_buffer) {
         util::vm_release(m_aligned_buffer, m_byte_size);
         m_aligned_buffer = nullptr;
@@ -54,14 +107,37 @@ LazyBuffer::LazyBuffer(LazyBuffer&& other) noexcept
     : AlignedBuffer(std::move(other)),
       m_file_path{std::move(other.m_file_path)},
       m_offset{std::exchange(other.m_offset, 0)},
-      m_loaded{other.m_loaded.exchange(false, std::memory_order_relaxed)} {}
+      m_loaded{other.m_loaded.exchange(false, std::memory_order_relaxed)} {
+    for (auto& [buf, ptr, size] : g_reserved_regions) {
+        if (buf == &other) {
+            buf = this;
+            break;
+        }
+    }
+}
 
 LazyBuffer& LazyBuffer::operator=(LazyBuffer&& other) noexcept {
     if (this != &other) {
+        g_reserved_regions.erase(std::remove_if(g_reserved_regions.begin(),
+                                                g_reserved_regions.end(),
+                                                [this](const auto& entry) {
+                                                    return std::get<0>(entry) == this;
+                                                }),
+                                 g_reserved_regions.end());
+        if (m_aligned_buffer) {
+            util::vm_release(m_aligned_buffer, m_byte_size);
+            m_aligned_buffer = nullptr;
+        }
         AlignedBuffer::operator=(std::move(other));
         m_file_path = std::move(other.m_file_path);
         m_offset = std::exchange(other.m_offset, 0);
         m_loaded = other.m_loaded.exchange(false, std::memory_order_relaxed);
+        for (auto& [buf, ptr, size] : g_reserved_regions) {
+            if (buf == &other) {
+                buf = this;
+                break;
+            }
+        }
     }
     return *this;
 }

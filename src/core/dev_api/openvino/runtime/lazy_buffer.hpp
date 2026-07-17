@@ -35,13 +35,6 @@ public:
     LazyBuffer& operator=(const LazyBuffer&) = delete;
 
     /**
-     * @brief Gets aligned pointer to reserved buffer without loading data into it.
-     */
-    void* get_reserved_ptr() const noexcept {
-        return m_aligned_buffer;
-    }
-
-    /**
      * @brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
      * again.
      */

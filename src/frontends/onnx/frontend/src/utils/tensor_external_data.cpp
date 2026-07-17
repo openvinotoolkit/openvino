@@ -103,10 +103,9 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     };
     const auto get_lazy_buffer = [&]() {
         const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
-        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
-            static_cast<char*>(lazy->get_reserved_ptr()),
-            lazy->size(),
-            lazy);
+        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(lazy->get_ptr<char>(),
+                                                                              lazy->size(),
+                                                                              lazy);
     };
 
     constexpr size_t lazy_loading_threshold = 0x100000;  // 1MB
