@@ -17,16 +17,18 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
-// Builds: Range(any,any,any)
-//         -> opt Add(range, any)
-//         -> opt Unsqueeze x3
-//         -> opt Reshape
-//         -> opt Convert
-// Covers:
-//   Range -> Unsqueeze x (0-3) -> opt Convert           (Llama, Tril, Whisper)
-//   Range -> Add(Range, offset) -> Unsqueeze x (0-3)    (NPUW Standard LLM)
-//   Range -> Add(Range, offset) -> Reshape               (MiniCPM q-side)
-//   Range -> Add(Range, offset) -> Unsqueeze x3          (Gemma-4 cache_position)
+// Builds the Range chain shared by causal/sliding window mask pattern below:
+//
+//   Range(start, stop, step)
+//     -> opt Add(range, offset)
+//     -> opt Unsqueeze (up to 3x)
+//     -> opt Reshape
+//     -> opt Convert
+//
+// Real model shapes covered by this single chain:
+//   Range -> Unsqueeze x(0-3) -> opt Convert          (Llama, Tril, Whisper)
+//   Range -> Add(range, offset) -> Reshape            (MiniCPM, Q side)
+//   Range -> Add(range, offset) -> Unsqueeze x3       (Gemma-4 cache_position)
 std::shared_ptr<ov::Node> make_range_chain() {
     auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto add = opp::optional<ov::op::v1::Add>({range, opp::any_input()});
@@ -52,7 +54,10 @@ int64_t get_window_size(const std::shared_ptr<ov::Node>& node) {
 #endif
 
 // ============================================================================
-// Detects SDPA with is_causal=true attribute.
+// Matches: ScaledDotProductAttention(is_causal=true)
+//
+// The case when causality is an SDPA attribute, not an explicit mask
+// subgraph.
 // ============================================================================
 class SDPACausalMatcher final : public ov::pass::MatcherPass {
 public:
@@ -70,9 +75,15 @@ public:
 };
 
 // ============================================================================
-// Detects standard causal: LessEqual/Less(range_chain, range_chain).
-// Covers: Llama (Range->Unsq x3), NPUW LLM (Add(Range,off)->Unsq), Tril,
-//         MiniCPM (Less(Range, Reshape(Add(Range,off)))), Whisper (Range->Unsq x3).
+// Matches: LessEqual|Less(K = range_chain, Q = range_chain)
+// Two Range chains compared directly,
+// with no extra offset between K and Q. This is the most common causal-mask
+// shape, seen (with minor chain variations) in:
+//   - Llama    : Range -> Unsqueeze x3
+//   - Tril
+//   - MiniCPM  : Less(Range, Reshape(Add(Range, offset)))
+//   - Whisper  : Range -> Unsqueeze x3
+//
 // ============================================================================
 class StandardCausalMatcher final : public ov::pass::MatcherPass {
 public:
@@ -89,8 +100,10 @@ public:
 };
 
 // ============================================================================
-// Detects Qwen3-style causal: LessEqual/Less(range_chain, Add(any, range_chain)).
-// The threshold is Add(cache_len, Unsqueeze(Range)) -- Range is the 2nd Add input.
+// Matches: LessEqual|Less(K = range_chain, Q = Add(any, range_chain))
+//
+// StandardCausalMatcher with extra Add: Add(cache_len, range_chain), with the range chain as the
+// Add's 2nd input.
 // ============================================================================
 class Qwen3CausalMatcher final : public ov::pass::MatcherPass {
 public:
@@ -108,10 +121,14 @@ public:
 };
 
 // ============================================================================
-// Generic BitwiseAnd-based sliding window:
-//   BitwiseAnd(BitwiseAnd(any, Greater(K, Add(Q, neg_window))), LessEqual(K, Q))
-// K and Q are shared (diamond) to enforce "same node" in both comparison arms.
-// Covers: Phi-3 / Gemma-2 / Gemma-3 / Gemma-4 and hand-built real-model patterns.
+// Matches a generic sliding-window mask, built from two comparisons ANDed
+// together:
+//
+//   window_check = Greater(K, Add(Q, neg_window))
+//   causal_check = LessEqual(K, Q)
+//   mask         = BitwiseAnd(BitwiseAnd(any, window_check), causal_check)
+//
+// Covers: Phi-3 / Gemma-2 / Gemma-3 / Gemma-4 models.
 // ============================================================================
 class BitwiseAndSlidingMatcher final : public ov::pass::MatcherPass {
 public:
@@ -137,10 +154,15 @@ public:
 };
 
 // ============================================================================
-// Detects old Phi-3 (transformers 4.51) inverted sliding window:
-//   BitwiseOr(Greater(K_f32, Q_col), LessEqual(K_f32, Add(Q_col, neg_window)))
-// K: Range(0, atten_mask_len) -> Convert -> Convert
-// Q: Range(past, full_ctx) -> Reshape([-1, 1])
+// Matches the legacy Phi-3 inverted sliding-window mask:
+//
+//   K = Convert(Convert(Range(0, atten_mask_len, step)))   // K_f32
+//   Q = Reshape(Range(past, full_ctx, step), [-1, 1])      // Q_col
+//
+//   causal_check  = Greater(K, Q)
+//   sliding_check = LessEqual(K, Add(Q, neg_window))
+//   mask          = BitwiseOr(causal_check, sliding_check)
+//
 // ============================================================================
 class OldPhi3SlidingMatcher final : public ov::pass::MatcherPass {
 public:
@@ -155,9 +177,9 @@ public:
         auto q_reshape = opp::wrap_type<ov::op::v1::Reshape>({q_range, opp::any_input()});
         auto q_constant = opp::wrap_type<ov::op::v0::Constant>();
         auto q_add = opp::wrap_type<ov::op::v1::Add>({q_reshape, q_constant});
-        auto causal_mask = opp::wrap_type<ov::op::v1::Greater>({k_f32, q_reshape});
-        auto sliding_mask = opp::wrap_type<ov::op::v1::LessEqual>({k_f32, q_add});
-        auto anchor = opp::wrap_type<ov::op::v13::BitwiseOr>({causal_mask, sliding_mask});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({k_f32, q_reshape});
+        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({k_f32, q_add});
+        auto anchor = opp::wrap_type<ov::op::v13::BitwiseOr>({sliding_mask, causal_mask});
 
         auto callback = [=, &mask_info](opp::Matcher& m) {
             const int64_t w = get_window_size(m.get_pattern_value_map().at(q_constant).get_node_shared_ptr());
@@ -171,10 +193,12 @@ public:
 };
 
 // ============================================================================
-// Detects default float sliding window mask:
-//   LogicalAnd(LessEqual(K, Q), Greater(K, Subtract(Q, window_const)))
-// K and Q are each shared between two branches (diamond) to enforce the
-// "same node" constraint.
+// Matches the default float sliding-window mask:
+//
+//   causal_check  = LessEqual(K, Q)
+//   sliding_check = Greater(K, Subtract(Q, window))
+//   mask          = LogicalAnd(causal_check, sliding_check)
+//
 // ============================================================================
 class DefaultSWAMatcher final : public ov::pass::MatcherPass {
 public:

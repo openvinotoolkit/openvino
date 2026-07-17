@@ -838,16 +838,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
-    if (!m_is_whisper) {
-        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
-        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
-    }
-
     // Detect attention mask type before the SDPA subgraph is isolated by partitioning.
     // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
     ov::npuw::DetectAttentionMask detect_mask;
     detect_mask.run_on_model(kvcache_model);
     const auto mask_info = detect_mask.get_mask_info();
+
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+    }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
