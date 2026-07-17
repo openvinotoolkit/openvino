@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "electron failed to install correctly fetch failed|Network",
+  "signature_hash": "d1cc7ff24c915990",
+  "title": "JS API E2E test fails - Electron binary download fetch failed on Windows",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-07-17T16:42:49Z",
+  "last_seen": "2026-07-17T16:42:49Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29592019267"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36905"
+  ],
+  "recent_timestamps": [
+    "2026-07-17T16:42:49Z"
+  ],
+  "rerun_search_string": "Electron failed to install correctly"
+}

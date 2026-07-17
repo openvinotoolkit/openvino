@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-16-42-49-637-29592019267",
+  "timestamp": "2026-07-17T16:42:49Z",
+  "run_id": "29592019267",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29592019267",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36905",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36905",
+  "author": "e-ddykim",
+  "category": "Network",
+  "title": "JS API E2E test fails - Electron binary download fetch failed on Windows",
+  "signature": "electron failed to install correctly fetch failed|Network",
+  "signature_hash": "d1cc7ff24c915990",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "E2E test 'should run electron package and verify output' failed: Electron binary download returned TypeError: fetch failed"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: cd demo-electron-app-project && npm start\nTypeError: fetch failed\nError: Electron failed to install correctly. Please delete `node_modules/electron` and run \"npx install-electron --no\" manually.",
+    "1 passing (10s)\n1 failing\nError: Command failed: cd demo-electron-app-project && npm start\nTypeError: fetch failed"
+  ],
+  "root_cause": "The Electron binary download failed with 'TypeError: fetch failed' during the npm install step of the demo-electron-app-project in the JS binding E2E test on Windows. The Electron package's post-install script fetches the Electron binary from GitHub releases; the network fetch failed (likely a transient network error or connectivity issue on the Windows CI runner). This is unrelated to the PR changes (GPU ConvertMatMulToFullyConnected fix).",
+  "reproduction_steps": "N/A - transient network failure on CI Windows runner",
+  "recommended_actions": [
+    "Re-run the failed jobs - this is a transient network failure",
+    "If recurs frequently, consider pre-caching the Electron binary on Windows runners"
+  ],
+  "prevention_strategies": "Cache the Electron binary in the CI environment to avoid network dependency during tests. Consider using a local mirror or artifact cache for the Electron binary download.",
+  "historical_context": "First recorded occurrence of this specific Electron fetch-failed pattern in the CI Doctor MQ database."
+}
