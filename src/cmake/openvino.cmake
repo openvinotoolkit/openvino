@@ -62,10 +62,6 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
 endif()
 
-if(LINUX)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::liburing)
-endif()
-
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
