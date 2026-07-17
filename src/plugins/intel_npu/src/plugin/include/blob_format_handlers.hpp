@@ -23,12 +23,12 @@ public:
                        const FilteredConfig& config,
                        const Logger& logger);
 
-    std::shared_ptr<ov::Model> create_dummy_model() const;
-
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
                                          const std::string_view device_name,
                                          const std::shared_ptr<ov::ICore>& core);
+
+    std::shared_ptr<ov::Model> create_dummy_model() const;
 
     virtual ~IBlobFormatHandler() = default;
 
