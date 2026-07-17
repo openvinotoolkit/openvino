@@ -206,8 +206,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
 #if F4E2M1_OUTPUT
-            // Vectorized path: vstore4 writes 4 bytes = 8 nibbles aligned to a uint boundary.
-            // Each work-item owns a disjoint set of 8-nibble blocks, so no race occurs here.
             vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[byte_offset + x * 4]));
 #elif IS_F8
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[byte_offset + x * 8]));

@@ -262,10 +262,6 @@ KERNEL (reorder_data)(
         fp4e2m1_t val_fp4_out = _convert_fp4e2m1_t(val_half_out);
         uchar val_u8_out = val_fp4_out.data;
 
-        const uint byte_idx_out = output_idx / 2;
-        const uint sub_idx_out = output_idx % 2;
-        const uint shift_out = sub_idx_out * 4;
-
         volatile __global uint* output_u32 = (volatile __global uint*)output;
         uint main_idx_out = output_idx / 8;
         uint sub_idx_u32_out = output_idx % 8;
