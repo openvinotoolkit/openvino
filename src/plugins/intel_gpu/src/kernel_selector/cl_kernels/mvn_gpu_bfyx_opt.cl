@@ -24,7 +24,11 @@
 #define MVN_REREAD_INPUT 0
 #endif
 
-#if !IS_DYNAMIC
+#ifndef LWS_IS_STATIC
+#define LWS_IS_STATIC 0
+#endif
+
+#if LWS_IS_STATIC
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 #endif
 KERNEL (mvn_gpu_bfyx_opt)(

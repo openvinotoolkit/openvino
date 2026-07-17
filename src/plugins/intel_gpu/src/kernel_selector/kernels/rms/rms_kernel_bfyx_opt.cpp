@@ -6,6 +6,7 @@
 #include "kernel_selector_utils.h"
 #include <algorithm>
 #include <cctype>
+#include <limits>
 #include <string>
 
 namespace kernel_selector {
@@ -36,6 +37,43 @@ static bool is_decimal_number(const std::string& value) {
     return !value.empty() && std::all_of(value.begin(), value.end(), [](char c) {
         return std::isdigit(static_cast<unsigned char>(c));
     });
+}
+
+static bool try_fold_mul_expression(const std::string& expression, size_t& folded_value) {
+    if (expression.size() < 3 || expression.front() != '(' || expression.back() != ')')
+        return false;
+
+    const size_t max_size_t = std::numeric_limits<size_t>::max();
+    const size_t end = expression.size() - 1;
+    size_t pos = 1;
+    size_t result = 1;
+
+    while (pos < end) {
+        if (!std::isdigit(static_cast<unsigned char>(expression[pos])))
+            return false;
+
+        size_t factor = 0;
+        while (pos < end && std::isdigit(static_cast<unsigned char>(expression[pos]))) {
+            const size_t digit = static_cast<size_t>(expression[pos] - '0');
+            if (factor > (max_size_t - digit) / 10)
+                return false;
+            factor = factor * 10 + digit;
+            ++pos;
+        }
+
+        if (factor != 0 && result > max_size_t / factor)
+            return false;
+        result *= factor;
+
+        if (pos == end)
+            break;
+        if (expression[pos] != '*')
+            return false;
+        ++pos;
+    }
+
+    folded_value = result;
+    return true;
 }
 
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
@@ -103,14 +141,20 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         std::string lws_0 = "get_local_size(0)";
-        // data_size string starts digit when it has static dim.
-        bool is_static_data_size = is_decimal_number(data_size);
         size_t stack_size = max_register_stack;
         bool reread_input = true;
         bool one_subgroup_row = false;
         bool multi_subgroup_row = false;
-        if (is_static_data_size) {
-            const size_t static_data_size = std::stoul(data_size);
+        size_t static_data_size = 0;
+        bool has_static_data_size = false;
+        if (is_decimal_number(data_size)) {
+            static_data_size = std::stoul(data_size);
+            has_static_data_size = true;
+        } else {
+            has_static_data_size = try_fold_mul_expression(data_size, static_data_size);
+        }
+
+        if (has_static_data_size) {
             const size_t lws = get_generalized_lws(params, static_data_size);
             const size_t required_stack = get_stack_size(static_data_size, lws);
             lws_0 = std::to_string(lws);
@@ -118,6 +162,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             reread_input = required_stack > max_register_stack;
             one_subgroup_row = lws == subgroup_size;
             multi_subgroup_row = !one_subgroup_row;
+
+            // Temporary debug log to confirm dynamic JIT specialization is taken.
+            GPU_DEBUG_LOG << params.layerID << ": RMS dynamic specialization enabled, data_size=" << data_size
+                          << ", folded=" << static_data_size
+                          << ", lws=" << lws
+                          << ", stack=" << stack_size
+                          << ", reread=" << reread_input << std::endl;
         }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
