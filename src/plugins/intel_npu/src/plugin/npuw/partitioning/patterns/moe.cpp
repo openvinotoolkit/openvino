@@ -528,8 +528,7 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     - Decoding (token_count == 1): Isolate including ReduceSum
 
     Key differences from Qwen3Expert:
-    - Stacked N-expert weight tensors (no per-expert split); all three projections share the same input Reshape
-    - Activation is Gelu (Qwen3Expert uses Swish)
+    - Gate activation is Gelu (Qwen3Expert uses Swish)
 */
 Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     // Input preparation: Tile -> Reshape1 (replicate hidden states for all N experts)
@@ -605,7 +604,7 @@ Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 /*
     Gemma4 Router Pattern:
 
-    Router projection (FP32 weights, no dequantization chain):
+    Router projection (MatMul required; weight path may be quantized or non-quantized):
         MatMul -> Softmax -> TopK(values, indices)
 
     Score normalization:
@@ -618,14 +617,12 @@ Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
 
     Key differences from Qwen3Router:
-    - Router weights are plain FP32 Const; MatMul uses any_input() on both ports
+    - Router MatMul is required, but its inputs are unconstrained to support plain-FP32 and dequantized weight paths
     - Per-expert learned scale applied via Gather before scatter
-    - Extra Slice between scores and ScatterElementsUpdate
-    - TopK output(1) (indices) goes through a Convert before Gather; both use any_input()
 */
 Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                            [[maybe_unused]] const std::string& isol_tag) {
-    // Router projection: MatMul(input, FP32 weight) -> Softmax -> TopK
+    // MatMul inputs are kept generic so both quantized and non-quantized upstream paths match.
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
     auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
     auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});

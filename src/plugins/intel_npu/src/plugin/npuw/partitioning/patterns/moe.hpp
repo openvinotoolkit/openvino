@@ -101,16 +101,6 @@ public:
     Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
-/*
- * Gemma4 Expert Pattern:
- *
- * Expert compute with stacked weights for all N experts:
- *   Tile -> Reshape -> MatMul(gate, DQ_weights) -> Gelu -> Multiply <- MatMul(up, DQ_weights)
- *                                                              |
- *                                                     MatMul(down, DQ_weights) -> Reshape1
- *
- * Pattern root: Reshape1 * scattered_router_scores -> Multiply_output
- */
 class Gemma4Expert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Expert");
@@ -126,15 +116,6 @@ public:
     Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
-/*
- * Gemma4 Router Pattern:
- *
- * FP32 weights (no dequantization), per-expert scale, extra Slice before scatter:
- *   MatMul -> Softmax -> TopK(values, indices)
- *   TopK(values) -> ReduceSum -> Divide    [renormalize over K]
- *   Gather(per_expert_scale, topk_indices) -> Multiply(Divide, Gather) -> Slice
- *   Slice -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
- */
 class Gemma4Router : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Router");
