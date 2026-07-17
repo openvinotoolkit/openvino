@@ -8,8 +8,7 @@ ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>&
     : Op({arg}),
       m_single_plane(true) {}
 
-ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg,
-                                                             bool single_plane)
+ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg, bool single_plane)
     : Op({arg}),
       m_single_plane(single_plane) {}
 

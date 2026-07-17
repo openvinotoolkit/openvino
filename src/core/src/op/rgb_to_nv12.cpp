@@ -8,8 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "rgb_bgr_to_nv12_shape_inference.hpp"
 
-ov::op::v17::RGBtoNV12::RGBtoNV12(const Output<Node>& arg)
-    : util::ConvertColorToNV12Base(arg) {
+ov::op::v17::RGBtoNV12::RGBtoNV12(const Output<Node>& arg) : util::ConvertColorToNV12Base(arg) {
     constructor_validate_and_infer_types();
 }
 

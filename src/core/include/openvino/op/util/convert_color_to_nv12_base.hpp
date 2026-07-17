@@ -30,8 +30,6 @@ namespace ov::op::util {
 ///        UV plane is subsampled by averaging each 2x2 block of pixels.
 ///
 class OPENVINO_API ConvertColorToNV12Base : public Op {
-public:
-
 protected:
     ConvertColorToNV12Base() = default;
 
