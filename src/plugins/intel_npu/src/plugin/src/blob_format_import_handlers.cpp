@@ -184,19 +184,19 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
     m_logger.debug("Creating a graph");
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "decrypt_schedules");
-    m_logger.trace("Decrypt schedules step");
     decrypt_schedules();
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "extract_main_schedule");
-    m_logger.trace("Extract the main schedule step");
-    m_main_schedule = extract_main_schedule();
+    const ov::Tensor main_schedule = extract_main_schedule();
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "extract_init_schedules");
-    m_logger.trace("Extract init schedules step");
-    m_init_schedules = extract_init_schedules();
-
-    m_logger.trace("Extract batch size step");
+    const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
+
+    const std::optional<std::string> compatibility_descriptor = extract_compiler_compatibility_descriptor();
+    if (m_logger.level() >= ov::log::Level::DEBUG) {
+        log_contents(compatibility_descriptor);
+    }
 
     update_compiler_type_if_perf_count(m_config, backend, device_name);
 
@@ -209,7 +209,7 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
                  std::shared_ptr<const ov::Model>,
                  std::pair<std::string_view, std::shared_ptr<ov::ICore>>>
         weights_source;
-    if (m_init_schedules.has_value()) {
+    if (init_schedules.has_value()) {
         if (m_original_model.has_value()) {
             weights_source = std::move(m_original_model.value());
         } else if (!m_config.get<WEIGHTS_PATH>().empty()) {
@@ -221,11 +221,8 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "parse");
     m_logger.trace("Calling the parser");
-    m_graph = parser->parse(m_main_schedule,
-                            m_config,
-                            std::move(weights_source),
-                            m_init_schedules,
-                            extract_compiler_compatibility_descriptor());
+    m_graph =
+        parser->parse(main_schedule, m_config, std::move(weights_source), init_schedules, compatibility_descriptor);
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
@@ -254,7 +251,9 @@ FilteredConfig IBlobFormatImportHandler::get_config() const {
     return m_config;
 }
 
-void IBlobFormatImportHandler::log_contents(const std::optional<std::string>& compatibility_descriptor) {}
+void IBlobFormatImportHandler::log_contents(const std::optional<std::string>& compatibility_descriptor) {
+    // TODO?
+}
 
 // TODO comments, logs, ITT
 RawBlobImportHandler::RawBlobImportHandler(std::istream& compiler_main_schedule,

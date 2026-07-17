@@ -54,11 +54,7 @@ private:
     void log_contents(const std::optional<std::string>& compatibility_descriptor);
 
     std::optional<std::shared_ptr<const ov::Model>> m_original_model;
-
-    ov::Tensor m_main_schedule;
-    std::optional<std::vector<ov::Tensor>> m_init_schedules;
     std::optional<int> m_batch_size;
-
     std::shared_ptr<IGraph> m_graph;
 };
 
