@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-10-30-03-000-29568028549",
+  "timestamp": "2026-07-17T10:30:03Z",
+  "run_id": "29568028549",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29568028549",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36933",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36933",
+  "author": "AsyaPronina",
+  "category": "Flaky Test",
+  "title": "JS API E2E test after-all hook fails with rm Permission Denied on Windows Electron files",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all cleanup hook fails: rm cannot remove electron.exe/DLLs - Permission denied"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied"
+  ],
+  "root_cause": "The mocha 'after all' cleanup hook runs 'rm -rf demo-electron-app-project' (via git-bash rm) to clean up the test directory after the E2E Electron test. On Windows, the Electron process (electron.exe) and its associated DLLs (d3dcompiler_47.dll, libEGL.dll, libGLESv2.dll) are still held open by the OS or a child process when the cleanup runs, causing a Permission Denied error. The tests themselves pass (2/2); only the cleanup hook fails. This is a Windows file-locking issue caused by the Electron process not fully terminating before cleanup is attempted.",
+  "reproduction_steps": "Run 'npm run test:e2e' twice consecutively on Windows (or in a CI pipeline where the cleanup from a prior run leaves locked Electron binaries); the second run's after-hook will fail if Electron did not fully exit.",
+  "recommended_actions": [
+    "Change the cleanup command from 'rm -rf' (POSIX) to use 'Remove-Item -Recurse -Force' or 'rimraf' (which handles Windows file locks) in the after-all hook.",
+    "Add a delay or retry loop before cleanup to ensure the Electron process has fully exited.",
+    "Use 'taskkill /F /IM electron.exe' before 'rm -rf' to forcefully terminate the Electron process on Windows."
+  ],
+  "prevention_strategies": "Always use cross-platform file removal tools (e.g., 'rimraf') in cleanup hooks rather than POSIX 'rm -rf' when tests run on Windows, especially for directories containing executable files that may still be running.",
+  "historical_context": "First occurrence of this pattern. Windows file-locking during Electron cleanup is a known issue in Node.js test suites using mocha."
+}
