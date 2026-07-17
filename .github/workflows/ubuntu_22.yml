@@ -632,6 +632,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      # run tests on Arc A770 GPU
       runner: "[ 'self-hosted', 'dgpu', 'Arc-A770', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_dgpu }}
