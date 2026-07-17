@@ -847,7 +847,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
     ov::npuw::DetectAttentionMask detect_mask;
     detect_mask.run_on_model(kvcache_model);
-    m_mask_info = detect_mask.get_mask_info();
+    const auto mask_info = detect_mask.get_mask_info();
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -1008,6 +1008,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+
+    if (prefill_attn_hfa) {
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
+            mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
+                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
+                     mask_info.window_size > max_prompt_len)
+                ? "YES"
+                : "NO";
+    }
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {

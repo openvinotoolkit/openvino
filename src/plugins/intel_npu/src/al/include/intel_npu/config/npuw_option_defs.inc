@@ -31,6 +31,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN, std::string, "STATIC", ov::intel_npu::npuw:
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_DYN, bool, true, ov::intel_npu::npuw::partitioning, attn_dyn, "NPUW_ATTN_DYN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_NO_COPY, bool, false, ov::intel_npu::npuw::partitioning, attn_no_copy, "NPUW_ATTN_NO_COPY", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_HFA_FUSED, bool, false, ov::intel_npu::npuw::partitioning, attn_hfa_fused, "NPUW_ATTN_HFA_FUSED", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_HFA_MASK_SKIPPING, bool, false, ov::intel_npu::npuw::partitioning, attn_hfa_mask_skipping, "NPUW_ATTN_HFA_MASK_SKIPPING", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DCOFF_TYPE, std::string, "", ov::intel_npu::npuw::partitioning, dcoff_type, "NPUW_DCOFF_TYPE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DCOFF_SCALE, bool, false, ov::intel_npu::npuw::partitioning, dcoff_with_scale, "NPUW_DCOFF_SCALE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, ov::intel_npu::npuw::partitioning, funcall_for_all, "NPUW_FUNCALL_FOR_ALL", ROOT, EXPOSED, CACHED, ALL)

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "compiled_model.hpp"
-#include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
@@ -26,6 +25,7 @@ class WhisperInferRequest;
 class LLMBlockKVCacheStrategy;
 class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
+struct MaskInfo;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -144,9 +144,6 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
-
-    // Attention mask type detected at compile time
-    ov::npuw::MaskInfo m_mask_info;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
