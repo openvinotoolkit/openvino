@@ -1,35 +1,36 @@
 {
   "schema_version": "1.0",
   "investigation_id": "2026-07-17-16-42-49-637-29592019267",
-  "timestamp": "2026-07-17T16:42:49Z",
+  "timestamp": "2026-07-17T16:57:09Z",
   "run_id": "29592019267",
   "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29592019267",
   "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
   "pr_number": "36905",
   "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36905",
   "author": "e-ddykim",
-  "category": "Network",
-  "title": "JS API E2E test fails - Electron binary download fetch failed on Windows",
-  "signature": "electron failed to install correctly fetch failed|Network",
-  "signature_hash": "d1cc7ff24c915990",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
   "confidence": "High",
   "failed_jobs": [
     {
       "name": "JS API (24)",
       "conclusion": "failure",
-      "symptom": "E2E test 'should run electron package and verify output' failed: Electron binary download returned TypeError: fetch failed"
+      "symptom": "E2E after-all hook fails: rm -rf cannot remove electron.exe with Permission denied"
     }
   ],
   "key_errors": [
-    "exec error: Error: Command failed: cd demo-electron-app-project && npm start\nTypeError: fetch failed\nError: Electron failed to install correctly. Please delete `node_modules/electron` and run \"npx install-electron --no\" manually.",
-    "1 passing (10s)\n1 failing\nError: Command failed: cd demo-electron-app-project && npm start\nTypeError: fetch failed"
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied",
+    "2 passing (35s)\n1 failing\n1) E2E testing for OpenVINO as an Electron dependency.\n     \"after all\" hook for \"should run electron package and verify output\":\n   Error: Command failed: rm -rf demo-electron-app-project"
   ],
-  "root_cause": "The Electron binary download failed with 'TypeError: fetch failed' during the npm install step of the demo-electron-app-project in the JS binding E2E test on Windows. The Electron package's post-install script fetches the Electron binary from GitHub releases; the network fetch failed (likely a transient network error or connectivity issue on the Windows CI runner). This is unrelated to the PR changes (GPU ConvertMatMulToFullyConnected fix).",
-  "reproduction_steps": "N/A - transient network failure on CI Windows runner",
+  "root_cause": "The E2E tests (2 passing) completed successfully, but the 'after all' cleanup hook failed when trying to delete the demo-electron-app-project directory on Windows. The electron.exe binary in node_modules is still locked by the OS (Windows holds file locks on executables after they run), so rm -rf fails with EACCES/Permission Denied. This is a recurring Windows-specific flaky test infrastructure issue unrelated to the PR changes (GPU ConvertMatMulToFullyConnected fix). This is run attempt 2; a prior attempt already ran.",
+  "reproduction_steps": "N/A - Windows file locking issue specific to CI runner environment",
   "recommended_actions": [
-    "Re-run the failed jobs - this is a transient network failure",
-    "If recurs frequently, consider pre-caching the Electron binary on Windows runners"
+    "Replace 'rm -rf' with a Windows-compatible cleanup (e.g., rimraf or a PowerShell Remove-Item -Force -Recurse with retry logic) in the E2E test afterAll hook",
+    "Add a brief delay or kill the electron process before attempting cleanup",
+    "Note: run_attempt is 2; do not re-run as this is already a retry"
   ],
-  "prevention_strategies": "Cache the Electron binary in the CI environment to avoid network dependency during tests. Consider using a local mirror or artifact cache for the Electron binary download.",
-  "historical_context": "First recorded occurrence of this specific Electron fetch-failed pattern in the CI Doctor MQ database."
+  "prevention_strategies": "Fix the test cleanup to use a Windows-safe file removal approach that handles locked executables (e.g., use rimraf with retry, or PowerShell Remove-Item -Force with error handling). Track the JS binding E2E test ticket for a permanent fix.",
+  "historical_context": "This exact failure (Permission denied on electron.exe cleanup) has been recorded 11 times previously in the CI Doctor MQ database under signature 85df26485ff568d8, first seen 2026-07-09. It is a well-known recurring Windows CI flaky test."
 }

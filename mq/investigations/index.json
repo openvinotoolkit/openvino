@@ -367,10 +367,10 @@
       "run_id": "29592019267",
       "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29592019267",
       "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "timestamp": "2026-07-17T16:42:49Z",
-      "title": "JS API E2E test fails - Electron binary download fetch failed on Windows",
-      "category": "Network",
-      "signature_hash": "d1cc7ff24c915990",
+      "timestamp": "2026-07-17T16:57:09Z",
+      "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
       "pr_number": "36905"
     }
   ]
