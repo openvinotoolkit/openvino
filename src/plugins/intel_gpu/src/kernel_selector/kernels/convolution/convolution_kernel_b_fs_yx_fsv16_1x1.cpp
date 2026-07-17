@@ -26,27 +26,18 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
         auto y = params.outputs[0].Y().v;
         auto f = params.outputs[0].Feature().v;
 
-        AutoTuneOption option;
-
         if (x == 1 && y == 1) {
-            option = { 1, EXE_MODE_DEFAULT };
+            return { 1, EXE_MODE_DEFAULT };
         } else if (x * f <= 256) {
             if (x < 8 || x * f <= 128)
-                option = { 2, EXE_MODE_DEFAULT };
+                return { 2, EXE_MODE_DEFAULT };
             else
-                option = { 4, EXE_MODE_DEFAULT };
+                return { 4, EXE_MODE_DEFAULT };
         } else if (x * f <= 1536) {
-            option = { 4, EXE_MODE_DEFAULT };
+            return { 4, EXE_MODE_DEFAULT };
         } else {
-            option = { 8, EXE_MODE_DEFAULT };
+            return { 8, EXE_MODE_DEFAULT };
         }
-
-        if (x % option.blockWidth != 0) {
-            std::cout << "block width = 1" << std::endl;
-            option.blockWidth = 1;
-        }
-
-        return option;
     } else {
         // In shape agnostic kernel, the output shape can not be specified at build time,
         // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
