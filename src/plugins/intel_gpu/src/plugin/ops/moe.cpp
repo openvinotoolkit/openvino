@@ -47,6 +47,12 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
         }
         return false;
     }
+    const auto& config = op->get_config();
+
+    // Per-group u3 zero points are packed in the weights file but converted to u8 in the graph.
+    OPENVINO_ASSERT(!config.has_zp || op->get_input_element_type(static_cast<size_t>(input_idx::weight_0)) != ov::element::u3 ||
+                        ov::shape_size(op->get_input_shape(static_cast<size_t>(input_idx::zp_0))) == 1,
+                    "OFFLOAD_RATIO is not supported for u3 weights with per-group zero points");
 
     OPENVINO_ASSERT(p.get_config().get_num_streams() == 1,
                     "[GPU] OFFLOAD_RATIO=",
