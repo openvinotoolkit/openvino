@@ -775,6 +775,7 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
             const bool is_batched_nounroll = !closure_shape.empty() && closure_shape[0] == num_experts;
             NPUW_ASSERT(!is_batched_nounroll &&
                         "Batched closure has no param_mapping entry — UnrollMoEMatMul did not fire");
+            continue;  // Non-batched shared param not in mapping — skip silently
         }
 
         const auto& unrolled_indices = mapping_it->second;
