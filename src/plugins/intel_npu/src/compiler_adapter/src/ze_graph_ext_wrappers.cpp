@@ -146,6 +146,15 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
                                                                              nullptr) == ZE_RESULT_SUCCESS;
     }
 #endif
+    if (_isCompilerOptionQuerySupported) {
+        _isOptimizedDynamicStridesSupported =
+            _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                             ZE_NPU_DRIVER_OPTIONS,
+                                                                             "OPTIMIZED_DYNAMIC_STRIDE",
+                                                                             nullptr) == ZE_RESULT_SUCCESS;
+        _logger.debug("OPTIMIZED_DYNAMIC_STRIDE compiler option is %s",
+                      _isOptimizedDynamicStridesSupported ? "supported" : "not supported");
+    }
 }
 
 ZeGraphExtWrappers::~ZeGraphExtWrappers() {

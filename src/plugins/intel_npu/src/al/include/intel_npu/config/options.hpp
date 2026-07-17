@@ -467,6 +467,48 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 };
 
+struct COMMANDLIST_MODE final : OptionBase<COMMANDLIST_MODE, ov::intel_npu::CommandListMode> {
+    static std::string_view key() {
+        return ov::intel_npu::commandlist_mode.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::CommandListMode";
+    }
+
+    static ov::intel_npu::CommandListMode defaultValue() {
+        return ov::intel_npu::CommandListMode::DEFAULT;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static ov::intel_npu::CommandListMode parse(std::string_view val) {
+        if (val == "DEFAULT") {
+            return ov::intel_npu::CommandListMode::DEFAULT;
+        } else if (val == "FORCE_COMMANDLIST_RECORDING_ONLY") {
+            return ov::intel_npu::CommandListMode::FORCE_COMMANDLIST_RECORDING_ONLY;
+        } else if (val == "FORCE_UPDATE_MUTABLE_COMMANDLIST") {
+            return ov::intel_npu::CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST;
+        }
+
+        OPENVINO_THROW("Value '", val, "' is not a valid COMMANDLIST_MODE option");
+    }
+
+    static std::string toString(const ov::intel_npu::CommandListMode& val) {
+        std::stringstream strStream;
+
+        strStream << val;
+
+        return strStream.str();
+    }
+};
+
 struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::ProfilingType> {
     static std::string_view key() {
         return ov::intel_npu::profiling_type.name();

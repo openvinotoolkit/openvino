@@ -97,6 +97,10 @@ public:
      */
     std::optional<std::string> getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
 
+    bool isOptimizedDynamicStridesSupported() const {
+        return _isOptimizedDynamicStridesSupported;
+    }
+
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,
@@ -110,6 +114,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
     bool _isCompilerOptionQuerySupported;
+    bool _isOptimizedDynamicStridesSupported = false;
 
     Logger _logger;
 };
