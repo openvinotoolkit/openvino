@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 31,
+  "total": 32,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -305,6 +305,15 @@
       "category": "Network",
       "signature_hash": "1808e665f1f70825",
       "pr_number": "36925"
+    },
+    {
+      "investigation_id": "2026-07-17-03-59-16-000-29552016907",
+      "run_id": "29552016907",
+      "timestamp": "2026-07-17T03:59:16Z",
+      "title": "smoke_ConvertCPULayerTest - primType is unexpected unknown_f32 Expected ref_f32 on ARM64/ACL",
+      "category": "Code Issue",
+      "signature_hash": "8664b9fc6e97654f",
+      "pr_number": "36929"
     }
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-03-59-16-000-29552016907",
+  "timestamp": "2026-07-17T03:59:16Z",
+  "run_id": "29552016907",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29552016907",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36929",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36929",
+  "author": "AsyaPronina",
+  "category": "Code Issue",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected unknown_f32 Expected ref_f32 on ARM64/ACL",
+  "signature": "primType is unexpected unknown_f32 Expected ref_f32|Code Issue",
+  "signature_hash": "8664b9fc6e97654f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest_4D_Dynamic assertion: primType is unexpected unknown_f32, Expected ref_f32 at cpu_test_utils.cpp:248"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?]_TS=(2.4.4.1)_(2.17.5.4)_(1.2.3.4)_(1.3.3.3)_inputPRC=f32_specialValue=none_targetPRC=u8__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure",
+    "Value of: primTypeCheck(primType)",
+    "  Actual: false",
+    "Expected: true",
+    "primType is unexpected : unknown_f32 Expected : ref_f32",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/..."
+  ],
+  "root_cause": "The CPU functional test smoke_ConvertCPULayerTest_4D_Dynamic expects the primitive type for a dynamic f32->u8 Convert layer with ACL format to be 'ref_f32', but the actual primitive type returned is 'unknown_f32'. This indicates that on ARM64 with the ACL backend, the Convert operation's execution primitive is not being recognized as the expected reference implementation. The test configuration uses nchw layout with 'primitive=acl' hint but the actual kernel dispatched does not match what the test asserts. This may be a pre-existing flakiness issue or a regression in CPU plugin dispatch logic on ARM64.",
+  "reproduction_steps": "Run ov_cpu_func_tests --gtest_filter='smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=*_inputPRC=f32_specialValue=none_targetPRC=u8__inFmts=nchw_outFmts=nchw_primitive=acl' on an ARM64 machine with ACL support.",
+  "recommended_actions": [
+    "Check whether this test was passing on ARM64/ACL before PR #36929 was queued (check recent ARM64 CI history)",
+    "If the failure is pre-existing, add this test variant to the CPU expected_failures skip list in tests/functional_test_utils/layer_tests_summary/github/skip_configs/CPU/",
+    "If the failure is a regression, investigate CPU plugin Convert primitive dispatch on ARM64 for dynamic shapes with nchw format",
+    "Review src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248 to understand the primTypeCheck logic"
+  ],
+  "prevention_strategies": "Maintain an up-to-date expected_failures skip list for known ARM64/ACL test flakiness. When adding new Convert layer dispatch paths, run ARM64 smoke tests locally before merging.",
+  "historical_context": "No prior record of this exact pattern in the CI Doctor MQ database. The PR being merged (#36929) is an NPUW fix unrelated to CPU Convert layer dispatch, suggesting this may be a pre-existing test instability on ARM64/ACL rather than a regression caused by this PR."
+}

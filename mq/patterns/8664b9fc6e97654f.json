@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "primType is unexpected unknown_f32 Expected ref_f32|Code Issue",
+  "signature_hash": "8664b9fc6e97654f",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected unknown_f32 Expected ref_f32 on ARM64/ACL",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-07-17T03:59:16Z",
+  "last_seen": "2026-07-17T03:59:16Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/29552016907"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36929"],
+  "recent_timestamps": ["2026-07-17T03:59:16Z"],
+  "rerun_search_string": null
+}
