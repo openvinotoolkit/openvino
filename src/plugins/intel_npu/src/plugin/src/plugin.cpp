@@ -576,11 +576,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
 
     try {
-        std::unique_ptr<IBlobFormatHandler> blobFormatHandler =
-            blob_format_handler_factory::create(stream,
-                                                should_import_raw_blob(npuPluginProperties),
-                                                get_model_ptr_from_map(properties),
-                                                localConfig);
+        std::unique_ptr<IBlobFormatImportHandler> blobFormatHandler =
+            blob_format_import_handler_factory::create(stream,
+                                                       should_import_raw_blob(npuPluginProperties),
+                                                       get_model_ptr_from_map(properties),
+                                                       localConfig);
 
         return import_model(blobFormatHandler, localConfig, npuPluginProperties);
     } catch (const std::exception& ex) {
@@ -612,11 +612,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
 
     try {
-        std::unique_ptr<IBlobFormatHandler> blobFormatHandler =
-            blob_format_handler_factory::create(compiledBlob,
-                                                should_import_raw_blob(npuPluginProperties),
-                                                get_model_ptr_from_map(properties),
-                                                localConfig);
+        std::unique_ptr<IBlobFormatImportHandler> blobFormatHandler =
+            blob_format_import_handler_factory::create(compiledBlob,
+                                                       should_import_raw_blob(npuPluginProperties),
+                                                       get_model_ptr_from_map(properties),
+                                                       localConfig);
 
         return import_model(blobFormatHandler, localConfig, npuPluginProperties);
     } catch (const std::exception& ex) {
@@ -626,10 +626,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::unique_ptr<IBlobFormatHandler>& blobFormatHandler,
-                                                         FilteredConfig& localConfig,
-                                                         ov::AnyMap& localProperties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatHandler)");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    const std::unique_ptr<IBlobFormatImportHandler>& blobFormatHandler,
+    FilteredConfig& localConfig,
+    ov::AnyMap& localProperties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatImportHandler)");
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
