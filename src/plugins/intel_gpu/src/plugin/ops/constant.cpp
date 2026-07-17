@@ -4,6 +4,7 @@
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/op/convolution.hpp"
 
 #include "openvino/core/weight_sharing_util.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
+#include "openvino/runtime/shared_context_buffer_descriptor.hpp"
 
 #include "ov_ops/moe_compressed.hpp"
 
@@ -110,8 +112,40 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] check whether the constant is a shared weight or not" << std::endl;
+        const auto shared_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
+        if (shared_buffer) {
+            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] check whether the constant memory has been already allocated" << std::endl;
+            auto shared_context_buffer = std::dynamic_pointer_cast<const ov::SharedContextBufferDescriptor>(shared_buffer->get_descriptor());
+            if (shared_context_buffer) {
+                const auto& remote_contexts = shared_context_buffer->get_remote_contexts();
+                GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] shared between contexts:" << remote_contexts.size() << std::endl;
+                std::shared_ptr<IRemoteTensor> gpu_remote_tensor;
+                for (const auto& [remote_context, remote_tensor_ptr] : remote_contexts) {
+                    GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] check whether weight from the remote context: " << remote_context->get_device_name() << " is available on device: " << p.get_engine().get_device_info().dev_name << std::endl;
+                    if (remote_context->get_device_name().find("GPU") != std::string::npos) {
+                        gpu_remote_tensor = remote_tensor_ptr._ptr;
+                        break;
+                    }
+                }
+                if (gpu_remote_tensor) {
+                    GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout "
+                                  << constLayout.to_short_string() << ", weight_sharing(" << static_cast<const void*>(data) << ", " << constLayout.bytes_count() <<" bytes)" << std::endl;
+                    auto iremote_tensor = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(gpu_remote_tensor);
+                    auto mem = iremote_tensor->get_original_memory();
+                    p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+                    p.blobMemCache[cache_key] = initialconstPrimID;
+                    constPrimID = initialconstPrimID;
+                    return;
+                }
+            } else {
+                GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout "
+                              << constLayout.to_short_string() << ", ignore weight sharing, UNEXPECTED buffer type (" << static_cast<const void*>(data) << ", " << constLayout.bytes_count() <<" bytes)" << std::endl;
+                              std::cout << "[" << initialconstPrimID << ": constant] layout "
+                              << constLayout.to_short_string() << ", ignore weight sharing, UNEXPECTED buffer type (" << static_cast<const void*>(data) << ", " << constLayout.bytes_count() <<" bytes)" << std::endl;
+            }
+        }      
         auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
-
         cldnn::memory::ptr mem = nullptr;
 
         if (partial_upload.enabled) {

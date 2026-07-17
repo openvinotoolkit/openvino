@@ -10,6 +10,9 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
+namespace weight_sharing {
+    struct Context;
+}
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
@@ -153,8 +156,10 @@ private:
     void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
-
+    void assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
+const ov::AnyMap& properties);
     bool m_is_eagle = false;
+    std::unique_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
 };
 
 }  // namespace npuw
