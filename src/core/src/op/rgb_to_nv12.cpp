@@ -9,12 +9,12 @@
 #include "rgb_bgr_to_nv12_shape_inference.hpp"
 
 ov::op::v17::RGBtoNV12::RGBtoNV12(const Output<Node>& arg)
-    : util::ConvertColorToNV12Base(arg, util::ConvertColorToNV12Base::ColorConversion::RGB_TO_NV12) {
+    : util::ConvertColorToNV12Base(arg) {
     constructor_validate_and_infer_types();
 }
 
 ov::op::v17::RGBtoNV12::RGBtoNV12(const Output<Node>& arg, bool single_plane)
-    : util::ConvertColorToNV12Base(arg, util::ConvertColorToNV12Base::ColorConversion::RGB_TO_NV12, single_plane) {
+    : util::ConvertColorToNV12Base(arg, single_plane) {
     constructor_validate_and_infer_types();
 }
 

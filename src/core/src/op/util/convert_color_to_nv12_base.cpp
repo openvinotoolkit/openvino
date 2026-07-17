@@ -4,16 +4,13 @@
 
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
 
-ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg, ColorConversion format)
+ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg)
     : Op({arg}),
-      m_format(format),
       m_single_plane(true) {}
 
 ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg,
-                                                             ColorConversion format,
                                                              bool single_plane)
     : Op({arg}),
-      m_format(format),
       m_single_plane(single_plane) {}
 
 bool ov::op::util::ConvertColorToNV12Base::visit_attributes(AttributeVisitor& visitor) {

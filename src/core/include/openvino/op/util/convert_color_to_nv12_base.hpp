@@ -31,8 +31,6 @@ namespace ov::op::util {
 ///
 class OPENVINO_API ConvertColorToNV12Base : public Op {
 public:
-    /// \brief Exact conversion format details
-    enum class ColorConversion : int { RGB_TO_NV12 = 0, BGR_TO_NV12 = 1 };
 
 protected:
     ConvertColorToNV12Base() = default;
@@ -41,15 +39,13 @@ protected:
     /// Default output is single-plane NV12.
     ///
     /// \param arg          Node that produces the input tensor. Input tensor represents image in RGB/BGR format (NHWC).
-    /// \param format       Conversion format.
-    explicit ConvertColorToNV12Base(const Output<Node>& arg, ColorConversion format);
+    explicit ConvertColorToNV12Base(const Output<Node>& arg);
 
     /// \brief Constructs a conversion operation from input image in RGB/BGR format with configurable output.
     ///
     /// \param arg          Node that produces the input tensor. Input tensor represents image in RGB/BGR format (NHWC).
-    /// \param format       Conversion format.
     /// \param single_plane If true, output is single-plane NV12; if false, output is Y and UV as separate planes.
-    ConvertColorToNV12Base(const Output<Node>& arg, ColorConversion format, bool single_plane);
+    ConvertColorToNV12Base(const Output<Node>& arg, bool single_plane);
 
 public:
     OPENVINO_OP("ConvertColorToRGBBase", "util");
@@ -61,7 +57,6 @@ public:
     }
 
 protected:
-    ColorConversion m_format = ColorConversion::RGB_TO_NV12;
     bool m_single_plane = true;
 };
 }  // namespace ov::op::util
