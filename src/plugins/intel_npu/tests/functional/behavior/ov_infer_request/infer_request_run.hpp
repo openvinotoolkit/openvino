@@ -2305,12 +2305,10 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
         logs.push_back('\n');
     };
 
-    utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
         inference_request = compiled_model.create_infer_request();
     }
     logs.clear();
@@ -2370,12 +2368,10 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
     float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
 
-    utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
         inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
@@ -2437,12 +2433,10 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
         logs.push_back('\n');
     };
 
-    utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
         inference_request = compiled_model.create_infer_request();
         input_tensor = inference_request.get_input_tensor();
         output_tensor = inference_request.get_output_tensor();
@@ -2503,12 +2497,10 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
     float* input_data = input_tensor.data<float>();
     float* output_data = output_tensor.data<float>();
 
-    utils::LoggerLevelGuard level_guard(::intel_npu::Logger::global().level());
-    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
-        // don't flood console with messages from model compilation
         utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(input_tensor);
         inference_request.set_output_tensor(output_tensor);

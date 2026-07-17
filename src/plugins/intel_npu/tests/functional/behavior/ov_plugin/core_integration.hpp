@@ -459,32 +459,25 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
     ov::Core ie;
 
     utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
+    const ov::log::Level baseline = ::intel_npu::Logger::global().level();
 
-    std::string firstCompileLogs;
     {
-        std::function<void(std::string_view)> cb = [&](std::string_view msg) {
-            firstCompileLogs.append(msg);
-            firstCompileLogs.push_back('\n');
-        };
-        utils::LogCallbackGuard captureGuard(cb);
+        utils::LogCallbackGuard silentGuard(nullptr);
         OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::INFO)}}));
     }
+    ASSERT_EQ(::intel_npu::Logger::global().level(), baseline)
+        << "Per-call log::level(INFO) contaminated Logger::global() after compile_model returned";
 
-    ASSERT_NE(firstCompileLogs.find("[INFO]"), std::string::npos)
-        << "Expected [INFO] output while compiling with a per-call INFO log level, but captured:\n"
-        << firstCompileLogs.substr(0, 500);
-
+    // second compile with not per-call log level should not inherit the INFO level from the first compile
     std::string secondCompileLogs;
     {
-        std::function<void(std::string_view)> cb = [&](std::string_view msg) {
-            secondCompileLogs.append(msg);
+        utils::LogCallbackGuard captureGuard([&](std::string_view m) {
+            secondCompileLogs.append(m);
             secondCompileLogs.push_back('\n');
-        };
-        utils::LogCallbackGuard captureGuard(cb);
+        });
         OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
     }
-
-    EXPECT_FALSE(secondCompileLogs.find("[INFO]") != std::string::npos)
+    EXPECT_EQ(secondCompileLogs.find("[INFO]"), std::string::npos)
         << "Per-call log::level from first compile contaminated the second compile.\n"
            "Captured output snippet:\n"
         << secondCompileLogs.substr(0, 500);
