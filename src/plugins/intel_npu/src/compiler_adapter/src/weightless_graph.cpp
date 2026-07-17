@@ -18,6 +18,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
@@ -126,12 +127,12 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
     if (const std::shared_ptr<const ov::Model>* model = std::get_if<std::shared_ptr<const ov::Model>>(&weightsSource)) {
         return get_all_constants_in_topological_order(*model);
     } else if (const std::pair<std::string_view, std::shared_ptr<ov::ICore>>* weightsPathAndCore =
-                   std::get_if<std::string_view>(&weightsSource)) {
+                   std::get_if<std::pair<std::string_view, std::shared_ptr<ov::ICore>>>(&weightsSource)) {
         auto [weightsPath, core] = *weightsPathAndCore;
 
-        auto ext = ov::util::path_to_string(ov::util::make_path(*weightsPath).extension());
+        auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
         if (ext == ONNX_EXTENSION) {
-            const auto model = core->read_model(*weightsPath, *weightsPath, properties);
+            const auto model = core->read_model(weightsPath, weightsPath, {});
             return get_all_constants_in_topological_order(model);
         } else if (ext == WEIGHTS_IR_EXTENSION) {
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);

@@ -9,9 +9,9 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "blob_format_handlers.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
@@ -80,7 +80,8 @@ private:
      * @return A compiled model
      */
     std::shared_ptr<ov::ICompiledModel> import_model(const std::unique_ptr<IBlobFormatHandler>& blobFormatHandler,
-                                                     ov::AnyMap& properties) const;
+                                                     FilteredConfig& localConfig,
+                                                     ov::AnyMap& localProperties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

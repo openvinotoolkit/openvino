@@ -5,7 +5,14 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
+
+namespace ov {
+
+class ICore;
+
+}
 
 namespace intel_npu {
 
@@ -19,12 +26,16 @@ public:
 
     std::shared_ptr<IGraph> create_graph(const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs,
                                          std::string_view network_name,
-                                         const std::shared_ptr<ov::ICore>& core) const;
+                                         const std::shared_ptr<ov::ICore>& core);
 
     virtual ~IBlobFormatHandler() = default;
 
+protected:
+    FilteredConfig m_config;
+    Logger m_logger;
+
 private:
-    void decrypt_schedules() = 0;
+    virtual void decrypt_schedules() = 0;
 
     virtual ov::Tensor extract_main_schedule() const = 0;
 
@@ -32,13 +43,11 @@ private:
 
     virtual std::optional<int> extract_batch_size() const = 0;
 
-    virtual std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const = 0;
+    virtual std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const = 0;
 
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
     std::optional<std::shared_ptr<const ov::Model>> m_original_model;
-    FilteredConfig m_config;
-    Logger m_logger;
 
     ov::Tensor m_main_schedule;
     std::optional<std::vector<ov::Tensor>> m_init_schedules;
@@ -66,9 +75,11 @@ private:
 
     std::optional<int> extract_batch_size() const override;
 
-    std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
+    std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override;
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override;
+
+    ov::Tensor m_compiler_payload;
 };
 
 class BlobFormatV1Handler : public IBlobFormatHandler {
@@ -90,7 +101,7 @@ private:
 
     std::optional<int> extract_batch_size() const override;
 
-    std::optional<std::pair<std::vector<ov::Layout>>> extract_layouts() const override;
+    std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override;
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override;
 
@@ -100,12 +111,12 @@ private:
 
 namespace blob_format_handler_factory {
 
-std::shared_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
+std::unique_ptr<IBlobFormatHandler> create(std::istream& npu_formatted_blob,
                                            const bool is_raw_blob,
                                            const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config);
 
-std::shared_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
+std::unique_ptr<IBlobFormatHandler> create(const ov::Tensor& npu_formatted_blob,
                                            const bool is_raw_blob,
                                            const std::shared_ptr<const ov::Model>& original_model,
                                            const FilteredConfig& config);
