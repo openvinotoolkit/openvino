@@ -252,8 +252,7 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<ov::Shape>& pred
             }
         }
 
-        OPENVINO_ASSERT(_pipeline != nullptr,
-                        "Dynamic pipeline must be created before predicting output shapes");
+        OPENVINO_ASSERT(_pipeline != nullptr, "Dynamic pipeline must be created before predicting output shapes");
         // ZeroDynamicInferRequest always constructs a DynamicPipeline in create_pipeline_impl,
         // so this downcast is safe.
         predictedShapes =

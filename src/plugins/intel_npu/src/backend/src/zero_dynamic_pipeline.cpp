@@ -13,7 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/vm/dynamic_arguments.hpp"
+#include "intel_npu/utils/vm/mem_ref_type.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
@@ -540,8 +540,8 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     if (_logger.level() >= ov::log::Level::DEBUG) {
         for (size_t i = 0; i < predictedShapes.size(); ++i) {
             _logger.debug("predict_output_shapes - output %zu predicted shape: %s",
-                         i,
-                         predictedShapes[i].to_string().c_str());
+                          i,
+                          predictedShapes[i].to_string().c_str());
         }
     }
     return predictedShapes;

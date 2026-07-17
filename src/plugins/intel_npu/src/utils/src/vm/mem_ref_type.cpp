@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/utils/vm/dynamic_arguments.hpp"
+#include "intel_npu/utils/vm/mem_ref_type.hpp"
 
 #include <sstream>
 
