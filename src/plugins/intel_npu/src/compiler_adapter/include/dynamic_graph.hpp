@@ -142,7 +142,8 @@ public:
                                   ze_fence_handle_t fence,
                                   ze_event_handle_t event,
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
-        virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
+        virtual void predictOutputShape(GraphArguments& args,
+                                        std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
         virtual ~Impl() {};
     };
@@ -192,7 +193,8 @@ public:
 
     uint64_t get_num_subgraphs() const override;
 
-    void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+    void predict_output_shape(GraphArguments& args,
+                              std::vector<MemRefType>& inputDescriptors,
                               std::vector<MemRefType>& outputDescriptors) override;
 
     std::optional<bool> is_profiling_blob() const override;

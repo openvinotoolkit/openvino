@@ -329,7 +329,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr,
 void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
-    int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
+    int MB = static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]);
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB, context->getCpuParallel());
 }
 

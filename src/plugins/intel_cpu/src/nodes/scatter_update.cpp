@@ -346,9 +346,9 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
-    size_t shapeRank = shape.size();
+    auto shapeRank = static_cast<int>(shape.size());
     std::vector<size_t> blockND(shapeRank + 1, 1);
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
     }
     return blockND;
@@ -375,8 +375,8 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 }
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
-    size_t shapeRank = shape.size();
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    auto shapeRank = static_cast<int>(shape.size());
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }
@@ -565,12 +565,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    const size_t updates_rank = indices_shape.size();
+    const auto updates_rank = static_cast<int>(indices_shape.size());
 
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    CPU_NODE_ASSERT(axis >= 0 && axis < updates_rank, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -697,7 +697,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -862,7 +862,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t srcRank = srcDataDim.size();
+    auto srcRank = static_cast<int>(srcDataDim.size());
 
     // 1d short vector scatter update optimized for shape inference subgraph
     if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
@@ -898,7 +898,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = static_cast<int>(*axisPtr64);
         }
 
-        CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),
+        CPU_NODE_ASSERT(axis < srcRank && axis >= (srcRank * -1),
                         "should have axis value in range [-r, r - 1], where r is the rank of input data");
         axis = axis < 0 ? (axis + srcRank) : axis;
 
@@ -923,8 +923,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             size_t updateRank = updateDim.size();
             VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
             int axisIter = 0;
-            for (size_t rs = 0; rs < srcRank; rs++) {
-                if (rs != static_cast<size_t>(axis)) {
+            for (int rs = 0; rs < srcRank; rs++) {
+                if (rs != axis) {
                     expectUpdateShape[axisIter] = srcDataDim[rs];
                     axisIter++;
                 } else {

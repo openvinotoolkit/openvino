@@ -70,7 +70,8 @@ extern "C" {
 ///       ::NPU_VM_RUNTIME_MAJOR_VERSION and ::NPU_VM_RUNTIME_MINOR_VERSION
 typedef enum _npu_vm_runtime_version_t {
     NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),           ///< version 1.0
-    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_0,  ///< latest known version
+    NPU_VM_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),           ///< version 1.1
+    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_1,  ///< latest known version
     NPU_VM_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
 } npu_vm_runtime_version_t;
 
@@ -161,7 +162,7 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Get metadata from VM runtime instance
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetMetadata(
-    npu_vm_runtime_handle_t hRuntime,                          ///< [in] handle of VM runtime object
+    npu_vm_runtime_handle_t hRuntime,                            ///< [in] handle of VM runtime object
     uint32_t argIndex,                                           ///< [in] index of the argument
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
     ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
@@ -175,7 +176,7 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Predit output shape based on input shape
+/// @brief Predict output shape based on input shape
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape(
     npu_vm_runtime_handle_t hRuntime,                      ///< [in] handle of VM runtime object
     npu_vm_runtime_predict_output_shape_params_t* pParams  ///< [in] pointer to predict output shape parameters
@@ -183,9 +184,9 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create MemRef handle
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateMemRef(
-    int64_t dimsCount,                             ///< [in] value of tensor rank
-    npu_vm_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of VM runtime MemRef object
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL
+npuVMRuntimeCreateMemRef(int64_t dimsCount,                           ///< [in] value of tensor rank
+                         npu_vm_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of VM runtime MemRef object
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroy MemRef handle
@@ -196,24 +197,23 @@ npuVMRuntimeDestroyMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef);  ///< [out] 
 /// @brief Set new value to MemRef
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL
 npuVMRuntimeSetMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of VM runtime MemRef object
-                        const void* basePtr,                        ///< [in] pointer to basePtr
-                        const void* data,                           ///< [in] pointer to data
-                        int64_t offset,                             ///< [in] offset in MemRef
-                        int64_t* pSizes,                            ///< [in] pointer to tensor sizes
-                        int64_t* pStrides,                          ///< [in] pointer to tensor strides
-                        int64_t dimsCount);                         ///< [in] value of tensor rank
+                      const void* basePtr,                      ///< [in] pointer to basePtr
+                      const void* data,                         ///< [in] pointer to data
+                      int64_t offset,                           ///< [in] offset in MemRef
+                      int64_t* pSizes,                          ///< [in] pointer to tensor sizes
+                      int64_t* pStrides,                        ///< [in] pointer to tensor strides
+                      int64_t dimsCount);                       ///< [in] value of tensor rank
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Set new value to MemRef
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL
 npuVMRuntimeParseMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of VM runtime MemRef object
-                          const void** pBasePtr,                      ///< [out] pointer to basePtr
-                          const void** pData,                         ///< [out] pointer to data
-                          int64_t* pOffset,                           ///< [out] offset in MemRef
-                          int64_t* pSizes,                            ///< [out] pointer to tensor sizes
-                          int64_t* pStrides,                          ///< [out] pointer to tensor strides
-                          int64_t* pDimsCount);                       ///< [out] value of tensor rank
-
+                        const void** pBasePtr,                    ///< [out] pointer to basePtr
+                        const void** pData,                       ///< [out] pointer to data
+                        int64_t* pOffset,                         ///< [out] offset in MemRef
+                        int64_t* pSizes,                          ///< [out] pointer to tensor sizes
+                        int64_t* pStrides,                        ///< [out] pointer to tensor strides
+                        int64_t* pDimsCount);                     ///< [out] value of tensor rank
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance and return handle
@@ -235,8 +235,28 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeUpdateMutableCommandList(
     npu_vm_runtime_handle_t hRuntime,          ///< [in] handle of VM runtime object
     npu_vm_runtime_execute_params_t* pParams,  ///< [in] pointer to execution parameters
-    uint64_t* argIndexArray,                     ///< [in] pointer to argument index list
-    uint64_t argIndexArraySize);                 ///< [in] size of argument index list
+    uint64_t* argIndexArray,                   ///< [in] pointer to argument index list
+    uint64_t argIndexArraySize);               ///< [in] size of argument index list
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Version 1.1
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape params 2
+typedef struct _npu_vm_runtime_predict_output_shape_params_t2 {
+    npu_vm_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+    npu_vm_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+    npu_vm_runtime_execution_context_handle_t executionContext;
+} npu_vm_runtime_predict_output_shape_params_t2;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape based on input shape
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape2(
+    npu_vm_runtime_handle_t hRuntime,                       ///< [in] handle of VM runtime object
+    npu_vm_runtime_predict_output_shape_params_t2* pParams  ///< [in] pointer to predict output shape parameters
+);
 
 #if defined(__cplusplus)
 }  // extern "C"

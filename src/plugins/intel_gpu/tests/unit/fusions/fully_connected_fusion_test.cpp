@@ -964,9 +964,9 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_prod_unfused_dynamic_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 2, 3 },   // dyn_quan is skipeed at runtime
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 2, 3 },   // dyn_quan is skipped at runtime
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_3, 3, 3 },   // dyn_quan is not skipped
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 3, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 3, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_3, 3, 3 },
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {

@@ -27,10 +27,10 @@ public:
 private:
     /// @brief Check if ZE can build kernels from source
     bool check_ze_build_support() const;
-    /// @brief Build module through ZE API
-    std::shared_ptr<ze_module_holder> build_module_ze(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const;
-    /// @brief Build module through OCL API and repackage to ZE module
-    std::shared_ptr<ze_module_holder> build_module_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const;
+    /// @brief Build kernels through ZE API
+    void build_kernels_ze(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const;
+    /// @brief Build kernels through OCL API and repackage to ZE module
+    void build_kernels_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const;
     void init_ocl_builder() const;
     const ze_device &m_device;
     // OCL workaround for legacy devices that does not support ZE compilation

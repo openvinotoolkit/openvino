@@ -4,6 +4,10 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
+if(ENABLE_CM_FOR_GPU)
+    add_compile_definitions(ENABLE_CM_FOR_GPU)
+endif()
+
 file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)

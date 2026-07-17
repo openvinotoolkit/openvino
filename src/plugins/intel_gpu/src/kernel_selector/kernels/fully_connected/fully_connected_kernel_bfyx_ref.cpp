@@ -66,7 +66,13 @@ KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*para
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
     const FullyConnectedKernelBase::DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    Datatype accumulator_dt = GetAccumulatorType(params);
+    // The bfyx_ref kernel accumulates element-by-element in ACCUMULATOR_TYPE.
+    // For compressed weights with fp16/bf16 input, the sum over large IFM (1024+
+    // elements) overflows fp16. Use fp32 to ensure reference accuracy.
+    auto in_dt = params.inputs[0].GetDType();
+    Datatype accumulator_dt = (params.compressed && (in_dt == Datatype::F16 || in_dt == Datatype::BF16))
+                                  ? Datatype::F32
+                                  : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
     if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
