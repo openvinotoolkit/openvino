@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-09-27-04-000-29564867992",
+  "timestamp": "2026-07-17T09:27:04Z",
+  "run_id": "29564867992",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29564867992",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36884",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36884",
+  "author": "p-durandin",
+  "category": "Flaky Test",
+  "title": "JS API E2E test cleanup fails - Permission denied removing Electron DLLs on Windows",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    "JS API (26)"
+  ],
+  "key_errors": [
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied",
+    "Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The E2E test 'after all' cleanup hook runs 'rm -rf demo-electron-app-project' on Windows after the Electron app test completes. Windows file locking prevents deletion of electron.exe and DLL files (d3dcompiler_47.dll, libEGL.dll, libGLESv2.dll) because the Electron process may still hold handles. The actual tests passed (2/2), only the cleanup step failed. This is a transient infrastructure issue unrelated to the PR changes (GPU Level Zero fix).",
+  "reproduction_steps": "Run the JS API E2E test on a Windows runner: cd src/bindings/js/node && npm run test:e2e. The Electron process may hold file locks causing the cleanup to fail.",
+  "recommended_actions": [
+    "Re-run the failed CI job",
+    "Fix the cleanup hook to use Windows-safe deletion (e.g., rimraf or retry logic) instead of bare 'rm -rf'",
+    "Kill the Electron process before running cleanup in the test teardown"
+  ],
+  "prevention_strategies": "Use a cross-platform cleanup utility (rimraf) in the E2E test teardown that handles Windows file locks, or add retry logic with process termination before deletion.",
+  "historical_context": "First occurrence of this specific pattern in the database."
+}
