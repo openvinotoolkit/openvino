@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "partitioning/patterns/pre_compute.hpp"
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -11,26 +13,22 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
-#include "partitioning/patterns/pre_compute.hpp"
 
 namespace {
 
 std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& short_factor_values,
-                                                   const std::vector<float>& long_factor_values,
-                                                   const std::vector<float>& multiply_values,
-                                                   const std::vector<float>& power_values) {
+                                                  const std::vector<float>& long_factor_values,
+                                                  const std::vector<float>& multiply_values,
+                                                  const std::vector<float>& power_values) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
 
-    auto short_factor = ov::op::v0::Constant::create(ov::element::f32,
-                                                      ov::Shape{short_factor_values.size()},
-                                                      short_factor_values);
-    auto long_factor = ov::op::v0::Constant::create(ov::element::f32,
-                                                     ov::Shape{long_factor_values.size()},
-                                                     long_factor_values);
-    auto multiply_const = ov::op::v0::Constant::create(ov::element::f32,
-                                                        ov::Shape{multiply_values.size()},
-                                                        multiply_values);
+    auto short_factor =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{short_factor_values.size()}, short_factor_values);
+    auto long_factor =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{long_factor_values.size()}, long_factor_values);
+    auto multiply_const =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{multiply_values.size()}, multiply_values);
     auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{power_values.size()}, power_values);
 
     auto reduce_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
@@ -79,6 +77,50 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
                                        "longrope_v5_test_model");
 }
 
+// Builds a minimal RoPE model matching RopePatternLLama2.
+// When with_concat2=true (LLama2 style): Transpose → Concat_2 → Sin/Cos, duplicate_freqs=true.
+// When with_concat2=false (GPT style):   Transpose → Sin/Cos directly, duplicate_freqs=false.
+std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // inv_freq: constant [1, half_dim=2, 1]
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 1}, {0.5f, 0.1f});
+
+    // ShapeOf → Gather(batch dim) → Concat_1 (broadcast target shape)
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis);
+    auto ndims_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, ndims_const, one_const}, 0);
+
+    // Broadcast inv_freq to [1,2,1], MatMul with position_ids → Transpose
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(inv_freq, concat_1);
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert);  // [1,2,4]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1,4,2]
+
+    // Sin/Cos either via Concat_2 (LLama2) or directly (GPT)
+    ov::Output<ov::Node> sin_cos_input = transpose->output(0);
+    if (with_concat2) {
+        auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
+        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1)->output(0);
+    }
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(sin_cos_input);
+    auto cos = std::make_shared<ov::op::v0::Cos>(sin_cos_input);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{data, position_ids},
+        with_concat2 ? "llama2_rope_test_model" : "gpt_rope_test_model");
+}
+
 bool has_input_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     const auto inputs = model->inputs();
     return std::any_of(inputs.begin(), inputs.end(), [&name](const auto& input) {
@@ -113,16 +155,54 @@ TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {1.0f}, {1.0f});
     ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, "longrope_input");
 
-    EXPECT_THROW(pass.run_on_model(model),
-                 ov::AssertFailure);
+    EXPECT_THROW(pass.run_on_model(model), ov::AssertFailure);
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnNonScalarPowerInLongRopeV5) {
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {1.0f, 2.0f}, {1.0f, 2.0f});
     ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, "longrope_input");
 
-    EXPECT_THROW(pass.run_on_model(model),
-                 ov::AssertFailure);
+    EXPECT_THROW(pass.run_on_model(model), ov::AssertFailure);
+}
+
+// Verifies that the merged RopePatternLLama2 correctly detects and removes the
+// LLama2-style sin/cos subgraph (with Concat_2 present, duplicate_freqs=true).
+TEST(PreComputeTest, RopeCacheTransformsLLama2Pattern) {
+    auto model = make_rope_model(/*with_concat2=*/true);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, /*longrope_input_name=*/{});
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& ops = model->get_ops();
+    const auto sin_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Sin>(op);
+    });
+    const auto cos_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Cos>(op);
+    });
+
+    EXPECT_EQ(sin_count, 0) << "Sin should be replaced by Gather from the duplicated LUT";
+    EXPECT_EQ(cos_count, 0) << "Cos should be replaced by Gather from the duplicated LUT";
+}
+
+// Verifies that the merged RopePatternLLama2 correctly detects and removes the
+// GPT-style sin/cos subgraph (Concat_2 absent, duplicate_freqs=false).
+TEST(PreComputeTest, RopeCacheTransformsGPTPattern) {
+    auto model = make_rope_model(/*with_concat2=*/false);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, /*longrope_input_name=*/{});
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& ops = model->get_ops();
+    const auto sin_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Sin>(op);
+    });
+    const auto cos_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Cos>(op);
+    });
+
+    EXPECT_EQ(sin_count, 0) << "Sin should be replaced by Gather from the non-duplicated LUT";
+    EXPECT_EQ(cos_count, 0) << "Cos should be replaced by Gather from the non-duplicated LUT";
 }
 
 }  // namespace
