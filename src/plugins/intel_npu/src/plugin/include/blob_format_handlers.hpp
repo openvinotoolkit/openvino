@@ -107,6 +107,8 @@ private:
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override;
 
+    void register_compiler_version();
+
     ov::Tensor m_compiler_payload;
     std::unique_ptr<MetadataBase> m_metadata;
 };

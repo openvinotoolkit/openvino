@@ -290,6 +290,8 @@ BlobFormatV1Handler::BlobFormatV1Handler(std::istream& npu_formatted_blob,
 
     m_compiler_payload = allocate_aligned_tensor(blob_size);
     npu_formatted_blob.read(m_compiler_payload.data<char>(), static_cast<std::streamsize>(blob_size));
+
+    register_compiler_version();
 }
 
 BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
@@ -303,6 +305,8 @@ BlobFormatV1Handler::BlobFormatV1Handler(const ov::Tensor& npu_formatted_blob,
 
     // ROI tensor to skip the NPU plugin metadata
     m_compiler_payload = ov::Tensor(npu_formatted_blob, ov::Coordinate{0}, ov::Coordinate{blob_size});
+
+    register_compiler_version();
 }
 
 void BlobFormatV1Handler::decrypt_schedules() {
@@ -364,6 +368,16 @@ std::optional<std::string> BlobFormatV1Handler::extract_compiler_compatibility_d
     const std::optional<std::string_view> compatibility_descriptor = m_metadata->get_compatibility_descriptor();
     return compatibility_descriptor.has_value() ? std::make_optional<>(std::string(compatibility_descriptor.value()))
                                                 : std::nullopt;
+}
+
+void BlobFormatV1Handler::register_compiler_version() {
+    std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
+    if (compiler_version.has_value()) {
+        m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+        m_logger.debug("Imported model was compiled with compiler version: %u.%u",
+                       ONEAPI_VERSION_MAJOR(compiler_version.value()),
+                       ONEAPI_VERSION_MINOR(compiler_version.value()));
+    }
 }
 
 namespace blob_format_handler_factory {
