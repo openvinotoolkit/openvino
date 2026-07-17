@@ -8,19 +8,26 @@
 
 set(OV_ONNX_NAMESPACE openvino_onnx)
 
-# Apply local patches to the pinned ONNX submodule. ONNX 1.22 uses
-# 'std::not_equal_to()' (relying on CTAD with no deduction guide), which older
-# toolchains such as RHEL 8.10's GCC 8 reject with
-# "cannot deduce template arguments for 'not_equal_to' from ()". The patch
-# rewrites it to the portable 'std::not_equal_to<>()'. Newer compilers accept
-# the upstream source as-is, so the patch is only needed for GCC < 9 and is
-# gated accordingly to avoid modifying the submodule working tree elsewhere.
-# Patches are applied idempotently so re-configuration and incremental builds
-# are safe.
+# Apply local patches to the pinned ONNX submodule.
+#
+# not_equal_to_ctad.patch: ONNX 1.22 uses 'std::not_equal_to()' (relying on
+# CTAD with no deduction guide), which GCC 8 (e.g. RHEL 8.10's system compiler)
+# rejects with "cannot deduce template arguments for 'not_equal_to' from ()".
+# The patch rewrites it to the portable 'std::not_equal_to<>()'. Newer compilers
+# accept the upstream source as-is, so the patch is only needed for GCC < 9.
+#
+# TODO: remove this patch (and the patches directory) once GCC 8 support is
+# dropped, or once the fix is upstreamed into the pinned ONNX version. Patches
+# should be avoided in general and kept as narrow and short-lived as possible.
+#
+# Patches are listed explicitly (not globbed) so it is clear which patch applies
+# under which condition. They are applied idempotently so re-configuration and
+# incremental builds are safe.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    set(_onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch")
+
     find_package(Git QUIET)
     if(GIT_FOUND)
-        file(GLOB _onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch")
         foreach(_onnx_patch IN LISTS _onnx_patches)
             # Skip patches that are already applied (e.g. on re-configure).
             execute_process(
