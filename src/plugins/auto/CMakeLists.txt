@@ -49,11 +49,14 @@ find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 # Enable the IPF-backed device utilization monitor when IPF was built.
+# ClientApi is linked as an ordinary DLL import library and called only through its
+# plain-C ABI (ClientApiC.h). No IPF-compiled objects are embedded into this plugin,
+# so ${TARGET_NAME} keeps following OpenVINO's normal /MD (Release) or /MDd (Debug)
+# convention regardless of IPF's own (fixed /MD) runtime library choice.
 if(OV_AUTO_IPF_AVAILABLE)
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF)
-    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:ClientApiLib,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_sources(${TARGET_NAME} PRIVATE $<TARGET_OBJECTS:ClientApiLib>)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF ClientApi_IMPORTS)
+    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:ClientApi,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_link_libraries(${TARGET_NAME} PRIVATE ClientApi nlohmann_json::nlohmann_json)
     message(STATUS "[AUTO] IPF support successfully enabled for ${TARGET_NAME}")
 else()
     message(STATUS "[AUTO] IPF support disabled")
