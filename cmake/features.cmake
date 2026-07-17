@@ -20,6 +20,7 @@ ov_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE
 ov_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ov_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
+ov_option (ENABLE_TESTS_PER_SOURCE "Create one test executable per source file" OFF)
 
 if(ENABLE_TESTS)
     include(CTest)
