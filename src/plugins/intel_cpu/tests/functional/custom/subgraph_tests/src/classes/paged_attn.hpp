@@ -30,8 +30,6 @@ class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams
                                                      bool add_shared_reader = false);
         void SetUp() override;
         void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-        template <typename IT, typename T>
-        static void strided_iota(IT first, size_t n, T value, T stride);
         virtual void generate(int idx,
                           const bool isPagedAttn,
                           const std::vector<ov::Shape>& targetInputStaticShapes,

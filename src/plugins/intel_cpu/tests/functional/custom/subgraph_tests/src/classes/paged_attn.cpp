@@ -31,8 +31,24 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#include "utils/arm_isa_support.h"
+#endif
+
 namespace ov {
 namespace test {
+
+template <typename IT, typename T>
+void strided_iota(IT first, size_t n, T value, T stride) {
+    // Descending order: generate values from high to low
+    // Generate descending values to simulate attention patterns where earlier tokens have higher scores.
+    // This is useful for testing sliding window attention mechanisms where recent context is prioritized.
+    for (size_t i = 0; i < n; i++) {
+        const float idx = static_cast<float>(n - 1 - i);
+        const T generated = value + stride * static_cast<T>(idx);
+        *first++ = generated;
+    }
+}
 
 std::string PagedAttnTestBase::getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
     const auto& [inType,
@@ -442,17 +458,7 @@ void PagedAttnTestBase::generate_inputs(const std::vector<ov::Shape>& targetInpu
 
     SubgraphBaseTest::generate_inputs(shapes);
 }
-template <typename IT, typename T>
-void PagedAttnTestBase::strided_iota(IT first, size_t n, T value, T stride) {
-    // Descending order: generate values from high to low
-    // Generate descending values to simulate attention patterns where earlier tokens have higher scores.
-    // This is useful for testing sliding window attention mechanisms where recent context is prioritized.
-    for (size_t i = 0; i < n; i++) {
-        const float idx = static_cast<float>(n - 1 - i);
-        const T generated = value + stride * static_cast<T>(idx);
-        *first++ = generated;
-    }
-}
+
 void PagedAttnTestBase::generate(int idx,
                         const bool isPagedAttn,
                         const std::vector<ov::Shape>& targetInputStaticShapes,
@@ -1070,6 +1076,81 @@ void PagedAttnCacheCollisionTest::init_all_kv_caches(size_t block_nums) {
     }
 }
 
+TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config,
+                 addSharedReader] = this->GetParam();
+    const bool isSageAttn =
+        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
+    
+    #if defined(OPENVINO_ARCH_ARM)
+        GTEST_SKIP();
+    #elif defined(OPENVINO_ARCH_X86_64)
+        if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
+            GTEST_SKIP();
+        }
+        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2())) {
+            GTEST_SKIP();
+        }
+    #endif
+
+    past_len_count = 0;
+
+    // compare the logits from paged attn and sdpa
+    auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
+    // reference model doesn't support sage attention
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
+    // Reset past_len_count before running reference test to ensure consistent mask generation
+    past_len_count = 0;
+    auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType,
+                 inputShapes,
+                 extendBlockIndices,
+                 enableXattn,
+                 sinkInput,
+                 slidingWindow,
+                 additional_config,
+                 addSharedReader] = this->GetParam();
+    ASSERT_FALSE(addSharedReader) << "PagedAttnVSMatmulTest does not support shared KV-cache (addSharedReader=true)";
+    const bool isSageAttn =
+        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
+    
+    #if defined(OPENVINO_ARCH_ARM)
+        GTEST_SKIP();
+    #elif defined(OPENVINO_ARCH_ARM64)
+        // If SVE support is unavailable skip the test
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
+            GTEST_SKIP();
+        }
+    #elif defined(OPENVINO_ARCH_X86_64)
+        if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
+            GTEST_SKIP();
+        }
+        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2())) {
+            GTEST_SKIP();
+        }
+    #endif
+
+    // compare the logits from paged attn and sdpa
+    auto actualOutputs = run_test(function, extendBlockIndices, false);
+    // reference model doesn't support sage attention, disable it
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
+    auto expectedOutputs = run_ref_test(functionRefs);
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
 
 }  // namespace test
 }  // namespace ov

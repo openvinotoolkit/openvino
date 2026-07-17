@@ -3,9 +3,7 @@
 //
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
-#include "utils/arm_isa_support.h"
 #include "custom/subgraph_tests/src/classes/paged_attn.hpp"
 
 using namespace ov::test;
@@ -14,29 +12,6 @@ using namespace ov::op;
 
 namespace ov {
 namespace test {
-
-TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config,
-                 addSharedReader] = this->GetParam();
-    const bool isSageAttn =
-        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-
-    past_len_count = 0;
-
-    // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
-    // reference model doesn't support sage attention
-    if (isSageAttn) {
-        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
-    }
-    // Reset past_len_count before running reference test to ensure consistent mask generation
-    past_len_count = 0;
-    auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
 
 namespace {
 const std::vector<ov::AnyMap> additional_configs = {
@@ -102,38 +77,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
                                                 {ov::intel_cpu::enable_sage_attn.name(), false}}),
                                             ::testing::Values(true)),   // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
-}  // namespace
-
-TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType,
-                 inputShapes,
-                 extendBlockIndices,
-                 enableXattn,
-                 sinkInput,
-                 slidingWindow,
-                 additional_config,
-                 addSharedReader] = this->GetParam();
-    ASSERT_FALSE(addSharedReader) << "PagedAttnVSMatmulTest does not support shared KV-cache (addSharedReader=true)";
-    const bool isSageAttn =
-        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-    // If not SVE machine skip the test
-    if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
-        GTEST_SKIP();
-    }
-    // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function, extendBlockIndices, false);
-    // reference model doesn't support sage attention, disable it
-    if (isSageAttn) {
-        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
-    }
-    auto expectedOutputs = run_ref_test(functionRefs);
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
-
-namespace {
 
 const std::vector<InputShapes> inputShapes = {  // greedy search
     {
