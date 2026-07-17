@@ -30,6 +30,8 @@ public:
 
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
+    FilteredConfig get_config() const;
+
     virtual ~IBlobFormatImportHandler() = default;
 
 protected:

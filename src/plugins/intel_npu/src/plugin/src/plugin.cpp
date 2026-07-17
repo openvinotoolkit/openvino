@@ -658,7 +658,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
                                            shared_from_this(),
                                            device,
                                            graph,
-                                           localConfig,
+                                           blobFormatHandler->get_config(),
                                            graph->get_batch_size());
 }
 

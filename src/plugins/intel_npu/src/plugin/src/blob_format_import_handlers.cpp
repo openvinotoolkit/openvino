@@ -250,6 +250,10 @@ std::shared_ptr<ov::Model> IBlobFormatImportHandler::create_dummy_model() const 
                                 layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
 }
 
+FilteredConfig IBlobFormatImportHandler::get_config() const {
+    return m_config;
+}
+
 void IBlobFormatImportHandler::log_contents(const std::optional<std::string>& compatibility_descriptor) {}
 
 // TODO comments, logs, ITT
