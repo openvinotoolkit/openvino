@@ -87,17 +87,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
     const uint out_y = (uint)get_global_id(1);
-#if F4E2M1_OUTPUT && GROUP_SIZE_DIM3 == 1 && INPUT0_SIZE_X == 1
-    const uint y = (out_y * 2) * GROUP_SIZE_DIM2;
-    const uint x = (uint)get_global_id(2);
-#elif F4E2M1_OUTPUT && GROUP_SIZE_DIM3 == 1
-    const uint y = out_y * GROUP_SIZE_DIM2;
-    const uint pair_idx = (uint)get_global_id(2);
-    const uint x = pair_idx * 2;
-#else
     const uint y = out_y * GROUP_SIZE_DIM2;     // quantization may be grouped for y axis
     const uint x = (uint)get_global_id(2);
-#endif
 #ifdef SCALES_OUTPUT_ORDER
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, out_y, x);
 #else
@@ -179,64 +170,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
     for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
 #if GROUP_SIZE_DIM3 == 1
-#if F4E2M1_OUTPUT && INPUT0_SIZE_X == 1
-        // F4E2M1 with X==1: Elements are laid out along Y axis
-        // Each work-item owns one byte (the pair {cur_y, cur_y+1})
-        const uint cur_y = y + y_off;
-        if (cur_y < INPUT0_SIZE_Y && (cur_y % 2 == 0)) {
-            const uint in_offset_lo = INPUT0_GET_INDEX(b + b_off, f + f_off, cur_y, 0);
-            const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, cur_y, 0);
-            const uint byte_offset = out_offset / 2;
-
-            half val_lo = input[in_offset_lo];
-            val_lo *= scale;
-            OUTPUT_TYPE ival_lo = TO_OUTPUT_TYPE_CUSTOM(val_lo);
-
-            OUTPUT_TYPE ival_hi;
-            ival_hi.data = 0;
-            if (cur_y + 1 < INPUT0_SIZE_Y) {
-                const uint in_offset_hi = INPUT0_GET_INDEX(b + b_off, f + f_off, cur_y + 1, 0);
-                half val_hi = input[in_offset_hi];
-                val_hi *= scale;
-                ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
-            }
-
-            output[byte_offset].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
-
-            FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival_lo);
-        }
-#elif F4E2M1_OUTPUT
-        // F4E2M1 with X>1: Elements are laid out along X axis
-        // Each work-item owns one byte (the pair {x, x+1}).
-        if (x < INPUT0_SIZE_X) {
-            const uint in_offset_lo = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
-            const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
-            const uint byte_offset = out_offset / 2;
-
-            half val_lo = input[in_offset_lo];
-            val_lo *= scale;
-            OUTPUT_TYPE ival_lo = TO_OUTPUT_TYPE_CUSTOM(val_lo);
-
-            OUTPUT_TYPE ival_hi;
-            ival_hi.data = 0;
-            if (x + 1 < INPUT0_SIZE_X) {
-                const uint in_offset_hi = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x + 1);
-                half val_hi = input[in_offset_hi];
-                val_hi *= scale;
-                ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
-            } else if (y + y_off + 1 < INPUT0_SIZE_Y) {
-                const uint in_offset_hi = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off + 1, 0);
-                half val_hi = input[in_offset_hi];
-                val_hi *= scale;
-                ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
-            }
-            output[byte_offset].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
-
-            FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival_lo);
-        }
-#else
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
+        const uint byte_offset = out_offset / ELEMENTS_PER_BYTE;
 
         half val = input[in_offset];
         val *= scale;
@@ -244,9 +180,20 @@ KERNEL(dynamic_quantize_gpu_ref)(
         val += zp;
 #endif
         OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
-        output[out_offset] = ival;
-        FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
+#if F4E2M1_OUTPUT
+        {
+            volatile __global uint* output_u32 = (volatile __global uint*)output;
+            uint main_idx = out_offset / 8;
+            uint sub_idx  = out_offset % 8;
+            uint shift    = sub_idx * 4;
+            uint val_u32  = (uint)(ival.data & 0x0F);
+            atomic_and(&output_u32[main_idx], ~(0x0F << shift));
+            atomic_or (&output_u32[main_idx],  (val_u32 << shift));
+        }
+#else
+            output[out_offset] = ival;
 #endif
+        FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
 #else   // GROUP_SIZE_DIM3 != 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
@@ -259,6 +206,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
 #if F4E2M1_OUTPUT
+            // Vectorized path: vstore4 writes 4 bytes = 8 nibbles aligned to a uint boundary.
+            // Each work-item owns a disjoint set of 8-nibble blocks, so no race occurs here.
             vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[byte_offset + x * 4]));
 #elif IS_F8
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[byte_offset + x * 8]));
@@ -269,40 +218,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #endif
         }
         x *= 8;
-#if F4E2M1_OUTPUT
-        for (; x + 1 < INPUT0_SIZE_X; x += 2) {
-            half val_lo = input[in_offset + x];
-            val_lo *= scale;
-            OUTPUT_TYPE ival_lo = TO_OUTPUT_TYPE_CUSTOM(val_lo);
-
-            half val_hi = input[in_offset + x + 1];
-            val_hi *= scale;
-            OUTPUT_TYPE ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
-
-            output[(out_offset + x) / 2].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
-        }
-        // Handle lone final element (when INPUT0_SIZE_X is odd).
-        if (x < INPUT0_SIZE_X) {
-            const uint cur_out = out_offset + x;
-            if (cur_out % 2 == 0) {
-                half val_lo = input[in_offset + x];
-                val_lo *= scale;
-                OUTPUT_TYPE ival_lo = TO_OUTPUT_TYPE_CUSTOM(val_lo);
-
-                // Upper nibble: first element of next Y row, or 0 if OOB.
-                OUTPUT_TYPE ival_hi;
-                ival_hi.data = 0;
-                if (y + y_off + 1 < INPUT0_SIZE_Y) {
-                    const uint in_offset_hi = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off + 1, 0);
-                    half val_hi = input[in_offset_hi];
-                    val_hi *= scale;
-                    ival_hi = TO_OUTPUT_TYPE_CUSTOM(val_hi);
-                }
-
-                output[cur_out / 2].data = ((ival_hi.data << 4) & 0xF0) | (ival_lo.data & 0x0F);
-            }
-        }
-#else
         for (; x < INPUT0_SIZE_X; x++) {
             half val = input[in_offset + x];
             val *= scale;
@@ -311,10 +226,21 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #endif
             OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
             uint out_idx = out_offset + x;
+#if F4E2M1_OUTPUT
+            {
+                volatile __global uint* output_u32 = (volatile __global uint*)output;
+                uint main_idx = out_idx / 8;
+                uint sub_idx  = out_idx % 8;
+                uint shift    = sub_idx * 4;
+                uint val_u32  = (uint)(ival.data & 0x0F);
+                atomic_and(&output_u32[main_idx], ~(0x0F << shift));
+                atomic_or (&output_u32[main_idx],  (val_u32 << shift));
+            }
+#else
             output[out_idx] = ival;
+#endif
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
         }
-#endif  // F4E2M1_OUTPUT (tail)
 #endif
     }
     }
