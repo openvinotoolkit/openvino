@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to FinalizeArtifact non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "602c52a223d7ebfe",
+  "title": "RISC-V Build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-17T15:26:00Z",
+  "last_seen": "2026-07-17T15:26:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29591125373"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36905"
+  ],
+  "recent_timestamps": [
+    "2026-07-17T15:26:00Z"
+  ],
+  "rerun_search_string": "Failed to FinalizeArtifact: Received non-retryable error: Failed request: (403) Forbidden"
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-15-26-00-000-29591125373",
+  "timestamp": "2026-07-17T15:26:00Z",
+  "run_id": "29591125373",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29591125373",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36905",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36905",
+  "author": "e-ddykim",
+  "category": "Infrastructure",
+  "title": "RISC-V Build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
+  "signature": "Failed to FinalizeArtifact non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "602c52a223d7ebfe",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (RVV 1.0)",
+      "conclusion": "failure",
+      "symptom": "Upload openvino tests package step fails: FinalizeArtifact HTTP 403 Forbidden from blob storage intermediary"
+    }
+  ],
+  "key_errors": [
+    "##[error]Failed to FinalizeArtifact: Received non-retryable error: Failed request: (403) Forbidden: Error from intermediary with HTTP status code 403 \"Forbidden\""
+  ],
+  "root_cause": "The build and all compilation steps completed successfully. The failure occurred in the 'Upload openvino tests package' artifact upload step during the FinalizeArtifact call, which received a 403 Forbidden response from the blob storage intermediary (Azure Blob Storage). This is a transient infrastructure issue with the GitHub Actions artifact storage service, not related to the PR changes. The 'Upload openvino package' (the preceding upload) succeeded; only the second larger upload (openvino_tests, ~120MB) hit the 403.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed Build (RVV 1.0) job to retry the artifact upload.",
+    "If the failure recurs, escalate to GitHub Actions support as the artifact storage service is returning 403 errors."
+  ],
+  "prevention_strategies": "This is a transient GitHub Actions artifact storage service failure. No code change can prevent it. Consider adding retry logic around artifact upload steps if this becomes frequent.",
+  "historical_context": "Similar infrastructure artifact upload failures have been seen before (e.g., investigation 2026-07-14-13-52-06-309-29334800771 for debian packages upload). These are typically transient and resolved by re-running the job."
+}
