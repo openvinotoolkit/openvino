@@ -118,7 +118,6 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
     return constants;
 }
 
-// TODO flag to indicate whether or not the weight can be extracted from config
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_constants_map(
     std::variant<std::monostate,
                  std::shared_ptr<const ov::Model>,

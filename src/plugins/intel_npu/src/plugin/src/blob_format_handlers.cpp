@@ -4,6 +4,7 @@
 
 #include "blob_format_handlers.hpp"
 
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -16,6 +17,8 @@
 
 namespace {
 
+using namespace intel_npu;
+
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view EMPTY_BLOB_MESSAGE = "The blob provided for import is empty";
 constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
@@ -23,7 +26,7 @@ constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{intel_npu::utils::AlignedAllocator{intel_npu::utils::STANDARD_PAGE_SIZE}};
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
     ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -32,16 +35,30 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     return tensor;
 }
 
-void decrypt_schedule(ov::Tensor& schedule,
-                      const ov::EncryptionCallbacks& encryption_callbacks,
-                      const intel_npu::Logger& logger) {
+/**
+ * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
+ */
+void update_compiler_type_if_perf_count(FilteredConfig& config,
+                                        const ov::SoPtr<IEngineBackend>& backend,
+                                        const std::string_view device_name) {
+    if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
+        config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        ov::intel_npu::CompilerType compilerType = config.get<COMPILER_TYPE>();
+        CompilerAdapterFactory factory;
+        (void)factory.getCompiler(backend, compilerType, device_name);
+
+        config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+}
+
+void decrypt_schedule(ov::Tensor& schedule, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
     std::string decryptedBlobStr;
     {
         std::string encryptedBlobStr(schedule.data<const char>(), schedule.get_byte_size());  // +1x blob size
         decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                    // +1x blob size
     }  // -1x blob size when deallocating temporary encrypted blob string
-    ov::Allocator customAllocator{intel_npu::utils::AlignedAllocator{intel_npu::utils::STANDARD_PAGE_SIZE}};
-    size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
     size_t paddingSize = alignedSize - decryptedBlobStr.size();
     schedule = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
                           customAllocator);  // +1x blob size
@@ -70,8 +87,8 @@ void decrypt_schedule(ov::Tensor& schedule,
  * @param outputDescriptors Describes the output nodes.
  * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
-std::shared_ptr<ov::Model> create_dummy_model(const std::vector<intel_npu::IODescriptor>& inputDescriptors,
-                                              const std::vector<intel_npu::IODescriptor>& outputDescriptors,
+std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
+                                              const std::vector<IODescriptor>& outputDescriptors,
                                               const std::optional<int> batchSize,
                                               const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                               const std::optional<std::vector<ov::Layout>>& outputLayouts) {
@@ -79,7 +96,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<intel_npu::IODes
     ov::ResultVector results;
 
     for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
-        const intel_npu::IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
+        const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
             continue;
@@ -89,7 +106,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<intel_npu::IODes
                                                                   : inputDescriptor.shapeFromCompiler;
 
         if (batchSize.has_value()) {
-            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+            shape[utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
         }
 
         std::shared_ptr<ov::op::v0::Parameter> parameter =
@@ -108,7 +125,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<intel_npu::IODes
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (size_t outputIndex = 0; outputIndex < outputDescriptors.size(); ++outputIndex) {
-        const intel_npu::IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
+        const IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
         if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
             outputDescriptor.isInitOutputWeights) {
             continue;
@@ -121,7 +138,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<intel_npu::IODes
                                                                    : outputDescriptor.shapeFromCompiler;
 
         if (batchSize.has_value()) {
-            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+            shape[utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
         }
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
@@ -162,17 +179,19 @@ std::shared_ptr<ov::Model> IBlobFormatHandler::create_dummy_model() const {
                                 layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
 }
 
-std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
-    const std::shared_ptr<ZeroInitStructsHolder>& zero_init_structs,
-    std::string_view network_name,
-    const std::shared_ptr<ov::ICore>& core) {
+std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(const ov::SoPtr<IEngineBackend>& backend,
+                                                         const std::string_view network_name,
+                                                         const std::string_view device_name,
+                                                         const std::shared_ptr<ov::ICore>& core) {
     decrypt_schedules();
     m_main_schedule = extract_main_schedule();
     m_init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
 
+    update_compiler_type_if_perf_count(m_config, backend, device_name);
+
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(zero_init_structs);
+    auto parser = parserFactory.getParser(backend->getInitStructs());
 
     std::variant<std::monostate,
                  std::shared_ptr<const ov::Model>,

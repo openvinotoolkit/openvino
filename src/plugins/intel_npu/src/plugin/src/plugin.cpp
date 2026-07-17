@@ -637,20 +637,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::unique_ptr<I
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
     }
 
-    // TODO what about this & compiler version stuff?
-    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
-    if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
-        localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
-        CompilerAdapterFactory factory;
-        (void)factory.getCompiler(_backend, compilerType, device->getName());
-
-        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
-    }
-
     const std::shared_ptr<IGraph> graph =
-        blobFormatHandler->create_graph(_backend->getInitStructs(),
+        blobFormatHandler->create_graph(_backend,
                                         "net" + std::to_string(_compiledModelLoadCounter++),
+                                        device->getName(),
                                         get_core());
 
     return std::make_shared<CompiledModel>(blobFormatHandler->create_dummy_model(),
