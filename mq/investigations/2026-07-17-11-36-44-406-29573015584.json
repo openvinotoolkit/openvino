@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-11-36-44-406-29573015584",
+  "timestamp": "2026-07-17T11:36:44Z",
+  "run_id": "29573015584",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29573015584",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36811",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36811",
+  "author": "maxnick",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all hook fails: rm -rf demo-electron-app-project Permission denied on electron.exe/DLLs"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libEGL.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied",
+    "1 failing\n  1) E2E testing for OpenVINO as an Electron dependency.\n       \"after all\" hook for \"should run electron package and verify output\":\n     Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "On Windows, the Electron process spawned during the E2E test holds file locks on electron.exe and its dependent DLLs (d3dcompiler_47.dll, libEGL.dll, libGLESv2.dll). The test's 'after all' cleanup hook runs rm -rf immediately after verifying the Electron app output, before Windows fully releases those file handles. This is a race condition in cleanup timing specific to Windows file-locking semantics. The actual E2E functionality tests all pass; only the cleanup fails.",
+  "reproduction_steps": "Run `npm run test:e2e` in `src/bindings/js/node/` on a Windows runner and observe the 'after all' hook failure when Electron process file locks haven't been fully released.",
+  "recommended_actions": [
+    "Add a delay or retry loop in the 'after all' cleanup hook before running rm -rf on Windows",
+    "Use `rimraf` or a Node.js fs.rm with retry options instead of shell rm -rf for cross-platform cleanup",
+    "Consider using `taskkill /F /IM electron.exe` before cleanup on Windows to ensure process termination",
+    "File a bug/tracking issue for this known recurring flaky test pattern (seen 11 times)"
+  ],
+  "prevention_strategies": "Add explicit process termination and file-handle release before directory cleanup in E2E tests on Windows. Use Node.js built-in fs APIs with retry logic for cleanup rather than shell commands.",
+  "historical_context": "This failure pattern (85df26485ff568d8) has been recorded 10 times previously since 2026-07-09. It is the most frequently recurring flaky test in the Windows CI pipeline."
+}

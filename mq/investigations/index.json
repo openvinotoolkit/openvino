@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 35,
+  "total": 36,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -343,6 +343,15 @@
       "category": "Flaky Test",
       "signature_hash": "85df26485ff568d8",
       "pr_number": "36933"
+    },
+    {
+      "investigation_id": "2026-07-17-11-36-44-406-29573015584",
+      "run_id": "29573015584",
+      "timestamp": "2026-07-17T11:36:44Z",
+      "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "36811"
     }
   ]
 }
