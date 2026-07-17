@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-17-04-10-31-000-29552704755",
+  "timestamp": "2026-07-17T04:10:31Z",
+  "run_id": "29552704755",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29552704755",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36890",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36890",
+  "author": "yuxu42",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected",
+  "signature": "primType is unexpected unknown Expected ref|Flaky Test",
+  "signature_hash": "76751669c7a78fcd",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest_4D_Dynamic assertion: primType is unexpected unknown_i8, Expected ref_i8 at cpu_test_utils.cpp:248"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?]_TS=(2.4.4.1)_(2.17.5.4)_(1.2.3.4)_(1.3.3.3)_inputPRC=i8_specialValue=none_targetPRC=u8__inFmts=nchw_outFmts=nchw_primitive=acl",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure",
+    "Value of: primTypeCheck(primType)",
+    "  Actual: false",
+    "Expected: true",
+    "primType is unexpected : unknown_i8 Expected : ref_i8",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/..."
+  ],
+  "root_cause": "The ARM64/ACL ConvertCPULayerTest is intermittently failing when the ACL backend selects 'unknown_i8' as the primitive type instead of the expected 'ref_i8' for an i8->u8 conversion with nchw format. This test failure is unrelated to the PR under review (PR #36890 fixes Paddle frontend expand_v2 dynamic-rank Broadcast); the same ConvertCPULayerTest class with different precisions (f32, i8) has been observed failing on unrelated PRs in the last 24 hours, indicating a pre-existing flaky behavior in the ARM64 ACL primitive type selection.",
+  "reproduction_steps": "Run: ov_cpu_func_tests --gtest_filter=*smoke_ConvertCPULayerTest_4D_Dynamic*inputPRC=i8*targetPRC=u8*primitive=acl* on ARM64 hardware with ACL backend",
+  "recommended_actions": [
+    "Re-run the failed jobs — the failure is unrelated to the PR change and has been observed as intermittent across multiple PRs",
+    "Investigate and fix the ACL backend primitive type selection for i8/u8 conversion with nchw layout on ARM64 in src/plugins/intel_cpu/",
+    "Consider adding the test to an expected-failures list while the ACL issue is being diagnosed"
+  ],
+  "prevention_strategies": "Improve primitive-type fallback handling in the ACL backend so that missing i8 support falls back to ref cleanly and does not produce 'unknown' type, or disable the ACL path for i8->u8 nchw conversions until properly supported.",
+  "historical_context": "Same test class (smoke_ConvertCPULayerTest_4D_Dynamic with primitive=acl) failed with f32 precision on run 29552016907 (PR #36929) approximately 11 minutes earlier. Earlier instance with i32 precision was recorded on 2026-07-08 (run 28957097935, pattern cb7d14bccc236de4). Multiple PRs are being blocked by this pre-existing ACL issue."
+}
