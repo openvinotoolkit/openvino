@@ -49,6 +49,8 @@ private:
 
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
+    void log_contents(const std::optional<std::string>& compatibility_descriptor);
+
     std::optional<std::shared_ptr<const ov::Model>> m_original_model;
 
     ov::Tensor m_main_schedule;

@@ -37,6 +37,7 @@ using namespace intel_npu;
 
 constexpr std::string_view NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during model import";
+constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
 
 /**
  * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
@@ -556,6 +557,8 @@ bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
+    _logger.debug("Importing a compiled model from the given stream");
+
     update_log_level(properties);
 
     if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
@@ -566,6 +569,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     auto npuPluginProperties = properties;
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
+        _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }
 
@@ -593,6 +597,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
+    _logger.debug("Importing a compiled model from the given tensor");
+
     update_log_level(properties);
 
     // Need to create intermediate istream for NPUW
@@ -602,6 +608,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     auto npuPluginProperties = properties;
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
+        _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }
 
@@ -631,6 +638,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
     FilteredConfig& localConfig,
     ov::AnyMap& localProperties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatImportHandler)");
+    _logger.trace("Importing a compiled model using an import handler object");
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
