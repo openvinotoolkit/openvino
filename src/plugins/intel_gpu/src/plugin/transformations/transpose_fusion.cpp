@@ -15,18 +15,24 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "graph/include/gemm_inst.h"
 
 #include "ov_ops/vl_sdpa.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 #include <iostream>
+#include <limits>
 #include <vector>
 #include <ostream>
 
@@ -71,6 +77,35 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     }
 
     return is_valid_order(order, is_output_transpose);
+}
+
+// Returns true for integer element types used to store a quantized KV cache.
+bool is_quantized_kv_type(const ov::element::Type& type) {
+    return type == ov::element::i8 || type == ov::element::u8 ||
+           type == ov::element::i4 || type == ov::element::u4;
+}
+
+// Derive DynamicQuantize group sizes from the quantized data shape and the (broadcastable) scale shape:
+// an axis where the scale extent is 1 while the data extent is > 1 is fully grouped (max), every other
+// axis keeps a group size of 1. Falls back to grouping the last axis when shapes are unknown.
+std::vector<uint64_t> compute_kv_group_sizes(const ov::PartialShape& data_ps, const ov::PartialShape& scale_ps) {
+    if (data_ps.rank().is_dynamic()) {
+        return {};
+    }
+    const size_t rank = data_ps.rank().get_length();
+    std::vector<uint64_t> group_sizes(rank, 1);
+    if (scale_ps.rank().is_static() && static_cast<size_t>(scale_ps.rank().get_length()) == rank) {
+        for (size_t i = 0; i < rank; ++i) {
+            const bool scale_is_one = scale_ps[i].is_static() && scale_ps[i].get_length() == 1;
+            const bool data_is_one = data_ps[i].is_static() && data_ps[i].get_length() == 1;
+            if (scale_is_one && !data_is_one) {
+                group_sizes[i] = std::numeric_limits<uint64_t>::max();
+            }
+        }
+    } else if (rank > 0) {
+        group_sizes[rank - 1] = std::numeric_limits<uint64_t>::max();
+    }
+    return group_sizes;
 }
 }  // namespace
 
@@ -218,9 +253,29 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_fp_type);
     auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_fp_type);
 
+    // KV-cache dequantization: Multiply(optional Subtract(Convert(quant), zp), scale) [-> optional Reshape].
+    // Matches the canonical low-precision dequantization sub-graph (see low_precision_dequantize) emitted for
+    // an int8/int4 KV cache, so the quantized cache and its scale/zero-point can be folded into op::SDPA.
+    auto k_quant_m = any_input();
+    auto k_convert_m = wrap_type<ov::op::v0::Convert>({k_quant_m});
+    auto k_zp_m = any_input();
+    auto k_sub_m = ov::pass::pattern::optional<ov::op::v1::Subtract>({k_convert_m, k_zp_m});
+    auto k_scale_m = any_input();
+    auto k_mul_m = wrap_type<ov::op::v1::Multiply>({k_sub_m, k_scale_m});
+    auto k_dequant_m = ov::pass::pattern::optional<ov::op::v1::Reshape>({k_mul_m, any_input()});
+
+    auto v_quant_m = any_input();
+    auto v_convert_m = wrap_type<ov::op::v0::Convert>({v_quant_m});
+    auto v_zp_m = any_input();
+    auto v_sub_m = ov::pass::pattern::optional<ov::op::v1::Subtract>({v_convert_m, v_zp_m});
+    auto v_scale_m = any_input();
+    auto v_mul_m = wrap_type<ov::op::v1::Multiply>({v_sub_m, v_scale_m});
+    auto v_dequant_m = ov::pass::pattern::optional<ov::op::v1::Reshape>({v_mul_m, any_input()});
+
+    // Dequantization branch is tried first so a quantized KV cache is recognized before the plain-float fallback.
     auto sdpa_in_q = std::make_shared<Or>(OutputVector{input_q_m, transpose_q_m});
-    auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});
-    auto sdpa_in_v = std::make_shared<Or>(OutputVector{input_v_m, transpose_v_m});
+    auto sdpa_in_k = std::make_shared<Or>(OutputVector{k_dequant_m, transpose_k_m, input_k_m});
+    auto sdpa_in_v = std::make_shared<Or>(OutputVector{v_dequant_m, transpose_v_m, input_v_m});
 
     auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v });
     auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask });
@@ -263,18 +318,27 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             return true;
         };
 
+        // A KV input is quantized when its dequantization sub-graph matched and the source is an integer cache.
+        const bool k_quantized =
+            pattern_map.count(k_mul_m) > 0 && is_quantized_kv_type(pattern_map.at(k_quant_m).get_element_type());
+        const bool v_quantized =
+            pattern_map.count(v_mul_m) > 0 && is_quantized_kv_type(pattern_map.at(v_quant_m).get_element_type());
+        // Both K and V must be quantized to build a compressed SDPA (it carries one scale per KV input).
+        const bool kv_compressed = k_quantized && v_quantized;
+
         bool can_fuse_transposes = true;
         if (pattern_map.count(transpose_q_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_q_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_q_order_m).get_node_shared_ptr(),
                                                      order_q, input_q_output_idx);
 
-        if (pattern_map.count(transpose_k_m) > 0)
+        // Transpose fusion is only applied to the plain-float KV path (the quantized cache keeps identity order).
+        if (!k_quantized && pattern_map.count(transpose_k_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_k_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_k_order_m).get_node_shared_ptr(),
                                                      order_k, input_k_output_idx);
 
-        if (pattern_map.count(transpose_v_m) > 0)
+        if (!v_quantized && pattern_map.count(transpose_v_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v, input_v_output_idx);
@@ -283,13 +347,27 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             return false;
 
         auto input_q = ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx);
-        auto input_k = ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx);
-        auto input_v = ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx);
 
-        OutputVector inputs;
-        inputs.push_back(ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx));
-        inputs.push_back(ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx));
-        inputs.push_back(ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx));
+        // K/V source: the raw quantized cache when compressing, the transpose source on the fused-float path,
+        // otherwise the SDPA input as-is (covers the dequant-but-not-compressed fallback).
+        auto select_kv_input = [&](bool compressed,
+                                   const std::shared_ptr<ov::Node>& quant_pattern,
+                                   const std::shared_ptr<ov::Node>& float_pattern,
+                                   size_t float_output_idx,
+                                   size_t sdpa_input_idx) -> ov::Output<ov::Node> {
+            if (compressed) {
+                return pattern_map.at(quant_pattern);
+            }
+            if (pattern_map.count(float_pattern) > 0) {
+                return ov::Output<Node>(pattern_map.at(float_pattern).get_node_shared_ptr(), float_output_idx);
+            }
+            return sdpa->input_value(sdpa_input_idx);
+        };
+
+        auto input_k = select_kv_input(kv_compressed, k_quant_m, input_k_m, input_k_output_idx, 1);
+        auto input_v = select_kv_input(kv_compressed, v_quant_m, input_v_m, input_v_output_idx, 2);
+
+        OutputVector inputs = {input_q, input_k, input_v};
 
         if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
             inputs.push_back(sdpa->get_input_source_output(3));
@@ -298,7 +376,44 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             inputs.push_back(sdpa->get_input_source_output(4));
         }
 
-        auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
+        std::shared_ptr<ov::Node> sdpa_new;
+        if (kv_compressed) {
+            const auto k_scale = pattern_map.at(k_scale_m);
+            const auto v_scale = pattern_map.at(v_scale_m);
+            const bool asymmetric = pattern_map.count(k_sub_m) > 0 && pattern_map.count(v_sub_m) > 0;
+
+            op::SDPA::QuantizationAttribute config;
+            config.quantization_type = asymmetric ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric
+                                                  : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+            config.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+            config.quantization_dt = pattern_map.at(k_quant_m).get_element_type();
+            config.scale_dt = k_scale.get_element_type();
+            config.group_sizes =
+                compute_kv_group_sizes(pattern_map.at(k_quant_m).get_partial_shape(), k_scale.get_partial_shape());
+            config.scales_zp_output_order = std::vector<uint64_t>{0, 1, 2, 3};
+            if (asymmetric) {
+                config.zp_dt = pattern_map.at(k_zp_m).get_element_type();
+            }
+
+            // Compression inputs follow the data (and optional mask/scale) inputs: K/V scales, then K/V zero points.
+            inputs.push_back(k_scale);
+            inputs.push_back(v_scale);
+            if (asymmetric &&
+                config.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
+                inputs.push_back(pattern_map.at(k_zp_m));
+                inputs.push_back(pattern_map.at(v_zp_m));
+            }
+
+            sdpa_new = std::make_shared<op::SDPA>(inputs,
+                                                  sdpa->get_causal(),
+                                                  order_q,
+                                                  order_k,
+                                                  order_v,
+                                                  order_output,
+                                                  config);
+        } else {
+            sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
+        }
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

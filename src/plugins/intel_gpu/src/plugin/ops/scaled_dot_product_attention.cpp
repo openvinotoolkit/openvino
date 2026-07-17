@@ -116,7 +116,6 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
 }
 
 static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SDPA>& op) {
-    validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
@@ -131,6 +130,16 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     bool is_causal = op->get_causal();
     int64_t indirect_axis = -1;
 
+    // When the KV cache is compressed (int8/int4), the op carries extra scale (and, for asymmetric
+    // quantization, zero-point) inputs after the data inputs. Account for them in the input-count
+    // validation and forward the quantization attributes to the primitive so the kernel dequantizes
+    // the cache on the fly. get_compression_inputs_num() is 0 for the non-compressed path.
+    const auto compression_inputs = op->get_compression_inputs_num();
+    validate_inputs_count(op, {cnt_inputs_with_qkv + compression_inputs,
+                               cnt_inputs_with_mask + compression_inputs,
+                               cnt_inputs_with_scale + compression_inputs,
+                               cnt_inputs_with_sink + compression_inputs});
+
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
                                                          inputs,
                                                          is_causal,
@@ -138,7 +147,9 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          transpose_orders[0],
                                                          transpose_orders[1],
                                                          transpose_orders[2],
-                                                         transpose_orders[3]);
+                                                         transpose_orders[3],
+                                                         op->get_quantization_attrs(),
+                                                         op->get_kv_compressed());
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
