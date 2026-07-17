@@ -19,6 +19,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/variadic_split.hpp"
+
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -27,6 +30,8 @@
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+
+#include <numeric>
 
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
@@ -105,7 +110,8 @@ class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
                                                                  float,             // 7: scale value
                                                                  float,             // 8: abs_threshold
                                                                  float,             // 9: rel_threshold
-                                                                 bool>>             // 10: is_complex_gqa
+                                                                 bool,              // 10: is_complex_gqa
+                                                                 float>>            // 11:kv_num_head_factor
                                                          {
 protected:
     void create_model() {
@@ -121,8 +127,8 @@ protected:
         const ov::PartialShape value_shape = std::get<4>(params);
         const ov::Shape value_reshape_shape = std::get<5>(params);
         const ov::PartialShape attention_mask_shape = std::get<6>(params);
-        const ov::Shape scale_shape{1};
-        bool is_complex_gqa = std::get<10>(params);
+        bool is_complex_gqa =  std::get<10>(params);
+        float kv_num_head_factor = std::get<11>(params);
 
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
@@ -157,49 +163,77 @@ protected:
         std::shared_ptr<ov::Node> value_input = reshape ? std::static_pointer_cast<ov::Node>(value_reshaped) : std::static_pointer_cast<ov::Node>(value);
 
         ov::ParameterVector model_params = {query, key, value};
-
-        if (is_complex_gqa) {
+        if (is_complex_gqa && kv_num_head_factor > 1) {
             auto q_shape = query_shape.to_shape();                  // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                    // [1, 1, 10, 256]
-            auto mask_shape = attention_mask_shape.to_shape();      // [10, 842]
+            auto mask_shape = attention_mask_shape.to_shape();      // [1, 1]
 
-            // Deduce past sequence length from the mask size
-            size_t total_seq_len = mask_shape[1];                   // 842
-            size_t current_seq_len = k_shape[2];                    // 10
-            size_t past_seq_len = total_seq_len - current_seq_len;  // 832
+            size_t total_seq_len = mask_shape[1];                   // 1
+            size_t current_seq_len = k_shape[2];                    // 1
+            size_t past_seq_len = total_seq_len - current_seq_len;  // 0
 
-            // Create past_key / past_value parameters dynamically
-            ov::Shape past_shape = {k_shape[0], k_shape[1], past_seq_len, k_shape[3]};
-            auto past_key = std::make_shared<ov::op::v0::Parameter>(inType, past_shape);
-            auto past_value = std::make_shared<ov::op::v0::Parameter>(inType, past_shape);
+            // Static cache with full sequence length expected by updates/scatter axis.
+            ov::Shape kv_cache_shape = {k_shape[0], k_shape[1], total_seq_len, k_shape[3]};
+            auto past_key = std::make_shared<ov::op::v0::Parameter>(inType, kv_cache_shape);
+            auto past_value = std::make_shared<ov::op::v0::Parameter>(inType, kv_cache_shape);
             model_params.push_back(past_key);
             model_params.push_back(past_value);
+            // in1: [current_seq_len]
+            std::vector<int64_t> update_indices(current_seq_len);
+            std::iota(update_indices.begin(), update_indices.end(), static_cast<int64_t>(past_seq_len));
+            auto indices =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{current_seq_len}, update_indices);
 
-            // 1. Concat
-            auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_key, key_input}, 2);
-            auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, value_input}, 2);
+            // in3: [1], axis=2 (sequence dimension)
+            auto scatter_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
-            // 2. Reshape to 5D -> [1, 1, 1, 842, 256]
-            ov::Shape unsqueeze_shape = {q_shape[0], k_shape[1], 1, total_seq_len, k_shape[3]};
-            auto reshape1_k_const = ov::op::v0::Constant::create(ov::element::i64, {unsqueeze_shape.size()}, unsqueeze_shape);
-            auto reshape1_v_const = ov::op::v0::Constant::create(ov::element::i64, {unsqueeze_shape.size()}, unsqueeze_shape);
-            auto reshape1_k = std::make_shared<ov::op::v1::Reshape>(concat_k, reshape1_k_const, true);
-            auto reshape1_v = std::make_shared<ov::op::v1::Reshape>(concat_v, reshape1_v_const, true);
+            // ScatterUpdate: in0=[1,10,total_seq_len,128], in1=[current_seq_len],
+            //                in2=[1,10,current_seq_len,128], in3={2}
+            auto scatter_k = std::make_shared<ov::op::v3::ScatterUpdate>(past_key, indices, key_input, scatter_axis);
+            auto scatter_v = std::make_shared<ov::op::v3::ScatterUpdate>(past_value, indices, value_input, scatter_axis);
+            // VariadicSplit signature:
+            // in0=[1,10,?,128], in1=[], in2=[3], out0/out1/out2=[1,10,?,128] (partial shapes)
+            auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+            // Deterministic lengths must sum to the split axis size (k_shape[1]).
+            std::vector<int64_t> split_lengths_values = {static_cast<int64_t>(k_shape[1]), int64_t{0}, int64_t{0}};
+            auto split_lengths = ov::op::v0::Constant::create(ov::element::i64,
+                                                               ov::Shape{3},
+                                                               split_lengths_values);
+            auto split_k = std::make_shared<ov::op::v1::VariadicSplit>(scatter_k, split_axis, split_lengths);
+            auto split_v = std::make_shared<ov::op::v1::VariadicSplit>(scatter_v, split_axis, split_lengths);
+            // Reshape 4D→5D: [1,10,?,128] -> [1,10,1,?,128]
+            std::vector<int64_t> reshape1_pattern = {
+                static_cast<int64_t>(k_shape[0]),
+                static_cast<int64_t>(k_shape[1]),
+                1,
+                -1,
+                static_cast<int64_t>(k_shape[3])
+            };
+            auto reshape1_k_const = ov::op::v0::Constant::create(ov::element::i64, {reshape1_pattern.size()}, reshape1_pattern);
+            auto reshape1_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape1_pattern.size()}, reshape1_pattern);
+            auto reshape1_k = std::make_shared<ov::op::v1::Reshape>(split_k->output(0), reshape1_k_const, false);
+            auto reshape1_v = std::make_shared<ov::op::v1::Reshape>(split_v->output(0), reshape1_v_const, false);
 
-            // 3. Broadcast to match Query heads -> [1, 1, 8, 842, 256]
-            ov::Shape broadcast_shape = {q_shape[0], k_shape[1], q_shape[1], total_seq_len, k_shape[3]};
-            auto broadcast_k_const = ov::op::v0::Constant::create(ov::element::i64, {broadcast_shape.size()}, broadcast_shape);
-            auto broadcast_v_const = ov::op::v0::Constant::create(ov::element::i64, {broadcast_shape.size()}, broadcast_shape);
-            auto broadcast_k = std::make_shared<ov::op::v3::Broadcast>(reshape1_k, broadcast_k_const, ov::op::BroadcastType::BIDIRECTIONAL);
-            auto broadcast_v = std::make_shared<ov::op::v3::Broadcast>(reshape1_v, broadcast_v_const, ov::op::BroadcastType::BIDIRECTIONAL);
-
-            // 4. Reshape back to 4D -> [1, 8, 842, 256]
-            ov::Shape reshape2_shape = {q_shape[0], q_shape[1], total_seq_len, k_shape[3]};
-            auto reshape2_k_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_shape.size()}, reshape2_shape);
-            auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_shape.size()}, reshape2_shape);
-            key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
-            value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
+            // Concat kv_num_head_factor copies to match query head expansion.
+            const size_t head_expand_factor = static_cast<size_t>(kv_num_head_factor);
+            ov::OutputVector concat_k_inputs(head_expand_factor, reshape1_k);
+            ov::OutputVector concat_v_inputs(head_expand_factor, reshape1_v);
+            auto concat_k = std::make_shared<ov::op::v0::Concat>(concat_k_inputs, 2);
+            auto concat_v = std::make_shared<ov::op::v0::Concat>(concat_v_inputs, 2);
+           
+            // Reshape 5D->4D: [1,10,4,?,128] -> [1,40,?,128]
+            std::vector<int64_t> reshape2_pattern = {
+                static_cast<int64_t>(k_shape[0]),
+                static_cast<int64_t>(q_shape[1]),
+                -1,
+                static_cast<int64_t>(k_shape[3])
+            };
+            auto reshape2_k_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_pattern.size()}, reshape2_pattern);
+            auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_pattern.size()}, reshape2_pattern);
+            key_input = std::make_shared<ov::op::v1::Reshape>(concat_k, reshape2_k_const, false);
+            value_input = std::make_shared<ov::op::v1::Reshape>(concat_v, reshape2_v_const, false);
         }
+        
 
         const auto mask = std::make_shared<ov::op::v0::Parameter>(inType, attention_mask_shape);
         model_params.push_back(mask);
@@ -288,7 +322,19 @@ TEST_P(SDPAFusion, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                          SDPAFusion,
-                         ::testing::Values(std::make_tuple(ov::PartialShape{10, 1024, 64},
+                         ::testing::Values(std::make_tuple(ov::PartialShape{1, 40, 1, 128},
+                                                             ov::Shape{1, 40, 1, 128},
+                                                             ov::PartialShape{1, 10, 1, 128},
+                                                             ov::Shape{1, 10, 1, 128},
+                                                             ov::PartialShape{1, 10, 1, 128},
+                                                             ov::Shape{1, 10, 1, 128},
+                                                             ov::PartialShape{1, 1},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             true,
+                                                             4),
+                                        std::make_tuple(ov::PartialShape{10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{10, 77, 64},
                                                            ov::Shape{10, 77, 64},
@@ -298,7 +344,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false),
+                                                           false,
+                                                           1),
                                             std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{1, 10, 77, 64},
@@ -309,7 +356,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false),
+                                                           false,
+                                                           1),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{1, 10, 1024, 64},
@@ -320,7 +368,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false),
+                                                           false,
+                                                           1),
                                            std::make_tuple(ov::PartialShape{1, 10, 77, 64},
                                                            ov::Shape{10, 77, 64},
                                                            ov::PartialShape{1, 10, 77, 64},
@@ -331,7 +380,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false),
+                                                           false,
+                                                           1),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{1, 10, 1024, 64},
                                                            ov::PartialShape{1, 10, 1024, 64},
@@ -342,7 +392,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
 -                                                          0.025f,
-                                                           false),
+                                                           false,
+                                                           1),
                                            std::make_tuple(ov::PartialShape{1, 8, 10, 256},
                                                            ov::Shape{1, 8, 10, 256},
                                                            ov::PartialShape{1, 1, 10, 256},
@@ -353,6 +404,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           true)));
+                                                           true,
+                                                           8)));
 
 }  // namespace
