@@ -7,7 +7,14 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <string>
 #include <unordered_set>
+
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 #if defined(_WIN32)
 #    ifndef WIN32_LEAN_AND_MEAN
@@ -126,14 +133,23 @@ uint64_t get_total_system_ram_bytes() {
 #endif
 }
 
-// Recursively accumulates routed-expert weight bytes across the model, deduplicating by node identity.
-void accumulate_moe_weight_bytes(const ov::Model& model,
-                                 std::unordered_set<const ov::Node*>& visited,
-                                 uint64_t& w_moe) {
+// Recursively accumulates weight-constant bytes across the model and any subgraphs.
+// w_total counts every Constant once (deduped by node identity); w_moe counts only
+// routed-expert Constants (the offloadable subset).
+void accumulate_weight_bytes(const ov::Model& model,
+                             std::unordered_set<const ov::Node*>& visited,
+                             uint64_t& w_total,
+                             uint64_t& w_moe) {
     for (const auto& op : model.get_ops()) {
+        if (auto sub = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_model : sub->get_functions()) {
+                accumulate_weight_bytes(*sub_model, visited, w_total, w_moe);
+            }
+        }
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
         if (!constant || !visited.insert(constant.get()).second)
             continue;
+        w_total += constant->get_byte_size();
         if (get_moe_constant_role(constant) == MoEConstantRole::RoutedExpert)
             w_moe += constant->get_byte_size();
     }
@@ -142,10 +158,10 @@ void accumulate_moe_weight_bytes(const ov::Model& model,
 }  // namespace
 
 size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_info& info) {
-    // Collect MoE routed-expert weight bytes (deduplicated by node identity).
+    uint64_t w_total = 0;
     uint64_t w_moe = 0;
     std::unordered_set<const ov::Node*> visited;
-    accumulate_moe_weight_bytes(model, visited, w_moe);
+    accumulate_weight_bytes(model, visited, w_total, w_moe);
 
     // No offloadable MoE weights -> auto resolves to "no offload".
     if (w_moe == 0) {
@@ -153,37 +169,46 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
         return 0;
     }
 
-    // Memory budget: total device memory for dGPU; total system RAM for iGPU
-    // (iGPU "global memory" is shared with RAM, so we use the smaller total RAM figure).
+    // Memory budget: device memory for dGPU; for iGPU cap by total system RAM since the
+    // device "global memory" is shared with (and may differ from) host RAM reporting.
     uint64_t m_budget = info.max_global_mem_size;
-    if (info.dev_type == cldnn::device_type::integrated_gpu) {
+    const bool is_igpu = info.dev_type == cldnn::device_type::integrated_gpu;
+    if (is_igpu) {
         const uint64_t total_ram = get_total_system_ram_bytes();
-        if (total_ram > 0)
+        if (total_ram > 0) {
             m_budget = std::min<uint64_t>(m_budget, total_ram);
+        }
     }
     if (m_budget == 0) {
         GPU_DEBUG_INFO << "[MOE OTD auto] could not determine memory budget; resolved offload_ratio=0" << std::endl;
         return 0;
     }
 
-    // Simple heuristic: allow MoE expert weights to consume at most 50% of device memory.
-    constexpr double MOE_BUDGET_FRACTION = 0.5;
-    const double budget_for_moe = static_cast<double>(m_budget) * MOE_BUDGET_FRACTION;
+    const uint64_t w_fixed = w_total - w_moe;
+
+    constexpr uint64_t RUNTIME_RESERVE_BYTES = 2048ull * 1024ull * 1024ull;  // 2 GiB
+    const double fit_safety = 0.8;
+    const double budget_for_moe =
+        static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed) - static_cast<double>(RUNTIME_RESERVE_BYTES);
 
     size_t ratio;
-    if (static_cast<double>(w_moe) <= budget_for_moe) {
+    if (budget_for_moe >= static_cast<double>(w_moe)) {
         ratio = 0;  // everything fits, no offload needed
+    } else if (budget_for_moe <= 0.0) {
+        ratio = 80;  // extreme pressure: keep one slot resident (100 is invalid)
     } else {
         const double resident_fraction = budget_for_moe / static_cast<double>(w_moe);
         const long r = std::lround((1.0 - resident_fraction) * 100.0);
-        // Cap AUTO ratio at AUTO_RATIO_MAX to avoid extreme offload that would hurt performance.
-        constexpr size_t AUTO_RATIO_MAX = 70;
-        ratio = static_cast<size_t>(std::clamp<long>(r, 0, static_cast<long>(AUTO_RATIO_MAX)));
+        ratio = static_cast<size_t>(std::clamp<long>(r, 0, 80));
     }
 
-    GPU_DEBUG_INFO << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
-                   << " m_budget=" << m_budget << " w_moe=" << w_moe
-                   << " budget_for_moe=" << static_cast<uint64_t>(budget_for_moe)
+    std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+                   << " m_budget=" << m_budget
+                   << " w_total=" << w_total
+                   << " w_moe=" << w_moe
+                   << " w_fixed=" << w_fixed
+                   << " runtime_reserve=" << RUNTIME_RESERVE_BYTES
+                   << " budget_for_moe=" << static_cast<long long>(budget_for_moe)
                    << " -> resolved offload_ratio=" << ratio << std::endl;
     return ratio;
 }
