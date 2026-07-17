@@ -210,8 +210,8 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
                  std::pair<std::string_view, std::shared_ptr<ov::ICore>>>
         weights_source;
     if (init_schedules.has_value()) {
-        if (m_original_model.has_value()) {
-            weights_source = std::move(m_original_model.value());
+        if (m_original_model) {
+            weights_source = std::move(m_original_model);
         } else if (!m_config.get<WEIGHTS_PATH>().empty()) {
             weights_source = std::make_pair<>(m_config.get<WEIGHTS_PATH>(), core);
         } else {
