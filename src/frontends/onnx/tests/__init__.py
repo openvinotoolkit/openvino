@@ -154,7 +154,6 @@ xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported"
 skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support volumetric (5D) inputs")
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
-xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
 xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
@@ -177,7 +176,6 @@ skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 # ONNX 1.18
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
-xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")
 
 # Attention op (ONNX opset 23/24) -- requires ONNX >= 1.23; CI uses ONNX 1.18.
 # Tests pass locally when ONNX >= 1.23 is installed.
