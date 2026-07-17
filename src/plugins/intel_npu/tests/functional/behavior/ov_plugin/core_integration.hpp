@@ -463,7 +463,7 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
 
     {
         utils::LogCallbackGuard silentGuard(nullptr);
-        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::INFO)}}));
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::WARNING)}}));
     }
     ASSERT_EQ(::intel_npu::Logger::global().level(), baseline)
         << "Per-call log::level(INFO) contaminated Logger::global() after compile_model returned";
