@@ -42,7 +42,6 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
         }
 
         if (x % option.blockWidth != 0) {
-            std::cout << "block width = 1" << std::endl;
             option.blockWidth = 1;
         }
 
