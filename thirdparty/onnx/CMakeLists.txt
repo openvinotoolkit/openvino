@@ -10,36 +10,41 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 
 # Apply local patches to the pinned ONNX submodule. ONNX 1.22 uses
 # 'std::not_equal_to()' (relying on CTAD with no deduction guide), which older
-# toolchains such as RHEL 8.10's gcc-toolset reject with
+# toolchains such as RHEL 8.10's GCC 8 reject with
 # "cannot deduce template arguments for 'not_equal_to' from ()". The patch
-# rewrites it to the portable 'std::not_equal_to<>()'. Patches are applied
-# idempotently so re-configuration and incremental builds are safe.
-find_package(Git QUIET)
-if(GIT_FOUND)
-    file(GLOB _onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch")
-    foreach(_onnx_patch IN LISTS _onnx_patches)
-        # Skip patches that are already applied (e.g. on re-configure).
-        execute_process(
-            COMMAND "${GIT_EXECUTABLE}" apply --reverse --check "${_onnx_patch}"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
-            RESULT_VARIABLE _onnx_patch_already_applied
-            OUTPUT_QUIET ERROR_QUIET)
-        if(_onnx_patch_already_applied EQUAL 0)
-            message(STATUS "ONNX patch already applied: ${_onnx_patch}")
-            continue()
-        endif()
-        execute_process(
-            COMMAND "${GIT_EXECUTABLE}" apply --verbose "${_onnx_patch}"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
-            RESULT_VARIABLE _onnx_patch_rv
-            ERROR_VARIABLE _onnx_patch_err)
-        if(NOT _onnx_patch_rv EQUAL 0)
-            message(FATAL_ERROR "Failed to apply ONNX patch ${_onnx_patch}:\n${_onnx_patch_err}")
-        endif()
-        message(STATUS "Applied ONNX patch: ${_onnx_patch}")
-    endforeach()
-else()
-    message(WARNING "Git not found; ONNX source patches were not applied and the build may fail on older toolchains")
+# rewrites it to the portable 'std::not_equal_to<>()'. Newer compilers accept
+# the upstream source as-is, so the patch is only needed for GCC < 9 and is
+# gated accordingly to avoid modifying the submodule working tree elsewhere.
+# Patches are applied idempotently so re-configuration and incremental builds
+# are safe.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    find_package(Git QUIET)
+    if(GIT_FOUND)
+        file(GLOB _onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch")
+        foreach(_onnx_patch IN LISTS _onnx_patches)
+            # Skip patches that are already applied (e.g. on re-configure).
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" apply --reverse --check "${_onnx_patch}"
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
+                RESULT_VARIABLE _onnx_patch_already_applied
+                OUTPUT_QUIET ERROR_QUIET)
+            if(_onnx_patch_already_applied EQUAL 0)
+                message(STATUS "ONNX patch already applied: ${_onnx_patch}")
+                continue()
+            endif()
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" apply --verbose "${_onnx_patch}"
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
+                RESULT_VARIABLE _onnx_patch_rv
+                ERROR_VARIABLE _onnx_patch_err)
+            if(NOT _onnx_patch_rv EQUAL 0)
+                message(FATAL_ERROR "Failed to apply ONNX patch ${_onnx_patch}:\n${_onnx_patch_err}")
+            endif()
+            message(STATUS "Applied ONNX patch: ${_onnx_patch}")
+        endforeach()
+    else()
+        message(WARNING "Git not found; ONNX source patches were not applied and the build may fail on GCC < 9")
+    endif()
 endif()
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
