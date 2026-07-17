@@ -87,7 +87,7 @@ public:
 
     virtual ~MetadataBase() = default;
 
-    static std::streampos getFileSize(std::istream& stream);
+    static size_t getFileSize(std::istream& stream);
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.

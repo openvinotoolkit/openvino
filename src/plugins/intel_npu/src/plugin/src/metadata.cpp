@@ -15,6 +15,14 @@
 
 namespace {
 
+constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
+    "The blob received for parsing is too small to contain all mandatory information. Blob size: ";
+
+constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
+    "The size of the compiler payload parsed from the blob is greater "
+    "than the size of the blob. Compiler payload size: ";
+
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
     if (stream.tellp() != std::streampos(0)) {
@@ -540,7 +548,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     }
 }
 
-std::streampos MetadataBase::getFileSize(std::istream& stream) {
+size_t MetadataBase::getFileSize(std::istream& stream) {
     auto log = Logger::global().clone("getFileSize");
     if (!stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
@@ -568,20 +576,24 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
-    size_t magicBytesSize = MAGIC_BYTES.size();
+    std::streampos currentStreamPos = stream.tellg();
+    const size_t streamSize = MetadataBase::getFileSize(stream);
 
-    std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
-    uint64_t blobDataSize;
-    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::end);
-    stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(blobDataSize));
-    stream.seekg(-stream.tellg() + currentStreamPos + blobDataSize, std::ios::cur);
+    OPENVINO_ASSERT(streamSize > MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
+
+    uint64_t payloadSize;
+    stream.seekg(-std::streampos(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
+    stream.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
+
+    OPENVINO_ASSERT(streamSize > payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    stream.seekg(-stream.tellg() + currentStreamPos + payloadSize, std::ios::cur);
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta = create_metadata(metaVersion, payloadSize);
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
@@ -595,27 +607,23 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
-    size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
-                                    magicBytesSize);
+    const size_t blobSize = tensor.get_byte_size();
+    OPENVINO_ASSERT(blobSize > MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, blobSize);
 
-    if (MAGIC_BYTES != blobMagicBytes) {
-        OPENVINO_THROW("Blob is missing NPU metadata!");
-    }
+    const size_t magicBytesSize = MAGIC_BYTES.size();
+    uint64_t payloadSize;
+    payloadSize = *reinterpret_cast<const decltype(payloadSize)*>(tensor.data<const char>() + blobSize -
+                                                                  magicBytesSize - sizeof(payloadSize));
 
-    uint64_t blobDataSize;
-    blobDataSize = *reinterpret_cast<const decltype(blobDataSize)*>(tensor.data<const char>() + tensor.get_byte_size() -
-                                                                    magicBytesSize - sizeof(blobDataSize));
+    OPENVINO_ASSERT(blobSize > payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 
     uint32_t metaVersion;
-    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
+    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + payloadSize);
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        const ov::Tensor roiTensor(tensor,
-                                   ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                   ov::Coordinate{tensor.get_byte_size()});
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        const ov::Tensor roiTensor(tensor, ov::Coordinate{payloadSize + sizeof(metaVersion)}, ov::Coordinate{blobSize});
+        storedMeta = create_metadata(metaVersion, payloadSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
