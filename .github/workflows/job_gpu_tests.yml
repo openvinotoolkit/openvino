@@ -80,7 +80,9 @@ jobs:
 
       - name: Verify devices
         timeout-minutes: 5
-        run: clinfo
+        run: |
+          clinfo
+          sleep 320
 
       #
       # Tests
