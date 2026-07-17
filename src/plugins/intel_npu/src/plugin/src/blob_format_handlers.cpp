@@ -188,19 +188,19 @@ std::shared_ptr<IGraph> IBlobFormatHandler::create_graph(
         }
     }
 
-    const std::shared_ptr<IGraph> graph = parser->parse(m_main_schedule,
-                                                        m_config,
-                                                        std::move(weights_source),
-                                                        m_init_schedules,
-                                                        extract_compiler_compatibility_descriptor());
+    m_graph = parser->parse(m_main_schedule,
+                            m_config,
+                            std::move(weights_source),
+                            m_init_schedules,
+                            extract_compiler_compatibility_descriptor());
 
-    graph->update_network_name(network_name);
+    m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
         // Initial batch setup for static cases
-        graph->set_batch_size(m_batch_size.value());
+        m_graph->set_batch_size(m_batch_size.value());
     }
 
-    return graph;
+    return m_graph;
 }
 
 // TODO comments, logs, ITT
