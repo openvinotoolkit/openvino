@@ -271,16 +271,16 @@ void resolve_auto_offload_ratio_if_needed(ExecutionConfig& config,
     auto it = user_props.find(ov::intel_gpu::offload_ratio.name());
     if (it == user_props.end())
         return;
-    size_t requested = 0;
+    int64_t requested = 0;
     try {
-        requested = it->second.as<size_t>();
+        requested = it->second.as<int64_t>();
     } catch (const std::exception&) {
         return;
     }
     if (requested != ov::intel_gpu::OFFLOAD_RATIO_AUTO)
         return;
     const size_t resolved = resolve_auto_offload_ratio(*transformed_model, context->get_engine().get_device_info());
-    config.set_user_property({ov::intel_gpu::offload_ratio(resolved)}, OptionVisibility::RELEASE);
+    config.set_user_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))}, OptionVisibility::RELEASE);
 }
 }  // namespace
 

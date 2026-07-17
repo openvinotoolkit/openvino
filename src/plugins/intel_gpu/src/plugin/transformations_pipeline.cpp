@@ -497,10 +497,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // are automatically propagated by copy_runtime_info through all transformations.
     // This allows moe.cpp to find bin offsets even when WCA is lost.
     // Note: this runs on the pre-resolution config, so the ratio may still be
-    // OFFLOAD_RATIO_AUTO (size_t(-1)) here. Stamping is cheap and harmless even if OTD ends
+    // OFFLOAD_RATIO_AUTO (-1) here. Stamping is cheap and harmless even if OTD ends
     // up disabled, so we also stamp for AUTO to keep bin offsets available once auto resolves.
-    const size_t otd_ratio = config.get_offload_ratio();
-    const bool otd_maybe_enabled = otd_ratio == static_cast<size_t>(-1) || (otd_ratio > 0 && otd_ratio < 100);
+    const int64_t otd_ratio = config.get_offload_ratio();
+    const bool otd_maybe_enabled = otd_ratio == -1 || (otd_ratio > 0 && otd_ratio < 100);
     if (otd_maybe_enabled) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {

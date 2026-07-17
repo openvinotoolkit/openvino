@@ -174,22 +174,22 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
  * When set to 0 (default), all weights are resident on GPU. A value of N means
  * N% of eligible weights are streamed from host memory on demand via an LRU cache,
  * reducing GPU memory usage at the cost of inference latency.
- * Set to OFFLOAD_RATIO_AUTO (i.e. static_cast<size_t>(-1), or simply -1) to let the
+ * Set to OFFLOAD_RATIO_AUTO (i.e. -1) to let the
  * plugin pick a suitable ratio automatically based on available device/host memory
  * and the model's weight sizes.
  * Currently supported for MoE expert weights only.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
-static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
+static constexpr Property<int64_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
  * @brief Sentinel value for @ref offload_ratio meaning "auto".
  * When @ref offload_ratio equals this value, the plugin computes a suitable offload
  * ratio from available memory and model weight sizes at compile time. Equals
- * static_cast<size_t>(-1); users may pass -1 which converts to the same value.
+ * -1 (signed 64-bit); users may pass -1 which converts to the same value.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
-static constexpr size_t OFFLOAD_RATIO_AUTO = static_cast<size_t>(-1);
+static constexpr int64_t OFFLOAD_RATIO_AUTO = -1;
 
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
