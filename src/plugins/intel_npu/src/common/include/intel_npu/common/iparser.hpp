@@ -27,7 +27,11 @@ public:
      * @param config Used to influence the downstream flow of the implementation based on preferences.
      * @param initBlobs Optional. If provided, the "weights separation" flow is enabled and the binary objects
      * corresponding to the init schedules will be parsed as well.
-     * @param model TODO
+     * @param weightsSource The source of weights that should be used if the weights separation feature is enabled.
+     * "monostate" indicates the absence of weights. The "string_view" & "core" pair corresponds to the "weights path"
+     * config option.
+     * @param compatibilityDescriptor A string that describes the compatibility requirements of the blob from compiler's
+     * pov.
      * @return A wrapper over the corresponding L0 graph handles (multiple only if "initBlobs" has been provided). This
      * wrapper further details the compiled model and brings it in a state closer to execution.
      */

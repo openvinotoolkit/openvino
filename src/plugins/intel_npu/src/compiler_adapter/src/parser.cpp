@@ -94,7 +94,7 @@ std::shared_ptr<IGraph> Parser::parse(
         initNetworkMetadata.push_back(std::move(initNetworkMeta));
     }
     _logger.debug("inits schedule parse end");
-    // TODO pass the core as optional (or as part of the variant?)
+
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphDesc,
