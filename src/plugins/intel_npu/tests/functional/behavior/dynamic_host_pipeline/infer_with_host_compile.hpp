@@ -372,6 +372,8 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
         return result;
     }
 
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+
     try {
         result.context.reqDynamic = result.context.compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
@@ -425,7 +427,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ScopedLogCapture logCapture;
 
     auto setupResult = prepareRuntimeCompareContext(model);
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -496,7 +497,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ScopedLogCapture logCapture;
 
     auto setupResult = prepareRuntimeCompareContext(model);
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -567,7 +567,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     ScopedLogCapture logCapture;
 
     auto setupResult = prepareRuntimeCompareContext(model);
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
