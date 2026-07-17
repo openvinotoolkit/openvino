@@ -170,10 +170,12 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
                           << ", stack=" << stack_size
                           << ", reread=" << reread_input << std::endl;
         }
+        // maxSlmSize stores the max LWS budget; SLM is indexed by subgroup id, so reserve max subgroup slots.
+        const size_t slm_size = std::max<size_t>(1, dispatchData.maxSlmSize / subgroup_size);
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("SLM_SIZE", slm_size),
             MakeJitConstant("STACK_SIZE", stack_size),
             MakeJitConstant("SUBGROUP_BLOCK_SIZE", 8),
             MakeJitConstant("ONE_SUBGROUP_ROW", one_subgroup_row),
@@ -181,11 +183,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("RMS_REREAD_INPUT", reread_input),
         });
     } else {
+        // maxSlmSize stores the max LWS budget; SLM is indexed by subgroup id, so reserve max subgroup slots.
+        const size_t slm_size = std::max<size_t>(1, dispatchData.maxSlmSize / subgroup_size);
         const size_t stack_size = get_stack_size(dispatchData.dataSize, dispatchData.lws[0]);
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
             MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("SLM_SIZE", slm_size),
             MakeJitConstant("STACK_SIZE", std::min(stack_size, max_register_stack)),
             MakeJitConstant("SUBGROUP_BLOCK_SIZE", 8),
             MakeJitConstant("ONE_SUBGROUP_ROW", dispatchData.lws[0] == subgroup_size),
@@ -233,6 +237,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+    // Store the local-memory-constrained max LWS budget here; JIT consumes this value to size per-kernel SLM usage.
     dispatchData.maxSlmSize = max_lws;
     // data size to be processed within a LWG. For dynamic kernels, these values are
     // populated during dispatch update once concrete dimensions are known; if a dimension

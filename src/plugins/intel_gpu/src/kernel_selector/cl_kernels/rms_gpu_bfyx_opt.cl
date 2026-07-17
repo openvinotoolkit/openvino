@@ -111,6 +111,8 @@ KERNEL(rms_gpu_bfyx_opt)(
     ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
 
 #if !ONE_SUBGROUP_ROW
+    // slm_buf is a tiny work-group shared scratchpad that stores one partial RMS sum per subgroup, allowing all subgroups
+    // to combine their results after a single barrier and obtain the final row-wide RMS normalization factor.
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 #endif
 
