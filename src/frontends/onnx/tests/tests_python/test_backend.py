@@ -79,6 +79,7 @@ from tests import (
     xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
+    xfail_issue_onnx122_qlinearmatmul,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -824,9 +825,20 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_accuracy,
-        # NOTE: plain float-width casts (DOUBLE/FLOAT/FLOAT16/BFLOAT16, no float8) are NOT
-        # listed here: they pass on the CI reference environment. They were only observed
-        # failing in a local dev environment (numpy/reference skew), so they must not be xfailed.
+        # Plain float-width casts: ONNX 1.22 changed the reference so double/float ->
+        # narrower-float overflow yields +/-inf, while the OV Cast saturates to +/-FLT_MAX.
+        "OnnxBackendNodeModelTest.test_cast_DOUBLE_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_DOUBLE_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_cpu",
@@ -846,8 +858,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_nonmaxsuppression_iou_threshold_boundary_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_expanded_cpu",
-        # QLinearMatMul light-model reference (random inputs via ReferenceEvaluator) has an
-        # int8-saturation mismatch under ONNX 1.22 on the CI reference environment.
+    ),
+    (
+        # Non-strict: order-dependent ReferenceEvaluator random inputs mean these may pass or
+        # fail depending on execution order, so a strict xfail would XPASS-fail when they pass.
+        xfail_issue_onnx122_qlinearmatmul,
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float16_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float32_cpu",
     ),
