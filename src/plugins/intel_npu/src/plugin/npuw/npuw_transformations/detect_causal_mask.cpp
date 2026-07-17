@@ -5,126 +5,218 @@
 #include "detect_causal_mask.hpp"
 
 #include <cstdlib>
-#include <functional>
 
 #include "openvino/op/ops.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+namespace opp = ov::pass::pattern;
 
 namespace {
 
-bool traces_to_range(const std::shared_ptr<ov::Node>& start) {
-    std::unordered_set<ov::Node*> visited;
-    std::function<bool(const std::shared_ptr<ov::Node>&)> dfs = [&](const std::shared_ptr<ov::Node>& n) -> bool {
-        if (!n || !visited.insert(n.get()).second)
+// Builds: Range(any,any,any)
+//         -> opt Add(range, any)
+//         -> opt Unsqueeze x3
+//         -> opt Reshape
+//         -> opt Convert
+// Covers:
+//   Range -> Unsqueeze x (0-3) -> opt Convert           (Llama, Tril, Whisper)
+//   Range -> Add(Range, offset) -> Unsqueeze x (0-3)    (NPUW Standard LLM)
+//   Range -> Add(Range, offset) -> Reshape               (MiniCPM q-side)
+//   Range -> Add(Range, offset) -> Unsqueeze x3          (Gemma-4 cache_position)
+std::shared_ptr<ov::Node> make_range_chain() {
+    auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto add = opp::optional<ov::op::v1::Add>({range, opp::any_input()});
+    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({add, opp::any_input()});
+    auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
+    auto unsqueeze3 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
+    auto reshape = opp::optional<ov::op::v1::Reshape>({unsqueeze3, opp::any_input()});
+    auto convert = opp::optional<ov::op::v0::Convert>({reshape});
+    return convert;
+}
+
+int64_t get_window_size(const std::shared_ptr<ov::Node>& node) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!constant)
+        return 0;
+    const auto vals = constant->cast_vector<int64_t>();
+    return vals.empty() ? 0 : std::llabs(vals.front());
+}
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
+// ============================================================================
+// Detects SDPA with is_causal=true attribute.
+// ============================================================================
+class SDPACausalMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::SDPACausalMatcher");
+    explicit SDPACausalMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>();
+        auto callback = [&mask_info](opp::Matcher& m) {
+            auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(m.get_match_root());
+            if (node && node->get_causal() && mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
+                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
             return false;
-        if (ov::as_type_ptr<ov::op::v4::Range>(n))
-            return true;
-        if (ov::as_type_ptr<ov::op::v0::Unsqueeze>(n) || ov::as_type_ptr<ov::op::v0::Convert>(n) ||
-            ov::as_type_ptr<ov::op::v0::Squeeze>(n) || ov::as_type_ptr<ov::op::v1::Reshape>(n))
-            return dfs(n->input_value(0).get_node_shared_ptr());
-        if (ov::as_type_ptr<ov::op::v1::Add>(n) || ov::as_type_ptr<ov::op::v1::Subtract>(n)) {
-            for (size_t i = 0; i < n->get_input_size(); ++i) {
-                auto inp = n->input_value(i).get_node_shared_ptr();
-                if (!ov::as_type_ptr<ov::op::v0::Constant>(inp) && dfs(inp))
-                    return true;
-            }
+        };
+        register_matcher(std::make_shared<opp::Matcher>(sdpa, "DetectSDPACausal"), callback);
+    }
+};
+
+// ============================================================================
+// Detects standard causal: LessEqual/Less(range_chain, range_chain).
+// Covers: Llama (Range->Unsq x3), NPUW LLM (Add(Range,off)->Unsq), Tril,
+//         MiniCPM (Less(Range, Reshape(Add(Range,off)))), Whisper (Range->Unsq x3).
+// ============================================================================
+class StandardCausalMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::StandardCausalMatcher");
+    explicit StandardCausalMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto cmp = opp::wrap_type<ov::op::v1::LessEqual, ov::op::v1::Less>({make_range_chain(), make_range_chain()});
+        auto callback = [&mask_info](opp::Matcher& /*m*/) {
+            if (mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
+                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
             return false;
-        }
-        return false;
-    };
-    return dfs(start);
-}
-
-bool is_comparison(const std::shared_ptr<ov::Node>& n) {
-    return ov::as_type_ptr<ov::op::v1::Greater>(n) || ov::as_type_ptr<ov::op::v1::GreaterEqual>(n) ||
-           ov::as_type_ptr<ov::op::v1::Less>(n) || ov::as_type_ptr<ov::op::v1::LessEqual>(n);
-}
-
-std::shared_ptr<ov::Node> find_window_bound(const std::shared_ptr<ov::Node>& cmp) {
-    for (const auto& out : cmp->outputs()) {
-        for (const auto& consumer_in : out.get_target_inputs()) {
-            auto consumer = consumer_in.get_node()->shared_from_this();
-            bool is_combine = ov::as_type_ptr<ov::op::v13::BitwiseAnd>(consumer) ||
-                              ov::as_type_ptr<ov::op::v1::LogicalAnd>(consumer) ||
-                              ov::as_type_ptr<ov::op::v13::BitwiseOr>(consumer) ||
-                              ov::as_type_ptr<ov::op::v1::LogicalOr>(consumer);
-            if (!is_combine)
-                continue;
-            for (size_t i = 0; i < consumer->get_input_size(); ++i) {
-                auto sibling = consumer->input_value(i).get_node_shared_ptr();
-                if (sibling.get() == cmp.get())
-                    continue;
-                if (is_comparison(sibling))
-                    return sibling;
-                // Phi-3 nests the windowed comparison one level deeper
-                if (ov::as_type_ptr<ov::op::v13::BitwiseAnd>(sibling) ||
-                    ov::as_type_ptr<ov::op::v13::BitwiseOr>(sibling)) {
-                    for (size_t j = 0; j < sibling->get_input_size(); ++j) {
-                        auto inner = sibling->input_value(j).get_node_shared_ptr();
-                        if (is_comparison(inner))
-                            return inner;
-                    }
-                }
-            }
-        }
+        };
+        register_matcher(std::make_shared<opp::Matcher>(cmp, "StandardCausal"), callback);
     }
-    return nullptr;
-}
+};
 
-int64_t extract_window_size_from(const std::shared_ptr<ov::Node>& node) {
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        auto n = node->input_value(i).get_node_shared_ptr();
-        while (n && (ov::as_type_ptr<ov::op::v0::Convert>(n) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(n) ||
-                     ov::as_type_ptr<ov::op::v0::Squeeze>(n) || ov::as_type_ptr<ov::op::v1::Reshape>(n))) {
-            n = n->input_value(0).get_node_shared_ptr();
-        }
-        if (!n || !(ov::as_type_ptr<ov::op::v1::Add>(n) || ov::as_type_ptr<ov::op::v1::Subtract>(n)))
-            continue;
-        for (size_t j = 0; j < n->get_input_size(); ++j) {
-            auto c = ov::as_type_ptr<ov::op::v0::Constant>(n->input_value(j).get_node_shared_ptr());
-            if (!c)
-                continue;
-            const auto vals = c->cast_vector<int64_t>();
-            if (!vals.empty())
-                return std::llabs(vals.front());
-        }
+// ============================================================================
+// Detects Qwen3-style causal: LessEqual/Less(range_chain, Add(any, range_chain)).
+// The threshold is Add(cache_len, Unsqueeze(Range)) -- Range is the 2nd Add input.
+// ============================================================================
+class Qwen3CausalMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::Qwen3CausalMatcher");
+    explicit Qwen3CausalMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto add = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), make_range_chain()});
+        auto cmp = opp::wrap_type<ov::op::v1::LessEqual, ov::op::v1::Less>({make_range_chain(), add});
+        auto callback = [&mask_info](opp::Matcher& /*m*/) {
+            if (mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
+                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(cmp, "Qwen3Causal"), callback);
     }
-    return 0;
-}
+};
+
+// ============================================================================
+// Generic BitwiseAnd-based sliding window:
+//   BitwiseAnd(BitwiseAnd(any, Greater(K, Add(Q, neg_window))), LessEqual(K, Q))
+// K and Q are shared (diamond) to enforce "same node" in both comparison arms.
+// Covers: Phi-3 / Gemma-2 / Gemma-3 / Gemma-4 and hand-built real-model patterns.
+// ============================================================================
+class BitwiseAndSlidingMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::BitwiseAndSlidingMatcher");
+    explicit BitwiseAndSlidingMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto q_chain = make_range_chain();
+        auto k_chain = make_range_chain();
+        auto window_constant = opp::wrap_type<ov::op::v0::Constant>();
+        auto add = opp::wrap_type<ov::op::v1::Add>({q_chain, window_constant});
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({k_chain, add});
+        auto and_win = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), greater});
+        auto causal = opp::wrap_type<ov::op::v1::LessEqual>({k_chain, q_chain});
+        auto anchor = opp::wrap_type<ov::op::v13::BitwiseAnd>({and_win, causal});
+        auto callback = [&mask_info, window_constant](opp::Matcher& m) {
+            const int64_t window_size =
+                get_window_size(m.get_pattern_value_map().at(window_constant).get_node_shared_ptr());
+            if (window_size > 0)
+                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, window_size};
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(anchor, "BitwiseAndSliding"), callback);
+    }
+};
+
+// ============================================================================
+// Detects old Phi-3 (transformers 4.51) inverted sliding window:
+//   BitwiseOr(Greater(K_f32, Q_col), LessEqual(K_f32, Add(Q_col, neg_window)))
+// K: Range(0, atten_mask_len) -> Convert -> Convert
+// Q: Range(past, full_ctx) -> Reshape([-1, 1])
+// ============================================================================
+class OldPhi3SlidingMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::OldPhi3SlidingMatcher");
+    explicit OldPhi3SlidingMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto k_constant = opp::wrap_type<ov::op::v0::Constant>();
+        auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto k_range = opp::wrap_type<ov::op::v4::Range>({k_constant, gather, opp::any_input()});
+        auto k_convert = opp::wrap_type<ov::op::v0::Convert>({k_range});
+        auto k_f32 = opp::wrap_type<ov::op::v0::Convert>({k_convert});
+        auto q_range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto q_reshape = opp::wrap_type<ov::op::v1::Reshape>({q_range, opp::any_input()});
+        auto q_constant = opp::wrap_type<ov::op::v0::Constant>();
+        auto q_add = opp::wrap_type<ov::op::v1::Add>({q_reshape, q_constant});
+        auto causal_mask = opp::wrap_type<ov::op::v1::Greater>({k_f32, q_reshape});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::LessEqual>({k_f32, q_add});
+        auto anchor = opp::wrap_type<ov::op::v13::BitwiseOr>({causal_mask, sliding_mask});
+
+        auto callback = [=, &mask_info](opp::Matcher& m) {
+            const int64_t w = get_window_size(m.get_pattern_value_map().at(q_constant).get_node_shared_ptr());
+            if (w > 0)
+                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, w};
+            return false;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(anchor, "OldPhi3Sliding"), callback);
+    }
+};
+
+// ============================================================================
+// Detects default float sliding window mask:
+//   LogicalAnd(LessEqual(K, Q), Greater(K, Subtract(Q, window_const)))
+// K and Q are each shared between two branches (diamond) to enforce the
+// "same node" constraint.
+// ============================================================================
+class DefaultSWAMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::DefaultSWAMatcher");
+    explicit DefaultSWAMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto k_chain = make_range_chain();
+        auto q_chain = make_range_chain();
+        auto window_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({k_chain, q_chain});
+        auto subtract = opp::wrap_type<ov::op::v1::Subtract>({q_chain, window_const});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({k_chain, subtract});
+        auto anchor = opp::wrap_type<ov::op::v1::LogicalAnd>({causal_mask, sliding_mask});
+        auto callback = [=, &mask_info](opp::Matcher& m) {
+            const int64_t w = get_window_size(m.get_pattern_value_map().at(window_const).get_node_shared_ptr());
+            if (w > 0)
+                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, w};
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(anchor, "DefaultSWA"), callback);
+    }
+};
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 
 namespace ov::npuw {
 
 bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    m_mask_info = MaskInfo{};  // reset to Unknown
+    m_mask_info = MaskInfo{};
 
-    bool found_causal = false;
-    for (const auto& op : model->get_ordered_ops()) {
-        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
-            if (sdpa->get_causal())
-                found_causal = true;
-            continue;
-        }
-        auto le = ov::as_type_ptr<ov::op::v1::LessEqual>(op);
-        auto lt = ov::as_type_ptr<ov::op::v1::Less>(op);
-        auto cmp = le ? std::static_pointer_cast<ov::Node>(le) : std::static_pointer_cast<ov::Node>(lt);
-        if (!cmp)
-            continue;
-        if (!traces_to_range(cmp->input_value(0).get_node_shared_ptr()))
-            continue;
-        if (!traces_to_range(cmp->input_value(1).get_node_shared_ptr()))
-            continue;
-        if (auto window_bound = find_window_bound(cmp)) {
-            int64_t window = extract_window_size_from(window_bound);
-            if (window == 0)
-                window = extract_window_size_from(cmp);
-            m_mask_info = {MaskInfo::MaskType::SlidingWindow, window};
-            return false;
-        }
-        found_causal = true;
-    }
-    m_mask_info = found_causal ? MaskInfo{MaskInfo::MaskType::Causal, 0} : MaskInfo{MaskInfo::MaskType::Unknown, 0};
+    ov::pass::GraphRewrite detector;
+    detector.add_matcher<BitwiseAndSlidingMatcher>(m_mask_info);
+    detector.add_matcher<OldPhi3SlidingMatcher>(m_mask_info);
+    detector.add_matcher<DefaultSWAMatcher>(m_mask_info);
+    detector.add_matcher<SDPACausalMatcher>(m_mask_info);
+    detector.add_matcher<StandardCausalMatcher>(m_mask_info);
+    detector.add_matcher<Qwen3CausalMatcher>(m_mask_info);
+    detector.run_on_model(model);
+
     return false;
 }
 
