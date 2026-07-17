@@ -477,11 +477,85 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
 }
 
 
+IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
+    using namespace ov::pass::pattern;
+    using ov::pass::pattern::op::Or;
+
+    // Gemma4 RoPE pattern:
+    // MatMul (f16) → Convert (f16→f32) → Transpose → Concat → Sin/Cos → Unsqueeze → RoPE
+    // The difference from base IncreasePositionIdsPrecisionForRoPE is that
+    // there is a Convert node between MatMul and Transpose.
+    auto matmul = wrap_type<ov::op::v0::MatMul>();
+    auto convert_after_matmul = wrap_type<ov::op::v0::Convert>({matmul});
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({convert_after_matmul, any_input()});
+    auto concat = wrap_type<ov::op::v0::Concat>({transpose_m, transpose_m});
+    auto sin = wrap_type<ov::op::v0::Sin>({concat});
+    auto cos = wrap_type<ov::op::v0::Cos>({concat});
+
+    auto sin_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sin, wrap_type<ov::op::v0::Constant>()});
+    auto cos_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({cos, wrap_type<ov::op::v0::Constant>()});
+
+    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_unsqueeze, sin});
+    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_unsqueeze, cos});
+
+    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_after_matmul).get_node_shared_ptr());
+
+        if (!matmul_node || transformation_callback(matmul_node))
+            return false;
+
+        const auto desired_et = ov::element::f32;
+        const auto original_et = matmul_node->get_output_element_type(0);
+        if (original_et == desired_et)
+            return false;
+
+        // Ensure both MatMul inputs are f32.
+        // - If input is a Convert node (e.g. Convert_3: i32→f16), replace it with i32→f32.
+        // - If input is not a Convert (e.g. Broadcast: f16), insert a new Convert(f16→f32) before it.
+        for (auto& input : matmul_node->inputs()) {
+            auto src_output = input.get_source_output();
+            auto src_node = src_output.get_node_shared_ptr();
+            if (src_output.get_element_type() == desired_et)
+                continue;
+
+            auto src_convert = ov::as_type_ptr<ov::op::v0::Convert>(src_node);
+            if (src_convert) {
+                auto new_convert = std::make_shared<ov::op::v0::Convert>(src_convert->input_value(0), desired_et);
+                new_convert->set_friendly_name(src_convert->get_friendly_name());
+                ov::copy_runtime_info(src_convert, new_convert);
+                ov::replace_node(src_convert, new_convert);
+            } else {
+                auto new_convert = std::make_shared<ov::op::v0::Convert>(src_output, desired_et);
+                new_convert->set_friendly_name(src_node->get_friendly_name() + "_to_f32");
+                ov::copy_runtime_info(src_node, new_convert);
+                input.replace_source_output(new_convert);
+            }
+        }
+
+        // Remove the Convert after MatMul (f16→f32) since MatMul now outputs f32.
+        // Just replace it with MatMul's output directly.
+        if (convert_node) {
+            ov::replace_node(convert_node, matmul_node);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, "IncreasePositionIdsPrecisionForGemma4");
+    this->register_matcher(m, callback);
+}
+
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForGemma4>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
