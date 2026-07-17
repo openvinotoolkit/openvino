@@ -20,6 +20,7 @@
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
@@ -813,6 +814,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
+        LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
+        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
