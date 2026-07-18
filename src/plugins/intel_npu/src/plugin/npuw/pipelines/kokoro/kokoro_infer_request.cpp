@@ -135,8 +135,8 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
             continue;
         }
 
-        // input_lengths is generated internally — not exposed to the user
-        if (names.count("input_lengths")) {
+        // input_lengths_param is generated internally — not exposed to the user
+        if (names.count("input_lengths_param")) {
             m_a_input_lengths = a_in;
             continue;
         }
@@ -479,7 +479,7 @@ void ov::npuw::KokoroInferRequest::fill_text_mask() {
 
     ov::npuw::kokoro::fill_text_mask_from_lengths(mask_tensor->data<bool>(), seq_len, real_len);
 
-    // Also set input_lengths to the real sequence length so that LSTMSequence ops
+    // Also set input_lengths_param to the real sequence length so that LSTMSequence ops
     // (from pack_padded_sequence) only process valid tokens, not padding.
     if (m_a_input_lengths.get_node()) {
         auto lengths_tensor = m_model_a_request->get_tensor(m_a_input_lengths);
