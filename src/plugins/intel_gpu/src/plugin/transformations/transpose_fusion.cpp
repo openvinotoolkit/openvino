@@ -326,6 +326,14 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         // Both K and V must be quantized to build a compressed SDPA (it carries one scale per KV input).
         const bool kv_compressed = k_quantized && v_quantized;
 
+        static const auto compressedkv = []() {
+            const auto txt = std::getenv("compressedkv");
+            return !(txt && txt == std::string_view("false"));
+        }();
+        
+        if (kv_compressed && !compressedkv)
+            return false;
+
         bool can_fuse_transposes = true;
         if (pattern_map.count(transpose_q_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_q_m).get_node_shared_ptr(),
