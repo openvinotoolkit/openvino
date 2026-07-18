@@ -43,7 +43,7 @@ std::filesystem::path make_temporary_ir_payload_path() {
     const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     for (std::uint64_t attempt = 0; attempt < 100; ++attempt) {
         const auto id = counter.fetch_add(1, std::memory_order_relaxed);
-        const auto path = 
+        const auto path =
             tempDir / ("openvino_hetero_ir_payload_" + std::to_string(now) + "_" + std::to_string(id) + ".blob");
         error.clear();
         const bool exists = std::filesystem::exists(path, error);
