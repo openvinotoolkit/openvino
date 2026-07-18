@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <openvino/core/node.hpp>
+#include <openvino/frontend/exception.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/convert.hpp>
 #include <openvino/op/reshape.hpp>
@@ -34,14 +35,20 @@ OutputVector translate_set_rows(const NodeContext & context) {
 
     data = std::make_shared<ov::op::v0::Convert>(data, context.get_attribute<ov::element::Type>("output_type"));
 
-    auto dst_shape = context.get_output_shape().to_shape();
+    // Row size = the destination cache's innermost dim. Using the dst input (not the SET_ROWS
+    // output shape) matters for the flattened KV-cache write (gpt-oss cache_v is stored as
+    // [1,1,ctx,1], row_size 1); the output layout can report a different last dim, which would
+    // reshape the update to a width the ScatterUpdate dst cannot match.
+    const auto dst_ps = context.get_input_shape(2);
+    FRONT_END_OP_CONVERSION_CHECK(dst_ps.rank().is_static() && dst_ps[dst_ps.rank().get_length() - 1].is_static(),
+                                  "SET_ROWS requires a static destination row size");
+    const int64_t row_size = dst_ps[dst_ps.rank().get_length() - 1].get_length();
 
     auto ind_squeezed =
         std::make_shared<ov::op::v0::Squeeze>(indices, ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
     auto data_reshaped = std::make_shared<ov::op::v1::Reshape>(
         data,
-        ov::op::v0::Constant::create(ov::element::i64, {4},
-                                     {(int64_t) 1, (int64_t) 1, (int64_t) -1, (int64_t) dst_shape[3]}),
+        ov::op::v0::Constant::create(ov::element::i64, {4}, {(int64_t) 1, (int64_t) 1, (int64_t) -1, row_size}),
         false);
 
     auto set_rows = std::make_shared<SetRows>(data_reshaped, ind_squeezed, dst);

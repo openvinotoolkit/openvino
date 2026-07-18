@@ -7,7 +7,6 @@
 #include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/multiply.hpp>
-#include <openvino/op/power.hpp>
 #include <openvino/op/reduce_mean.hpp>
 #include <openvino/op/sqrt.hpp>
 
@@ -24,9 +23,7 @@ OutputVector translate_rms_norm(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     auto input_node = context.get_input(0);
-    auto square =
-        std::make_shared<ov::op::v1::Power>(input_node,
-                                            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.0f}));
+    auto square = std::make_shared<ov::op::v1::Multiply>(input_node, input_node);
 
     auto mean =
         std::make_shared<ov::op::v1::ReduceMean>(square,

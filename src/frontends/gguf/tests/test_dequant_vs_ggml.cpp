@@ -133,6 +133,40 @@ TEST_P(DequantVsGGML, MatchesGgmlToFloat) {
         << c.stem << ": frontend dequant diverges from ggml to_float beyond tolerance";
 }
 
+// The faithful per-row K-quant dequant used as the Q8_0_C requant source must match ggml's
+// to_float almost exactly (f16 super-scale widening only): assert tight agreement with the ggml
+// reference. A loose result here means a byte-layout/index bug (which would silently corrupt the
+// requant of token_embd/output/Q6_K/Q5_K and break swap-vs-master parity).
+struct FaithfulCase {
+    const char* stem;
+    uint32_t type;
+    void (*dq)(const uint8_t*, size_t, float*);
+};
+
+class FaithfulDequantVsGGML : public ::testing::TestWithParam<FaithfulCase> {};
+
+TEST_P(FaithfulDequantVsGGML, MatchesGgmlToFloat) {
+    const FaithfulCase c = GetParam();
+    const auto qbytes = load_npy<uint8_t>(std::string(c.stem) + "_qbytes");
+    const auto ref = load_npy<float>(std::string(c.stem) + "_deq");
+    ASSERT_EQ(ref.size(), kRows * kCols);
+    // Reference is row-major [kRows, kCols]; the raw blocks for a row are contiguous.
+    const size_t bytes_per_row = qbytes.size() / kRows;
+    std::vector<float> ours(kRows * kCols);
+    for (size_t r = 0; r < kRows; ++r) {
+        c.dq(qbytes.data() + r * bytes_per_row, kCols, ours.data() + r * kCols);
+    }
+    EXPECT_LE(max_abs_diff(ours, ref), 3e-3f)
+        << c.stem << ": faithful per-row dequant diverges from ggml to_float";
+}
+
+INSTANTIATE_TEST_SUITE_P(FaithfulKQuant,
+                         FaithfulDequantVsGGML,
+                         ::testing::Values(FaithfulCase{"q4_k", GGUF_TYPE_Q4_K, ov::frontend::gguf::dequant_row_q4_k_f32_for_test},
+                                           FaithfulCase{"q5_k", GGUF_TYPE_Q5_K, ov::frontend::gguf::dequant_row_q5_k_f32_for_test},
+                                           FaithfulCase{"q6_k", GGUF_TYPE_Q6_K, ov::frontend::gguf::dequant_row_q6_k_f32_for_test}),
+                         [](const ::testing::TestParamInfo<FaithfulCase>& i) { return std::string(i.param.stem); });
+
 INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          DequantVsGGML,
                          ::testing::Values(DeqCase{"q4_0", GGUF_TYPE_Q4_0, kTolFaithful},

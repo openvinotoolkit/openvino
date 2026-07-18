@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 #include <openvino/op/add.hpp>
 #include <openvino/op/clamp.hpp>
 #include <openvino/op/convert.hpp>

@@ -20,6 +20,12 @@ namespace gguf {
 
 using namespace std;
 
+// K-quant 256-element super-block byte sizes (ggml layout). Referenced by the fill_*, dequant_row_*
+// and requantize_* paths so the on-disk block stride is defined once per type.
+static constexpr uint64_t kQ4K_BLOCK_BYTES = 2 + 2 + 12 + 128;       // d + dmin + 12 scales + 128 ql
+static constexpr uint64_t kQ5K_BLOCK_BYTES = 2 + 2 + 12 + 32 + 128;  // Q4_K + 32 qh
+static constexpr uint64_t kQ6K_BLOCK_BYTES = 128 + 64 + 16 + 2;      // ql + qh + 16 scales + d
+
 // Round a fractional zero-point to u8, clamping to avoid a modulo-256 wrap when min/scale > 255.
 static inline uint8_t quantize_zp_u8(float zpval) {
     long r = std::lround(zpval);
@@ -136,7 +142,7 @@ void unpack_256_4(const uint8_t* data, uint8_t* dst) {
 //   - f16 -> FRACTIONAL zp = min/scale: faithful, used on the requant path (token_embd/output)
 //            where the dequant is re-quantized channel-wise rather than fed to the MatMul.
 void fill_q4_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = 2 + 2 + 12 + 128;
+    const uint64_t bytes_per_block = kQ4K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
@@ -185,12 +191,153 @@ static inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t* d, uint8_t
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Bit-exact per-row K-quant dequant used ONLY as the source for the Q8_0_C requant of the
+// token_embd/output/Q6_K/Q5_K tensors (see requantize_q8_0_channelwise_faithful). These are verbatim
+// ports of ggml's dequantize_row_q{4,5,6}_K: they compute w = (d*sc)*q - (dmin*m) with the products
+// kept in f32 (d/dmin are the f16 super-block scales widened to f32), matching what the upstream
+// backend feeds into its Q8_0_C requant. This is NOT the general dequant path -- the compressed
+// matmul weights still go through fill_*/make_int4 (f16 scales, integer zp) unchanged. Each function
+// fills ONE row (`cols` floats) so the caller never materializes the whole f32 weight.
+static void dequant_row_q4_k_f32(const uint8_t* row, size_t cols, float* y) {
+    const uint64_t bpb = kQ4K_BLOCK_BYTES;
+    for (size_t b = 0; b < cols / 256; ++b, y += 256) {
+        const uint8_t* blk = row + b * bpb;
+        const float d = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk)));
+        const float dmin = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk + 1)));
+        const uint8_t* sc = blk + 4;
+        const uint8_t* q = blk + 16;
+        int is = 0;
+        float* yy = y;
+        for (int j = 0; j < 256; j += 64) {
+            uint8_t s1, m1, s2, m2;
+            get_scale_min_k4(is + 0, sc, &s1, &m1);
+            get_scale_min_k4(is + 1, sc, &s2, &m2);
+            const float d1 = d * s1, mn1 = dmin * m1, d2 = d * s2, mn2 = dmin * m2;
+            for (int l = 0; l < 32; ++l) {
+                yy[l] = d1 * (q[l] & 0xF) - mn1;
+            }
+            for (int l = 0; l < 32; ++l) {
+                yy[32 + l] = d2 * (q[l] >> 4) - mn2;
+            }
+            q += 32;
+            is += 2;
+            yy += 64;
+        }
+    }
+}
+
+static void dequant_row_q5_k_f32(const uint8_t* row, size_t cols, float* y) {
+    const uint64_t bpb = kQ5K_BLOCK_BYTES;
+    for (size_t b = 0; b < cols / 256; ++b, y += 256) {
+        const uint8_t* blk = row + b * bpb;
+        const float d = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk)));
+        const float dmin = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk + 1)));
+        const uint8_t* sc = blk + 4;
+        const uint8_t* qh = blk + 16;
+        const uint8_t* ql = blk + 48;
+        int is = 0;
+        uint8_t u1 = 1, u2 = 2;
+        float* yy = y;
+        for (int j = 0; j < 256; j += 64) {
+            uint8_t s1, m1, s2, m2;
+            get_scale_min_k4(is + 0, sc, &s1, &m1);
+            get_scale_min_k4(is + 1, sc, &s2, &m2);
+            const float d1 = d * s1, mn1 = dmin * m1, d2 = d * s2, mn2 = dmin * m2;
+            for (int l = 0; l < 32; ++l) {
+                yy[l] = d1 * ((ql[l] & 0xF) + ((qh[l] & u1) ? 16 : 0)) - mn1;
+            }
+            for (int l = 0; l < 32; ++l) {
+                yy[32 + l] = d2 * ((ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0)) - mn2;
+            }
+            ql += 32;
+            is += 2;
+            u1 <<= 2;
+            u2 <<= 2;
+            yy += 64;
+        }
+    }
+}
+
+static void dequant_row_q6_k_f32(const uint8_t* row, size_t cols, float* y) {
+    const uint64_t bpb = kQ6K_BLOCK_BYTES;  // ql(128) + qh(64) + scales(16) + d(2)
+    for (size_t b = 0; b < cols / 256; ++b, y += 256) {
+        const uint8_t* blk = row + b * bpb;
+        const uint8_t* ql = blk;
+        const uint8_t* qh = blk + 128;
+        const int8_t* sc = reinterpret_cast<const int8_t*>(blk + 192);
+        const float d = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)(blk + 208))));
+        float* yy = y;
+        for (int n = 0; n < 256; n += 128) {
+            for (int l = 0; l < 32; ++l) {
+                const int is = l / 16;
+                const int8_t q1 = (int8_t)((ql[l + 0] & 0xF) | (((qh[l] >> 0) & 3) << 4)) - 32;
+                const int8_t q2 = (int8_t)((ql[l + 32] & 0xF) | (((qh[l] >> 2) & 3) << 4)) - 32;
+                const int8_t q3 = (int8_t)((ql[l + 0] >> 4) | (((qh[l] >> 4) & 3) << 4)) - 32;
+                const int8_t q4 = (int8_t)((ql[l + 32] >> 4) | (((qh[l] >> 6) & 3) << 4)) - 32;
+                yy[l + 0] = d * sc[is + 0] * q1;
+                yy[l + 32] = d * sc[is + 2] * q2;
+                yy[l + 64] = d * sc[is + 4] * q3;
+                yy[l + 96] = d * sc[is + 6] * q4;
+            }
+            yy += 128;
+            ql += 64;
+            qh += 32;
+            sc += 8;
+        }
+    }
+}
+
+// Fused faithful dequant + channel-wise Q8_0_C requant, streaming one row at a time so the full f32
+// weight is never materialized (holds only `cols` floats). Fills i8 weights [rows,cols] + f16 scales
+// [rows,1], matching the upstream Q8_0_C path (amax/127 per row, roundf). qtype selects the exact
+// ggml row dequant. Returns false if qtype is not a supported requant source.
+bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
+                                          size_t rows,
+                                          size_t cols,
+                                          gguf_tensor_type qtype,
+                                          int8_t* out_weights,
+                                          ov::float16* out_scales) {
+    void (*dq)(const uint8_t*, size_t, float*) = nullptr;
+    uint64_t bytes_per_row = 0;
+    switch (qtype) {
+        case GGUF_TYPE_Q4_K: dq = dequant_row_q4_k_f32; bytes_per_row = (cols / 256) * kQ4K_BLOCK_BYTES; break;
+        case GGUF_TYPE_Q5_K: dq = dequant_row_q5_k_f32; bytes_per_row = (cols / 256) * kQ5K_BLOCK_BYTES; break;
+        case GGUF_TYPE_Q6_K: dq = dequant_row_q6_k_f32; bytes_per_row = (cols / 256) * kQ6K_BLOCK_BYTES; break;
+        default: return false;
+    }
+    const uint8_t* data = static_cast<const uint8_t*>(tensor.weights_data);
+    ov::parallel_for(rows, [&](size_t r) {
+        // Per-thread scratch reused across the rows a thread processes (dq() overwrites every
+        // element, so no re-zeroing needed); avoids a malloc+zero-init per row.
+        thread_local std::vector<float> rowf;
+        rowf.resize(cols);
+        dq(data + r * bytes_per_row, cols, rowf.data());
+        float amax = 0.0f;
+        for (size_t c = 0; c < cols; ++c) {
+            amax = std::max(amax, std::fabs(rowf[c]));
+        }
+        const float d = amax / 127.0f;
+        const float id = d ? 1.0f / d : 0.0f;
+        out_scales[r] = ov::float16(d);
+        for (size_t c = 0; c < cols; ++c) {
+            out_weights[r * cols + c] = static_cast<int8_t>(std::lround(rowf[c] * id));
+        }
+    });
+    return true;
+}
+
+// Test-only thin wrappers exposing the file-static per-row dequant to the unit tests.
+void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q4_k_f32(row, cols, y); }
+void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q5_k_f32(row, cols, y); }
+void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q6_k_f32(row, cols, y); }
+
 // Q5_K asymmetric: super-block = 2(d) + 2(dmin) + 12(scales) + 32(qh) + 128(ql).
 // 8 sub-blocks of 32 with 6-bit scale and 6-bit min. Output: i8 weights + f16 scales + zp.
 // Like Q4_K, dequant is w = scale*q - dmin*m; zp = dmin*m/scale. The zp element type selects
 // integer (u8, fuses) vs fractional (f16, faithful) -- see fill_q4_k.
 void fill_q5_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = 2 + 2 + 12 + 32 + 128;
+    const uint64_t bytes_per_block = kQ5K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<int8_t*>(weights_arr.data());
@@ -379,7 +526,7 @@ void fill_q2_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // 16 sub-blocks of 16 with i8 scale each. Values in [0..63]; center = 32 → i8 [-32..31].
 // Output: i8 weights (value - 32) + f16 scales. No zero-point.
 void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
-    const uint64_t bytes_per_block = 128 + 64 + 16 + 2;
+    const uint64_t bytes_per_block = kQ6K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<int8_t*>(weights_arr.data());

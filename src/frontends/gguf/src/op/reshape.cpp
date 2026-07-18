@@ -45,7 +45,8 @@ OutputVector translate_reshape(const NodeContext & context) {
             std::vector<int64_t>{(int64_t) output_shape[0], (int64_t) output_shape[1], -1, (int64_t) output_shape[3]});
 
     } else if (op_case == 3) {
-        throw std::runtime_error("might be outdated RESHAPE case");
+        // Flatten-for-SET_ROWS: [F, tok, 1, 1] -> [1, F*tok, -1, 1] (the KV-cache write path, e.g.
+        // gpt-oss cache_v). Token count stays on the dynamic axis via -1.
         new_shape_node = ov::op::v0::Constant::create(
             ov::element::i64, {4}, std::vector<int64_t>{(int64_t) output_shape[0], (int64_t) output_shape[1], -1, 1});
 
@@ -53,11 +54,11 @@ OutputVector translate_reshape(const NodeContext & context) {
         return {context.get_input(0).get_node_shared_ptr()->input_value(0)};
 
     } else if (op_case == 5) {
-        std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t) context.get_output_shape().to_shape()[3]};
+        std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t) output_shape[3]};
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
 
     } else if (op_case == 6) {
-        new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, context.get_output_shape().to_shape());
+        new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, output_shape);
     }
     auto res = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, false);
     return rename_outputs_with_suffix({res}, context.get_name());

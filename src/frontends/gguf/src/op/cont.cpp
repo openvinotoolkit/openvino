@@ -6,12 +6,7 @@
 #include "op_table.hpp"
 #include "utils.hpp"
 
-#include <climits>
-#include <cstdint>
 #include <memory>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/slice.hpp>
-#include <vector>
 
 namespace ov {
 namespace frontend {
@@ -24,15 +19,14 @@ OutputVector translate_cont(const NodeContext & context) {
     int op_case = context.get_attribute<int>("op_case", 0);
     FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3, "Unsupported CONT case");
 
-    auto dst_shape = context.get_output_shape().to_shape();
     ov::Output<Node> res;
 
     if (op_case == 1) {
-        // The input comes from a PERMUTE
-        throw std::runtime_error("Code of this case might be outdated");
-        dst_shape[1] = -1;
-        res = std::make_shared<ov::op::v1::Reshape>(
-            context.get_input(0), ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape), false);
+        // The input comes from a PERMUTE. translate_permute already emitted a real ov::Transpose, so
+        // the OV tensor is logically contiguous in the permuted layout -- CONT (which only makes the
+        // ggml memory contiguous) is a no-op for us. gemma3n/gemma4 use CONT(PERMUTE(inp_per_layer))
+        // before slicing per-layer embeddings; keeping this in-OV avoids a host round-trip.
+        return {context.get_input(0)};
     } else if (op_case == 2) {
         // The input comes from a TRANSPOSE
         return {context.get_input(0)};

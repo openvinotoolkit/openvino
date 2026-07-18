@@ -7,7 +7,9 @@
 #include "openvino/core/visibility.hpp"
 
 // Increment each time when FrontEnd/InputModel/Place interface is changed
-#define OV_FRONTEND_API_VERSION 1
+// v2: added FrontEndPluginInfo::m_hidden (struct layout change) — bump so a plugin built against
+//     the v1 struct is rejected by the loader instead of being read out-of-bounds.
+#define OV_FRONTEND_API_VERSION 2
 
 #if defined(OPENVINO_STATIC_LIBRARY)
 #    define FRONTEND_API

@@ -288,25 +288,9 @@ std::shared_ptr<ov::Node> make_mxfp4(const std::string& base,
 // Q5_K). `x` is the row-major f32 weight (rows*cols); one f16 scale per row (channel-wise);
 // signed int8 weights. ggml-free (the f32 input is produced by the frontend's own faithful
 // dequant, which the unit tests prove matches ggml to_float).
-std::shared_ptr<ov::Node> requantize_q8_0_channelwise(const std::vector<float>& x, size_t rows, size_t cols) {
-    ov::Tensor weights(ov::element::i8, ov::Shape{rows, cols});
-    ov::Tensor scales(ov::element::f16, ov::Shape{rows, 1});
-    auto* w = weights.data<int8_t>();
-    auto* s = scales.data<ov::float16>();
-
-    for (size_t r = 0; r < rows; ++r) {
-        float amax = 0.0f;
-        for (size_t c = 0; c < cols; ++c) {
-            amax = std::max(amax, std::fabs(x[r * cols + c]));
-        }
-        const float d = amax / 127.0f;
-        const float id = d ? 1.0f / d : 0.0f;
-        s[r] = ov::float16(d);
-        for (size_t c = 0; c < cols; ++c) {
-            w[r * cols + c] = static_cast<int8_t>(std::lround(x[r * cols + c] * id));
-        }
-    }
-
+// Build the Q8_0_C compressed-weights OV subgraph from pre-filled i8 weights [rows,cols] +
+// f16 scales [rows,1]. Shared by the (legacy) f32-vector requant and the fused faithful requant.
+static std::shared_ptr<ov::Node> build_q8_0_c_node(ov::Tensor weights, ov::Tensor scales, size_t rows, size_t cols) {
     // Build the channel-wise compressed-weights subgraph exactly as the llama.cpp
     // ggml-openvino backend does for Q8_0_C: a 2D i8 Constant (rows x cols) + 2D f16 scale
     // (rows x 1), Convert(i8)->Multiply(scale), with NO Reshape and NO low_precision_dequantize.
@@ -327,6 +311,28 @@ std::shared_ptr<ov::Node> requantize_q8_0_channelwise(const std::vector<float>& 
     return std::make_shared<ov::op::v0::Convert>(scaled, ov::element::f32);
 }
 
+// Legacy path: requant from an already-materialized f32 weight vector (used for token_embd/output
+// when the type has no faithful per-row dequant, and for any non-K requant source).
+std::shared_ptr<ov::Node> requantize_q8_0_channelwise(const std::vector<float>& x, size_t rows, size_t cols) {
+    ov::Tensor weights(ov::element::i8, ov::Shape{rows, cols});
+    ov::Tensor scales(ov::element::f16, ov::Shape{rows, 1});
+    auto* w = weights.data<int8_t>();
+    auto* s = scales.data<ov::float16>();
+    for (size_t r = 0; r < rows; ++r) {
+        float amax = 0.0f;
+        for (size_t c = 0; c < cols; ++c) {
+            amax = std::max(amax, std::fabs(x[r * cols + c]));
+        }
+        const float d = amax / 127.0f;
+        const float id = d ? 1.0f / d : 0.0f;
+        s[r] = ov::float16(d);
+        for (size_t c = 0; c < cols; ++c) {
+            w[r * cols + c] = static_cast<int8_t>(std::lround(x[r * cols + c] * id));
+        }
+    }
+    return build_q8_0_c_node(weights, scales, rows, cols);
+}
+
 // Dequantize the gguf_fill_* output (i8, i4, u2, or u32-packed u4 weights + per-group f16 scale
 // and optional f16 zero-point) to row-major f32: f32 = (w - zp) * scale, grouped along cols.
 std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string, ov::Tensor>& w,
@@ -339,9 +345,9 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
     const size_t group = cols / num_groups;
     const auto* s = scales.data<ov::float16>();
 
-    bool has_zp = w.count(base + ".zp") != 0;
-    const ov::Tensor zp = has_zp ? get(w, base + ".zp") : ov::Tensor();
-    const ov::float16* z = has_zp ? zp.data<ov::float16>() : nullptr;
+    auto zp_it = w.find(base + ".zp");
+    const bool has_zp = zp_it != w.end();
+    const ov::float16* z = has_zp ? zp_it->second.data<ov::float16>() : nullptr;
 
     const auto et = weight.get_element_type();
     std::vector<float> out(rows * cols);
@@ -385,7 +391,9 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
-    if (std::getenv("GGUF_FE_NO_REQUANT")) {
+    // The env var does not change during a conversion; read it once.
+    static const bool no_requant = std::getenv("GGUF_FE_NO_REQUANT") != nullptr;
+    if (no_requant) {
         return false;  // diagnostic: faithful dequant only
     }
     if (name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0) {
@@ -530,6 +538,19 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     const ov::element::Type zp_type =
         (!requant && qtype == GGUF_TYPE_Q4_K) ? ov::element::u8 : ov::element::f16;
 
+    // Fast path for the K-quant requant sources (Q4_K/Q5_K/Q6_K, incl. token_embd/output of those
+    // types): the fused bit-exact ggml dequant -> Q8_0_C streams straight from the raw bytes, so the
+    // full-tensor gguf_fill_* extraction below would be pure discarded work (its `w` map is never
+    // read on this path). Do the requant directly and return before the switch.
+    if (requant && (qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K || qtype == GGUF_TYPE_Q6_K)) {
+        ov::Tensor rq_weights(ov::element::i8, ov::Shape{rows, cols});
+        ov::Tensor rq_scales(ov::element::f16, ov::Shape{rows, 1});
+        bool ok = requantize_q8_0_channelwise_faithful(tensor, rows, cols, qtype, rq_weights.data<int8_t>(),
+                                                       rq_scales.data<ov::float16>());
+        OPENVINO_ASSERT(ok, "[ggml] faithful K-quant requant failed for ", base);
+        return build_q8_0_c_node(rq_weights, rq_scales, rows, cols);
+    }
+
     switch (qtype) {
     case GGUF_TYPE_Q4_0: {
         ov::Tensor weights(ov::element::u32, ov::Shape{rows, cols / 8});
@@ -606,11 +627,9 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         OPENVINO_THROW("[ggml] unsupported weight quant type: ", quant_type);
     }
 
-    // For the embedding / output / Q6_K / Q5_K tensors the llama.cpp CPU/GPU backend
-    // requantizes to channel-wise Q8_0_C (one int8 scale per row) rather than keeping the
-    // faithful group-wise dequant. Reproduce that: dequantize to f32 from the extracted
-    // weight/scale/zp tensors (cheap C++ arithmetic, no OV graph fold), then channel-wise
-    // re-quantize to Q8_0_C.
+    // Non-K requant sources (e.g. an F16 / Q4_0 / Q8_0 token_embd or output): the K-quant fast path
+    // above already handled Q4_K/Q5_K/Q6_K, so here reproduce the backend's channel-wise Q8_0_C by
+    // dequantizing to f32 from the extracted tensors, then re-quantizing.
     if (requant) {  // computed above; reuse rather than re-running getenv + name scans
         auto f32 = dequant_extracted_to_f32(w, base, rows, cols);
         return requantize_q8_0_channelwise(f32, rows, cols);

@@ -19,6 +19,7 @@
 #include <cnpy.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <map>

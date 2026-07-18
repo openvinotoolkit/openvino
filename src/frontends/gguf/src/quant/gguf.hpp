@@ -113,6 +113,22 @@ void gguf_fill_asym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& 
 // Fill pre-allocated f4e2m1 weights and f8e8m0 scales from an MXFP4 GGUF tensor.
 void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
+// Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
+// requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8
+// weights [rows,cols] + f16 scales [rows,1]; matches upstream's to_float->quantize_q8_0 exactly so
+// those tensors are bit-identical to the vendored backend. Returns false for unsupported qtypes.
+bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
+                                          size_t rows,
+                                          size_t cols,
+                                          gguf_tensor_type qtype,
+                                          int8_t* out_weights,
+                                          ov::float16* out_scales);
+
+// Test-only accessors for the per-row faithful K-quant dequant (see test_dequant_vs_ggml.cpp).
+void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
+void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
+void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
+
 // Parse a GGUF file: returns (metadata, tensors-by-ggml-name, qtype map, mmap, quant_buf).
 // Non-quantized tensors are zero-copy views into the mmap (mmap must outlive arrays use).
 // Quantized tensors are SharedBuffer slices of a single AlignedBuffer (quant_buf) so all

@@ -6,6 +6,7 @@
 #include <memory>
 #include <openvino/core/node.hpp>
 #include <openvino/core/node_output.hpp>
+#include <openvino/frontend/exception.hpp>
 #include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
@@ -65,15 +66,20 @@ OutputVector translate_rope(const NodeContext& context) {
         cos_theta_node = sin_cos.second;
     }
 
+    // The canonical [1, -1, n_head, head_size] reshape target (token count on the dynamic axis),
+    // used by the VIEW prologue and the TYPE_NORMAL stack below.
+    auto make_bhsd_shape = [&]() {
+        return ov::op::v0::Constant::create(
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+    };
+
     if (op_case == 2) {
         // The input comes from a VIEW
         int slice_len = output_shape[2] * output_shape[3];
         data_node = process_view_input(context, 0, slice_len).get_node_shared_ptr();
-        auto data_shape = ov::op::v0::Constant::create(
-            ov::element::i64,
-            {4},
-            std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-        data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
+        data_node = std::make_shared<ov::op::v1::Reshape>(data_node, make_bhsd_shape(), false);
     }
 
     if (mode == TYPE_NORMAL) {
@@ -103,14 +109,29 @@ OutputVector translate_rope(const NodeContext& context) {
             ov::op::v0::Constant::create(ov::element::i64, {1}, {unsqueeze_dim}));
         auto stack = std::make_shared<ov::op::v0::Concat>(OutputVector{first_half, second_half}, unsqueeze_dim);
 
-        auto data_shape = ov::op::v0::Constant::create(
-            ov::element::i64,
-            {4},
-            std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-        res = std::make_shared<ov::op::v1::Reshape>(stack, data_shape, false);
+        res = std::make_shared<ov::op::v1::Reshape>(stack, make_bhsd_shape(), false);
     } else if (mode == TYPE_NEOX) {
+        // Partial rotary (ggml n_dims < head_dim): only the first n_dims elements of each head
+        // are rotated; the remainder [n_dims:head_dim] passes through unchanged. cos/sin are built
+        // with width n_dims/2, so the rotated block must be exactly n_dims wide -- splitting the
+        // full head would give halves wider than cos/sin and fail the elementwise broadcast.
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
+
+        Output<Node> rotary_in = data_node;
+        Output<Node> pass_through;
+        if (n_rot < head_dim) {
+            auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto n_rot_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {n_rot});
+            auto head_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
+            rotary_in = std::make_shared<ov::op::v8::Slice>(data_node, zero, n_rot_c, one, neg_one);
+            pass_through = std::make_shared<ov::op::v8::Slice>(data_node, n_rot_c, head_c, one, neg_one);
+        }
+
         auto data_split =
-            std::make_shared<ov::op::v1::Split>(data_node,
+            std::make_shared<ov::op::v1::Split>(rotary_in,
                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1}),
                                                 2);
         Output<Node> slice_data_node_0 = data_split->outputs()[0];
@@ -124,7 +145,13 @@ OutputVector translate_rope(const NodeContext& context) {
             std::make_shared<ov::op::v1::Multiply>(slice_data_node_0, sin_theta_node),
             std::make_shared<ov::op::v1::Multiply>(slice_data_node_1, cos_theta_node));
 
-        res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_half_node, second_half_node}, -1);
+        Output<Node> rotated =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_half_node, second_half_node}, -1);
+        if (n_rot < head_dim) {
+            res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1);
+        } else {
+            res = rotated;
+        }
     } else if (mode == TYPE_IMROPE) {
         // Use output_shape, not data_node->get_shape() which throws on a dynamic dim.
         int64_t n_dims = output_shape[3];
@@ -148,6 +175,10 @@ OutputVector translate_rope(const NodeContext& context) {
 
         res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sub, add}, 3);
     }
+
+    // Guard against an unmapped rope mode: without this, res stays a null Output and
+    // rename_outputs_with_suffix dereferences it (crash) instead of a clean unsupported-op error.
+    FRONT_END_CHECK_IMPLEMENTED(res.get_node_shared_ptr() != nullptr, "Unsupported ROPE mode");
 
     return rename_outputs_with_suffix({res}, context.get_name());
 }

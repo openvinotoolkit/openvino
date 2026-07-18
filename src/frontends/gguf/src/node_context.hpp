@@ -47,10 +47,11 @@ public:
     }
 
     Output<Node> get_input(const std::string& name) const override {
-        if (m_tensor_map->find(name) == m_tensor_map->end()) {
+        auto it = m_tensor_map->find(name);
+        if (it == m_tensor_map->end()) {
             throw std::runtime_error("'" + name + "' not found in tensor map.");
         }
-        return m_tensor_map->at(name);
+        return it->second;
     }
 
     bool has_input(const std::string& name) const {

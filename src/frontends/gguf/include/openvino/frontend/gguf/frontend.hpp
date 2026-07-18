@@ -46,13 +46,17 @@ public:
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    /// \brief Check if FrontEnd can recognize model from given parts
-    /// \param variants Either a GgufDecoder or a path to a .gguf file.
-    /// \return true if the frontend can load the model
+    /// \brief Check if FrontEnd can recognize model from given parts.
+    /// \note Always returns false: this frontend is hidden from FrontEndManager and is never
+    ///       auto-selected. It is used only via direct linkage, by constructing FrontEnd and
+    ///       calling convert() on an InputModel built from a GgufDecoder.
+    /// \param variants Unused.
+    /// \return Always false.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    /// \brief Load the input model from a GgufDecoder or a .gguf file path.
-    /// \param variants Either a GgufDecoder or a path to a .gguf file.
+    /// \brief Load the input model from a GgufDecoder.
+    /// \param variants A single GgufDecoder (a .gguf file path is not accepted; the caller supplies
+    ///        the decoder). variants[0] must hold a std::shared_ptr<GgufDecoder>.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
