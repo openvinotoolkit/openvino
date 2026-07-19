@@ -562,6 +562,14 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  NPU_Models_Tests:
+    name: NPU Models Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_npu_tests.yml
+    with:
+      runner: 'aks-win-4-cores-8gb-test'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Build, Smart_CI ]
@@ -669,7 +677,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

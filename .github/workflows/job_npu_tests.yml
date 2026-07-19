@@ -12,11 +12,6 @@ on:
         type: string
         required: false
         default: '{"TF_FE":{"test":true},"JAX_FE":{"test":true},"PyTorch_FE":{"test":true}}'
-      image:
-        description: 'Docker image to use for the job (Linux only; leave empty on Windows)'
-        type: string
-        required: false
-        default: null
       npu-platforms:
         description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020"]'
         type: string
