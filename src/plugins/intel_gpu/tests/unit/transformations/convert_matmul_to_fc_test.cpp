@@ -18,6 +18,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/manager.hpp>
+#include <openvino/pass/constant_folding.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -798,6 +799,64 @@ TEST(TransformationTests, ConvertMatMulToFullyConnected_clone_shared_convert) {
     }
     ASSERT_EQ(fc_count, 2u);
     ASSERT_EQ(matmul_count, 0u);
+}
+
+TEST(TransformationTests, ConvertMatMulToFullyConnected_shared_convert_not_duplicated) {
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 20, 64});
+    auto input3 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 30, 64});
+    auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+    auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+    ov::mark_as_decompression(convert);
+
+    auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
+    auto matmul2 = std::make_shared<ov::opset1::MatMul>(input2, convert, false, false);
+    auto matmul3 = std::make_shared<ov::opset1::MatMul>(input3, convert, false, false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2, matmul3},
+                                             ov::ParameterVector{input1, input2, input3});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+    manager.run_passes(model);
+
+    size_t fc_count = 0;
+    size_t convert_count = 0;
+    for (auto& op : model->get_ops()) {
+        std::string type_name(op->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            ++fc_count;
+        } else if (ov::is_type<ov::opset1::Convert>(op)) {
+            ++convert_count;
+            EXPECT_TRUE(ov::is_decompression(op));
+        }
+    }
+    ASSERT_EQ(fc_count, 3u);
+    ASSERT_EQ(convert_count, 1u);
+}
+
+TEST(TransformationTests, ConvertMatMulToFullyConnected_cloned_convert_keeps_no_fold) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+    auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+    auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+    ov::disable_constant_folding(convert);
+
+    // transpose_b == false forces the pass to insert a Transpose and clone the Convert.
+    auto matmul = std::make_shared<ov::opset1::MatMul>(input, convert, false, false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+    manager.run_passes(model);
+
+    size_t convert_count = 0;
+    for (auto& op : model->get_ops()) {
+        if (ov::is_type<ov::opset1::Convert>(op)) {
+            ++convert_count;
+            ASSERT_TRUE(ov::pass::constant_folding_is_disabled(op))
+                << "Cloned weights-path Convert lost its DisableConstantFolding marking";
+        }
+    }
+    ASSERT_EQ(convert_count, 1u);
 }
 
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
