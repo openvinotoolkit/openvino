@@ -231,15 +231,7 @@ void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>&
         ov::write_all_to_stream(ss, "Operation: ", op->get_friendly_name(),
                        " of type ", op->get_type_name(),
                        "(", op->get_type_info().version_id, ") is not supported.");
-        if (op->has_evaluate()) {
-            std::cout << ss.str() << " Fallback to Op::evaluate()" << std::endl;
-            // If MLIROp
-            CreateMLIRSubgraphOp(*this, std::dynamic_pointer_cast<ov::op::Op>(op));
-            // else
-            // CreateGenericOp(*this, op);
-        } else {
-            OPENVINO_THROW(ss.str());
-        }
+        OPENVINO_THROW(ss.str());
     }
 }
 

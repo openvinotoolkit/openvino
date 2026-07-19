@@ -13,9 +13,9 @@ namespace common {
 void register_implementations() {
     REGISTER_COMMON(condition);
     REGISTER_COMMON(data);
-    REGISTER_COMMON(generic_primitive);
     REGISTER_COMMON(input_layout);
     REGISTER_COMMON(loop);
+    REGISTER_COMMON(mlir_primitive);
 }
 
 }  // namespace common

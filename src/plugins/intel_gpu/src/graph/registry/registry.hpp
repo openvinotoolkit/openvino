@@ -150,7 +150,6 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(gemm);
-REGISTER_IMPLS(generic_primitive);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);
@@ -189,6 +188,7 @@ REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
 REGISTER_IMPLS(gather_matmul);
+REGISTER_IMPLS(mlir_primitive);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);

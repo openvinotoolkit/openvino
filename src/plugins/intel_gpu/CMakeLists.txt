@@ -147,6 +147,8 @@ if(ENABLE_GRAPH_COMPILER)
     target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph GraphCompiler)
     target_include_directories(${mlir_lib} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            # FIXME: remove when ov::MLIROp definition is moved to a common plugin header
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin
             ${OpenVINO_SOURCE_DIR}/src/common/transformations/include
             ${OV_GPU_MLIR_DIR})
 
@@ -175,6 +177,8 @@ if(ENABLE_GRAPH_COMPILER)
     target_link_libraries(${TARGET_NAME} PRIVATE GraphCompiler)
     target_compile_definitions(${TARGET_NAME} PUBLIC GRAPH_COMPILER)
     target_include_directories(${TARGET_NAME} PRIVATE
+            # FIXME: remove when ov::MLIROp definition is moved to a common plugin header
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin
             ${OpenVINO_SOURCE_DIR}/src/common/transformations/include
             ${OV_GPU_MLIR_DIR})
 endif()
