@@ -228,7 +228,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                 payloadHeader.size);
                 std::string payload(static_cast<std::string::size_type>(payloadHeader.size), '\0');
                 ov::hetero::read_payload_bytes(model, payload.data(), payloadHeader.size, "compiled submodel payload");
-                std::istringstream payloadStream(std::move(payload));
+                std::istringstream payloadStream(payload);
                 compiled_model = core->import_model(payloadStream, device, loadConfig);
             } else if (payloadHeader.type == IR_PAYLOAD) {
                 read_ir_payload(model, core, device, loadConfig, ov_model, compiled_model, payloadHeader.size);
