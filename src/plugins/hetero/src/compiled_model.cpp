@@ -41,7 +41,7 @@ protected:
 
         const auto bytes = static_cast<std::uint64_t>(count);
         OPENVINO_ASSERT(_size <= std::numeric_limits<std::uint64_t>::max() - bytes,
-                        "HETERO compiled blob IR payload size is too large");
+                        "HETERO compiled blob payload size is too large");
         _size += bytes;
         return count;
     }
@@ -52,7 +52,7 @@ protected:
         }
 
         OPENVINO_ASSERT(_size < std::numeric_limits<std::uint64_t>::max(),
-                        "HETERO compiled blob IR payload size is too large");
+                        "HETERO compiled blob payload size is too large");
         ++_size;
         return ch;
     }
@@ -61,33 +61,40 @@ private:
     std::uint64_t _size = 0;
 };
 
-template <typename WritePayload>
-void write_bounded_framed_payload(std::ostream& modelStream,
-                                  char payloadType,
-                                  WritePayload writePayload,
-                                  const char* fieldName) {
-    ov::hetero::BoundedStringOutputBuffer payloadBuffer(ov::hetero::MAX_IN_MEMORY_COMPILED_PAYLOAD_SIZE);
-    std::ostream payloadStream(&payloadBuffer);
-    writePayload(payloadStream);
-    OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob ", fieldName);
-    ov::hetero::write_framed_payload(modelStream, payloadType, payloadBuffer.str());
-}
-
-void write_ir_framed_payload(std::ostream& modelStream, const std::shared_ptr<ov::Model>& model) {
+template <typename ExportPayload>
+void write_framed_payload_two_pass(std::ostream& modelStream,
+                                   char payloadType,
+                                   ExportPayload exportPayload,
+                                   const char* fieldName) {
     CountingOutputBuffer countingBuffer;
     std::ostream countingStream(&countingBuffer);
-    ov::hetero::write_ir_payload(countingStream, model);
-    OPENVINO_ASSERT(countingStream, "Failed to export HETERO compiled blob IR payload");
+    exportPayload(countingStream);
+    OPENVINO_ASSERT(countingStream, "Failed to export HETERO compiled blob ", fieldName);
 
-    const auto payloadType = ov::hetero::IR_PAYLOAD;
     const auto payloadSize = countingBuffer.size();
     modelStream.write(&payloadType, sizeof(payloadType));
     OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob payload type");
     modelStream.write(reinterpret_cast<const char*>(&payloadSize), sizeof(payloadSize));
     OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob payload size");
 
-    ov::hetero::write_ir_payload(modelStream, model);
-    OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob IR payload");
+    try {
+        exportPayload(modelStream);
+    } catch (const ov::NotImplemented&) {
+        OPENVINO_THROW("Cannot continue HETERO compiled blob export after starting framed payload ",
+                       fieldName,
+                       ". Child plugin reported NotImplemented during streaming pass");
+    }
+    OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob ", fieldName);
+}
+
+void write_ir_framed_payload(std::ostream& modelStream, const std::shared_ptr<ov::Model>& model) {
+    write_framed_payload_two_pass(
+        modelStream,
+        ov::hetero::IR_PAYLOAD,
+        [&](std::ostream& payloadStream) {
+            ov::hetero::write_ir_payload(payloadStream, model);
+        },
+        "IR payload");
 }
 
 }  // namespace
@@ -181,10 +188,10 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
             blob_format_version = HETERO_BLOB_FORMAT_VERSION;
         } else {
             OPENVINO_THROW("Unsupported HETERO compiled blob format version: ",
-                          version_str,
-                          ". Supported versions are 1 (legacy unframed) and ",
-                          HETERO_BLOB_FORMAT_VERSION,
-                          " (framed). ");
+                           version_str,
+                           ". Supported versions are 1 (legacy unframed) and ",
+                           HETERO_BLOB_FORMAT_VERSION,
+                           " (framed). ");
         }
     }
     const bool is_framed_blob = blob_format_version == HETERO_BLOB_FORMAT_VERSION;
@@ -504,7 +511,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             }
 
             try {
-                write_bounded_framed_payload(
+                write_framed_payload_two_pass(
                     model_stream,
                     COMPILED_BLOB_PAYLOAD,
                     [&](std::ostream& payloadStream) {

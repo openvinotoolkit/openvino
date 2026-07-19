@@ -267,7 +267,10 @@ std::streamsize FramedPayloadOutputBuffer::xsputn(const char* data, std::streams
         return 0;
     }
 
-    const auto newPos = _pos + static_cast<std::uint64_t>(count);
+    const auto bytes = static_cast<std::uint64_t>(count);
+    OPENVINO_ASSERT(_pos <= std::numeric_limits<std::uint64_t>::max() - bytes,
+                    "HETERO compiled blob payload position overflow");
+    const auto newPos = _pos + bytes;
     checked_stream_offset(newPos, "payload position");
 
     _stream.clear();

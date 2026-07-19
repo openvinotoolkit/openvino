@@ -393,8 +393,7 @@ TEST_F(HeteroTests, export_ir_payload_does_not_depend_on_temp_directory_environm
     EXPECT_NO_THROW(core.get_available_devices());
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
 
-    const std::string invalid_temp_dir =
-        "__ov_hetero_export_ir_payload_tmpdir_must_not_be_used__/missing/subdir";
+    const std::string invalid_temp_dir = "__ov_hetero_export_ir_payload_tmpdir_must_not_be_used__/missing/subdir";
     ScopedEnvVarOverride tmpdir("TMPDIR", invalid_temp_dir);
     ScopedEnvVarOverride tmp("TMP", invalid_temp_dir);
     ScopedEnvVarOverride temp("TEMP", invalid_temp_dir);
