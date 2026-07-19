@@ -342,11 +342,11 @@ std::streamsize BoundedStringOutputBuffer::xsputn(const char* data, std::streams
     }
 
     const auto writeSize = static_cast<std::uint64_t>(count);
-    OPENVINO_ASSERT(writeSize <= _maxSize - static_cast<std::uint64_t>(_data.size()),
-                    "HETERO compiled blob buffered payload size exceeds limit: ",
-                    static_cast<std::uint64_t>(_data.size()) + writeSize,
-                    " > ",
-                    _maxSize);
+    const auto currentSize = static_cast<std::uint64_t>(_data.size());
+    if (currentSize > _maxSize || writeSize > (_maxSize - currentSize)) {
+        // Signal iostream failure (short write) instead of throwing from inside the streambuf.
+        return 0;
+    }
 
     _data.append(data, static_cast<std::string::size_type>(count));
     return count;
