@@ -29,8 +29,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/container_util.hpp"
-#include "transformations/utils/utils.hpp"
 #include "perf_log.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 
