@@ -171,13 +171,22 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = get_str_attr(heteroNode, "name");
-    const auto blob_format_version = heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).as_uint(1);
-    OPENVINO_ASSERT(blob_format_version == 1 || blob_format_version == HETERO_BLOB_FORMAT_VERSION,
-                    "Unsupported HETERO compiled blob format version: ",
-                    blob_format_version,
-                    ". Supported versions are 1 (legacy unframed) and ",
-                    HETERO_BLOB_FORMAT_VERSION,
-                    " (framed).");
+    const auto version_attr = heteroNode.attribute(HETERO_BLOB_FORMAT_VERSION_ATTR);
+    std::uint32_t blob_format_version = 1;
+    if (version_attr) {
+        const std::string version_str = version_attr.value();
+        if (version_str == "1") {
+            blob_format_version = 1;
+        } else if (version_str == std::to_string(HETERO_BLOB_FORMAT_VERSION)) {
+            blob_format_version = HETERO_BLOB_FORMAT_VERSION;
+        } else {
+            OPENVINO_THROW("Unsupported HETERO compiled blob format version: ",
+                          version_str,
+                          ". Supported versions are 1 (legacy unframed) and ",
+                          HETERO_BLOB_FORMAT_VERSION,
+                          " (framed). ");
+        }
+    }
     const bool is_framed_blob = blob_format_version == HETERO_BLOB_FORMAT_VERSION;
 
     ov::AnyMap properties;
