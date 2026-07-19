@@ -37,10 +37,10 @@ env:
   # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
-  TensorFlow_NPU_Models_Tests:
-    name: TF NPU Models tests (${{ matrix.npu-platform }})
-    if: fromJSON(inputs.affected-components).TF_FE.test
-    timeout-minutes: 60
+  TF_JAX_NPU_Models_Tests:
+    name: TF/JAX NPU Models tests (${{ matrix.npu-platform }})
+    if: fromJSON(inputs.affected-components).TF_FE.test || fromJSON(inputs.affected-components).JAX_FE.test
+    timeout-minutes: 90
     strategy:
       # one runner per NPU platform; keep going even if one platform fails
       fail-fast: false
@@ -101,13 +101,17 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
+      # TF runs first; JAX requirements are installed afterwards (they overwrite the
+      # conflicting TF pins), so both frameworks share one runner sequentially.
       - name: Install TF Models tests requirements
+        if: fromJSON(inputs.affected-components).TF_FE.test
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
       - name: Set SSL_CERT_FILE for model downloading
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: TensorFlow Models Tests - NPU compile-only (convert_model)
+        if: fromJSON(inputs.affected-components).TF_FE.test
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -115,93 +119,19 @@ jobs:
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && fromJSON(inputs.affected-components).TF_FE.test }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-      - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-tensorflow-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}\TEST*.html
-          if-no-files-found: 'error'
-
-  JAX_NPU_Models_Tests:
-    name: JAX NPU Models tests (${{ matrix.npu-platform }})
-    if: fromJSON(inputs.affected-components).JAX_FE.test
-    timeout-minutes: 60
-    strategy:
-      # one runner per NPU platform; keep going even if one platform fails
-      fail-fast: false
-      matrix:
-        npu-platform: ${{ fromJSON(inputs.npu-platforms) }}
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: ${{ inputs.runner }}
-    env:
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      TEST_DEVICE: 'NPU'
-      NPU_PLATFORM: ${{ matrix.npu-platform }}
-      MODEL_SCOPE: ${{ inputs.model-scope }}
-    steps:
-      - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
-
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
-
-      - name: Extract OpenVINO tests package
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Fetch setup_python and install wheels actions
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          set-pip-install-path: 'false'
-          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
-          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
-
-      - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
-
       - name: Install JAX Models tests requirements
+        if: ${{ !cancelled() && fromJSON(inputs.affected-components).JAX_FE.test }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: JAX/Flax Models Tests - NPU compile-only
+        if: ${{ !cancelled() && fromJSON(inputs.affected-components).JAX_FE.test }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -212,7 +142,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
-          name: test-results-jax-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
+          name: test-results-tf-jax-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
           if-no-files-found: 'error'
