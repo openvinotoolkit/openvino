@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
 #include <cctype>
 #include <limits>
 #include <sstream>
@@ -21,6 +22,47 @@ namespace {
 struct TestPayloadHeader {
     char type = 0;
     std::uint64_t size = 0;
+};
+
+class ScopedEnvVarOverride {
+public:
+    ScopedEnvVarOverride(const char* name, const std::string& value) : m_name(name) {
+        const char* current_value = std::getenv(m_name.c_str());
+        if (current_value != nullptr) {
+            m_has_old_value = true;
+            m_old_value = current_value;
+        }
+        set(value);
+    }
+
+    ~ScopedEnvVarOverride() {
+        if (m_has_old_value) {
+            set(m_old_value);
+            return;
+        }
+        unset();
+    }
+
+private:
+    void set(const std::string& value) {
+#if defined(_WIN32)
+        _putenv_s(m_name.c_str(), value.c_str());
+#else
+        setenv(m_name.c_str(), value.c_str(), 1);
+#endif
+    }
+
+    void unset() {
+#if defined(_WIN32)
+        _putenv_s(m_name.c_str(), "");
+#else
+        unsetenv(m_name.c_str());
+#endif
+    }
+
+    std::string m_name;
+    std::string m_old_value;
+    bool m_has_old_value = false;
 };
 
 class NonSeekableOutputBuffer : public std::streambuf {
@@ -342,6 +384,35 @@ TEST_F(HeteroTests, export_ir_payload_to_non_seekable_stream) {
     EXPECT_GT(payload_header.size, 0);
 
     std::stringstream import_stream(output_buffer.str());
+    auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
+    expect_compiled_model_runs(*this, imported_model);
+}
+
+TEST_F(HeteroTests, export_ir_payload_does_not_depend_on_temp_directory_environment) {
+    auto model = create_model_with_reshape();
+    EXPECT_NO_THROW(core.get_available_devices());
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
+
+    const std::string invalid_temp_dir =
+        "__ov_hetero_export_ir_payload_tmpdir_must_not_be_used__/missing/subdir";
+    ScopedEnvVarOverride tmpdir("TMPDIR", invalid_temp_dir);
+    ScopedEnvVarOverride tmp("TMP", invalid_temp_dir);
+    ScopedEnvVarOverride temp("TEMP", invalid_temp_dir);
+    ScopedEnvVarOverride tempdir("TEMPDIR", invalid_temp_dir);
+
+    std::stringstream model_stream;
+    EXPECT_NO_THROW(compiled_model.export_model(model_stream));
+
+    auto blob = model_stream.str();
+    std::stringstream payload_stream(blob);
+    std::string hetero_xml_header;
+    std::getline(payload_stream, hetero_xml_header);
+    EXPECT_NE(hetero_xml_header.find(HETERO_BLOB_FORMAT_VERSION_ATTR), std::string::npos);
+    const auto payload_header = read_test_payload_header(payload_stream);
+    EXPECT_EQ(IR_PAYLOAD, payload_header.type);
+    EXPECT_GT(payload_header.size, 0);
+
+    std::stringstream import_stream(blob);
     auto imported_model = core.import_model(import_stream, ov::test::utils::DEVICE_HETERO, {});
     expect_compiled_model_runs(*this, imported_model);
 }

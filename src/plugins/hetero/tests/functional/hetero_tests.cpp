@@ -995,8 +995,8 @@ void ov::hetero::tests::HeteroTests::SetUp() {
     if (m_mock_plugins.empty()) {
         reg_plugin_type<MockPluginReshape>("MOCK0");
         reg_plugin_type<MockPluginSubtract>("MOCK1");
-        reg_plugin_type<MockPluginNoExportImport>("MOCKIR");
         reg_plugin_type<MockPluginGPU>("MOCKGPU");
+        reg_plugin_type<MockPluginNoExportImport>("MOCKIR");
     }
 }
 

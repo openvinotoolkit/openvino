@@ -5,16 +5,11 @@
 #include "compiled_model.hpp"
 
 #include <algorithm>
-#include <atomic>
-#include <chrono>
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <system_error>
 
 #include "async_infer_request.hpp"
 #include "blob_serialization.hpp"
@@ -32,47 +27,38 @@
 
 namespace {
 
-std::filesystem::path make_temporary_ir_payload_path() {
-    std::error_code error;
-    const auto tempDir = std::filesystem::temp_directory_path(error);
-    OPENVINO_ASSERT(!error,
-                    "Failed to resolve a temporary directory for HETERO compiled blob IR payload: ",
-                    error.message());
-
-    static std::atomic<std::uint64_t> counter{0};
-    const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-    for (std::uint64_t attempt = 0; attempt < 100; ++attempt) {
-        const auto id = counter.fetch_add(1, std::memory_order_relaxed);
-        const auto path =
-            tempDir / ("openvino_hetero_ir_payload_" + std::to_string(now) + "_" + std::to_string(id) + ".blob");
-        error.clear();
-        const bool exists = std::filesystem::exists(path, error);
-        OPENVINO_ASSERT(!error,
-                        "Failed to check HETERO compiled blob IR payload temporary file path: ",
-                        error.message());
-        if (!exists) {
-            return path;
-        }
-    }
-
-    OPENVINO_THROW("Failed to create a unique temporary file name for HETERO compiled blob IR payload");
-}
-
-class TemporaryIrPayloadFile {
+class CountingOutputBuffer : public std::streambuf {
 public:
-    TemporaryIrPayloadFile() : _path(make_temporary_ir_payload_path()) {}
-
-    ~TemporaryIrPayloadFile() {
-        std::error_code error;
-        std::filesystem::remove(_path, error);
+    std::uint64_t size() const {
+        return _size;
     }
 
-    const std::filesystem::path& path() const {
-        return _path;
+protected:
+    std::streamsize xsputn(const char*, std::streamsize count) override {
+        if (count <= 0) {
+            return 0;
+        }
+
+        const auto bytes = static_cast<std::uint64_t>(count);
+        OPENVINO_ASSERT(_size <= std::numeric_limits<std::uint64_t>::max() - bytes,
+                        "HETERO compiled blob IR payload size is too large");
+        _size += bytes;
+        return count;
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+
+        OPENVINO_ASSERT(_size < std::numeric_limits<std::uint64_t>::max(),
+                        "HETERO compiled blob IR payload size is too large");
+        ++_size;
+        return ch;
     }
 
 private:
-    std::filesystem::path _path;
+    std::uint64_t _size = 0;
 };
 
 template <typename WritePayload>
@@ -87,38 +73,21 @@ void write_bounded_framed_payload(std::ostream& modelStream,
     ov::hetero::write_framed_payload(modelStream, payloadType, payloadBuffer.str());
 }
 
-void write_ir_framed_payload_via_temporary_file(std::ostream& modelStream, const std::shared_ptr<ov::Model>& model) {
-    TemporaryIrPayloadFile payloadFile;
-    {
-        std::ofstream payloadStream(payloadFile.path(), std::ios::binary | std::ios::trunc);
-        OPENVINO_ASSERT(payloadStream,
-                        "Failed to create a temporary file for HETERO compiled blob IR payload: ",
-                        payloadFile.path().string(),
-                        ". Use a seekable output stream or configure a writable temporary directory.");
-        ov::hetero::write_ir_payload(payloadStream, model);
-        payloadStream.flush();
-        OPENVINO_ASSERT(payloadStream,
-                        "Failed to write HETERO compiled blob IR payload to temporary file: ",
-                        payloadFile.path().string());
-    }
+void write_ir_framed_payload(std::ostream& modelStream, const std::shared_ptr<ov::Model>& model) {
+    CountingOutputBuffer countingBuffer;
+    std::ostream countingStream(&countingBuffer);
+    ov::hetero::write_ir_payload(countingStream, model);
+    OPENVINO_ASSERT(countingStream, "Failed to export HETERO compiled blob IR payload");
 
-    std::error_code error;
-    const auto fileSize = std::filesystem::file_size(payloadFile.path(), error);
-    OPENVINO_ASSERT(!error,
-                    "Failed to determine HETERO compiled blob IR payload temporary file size: ",
-                    error.message());
-    OPENVINO_ASSERT(fileSize <= static_cast<std::uintmax_t>(std::numeric_limits<std::uint64_t>::max()),
-                    "HETERO compiled blob IR payload temporary file size is too large: ",
-                    fileSize);
+    const auto payloadType = ov::hetero::IR_PAYLOAD;
+    const auto payloadSize = countingBuffer.size();
+    modelStream.write(&payloadType, sizeof(payloadType));
+    OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob payload type");
+    modelStream.write(reinterpret_cast<const char*>(&payloadSize), sizeof(payloadSize));
+    OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob payload size");
 
-    std::ifstream payloadStream(payloadFile.path(), std::ios::binary);
-    OPENVINO_ASSERT(payloadStream,
-                    "Failed to open HETERO compiled blob IR payload temporary file: ",
-                    payloadFile.path().string());
-    ov::hetero::write_framed_payload(modelStream,
-                                     ov::hetero::IR_PAYLOAD,
-                                     payloadStream,
-                                     static_cast<std::uint64_t>(fileSize));
+    ov::hetero::write_ir_payload(modelStream, model);
+    OPENVINO_ASSERT(modelStream, "Failed to write HETERO compiled blob IR payload");
 }
 
 }  // namespace
@@ -537,7 +506,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             } catch (ov::NotImplemented&) {
             }
 
-            write_ir_framed_payload_via_temporary_file(model_stream, comp_model_desc.model);
+            write_ir_framed_payload(model_stream, comp_model_desc.model);
             continue;
         }
 
@@ -548,6 +517,6 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             continue;
         }
 
-        write_ir_framed_payload_via_temporary_file(model_stream, comp_model_desc.model);
+        write_ir_framed_payload(model_stream, comp_model_desc.model);
     }
 }
