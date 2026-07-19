@@ -97,28 +97,30 @@ void write_ir_framed_payload(std::ostream& modelStream, const std::shared_ptr<ov
         "IR payload");
 }
 
-    template <typename ExportPayload>
-    void write_framed_payload_via_seekable_stream(std::ostream& modelStream,
-                               char payloadType,
-                               ExportPayload exportPayload,
-                               const char* fieldName) {
-        std::stringstream payloadStream(std::ios::in | std::ios::out | std::ios::binary);
-        exportPayload(payloadStream);
-        OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob ", fieldName);
+template <typename ExportPayload>
+void write_framed_payload_via_seekable_stream(std::ostream& modelStream,
+                                             char payloadType,
+                                             ExportPayload exportPayload,
+                                             const char* fieldName) {
+    std::stringstream payloadStream(std::ios::in | std::ios::out | std::ios::binary);
+    exportPayload(payloadStream);
+    OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob ", fieldName);
 
-        const auto payloadEndPos = payloadStream.tellp();
-        OPENVINO_ASSERT(payloadEndPos != std::streampos(-1),
-                "Failed to determine HETERO compiled blob ",
-                fieldName,
-                " size");
+    payloadStream.clear();
+    payloadStream.seekp(0, std::ios::end);
+    const auto payloadEndPos = payloadStream.tellp();
+    OPENVINO_ASSERT(payloadEndPos != std::streampos(-1),
+                    "Failed to determine HETERO compiled blob ",
+                    fieldName,
+                    " size");
 
-        const auto payloadSize = static_cast<std::uint64_t>(payloadEndPos);
-        payloadStream.clear();
-        payloadStream.seekg(0, std::ios::beg);
-        OPENVINO_ASSERT(payloadStream, "Failed to rewind HETERO compiled blob ", fieldName);
+    const auto payloadSize = static_cast<std::uint64_t>(payloadEndPos);
+    payloadStream.clear();
+    payloadStream.seekg(0, std::ios::beg);
+    OPENVINO_ASSERT(payloadStream, "Failed to rewind HETERO compiled blob ", fieldName);
 
-        ov::hetero::write_framed_payload(modelStream, payloadType, payloadStream, payloadSize);
-    }
+    ov::hetero::write_framed_payload(modelStream, payloadType, payloadStream, payloadSize);
+}
 
 }  // namespace
 
