@@ -1,0 +1,241 @@
+ir_version: 10
+graph {
+  node {
+    input: "query"
+    input: ""
+    input: ""
+    input: "past_key"
+    input: "past_value"
+    input: "seqlens_k"
+    input: "total_sequence_length"
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: "k_scale"
+    input: "v_scale"
+    output: "output"
+    output: "present_key"
+    output: "present_value"
+    op_type: "GroupQueryAttention"
+    attribute {
+      name: "do_rotary"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "k_quant_type"
+      s: "PER_CHANNEL"
+      type: STRING
+    }
+    attribute {
+      name: "kv_cache_bit_width"
+      i: 8
+      type: INT
+    }
+    attribute {
+      name: "kv_num_heads"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "v_quant_type"
+      s: "PER_CHANNEL"
+      type: STRING
+    }
+    domain: "com.microsoft"
+  }
+  name: "GQA_DynQuant"
+  initializer {
+    dims: 8
+    data_type: 1
+    float_data: 0.02677
+    float_data: 0.06439
+    float_data: 0.06663
+    float_data: 0.04228
+    float_data: 0.03941
+    float_data: 0.03288
+    float_data: 0.05287
+    float_data: 0.04463
+    name: "k_scale"
+  }
+  initializer {
+    dims: 8
+    data_type: 1
+    float_data: 0.06821
+    float_data: 0.06005
+    float_data: 0.04276
+    float_data: 0.06005
+    float_data: 0.02209
+    float_data: 0.05847
+    float_data: 0.02016
+    float_data: 0.03464
+    name: "v_scale"
+  }
+  input {
+    name: "query"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "sequence_length"
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_key"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "past_sequence_length"
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_value"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "past_sequence_length"
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seqlens_k"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "total_sequence_length"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "sequence_length"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_key"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "total_sequence_length"
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_value"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "total_sequence_length"
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 21
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

@@ -28,8 +28,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
-#include "perf_log.hpp"
+#include "openvino/util/container_util.hpp"
 #include "transformations/utils/utils.hpp"
+#include "perf_log.hpp"
 
 namespace {
 

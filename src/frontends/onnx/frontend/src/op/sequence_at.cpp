@@ -11,6 +11,8 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/sequence_erase.hpp"
+#include "openvino/frontend/sequence_insert.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -47,7 +49,20 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
                 position_value < 0 ? position_value + input_sequence_length : position_value;
             OPENVINO_ASSERT(position_value_normalized >= 0 && position_value_normalized < input_sequence_length,
                             "SequenceAt: 'position' is out of bounds");
-            return {seq.at(position_value_normalized)};
+            const auto& element = seq.at(position_value_normalized);
+            // get_sequence() keeps an Insert/Erase with a non-constant position
+            // (and a directly nested SequenceMark) as a single opaque element,
+            // i.e. a still-sequence-typed value rather than a resolved tensor.
+            // Selecting such an element here would return a sequence as if it
+            // were a tensor, so fall back to the deferred path, which resolves
+            // dynamic positions structurally.
+            const auto element_node = element.get_node_shared_ptr();
+            const bool element_is_opaque_sequence = ov::is_type<SequenceMark>(element_node) ||
+                                                    ov::is_type<ov::frontend::SequenceInsert>(element_node) ||
+                                                    ov::is_type<ov::frontend::SequenceErase>(element_node);
+            if (!element_is_opaque_sequence) {
+                return {element};
+            }
         }
     }
 

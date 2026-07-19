@@ -41,6 +41,7 @@ TFL_OP_CONVERTER(quantize);
 TFL_OP_CONVERTER(reshape);
 TFL_OP_CONVERTER(rfft2d);
 TFL_OP_CONVERTER(softmax);
+TFL_OP_CONVERTER(stablehlo_composite);
 TFL_OP_CONVERTER(transpose_conv);
 TFL_OP_CONVERTER(unique);
 TFL_OP_CONVERTER(while_op);

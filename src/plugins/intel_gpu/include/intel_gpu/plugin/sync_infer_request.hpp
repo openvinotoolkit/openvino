@@ -19,6 +19,26 @@
 namespace ov::intel_gpu {
 
 class CompiledModel;
+class Graph;
+
+/// @brief Thread-safe wrapper around VariableStateBase that acquires the graph mutex
+/// before delegating reset() calls. This ensures that reset_state() from one InferRequest
+/// does not race with infer() on a sibling InferRequest sharing the same CompiledModel.
+/// See: https://github.com/openvinotoolkit/openvino/issues/36458
+class ThreadSafeVariableStateWrapper : public ov::IVariableState {
+public:
+    ThreadSafeVariableStateWrapper(std::shared_ptr<ov::IVariableState> state,
+                                    std::shared_ptr<Graph> graph);
+
+    void reset() override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+private:
+    std::shared_ptr<ov::IVariableState> m_state;
+    std::shared_ptr<Graph> m_graph;
+};
+
 
 enum class TensorOwner : uint8_t {
     USER = 0,

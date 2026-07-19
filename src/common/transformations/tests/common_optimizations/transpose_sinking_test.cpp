@@ -16,6 +16,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
@@ -232,6 +233,40 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommon,
                                          TransposeFQTransposeFuseParams{{1, 3}, {1, 3, 1, 1}},
                                          TransposeFQTransposeFuseParams{{1, 1, 3}, {1, 3, 1, 1}},
                                          TransposeFQTransposeFuseParams{{1, 1, 1, 3}, {1, 3, 1, 1}}));
+
+// TransposeFQ must not fire when the FakeQuantize is the Quantize half of a QDQ pair
+TEST(TransposeFQNoSinkingTest, TransposeFQNotAppliedForQuantizeLinear) {
+    auto input = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 3, 4, 5});
+
+    auto order = std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+    auto transpose = std::make_shared<opset6::Transpose>(input, order);
+
+    auto i_low = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{-3.5f});
+    auto i_high = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{6.2f});
+    auto o_low = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.f});
+    auto o_high = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{255.f});
+    auto fq = std::make_shared<opset6::FakeQuantize>(transpose, i_low, i_high, o_low, o_high, 256);
+
+    auto convert_to_u8 = std::make_shared<opset6::Convert>(fq, element::u8);
+    auto convert_to_f32 = std::make_shared<opset6::Convert>(convert_to_u8, element::f32);
+    auto zero_point = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{92.f});
+    auto subtract = std::make_shared<opset6::Subtract>(convert_to_f32, zero_point);
+    auto scale = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.038f});
+    auto multiply = std::make_shared<opset6::Multiply>(subtract, scale);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{multiply}, ParameterVector{input});
+    auto model_ref = model->clone();
+
+    pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::TransposeFQ>();
+    manager.run_passes(model);
+
+    auto fc =
+        FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
 
 struct TransposeReduceParams {
     // given params

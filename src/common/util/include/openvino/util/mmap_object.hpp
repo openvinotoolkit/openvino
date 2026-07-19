@@ -15,19 +15,14 @@
 #include <memory>
 #include <string>
 
+#include "openvino/util/file_util.hpp"
+
 namespace ov {
 
 namespace util {
 int64_t get_system_page_size();
 }  // namespace util
 
-#ifdef _WIN32
-// Windows uses HANDLE (void*) for file handles
-using FileHandle = void*;
-#else
-// Linux/Unix uses int for file descriptors
-using FileHandle = int;
-#endif
 /**
  * @brief Generic constant to indicate automatic size calculation is required.
  */

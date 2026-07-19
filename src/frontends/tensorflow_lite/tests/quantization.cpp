@@ -10,6 +10,8 @@
 #include "common_test_utils/type_prop.hpp"
 #include "conversion_extension.hpp"
 #include "gtest/gtest.h"
+#include "openvino/op/convert.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov;
@@ -120,4 +122,16 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_quantize_dequantize_uint8) {
     test_case.add_expected_output<float>(Shape{12},
                                          {-4.f, -4.f, -4.f, 0.f, 0.f, 0.5f, 0.75f, 1.f, 1.25f, 1.25f, 59.75f, 59.75f});
     test_case.run_with_tolerance_as_fp(0.001f);
+}
+
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_qdq_convert_is_marked_disable_cf) {
+    auto model = convert_model("qdq_uint8.tflite");
+    bool has_cf_disabled_convert = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Convert>(op) && ov::pass::constant_folding_is_disabled(op)) {
+            has_cf_disabled_convert = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(has_cf_disabled_convert);
 }
