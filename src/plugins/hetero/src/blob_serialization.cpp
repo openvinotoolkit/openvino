@@ -463,6 +463,7 @@ void read_ir_payload(std::istream& model,
     OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<std::string::size_type>::max()),
                     "HETERO compiled blob IR XML size is too large: ",
                     dataSize);
+    checked_stream_size(dataSize, "IR XML content");
     xmlString.resize(static_cast<std::string::size_type>(dataSize));
     read_payload_bytes(model, xmlString.data(), dataSize, "IR XML content");
 
@@ -474,6 +475,7 @@ void read_ir_payload(std::istream& model,
         OPENVINO_ASSERT(dataSize <= static_cast<std::uint64_t>(std::numeric_limits<ov::Shape::size_type>::max()),
                         "HETERO compiled blob IR weights size is too large: ",
                         dataSize);
+        checked_stream_size(dataSize, "IR weights content");
         weights = ov::Tensor(ov::element::u8, ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         read_payload_bytes(model,
                            reinterpret_cast<char*>(weights.data<std::uint8_t>()),

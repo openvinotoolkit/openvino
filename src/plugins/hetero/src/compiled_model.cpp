@@ -99,9 +99,9 @@ void write_ir_framed_payload(std::ostream& modelStream, const std::shared_ptr<ov
 
     template <typename ExportPayload>
     void write_framed_payload_via_seekable_stream(std::ostream& modelStream,
-                              char payloadType,
-                              ExportPayload exportPayload,
-                              const char* fieldName) {
+                               char payloadType,
+                               ExportPayload exportPayload,
+                               const char* fieldName) {
         std::stringstream payloadStream(std::ios::in | std::ios::out | std::ios::binary);
         exportPayload(payloadStream);
         OPENVINO_ASSERT(payloadStream, "Failed to export HETERO compiled blob ", fieldName);
