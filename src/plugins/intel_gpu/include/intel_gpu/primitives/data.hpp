@@ -437,8 +437,11 @@ public:
         bool weightless_caching = false;
         ib >> weightless_caching;
         const auto& dev_info = ib.get_engine().get_device_info();
+        const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;       
+        const bool requires_device_copy = data_size >= DATA_BLOCK_SIZE && !output_layout.format.is_image_2d();
+
         const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
-                                            host_buffer_base_ptr != nullptr && !weightless_caching;
+                                            host_buffer_base_ptr != nullptr && !weightless_caching && requires_device_copy;
         if (!can_use_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
@@ -459,10 +462,9 @@ public:
             } else if (is_alloc_host_accessible(_allocation_type)) {
                 ib >> make_data(std::move(mem->buffer_ptr()), data_size);
             } else {
-                const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
                 auto& strm = eng.get_service_stream();
-                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
+                if (!requires_device_copy) {
                     std::vector<uint8_t> _buf(data_size);
                     ib >> make_data(_buf.data(), data_size);
                     mem->copy_from(strm, _buf.data());
