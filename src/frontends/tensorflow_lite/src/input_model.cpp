@@ -31,7 +31,6 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor_pl
         tensor_meta_info.m_sparsity_info,
         tensor_meta_info.m_tensor_data,
         tensor_meta_info.m_tensor_data_size,
-        tensor_meta_info.m_source_buffer,
         tensor_meta_info.m_source_id,
         tensor_meta_info.m_bin_offset);
     return tensor_place;
@@ -204,29 +203,18 @@ void InputModel::InputModelTFLiteImpl::load_model() {
                     if (place->get_source_id() != 0) {
                         // Weight identity supplied by the iterator: build a
                         // descriptor-backed Constant so downstream consumers
-                        // (ov::weight_sharing::Context / NPUW) can look the
-                        // weight up via Constant->m_data->get_descriptor().
+                        // (ov::weight_sharing / NPUW) can look the weight up via
+                        // Constant->m_data->get_descriptor(). The identity is the
+                        // (source_id, bin_offset) pair chosen by the iterator; the
+                        // bytes are not owned here so an IdentifiedBuffer wraps them
+                        // together with the pre-built descriptor.
                         const auto shape = place->get_partial_shape().to_shape();
                         const auto byte_size =
                             ov::util::get_memory_size(place->get_element_type(), ov::shape_size(shape));
-                        std::shared_ptr<ov::AlignedBuffer> buffer;
-                        if (place->get_source_buffer()) {
-                            // Physical arena: offset is derived by ptr arithmetic
-                            // inside SharedBufferBase against source_buffer->get_ptr().
-                            buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-                                const_cast<char*>(static_cast<const char*>(data)),
-                                byte_size,
-                                place->get_source_buffer(),
-                                ov::create_base_descriptor(place->get_source_id(), 0, place->get_source_buffer()));
-                        } else {
-                            // Synthetic identity: no owning arena, offset chosen by the iterator.
-                            buffer = std::make_shared<IdentifiedBuffer>(
-                                data,
-                                byte_size,
-                                ov::create_base_descriptor(place->get_source_id(),
-                                                           place->get_bin_offset(),
-                                                           nullptr));
-                        }
+                        auto buffer = std::make_shared<IdentifiedBuffer>(
+                            data,
+                            byte_size,
+                            ov::create_base_descriptor(place->get_source_id(), place->get_bin_offset(), nullptr));
                         constant = std::make_shared<ov::op::v0::Constant>(place->get_element_type(), shape, buffer);
                     } else {
                         constant = ov::op::v0::Constant::create(place->get_element_type(),

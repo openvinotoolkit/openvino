@@ -143,13 +143,12 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 model_ptr &&
                 "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
             pre_load_transform(model_ptr, {});
-            const auto shared_ctx = ov::npuw::wsh::context_from(properties);
             for (const auto& node : model_ptr->get_ordered_ops()) {
                 if (!ov::op::util::is_constant(node)) {
                     continue;
                 }
                 const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                auto origin = ov::npuw::wsh::resolve_origin(*c, shared_ctx.get());
+                auto origin = ov::npuw::wsh::resolve_origin(*c);
                 if (!origin) {
                     continue;
                 }
@@ -342,16 +341,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(false) {
     init_profiling();
 
-    // Extract the weight-sharing Context (if the caller supplied one via
-    // "MODEL_SHARING_CONTEXT") and publish it to the current thread so any
-    // LazyTensor / op::Const created during pre_load_transform, partitioning,
-    // CWAI, etc. can resolve bin_offset through it when WLCA rt_info is absent.
-    const auto shared_ctx = ov::npuw::wsh::context_from(properties);
-    ov::npuw::weights::ConstResolveScope resolve_scope(shared_ctx.get());
-
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model, shared_ctx.get());
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
@@ -397,7 +389,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     // Store original constants' offset for serialization purposes
-    store_const_offsets(model, shared_ctx.get());
+    store_const_offsets(model);
 
     std::optional<ov::npuw::v1::subgraphs::PatternRegistry> combined_subgraph_patterns;
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> builtin_pattern_registrations;
@@ -1109,10 +1101,6 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
 
     ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
-    // MODEL_SHARING_CONTEXT carries a std::shared_ptr<const weight_sharing::Context>
-    // that is meaningful only in-process at compile time. It must not be
-    // serialized — anyToString has no handler for shared_ptr and would throw.
-    serializable_props.erase(ov::internal::model_sharing_context.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
     auto write_children = [&](std::ostream& body_stream) {
@@ -1487,14 +1475,13 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Done.");
 }
 
-void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model,
-                                                  const ov::weight_sharing::Context* ctx) {
+void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (!ov::op::util::is_constant(node_ptr)) {
             continue;
         }
         const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-        auto origin = ov::npuw::wsh::resolve_origin(*c, ctx);
+        auto origin = ov::npuw::wsh::resolve_origin(*c);
         if (!origin) {
             continue;
         }

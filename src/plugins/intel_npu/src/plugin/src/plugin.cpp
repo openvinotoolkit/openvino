@@ -129,20 +129,19 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 }
 
 /**
- * @brief Checks that every Constant's origin (bin offset / size / dtype) can be resolved, either through the legacy
- * "WeightlessCacheAttribute" rt_info or through an ov::weight_sharing::Context threaded via the
- * "MODEL_SHARING_CONTEXT" property. Throws if neither source produces an entry for the model's Constants — the
+ * @brief Checks that every Constant's origin (bin offset / size / dtype) can be resolved, either through the
+ * weight-sharing identity carried by the Constant's buffer descriptor (ov::weight_sharing) or through the legacy
+ * "WeightlessCacheAttribute" rt_info. Throws if neither source produces an entry for the model's Constants — the
  * weights separation flow cannot proceed without it.
  */
-void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model,
-                                                 const ov::weight_sharing::Context* ctx = nullptr) {
+void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     if (!model) {
         return;
     }
-    if (ov::npuw::wsh::any_origin_available(*model, ctx)) {
+    if (ov::npuw::wsh::any_origin_available(*model)) {
         return;
     }
-    OPENVINO_THROW("No \"WeightlessCacheAttribute\" rt_info and no matching ov::weight_sharing::Context entry has been "
+    OPENVINO_THROW("No weight-sharing buffer descriptor and no \"WeightlessCacheAttribute\" rt_info has been "
                    "found for any of the model's Constant nodes. One of these origin sources is required for running "
                    "the \"weights separation\" flow.");
 }
@@ -527,12 +526,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    const auto shared_ctx_for_compile = ov::npuw::wsh::context_from(properties);
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
-            check_weightless_cache_attribute_occurrence(model, shared_ctx_for_compile.get());
+            check_weightless_cache_attribute_occurrence(model);
             return compiler->compileWS(std::move(modelToCompile), config);
         }
     };
@@ -917,7 +915,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             }
         }
 
-        check_weightless_cache_attribute_occurrence(originalModel, ov::npuw::wsh::context_from(properties).get());
+        check_weightless_cache_attribute_occurrence(originalModel);
     }
 
     const std::optional<std::vector<ov::Tensor>> initBlobs =

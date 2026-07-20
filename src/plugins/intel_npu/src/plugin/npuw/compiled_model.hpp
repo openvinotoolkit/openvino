@@ -32,9 +32,6 @@ class Plugin;
 }
 
 namespace ov {
-namespace weight_sharing {
-struct Context;
-}  // namespace weight_sharing
 namespace npuw {
 class ICompiledModel : public ov::ICompiledModel {
 public:
@@ -203,8 +200,7 @@ private:
 
     // For full deserialization flow with weights (promoted to ICompiledModel_v0)
     // For weightless serialization flow
-    void store_const_offsets(const std::shared_ptr<ov::Model>& model,
-                             const ov::weight_sharing::Context* ctx = nullptr);
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
     // finalize_weights_bank() promoted to ICompiledModel_v0
     void detach_memory();

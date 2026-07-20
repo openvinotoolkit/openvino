@@ -13,7 +13,6 @@
 #include "place.hpp"
 
 namespace ov {
-class AlignedBuffer;
 namespace frontend {
 namespace tensorflow_lite {
 
@@ -27,7 +26,6 @@ public:
                     std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> sparsity,
                     const void* data,
                     size_t data_size = 0,
-                    std::shared_ptr<ov::AlignedBuffer> source_buffer = nullptr,
                     std::size_t source_id = 0,
                     std::size_t bin_offset = 0)
         : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
@@ -35,7 +33,6 @@ public:
           m_sparsity(sparsity),
           m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()),
           m_data_size(m_sparsity == nullptr || m_sparsity->is_disabled() ? data_size : 0),
-          m_source_buffer(std::move(source_buffer)),
           m_source_id(source_id),
           m_bin_offset(bin_offset) {};
 
@@ -70,9 +67,6 @@ public:
         return m_data_size;
     }
 
-    const std::shared_ptr<ov::AlignedBuffer>& get_source_buffer() const {
-        return m_source_buffer;
-    }
     std::size_t get_source_id() const {
         return m_source_id;
     }
@@ -86,7 +80,6 @@ protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
     size_t m_data_size = 0;
-    std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
     std::size_t m_source_id = 0;
     std::size_t m_bin_offset = 0;
 };

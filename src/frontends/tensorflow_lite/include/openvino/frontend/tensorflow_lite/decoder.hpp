@@ -11,7 +11,6 @@
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
-class AlignedBuffer;
 namespace frontend {
 namespace tensorflow_lite {
 
@@ -26,11 +25,9 @@ struct TENSORFLOW_LITE_FRONTEND_API TensorMetaInfo {
     // Optional weight-sharing identity. When m_source_id != 0 the frontend
     // builds the resulting ov::op::v0::Constant with an IBufferDescriptor
     // carrying (m_source_id, m_bin_offset), so downstream consumers (e.g.
-    // ov::weight_sharing::Context / NPUW) can identify shared weights via
-    // Constant->m_data->get_descriptor(). When m_source_buffer is set and
-    // contains m_tensor_data, the offset is derived by ptr arithmetic;
-    // otherwise m_bin_offset is used verbatim.
-    std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
+    // ov::weight_sharing / NPUW) can identify shared weights via
+    // Constant->m_data->get_descriptor(). m_bin_offset is used verbatim as the
+    // offset of this weight within its (caller-chosen) source id.
     std::size_t m_source_id = 0;
     std::size_t m_bin_offset = 0;
 };
