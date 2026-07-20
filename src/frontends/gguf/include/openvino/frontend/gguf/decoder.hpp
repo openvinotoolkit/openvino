@@ -5,10 +5,14 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
-#include <string>
 
 namespace ov::frontend::gguf {
 

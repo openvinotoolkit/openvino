@@ -8,8 +8,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "gguf.hpp"
-#include "openvino/core/node.hpp"
+#include "gguf.hpp"  // gguf_tensor_type; also pulls ov::Tensor / ov::Shape via runtime/tensor.hpp
+
+namespace ov {
+class Node;  // only used as std::shared_ptr<ov::Node> below -- forward declaration suffices
+}
 
 namespace ov::frontend::gguf {
 

@@ -5,8 +5,9 @@
 #pragma once
 
 #include <memory>
-#include "openvino/core/node.hpp"
 #include <utility>
+
+#include "openvino/core/node_vector.hpp"  // ov::Output, ov::OutputVector (+ Node fwd decl)
 
 #include "node_context.hpp"
 
