@@ -98,7 +98,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-if (LINUX)
+if (ENABLE_IO_URING AND LINUX)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::liburing)
 endif()
 

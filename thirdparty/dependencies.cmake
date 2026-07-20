@@ -558,7 +558,7 @@ endif()
 # liburing (io_uring)
 #
 
-if(LINUX)
+if(ENABLE_IO_URING AND LINUX)
     add_subdirectory(thirdparty/liburing EXCLUDE_FROM_ALL)
     set_property(TARGET openvino_liburing PROPERTY EXPORT_NAME liburing)
     ov_developer_package_export_targets(TARGET openvino::liburing
