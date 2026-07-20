@@ -720,7 +720,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
         manager.register_pass<ov::intel_gpu::MarkBatchedNmsStaticClassCount>();
         manager.register_pass<ov::intel_gpu::ConvertBatchedNmsToMulticlassNms>();
-        manager.register_pass<ov::intel_gpu::KeepNMSBoundaryPrecision>();
+        // manager.register_pass<ov::intel_gpu::KeepNMSBoundaryPrecision>();
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
