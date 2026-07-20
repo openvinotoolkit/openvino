@@ -903,12 +903,10 @@ void for_each_op_recursive(const std::shared_ptr<Model>& model, const std::funct
 }
 }  // namespace
 
-// A TF1 While loop is built from internal control-flow helper ops (Switch/Merge/Enter/Exit/
-// NextIteration/LoopCond, all FrameworkNode subclasses). After conversion these must be fully
-// fused into a Loop and no such helper op may survive on the resulting model - a surviving helper
-// keeps the TF GraphDef it pins alive (that was the memory leak). Conditional-flow markers may
-// still be present in rt_info: they now hold Switch nodes via weak_ptr, so they no longer own
-// (leak) anything - hence this test checks for leftover helper ops, not for marker absence.
+// A TF1 While loop must fuse fully into a Loop, leaving no control-flow helper op (Switch/Merge/
+// Enter/Exit/NextIteration/LoopCond, all FrameworkNode subclasses); a surviving helper pins the TF
+// GraphDef alive (the memory leak). Checks helper-op absence, not marker absence - weak_ptr markers
+// may legitimately remain in rt_info without owning anything.
 TEST(FrontEndConvertTrickyModels, ModelTF1WhileNoLeftoverControlFlow) {
     shared_ptr<Model> model = nullptr;
     ASSERT_NO_THROW(model = convert_model("model_tf1_while/model_tf1_while.pbtxt"));

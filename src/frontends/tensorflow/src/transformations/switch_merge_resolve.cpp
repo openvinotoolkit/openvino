@@ -57,8 +57,7 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
             auto eliminated_markers = merge_node->get_eliminated_cond_flow_marker();
 
             // combine all Switch nodes for which conditional flow is resolved
-            // by the current Merge node (get_switch_nodes_set_by_cond_index locks the marker's
-            // weak_ptr references into shared_ptr for the duration of the fusion)
+            // by the current Merge node
             unordered_set<shared_ptr<Switch>> switch_nodes;
             for (const auto& eliminated_marker : eliminated_markers) {
                 auto curr_switch_nodes = merge_node->get_switch_nodes_set_by_cond_index(eliminated_marker);

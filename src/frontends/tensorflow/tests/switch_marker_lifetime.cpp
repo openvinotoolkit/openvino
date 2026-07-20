@@ -2,23 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Regression test for a memory leak in the TensorFlow frontend: a Switch node used to store a
-// shared_ptr to itself inside its own rt_info conditional-flow marker (CfMarkerType), creating an
-// ownership cycle. Such a Switch was never freed and transitively kept the whole TF GraphDef alive
-// (via FrameworkNode -> decoder -> GraphDef), which LeakSanitizer reported against generated
-// protobuf. The fix stores Switch nodes as weak_ptr, so the marker no longer owns the node.
-//
-// This test reproduces the exact ownership pattern that propagate_conditional_flow builds for a
-// Switch node (see src/tf_utils.cpp) and asserts, via the weak_ptr/expired idiom, that dropping all
-// external strong references frees the Switch. With the pre-fix shared_ptr marker the node would
-// stay alive (expired() == false); with the weak_ptr marker it is released (expired() == true).
+// Regression test for a TF frontend memory leak: a Switch node stored a shared_ptr to itself in its
+// own rt_info conditional-flow marker (CfMarkerType), an ownership cycle that kept the node - and
+// the TF GraphDef it pins via its decoder - alive forever. The fix stores Switch nodes as weak_ptr.
+// This reproduces the marker propagate_conditional_flow builds (see src/tf_utils.cpp) and asserts,
+// via weak_ptr::expired(), that dropping all strong references frees the Switch.
 
 #include <memory>
 
 #include "gtest/gtest.h"
+// CfMarkerType / set_cf_marker come from the frontend src/tf_utils.hpp, pulled in by switch.hpp.
 #include "helper_ops/switch.hpp"
 #include "openvino/op/parameter.hpp"
-#include "tf_utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
