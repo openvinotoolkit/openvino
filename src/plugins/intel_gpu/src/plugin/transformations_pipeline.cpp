@@ -100,7 +100,6 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
-#include "plugin/transformations/keep_nms_boundary_precision.hpp"
 #include "plugin/transformations/convert_batched_nms_to_multiclass_nms.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -720,7 +719,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
         manager.register_pass<ov::intel_gpu::MarkBatchedNmsStaticClassCount>();
         manager.register_pass<ov::intel_gpu::ConvertBatchedNmsToMulticlassNms>();
-        // manager.register_pass<ov::intel_gpu::KeepNMSBoundaryPrecision>();
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
