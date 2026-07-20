@@ -11,9 +11,7 @@
 #include "gguf.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Build the OpenVINO node for a GGUF weight with base name `base` (the tensor name without
 // the trailing ".weight", e.g. "blk.0.attn_q" or "token_embd"). Quantized weights become a
@@ -47,6 +45,4 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
 // Map a ggml quant type name (e.g. "Q4_K") to its gguf_tensor_type id. Throws if unknown.
 gguf_tensor_type gguf_type_from_name(const std::string& quant_type);
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

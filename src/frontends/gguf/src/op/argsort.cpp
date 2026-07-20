@@ -3,10 +3,10 @@
 //
 
 #include <memory>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/topk.hpp>
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/topk.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

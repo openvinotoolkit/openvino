@@ -3,9 +3,9 @@
 //
 
 #include <memory>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/convert.hpp>
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

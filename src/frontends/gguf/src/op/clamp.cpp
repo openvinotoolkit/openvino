@@ -3,7 +3,7 @@
 //
 
 #include <memory>
-#include <openvino/op/clamp.hpp>
+#include "openvino/op/clamp.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

@@ -4,14 +4,14 @@
 
 #include "op_table.hpp"
 
-#include <openvino/op/add.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/matmul.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/softplus.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/tanh.hpp>
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 
 #include "utils.hpp"
 

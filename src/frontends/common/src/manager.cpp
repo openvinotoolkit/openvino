@@ -4,6 +4,9 @@
 
 #include "openvino/frontend/manager.hpp"
 
+#include <set>
+#include <string>
+
 #include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/env_util.hpp"
@@ -14,6 +17,18 @@
 
 using namespace ov;
 using namespace ov::frontend;
+
+namespace {
+// Frontends that are installed and loadable but must not be exposed through the generic
+// model-loading API: they are not returned by get_available_front_ends() and are never
+// auto-selected by load_by_model / load_by_framework. Such a frontend is intended for direct
+// linkage only (the caller constructs it explicitly). Kept as a manager-side name list rather
+// than a FrontEndPluginInfo flag so the public plugin-info struct / ABI stays unchanged.
+bool is_hidden_frontend(const std::string& name) {
+    static const std::set<std::string> hidden_frontends = {"gguf"};
+    return hidden_frontends.count(name) != 0;
+}
+}  // namespace
 
 class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
@@ -59,7 +74,7 @@ public:
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
             // Hidden frontends are not selectable by name through the generic API.
-            if (plugin.get_creator().m_hidden) {
+            if (is_hidden_frontend(plugin.get_creator().m_name)) {
                 continue;
             }
             if (plugin.get_creator().m_name == framework) {
@@ -79,7 +94,7 @@ public:
                 continue;
             }
             // Hidden frontends are for direct linkage only; do not advertise them.
-            if (plugin_info.get_creator().m_hidden) {
+            if (is_hidden_frontend(plugin_info.get_creator().m_name)) {
                 continue;
             }
             names.push_back(plugin_info.get_creator().m_name);
@@ -100,7 +115,7 @@ public:
                 continue;
             }
             // Hidden frontends are for direct linkage only; never auto-select them.
-            if (plugin.get_creator().m_hidden) {
+            if (is_hidden_frontend(plugin.get_creator().m_name)) {
                 continue;
             }
             auto fe = plugin.get_creator().m_creator();

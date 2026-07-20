@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/constant.hpp>
-#include <openvino/op/group_conv.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/transpose.hpp>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include <vector>
 
 #include "node_context.hpp"

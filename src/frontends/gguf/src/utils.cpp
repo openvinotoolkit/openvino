@@ -8,21 +8,21 @@
 #include <cstddef>
 #include <memory>
 #include <numeric>
-#include <openvino/op/add.hpp>
-#include <openvino/op/clamp.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/cos.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/maximum.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/sin.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/transpose.hpp>
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include <string>
 
 namespace ov {
@@ -84,7 +84,8 @@ float gguf_rope_yarn_corr_dim(int n_dims, int n_ctx_orig, float n_rot, float bas
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
 #endif
-    return n_dims * logf(n_ctx_orig / (n_rot * 2 * (float)M_PI)) / (2 * logf(base));
+    return static_cast<float>(n_dims) * logf(static_cast<float>(n_ctx_orig) / (n_rot * 2 * static_cast<float>(M_PI))) /
+           (2 * logf(base));
 }
 
 void gguf_rope_yarn_corr_dims(int n_dims,
@@ -128,7 +129,7 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     const size_t n_dims_half = n_dims >> 1;
     const int n_ctx_orig = rope_config.n_ctx_orig;
 
-    const float theta_scale = powf(freq_base, -2.0f / n_dims);
+    const float theta_scale = powf(freq_base, -2.0f / static_cast<float>(n_dims));
 
     std::vector<float> factor(n_dims_half);
 
@@ -140,7 +141,7 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
         std::vector<int64_t> gather_indices(n_dims_half);
         for (size_t j = 0; j < n_dims_half; j++) {
             gather_indices[j] = j % 3;
-            factor[j] = std::pow(theta_scale, j);
+            factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{n_dims_half}, gather_indices);

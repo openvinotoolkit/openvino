@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 #include <utility>
 
 #include "node_context.hpp"

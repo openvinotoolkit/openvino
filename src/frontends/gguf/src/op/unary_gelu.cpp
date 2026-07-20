@@ -6,8 +6,8 @@
 #include "op_table.hpp"
 #include "utils.hpp"
 
-#include <openvino/core/node_output.hpp>
-#include <openvino/op/gelu.hpp>
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/gelu.hpp"
 
 namespace ov {
 namespace frontend {

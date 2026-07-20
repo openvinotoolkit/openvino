@@ -3,11 +3,11 @@
 //
 
 #include <memory>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/tile.hpp>
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/tile.hpp"
 #include <vector>
 
 #include "node_context.hpp"

@@ -26,11 +26,11 @@ namespace gguf {
 //
 // The library is installed alongside the other frontends, so it exports the standard plugin
 // registration entry points (get_api_version / get_front_end_data) -- otherwise FrontEndManager
-// would throw while scanning the frontend directory. It registers itself as HIDDEN
-// (FrontEndPluginInfo::m_hidden), which keeps it out of get_available_front_ends() and prevents
-// load_by_model / load_by_framework from ever selecting it. supported_impl() also returns false.
-// Direct linkers are unaffected. Flip m_hidden to false only once this frontend gains file-based
-// loading and passes production review.
+// would throw while scanning the frontend directory. FrontEndManager treats "gguf" as a HIDDEN
+// frontend (manager.cpp is_hidden_frontend) which keeps it out of get_available_front_ends() and
+// prevents load_by_model / load_by_framework from ever selecting it; supported_impl() also returns
+// false. Direct linkers are unaffected. Remove "gguf" from that manager-side list only once this
+// frontend gains file-based loading and passes production review.
 
 struct FrontEnd::Impl {
     std::unordered_map<std::string, CreatorFunction> op_extension_translators;
@@ -134,6 +134,5 @@ GGUF_FRONTEND_C_API void* get_front_end_data() {
     res->m_creator = []() {
         return std::make_shared<ov::frontend::gguf::FrontEnd>();
     };
-    res->m_hidden = true;
     return res;
 }

@@ -7,9 +7,7 @@
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Internal placeholder op for a ggml SET_ROWS (a scatter-write of rows into a destination
 // tensor). translate_set_rows always emits this op instead of a device-specific ScatterUpdate,
@@ -38,6 +36,4 @@ public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

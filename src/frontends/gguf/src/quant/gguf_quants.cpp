@@ -8,7 +8,7 @@
 #include <cstring>
 #include <memory>
 #include <numeric>
-#include <openvino/core/parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <sstream>
 
 #include "gguf.hpp"
@@ -245,10 +245,10 @@ static void dequant_row_q5_k_f32(const uint8_t* row, size_t cols, float* y) {
             get_scale_min_k4(is + 1, sc, &s2, &m2);
             const float d1 = d * s1, mn1 = dmin * m1, d2 = d * s2, mn2 = dmin * m2;
             for (int l = 0; l < 32; ++l) {
-                yy[l] = d1 * ((ql[l] & 0xF) + ((qh[l] & u1) ? 16 : 0)) - mn1;
+                yy[l] = d1 * static_cast<float>((ql[l] & 0xF) + ((qh[l] & u1) ? 16 : 0)) - mn1;
             }
             for (int l = 0; l < 32; ++l) {
-                yy[32 + l] = d2 * ((ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0)) - mn2;
+                yy[32 + l] = d2 * static_cast<float>((ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0)) - mn2;
             }
             ql += 32;
             is += 2;

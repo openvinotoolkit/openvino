@@ -5,19 +5,19 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/core/node_output.hpp>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/broadcast.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/softmax.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include <vector>
 
 #include "node_context.hpp"
@@ -104,7 +104,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
         is_attention_sinks_input_shape(context.get_input_shape(1), context.get_output_shape());
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
-    const size_t sinks_input_idx = second_input_is_sinks ? 1 : 2;
+    const int sinks_input_idx = second_input_is_sinks ? 1 : 2;
 
     if (!has_mask) {
         if (has_sinks) {
@@ -139,8 +139,8 @@ OutputVector translate_soft_max(const NodeContext& context) {
                                       "SOFT_MAX ALiBi requires a static head-count dimension");
         const uint32_t n_head = static_cast<uint32_t>(in_ps[0].get_length());
         const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
-        const float m0 = std::pow(2.0f, -max_bias / n_head_log2);
-        const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / n_head_log2);
+        const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(n_head_log2));
+        const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
         std::vector<float> slopes(n_head);
         for (uint32_t h = 0; h < n_head; ++h) {
             slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1)) : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));

@@ -10,9 +10,7 @@
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class GGUF_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -65,6 +63,4 @@ private:
     std::shared_ptr<Impl> m_impl;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

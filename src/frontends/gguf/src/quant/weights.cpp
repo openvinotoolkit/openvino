@@ -62,10 +62,12 @@ ov::Shape per_group_shape(const ov::Shape& orig, size_t num_groups) {
 std::shared_ptr<ov::op::v0::Constant> make_compressed_weight_constant(ov::element::Type et,
                                                                       const ov::Shape& shape,
                                                                       const ov::Tensor& weight) {
-    return std::make_shared<ov::op::v0::Constant>(
-        et, shape, static_cast<const void*>(weight.data()), std::shared_ptr<void>(new ov::Tensor(weight), [](ov::Tensor* p) {
-            delete p;
-        }));
+    // Keep the source ov::Tensor alive for the Constant's lifetime via the shared-buffer ctor
+    // (no raw new/delete; the Constant does not copy the bytes).
+    return std::make_shared<ov::op::v0::Constant>(et,
+                                                  shape,
+                                                  static_cast<const void*>(weight.data()),
+                                                  std::make_shared<ov::Tensor>(weight));
 }
 
 // Q4_0 symmetric: i4 weights (XOR-converted from u4) + f16 scale, no zero-point.

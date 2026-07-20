@@ -6,9 +6,9 @@
 #include "op_table.hpp"
 #include "utils.hpp"
 
-#include <openvino/core/node_output.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/sigmoid.hpp>
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sigmoid.hpp"
 
 namespace ov {
 namespace frontend {

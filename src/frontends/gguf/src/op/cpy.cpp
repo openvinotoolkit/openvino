@@ -7,7 +7,7 @@
 #include "utils.hpp"
 
 #include <memory>
-#include <openvino/op/convert.hpp>
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace frontend {

@@ -3,12 +3,12 @@
 //
 
 #include <memory>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/maximum.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/reduce_sum.hpp>
-#include <openvino/op/sqrt.hpp>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sqrt.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

@@ -5,8 +5,8 @@
 #include <functional>
 #include <memory>
 #include <numeric>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/reshape.hpp>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "node_context.hpp"

@@ -4,9 +4,9 @@
 
 #include "op_table.hpp"
 #include "utils.hpp"
-#include <openvino/op/constant.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/slice.hpp>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
 #include <vector>
 namespace ov {
 namespace frontend {
@@ -18,8 +18,9 @@ OutputVector translate_view(const NodeContext & context) {
 
     if (context.get_attribute<int>("op_case", 0) == 2) {
         auto dst_shape = context.get_output_shape().to_shape();
-        return rename_outputs_with_suffix({process_view_input(context, 0, dst_shape[2] * dst_shape[3])},
-                                          context.get_name());
+        return rename_outputs_with_suffix(
+            {process_view_input(context, 0, static_cast<int>(dst_shape[2] * dst_shape[3]))},
+            context.get_name());
     }
     if (context.get_attribute<int>("op_case", 0) == 3) {
         auto input = context.get_input(0);

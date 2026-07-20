@@ -3,8 +3,8 @@
 //
 
 #include <memory>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/reduce_sum.hpp>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

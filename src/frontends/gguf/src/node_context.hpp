@@ -5,14 +5,12 @@
 #pragma once
 
 #include <cstdint>
-#include <openvino/frontend/node_context.hpp>
+#include "openvino/frontend/node_context.hpp"
 #include <string>
 
 #include "openvino/frontend/gguf/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 typedef std::map<std::string, Output<Node>> TensorMap;
 
@@ -75,6 +73,4 @@ private:
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::gguf::NodeContext&)>;
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

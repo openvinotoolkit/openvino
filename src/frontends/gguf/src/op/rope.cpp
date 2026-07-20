@@ -4,24 +4,24 @@
 
 #include <cstdint>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/core/node_output.hpp>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/cos.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/sin.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/split.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/transpose.hpp>
-#include <openvino/op/unsqueeze.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include <vector>
 
 #include "node_context.hpp"
@@ -77,7 +77,7 @@ OutputVector translate_rope(const NodeContext& context) {
 
     if (op_case == 2) {
         // The input comes from a VIEW
-        int slice_len = output_shape[2] * output_shape[3];
+        int slice_len = static_cast<int>(output_shape[2] * output_shape[3]);
         data_node = process_view_input(context, 0, slice_len).get_node_shared_ptr();
         data_node = std::make_shared<ov::op::v1::Reshape>(data_node, make_bhsd_shape(), false);
     }

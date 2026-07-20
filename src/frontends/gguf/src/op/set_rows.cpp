@@ -9,12 +9,12 @@
 
 #include <cstdint>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/squeeze.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
 
 namespace ov {
 namespace frontend {

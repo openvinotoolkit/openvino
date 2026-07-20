@@ -6,9 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 namespace pass {
 
 // Default lowering of the internal SetRows op into the stateless (llama.cpp-faithful) form:
@@ -25,6 +23,4 @@ public:
 };
 
 }  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

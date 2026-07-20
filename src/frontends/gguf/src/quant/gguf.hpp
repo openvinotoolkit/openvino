@@ -15,9 +15,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // GGUF tensor (quantization) type ids, matching the on-disk GGUF format numbering.
 // Only the subset the frontend handles is enumerated explicitly; others are accepted
@@ -140,6 +138,4 @@ GGUFLoad get_gguf_data(const std::string& file);
 // file_type) from parsed metadata.
 std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<std::string, GGUFMetaData>& metadata);
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

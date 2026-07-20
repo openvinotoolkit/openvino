@@ -5,13 +5,13 @@
 #include <climits>
 #include <cstdint>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/transpose.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/transpose.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

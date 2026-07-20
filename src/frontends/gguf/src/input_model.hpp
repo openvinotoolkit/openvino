@@ -7,16 +7,14 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <openvino/frontend/input_model.hpp>
+#include "openvino/frontend/input_model.hpp"
 #include <string>
 #include <vector>
 
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class FrontEnd;
 
@@ -42,6 +40,4 @@ private:
     std::shared_ptr<GgufDecoder> m_decoder;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

@@ -5,15 +5,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <openvino/core/shape.hpp>
-#include <openvino/core/strides.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/extractimagepatches.hpp>
-#include <openvino/op/pad.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/transpose.hpp>
-#include <openvino/op/util/attr_types.hpp>
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/extractimagepatches.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include <vector>
 
 #include "node_context.hpp"

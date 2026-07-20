@@ -8,9 +8,7 @@
 #include "node_context.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class TranslateSession {
 public:
@@ -29,6 +27,4 @@ private:
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

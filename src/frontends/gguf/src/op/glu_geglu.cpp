@@ -3,12 +3,12 @@
 //
 
 #include <memory>
-#include <openvino/core/node_output.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/gelu.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/sigmoid.hpp>
-#include <openvino/op/slice.hpp>
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/slice.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"

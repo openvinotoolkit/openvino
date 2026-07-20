@@ -6,13 +6,11 @@
 
 #include <cstdint>
 #include <map>
-#include <openvino/core/node.hpp>
-#include <openvino/frontend/decoder.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/frontend/decoder.hpp"
 #include <string>
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
 // the translators used to dereference by byte offset. A decoder is responsible for
@@ -118,6 +116,4 @@ public:
     //   - at node scope, the ROPE translator reads the same key for the op's own config.
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
