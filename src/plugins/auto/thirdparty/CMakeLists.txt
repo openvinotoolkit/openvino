@@ -35,9 +35,16 @@ if(NOT TARGET ClientApi)
     return()
 endif()
 
-# Ship the ClientApi DLL next to the AUTO plugin binary. This is a plain runtime
-# artifact install, not part of any CMake EXPORT set, so it cannot trigger
-# "not in any export set" errors when OpenVINOTargets is installed/exported.
+set(OV_AUTO_IPF_INCLUDE_DIRS
+    "${_ipf_ef_dir}/extras/c_wrapper"
+    "${_ipf_ef_dir}/src/clientapi"
+    "${_ipf_ef_dir}/src/shared"
+    PARENT_SCOPE)
+
+set(OV_AUTO_IPF_IMPLIB
+    "$<TARGET_LINKER_FILE:ClientApi>"
+    PARENT_SCOPE)
+
 install(TARGETS ClientApi
         RUNTIME DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
