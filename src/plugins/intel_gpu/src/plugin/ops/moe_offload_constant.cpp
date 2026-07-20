@@ -187,7 +187,7 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
     const uint64_t w_fixed = w_total - w_moe;
 
     constexpr uint64_t RUNTIME_RESERVE_BYTES = 2048ull * 1024ull * 1024ull;  // 2 GiB
-    const double fit_safety = 0.8;
+    const double fit_safety = 0.95;
     const double budget_for_moe =
         static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed) - static_cast<double>(RUNTIME_RESERVE_BYTES);
 
@@ -195,11 +195,11 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
     if (budget_for_moe >= static_cast<double>(w_moe)) {
         ratio = 0;  // everything fits, no offload needed
     } else if (budget_for_moe <= 0.0) {
-        ratio = 80;  // extreme pressure: keep one slot resident (100 is invalid)
+        ratio = 70;  // extreme pressure: keep one slot resident (100 is invalid)
     } else {
         const double resident_fraction = budget_for_moe / static_cast<double>(w_moe);
         const long r = std::lround((1.0 - resident_fraction) * 100.0);
-        ratio = static_cast<size_t>(std::clamp<long>(r, 0, 80));
+        ratio = static_cast<size_t>(std::clamp<long>(r, 0, 70));
     }
 
     std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
