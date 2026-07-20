@@ -66,10 +66,10 @@ public:
     }
 
     void SetUp() override {
-        std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(target_device, configuration) = this->GetParam();
         // Generic network
         actualNetwork = ov::test::utils::make_split_conv_concat();
         // Quite simple network
@@ -458,8 +458,9 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::Core ie;
 
-    utils::LoggerLevelGuard levelGuard(ov::log::Level::WARNING);
-    const ov::log::Level baseline = ov::log::Level::WARNING;
+    // if the log level leaks, the second compile will produce WARNING logs and the test will fail
+    utils::LoggerLevelGuard levelGuard(ov::log::Level::ERR);
+    const ov::log::Level baseline = ov::log::Level::ERR;
 
     {
         utils::LogCallbackGuard silentGuard(nullptr);
@@ -468,7 +469,6 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
     ASSERT_EQ(::intel_npu::Logger::global().level(), baseline)
         << "Per-call log::level(WARNING) contaminated Logger::global() after compile_model returned";
 
-    // second compile with no per-call log level should not inherit the WARNING level from the first compile
     std::string secondCompileLogs;
     {
         utils::LogCallbackGuard captureGuard([&](std::string_view m) {
@@ -477,8 +477,8 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
         });
         OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
     }
-    EXPECT_EQ(secondCompileLogs.find("[INFO]"), std::string::npos)
-        << "Per-call log::level from first compile contaminated the second compile.\n"
+    EXPECT_EQ(secondCompileLogs.find("[WARNING]"), std::string::npos)
+        << "Per-call log::level(WARNING) from first compile contaminated the second compile.\n"
            "Captured output snippet:\n"
         << secondCompileLogs.substr(0, 500);
 }
