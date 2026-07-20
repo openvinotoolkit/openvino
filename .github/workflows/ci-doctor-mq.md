@@ -46,9 +46,10 @@ engine:
 network: defaults
 
 imports:
-  - shared/ci-doctor-mq/notify-teams.md
-  - shared/ci-doctor-mq/notify-teams-recurring.md
-  - shared/ci-doctor-mq/rerun-failed-jobs.md
+  - shared/agentic-workflows/download-failure-logs.md
+  - shared/agentic-workflows/notify-teams.md
+  - shared/agentic-workflows/notify-teams-recurring.md
+  - shared/agentic-workflows/rerun-failed-jobs.md
 
 safe-outputs:
   add-comment:
@@ -64,83 +65,6 @@ tools:
     max-file-size: 1048576 # 1MB max
     max-patch-size: 1048576 # 1MB max
     max-file-count: 500
-
-steps:
-  - name: Download CI failure logs
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
-      REPO: ${{ github.repository }}
-    run: |
-      set -e
-      LOG_DIR="/tmp/gh-aw/agent/ci-doctor/logs"
-      FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
-      mkdir -p "$LOG_DIR" "$FILTERED_DIR"
-
-      echo "=== CI Doctor: Pre-downloading logs for run $RUN_ID ==="
-
-      # Get failed jobs and their failed steps
-      gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
-        --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
-        > "$LOG_DIR/failed-jobs.json"
-
-      FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-jobs.json")
-      echo "Found $FAILED_COUNT failed job(s)"
-
-      if [ "$FAILED_COUNT" -eq 0 ]; then
-        echo "No failed jobs found, skipping log download"
-        exit 0
-      fi
-
-      echo "Failed jobs:"
-      cat "$LOG_DIR/failed-jobs.json"
-
-      # Download logs for each failed job and apply generic error heuristics
-      jq -r '.[].id' "$LOG_DIR/failed-jobs.json" | while read -r JOB_ID; do
-        LOG_FILE="$LOG_DIR/job-${JOB_ID}.log"
-        echo "Downloading log for job $JOB_ID..."
-        gh api "repos/$REPO/actions/jobs/$JOB_ID/logs" > "$LOG_FILE" 2>/dev/null \
-          || echo "(log download failed)" > "$LOG_FILE"
-        echo "  -> Saved $(wc -l < "$LOG_FILE") lines to $LOG_FILE"
-
-        # Apply generic heuristics: find lines with common error indicators
-        HINTS_FILE="$FILTERED_DIR/job-${JOB_ID}-hints.txt"
-        grep -n -m 30 -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
-          "$LOG_FILE" > "$HINTS_FILE" 2>/dev/null || true
-
-        if [ -s "$HINTS_FILE" ]; then
-          echo "  -> Pre-located $(wc -l < "$HINTS_FILE") hint line(s) in $HINTS_FILE"
-        else
-          echo "  -> No error hints found in $LOG_FILE"
-        fi
-      done
-
-      # Write summary for the agent
-      SUMMARY_FILE="/tmp/gh-aw/agent/ci-doctor/summary.txt"
-      {
-        echo "=== CI Doctor Pre-Analysis ==="
-        echo "Run ID: $RUN_ID"
-        echo ""
-        echo "Failed jobs (details in $LOG_DIR/failed-jobs.json):"
-        jq -r '.[] | "  Job \(.id): \(.name)\n    Failed steps: \(.failed_steps | join(", "))"' \
-          "$LOG_DIR/failed-jobs.json"
-        echo ""
-        echo "Downloaded log files ($LOG_DIR):"
-        for LOG_FILE in "$LOG_DIR"/job-*.log; do
-          [ -f "$LOG_FILE" ] || continue
-          echo "  $LOG_FILE ($(wc -l < "$LOG_FILE") lines)"
-        done
-        echo ""
-        echo "Filtered hint files ($FILTERED_DIR):"
-        for HINTS_FILE in "$FILTERED_DIR"/*-hints.txt; do
-          [ -s "$HINTS_FILE" ] || continue
-          echo "  $HINTS_FILE ($(wc -l < "$HINTS_FILE") matches)"
-          head -3 "$HINTS_FILE" | sed 's/^/    /'
-        done
-      } | tee "$SUMMARY_FILE"
-
-      echo ""
-      echo "✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
