@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-20-11-14-11-000-29735441172",
+  "timestamp": "2026-07-20T11:14:11Z",
+  "run_id": "29735441172",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29735441172",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36885",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36885",
+  "author": "Maxim-Doronin",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_f32 Expected : acl_f32 on ARM64",
+  "signature": "primtype is unexpected unknown f32 expected acl f32|Flaky Test",
+  "signature_hash": "0de8f57e3fb03230",
+  "confidence": "High",
+  "failed_jobs": [
+    "CPU functional tests / CPU functional tests"
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure",
+    "Value of: primTypeCheck(primType)",
+    "Actual: false",
+    "Expected: true",
+    "primType is unexpected : unknown_f32 Expected : acl_f32",
+    "FAILED smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?]_TS=(2.4.4.1)_(2.17.5.4)_(1.2.3.4)_(1.3.3.3)_inputPRC=f32_specialValue=none_targetPRC=i32__inFmts=nchw_outFmts=nchw_primitive=acl"
+  ],
+  "root_cause": "The ARM64 ACL Convert test expects the acl_f32 primitive for f32->i32 conversion, but the actual primitive selected was unknown_f32 (JIT/reference fallback). This is a known intermittent issue on the Linux ARM64 runner where the ACL backend occasionally fails to select its kernel for the Convert op, resulting in fallback to an unrecognized primitive. The PR under test (NPU plugin -Warray-bounds suppression) does not touch CPU or ACL code and cannot cause this failure.",
+  "reproduction_steps": "Run ov_cpu_func_tests --gtest_filter=smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs* on an ARM64 machine; failure is intermittent.",
+  "recommended_actions": [
+    "Re-run the failed job to confirm the test is flaky",
+    "If the test fails reproducibly after re-run, investigate ACL kernel selection logic for Convert f32->i32 in src/plugins/intel_cpu/src/nodes/convert.cpp"
+  ],
+  "prevention_strategies": "Add the test to the known-flaky list for ARM64 or add a retry mechanism. Consider investigating ACL primitive selection stability for Convert operations.",
+  "historical_context": "Similar primTypeCheck failures have been recorded multiple times for ARM64 ACL Convert tests (unknown_i32/i8/f32 vs acl_*). These are consistently unrelated to the PR being merged and represent an intermittent runner-side ACL dispatch issue."
+}

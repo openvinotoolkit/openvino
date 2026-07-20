@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "primtype is unexpected unknown f32 expected acl f32|Flaky Test",
+  "signature_hash": "0de8f57e3fb03230",
+  "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_f32 Expected : acl_f32 on ARM64",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-20T11:14:11Z",
+  "last_seen": "2026-07-20T11:14:11Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29735441172"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36885"
+  ],
+  "recent_timestamps": [
+    "2026-07-20T11:14:11Z"
+  ],
+  "rerun_search_string": "primType is unexpected"
+}
