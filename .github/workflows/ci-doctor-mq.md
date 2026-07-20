@@ -294,15 +294,17 @@ Logs have been pre-downloaded before this session started:
 Every JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:
 
 - **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/investigation.schema.json`
-  Applies to every file under `investigations/` **except** `index.json`.
+  Applies to every `<timestamp>-<run-id>.json` file under `investigations/` **except** the aggregate `index.json`.
 - **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`
   Applies to every `<signature-hash>.json` file under `patterns/`.
+- **Investigations index** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/index.schema.json`
+  Applies to the single aggregate `investigations/index.json` file.
 
-Rules that apply to both artefact types:
+Rules that apply to all artefact types:
 
 - Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout — the previous lack of a schema is the reason older investigation/pattern files had inconsistent structures.
 - Set `"schema_version": "1.0"` on every artefact you write.
-- Both schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
+- These schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
 - Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.
 - Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.
 
@@ -322,7 +324,42 @@ Rules that apply to both artefact types:
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
    - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
-   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
+   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` following the **MANDATORY append-only read-modify-write procedure** in step 1a below. Never recreate this file from scratch.
+
+1a. **Update Investigations Index — MANDATORY append-only read-modify-write procedure**:
+
+   The index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` is a single **append-only** aggregate that references every investigation ever recorded. It MUST conform to the **index schema** (`index.schema.json`). Losing or overwriting previously recorded entries is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly.
+
+   **Step A — Read the existing index (never skip):**
+   - Attempt to read `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`.
+   - If it exists, parse it as JSON into `existing`. If it exists but fails to parse (corrupted/truncated), **do NOT overwrite it**: copy it aside to `index.corrupt-<timestamp>.json`, then reconstruct `existing.entries` by scanning every `*.json` investigation record already present under `investigations/` (excluding `index.json` itself) so no prior investigation is dropped.
+   - If the file does NOT exist, set `existing = { "schema_version": "1.0", "total": 0, "entries": [] }`.
+   - Normalize legacy shapes: if `existing` has a deprecated `investigations` array, merge its elements into `existing.entries` (deduplicating by `investigation_id`+`run_id`) and drop the `investigations` key. Map any legacy `id` field to `investigation_id`.
+   - Record `PREV_COUNT = length(existing.entries)`.
+
+   **Step B — Append the current investigation (never remove or replace prior entries):**
+   - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `pr_number` (string or null).
+   - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.
+   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries`. The only allowed mutations are: appending a new entry, or updating a single matching existing entry in place.
+
+   **Step C — Recompute and write:**
+   - Set `total = length(entries)`.
+   - Assert the **never-shrink invariant**: `total >= PREV_COUNT`. If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index.
+   - Write the object `{ schema_version: "1.0", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.
+
+   **Step D — MANDATORY verification (read-back check):**
+   - Read `index.json` back, parse it, and validate against `index.schema.json` (see the validation procedure in the "Artefact schemas" block).
+   - Verify `total == length(entries)` and `total >= PREV_COUNT`.
+   - Verify the current investigation's `investigation_id` is present in `entries` exactly once.
+   - Verify every entry that was in the pre-write `existing.entries` is still present (no prior entry was dropped).
+   - If any check fails, **do not leave the shrunken/invalid index on disk** — restore from the pre-write copy and redo from Step A.
+
+   **Common failure modes to avoid:**
+   - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.
+   - Skipping Step A and overwriting instead of appending.
+   - Writing a `total` smaller than the previous run's `total`.
+   - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.
+
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -367,6 +404,7 @@ Rules that apply to both artefact types:
            → deduplicate by URL, then truncate to first 10 entries
        record.recent_timestamps = [NOW] + existing.recent_timestamps
            → keep only entries where timestamp >= (NOW - 24 hours)
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← recompute per Step C.1 (refresh always)
    ELSE:
        record.schema_version = "1.0"
        record.signature   = the <normalized-error>|<category> signature string from Step A
@@ -379,7 +417,16 @@ Rules that apply to both artefact types:
        record.recent_run_urls = [CURRENT_RUN_URL]
        record.affected_prs = (if CURRENT_PR_URL: [CURRENT_PR_URL] else [])
        record.recent_timestamps = [NOW]
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← compute per Step C.1
    ~~~
+
+   **Step C.1 — Compute and verify `RERUN_SEARCH_STRING` (the workflow_rerunner hook):**
+   This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), which greps the failed run's logs for this string and, on a match, re-runs the failed jobs — exactly like the static entries in `.github/scripts/workflow_rerun/errors_to_look_for.json`. A rerun only helps for **transient** failures, and a string that never matches is useless:
+   - IF `category` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service` (i.e. a deterministic `Code Issue`/`Dependencies`/`Configuration` failure a restart cannot fix): set `RERUN_SEARCH_STRING = null`. A search string here would make the rerunner loop on an unfixable failure.
+   - ELSE: set `RERUN_SEARCH_STRING` to a **short, stable substring taken verbatim from a single raw log line** that uniquely identifies this failure (e.g., `Could not resolve host`, `Connection reset by peer`, `runner has received a shutdown signal`). Strip everything volatile that changes between runs or across jobs: absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and embedded job/runner/OS/shard names.
+   - Always recompute on update so a category change (e.g. `Flaky Test` → `Code Issue`) correctly clears or sets the string.
+
+   **Verify a non-null value against the rerunner's exact matcher** ([`log_analyzer.py`](../scripts/workflow_rerun/log_analyzer.py)): it normalizes a string by replacing each run of non-alphanumeric chars (`[^A-Za-z0-9]+`) with one space, lower-casing, and stripping (so `Could not resolve host: github.com` → `could not resolve host github com`), then checks whether the normalized string is a plain substring of a **single** normalized log line (matches never span line breaks). Confirm the normalized `RERUN_SEARCH_STRING` is a substring of a normalized real log line from the pre-downloaded logs, is non-empty after normalization, and is specific enough to avoid matching benign lines (no bare `error`/`failed`/`warning`). If you cannot satisfy this, set `RERUN_SEARCH_STRING = null` rather than store an unverified guess.
 
    **Step D — Write the file:**
    Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
@@ -392,6 +439,8 @@ Rules that apply to both artefact types:
    - `recent_timestamps` contains the current timestamp `NOW` as the first entry
    - `last_seen` equals `NOW`
    - `first_seen` has NOT changed from `existing.first_seen` (if file existed before)
+   - `rerun_search_string` is present and is either a non-empty string (only for the transient categories `Flaky Test`/`Infrastructure`/`Network`/`External Service`) or `null` (for every other category)
+   - if `rerun_search_string` is non-null, it still satisfies the Step C.1 verification (normalized substring of a single actual failure-log line, non-empty after normalization); otherwise set it to `null`
 
    If any check fails, you have a bug in your write logic. Fix it before proceeding.
 
@@ -412,6 +461,22 @@ Rules that apply to both artefact types:
    **Validation before calling notify_teams:** Read back the current pattern file one more time. The `count` field in the file MUST equal the `occurrence_count` value you are about to pass to `notify_teams`. If they differ, go back to Step B and redo the update.
 
 4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.
+
+5. **Backfill Missing `rerun_search_string` Fields — MANDATORY sweep, every run:**
+
+   Some pattern files were written before `rerun_search_string` existed and are missing the field entirely (as opposed to having it explicitly set to `null`). Every time you run Phase 5, after step 2 has written/updated the current failure's pattern file, sweep **all** other files in `/tmp/gh-aw/repo-memory/default/mq/patterns/` and backfill any that lack the key:
+
+   - For each `<signature-hash>.json` file in the patterns directory (including ones untouched by this run):
+     1. Read and parse the file.
+     2. If the `rerun_search_string` key is **already present** (even if its value is `null`), skip it — do not touch a file that already conforms to the schema.
+     3. If the key is **missing**, derive it from the file's own `signature` field (`<normalized-error>|<category>`) using the same rules as Step C.1, without needing the original failure logs:
+        - Split `signature` on the last `|` to recover `<normalized-error>` and `<category>`.
+        - IF `<category>` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service`: set `rerun_search_string = null`.
+        - ELSE: set `rerun_search_string = <normalized-error>` verbatim (the signature's error component was already stripped of volatile tokens per Step A, so no further normalization is needed). Since the original raw logs are unlikely to still be available for a backfill, you do NOT need to re-verify it against a live log line as Step C.1 otherwise requires — only confirm it is non-empty and not just generic noise (e.g., not solely `error`, `failed`, or `warning`). If it fails that minimal check, set it to `null` instead of guessing.
+     4. Write the updated object back to the same file, changing only the `rerun_search_string` key — do not alter `count`, timestamps, `signature`, `signature_hash`, or any other field.
+     5. Validate the rewritten file against `pattern.schema.json` (see the validation procedure in the "Artefact schemas" block) and confirm `rerun_search_string` is now present as either a non-empty string or `null`.
+
+   This step must never modify a file's `count`, `first_seen`, `last_seen`, or timestamp arrays — its only job is adding the missing key.
 
 ### Phase 5.5: Recurring Failure Escalation Check
 
