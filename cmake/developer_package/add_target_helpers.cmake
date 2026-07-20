@@ -170,6 +170,7 @@ function(ov_add_test_target_per_source)
         SOURCES
         LINK_LIBRARIES
         LABELS
+        INCLUDES
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -201,6 +202,10 @@ function(ov_add_test_target_per_source)
 
         if(ARG_LINK_LIBRARIES)
             target_link_libraries(${_target} PRIVATE ${ARG_LINK_LIBRARIES})
+        endif()
+
+        if (ARG_INCLUDES)
+            target_include_directories(${_target} PRIVATE ${ARG_INCLUDES})
         endif()
 
         add_test(NAME ${_target} COMMAND ${_target})
