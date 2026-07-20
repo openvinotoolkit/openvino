@@ -48,31 +48,31 @@ const std::vector<MatMulDecompressionShapeParams> group_input_shape_params_kleid
     {
         {{-1, -1, -1}, {{10, 40, 64}, {11, 40, 64}}}, // data_shape
         {64, 128},  // weights_shape
-        {64}        // group size
+        64        // group size
     },
     // group size not a multiple of 32 -> fall back to FP32 path
     {
         {{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, // data_shape
         {16, 32},  // weights_shape
-        {16}        // group size
+        16        // group size
     },
     // small/fast smoke case, numGroups=2
     {
         {{}, {{1, 1, 64}}},
         {64, 16},
-        {32}
+        32
     },
     // more than 2 groups
     {
         {{}, {{1, 4, 128}}},
         {128, 64},
-        {32}        // numGroups=4
+        32        // numGroups=4
     },
     // degenerate: group_size == IC -> numGroups=1, falls back to the non-group kernel path
     {
         {{}, {{1, 4, 32}}},
         {32, 40},
-        {32}
+        32
     }
 };
 
