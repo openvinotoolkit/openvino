@@ -163,6 +163,27 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
 }
 }  // namespace
 
+TEST(fully_connected_gpu, rank2_weights_are_not_treated_as_3d) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Test requires oneDNN FC support";
+
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({ov::PartialShape{64, 1, 1, 1}, data_types::f16, format::bfyx});
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        fully_connected("fc", input_info("input"), "weights", "", data_types::f16, 2, 2, true));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    const auto output_layout = network.get_output_layout("fc");
+    ASSERT_EQ(output_layout.get_partial_shape(), ov::PartialShape({1, 64, 1, 1}));
+}
+
 TEST(DISABLED_fully_connected_gpu, generic_random_short) {
     VF<cldnn::format> test_input_fmts = { cldnn::format::bfyx, cldnn::format::yxfb };
     VF<cldnn::format> test_weights_fmts = { cldnn::format::yxfb };
