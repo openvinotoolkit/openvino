@@ -196,11 +196,6 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
 
-    const std::optional<std::string> compatibility_descriptor = extract_compiler_compatibility_descriptor();
-    if (m_logger.level() >= ov::log::Level::DEBUG) {
-        log_contents(compatibility_descriptor);
-    }
-
     update_compiler_type_if_perf_count(m_config, backend, device_name);
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
@@ -222,8 +217,11 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "parse");
     m_logger.trace("Calling the parser");
-    m_graph =
-        parser->parse(main_schedule, m_config, std::move(weights_source), init_schedules, compatibility_descriptor);
+    m_graph = parser->parse(main_schedule,
+                            m_config,
+                            std::move(weights_source),
+                            init_schedules,
+                            extract_compiler_compatibility_descriptor());
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
@@ -256,7 +254,6 @@ void IBlobFormatImporter::log_contents(const std::optional<std::string>& compati
     // TODO?
 }
 
-// TODO comments, logs, ITT
 RawBlobImporter::RawBlobImporter(std::istream& compiler_main_schedule,
                                  const std::shared_ptr<const ov::Model>& original_model,
                                  const FilteredConfig& config)
