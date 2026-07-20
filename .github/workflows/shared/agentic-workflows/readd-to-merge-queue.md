@@ -27,7 +27,14 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
+        - name: Install PyGithub
+          run: python -m pip install --quiet PyGithub
         - name: Re-add pull request to merge queue
+          shell: python
           env:
             # A PAT or GitHub App token with `contents: write` and
             # `pull_requests: write` scope is required: the default GITHUB_TOKEN
@@ -35,105 +42,92 @@ safe-outputs:
             # start new workflow runs), so the re-queued PR would stall.
             GH_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
           run: |
-            set -euo pipefail
-            set +H  # disable bash history expansion so literal "!" in MARKER/comments is safe to paste/test interactively
+            import json
+            import os
+            import re
+            import subprocess
+            import sys
 
-            MARKER="<!-- ci-doctor-mq-readd -->"
+            from github import Auth, Github
 
-            if [ -z "${GH_TOKEN:-}" ]; then
-              echo "MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue." >&2
-              exit 1
-            fi
+            MARKER = "<!-- ci-doctor-mq-readd -->"
 
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
+            token = os.environ.get("GH_TOKEN", "")
+            if not token:
+                sys.exit("MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue.")
 
-            ITEM=$(jq -c '[.items[] | select(.type == "readd_to_merge_queue")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No readd_to_merge_queue item present in agent output" >&2
-              exit 1
-            fi
+            agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+            if not agent_output or not os.path.isfile(agent_output):
+                sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-            PR_NUMBER=$(echo "$ITEM"  | jq -r '.pr_number // ""')
-            REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-            REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
+            with open(agent_output, encoding="utf-8") as handle:
+                payload_items = json.load(handle).get("items", [])
+
+            items = [it for it in payload_items if it.get("type") == "readd_to_merge_queue"]
+            if not items:
+                sys.exit("No readd_to_merge_queue item present in agent output")
+            item = items[-1]
+
+            pr_number = item.get("pr_number") or ""
+            repository = item.get("repository") or ""
+            reason = item.get("reason") or ""
 
             # Validate pr_number is purely numeric to avoid API path/query injection.
-            if ! printf '%s' "$PR_NUMBER" | grep -Eq '^[0-9]+$'; then
-              echo "pr_number must be a numeric string, got: '$PR_NUMBER'" >&2
-              exit 1
-            fi
+            if not re.fullmatch(r"[0-9]+", pr_number):
+                sys.exit(f"pr_number must be a numeric string, got: '{pr_number}'")
 
             # Fall back to the current repository when none was supplied.
-            if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-              REPOSITORY="${GITHUB_REPOSITORY}"
-            fi
+            if not repository or repository == "not_found":
+                repository = os.environ.get("GITHUB_REPOSITORY", "")
 
             # Validate repository is in owner/repo form to avoid API path injection.
-            if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-              echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-              exit 1
-            fi
+            if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
+                sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
 
-            echo "Requested re-add of PR #$PR_NUMBER in $REPOSITORY to merge queue (reason: $REASON)"
+            print(f"Requested re-add of PR #{pr_number} in {repository} to merge queue (reason: {reason})")
+
+            github = Github(auth=Auth.Token(token))
+            pull = github.get_repo(repository).get_pull(int(pr_number))
 
             # Loop guard: if CI Doctor already re-added this PR (marker comment
             # present), do not re-add again to avoid queue thrash.
-            if gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json comments \
-                 --jq '.comments[].body' | grep -qF "$MARKER"; then
-              echo "PR #$PR_NUMBER already re-added by CI Doctor (marker comment found); skipping."
-              exit 0
-            fi
-
-            # Fetch PR state. Note: `gh pr view --json` does not expose merge-queue
-            # membership, so this job does not re-check whether the PR is still in
-            # the queue — that decision is made upstream by the agent (which only
-            # calls this tool when the PR was dropped), and re-running `gh pr merge`
-            # on an already-queued PR is safe.
-            PR_INFO=$(gh pr view "$PR_NUMBER" --repo "$REPOSITORY" \
-              --json state,isDraft,headRefOid)
-
-            PR_STATE=$(echo "$PR_INFO" | jq -r '.state // ""')
-            PR_DRAFT=$(echo "$PR_INFO" | jq -r '.isDraft // false')
-            PR_HEAD=$(echo "$PR_INFO"  | jq -r '.headRefOid // ""')
+            if any(MARKER in (comment.body or "") for comment in pull.get_issue_comments()):
+                print(f"PR #{pr_number} already re-added by CI Doctor (marker comment found); skipping.")
+                sys.exit(0)
 
             # Only re-add an open, non-draft, unmerged PR.
-            if [ "$PR_STATE" = "MERGED" ]; then
-              echo "PR #$PR_NUMBER is already merged; nothing to re-add."
-              exit 0
-            fi
-            if [ "$PR_STATE" != "OPEN" ]; then
-              echo "PR #$PR_NUMBER is not open (state=$PR_STATE); not re-adding."
-              exit 0
-            fi
-            if [ "$PR_DRAFT" = "true" ]; then
-              echo "PR #$PR_NUMBER is a draft; not re-adding."
-              exit 0
-            fi
+            if pull.merged:
+                print(f"PR #{pr_number} is already merged; nothing to re-add.")
+                sys.exit(0)
+            if pull.state != "open":
+                print(f"PR #{pr_number} is not open (state={pull.state}); not re-adding.")
+                sys.exit(0)
+            if pull.draft:
+                print(f"PR #{pr_number} is a draft; not re-adding.")
+                sys.exit(0)
 
             # Re-add the PR to the merge queue. On a branch that requires a merge
-            # queue, `gh pr merge` adds the PR to the queue (or enables auto-merge
-            # if required checks are still pending) instead of merging directly,
-            # using the queue's own configured merge method. A merge-method flag
-            # (`--squash`) is still required so the CLI runs non-interactively
-            # (otherwise it prompts / errors asking which method to use).
+            # queue, `gh pr merge` adds the PR to the queue (using the queue's own
+            # configured merge method) instead of merging directly. A merge-method
+            # flag (`--squash`) is required so the CLI runs non-interactively.
             # `--match-head-commit` guards against the head moving under us.
-            if [ -n "$PR_HEAD" ]; then
-              gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash --match-head-commit "$PR_HEAD"
-            else
-              gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash
-            fi
+            merge_command = ["gh", "pr", "merge", pr_number, "--repo", repository, "--squash"]
+            if pull.head.sha:
+                merge_command += ["--match-head-commit", pull.head.sha]
+            merge_result = subprocess.run(merge_command, capture_output=True, text=True)
+            if merge_result.returncode != 0:
+                sys.exit(f"Merge-queue enqueue failed: {merge_result.stderr.strip()}")
 
-            echo "Successfully requested re-add of PR #$PR_NUMBER to the merge queue."
+            print(f"Successfully requested re-add of PR #{pr_number} to the merge queue.")
 
             # Record a marker comment so subsequent CI Doctor runs do not re-add again.
-            COMMENT_BODY=$(printf '%s\n\n_CI Doctor re-added this pull request to the merge queue after a transient failure (reason: %s)._' \
-              "$MARKER" "$REASON")
-            gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body "$COMMENT_BODY"
+            comment_body = (
+                f"{MARKER}\n\n_CI Doctor re-added this pull request to the merge queue "
+                f"after a transient failure (reason: {reason})._"
+            )
+            pull.create_issue_comment(comment_body)
 
-            echo "Recorded re-add marker comment on PR #$PR_NUMBER."
+            print(f"Recorded re-add marker comment on PR #{pr_number}.")
 ---
 
 # CI Doctor MQ — Re-add Pull Request to Merge Queue

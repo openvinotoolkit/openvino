@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"600488595c17b89654f4d4883ee6598ef0ee51968908ccdb70e54160288502c8","body_hash":"5855202abc84d9e3adb58e5adac1755470e26008a6fa5ad9e8e68ff2b8aa9a01","compiler_version":"v0.82.13","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.70"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","MERGE_QUEUE_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"a5d8b7df9d4f9137bedb3d074d0a0b005f1e1996","version":"v0.82.13"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35","digest":"sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35@sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35","digest":"sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35@sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35","digest":"sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35@sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.6.0","digest":"sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3","pinned_image":"ghcr.io/github/github-mcp-server:v1.6.0@sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3"}]}
-=======
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"90822933252444bf8f6f70577de9f748f4d56d9eea46467f8684791bc0ac1fcf","body_hash":"a15021b22aee20af6f8b821bb9ba7ba81f9225e2fc85807b9bebbfe9f947484b","compiler_version":"v0.82.13","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.70"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"a5d8b7df9d4f9137bedb3d074d0a0b005f1e1996","version":"v0.82.13"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35","digest":"sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35@sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35","digest":"sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35@sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35","digest":"sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35@sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.6.0","digest":"sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3","pinned_image":"ghcr.io/github/github-mcp-server:v1.6.0@sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3"}]}
->>>>>>> ci/gha/ci-doctor-on-pr
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"415a645caecb687dab9d66d80d37f9cb872cb0f958eef2d358175b38b7bc59c7","body_hash":"5453aae8ea48a65fa83acd89b195dc9b2a39c963a88c3fd299c096fe39116194","compiler_version":"v0.82.13","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.70"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","MERGE_QUEUE_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"a309ff8b426b58ec0e2a45f0f869d46889d02405"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"a5d8b7df9d4f9137bedb3d074d0a0b005f1e1996","version":"v0.82.13"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35","digest":"sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.35@sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35","digest":"sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.35@sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35","digest":"sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.35@sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.6.0","digest":"sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3","pinned_image":"ghcr.io/github/github-mcp-server:v1.6.0@sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3"}]}
 # This file was automatically generated by gh-aw (v0.82.13). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -35,17 +30,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-<<<<<<< HEAD
-#     - shared/ci-doctor-mq/notify-teams-recurring.md
-#     - shared/ci-doctor-mq/notify-teams.md
-#     - shared/ci-doctor-mq/readd-to-merge-queue.md
-#     - shared/ci-doctor-mq/rerun-failed-jobs.md
-=======
 #     - shared/agentic-workflows/download-failure-logs.md
 #     - shared/agentic-workflows/notify-teams-recurring.md
 #     - shared/agentic-workflows/notify-teams.md
+#     - shared/agentic-workflows/readd-to-merge-queue.md
 #     - shared/agentic-workflows/rerun-failed-jobs.md
->>>>>>> ci/gha/ci-doctor-on-pr
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -63,6 +52,7 @@
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
 #   - actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+#   - actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #   - github/gh-aw-actions/setup@a5d8b7df9d4f9137bedb3d074d0a0b005f1e1996 # v0.82.13
 #
@@ -313,37 +303,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-<<<<<<< HEAD
-          cat << 'GH_AW_PROMPT_3b954374d02065df_EOF'
+          cat << 'GH_AW_PROMPT_59c26a7edc451954_EOF'
           <system>
-          GH_AW_PROMPT_3b954374d02065df_EOF
-=======
-          cat << 'GH_AW_PROMPT_dbc3661a1a429400_EOF'
-          <system>
-          GH_AW_PROMPT_dbc3661a1a429400_EOF
->>>>>>> ci/gha/ci-doctor-on-pr
+          GH_AW_PROMPT_59c26a7edc451954_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-<<<<<<< HEAD
-          cat << 'GH_AW_PROMPT_3b954374d02065df_EOF'
-=======
-          cat << 'GH_AW_PROMPT_dbc3661a1a429400_EOF'
->>>>>>> ci/gha/ci-doctor-on-pr
+          cat << 'GH_AW_PROMPT_59c26a7edc451954_EOF'
           <safe-output-tools>
           Tools: add_comment, missing_tool, missing_data, noop, notify_teams, notify_teams_recurring, readd_to_merge_queue, rerun_failed_jobs
           </safe-output-tools>
-<<<<<<< HEAD
-          GH_AW_PROMPT_3b954374d02065df_EOF
+          GH_AW_PROMPT_59c26a7edc451954_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_3b954374d02065df_EOF'
-=======
-          GH_AW_PROMPT_dbc3661a1a429400_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_dbc3661a1a429400_EOF'
->>>>>>> ci/gha/ci-doctor-on-pr
+          cat << 'GH_AW_PROMPT_59c26a7edc451954_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -372,29 +346,17 @@ jobs:
           {{/if}}
           </github-context>
 
-<<<<<<< HEAD
-          GH_AW_PROMPT_3b954374d02065df_EOF
+          GH_AW_PROMPT_59c26a7edc451954_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_3b954374d02065df_EOF'
-          </system>
-          {{#runtime-import .github/workflows/shared/ci-doctor-mq/notify-teams.md}}
-          {{#runtime-import .github/workflows/shared/ci-doctor-mq/notify-teams-recurring.md}}
-          {{#runtime-import .github/workflows/shared/ci-doctor-mq/rerun-failed-jobs.md}}
-          {{#runtime-import .github/workflows/shared/ci-doctor-mq/readd-to-merge-queue.md}}
-          {{#runtime-import .github/workflows/ci-doctor-mq.md}}
-          GH_AW_PROMPT_3b954374d02065df_EOF
-=======
-          GH_AW_PROMPT_dbc3661a1a429400_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_dbc3661a1a429400_EOF'
+          cat << 'GH_AW_PROMPT_59c26a7edc451954_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/agentic-workflows/download-failure-logs.md}}
           {{#runtime-import .github/workflows/shared/agentic-workflows/notify-teams.md}}
           {{#runtime-import .github/workflows/shared/agentic-workflows/notify-teams-recurring.md}}
           {{#runtime-import .github/workflows/shared/agentic-workflows/rerun-failed-jobs.md}}
+          {{#runtime-import .github/workflows/shared/agentic-workflows/readd-to-merge-queue.md}}
           {{#runtime-import .github/workflows/ci-doctor-mq.md}}
-          GH_AW_PROMPT_dbc3661a1a429400_EOF
->>>>>>> ci/gha/ci-doctor-on-pr
+          GH_AW_PROMPT_59c26a7edc451954_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -591,20 +553,20 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-<<<<<<< HEAD
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
-        name: Download CI failure logs
-        run: "set -e\nLOG_DIR=\"/tmp/gh-aw/agent/ci-doctor/logs\"\nFILTERED_DIR=\"/tmp/gh-aw/agent/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failure\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -m 30 -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/gh-aw/agent/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\""
-=======
           PR_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
         name: Download CI failure logs
-        run: "set -e\nLOG_DIR=\"/tmp/gh-aw/agent/ci-doctor/logs\"\nFILTERED_DIR=\"/tmp/gh-aw/agent/ci-doctor/filtered\"\nSUMMARY_FILE=\"/tmp/gh-aw/agent/ci-doctor/summary.txt\"\nmkdir -p \"$LOG_DIR\" \"$FILTERED_DIR\"\n\n# Download the log for a single failed job and pre-locate error hints.\ndownload_job_log() {\n  JOB_ID=\"$1\"\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -m 30 -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  fi\n}\n\n# Append the shared \"downloaded files\" + \"hint files\" footer to the summary.\nwrite_summary_footer() {\n  echo \"\"\n  echo \"Downloaded job log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n}\n\nif [ -n \"$RUN_ID\" ]; then\n  # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----\n  echo \"=== CI Doctor: Pre-downloading logs for run $RUN_ID ===\"\n\n  gh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n    --jq '[.jobs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failure\") | .name]}]' \\\n    > \"$LOG_DIR/failed-jobs.json\"\n\n  FAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\n  echo \"Found $FAILED_COUNT failed job(s)\"\n\n  {\n    echo \"=== CI Doctor Pre-Analysis ===\"\n    echo \"Run ID: $RUN_ID\"\n    echo \"\"\n    echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n    jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n      \"$LOG_DIR/failed-jobs.json\"\n  } > \"$SUMMARY_FILE\"\n\n  if [ \"$FAILED_COUNT\" -eq 0 ]; then\n    echo \"No failed jobs found, skipping log download\"\n  else\n    cat \"$LOG_DIR/failed-jobs.json\"\n    jq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n      download_job_log \"$JOB_ID\"\n    done\n  fi\n\n  write_summary_footer >> \"$SUMMARY_FILE\"\n\nelif [ -n \"$PR_NUMBER\" ]; then\n  # ---- pr mode: every failed run on a pull request head commit ----\n  echo \"=== CI Doctor: Pre-downloading logs for PR #$PR_NUMBER ===\"\n\n  HEAD_SHA=$(gh api \"repos/$REPO/pulls/$PR_NUMBER\" --jq '.head.sha' 2>/dev/null || echo \"\")\n  if [ -z \"$HEAD_SHA\" ]; then\n    echo \"Could not resolve a pull request head SHA (is this a PR comment?), skipping log download\"\n    echo \"No pull request context available.\" > \"$SUMMARY_FILE\"\n    exit 0\n  fi\n  echo \"PR head SHA: $HEAD_SHA\"\n\n  # Find all workflow runs for the PR head SHA that failed or were cancelled\n  gh api --paginate \"repos/$REPO/actions/runs?head_sha=$HEAD_SHA\" \\\n    --jq '[.workflow_runs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, url:.html_url, conclusion:.conclusion}]' \\\n    > \"$LOG_DIR/failed-runs.json\" 2>/dev/null || echo '[]' > \"$LOG_DIR/failed-runs.json\"\n\n  # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow\n  jq 'group_by(.name) | map(max_by(.id))' \"$LOG_DIR/failed-runs.json\" > \"$LOG_DIR/failed-runs.dedup.json\"\n  mv \"$LOG_DIR/failed-runs.dedup.json\" \"$LOG_DIR/failed-runs.json\"\n\n  FAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-runs.json\")\n  echo \"Found $FAILED_COUNT failed pipeline(s) on PR #$PR_NUMBER\"\n\n  {\n    echo \"=== CI Doctor Pre-Analysis (PR #$PR_NUMBER, head $HEAD_SHA) ===\"\n    echo \"\"\n    echo \"Failed pipelines (details in $LOG_DIR/failed-runs.json):\"\n    jq -r '.[] | \"  Run \\(.id): \\(.name) [\\(.conclusion)] \\(.url)\"' \"$LOG_DIR/failed-runs.json\"\n  } > \"$SUMMARY_FILE\"\n\n  if [ \"$FAILED_COUNT\" -eq 0 ]; then\n    echo \"No failed pipelines found, skipping log download\"\n  else\n    cat \"$LOG_DIR/failed-runs.json\"\n    jq -r '.[].id' \"$LOG_DIR/failed-runs.json\" | while read -r RUN_ID; do\n      gh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n        --jq '[.jobs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failure\") | .name]}]' \\\n        > \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\" 2>/dev/null || echo '[]' > \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\"\n\n      jq -r '.[].id' \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\" | while read -r JOB_ID; do\n        download_job_log \"$JOB_ID\"\n      done\n    done\n  fi\n\n  write_summary_footer >> \"$SUMMARY_FILE\"\n\nelse\n  echo \"Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.\"\n  echo \"No CI Doctor context (no RUN_ID or PR_NUMBER).\" > \"$SUMMARY_FILE\"\nfi\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
->>>>>>> ci/gha/ci-doctor-on-pr
+        run: "import glob\nimport json\nimport os\nimport re\nimport sys\nimport urllib.request\n\nfrom github import Auth, Github\n\nLOG_DIR = \"/tmp/gh-aw/agent/ci-doctor/logs\"\nFILTERED_DIR = \"/tmp/gh-aw/agent/ci-doctor/filtered\"\nSUMMARY_FILE = \"/tmp/gh-aw/agent/ci-doctor/summary.txt\"\nos.makedirs(LOG_DIR, exist_ok=True)\nos.makedirs(FILTERED_DIR, exist_ok=True)\n\nHINT_RE = re.compile(\n    r\"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\"\n)\n\nrepo_name = os.environ.get(\"REPO\", \"\")\nrun_id = (os.environ.get(\"RUN_ID\") or \"\").strip()\npr_number = (os.environ.get(\"PR_NUMBER\") or \"\").strip()\ntoken = os.environ.get(\"GH_TOKEN\", \"\")\n\ngithub = Github(auth=Auth.Token(token))\nrepo = github.get_repo(repo_name)\n\n\ndef line_count(text):\n    return text.count(\"\\n\")\n\n\ndef download_job_log(job):\n    \"\"\"Download the log for a single failed job and pre-locate error hints.\"\"\"\n    log_file = os.path.join(LOG_DIR, f\"job-{job.id}.log\")\n    print(f\"Downloading log for job {job.id}...\")\n    try:\n        with urllib.request.urlopen(job.logs_url()) as response:\n            content = response.read().decode(\"utf-8\", \"replace\")\n    except Exception:\n        content = \"(log download failed)\\n\"\n    with open(log_file, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(content)\n    print(f\"  -> Saved {line_count(content)} lines to {log_file}\")\n\n    hints_file = os.path.join(FILTERED_DIR, f\"job-{job.id}-hints.txt\")\n    matches = []\n    for number, line in enumerate(content.splitlines(), start=1):\n        if HINT_RE.search(line):\n            matches.append(f\"{number}:{line}\")\n            if len(matches) >= 30:\n                break\n    if matches:\n        with open(hints_file, \"w\", encoding=\"utf-8\") as handle:\n            handle.write(\"\\n\".join(matches) + \"\\n\")\n        print(f\"  -> Pre-located {len(matches)} hint line(s) in {hints_file}\")\n\n\ndef failed_jobs_for_run(workflow_run):\n    \"\"\"Return the failed/cancelled jobs of a run as serialisable dicts.\"\"\"\n    result = []\n    for job in workflow_run.jobs():\n        if job.conclusion in (\"failure\", \"cancelled\"):\n            failed_steps = [step.name for step in (job.steps or []) if step.conclusion == \"failure\"]\n            result.append({\"id\": job.id, \"name\": job.name, \"failed_steps\": failed_steps})\n    return result\n\n\ndef write_summary_footer(handle):\n    \"\"\"Append the shared 'downloaded files' + 'hint files' footer to the summary.\"\"\"\n    handle.write(\"\\n\")\n    handle.write(f\"Downloaded job log files ({LOG_DIR}):\\n\")\n    for log_file in sorted(glob.glob(os.path.join(LOG_DIR, \"job-*.log\"))):\n        with open(log_file, encoding=\"utf-8\") as fh:\n            count = line_count(fh.read())\n        handle.write(f\"  {log_file} ({count} lines)\\n\")\n    handle.write(\"\\n\")\n    handle.write(f\"Filtered hint files ({FILTERED_DIR}):\\n\")\n    for hints_file in sorted(glob.glob(os.path.join(FILTERED_DIR, \"*-hints.txt\"))):\n        with open(hints_file, encoding=\"utf-8\") as fh:\n            lines = fh.read().splitlines()\n        if not lines:\n            continue\n        handle.write(f\"  {hints_file} ({len(lines)} matches)\\n\")\n        for line in lines[:3]:\n            handle.write(f\"    {line}\\n\")\n\n\nif run_id:\n    # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----\n    print(f\"=== CI Doctor: Pre-downloading logs for run {run_id} ===\")\n\n    workflow_run = repo.get_workflow_run(int(run_id))\n    failed_jobs = failed_jobs_for_run(workflow_run)\n    with open(os.path.join(LOG_DIR, \"failed-jobs.json\"), \"w\", encoding=\"utf-8\") as handle:\n        json.dump(failed_jobs, handle, indent=2)\n\n    failed_count = len(failed_jobs)\n    print(f\"Found {failed_count} failed job(s)\")\n\n    with open(SUMMARY_FILE, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(\"=== CI Doctor Pre-Analysis ===\\n\")\n        handle.write(f\"Run ID: {run_id}\\n\")\n        handle.write(\"\\n\")\n        handle.write(f\"Failed jobs (details in {LOG_DIR}/failed-jobs.json):\\n\")\n        for job in failed_jobs:\n            handle.write(f\"  Job {job['id']}: {job['name']}\\n\")\n            handle.write(f\"    Failed steps: {', '.join(job['failed_steps'])}\\n\")\n\n    if failed_count == 0:\n        print(\"No failed jobs found, skipping log download\")\n    else:\n        print(json.dumps(failed_jobs, indent=2))\n        for job in workflow_run.jobs():\n            if job.conclusion in (\"failure\", \"cancelled\"):\n                download_job_log(job)\n\n    with open(SUMMARY_FILE, \"a\", encoding=\"utf-8\") as handle:\n        write_summary_footer(handle)\n\nelif pr_number:\n    # ---- pr mode: every failed run on a pull request head commit ----\n    print(f\"=== CI Doctor: Pre-downloading logs for PR #{pr_number} ===\")\n\n    try:\n        head_sha = repo.get_pull(int(pr_number)).head.sha\n    except Exception:\n        head_sha = \"\"\n    if not head_sha:\n        print(\"Could not resolve a pull request head SHA (is this a PR comment?), skipping log download\")\n        with open(SUMMARY_FILE, \"w\", encoding=\"utf-8\") as handle:\n            handle.write(\"No pull request context available.\\n\")\n        sys.exit(0)\n    print(f\"PR head SHA: {head_sha}\")\n\n    # Find all workflow runs for the PR head SHA that failed or were cancelled.\n    failed_runs = []\n    try:\n        for workflow_run in repo.get_workflow_runs(head_sha=head_sha):\n            if workflow_run.conclusion in (\"failure\", \"cancelled\"):\n                failed_runs.append({\n                    \"id\": workflow_run.id,\n                    \"name\": workflow_run.name,\n                    \"url\": workflow_run.html_url,\n                    \"conclusion\": workflow_run.conclusion,\n                })\n    except Exception:\n        failed_runs = []\n\n    # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow.\n    latest_by_name = {}\n    for entry in failed_runs:\n        current = latest_by_name.get(entry[\"name\"])\n        if current is None or entry[\"id\"] > current[\"id\"]:\n            latest_by_name[entry[\"name\"]] = entry\n    failed_runs = list(latest_by_name.values())\n\n    with open(os.path.join(LOG_DIR, \"failed-runs.json\"), \"w\", encoding=\"utf-8\") as handle:\n        json.dump(failed_runs, handle, indent=2)\n\n    failed_count = len(failed_runs)\n    print(f\"Found {failed_count} failed pipeline(s) on PR #{pr_number}\")\n\n    with open(SUMMARY_FILE, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(f\"=== CI Doctor Pre-Analysis (PR #{pr_number}, head {head_sha}) ===\\n\")\n        handle.write(\"\\n\")\n        handle.write(f\"Failed pipelines (details in {LOG_DIR}/failed-runs.json):\\n\")\n        for entry in failed_runs:\n            handle.write(f\"  Run {entry['id']}: {entry['name']} [{entry['conclusion']}] {entry['url']}\\n\")\n\n    if failed_count == 0:\n        print(\"No failed pipelines found, skipping log download\")\n    else:\n        print(json.dumps(failed_runs, indent=2))\n        for entry in failed_runs:\n            workflow_run = repo.get_workflow_run(int(entry[\"id\"]))\n            run_failed_jobs = failed_jobs_for_run(workflow_run)\n            run_jobs_path = os.path.join(LOG_DIR, f\"run-{entry['id']}-failed-jobs.json\")\n            with open(run_jobs_path, \"w\", encoding=\"utf-8\") as handle:\n                json.dump(run_failed_jobs, handle, indent=2)\n            for job in workflow_run.jobs():\n                if job.conclusion in (\"failure\", \"cancelled\"):\n                    download_job_log(job)\n\n    with open(SUMMARY_FILE, \"a\", encoding=\"utf-8\") as handle:\n        write_summary_footer(handle)\n\nelse:\n    print(\"Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.\")\n    with open(SUMMARY_FILE, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(\"No CI Doctor context (no RUN_ID or PR_NUMBER).\\n\")\n\nprint(\"\")\nprint(f\"Pre-analysis complete. Agent should start with {SUMMARY_FILE}\")\n"
+        shell: python
 
       - name: Configure Git credentials
         env:
@@ -1836,106 +1798,126 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
       - name: Send Teams notification
         run: |
-          set -euo pipefail
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
 
-          if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-            echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-            exit 1
-          fi
+          webhook_url = os.environ.get("TEAMS_WEBHOOK_URL", "")
+          if not webhook_url:
+              sys.exit("TEAMS_WEBHOOK_URL secret is not configured")
 
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
+          agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+          if not agent_output or not os.path.isfile(agent_output):
+              sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-          ITEM=$(jq -c '[.items[] | select(.type == "notify_teams")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No notify_teams item present in agent output" >&2
-            exit 1
-          fi
+          with open(agent_output, encoding="utf-8") as handle:
+              payload_items = json.load(handle).get("items", [])
 
-          TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-          FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-          PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-          DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-          PR_NUMBER=$(echo "$ITEM"        | jq -r '.pr_number // ""')
-          PR_URL=$(echo "$ITEM"           | jq -r '.pr_url // ""')
-          AUTHOR=$(echo "$ITEM"           | jq -r '.author // ""')
-          DB_ENTRIES=$(echo "$ITEM"       | jq -r '.db_entries // ""')
-          OCCURRENCES=$(echo "$ITEM"      | jq -r '.occurrence_count // ""')
-          STATISTICS=$(echo "$ITEM"       | jq -r '.statistics // ""')
-          STATISTICS_JSON=$(echo "$ITEM"  | jq -r '.statistics_json // ""')
+          items = [it for it in payload_items if it.get("type") == "notify_teams"]
+          if not items:
+              sys.exit("No notify_teams item present in agent output")
+          item = items[-1]
+
+          title = item.get("title") or ""
+          failed_workflow = item.get("failed_workflow") or ""
+          pipeline_url = item.get("pipeline_url") or ""
+          description = item.get("description") or ""
+          pr_number = item.get("pr_number") or ""
+          pr_url = item.get("pr_url") or ""
+          author = item.get("author") or ""
+          db_entries = item.get("db_entries") or ""
+          occurrences = item.get("occurrence_count") or ""
+          statistics = item.get("statistics") or ""
+          statistics_json = item.get("statistics_json") or ""
 
           # Persist the full statistics database as a workflow artifact for offline review.
-          STATS_DIR="${RUNNER_TEMP:-/tmp}/ci-doctor-mq-stats"
-          mkdir -p "$STATS_DIR"
-          if [ -n "$STATISTICS_JSON" ]; then
-            # Validate and pretty-print; fall back to raw on parse error.
-            if echo "$STATISTICS_JSON" | jq '.' > "$STATS_DIR/ci-doctor-mq-statistics.json" 2>/dev/null; then
-              echo "Wrote validated statistics JSON ($(wc -c < "$STATS_DIR/ci-doctor-mq-statistics.json") bytes)"
-            else
-              echo "Warning: statistics_json failed jq parse; storing raw payload" >&2
-              printf '%s' "$STATISTICS_JSON" > "$STATS_DIR/ci-doctor-mq-statistics.json"
-            fi
-          fi
-          if [ -n "$STATISTICS" ]; then
-            printf '%s\n' "$STATISTICS" > "$STATS_DIR/ci-doctor-mq-statistics.md"
-          fi
-          echo "stats_dir=$STATS_DIR" >> "$GITHUB_OUTPUT"
+          stats_dir = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "ci-doctor-mq-stats")
+          os.makedirs(stats_dir, exist_ok=True)
+          if statistics_json:
+              stats_json_path = os.path.join(stats_dir, "ci-doctor-mq-statistics.json")
+              try:
+                  # Validate and pretty-print; fall back to raw on parse error.
+                  parsed = json.loads(statistics_json)
+                  with open(stats_json_path, "w", encoding="utf-8") as handle:
+                      json.dump(parsed, handle, indent=2)
+                  print(f"Wrote validated statistics JSON ({os.path.getsize(stats_json_path)} bytes)")
+              except json.JSONDecodeError:
+                  print("Warning: statistics_json failed JSON parse; storing raw payload", file=sys.stderr)
+                  with open(stats_json_path, "w", encoding="utf-8") as handle:
+                      handle.write(statistics_json)
+          if statistics:
+              with open(os.path.join(stats_dir, "ci-doctor-mq-statistics.md"), "w", encoding="utf-8") as handle:
+                  handle.write(statistics + "\n")
+
+          github_output = os.environ.get("GITHUB_OUTPUT")
+          if github_output:
+              with open(github_output, "a", encoding="utf-8") as handle:
+                  handle.write(f"stats_dir={stats_dir}\n")
 
           # Build Adaptive Card facts conditionally (only include PR/author when present).
-          FACTS=$(jq -nc \
-            --arg pipeline_url    "$PIPELINE_URL" \
-            --arg pr_number       "$PR_NUMBER" \
-            --arg pr_url          "$PR_URL" \
-            --arg author          "$AUTHOR" \
-            --arg failed_workflow "$FAILED_WORKFLOW" \
-            --arg db_entries      "$DB_ENTRIES" \
-            --arg occurrences     "$OCCURRENCES" '
-              [
-                ( $failed_workflow | select(length > 0) | { title: "Workflow",    value: . } ),
-                ( $pipeline_url    | select(length > 0) | { title: "Pipeline",    value: ("[Open run](" + . + ")") } ),
-                ( $pr_number       | select(length > 0) | { title: "PR",          value: (if ($pr_url | length) > 0 then ("[#" + . + "](" + $pr_url + ")") else ("#" + .) end) } ),
-                ( $author          | select(length > 0) | { title: "Author",      value: ("@" + .) } ),
-                ( $occurrences     | select(length > 0) | { title: "Occurrences", value: (. + "×") } ),
-                ( $db_entries      | select(length > 0) | { title: "DB entries",  value: . } )
-              ] | map(select(. != null))')
+          facts = []
+          if failed_workflow:
+              facts.append({"title": "Workflow", "value": failed_workflow})
+          if pipeline_url:
+              facts.append({"title": "Pipeline", "value": f"[Open run]({pipeline_url})"})
+          if pr_number:
+              pr_value = f"[#{pr_number}]({pr_url})" if pr_url else f"#{pr_number}"
+              facts.append({"title": "PR", "value": pr_value})
+          if author:
+              facts.append({"title": "Author", "value": f"@{author}"})
+          if occurrences:
+              facts.append({"title": "Occurrences", "value": f"{occurrences}\u00d7"})
+          if db_entries:
+              facts.append({"title": "DB entries", "value": db_entries})
 
-          PAYLOAD=$(jq -nc \
-            --arg title "$TITLE" \
-            --arg description "$DESCRIPTION" \
-            --arg statistics "$STATISTICS" \
-            --argjson facts "$FACTS" '
-              {
-                type: "message",
-                attachments: [{
-                  contentType: "application/vnd.microsoft.card.adaptive",
-                  content: {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    type: "AdaptiveCard",
-                    version: "1.4",
-                    body: ([
-                      { type: "TextBlock", text: ("\ud83d\udd34 [MQ] " + $title), weight: "Bolder", size: "Medium", color: "Attention", wrap: true },
-                      { type: "FactSet", facts: $facts },
-                      { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" }
-                    ] + (if ($statistics | length) > 0 then [
-                      { type: "TextBlock", text: "Pattern Database Statistics", weight: "Bolder", size: "Medium", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $statistics, wrap: true, spacing: "Small" }
-                    ] else [] end))
-                  }
-                }]
-              }')
+          body = [
+              {"type": "TextBlock", "text": f"\U0001f534 [MQ] {title}", "weight": "Bolder", "size": "Medium", "color": "Attention", "wrap": True},
+              {"type": "FactSet", "facts": facts},
+              {"type": "TextBlock", "text": description, "wrap": True, "spacing": "Medium"},
+          ]
+          if statistics:
+              body.append({"type": "TextBlock", "text": "Pattern Database Statistics", "weight": "Bolder", "size": "Medium", "spacing": "Large", "separator": True})
+              body.append({"type": "TextBlock", "text": statistics, "wrap": True, "spacing": "Small"})
 
-          curl -sS --fail-with-body \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$TEAMS_WEBHOOK_URL"
+          payload = {
+              "type": "message",
+              "attachments": [{
+                  "contentType": "application/vnd.microsoft.card.adaptive",
+                  "content": {
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "type": "AdaptiveCard",
+                      "version": "1.4",
+                      "body": body,
+                  },
+              }],
+          }
+
+          request = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request) as response:
+                  print(f"Teams webhook responded with HTTP {response.status}: {response.read().decode('utf-8', 'replace')}")
+          except urllib.error.HTTPError as error:
+              sys.exit(f"Teams webhook failed with HTTP {error.code}: {error.read().decode('utf-8', 'replace')}")
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        shell: python
       - name: Upload statistics artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1963,78 +1945,86 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
       - name: Send recurring failure escalation to Teams
         run: |
-          set -euo pipefail
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
 
-          if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-            echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-            exit 1
-          fi
+          webhook_url = os.environ.get("TEAMS_WEBHOOK_URL", "")
+          if not webhook_url:
+              sys.exit("TEAMS_WEBHOOK_URL secret is not configured")
 
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
+          agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+          if not agent_output or not os.path.isfile(agent_output):
+              sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-          ITEM=$(jq -c '[.items[] | select(.type == "notify_teams_recurring")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No notify_teams_recurring item present in agent output" >&2
-            exit 1
-          fi
+          with open(agent_output, encoding="utf-8") as handle:
+              payload_items = json.load(handle).get("items", [])
 
-          TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-          FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-          PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-          RECENT_COUNT=$(echo "$ITEM"     | jq -r '.recent_count // ""')
-          DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-          AFFECTED_PRS=$(echo "$ITEM"     | jq -r '.affected_prs // ""')
-          RECENT_RUNS=$(echo "$ITEM"      | jq -r '.recent_run_urls // ""')
+          items = [it for it in payload_items if it.get("type") == "notify_teams_recurring"]
+          if not items:
+              sys.exit("No notify_teams_recurring item present in agent output")
+          item = items[-1]
 
-          FACTS=$(jq -nc \
-            --arg failed_workflow "$FAILED_WORKFLOW" \
-            --arg pipeline_url    "$PIPELINE_URL" \
-            --arg recent_count    "$RECENT_COUNT" '
-              [
-                { title: "Workflow",           value: $failed_workflow },
-                { title: "Pipeline",           value: ("[Latest run](" + $pipeline_url + ")") },
-                { title: "Hits (last 12 hrs)", value: ($recent_count + " occurrences") }
-              ]')
+          title = item.get("title") or ""
+          failed_workflow = item.get("failed_workflow") or ""
+          pipeline_url = item.get("pipeline_url") or ""
+          recent_count = item.get("recent_count") or ""
+          description = item.get("description") or ""
+          affected_prs = item.get("affected_prs") or ""
+          recent_runs = item.get("recent_run_urls") or ""
 
-          PAYLOAD=$(jq -nc \
-            --arg title "$TITLE" \
-            --arg description "$DESCRIPTION" \
-            --arg affected_prs "$AFFECTED_PRS" \
-            --arg recent_runs "$RECENT_RUNS" \
-            --argjson facts "$FACTS" '
-              {
-                type: "message",
-                attachments: [{
-                  contentType: "application/vnd.microsoft.card.adaptive",
-                  content: {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    type: "AdaptiveCard",
-                    version: "1.4",
-                    body: [
-                      { type: "TextBlock", text: ("\ud83d\udd01 [MQ] Recurring Failure: " + $title), weight: "Bolder", size: "Medium", color: "Warning", wrap: true },
-                      { type: "FactSet", facts: $facts },
-                      { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" },
-                      { type: "TextBlock", text: "### Affected PRs", weight: "Bolder", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $affected_prs, wrap: true, spacing: "Small" },
-                      { type: "TextBlock", text: "### Recent Failure Runs", weight: "Bolder", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $recent_runs, wrap: true, spacing: "Small" }
-                    ]
-                  }
-                }]
-              }')
+          facts = [
+              {"title": "Workflow", "value": failed_workflow},
+              {"title": "Pipeline", "value": f"[Latest run]({pipeline_url})"},
+              {"title": "Hits (last 12 hrs)", "value": f"{recent_count} occurrences"},
+          ]
 
-          curl -sS --fail-with-body \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$TEAMS_WEBHOOK_URL"
+          payload = {
+              "type": "message",
+              "attachments": [{
+                  "contentType": "application/vnd.microsoft.card.adaptive",
+                  "content": {
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "type": "AdaptiveCard",
+                      "version": "1.4",
+                      "body": [
+                          {"type": "TextBlock", "text": f"\U0001f501 [MQ] Recurring Failure: {title}", "weight": "Bolder", "size": "Medium", "color": "Warning", "wrap": True},
+                          {"type": "FactSet", "facts": facts},
+                          {"type": "TextBlock", "text": description, "wrap": True, "spacing": "Medium"},
+                          {"type": "TextBlock", "text": "### Affected PRs", "weight": "Bolder", "spacing": "Large", "separator": True},
+                          {"type": "TextBlock", "text": affected_prs, "wrap": True, "spacing": "Small"},
+                          {"type": "TextBlock", "text": "### Recent Failure Runs", "weight": "Bolder", "spacing": "Large", "separator": True},
+                          {"type": "TextBlock", "text": recent_runs, "wrap": True, "spacing": "Small"},
+                      ],
+                  },
+              }],
+          }
+
+          request = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request) as response:
+                  print(f"Teams webhook responded with HTTP {response.status}: {response.read().decode('utf-8', 'replace')}")
+          except urllib.error.HTTPError as error:
+              sys.exit(f"Teams webhook failed with HTTP {error.code}: {error.read().decode('utf-8', 'replace')}")
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        shell: python
 
   pre_activation:
     if: >
@@ -2164,110 +2154,108 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
       - name: Re-add pull request to merge queue
         run: |
-          set -euo pipefail
-          set +H  # disable bash history expansion so literal "!" in MARKER/comments is safe to paste/test interactively
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
 
-          MARKER="<!-- ci-doctor-mq-readd -->"
+          from github import Auth, Github
 
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue." >&2
-            exit 1
-          fi
+          MARKER = "<!-- ci-doctor-mq-readd -->"
 
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
+          token = os.environ.get("GH_TOKEN", "")
+          if not token:
+              sys.exit("MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue.")
 
-          ITEM=$(jq -c '[.items[] | select(.type == "readd_to_merge_queue")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No readd_to_merge_queue item present in agent output" >&2
-            exit 1
-          fi
+          agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+          if not agent_output or not os.path.isfile(agent_output):
+              sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-          PR_NUMBER=$(echo "$ITEM"  | jq -r '.pr_number // ""')
-          REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-          REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
+          with open(agent_output, encoding="utf-8") as handle:
+              payload_items = json.load(handle).get("items", [])
+
+          items = [it for it in payload_items if it.get("type") == "readd_to_merge_queue"]
+          if not items:
+              sys.exit("No readd_to_merge_queue item present in agent output")
+          item = items[-1]
+
+          pr_number = item.get("pr_number") or ""
+          repository = item.get("repository") or ""
+          reason = item.get("reason") or ""
 
           # Validate pr_number is purely numeric to avoid API path/query injection.
-          if ! printf '%s' "$PR_NUMBER" | grep -Eq '^[0-9]+$'; then
-            echo "pr_number must be a numeric string, got: '$PR_NUMBER'" >&2
-            exit 1
-          fi
+          if not re.fullmatch(r"[0-9]+", pr_number):
+              sys.exit(f"pr_number must be a numeric string, got: '{pr_number}'")
 
           # Fall back to the current repository when none was supplied.
-          if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-            REPOSITORY="${GITHUB_REPOSITORY}"
-          fi
+          if not repository or repository == "not_found":
+              repository = os.environ.get("GITHUB_REPOSITORY", "")
 
           # Validate repository is in owner/repo form to avoid API path injection.
-          if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-            echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-            exit 1
-          fi
+          if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
+              sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
 
-          echo "Requested re-add of PR #$PR_NUMBER in $REPOSITORY to merge queue (reason: $REASON)"
+          print(f"Requested re-add of PR #{pr_number} in {repository} to merge queue (reason: {reason})")
+
+          github = Github(auth=Auth.Token(token))
+          pull = github.get_repo(repository).get_pull(int(pr_number))
 
           # Loop guard: if CI Doctor already re-added this PR (marker comment
           # present), do not re-add again to avoid queue thrash.
-          if gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json comments \
-               --jq '.comments[].body' | grep -qF "$MARKER"; then
-            echo "PR #$PR_NUMBER already re-added by CI Doctor (marker comment found); skipping."
-            exit 0
-          fi
-
-          # Fetch PR state. Note: `gh pr view --json` does not expose merge-queue
-          # membership, so this job does not re-check whether the PR is still in
-          # the queue — that decision is made upstream by the agent (which only
-          # calls this tool when the PR was dropped), and re-running `gh pr merge`
-          # on an already-queued PR is safe.
-          PR_INFO=$(gh pr view "$PR_NUMBER" --repo "$REPOSITORY" \
-            --json state,isDraft,headRefOid)
-
-          PR_STATE=$(echo "$PR_INFO" | jq -r '.state // ""')
-          PR_DRAFT=$(echo "$PR_INFO" | jq -r '.isDraft // false')
-          PR_HEAD=$(echo "$PR_INFO"  | jq -r '.headRefOid // ""')
+          if any(MARKER in (comment.body or "") for comment in pull.get_issue_comments()):
+              print(f"PR #{pr_number} already re-added by CI Doctor (marker comment found); skipping.")
+              sys.exit(0)
 
           # Only re-add an open, non-draft, unmerged PR.
-          if [ "$PR_STATE" = "MERGED" ]; then
-            echo "PR #$PR_NUMBER is already merged; nothing to re-add."
-            exit 0
-          fi
-          if [ "$PR_STATE" != "OPEN" ]; then
-            echo "PR #$PR_NUMBER is not open (state=$PR_STATE); not re-adding."
-            exit 0
-          fi
-          if [ "$PR_DRAFT" = "true" ]; then
-            echo "PR #$PR_NUMBER is a draft; not re-adding."
-            exit 0
-          fi
+          if pull.merged:
+              print(f"PR #{pr_number} is already merged; nothing to re-add.")
+              sys.exit(0)
+          if pull.state != "open":
+              print(f"PR #{pr_number} is not open (state={pull.state}); not re-adding.")
+              sys.exit(0)
+          if pull.draft:
+              print(f"PR #{pr_number} is a draft; not re-adding.")
+              sys.exit(0)
 
           # Re-add the PR to the merge queue. On a branch that requires a merge
-          # queue, `gh pr merge` adds the PR to the queue (or enables auto-merge
-          # if required checks are still pending) instead of merging directly,
-          # using the queue's own configured merge method. A merge-method flag
-          # (`--squash`) is still required so the CLI runs non-interactively
-          # (otherwise it prompts / errors asking which method to use).
+          # queue, `gh pr merge` adds the PR to the queue (using the queue's own
+          # configured merge method) instead of merging directly. A merge-method
+          # flag (`--squash`) is required so the CLI runs non-interactively.
           # `--match-head-commit` guards against the head moving under us.
-          if [ -n "$PR_HEAD" ]; then
-            gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash --match-head-commit "$PR_HEAD"
-          else
-            gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash
-          fi
+          merge_command = ["gh", "pr", "merge", pr_number, "--repo", repository, "--squash"]
+          if pull.head.sha:
+              merge_command += ["--match-head-commit", pull.head.sha]
+          merge_result = subprocess.run(merge_command, capture_output=True, text=True)
+          if merge_result.returncode != 0:
+              sys.exit(f"Merge-queue enqueue failed: {merge_result.stderr.strip()}")
 
-          echo "Successfully requested re-add of PR #$PR_NUMBER to the merge queue."
+          print(f"Successfully requested re-add of PR #{pr_number} to the merge queue.")
 
           # Record a marker comment so subsequent CI Doctor runs do not re-add again.
-          COMMENT_BODY=$(printf '%s\n\n_CI Doctor re-added this pull request to the merge queue after a transient failure (reason: %s)._' \
-            "$MARKER" "$REASON")
-          gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body "$COMMENT_BODY"
+          comment_body = (
+              f"{MARKER}\n\n_CI Doctor re-added this pull request to the merge queue "
+              f"after a transient failure (reason: {reason})._"
+          )
+          pull.create_issue_comment(comment_body)
 
-          echo "Recorded re-add marker comment on PR #$PR_NUMBER."
+          print(f"Recorded re-add marker comment on PR #{pr_number}.")
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           GH_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
+        shell: python
 
   rerun_failed_jobs:
     needs:
@@ -2284,62 +2272,78 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
       - name: Re-run failed jobs
         run: |
-          set -euo pipefail
+          import json
+          import os
+          import re
+          import sys
 
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
+          from github import Auth, Github
 
-          ITEM=$(jq -c '[.items[] | select(.type == "rerun_failed_jobs")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No rerun_failed_jobs item present in agent output" >&2
-            exit 1
-          fi
+          agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+          if not agent_output or not os.path.isfile(agent_output):
+              sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-          RUN_ID=$(echo "$ITEM"     | jq -r '.run_id // ""')
-          REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-          REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
+          with open(agent_output, encoding="utf-8") as handle:
+              payload_items = json.load(handle).get("items", [])
+
+          items = [it for it in payload_items if it.get("type") == "rerun_failed_jobs"]
+          if not items:
+              sys.exit("No rerun_failed_jobs item present in agent output")
+          item = items[-1]
+
+          run_id = item.get("run_id") or ""
+          repository = item.get("repository") or ""
+          reason = item.get("reason") or ""
 
           # Validate run_id is purely numeric to avoid API path injection.
-          if ! printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$'; then
-            echo "run_id must be a numeric string, got: '$RUN_ID'" >&2
-            exit 1
-          fi
+          if not re.fullmatch(r"[0-9]+", run_id):
+              sys.exit(f"run_id must be a numeric string, got: '{run_id}'")
 
           # Fall back to the current repository when none was supplied.
-          if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-            REPOSITORY="${GITHUB_REPOSITORY}"
-          fi
+          if not repository or repository == "not_found":
+              repository = os.environ.get("GITHUB_REPOSITORY", "")
 
           # Validate repository is in owner/repo form to avoid API path injection.
-          if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-            echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-            exit 1
-          fi
+          if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
+              sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
 
-          echo "Requested re-run of failed jobs for $REPOSITORY run $RUN_ID (reason: $REASON)"
+          print(f"Requested re-run of failed jobs for {repository} run {run_id} (reason: {reason})")
+
+          token = os.environ.get("GH_TOKEN", "")
+          if not token:
+              sys.exit("GITHUB_TOKEN is not configured; cannot re-run failed jobs.")
+
+          github = Github(auth=Auth.Token(token))
+          run = github.get_repo(repository).get_workflow_run(int(run_id))
 
           # Guard against restart loops: if the run has already been attempted
           # more than once, do not re-run it again (mirrors rerunner.py).
-          ATTEMPT=$(gh api "repos/${REPOSITORY}/actions/runs/${RUN_ID}" --jq '.run_attempt')
-          if [ "${ATTEMPT:-1}" -gt 1 ]; then
-            echo "Run $RUN_ID already has $ATTEMPT attempts; not re-running to avoid loops."
-            exit 0
-          fi
+          attempt = run.run_attempt or 1
+          if attempt > 1:
+              print(f"Run {run_id} already has {attempt} attempts; not re-running to avoid loops.")
+              sys.exit(0)
 
           # Re-run ONLY the failed jobs of the analysed run.
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"
+          if not run.rerun_failed_jobs():
+              sys.exit(f"GitHub API rejected the re-run request for {repository} run {run_id}.")
 
-          echo "Successfully requested re-run of failed jobs for $REPOSITORY run $RUN_ID."
+          print(f"Successfully requested re-run of failed jobs for {repository} run {run_id}.")
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: python
 
   safe_outputs:
     needs:
