@@ -201,7 +201,8 @@ protected:
                                  extra_multiply,
                                  param_weights);
 
-        if((activations_precision == ov::element::f4e2m1 || weights_precision == ov::element::f4e2m1) && scale_precision_to_use== ov::element::f8e8m0) {
+        if ((activations_precision == ov::element::f4e2m1 || weights_precision == ov::element::f4e2m1) &&
+            scale_precision_to_use == ov::element::f8e8m0) {
             rel_threshold = threshold_f16;
         } else if (activations_precision == ov::element::f16) {
             abs_threshold = threshold_f16;
