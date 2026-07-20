@@ -92,6 +92,8 @@ jobs:
           submodules: 'recursive'
 
       - name: CMake configure
+        env:
+          CMAKE_EXTRA_ARGS: ${{ inputs.cmake-extra-args }}
         run: |
           cmake \
             -G "${CMAKE_GENERATOR}" \
@@ -103,20 +105,23 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            ${{ inputs.cmake-extra-args }} \
+            ${CMAKE_EXTRA_ARGS} \
             -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
       - name: Cmake build with clang-tidy enabled
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
         run: |
           cmake \
             --build "${BUILD_DIR}" \
             --parallel "$(($(nproc) - 1))" \
             --config "${CMAKE_BUILD_TYPE}" \
-            --target ${{ inputs.build-target }} \
-            -- ${{ inputs.build-extra-args }}
+            --target "${BUILD_TARGET}" \
+            -- ${BUILD_EXTRA_ARGS}
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
