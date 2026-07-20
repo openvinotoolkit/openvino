@@ -93,7 +93,7 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 
-if (LINUX)
+if (ENABLE_IO_URING AND LINUX)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::liburing)
 endif()
 
