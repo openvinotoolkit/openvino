@@ -57,10 +57,11 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
-      NEO_CACHE_STATS: 1
       NEO_CACHE_PERSISTENT: 1
+      NEO_CACHE_MAX_SIZE: 5368709120
     steps:
 
       - name: Download OpenVINO artifacts (package)
@@ -95,9 +96,9 @@ jobs:
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
           NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
-          NEO_CACHE_STATS: 1
           NEO_CACHE_PERSISTENT: 1
           cl_cache_dir: /root/.cache/neo_compiler_cache
+          NEO_CACHE_MAX_SIZE: 5368709120
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
@@ -114,8 +115,7 @@ jobs:
           else
             test_filter='*smoke*'
           fi
-          ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --report_unique_name --gtest_filter=$test_filter --gtest_output=json:${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json
-          sleep 7200 
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
