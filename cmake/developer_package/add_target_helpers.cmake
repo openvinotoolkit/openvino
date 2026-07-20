@@ -171,6 +171,8 @@ function(ov_add_test_target_per_source)
         LINK_LIBRARIES
         LABELS
         INCLUDES
+        # accept but ignore
+        DEPENDENCIES
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -195,7 +197,18 @@ function(ov_add_test_target_per_source)
     endif()
 
     foreach(_src IN LISTS ARG_SOURCES)
-        get_filename_component(_stem "${_src}" NAME_WE)
+        # Use the subdirectory-qualified stem to avoid collisions when two source files have the same basename 
+        # but live in different subdirectories.
+        file(RELATIVE_PATH _rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_src}")
+        get_filename_component(_stem_dir "${_rel}" DIRECTORY)
+        get_filename_component(_stem_base "${_rel}" NAME_WE)
+
+        if(_stem_dir)
+            string(REPLACE "/" "_" _stem_dir "${_stem_dir}")
+            set(_stem "${_stem_dir}_${_stem_base}")
+        else()
+            set(_stem "${_stem_base}")
+        endif()
         set(_target "${ARG_NAME}_${_stem}")
 
         add_executable(${_target} EXCLUDE_FROM_ALL ${_src})
