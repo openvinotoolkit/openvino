@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/core/node_vector.hpp"  // ov::Output, ov::OutputVector (+ Node fwd decl)
+#include "openvino/core/node_vector.hpp"
 
 #include "node_context.hpp"
 
