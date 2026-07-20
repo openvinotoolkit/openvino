@@ -43,21 +43,23 @@ protected:
     ov::Core ie;
 
 private:
-    ov::log::Level _savedLogLevel{ov::log::Level::NO};
+    std::optional<ov::test::utils::LoggerLevelGuard> _logGuard;
 
 public:
     void SetUp() override {
+        _logGuard.emplace(::intel_npu::Logger::global().level());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         OVCompiledModelPropertiesBase::SetUp();
+
         deviceName = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
 
         model = ov::test::utils::make_conv_pool_relu();
-        _savedLogLevel = ::intel_npu::Logger::global().level();
     }
 
     void TearDown() override {
-        ::intel_npu::Logger::global().setLevel(_savedLogLevel);
+        _logGuard.reset();
         OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(

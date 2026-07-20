@@ -30,18 +30,18 @@ protected:
     ov::Core core;
 
 private:
-    ov::log::Level _savedLogLevel{ov::log::Level::NO};
+    std::optional<utils::LoggerLevelGuard> _logGuard;
 
 public:
     void SetUp() override {
+        _logGuard.emplace(::intel_npu::Logger::global().level());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVCompiledModelPropertiesBase::SetUp();
         deviceName = GetParam();
-        _savedLogLevel = ::intel_npu::Logger::global().level();
     }
 
     void TearDown() override {
-        ::intel_npu::Logger::global().setLevel(_savedLogLevel);
+        _logGuard.reset();
         OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
