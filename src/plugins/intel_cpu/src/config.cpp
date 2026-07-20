@@ -603,11 +603,7 @@ void Config::updateProperties() {
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
     }
-    if (multiAppThreadSyncExecution) {
-        _config.insert({ov::intel_cpu::multi_app_thread_sync_execution.name(), "YES"});
-    } else {
-        _config.insert({ov::intel_cpu::multi_app_thread_sync_execution.name(), "NO"});
-    }
+   _config.insert(ov::intel_cpu::multi_app_thread_sync_execution.name(multiAppThreadSyncExecution));
     if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     } else {
