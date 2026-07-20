@@ -111,18 +111,18 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
 
 namespace {
 
-// Returns total physical system RAM in bytes, or 0 if unavailable.
+// Returns the amount of currently-free physical system RAM in bytes, or 0 if unavailable.
 // Used only on integrated GPUs, where device "global memory" is shared with system RAM.
-uint64_t get_total_system_ram_bytes() {
+uint64_t get_free_system_ram_bytes() {
 #if defined(_WIN32)
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     if (GlobalMemoryStatusEx(&status)) {
-        return static_cast<uint64_t>(status.ullTotalPhys);
+        return static_cast<uint64_t>(status.ullAvailPhys);
     }
     return 0;
 #elif defined(__linux__)
-    const long pages = sysconf(_SC_PHYS_PAGES);
+    const long pages = sysconf(_SC_AVPHYS_PAGES);
     const long page_size = sysconf(_SC_PAGE_SIZE);
     if (pages > 0 && page_size > 0) {
         return static_cast<uint64_t>(pages) * static_cast<uint64_t>(page_size);
@@ -169,14 +169,14 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
         return 0;
     }
 
-    // Memory budget: device memory for dGPU; for iGPU cap by total system RAM since the
-    // device "global memory" is shared with (and may differ from) host RAM reporting.
+    // Memory budget: device memory for dGPU; for iGPU cap by currently-free system RAM since
+    // the device "global memory" is shared with (and overstated relative to) actual free RAM.
     uint64_t m_budget = info.max_global_mem_size;
     const bool is_igpu = info.dev_type == cldnn::device_type::integrated_gpu;
     if (is_igpu) {
-        const uint64_t total_ram = get_total_system_ram_bytes();
-        if (total_ram > 0) {
-            m_budget = std::min<uint64_t>(m_budget, total_ram);
+        const uint64_t free_ram = get_free_system_ram_bytes();
+        if (free_ram > 0) {
+            m_budget = std::min<uint64_t>(m_budget, free_ram);
         }
     }
     if (m_budget == 0) {
@@ -186,10 +186,10 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
 
     const uint64_t w_fixed = w_total - w_moe;
 
-    constexpr uint64_t RUNTIME_RESERVE_BYTES = 2048ull * 1024ull * 1024ull;  // 2 GiB
     const double fit_safety = 0.95;
+    const double kv_runtime_conversation = w_total * 0.1;  // ~10% of total weights may be used for runtime allocations
     const double budget_for_moe =
-        static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed) - static_cast<double>(RUNTIME_RESERVE_BYTES);
+        static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed) - kv_runtime_conversation;
 
     size_t ratio;
     if (budget_for_moe >= static_cast<double>(w_moe)) {
@@ -205,9 +205,9 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
     std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
                    << " m_budget=" << m_budget
                    << " w_total=" << w_total
+                   << " kv_runtime_conversation=" << static_cast<long long>(kv_runtime_conversation)
                    << " w_moe=" << w_moe
                    << " w_fixed=" << w_fixed
-                   << " runtime_reserve=" << RUNTIME_RESERVE_BYTES
                    << " budget_for_moe=" << static_cast<long long>(budget_for_moe)
                    << " -> resolved offload_ratio=" << ratio << std::endl;
     return ratio;

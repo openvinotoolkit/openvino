@@ -86,10 +86,10 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
 
 /// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 99].
 /// Computes offloadable MoE routed-expert and fixed weight sizes from @p model,
-/// estimates available memory budget (device memory for dGPU, min(device, total
-/// system RAM) for iGPU), applies safety/mmap-fit heuristics, and subtracts a
-/// fixed runtime reserve of 1.5 GiB before deriving the offload percentage.
-/// Returns 0 when everything fits or the model has no MoE.
+/// estimates available memory budget (device memory for dGPU, min(device, free
+/// system RAM) for iGPU), and returns the percentage of routed-expert weights
+/// that should be streamed from disk. Returns 0 when everything fits or the
+/// model has no MoE.
 /// @param model    Transformed model containing MOECompressed op(s).
 /// @param info     Target device info (memory size and integrated/discrete type).
 size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_info& info);
