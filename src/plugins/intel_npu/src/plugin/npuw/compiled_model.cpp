@@ -121,6 +121,10 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     std::string weights_path;
     WeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
+    // Optional sub-region of the handle to map (Option B, fd-backed sharing).
+    // size 0 keeps the legacy whole-handle mapping at offset 0.
+    std::size_t handle_region_offset = 0;
+    std::size_t handle_region_size = 0;
     if (is_weightless) {
         if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
             handle_it != properties.end()) {
@@ -129,6 +133,16 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
             } else {
                 LOG_WARN("WEIGHTS_HANDLE_PROVIDER property is present but is not a FileHandleProvider; falling back to "
                          "other weightless import sources");
+            }
+        }
+        if (handle_provider) {
+            if (const auto it = properties.find(ov::intel_npu::npuw::weights_handle_region_size.name());
+                it != properties.end()) {
+                handle_region_size = it->second.as<std::size_t>();
+            }
+            if (const auto it = properties.find(ov::intel_npu::npuw::weights_handle_region_offset.name());
+                it != properties.end()) {
+                handle_region_offset = it->second.as<std::size_t>();
             }
         }
         if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
@@ -164,7 +178,11 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
             ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            if (handle_region_size != 0) {
+                mapped_memory = ov::load_mmap_object(handle, handle_region_offset, handle_region_size);
+            } else {
+                mapped_memory = ov::load_mmap_object(handle);
+            }
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }
@@ -173,7 +191,13 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
         }
     }
 
-    return WeightsContext(weights, weights_path, consts_cache, bf16_consts, handle_provider);
+    return WeightsContext(weights,
+                          weights_path,
+                          consts_cache,
+                          bf16_consts,
+                          handle_provider,
+                          handle_region_offset,
+                          handle_region_size);
 }
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {

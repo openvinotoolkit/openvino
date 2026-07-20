@@ -22,6 +22,17 @@ namespace ov::intel_npu::npuw {
 
 inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
 
+// Sub-region of the handle returned by NPUW_WEIGHTS_HANDLE_PROVIDER that holds
+// the weights pool. When the size is non-zero, NPUW maps only
+// [offset, offset+size) out of the handle instead of the whole file, so the
+// mapped base coincides with the pool start and per-constant descriptor offsets
+// (which are pool-relative) resolve as mapped->data() + offset. See fd-backed
+// weight sharing (Option B): the pool is a region embedded inside a larger
+// model file. Two scalar properties (rather than a struct) so callers outside
+// this plugin can set them without depending on a private type.
+inline constexpr ov::Property<std::size_t> weights_handle_region_offset{"NPUW_WEIGHTS_HANDLE_REGION_OFFSET"};
+inline constexpr ov::Property<std::size_t> weights_handle_region_size{"NPUW_WEIGHTS_HANDLE_REGION_SIZE"};
+
 }  // namespace ov::intel_npu::npuw
 
 #define INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)                                 \
