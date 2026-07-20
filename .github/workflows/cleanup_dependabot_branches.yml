@@ -8,13 +8,8 @@ on:
         required: false
         default: true
   schedule:
-    # at 06:00 every day
-    - cron: '0 6 * * *'
-  # TEMPORARY (for testing on this PR): run a forced dry-run
-  pull_request:
-    paths:
-      - '.github/workflows/cleanup_dependabot_branches.yml'
-      - '.github/scripts/dependabot_cleanup/**'
+    # at 06:00 every Monday
+    - cron: '0 6 * * 1'
 
 permissions: read-all
 
@@ -46,11 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Scheduled runs perform real deletions. Manual runs honor the dry_run input (defaults to true).
           # Reads as: if event is 'schedule' -> set to 'false' (delete); else use dry_run that's true by default.
-          # DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
-          # Only the daily schedule deletes for real. Manual runs honor the dry_run
-          # checkbox (default true). Any other event (e.g. pull_request) is forced to
-          # 'true' so it can never delete - it only previews.
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event_name == 'workflow_dispatch' && inputs.dry_run || 'true') }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
         run: |
           python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
             --repository-name ${GITHUB_REPOSITORY}
