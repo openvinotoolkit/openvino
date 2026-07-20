@@ -25,6 +25,9 @@ engine:
 
 network: defaults
 
+imports:
+  - shared/agentic-workflows/download-failure-logs.md
+
 safe-outputs:
   add-comment:
     max: 1
@@ -37,94 +40,6 @@ tools:
   repo-memory:
     branch-name: memory/ci-doctor-mq              # read-only access to the CI Doctor (Merge Queue) knowledge base
     allowed-extensions: [".md", ".json", ".jsonl"]
-
-steps:
-  - name: Download CI failure logs for the pull request
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_NUMBER: ${{ github.event.issue.number }}
-      REPO: ${{ github.repository }}
-    run: |
-      set -e
-      LOG_DIR="/tmp/gh-aw/agent/ci-doctor/logs"
-      FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
-      mkdir -p "$LOG_DIR" "$FILTERED_DIR"
-
-      echo "=== CI Doctor: Pre-downloading logs for PR #$PR_NUMBER ==="
-
-      # Resolve the pull request head SHA
-      HEAD_SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha' 2>/dev/null || echo "")
-      if [ -z "$HEAD_SHA" ]; then
-        echo "Could not resolve a pull request head SHA (is this a PR comment?), skipping log download"
-        exit 0
-      fi
-      echo "PR head SHA: $HEAD_SHA"
-
-      # Find all workflow runs for the PR head SHA that failed or were cancelled
-      gh api --paginate "repos/$REPO/actions/runs?head_sha=$HEAD_SHA" \
-        --jq '[.workflow_runs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, url:.html_url, conclusion:.conclusion}]' \
-        > "$LOG_DIR/failed-runs.json" 2>/dev/null || echo '[]' > "$LOG_DIR/failed-runs.json"
-
-      # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow
-      jq 'group_by(.name) | map(max_by(.id))' "$LOG_DIR/failed-runs.json" > "$LOG_DIR/failed-runs.dedup.json"
-      mv "$LOG_DIR/failed-runs.dedup.json" "$LOG_DIR/failed-runs.json"
-
-      FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-runs.json")
-      echo "Found $FAILED_COUNT failed pipeline(s) on PR #$PR_NUMBER"
-
-      if [ "$FAILED_COUNT" -eq 0 ]; then
-        echo "No failed pipelines found, skipping log download"
-        exit 0
-      fi
-
-      cat "$LOG_DIR/failed-runs.json"
-
-      # For each failed run, collect failed jobs, download their logs, and pre-locate error hints
-      jq -r '.[].id' "$LOG_DIR/failed-runs.json" | while read -r RUN_ID; do
-        gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
-          --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
-          > "$LOG_DIR/run-${RUN_ID}-failed-jobs.json" 2>/dev/null || echo '[]' > "$LOG_DIR/run-${RUN_ID}-failed-jobs.json"
-
-        jq -r '.[].id' "$LOG_DIR/run-${RUN_ID}-failed-jobs.json" | while read -r JOB_ID; do
-          LOG_FILE="$LOG_DIR/job-${JOB_ID}.log"
-          echo "Downloading log for run $RUN_ID job $JOB_ID..."
-          gh api "repos/$REPO/actions/jobs/$JOB_ID/logs" > "$LOG_FILE" 2>/dev/null \
-            || echo "(log download failed)" > "$LOG_FILE"
-          echo "  -> Saved $(wc -l < "$LOG_FILE") lines to $LOG_FILE"
-
-          HINTS_FILE="$FILTERED_DIR/job-${JOB_ID}-hints.txt"
-          grep -n -m 30 -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
-            "$LOG_FILE" > "$HINTS_FILE" 2>/dev/null || true
-          if [ -s "$HINTS_FILE" ]; then
-            echo "  -> Pre-located $(wc -l < "$HINTS_FILE") hint line(s) in $HINTS_FILE"
-          fi
-        done
-      done
-
-      # Write a summary for the agent
-      SUMMARY_FILE="/tmp/gh-aw/agent/ci-doctor/summary.txt"
-      {
-        echo "=== CI Doctor Pre-Analysis (PR #$PR_NUMBER, head $HEAD_SHA) ==="
-        echo ""
-        echo "Failed pipelines (details in $LOG_DIR/failed-runs.json):"
-        jq -r '.[] | "  Run \(.id): \(.name) [\(.conclusion)] \(.url)"' "$LOG_DIR/failed-runs.json"
-        echo ""
-        echo "Downloaded job log files ($LOG_DIR):"
-        for LOG_FILE in "$LOG_DIR"/job-*.log; do
-          [ -f "$LOG_FILE" ] || continue
-          echo "  $LOG_FILE ($(wc -l < "$LOG_FILE") lines)"
-        done
-        echo ""
-        echo "Filtered hint files ($FILTERED_DIR):"
-        for HINTS_FILE in "$FILTERED_DIR"/*-hints.txt; do
-          [ -s "$HINTS_FILE" ] || continue
-          echo "  $HINTS_FILE ($(wc -l < "$HINTS_FILE") matches)"
-          head -3 "$HINTS_FILE" | sed 's/^/    /'
-        done
-      } | tee "$SUMMARY_FILE"
-
-      echo ""
-      echo "✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
 timeout-minutes: 20
 ---
