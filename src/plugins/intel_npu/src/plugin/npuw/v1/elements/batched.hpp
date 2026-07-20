@@ -16,11 +16,13 @@
 
 namespace ov::npuw::batched {
 
-// True when the compile/import properties opt into batched single-shot scoring --
-// currently the text rerank and text embedding pipelines. Used by the entry points
-// (npuw::ICompiledModel::create and the NPUW import path) to decide whether to
-// apply the batched element.
-bool requested(const ov::AnyMap& properties);
+// True when the given compiled model is tagged for batched single-shot scoring --
+// currently the text rerank and text embedding pipelines. The tag is read from the
+// model's own properties (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED, recorded in its config
+// and serialized with it into the blob), so both entry points --
+// npuw::ICompiledModel::create on compile and the NPUW import path on blob import --
+// decide identically whether to apply the batched element.
+bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 
 // A compiled-model decorator that adds batched (batch > 1) execution on top of an
 // inner compiled model that only supports a batch size of 1 (as NPUW's LLM
@@ -47,12 +49,6 @@ bool requested(const ov::AnyMap& properties);
 // guarantees the inner is the matching batch-1 compilation.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
-    // Factory method. Returns inner unwrapped when enabled == false, keeping the
-    // default path zero-overhead.
-    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
-                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                            bool enabled);
-
     CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
                   const std::shared_ptr<const ov::IPlugin>& plugin);
 

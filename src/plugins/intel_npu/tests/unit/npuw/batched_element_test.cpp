@@ -139,9 +139,11 @@ class MockInnerCompiled : public ov::npuw::ICompiledModel {
 public:
     MockInnerCompiled(const std::shared_ptr<ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                      std::shared_ptr<Recorder> rec)
+                      std::shared_ptr<Recorder> rec,
+                      ov::AnyMap props = {})
         : ov::npuw::ICompiledModel(model, plugin),
-          m_rec(std::move(rec)) {}
+          m_rec(std::move(rec)),
+          m_props(std::move(props)) {}
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
         return std::make_shared<MockInnerSync>(shared_from_this(), m_rec);
@@ -151,12 +153,22 @@ public:
         return nullptr;
     }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string&) const override {
+    ov::Any get_property(const std::string& name) const override {
+        const auto it = m_props.find(name);
+        if (it != m_props.end()) {
+            return it->second;
+        }
+        // The batched element queries these scoring flags; default them to disabled so
+        // get_property(...).as<bool>() is always well-formed.
+        if (name == "NPUW_TEXT_RERANK" || name == "NPUW_TEXT_EMBED") {
+            return false;
+        }
         return {};
     }
 
 private:
     std::shared_ptr<Recorder> m_rec;
+    ov::AnyMap m_props;
 };
 
 class NPUWBatchedElementTest : public ::testing::Test {
@@ -171,8 +183,8 @@ protected:
         return std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder);
     }
 
-    std::shared_ptr<ov::npuw::ICompiledModel> wrap(bool enabled) {
-        return ov::npuw::batched::CompiledModel::create(make_inner(), m_plugin, enabled);
+    std::shared_ptr<ov::npuw::ICompiledModel> wrap() {
+        return std::make_shared<ov::npuw::batched::CompiledModel>(make_inner(), m_plugin);
     }
 
     // Bind a fresh zero-filled tensor of the port's element type to a named input.
@@ -222,32 +234,27 @@ protected:
     std::shared_ptr<Recorder> m_recorder;
 };
 
-TEST_F(NPUWBatchedElementTest, RequestedFromProperties) {
-    EXPECT_FALSE(ov::npuw::batched::requested({}));
-    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", false}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", true}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_EMBED", true}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}}));
+TEST_F(NPUWBatchedElementTest, RequestedFromModel) {
+    const auto model_with = [&](ov::AnyMap props) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder, std::move(props));
+    };
+    EXPECT_FALSE(ov::npuw::batched::requested(model_with({})));
+    EXPECT_FALSE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_RERANK", false}})));
+    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_RERANK", true}})));
+    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_EMBED", true}})));
+    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}})));
 }
 
-TEST_F(NPUWBatchedElementTest, DisabledReturnsInnerUnwrapped) {
+TEST_F(NPUWBatchedElementTest, ForwardsInnerIO) {
     auto inner = make_inner();
-    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/false);
-    EXPECT_EQ(wrapped, inner);
-}
-
-TEST_F(NPUWBatchedElementTest, EnabledWrapsInner) {
-    auto inner = make_inner();
-    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
-    EXPECT_NE(wrapped, inner);
-    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::batched::CompiledModel>(wrapped), nullptr);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
     // The wrapper adds no I/O of its own -- it exposes the inner model's ports.
     EXPECT_EQ(&wrapped->inputs(), &inner->inputs());
     EXPECT_EQ(&wrapped->outputs(), &inner->outputs());
 }
 
 TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     // Distinct first tokens so a misrouted row would surface as a wrong output value.
@@ -267,7 +274,7 @@ TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
 }
 
 TEST_F(NPUWBatchedElementTest, SingleRowScored) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{42, 8, 9, 10}};
@@ -283,7 +290,7 @@ TEST_F(NPUWBatchedElementTest, SingleRowScored) {
 
 // A zero-row batch has nothing to score and would publish unpopulated outputs.
 TEST_F(NPUWBatchedElementTest, ZeroBatchIsRejected) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     bind_inputs(req, {{1, 2, 3, 4}});
@@ -301,7 +308,7 @@ TEST_F(NPUWBatchedElementTest, ZeroBatchIsRejected) {
 // input_ids fixes N=3; an attention_mask with batch 2 (neither N nor 1) cannot be sliced
 // per row and must be rejected rather than fed whole into the batch-1 inner.
 TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     bind_inputs(req, {{1, 2}, {3, 4}, {5, 6}});
@@ -319,7 +326,7 @@ TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
 // A shared input (batch 1) is fed to every row whole -- only inputs carrying the full
 // batch are sliced, so a [1, L] input is never sliced out of range.
 TEST_F(NPUWBatchedElementTest, SharedInputBoundToEveryRow) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1, 1, 1}, {22, 1, 1, 1}, {33, 1, 1, 1}};
@@ -339,7 +346,7 @@ TEST_F(NPUWBatchedElementTest, SharedInputBoundToEveryRow) {
 // Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1
 // when a later input carries the real batch -- the batch is the largest leading dim.
 TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
-    auto wrapped = wrap(/*enabled=*/true);
+    auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
 
     bind_inputs(req, {{7, 1, 1, 1}});           // input_ids = [1, 4], shared prompt (token 7)
@@ -360,7 +367,7 @@ TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
 TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
-    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
@@ -384,7 +391,7 @@ TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
 TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
-    auto wrapped = ov::npuw::batched::CompiledModel::create(inner, m_plugin, /*enabled=*/true);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
