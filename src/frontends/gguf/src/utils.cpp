@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
-#include <numeric>
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
@@ -62,7 +61,10 @@ namespace {
 ov::Output<ov::Node> rope_yarn_ramp_mix(int n_dims, const float corr_dims[2], float ext_factor) {
     int half_n_dims = n_dims / 2;
     std::vector<float> dim_ids_vec(half_n_dims);
-    std::iota(dim_ids_vec.begin(), dim_ids_vec.end(), 0);
+    // Fill 0,1,2,... explicitly (std::iota on a float vector warns on the int->float assignment).
+    for (int i = 0; i < half_n_dims; ++i) {
+        dim_ids_vec[i] = static_cast<float>(i);
+    }
     auto dim_ids = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, (size_t)half_n_dims}, dim_ids_vec);
     auto corr_low = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {corr_dims[0]});
     auto corr_high = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {corr_dims[1]});
