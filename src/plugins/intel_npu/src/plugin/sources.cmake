@@ -111,6 +111,8 @@ set(NPUW_SOURCES
     npuw/npuw_transformations/decompose_gqa.hpp
     npuw/npuw_transformations/drop_zp_subtract.cpp
     npuw/npuw_transformations/drop_zp_subtract.hpp
+    npuw/npuw_transformations/right_align_mask_slice_for_conv.cpp
+    npuw/npuw_transformations/right_align_mask_slice_for_conv.hpp
     npuw/npuw_transformations/kv_axes_position.hpp
     npuw/npuw_transformations/kv_cache_compressed.cpp
     npuw/npuw_transformations/kv_cache_compressed.hpp

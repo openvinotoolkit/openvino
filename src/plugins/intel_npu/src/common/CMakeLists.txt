@@ -10,7 +10,6 @@ set(SOURCES
     include/intel_npu/common/filtered_config.hpp
     include/intel_npu/common/icompiled_model.hpp
     include/intel_npu/common/icompiler_adapter.hpp
-    include/intel_npu/common/idynamic_graph.hpp
     include/intel_npu/common/igraph.hpp
     include/intel_npu/common/iparser.hpp
     include/intel_npu/common/itt.hpp
@@ -19,7 +18,6 @@ set(SOURCES
     include/intel_npu/common/parser_factory.hpp
     src/device_helpers.cpp
     src/filtered_config.cpp
-    src/idynamic_graph.cpp
     src/igraph.cpp
     src/network_metadata.cpp
     src/npu.cpp

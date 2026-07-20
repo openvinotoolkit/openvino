@@ -6,6 +6,7 @@ set(TARGET_NAME openvino_npu_vm_utils)
 
 set(SOURCES
     npu_vm_runtime_api.cpp
+    mem_ref_type.cpp
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
