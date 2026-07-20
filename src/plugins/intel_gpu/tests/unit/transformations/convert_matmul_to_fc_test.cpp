@@ -466,10 +466,8 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_par
         auto mul_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
         auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
 
-        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, {0, 2, 1});
-        auto transpose = std::make_shared<ov::opset1::Transpose>(mul, transpose_const);
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto matmul = std::make_shared<op::FullyConnected>(data, transpose, no_bias);
+        auto matmul = std::make_shared<op::FullyConnected>(data, mul, no_bias, ov::element::f32, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, weights});
     }
