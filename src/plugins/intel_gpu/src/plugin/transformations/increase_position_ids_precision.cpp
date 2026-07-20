@@ -489,7 +489,19 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
     // Current (after upstream Unsqueeze→Reshape and Transpose→Reshape folding):
     //   MatMul → Reshape(Transpose) → Concat → Sin/Cos → Reshape(Unsqueeze) → RoPE
     //
-    auto matmul = wrap_type<ov::op::v0::MatMul>();
+    // The MatMul multiplies a broadcast frequency matrix by the (converted) position_ids:
+    //   position_ids → Convert(i32) → Reshape/Unsqueeze → Convert(f16) ┐
+    //                                          Broadcast(freq) ─────────┴→ MatMul
+    // Anchoring the pattern on this Gemma4-specific front end (Broadcast freq input +
+    // Convert'ed position_ids input) keeps this pass from matching generic RoPE graphs
+    // (e.g. freq fed as a plain Constant), which are handled by IncreasePositionIdsPrecisionForRoPE.
+    auto pos_ids_convert_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
+    auto pos_ids_reshape = wrap_type<ov::op::v1::Reshape>({pos_ids_convert_i32, any_input()});
+    auto pos_ids_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({pos_ids_convert_i32, any_input()});
+    auto pos_ids_shaped = std::make_shared<Or>(OutputVector{pos_ids_reshape, pos_ids_unsqueeze});
+    auto pos_ids_convert_fp = wrap_type<ov::op::v0::Convert>({pos_ids_shaped});
+    auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
+    auto matmul = wrap_type<ov::op::v0::MatMul>({broadcast_freq, pos_ids_convert_fp});
     auto convert_after_matmul = wrap_type<ov::op::v0::Convert>({matmul});
     auto transpose_with_convert = wrap_type<ov::op::v1::Transpose>({convert_after_matmul, any_input()});
     auto transpose_direct = wrap_type<ov::op::v1::Transpose>({matmul, any_input()});
