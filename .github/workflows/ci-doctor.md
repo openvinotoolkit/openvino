@@ -29,6 +29,10 @@ if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.c
 
 permissions: read-all
 
+engine:
+  id: copilot
+  model: gpt-5-mini
+
 network: defaults
 
 safe-outputs:

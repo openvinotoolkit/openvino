@@ -236,9 +236,9 @@ void Loop::validate_and_infer_types() {
                             PartialShape new_ps;
                             bool shape_changed = false;
                             if (body_rank_len == input_rank_len) {
-                                new_ps = body_value_shape;
+                                new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
+                                    if (!input_param_ps[j].relaxes(body_value_shape[j])) {
                                         new_ps[j] = Dimension::dynamic();
                                         shape_changed = true;
                                     }
@@ -349,29 +349,31 @@ Output<Node> Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool Loop::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
-    EvaluationContext evaluation_context;
-    reference::loop(m_bodies[0],
-                    m_output_descriptions[0],
-                    m_input_descriptions[0],
-                    m_special_body_ports,
-                    outputs,
-                    inputs,
-                    evaluation_context);
-    return true;
+    return evaluate(outputs, inputs, {});
 }
 
 bool Loop::evaluate(TensorVector& outputs,
                     const TensorVector& inputs,
                     const EvaluationContext& evaluation_context) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
-    reference::loop(m_bodies[0],
-                    m_output_descriptions[0],
-                    m_input_descriptions[0],
-                    m_special_body_ports,
-                    outputs,
-                    inputs,
-                    evaluation_context);
-    return true;
+    const auto can_evaluate = [](const auto& ops) -> bool {
+        return std::all_of(ops.begin(), ops.end(), [](const auto& node) {
+            return is_type<op::v0::Parameter>(node) || node->has_evaluate();
+        });
+    };
+
+    if (auto body = get_function(); body && can_evaluate(body->get_ops())) {
+        reference::loop(body,
+                        m_output_descriptions[0],
+                        m_input_descriptions[0],
+                        m_special_body_ports,
+                        outputs,
+                        inputs,
+                        evaluation_context);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Loop::has_evaluate() const {

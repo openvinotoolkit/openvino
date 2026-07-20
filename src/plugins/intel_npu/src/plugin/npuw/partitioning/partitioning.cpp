@@ -22,7 +22,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
-#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -1446,6 +1445,8 @@ void Partitioner::saveScaleFactors(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI1>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI2>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI3>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::AsymmZP::CWAI>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::RMSNorm::CWAI>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -2738,25 +2739,46 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             // Pass 2: run deferred partition-stage transformations after all functions are registered.
             // Partitioning stays generic here: it only exposes shared lookup helpers through the
             // pipeline context and then runs the registered callbacks.
+            std::unordered_map<std::string, std::shared_ptr<ov::Node>> rt_info_node_cache;
             for (auto&& func_group : all_functions) {
                 LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
                 LOG_BLOCK();
                 auto& function = P.functions.at(func_group);
                 if (function._pipeline.partition_stage) {
-                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
-                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
-                            auto cached = part_ctx.tagged_models.find(tag);
-                            if (cached != part_ctx.tagged_models.end()) {
-                                return cached->second;
+                    auto find_tagged_model =
+                        [&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                        auto cached = part_ctx.tagged_models.find(tag);
+                        if (cached != part_ctx.tagged_models.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, candidate] : P.functions) {
+                            if (candidate.gettag() == tag) {
+                                part_ctx.tagged_models.emplace(tag, candidate._model);
+                                return candidate._model;
                             }
-                            for (const auto& [name, candidate] : P.functions) {
-                                if (candidate.gettag() == tag) {
-                                    part_ctx.tagged_models.emplace(tag, candidate._model);
-                                    return candidate._model;
+                        }
+                        return nullptr;
+                    };
+
+                    auto find_node_with_rt_info =
+                        [&P, &cache = rt_info_node_cache](const std::string& key) -> std::shared_ptr<ov::Node> {
+                        auto cached = cache.find(key);
+                        if (cached != cache.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, func] : P.functions) {
+                            for (const auto& node : func._model->get_ordered_ops()) {
+                                if (node->get_rt_info().count(key) > 0) {
+                                    cache.emplace(key, node);
+                                    return node;
                                 }
                             }
-                            return nullptr;
-                        }});
+                        }
+                        return nullptr;
+                    };
+
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {std::move(find_tagged_model), std::move(find_node_with_rt_info)});
                     function._pipeline.partition_stage(function, function._pipeline.context);
                     // The callback captures partitioning state by reference, so keep it scoped to this
                     // immediate partition-stage invocation and remove it before the context outlives us.
