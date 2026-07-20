@@ -2224,7 +2224,8 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    const bool static_pool_reuse = !is_dynamic() && can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool();
+    if ((is_dynamic() || static_pool_reuse) && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;

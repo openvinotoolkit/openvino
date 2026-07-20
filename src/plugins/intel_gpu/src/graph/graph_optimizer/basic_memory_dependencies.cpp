@@ -5,37 +5,12 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 
 using namespace cldnn;
-
-namespace {
-bool has_unaligned_feature_block(const layout& layout) {
-    if (!format::is_blocked(layout.format))
-        return false;
-
-    const auto& order = format::internal_order(layout.format);
-    const auto feature_idx = order.find('f');
-    if (feature_idx == std::string::npos)
-        return false;
-
-    const auto feature_dim = layout.get_partial_shape()[feature_idx];
-    if (feature_dim.is_dynamic())
-        return false;
-
-    size_t feature_block_size = 1;
-    for (const auto& [dim, block_size] : format::block_sizes(layout.format)) {
-        if (dim == feature_idx)
-            feature_block_size *= block_size;
-    }
-
-    return feature_dim.get_length() % feature_block_size != 0;
-}
-}  // namespace
 
 void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::BasicMemoryDependencies");
@@ -65,13 +40,6 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn) {
-            if (node->is_type<convolution>() && has_unaligned_feature_block(node->get_input_layout(0))) {
-                auto* dep = &node->get_dependency(0);
-                while (dep->can_be_optimized() && !dep->get_dependencies().empty())
-                    dep = &dep->get_dependency(0);
-                dep->can_share_buffer(false);
-            }
-
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
