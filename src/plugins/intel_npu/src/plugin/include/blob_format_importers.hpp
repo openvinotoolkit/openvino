@@ -17,11 +17,11 @@ class ICore;
 
 namespace intel_npu {
 
-class IBlobFormatImportHandler {
+class IBlobFormatImporter {
 public:
-    IBlobFormatImportHandler(const std::shared_ptr<const ov::Model>& original_model,
-                             const FilteredConfig& config,
-                             const Logger& logger);
+    IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
+                        const FilteredConfig& config,
+                        const Logger& logger);
 
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
@@ -32,7 +32,7 @@ public:
 
     FilteredConfig get_config() const;
 
-    virtual ~IBlobFormatImportHandler() = default;
+    virtual ~IBlobFormatImporter() = default;
 
 protected:
     FilteredConfig m_config;
@@ -58,15 +58,15 @@ private:
     std::shared_ptr<IGraph> m_graph;
 };
 
-class RawBlobImportHandler : public IBlobFormatImportHandler {
+class RawBlobImporter : public IBlobFormatImporter {
 public:
-    explicit RawBlobImportHandler(std::istream& compiler_main_schedule,
-                                  const std::shared_ptr<const ov::Model>& original_model,
-                                  const FilteredConfig& config);
+    explicit RawBlobImporter(std::istream& compiler_main_schedule,
+                             const std::shared_ptr<const ov::Model>& original_model,
+                             const FilteredConfig& config);
 
-    explicit RawBlobImportHandler(const ov::Tensor& compiler_main_schedule,
-                                  const std::shared_ptr<const ov::Model>& original_model,
-                                  const FilteredConfig& config);
+    explicit RawBlobImporter(const ov::Tensor& compiler_main_schedule,
+                             const std::shared_ptr<const ov::Model>& original_model,
+                             const FilteredConfig& config);
 
 private:
     void decrypt_schedules() override;
@@ -84,15 +84,15 @@ private:
     ov::Tensor m_compiler_payload;
 };
 
-class BlobFormatV1ImportHandler : public IBlobFormatImportHandler {
+class BlobFormatV1Importer : public IBlobFormatImporter {
 public:
-    explicit BlobFormatV1ImportHandler(std::istream& npu_formatted_blob,
-                                       const std::shared_ptr<const ov::Model>& original_model,
-                                       const FilteredConfig& config);
+    explicit BlobFormatV1Importer(std::istream& npu_formatted_blob,
+                                  const std::shared_ptr<const ov::Model>& original_model,
+                                  const FilteredConfig& config);
 
-    explicit BlobFormatV1ImportHandler(const ov::Tensor& npu_formatted_blob,
-                                       const std::shared_ptr<const ov::Model>& original_model,
-                                       const FilteredConfig& config);
+    explicit BlobFormatV1Importer(const ov::Tensor& npu_formatted_blob,
+                                  const std::shared_ptr<const ov::Model>& original_model,
+                                  const FilteredConfig& config);
 
 private:
     void decrypt_schedules() override;
@@ -113,18 +113,18 @@ private:
     std::unique_ptr<MetadataBase> m_metadata;
 };
 
-namespace blob_format_import_handler_factory {
+namespace blob_format_importer_factory {
 
-std::unique_ptr<IBlobFormatImportHandler> create(std::istream& npu_formatted_blob,
-                                                 const bool is_raw_blob,
-                                                 const std::shared_ptr<const ov::Model>& original_model,
-                                                 const FilteredConfig& config);
+std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
+                                            const bool is_raw_blob,
+                                            const std::shared_ptr<const ov::Model>& original_model,
+                                            const FilteredConfig& config);
 
-std::unique_ptr<IBlobFormatImportHandler> create(const ov::Tensor& npu_formatted_blob,
-                                                 const bool is_raw_blob,
-                                                 const std::shared_ptr<const ov::Model>& original_model,
-                                                 const FilteredConfig& config);
+std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob,
+                                            const bool is_raw_blob,
+                                            const std::shared_ptr<const ov::Model>& original_model,
+                                            const FilteredConfig& config);
 
-}  // namespace blob_format_import_handler_factory
+}  // namespace blob_format_importer_factory
 
 }  // namespace intel_npu

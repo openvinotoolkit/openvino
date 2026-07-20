@@ -10,9 +10,7 @@
 #include "intel_npu/common/igraph.hpp"
 
 namespace ov {
-
 class ICore;
-
 }
 
 namespace intel_npu {

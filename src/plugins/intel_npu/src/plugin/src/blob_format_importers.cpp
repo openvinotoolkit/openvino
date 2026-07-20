@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "blob_format_import_handlers.hpp"
+#include "blob_format_importers.hpp"
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -20,9 +20,9 @@ namespace {
 
 using namespace intel_npu;
 
-constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_import_handler_factory";
-constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImportHandler";
-constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1ImportHandler";
+constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
+constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
+constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
 
 constexpr std::string_view BLOB_COMPATIBILITY_SKIPPED_MESSAGE = "Blob compatibility check skipped.";
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
@@ -169,18 +169,18 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
 namespace intel_npu {
 
-IBlobFormatImportHandler::IBlobFormatImportHandler(const std::shared_ptr<const ov::Model>& original_model,
-                                                   const FilteredConfig& config,
-                                                   const Logger& logger)
+IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
+                                         const FilteredConfig& config,
+                                         const Logger& logger)
     : m_config(config),
       m_logger(logger),
       m_original_model(original_model) {}
 
-std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<IEngineBackend>& backend,
-                                                               const std::string_view network_name,
-                                                               const std::string_view device_name,
-                                                               const std::shared_ptr<ov::ICore>& core) {
-    OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImportHandler", "create_graph");
+std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngineBackend>& backend,
+                                                          const std::string_view network_name,
+                                                          const std::string_view device_name,
+                                                          const std::shared_ptr<ov::ICore>& core) {
+    OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImporter", "create_graph");
     m_logger.debug("Creating a graph");
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "decrypt_schedules");
@@ -231,8 +231,8 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
     return m_graph;
 }
 
-std::shared_ptr<ov::Model> IBlobFormatImportHandler::create_dummy_model() const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IBlobFormatImportHandler::create_dummy_model");
+std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IBlobFormatImporter::create_dummy_model");
     m_logger.debug("Creating a dummy ov::Model");
 
     OPENVINO_ASSERT(m_graph != nullptr, "Invalid state");
@@ -245,21 +245,21 @@ std::shared_ptr<ov::Model> IBlobFormatImportHandler::create_dummy_model() const 
                                 layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
 }
 
-FilteredConfig IBlobFormatImportHandler::get_config() const {
+FilteredConfig IBlobFormatImporter::get_config() const {
     return m_config;
 }
 
-void IBlobFormatImportHandler::log_contents(const std::optional<std::string>& compatibility_descriptor) {
+void IBlobFormatImporter::log_contents(const std::optional<std::string>& compatibility_descriptor) {
     // TODO?
 }
 
 // TODO comments, logs, ITT
-RawBlobImportHandler::RawBlobImportHandler(std::istream& compiler_main_schedule,
-                                           const std::shared_ptr<const ov::Model>& original_model,
-                                           const FilteredConfig& config)
-    : IBlobFormatImportHandler(original_model,
-                               config,
-                               Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+RawBlobImporter::RawBlobImporter(std::istream& compiler_main_schedule,
+                                 const std::shared_ptr<const ov::Model>& original_model,
+                                 const FilteredConfig& config)
+    : IBlobFormatImporter(original_model,
+                          config,
+                          Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
     const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
     OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
@@ -267,19 +267,19 @@ RawBlobImportHandler::RawBlobImportHandler(std::istream& compiler_main_schedule,
     compiler_main_schedule.read(m_compiler_payload.data<char>(), static_cast<std::streamsize>(blob_size));
 }
 
-RawBlobImportHandler::RawBlobImportHandler(const ov::Tensor& compiler_main_schedule,
-                                           const std::shared_ptr<const ov::Model>& original_model,
-                                           const FilteredConfig& config)
-    : IBlobFormatImportHandler(original_model,
-                               config,
-                               Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+RawBlobImporter::RawBlobImporter(const ov::Tensor& compiler_main_schedule,
+                                 const std::shared_ptr<const ov::Model>& original_model,
+                                 const FilteredConfig& config)
+    : IBlobFormatImporter(original_model,
+                          config,
+                          Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
     const size_t blob_size = compiler_main_schedule.get_byte_size();
     OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
     m_compiler_payload = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
 
-void RawBlobImportHandler::decrypt_schedules() {
+void RawBlobImporter::decrypt_schedules() {
     const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
                                       m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
     if (is_null_decryption) {
@@ -294,33 +294,30 @@ void RawBlobImportHandler::decrypt_schedules() {
     decrypt_schedule(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
 }
 
-ov::Tensor RawBlobImportHandler::extract_main_schedule() const {
+ov::Tensor RawBlobImporter::extract_main_schedule() const {
     return m_compiler_payload;
 }
 
-std::optional<std::vector<ov::Tensor>> RawBlobImportHandler::extract_init_schedules() const {
+std::optional<std::vector<ov::Tensor>> RawBlobImporter::extract_init_schedules() const {
     return std::nullopt;
 }
 
-std::optional<int> RawBlobImportHandler::extract_batch_size() const {
+std::optional<int> RawBlobImporter::extract_batch_size() const {
     return std::nullopt;
 }
 
-std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> RawBlobImportHandler::extract_layouts()
-    const {
+std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> RawBlobImporter::extract_layouts() const {
     return std::nullopt;
 }
 
-std::optional<std::string> RawBlobImportHandler::extract_compiler_compatibility_descriptor() const {
+std::optional<std::string> RawBlobImporter::extract_compiler_compatibility_descriptor() const {
     return std::nullopt;
 }
 
-BlobFormatV1ImportHandler::BlobFormatV1ImportHandler(std::istream& npu_formatted_blob,
-                                                     const std::shared_ptr<const ov::Model>& original_model,
-                                                     const FilteredConfig& config)
-    : IBlobFormatImportHandler(original_model,
-                               config,
-                               Logger(BLOB_V1_HADNLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+BlobFormatV1Importer::BlobFormatV1Importer(std::istream& npu_formatted_blob,
+                                           const std::shared_ptr<const ov::Model>& original_model,
+                                           const FilteredConfig& config)
+    : IBlobFormatImporter(original_model, config, Logger(BLOB_V1_HADNLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
     // Read only the metadata from the stream and check if the blob is compatible. Load the blob into memory only if
     // it passes the compatibility checks.
     m_metadata = read_metadata_from(npu_formatted_blob);
@@ -334,12 +331,10 @@ BlobFormatV1ImportHandler::BlobFormatV1ImportHandler(std::istream& npu_formatted
     register_compiler_version();
 }
 
-BlobFormatV1ImportHandler::BlobFormatV1ImportHandler(const ov::Tensor& npu_formatted_blob,
-                                                     const std::shared_ptr<const ov::Model>& original_model,
-                                                     const FilteredConfig& config)
-    : IBlobFormatImportHandler(original_model,
-                               config,
-                               Logger(BLOB_V1_HADNLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+BlobFormatV1Importer::BlobFormatV1Importer(const ov::Tensor& npu_formatted_blob,
+                                           const std::shared_ptr<const ov::Model>& original_model,
+                                           const FilteredConfig& config)
+    : IBlobFormatImporter(original_model, config, Logger(BLOB_V1_HADNLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
     m_metadata = read_metadata_from(npu_formatted_blob);
 
     const size_t blob_size = m_metadata->get_blob_size();
@@ -351,7 +346,7 @@ BlobFormatV1ImportHandler::BlobFormatV1ImportHandler(const ov::Tensor& npu_forma
     register_compiler_version();
 }
 
-void BlobFormatV1ImportHandler::decrypt_schedules() {
+void BlobFormatV1Importer::decrypt_schedules() {
     const bool is_payload_encrypted = m_metadata->is_encrypted_blob().value_or(false);
     const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
                                       m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
@@ -365,13 +360,13 @@ void BlobFormatV1ImportHandler::decrypt_schedules() {
     decrypt_schedule(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
 }
 
-ov::Tensor BlobFormatV1ImportHandler::extract_main_schedule() const {
+ov::Tensor BlobFormatV1Importer::extract_main_schedule() const {
     const uint64_t main_size = m_metadata->get_main_schedule_size();
 
     return ov::Tensor(m_compiler_payload, ov::Coordinate{0}, ov::Coordinate{main_size});
 }
 
-std::optional<std::vector<ov::Tensor>> BlobFormatV1ImportHandler::extract_init_schedules() const {
+std::optional<std::vector<ov::Tensor>> BlobFormatV1Importer::extract_init_schedules() const {
     const std::optional<std::vector<uint64_t>> init_sizes = m_metadata->get_init_sizes();
     if (!init_sizes.has_value()) {
         return std::nullopt;
@@ -394,7 +389,7 @@ std::optional<std::vector<ov::Tensor>> BlobFormatV1ImportHandler::extract_init_s
     return init_schedules;
 }
 
-std::optional<int> BlobFormatV1ImportHandler::extract_batch_size() const {
+std::optional<int> BlobFormatV1Importer::extract_batch_size() const {
     const std::optional<int> batch_size = m_metadata->get_batch_size();
     if (batch_size.has_value()) {
         m_logger.debug("Extracted batch size: %d", batch_size.value());
@@ -402,7 +397,7 @@ std::optional<int> BlobFormatV1ImportHandler::extract_batch_size() const {
     return batch_size;
 }
 
-std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> BlobFormatV1ImportHandler::extract_layouts()
+std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> BlobFormatV1Importer::extract_layouts()
     const {
     std::optional<std::vector<ov::Layout>> input_layouts = m_metadata->get_input_layouts();
     if (!input_layouts.has_value()) {
@@ -416,14 +411,14 @@ std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> BlobF
     return std::make_pair<>(input_layouts.value(), output_layouts.value());
 }
 
-std::optional<std::string> BlobFormatV1ImportHandler::extract_compiler_compatibility_descriptor() const {
+std::optional<std::string> BlobFormatV1Importer::extract_compiler_compatibility_descriptor() const {
     const std::optional<std::string_view> compatibility_descriptor = m_metadata->get_compatibility_descriptor();
     // Convert the descriptor to an owning string before the metadata is potentially destroyed
     return compatibility_descriptor.has_value() ? std::make_optional<>(std::string(compatibility_descriptor.value()))
                                                 : std::nullopt;
 }
 
-void BlobFormatV1ImportHandler::register_compiler_version() {
+void BlobFormatV1Importer::register_compiler_version() {
     std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
     if (compiler_version.has_value()) {
         m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
@@ -433,20 +428,20 @@ void BlobFormatV1ImportHandler::register_compiler_version() {
     }
 }
 
-namespace blob_format_import_handler_factory {
+namespace blob_format_importer_factory {
 
-std::unique_ptr<IBlobFormatImportHandler> create(std::istream& npu_formatted_blob,
-                                                 const bool is_raw_blob,
-                                                 const std::shared_ptr<const ov::Model>& original_model,
-                                                 const FilteredConfig& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_import_handler_factory::create(std::istream)");
+std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
+                                            const bool is_raw_blob,
+                                            const std::shared_ptr<const ov::Model>& original_model,
+                                            const FilteredConfig& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create(std::istream)");
 
     const Logger logger(HANDLER_FACTOR_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
         logger.debug("Creating a raw blob format import handler from a stream using the factory");
-        return std::make_unique<RawBlobImportHandler>(npu_formatted_blob, original_model, config);
+        return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
     // The V1 format is identified by some magic bytes at the end of the input
@@ -463,21 +458,21 @@ std::unique_ptr<IBlobFormatImportHandler> create(std::istream& npu_formatted_blo
     npu_formatted_blob.seekg(compiler_payload_beggining, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler from a stream using the factory");
-    return std::make_unique<BlobFormatV1ImportHandler>(npu_formatted_blob, original_model, config);
+    return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);
 }
 
-std::unique_ptr<IBlobFormatImportHandler> create(const ov::Tensor& npu_formatted_blob,
-                                                 const bool is_raw_blob,
-                                                 const std::shared_ptr<const ov::Model>& original_model,
-                                                 const FilteredConfig& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_import_handler_factory::create(ov::Tensor)");
+std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob,
+                                            const bool is_raw_blob,
+                                            const std::shared_ptr<const ov::Model>& original_model,
+                                            const FilteredConfig& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create(ov::Tensor)");
 
     const Logger logger(HANDLER_FACTOR_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
         logger.debug("Creating a raw blob format import handler from a tensor using the factory");
-        return std::make_unique<RawBlobImportHandler>(npu_formatted_blob, original_model, config);
+        return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
     size_t magic_bytes_size = MAGIC_BYTES.size();
@@ -488,9 +483,9 @@ std::unique_ptr<IBlobFormatImportHandler> create(const ov::Tensor& npu_formatted
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 
     logger.debug("Creating a blob format v1 import handler from a tensor using the factory");
-    return std::make_unique<BlobFormatV1ImportHandler>(npu_formatted_blob, original_model, config);
+    return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);
 }
 
-}  // namespace blob_format_import_handler_factory
+}  // namespace blob_format_importer_factory
 
 }  // namespace intel_npu

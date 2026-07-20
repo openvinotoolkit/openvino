@@ -14,9 +14,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 
 namespace ov {
-
 class ICore;
-
 }
 
 namespace intel_npu {

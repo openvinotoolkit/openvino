@@ -580,13 +580,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
 
     try {
-        std::unique_ptr<IBlobFormatImportHandler> blobFormatHandler =
-            blob_format_import_handler_factory::create(stream,
-                                                       should_import_raw_blob(npuPluginProperties),
-                                                       get_model_ptr_from_map(properties),
-                                                       localConfig);
+        std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
+            blob_format_importer_factory::create(stream,
+                                                 should_import_raw_blob(npuPluginProperties),
+                                                 get_model_ptr_from_map(properties),
+                                                 localConfig);
 
-        return import_model(blobFormatHandler, localConfig, npuPluginProperties);
+        return import_model(blobFormatImporter, localConfig, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -619,13 +619,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
 
     try {
-        std::unique_ptr<IBlobFormatImportHandler> blobFormatHandler =
-            blob_format_import_handler_factory::create(compiledBlob,
-                                                       should_import_raw_blob(npuPluginProperties),
-                                                       get_model_ptr_from_map(properties),
-                                                       localConfig);
+        std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
+            blob_format_importer_factory::create(compiledBlob,
+                                                 should_import_raw_blob(npuPluginProperties),
+                                                 get_model_ptr_from_map(properties),
+                                                 localConfig);
 
-        return import_model(blobFormatHandler, localConfig, npuPluginProperties);
+        return import_model(blobFormatImporter, localConfig, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -633,11 +633,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
-    const std::unique_ptr<IBlobFormatImportHandler>& blobFormatHandler,
-    FilteredConfig& localConfig,
-    ov::AnyMap& localProperties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatImportHandler)");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::unique_ptr<IBlobFormatImporter>& blobFormatImporter,
+                                                         FilteredConfig& localConfig,
+                                                         ov::AnyMap& localProperties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatImporter)");
     _logger.trace("Importing a compiled model using an import handler object");
 
     std::shared_ptr<IDevice> device =
@@ -649,16 +648,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatHandler->create_graph(_backend,
-                                        "net" + std::to_string(_compiledModelLoadCounter++),
-                                        device->getName(),
-                                        get_core());
+        blobFormatImporter->create_graph(_backend,
+                                         "net" + std::to_string(_compiledModelLoadCounter++),
+                                         device->getName(),
+                                         get_core());
 
-    return std::make_shared<CompiledModel>(blobFormatHandler->create_dummy_model(),
+    return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
                                            shared_from_this(),
                                            device,
                                            graph,
-                                           blobFormatHandler->get_config(),
+                                           blobFormatImporter->get_config(),
                                            graph->get_batch_size());
 }
 
