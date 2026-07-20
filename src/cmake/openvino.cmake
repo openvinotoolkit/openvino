@@ -162,7 +162,7 @@ set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 ov_developer_package_export_targets(TARGET openvino_runtime_dev
                                     INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
 
-set(dev_api_src
+set(dev_api_headers
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/compilation_context.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/device_id_parser.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/exec_model_info.hpp
@@ -198,7 +198,7 @@ set(dev_api_src
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_local.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_safe_containers.hpp
 )
-ov_add_clang_format_target(openvino_runtime_dev_clang FOR_SOURCES ${dev_api_src})
+ov_add_clang_format_target(openvino_runtime_dev_clang FOR_SOURCES ${dev_api_headers})
 
 ov_ncc_naming_style(FOR_TARGET openvino_runtime_dev
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src/inference/dev_api/openvino"

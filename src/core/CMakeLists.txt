@@ -68,6 +68,16 @@ ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
 
+# These source files include headers from openvino_transformations (via openvino::core::dev)
+# which are not in the default include paths for openvino_core_obj.
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp"
+    PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_library(openvino_core_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(ENABLE_SYSTEM_PUGIXML)

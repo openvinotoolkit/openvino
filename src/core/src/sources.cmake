@@ -379,13 +379,3 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/xml_util/constant_writer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xml_util/xml_serialize_util.cpp
 )
-
-# These source files include headers from openvino_transformations (via openvino::core::dev) which are not in the
-# default include paths for openvino_core_obj.
-set_source_files_properties(
-    ${CMAKE_CURRENT_LIST_DIR}/pass/convert_fp32_to_fp16.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/pass/serialize.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op/type_relaxed.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/preprocess/preprocess_steps_impl.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/model.cpp
-    PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
