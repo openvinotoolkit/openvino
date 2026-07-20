@@ -49,6 +49,7 @@ imports:
   - shared/ci-doctor-mq/notify-teams.md
   - shared/ci-doctor-mq/notify-teams-recurring.md
   - shared/ci-doctor-mq/rerun-failed-jobs.md
+  - shared/ci-doctor-mq/readd-to-merge-queue.md
 
 safe-outputs:
   add-comment:
@@ -524,7 +525,7 @@ ELSE:
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
    - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
-   - When the investigation concludes the failure is transient and a plain restart is likely to clear it, request a re-run of only the failed jobs of the analysed run (see `rerun_failed_jobs` decision guidance below)
+   - When the investigation concludes the failure is transient, decide between two mutually exclusive remedies based on whether the PR is still in the merge queue: if the PR is **still in the queue** (or there is no associated PR), request a re-run of only the failed jobs (see `rerun_failed_jobs` decision guidance below); if the PR has been **dropped from the queue**, a re-run would not help it merge, so request that the PR be re-added to the merge queue instead (see `readd_to_merge_queue` decision guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -749,6 +750,12 @@ Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Anal
 
 **Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
 
+**Merge-queue branch (mutually exclusive with `readd_to_merge_queue`):** A re-run only helps the PR merge if the PR is **still in the merge queue**. Before calling `rerun_failed_jobs`, determine the PR's current queue membership (query the associated PR and check whether it is still in the merge queue). Then:
+- **PR still in the queue**, or **no PR is associated** with the run → call `rerun_failed_jobs`.
+- **PR no longer in the queue** (GitHub dropped it on the failure) → do **NOT** call `rerun_failed_jobs`; a re-run would not re-enter it into the queue. Call `readd_to_merge_queue` instead (see its guidance below).
+
+Never call both `rerun_failed_jobs` and `readd_to_merge_queue` in the same investigation.
+
 Only the **failed** jobs of the analysed run are restarted; passing jobs are untouched. The job also refuses to re-run a run that already has more than one attempt, to avoid restart loops.
 
 Provide:
@@ -760,6 +767,26 @@ Provide:
 This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. A re-run request does not replace the investigation report.
 
 Whenever you decide about a restart (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Restart` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic restart**` line of the `add_comment` body. Keep both consistent with the actual `rerun_failed_jobs` call.
+
+### `readd_to_merge_queue` decision guidance
+
+When a merge-queue pipeline fails, GitHub drops the affected pull request from the merge queue. Call the `readd_to_merge_queue` safe-output tool **only** when all of the following hold:
+
+1. The failure is **associated with a PR** (you have its number), and
+2. The PR is **no longer in the merge queue** (it was dropped as a result of the failure) — if it is still in the queue, use `rerun_failed_jobs` instead, and
+3. Your Root Cause Analysis concludes the failure is **transient** and a plain re-queue is likely to let the PR merge — the same `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories that justify `rerun_failed_jobs`.
+
+**Do NOT** re-add the PR for deterministic failures a re-queue cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-add.
+
+The job is idempotent and loop-safe: it skips the PR when it is already merged, closed, a draft, or when a previous CI Doctor re-add marker comment is present. It re-adds via the `gh pr merge` command using the `MERGE_QUEUE_TOKEN` secret (a PAT or GitHub App token with `contents: write` + `pull_requests: write`).
+
+Provide:
+
+- **`pr_number`** (required) — Number of the dropped PR (the same value reported as `notify_teams.pr_number`). Pass as a numeric string.
+- **`repository`** (optional) — `owner/repo` of the PR. Omit to default to the current repository.
+- **`reason`** (required) — One-line justification for the re-queue, matching the transient cause identified in the investigation.
+
+This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. It is **mutually exclusive** with `rerun_failed_jobs` — call at most one of the two per investigation (re-run when the PR is still queued, re-add when it was dropped). A re-add request does not replace the investigation report.
 
 ## Important Guidelines
 
@@ -784,7 +811,8 @@ You **MUST** always call at least one safe output tool before finishing:
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
-- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient and a restart is likely to remedy it (see `rerun_failed_jobs` decision guidance). Call at most once per run.
+- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient AND the PR is still in the merge queue (or no PR is associated). Mutually exclusive with `readd_to_merge_queue` (see `rerun_failed_jobs` decision guidance). Call at most once per run.
+- **`readd_to_merge_queue`**: Re-add the affected PR to the merge queue. Call this **only** when the failure is transient AND the PR was dropped from the queue. Mutually exclusive with `rerun_failed_jobs` (see `readd_to_merge_queue` decision guidance). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
@@ -792,7 +820,8 @@ You **MUST** always call at least one safe output tool before finishing:
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
 - `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
-- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
+- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — transient failure where the PR is still in the merge queue (or no PR is associated).
+- Any of the `notify_teams` combinations above **+ `readd_to_merge_queue`** — transient failure that dropped an identifiable PR from the merge queue. Do not combine with `rerun_failed_jobs`; the two are mutually exclusive.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 
