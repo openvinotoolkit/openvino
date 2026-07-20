@@ -27,15 +27,6 @@ inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///<
 inline constexpr size_t default_parallel_io_prefetch_cap = 32UL * 1024 * 1024;
 
 /**
- * @brief Number of parallel chunks a @p size byte job should be split into: at least one, at most
- * @p max_chunks, targeting roughly one chunk per @p min_chunk bytes.
- */
-constexpr size_t split_chunk_count(size_t size, size_t min_chunk, size_t max_chunks) noexcept {
-    const size_t by_size = (min_chunk == 0) ? max_chunks : size / min_chunk;
-    return std::max<size_t>(1, std::min<size_t>(max_chunks, by_size));
-}
-
-/**
  * @brief Open a file for reading and retrieve its size.
  *
  * On Linux, uses open(O_RDONLY | O_CLOEXEC) + fstat.

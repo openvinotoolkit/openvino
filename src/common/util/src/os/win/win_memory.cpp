@@ -10,6 +10,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <thread>
@@ -52,20 +53,22 @@ void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
 }
 
 void vm_decommit(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
     std::ignore = VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
 void vm_release(void* ptr, size_t) noexcept {
+    assert(ptr != nullptr);
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
-        // Advisory-only: let the OS decide, no page touching.
         WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
     } else {
-        // Blocks until every page has been faulted in.
+        // blocks until every page has been faulted in.
         populate_pages(ptr, size, num_threads);
     }
 }

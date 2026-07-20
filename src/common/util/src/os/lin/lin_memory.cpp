@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cerrno>
 #include <condition_variable>
 #include <cstddef>
@@ -81,6 +82,8 @@ public:
 
     ThreadPool(const ThreadPool&) = delete;
     ThreadPool& operator=(const ThreadPool&) = delete;
+    ThreadPool(ThreadPool&&) = delete;
+    ThreadPool& operator=(ThreadPool&&) = delete;
 
     std::vector<std::future<void>> submit(std::vector<std::function<void()>>&& jobs) {
         std::vector<std::future<void>> futures;
@@ -99,10 +102,10 @@ public:
 
 private:
     ThreadPool() {
-        const auto workers =
+        const auto workers_count =
             std::max<size_t>(1, std::min<size_t>(max_prefetch_threads, std::thread::hardware_concurrency()));
-        m_workers.reserve(workers);
-        for (size_t i = 0; i < workers; ++i) {
+        m_workers.reserve(workers_count);
+        for (size_t i = 0; i < workers_count; ++i) {
             m_workers.emplace_back([this]() {
                 worker_loop();
             });
@@ -180,6 +183,7 @@ void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
 }
 
 void vm_decommit(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
 #if defined(__linux__)
     std::ignore = mprotect(ptr, size, PROT_NONE);
     std::ignore = madvise(ptr, size, MADV_DONTNEED);
@@ -192,15 +196,17 @@ void vm_decommit(void* ptr, size_t size) noexcept {
 }
 
 void vm_release(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
     std::ignore = munmap(ptr, size);
 }
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
         madvise_hint(ptr, size);
-        return;
+    } else {
+        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
     }
-    PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
 }
 
 PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
