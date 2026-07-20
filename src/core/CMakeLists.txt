@@ -10,10 +10,9 @@ add_definitions(-DIN_OV_CORE_LIBRARY)
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(OV_CORE_DEV_API_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${OV_CORE_INCLUDE_PATH}/*.hpp)
-file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
+include(src/sources.cmake)
+include(include/public_headers.cmake)
+include(dev_api/dev_headers.cmake)
 
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
@@ -117,18 +116,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     target_link_options(openvino_core_obj ${link_type} "/IGNORE:4217,4286")
 endif()
-
-# TODO: try to remove this and move smart reshape to transformations
-# some sources are located in openvino_core, while headers are in openvino_transformations
-file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
-file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp" # for SmartReshape
-                            ${smart_reshape_srcs} ${rt_info_srcs}
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
