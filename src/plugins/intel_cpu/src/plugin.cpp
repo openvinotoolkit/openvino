@@ -573,6 +573,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::capabilities.name()),
             RO_property(ov::device::type.name()),
             RO_property(ov::device::architecture.name()),
+            RO_property(ov::compatibility_check.name()),
         };
         // the whole config is RW before model is loaded.
 
@@ -696,6 +697,17 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 #    error "Undefined system processor"
 #endif
     }
+    if (name == ov::compatibility_check) {
+        if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                return is_runtime_requirements_compatible(requirements)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
@@ -767,6 +779,30 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
+
+    uint64_t requirements_magic = 0;
+    model_stream.read(reinterpret_cast<char*>(&requirements_magic), sizeof(requirements_magic));
+    if (requirements_magic != runtime_requirements_magic) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: incompatible runtime requirements magic.");
+    }
+
+    uint32_t requirements_version = 0;
+    model_stream.read(reinterpret_cast<char*>(&requirements_version), sizeof(requirements_version));
+    if (requirements_version != runtime_requirements_version) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: incompatible runtime requirements version.");
+    }
+
+    uint64_t reqs_size = 0;
+    model_stream.read(reinterpret_cast<char*>(&reqs_size), sizeof(reqs_size));
+    std::string runtime_requirements(reqs_size, '\0');
+    model_stream.read(&runtime_requirements[0], reqs_size);
+    if (!is_runtime_requirements_compatible(runtime_requirements)) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: it was built for a different runtime "
+                       "configuration (OpenVINO version/isa mismatch) and cannot be executed on "
+                       "this device.\n"
+                       "  blob:    ", runtime_requirements, "\n"
+                       "  current: ", build_runtime_requirements());
+    }
 
     ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 

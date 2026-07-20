@@ -12,12 +12,14 @@
 #include <ostream>
 #include <string>
 
+#include "cpu/platform.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
@@ -177,6 +179,18 @@ std::unique_ptr<util::XmlSerializer> ModelSerializer::make_serializer(pugi::xml_
                                            output_element_type,
                                            data_is_temporary,
                                            m_weightless_mode);
+}
+
+std::string build_runtime_requirements() {
+    std::ostringstream ss;
+    ss << "meta=1.0"
+       << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
+       << ";isa=" << dnnl::impl::cpu::platform::get_isa_info();
+    return ss.str();
+}
+
+bool is_runtime_requirements_compatible(const std::string& requirements) {
+    return requirements == build_runtime_requirements();
 }
 
 }  // namespace ov::intel_cpu
