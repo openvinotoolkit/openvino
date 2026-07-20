@@ -105,6 +105,11 @@ bool engine::supports_allocation(allocation_type type) const {
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
+}
+
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout)
         return get_default_allocation_type();
