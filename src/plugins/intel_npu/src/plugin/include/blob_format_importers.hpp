@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <map>
@@ -161,7 +165,7 @@ private:
     /**
      * @brief The compiler main schedule, that is also the whole blob received to be imported.
      */
-    ov::Tensor m_compiler_payload;
+    ov::Tensor m_main_schedule;
 };
 
 /**

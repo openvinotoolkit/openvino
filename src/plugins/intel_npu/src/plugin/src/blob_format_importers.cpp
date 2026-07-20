@@ -266,8 +266,8 @@ RawBlobImporter::RawBlobImporter(std::istream& compiler_main_schedule,
     const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
     OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
-    m_compiler_payload = allocate_aligned_tensor(blob_size);
-    compiler_main_schedule.read(m_compiler_payload.data<char>(), static_cast<std::streamsize>(blob_size));
+    m_main_schedule = allocate_aligned_tensor(blob_size);
+    compiler_main_schedule.read(m_main_schedule.data<char>(), static_cast<std::streamsize>(blob_size));
 }
 
 RawBlobImporter::RawBlobImporter(const ov::Tensor& compiler_main_schedule,
@@ -279,7 +279,7 @@ RawBlobImporter::RawBlobImporter(const ov::Tensor& compiler_main_schedule,
     const size_t blob_size = compiler_main_schedule.get_byte_size();
     OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
-    m_compiler_payload = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
+    m_main_schedule = ov::Tensor(compiler_main_schedule, ov::Coordinate{0}, ov::Coordinate{blob_size});
 }
 
 void RawBlobImporter::decrypt_schedules() {
@@ -294,11 +294,11 @@ void RawBlobImporter::decrypt_schedules() {
                      "encrypted or not.");
 
     m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-    decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+    decrypt_payload(m_main_schedule, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
 }
 
 ov::Tensor RawBlobImporter::extract_main_schedule() const {
-    return m_compiler_payload;
+    return m_main_schedule;
 }
 
 std::optional<std::vector<ov::Tensor>> RawBlobImporter::extract_init_schedules() const {
