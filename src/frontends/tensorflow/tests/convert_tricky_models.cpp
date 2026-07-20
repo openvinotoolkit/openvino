@@ -891,7 +891,8 @@ TEST(FrontEndConvertTrickyModels, dynpart_overflow_num_partitions) {
 
 namespace {
 // Recursively walk all operations of a model and its sub-graphs (If/Loop bodies).
-void for_each_op_recursive(const std::shared_ptr<Model>& model, const std::function<void(const shared_ptr<Node>&)>& fn) {
+void for_each_op_recursive(const std::shared_ptr<Model>& model,
+                           const std::function<void(const shared_ptr<Node>&)>& fn) {
     for (const auto& op : model->get_ordered_ops()) {
         fn(op);
         if (auto multisubgraph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
