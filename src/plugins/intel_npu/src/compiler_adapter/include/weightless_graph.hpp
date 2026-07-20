@@ -21,9 +21,11 @@ namespace intel_npu {
 
 /**
  * @brief Wrapper over multiple "ze_graph_handle_t" objects, one for each init/main schedule (weights separation).
- *
  * @details This class contains most implementation details for running the init schedules and setting the results as
  * inputs to the main one.
+ *
+ * @param weightsSource The source of weights for the weights separation pipeline. Should be either an `ov::Model` or a
+ * weights path along with the core object that may be used to parse the weights.
  */
 class WeightlessGraph final : public Graph {
 public:

@@ -59,18 +59,21 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
     }
 }
 
-void decrypt_schedule(ov::Tensor& schedule, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
+/**
+ * @brief Uses the provided decryption callback to decrypt the given payload.
+ */
+void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
     std::string decryptedBlobStr;
     {
-        std::string encryptedBlobStr(schedule.data<const char>(), schedule.get_byte_size());  // +1x blob size
-        decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                    // +1x blob size
+        std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
+        decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                  // +1x blob size
     }  // -1x blob size when deallocating temporary encrypted blob string
     ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
     size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
     size_t paddingSize = alignedSize - decryptedBlobStr.size();
-    schedule = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
-                          customAllocator);  // +1x blob size
-    std::memcpy(schedule.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+    payload = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
+                         customAllocator);  // +1x blob size
+    std::memcpy(payload.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
     if (paddingSize > 0) {
         // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
         // That means blobs compiled with the current plugin version are expected to be already aligned.
@@ -78,7 +81,7 @@ void decrypt_schedule(ov::Tensor& schedule, const ov::EncryptionCallbacks& encry
         // padding is added here in order to make use of this "non-copy optimization".
         logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
                        paddingSize);
-        std::memset(schedule.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+        std::memset(payload.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
     }
 }  // -1x blob size when deallocating decrypted blob string
 
@@ -291,7 +294,7 @@ void RawBlobImporter::decrypt_schedules() {
                      "encrypted or not.");
 
     m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-    decrypt_schedule(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+    decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
 }
 
 ov::Tensor RawBlobImporter::extract_main_schedule() const {
@@ -357,7 +360,7 @@ void BlobFormatV1Importer::decrypt_schedules() {
     OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
 
     m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-    decrypt_schedule(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+    decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
 }
 
 ov::Tensor BlobFormatV1Importer::extract_main_schedule() const {

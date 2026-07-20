@@ -64,6 +64,10 @@ public:
 private:
     void update_log_level(const ov::AnyMap& properties) const;
 
+    /**
+     * @brief Looks for "DISABLE_VERSION_CHECK" and "IMPORT_RAW_BLOB" to determine whether or not the blob to be
+     * imported should be treated as a "raw" one (i.e. the whole blob is a compiler main schedule).
+     */
     bool should_import_raw_blob(const ov::AnyMap& properties) const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const std::unique_ptr<IBlobFormatImporter>& blobFormatHandler,
