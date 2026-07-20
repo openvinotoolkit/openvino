@@ -600,6 +600,7 @@ Post a concise, actionable remediation comment on the affected merge-queue PR so
 **Pipeline**: [<failed_workflow name>](<pipeline_url>)
 **Failure**: <one-line summary, same as notify_teams.title>
 **Automatic restart**: <one of: `✅ Re-run of failed jobs requested (reason: <reason>)` when you called `rerun_failed_jobs`; `❌ Not triggered — <short reason, e.g. deterministic code failure>` otherwise>
+**Merge queue re-add**: <one of: `✅ Re-added PR to the merge queue (reason: <reason>)` when you called `readd_to_merge_queue`; `❌ Not triggered — <short reason, e.g. PR still in queue / deterministic failure>` otherwise>
 
 #### Possible remedy
 
@@ -677,7 +678,13 @@ Provide all required fields and include the optional PR-related fields whenever 
 
 State whether an automatic re-run of the failed jobs was triggered:
 - If you called `rerun_failed_jobs`: `✅ Re-run of failed jobs requested` followed by the one-line `reason` you passed.
-- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix, or the PR was no longer in the merge queue).
+
+### Automatic Merge Queue Re-add
+
+State whether the affected PR was automatically re-added to the merge queue:
+- If you called `readd_to_merge_queue`: `✅ PR re-added to the merge queue` followed by the one-line `reason` you passed.
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. the PR was still in the queue and `rerun_failed_jobs` was used instead, no PR was identified, or the failure was deterministic).
 
 ### Root Cause Analysis
 
@@ -787,6 +794,8 @@ Provide:
 - **`reason`** (required) — One-line justification for the re-queue, matching the transient cause identified in the investigation.
 
 This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. It is **mutually exclusive** with `rerun_failed_jobs` — call at most one of the two per investigation (re-run when the PR is still queued, re-add when it was dropped). A re-add request does not replace the investigation report.
+
+Whenever you decide about a re-add (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Merge Queue Re-add` section of `notify_teams.description`) and, when a PR comment is posted, the `**Merge queue re-add**` line of the `add_comment` body. Keep both consistent with the actual `readd_to_merge_queue` call.
 
 ## Important Guidelines
 
