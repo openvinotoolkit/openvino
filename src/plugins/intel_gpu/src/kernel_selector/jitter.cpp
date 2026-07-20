@@ -2338,19 +2338,16 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 return block_read;
             }
 
-            bool multiple_elements = false;
-            // For dynamic shape input tensor, check any one of static dimension has more than one element.
             if (input_tensor.is_dynamic()) {
-                for (auto dim : input_tensor.GetDims()) {
-                    auto v = dim.v;
-                    if (v > 1) {
-                        multiple_elements = true;
-                        break;
-                    }
-                }
+                // The compile-time logical size of a fully dynamic tensor may be reported as one even though
+                // the runtime tensor contains multiple elements. Select the load at runtime to preserve scalar
+                // broadcasting while using a subgroup block read for non-scalar tensors.
+                auto tensor_length = GetInputTensorName(input_id) + "_LENGTH";
+                auto scalar_load = Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
+                return "((" + tensor_length + " > 1) ? " + Broadcast(block_read, input_dt, vec_size) + " : " + scalar_load + ")";
             }
 
-            if (input_tensor.LogicalSize() > 1 || multiple_elements) {
+            if (input_tensor.LogicalSize() > 1) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
             } else {
