@@ -797,6 +797,7 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
+    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
     core.set_property(deviceName, ov::log::level(ov::log::Level::WARNING));
 
     // Keep this std::function alive while logging is active.
@@ -839,6 +840,8 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
     std::mutex logs_mutex;
     ov::Core core;
     ov::CompiledModel compiled_model;
+
+    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
 
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
