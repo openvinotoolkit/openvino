@@ -35,8 +35,16 @@ struct ZeProfilingTypeId<uint8_t> {
 };
 
 bool ProfilingPool::create() {
-    auto ret =
-        _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(_graph->get_handle(), _profiling_count, &_handle);
+    // To avoid  dynamic infer flow + perf_count_enabled calling static_cast<ze_graph_handle_t> which is not supported
+    // in dynamic graph
+    if (_graph->is_dynamic()) {
+        return false;
+    }
+
+    auto ret = _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(
+        static_cast<ze_graph_handle_t>(_graph->get_handle()),
+        _profiling_count,
+        &_handle);
     return ((ZE_RESULT_SUCCESS == ret) && (_handle != nullptr));
 }
 
@@ -165,21 +173,24 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
         std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_accu_cc / _npu_infer_stats_cnt)),
         "AVG",
         "AVG",
-        "AVG"};
+        "AVG",
+        std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_avg));
     ov::ProfilingInfo info_min = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   "MIN",
                                   "MIN",
-                                  "MIN"};
+                                  "MIN",
+                                  std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_min));
     ov::ProfilingInfo info_max = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   "MAX",
                                   "MAX",
-                                  "MAX"};
+                                  "MAX",
+                                  std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_max));
     return npuPerfCounts;
 }

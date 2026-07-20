@@ -625,7 +625,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         gops[element::f32] = device->get_gops(cldnn::data_types::f32);
         return decltype(ov::device::gops)::value_type {gops};
     } else if (name == ov::intel_gpu::cacheline_size) {
-        return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size);
+        return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size.value_or(0));
     } else if (name == ov::intel_gpu::execution_units_count) {
         return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
     } else if (name == ov::intel_gpu::uarch_version) {

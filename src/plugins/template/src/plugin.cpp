@@ -75,7 +75,7 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
                                                   size_t offset,
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
-        if (auto blob = blob_it->second.as<ov::Tensor>(); blob) {
+        if (const auto& blob = blob_it->second.as<ov::Tensor>(); blob) {
             ov::SharedStreamBuffer shared_buffer(blob.data(), blob.get_byte_size());
             std::istream blob_stream(&shared_buffer);
             blob_stream.seekg(offset, std::ios::beg);
@@ -260,7 +260,6 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
             if (auto m = model_hint->second.as<std::shared_ptr<ov::Model>>()) {
                 if (m->has_rt_info("__weights_path")) {
                     AnyMap rt_info;
-                    auto p = m->get_rt_info<std::string>("__weights_path");
                     rt_info[ov::weights_path.name()] = m->get_rt_info<ov::Any>("__weights_path");
                     weights = get_model_weights(rt_info);
                 }
