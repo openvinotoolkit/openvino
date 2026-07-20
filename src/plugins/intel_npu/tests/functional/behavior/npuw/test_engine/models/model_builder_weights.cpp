@@ -4,6 +4,7 @@
 
 #include "model_builder_weights.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -20,15 +21,22 @@ ov::Output<ov::Node> FloatWeight::operator()(const std::string& name,
                                              ov::element::Type compute_precision) const {
     // Deterministic pseudo-random fill: each element gets a unique value derived
     // from the tensor name via xorshift32.  Same name always produces the same
-    // weights, but values look random and span a wide enough range ([-0.5, 0.5))
-    // to survive FP16 quantisation through NPUW.  This prevents CSE from merging
-    // same-shape projections and produces diverse logits in the LM head.
+    // weights, but values look random.  This prevents CSE from merging same-shape
+    // projections and produces diverse logits in the LM head.
+    //
+    // Values are fan-in scaled (Xavier-style, base range [-0.5, 0.5) / sqrt(fan_in))
+    // so activation magnitudes stay realistic through depth.  Unscaled weights gave
+    // each projection a ~sqrt(fan_in)/sqrt(12) gain — attention scores reached ~3e2
+    // (hyper-peaked softmax, exp overflow territory), which real trained models
+    // never produce and which amplified kernel-level rounding into visible
+    // prefill-vs-decode logit divergence.
     uint32_t state = seed_from_name(name);
     size_t total = ov::shape_size(shape);
+    const float fan_in_scale = shape.size() >= 2 ? 1.0f / std::sqrt(static_cast<float>(shape.back())) : 1.0f;
     std::vector<float> data(total);
     for (size_t i = 0; i < total; ++i) {
         uint32_t r = xorshift32(state);
-        data[i] = static_cast<float>(r % 10000u) / 10000.0f - 0.5f;  // [-0.5, 0.5)
+        data[i] = (static_cast<float>(r % 10000u) / 10000.0f - 0.5f) * fan_in_scale;
     }
     auto weight = ov::opset11::Constant::create(storage_type, shape, data);
     weight->set_friendly_name(name);

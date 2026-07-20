@@ -17,6 +17,9 @@ onnx_dyn_model_hardmax
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
 INTERPRETER.onnx_if_inside_if_inside_loop
+INTERPRETER.onnx_loop_if_multi_slot_kv_update
+INTERPRETER.onnx_loop_if_kv_erase_insert
+INTERPRETER.onnx_sal_sequence_length_runtime_gate
 
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid

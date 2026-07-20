@@ -370,7 +370,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                                   context->getPrivateWeightCache(),
                                                   threadPool);
 
-    if (!scale_shape.empty()) {
+    if (scalesMem && !scale_shape.empty()) {
         auto expectedScaleMemDesc =
             MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_scale_md()));
         const auto& scDims = scalesMem->getShape().getStaticDims();
@@ -384,7 +384,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
         }
     }
 
-    if (!zp_shape.empty()) {
+    if (zpMem && !zp_shape.empty()) {
         auto expectedZpMemDesc =
             MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_zp_md()));
         const auto& zpDims = zpMem->getShape().getStaticDims();

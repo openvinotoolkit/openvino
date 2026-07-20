@@ -186,6 +186,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     info.driver_version = device.get_info<::sycl::info::device::driver_version>();
     info.dev_type = get_device_type(device);
 
+    info.cacheline_size = device.get_info<::sycl::info::device::global_mem_cache_line_size>();
+
     info.execution_units_count = device.get_info<::sycl::info::device::max_compute_units>();
 
     info.gpu_frequency = device.get_info<::sycl::info::device::max_clock_frequency>();

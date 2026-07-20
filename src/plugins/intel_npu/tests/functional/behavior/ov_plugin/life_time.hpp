@@ -158,6 +158,9 @@ TEST_P(OVHoldersTestNPU, LoadedRemoteContext) {
 }
 
 TEST_P(OVHoldersTestNPU, CompileModelWithEncryptionWorksAfterConfigDeallocate) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
     ov::CompiledModel compiled_model;
     {
         ov::AnyMap copy_configuration = configuration;

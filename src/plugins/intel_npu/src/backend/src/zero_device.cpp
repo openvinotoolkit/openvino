@@ -4,6 +4,7 @@
 
 #include "zero_device.hpp"
 
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -185,7 +186,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<InferRequest> ZeroDevice::createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                              const Config& config) {
-    if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
+    if (compiledModel->get_graph()->is_dynamic()) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
@@ -219,4 +220,8 @@ bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilit
     // intentionally treated as incompatible, since neither guarantees the blob runs correctly here
     return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
            output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
+}
+
+IDevice::DeviceProperties ZeroDevice::getDeviceProperties() const {
+    return {_device_properties.deviceId, _device_properties.subdeviceId, _device_properties.numSlices};
 }
