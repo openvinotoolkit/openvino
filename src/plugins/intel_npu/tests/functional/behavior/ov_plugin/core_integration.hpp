@@ -458,17 +458,17 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::Core ie;
 
-    utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
-    const ov::log::Level baseline = ::intel_npu::Logger::global().level();
+    utils::LoggerLevelGuard levelGuard(ov::log::Level::WARNING);
+    const ov::log::Level baseline = ov::log::Level::WARNING;
 
     {
         utils::LogCallbackGuard silentGuard(nullptr);
-        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::log::level(ov::log::Level::WARNING)}}));
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}));
     }
     ASSERT_EQ(::intel_npu::Logger::global().level(), baseline)
-        << "Per-call log::level(INFO) contaminated Logger::global() after compile_model returned";
+        << "Per-call log::level(WARNING) contaminated Logger::global() after compile_model returned";
 
-    // second compile with not per-call log level should not inherit the INFO level from the first compile
+    // second compile with no per-call log level should not inherit the WARNING level from the first compile
     std::string secondCompileLogs;
     {
         utils::LogCallbackGuard captureGuard([&](std::string_view m) {
