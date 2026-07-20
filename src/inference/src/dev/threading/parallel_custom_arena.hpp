@@ -29,7 +29,6 @@
 // In this case, tbbbind static library is needed.
 #    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
 
-constexpr int MIN_CORE_TYPES_FOR_PTL = 3;
 constexpr int TBB_VERSION_MAJOR_CORE_TYPES_WINDOWS = 1202;
 constexpr int TBB_VERSION_PATCH_CORE_TYPES_WINDOWS = 6;
 constexpr int TBB_VERSION_MAJOR_CORE_TYPES_LINUX = 1213;
