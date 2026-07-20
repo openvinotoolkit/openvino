@@ -39,9 +39,7 @@ OutputVector translate_argsort(const NodeContext& context) {
     }
 
     auto index_type = context.get_attribute<ov::element::Type>("output_type");
-    // ggml ARGSORT sorts ne[0] == the OV last axis. Derive it from the input rank rather than
-    // hardcoding 3, so a non-rank-4 input (e.g. a lower-rank router logits tensor) sorts the right
-    // axis (rank-4 MoE routing keeps axis 3, unchanged).
+    // ggml ARGSORT sorts ne[0] == the OV last axis; derive it from the rank (rank-4 keeps axis 3).
     const auto& in_ps = input.get_partial_shape();
     const int64_t axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 3;
     auto k = std::make_shared<ov::op::v0::Squeeze>(get_dimensions(input.get_node_shared_ptr(), {(int)axis}),

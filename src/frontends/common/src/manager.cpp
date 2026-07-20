@@ -19,11 +19,9 @@ using namespace ov;
 using namespace ov::frontend;
 
 namespace {
-// Frontends that are installed and loadable but must not be exposed through the generic
-// model-loading API: they are not returned by get_available_front_ends() and are never
-// auto-selected by load_by_model / load_by_framework. Such a frontend is intended for direct
-// linkage only (the caller constructs it explicitly). Kept as a manager-side name list rather
-// than a FrontEndPluginInfo flag so the public plugin-info struct / ABI stays unchanged.
+// Frontends for direct linkage only: loadable, but never listed by available_front_ends() nor
+// auto-selected by load_by_model / load_by_framework. A manager-side list (not a plugin-info flag)
+// keeps the public FrontEndPluginInfo struct / ABI unchanged.
 bool is_hidden_frontend(const std::string& name) {
     static const std::set<std::string> hidden_frontends = {"gguf"};
     return hidden_frontends.count(name) != 0;

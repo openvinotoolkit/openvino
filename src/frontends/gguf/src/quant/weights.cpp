@@ -62,8 +62,7 @@ ov::Shape per_group_shape(const ov::Shape& orig, size_t num_groups) {
 std::shared_ptr<ov::op::v0::Constant> make_compressed_weight_constant(ov::element::Type et,
                                                                       const ov::Shape& shape,
                                                                       const ov::Tensor& weight) {
-    // Keep the source ov::Tensor alive for the Constant's lifetime via the shared-buffer ctor
-    // (no raw new/delete; the Constant does not copy the bytes).
+    // Shared-buffer ctor: the Constant wraps the bytes without copying and keeps the Tensor alive.
     return std::make_shared<ov::op::v0::Constant>(et,
                                                   shape,
                                                   static_cast<const void*>(weight.data()),
@@ -540,10 +539,8 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     const ov::element::Type zp_type =
         (!requant && qtype == GGUF_TYPE_Q4_K) ? ov::element::u8 : ov::element::f16;
 
-    // Fast path for the K-quant requant sources (Q4_K/Q5_K/Q6_K, incl. token_embd/output of those
-    // types): the fused bit-exact ggml dequant -> Q8_0_C streams straight from the raw bytes, so the
-    // full-tensor gguf_fill_* extraction below would be pure discarded work (its `w` map is never
-    // read on this path). Do the requant directly and return before the switch.
+    // K-quant requant sources: the fused dequant -> Q8_0_C streams from the raw bytes, so skip the
+    // full-tensor gguf_fill_* extraction below (it would be discarded) and return before the switch.
     if (requant && (qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K || qtype == GGUF_TYPE_Q6_K)) {
         ov::Tensor rq_weights(ov::element::i8, ov::Shape{rows, cols});
         ov::Tensor rq_scales(ov::element::f16, ov::Shape{rows, 1});

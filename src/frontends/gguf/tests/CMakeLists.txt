@@ -4,16 +4,9 @@
 
 set(TARGET_NAME ov_gguf_frontend_tests)
 
-# The test binary is self-contained: it compiles the frontend sources directly
-# instead of linking the installed shared library.  This keeps the frontend out
-# of the OpenVINO frontend search directory (get_ov_lib_path()), which
-# FrontEndManager scans and tries to load every "openvino_*_frontend" library
-# from; the MVP frontend has no plugin entry points, so being discoverable there
-# would break the generic FrontEndManager tests.
+# Compile the frontend sources directly into the test binary instead of linking the
+# installed library. Explicit source lists (no GLOB); keep in sync when adding sources.
 set(FE_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../src")
-# Explicit source lists (no GLOB: it is being removed from the OpenVINO build). Frontend sources
-# are compiled directly into the self-contained test binary; keep this list in sync when adding
-# frontend sources or tests.
 set(FRONTEND_SRCS
     "${FE_SRC_DIR}/frontend.cpp"
     "${FE_SRC_DIR}/input_model.cpp"
@@ -65,8 +58,6 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
 )
 
-# test_data/ lives next to this CMakeLists.txt; expose the absolute path to the
-# C++ test binary so load_npy() can find files without hard-coding a path.
 set(GGUF_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test_data")
 
 ov_add_test_target(
@@ -88,32 +79,25 @@ ov_add_test_target(
         OV UNIT GGUF_FE
 )
 
-# Install the .npy reference data next to the test binary so the installed test
-# (run in CI from the tests component) can find it via getExecutableDirectory().
+# Install the .npy reference data next to the test binary (found via getExecutableDirectory()).
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
         DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL
         FILES_MATCHING PATTERN "*.npy")
 
-# The sources are compiled into the test binary, so the GGUF_FRONTEND_API
-# visibility macros must resolve to local definitions (as when building the
-# frontend library itself) rather than dllimport.
+# Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
 target_compile_definitions(${TARGET_NAME} PRIVATE openvino_gguf_frontend_EXPORTS)
 
-# The frontend uses ov::parallel_for (openvino/core/parallel.hpp), which needs the
-# threading (TBB) include directories.
+# ov::parallel_for needs the threading (TBB) include directories.
 ov_set_threading_interface_for(${TARGET_NAME})
 
-# The frontend sources contain file-internal helpers without separate declarations; relax only
-# that warning so the test builds with -Werror. (Narrowing conversions are fixed in the sources
-# themselves, so -Wno-conversion / C4244 / C4267 are intentionally not suppressed here.)
+# Frontend sources have file-internal helpers without separate declarations; relax only that warning.
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     set_source_files_properties(${FRONTEND_SRCS} PROPERTIES
         COMPILE_OPTIONS "-Wno-missing-declarations")
 endif()
 
-# Inject the test data directory path as a compile-time string constant.
 target_compile_definitions(${TARGET_NAME} PRIVATE
     TEST_DATA_DIR="${GGUF_TEST_DATA_DIR}"
 )

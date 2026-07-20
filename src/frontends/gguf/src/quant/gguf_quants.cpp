@@ -20,8 +20,7 @@ namespace gguf {
 
 using namespace std;
 
-// K-quant 256-element super-block byte sizes (ggml layout). Referenced by the fill_*, dequant_row_*
-// and requantize_* paths so the on-disk block stride is defined once per type.
+// K-quant 256-element super-block byte sizes (ggml layout), used by fill_* / dequant_row_* / requant.
 static constexpr uint64_t kQ4K_BLOCK_BYTES = 2 + 2 + 12 + 128;       // d + dmin + 12 scales + 128 ql
 static constexpr uint64_t kQ5K_BLOCK_BYTES = 2 + 2 + 12 + 32 + 128;  // Q4_K + 32 qh
 static constexpr uint64_t kQ6K_BLOCK_BYTES = 128 + 64 + 16 + 2;      // ql + qh + 16 scales + d
@@ -308,8 +307,7 @@ bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
     }
     const uint8_t* data = static_cast<const uint8_t*>(tensor.weights_data);
     ov::parallel_for(rows, [&](size_t r) {
-        // Per-thread scratch reused across the rows a thread processes (dq() overwrites every
-        // element, so no re-zeroing needed); avoids a malloc+zero-init per row.
+        // Per-thread scratch reused across rows (dq() overwrites all cols); avoids per-row malloc.
         thread_local std::vector<float> rowf;
         rowf.resize(cols);
         dq(data + r * bytes_per_row, cols, rowf.data());

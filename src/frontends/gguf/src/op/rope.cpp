@@ -111,10 +111,9 @@ OutputVector translate_rope(const NodeContext& context) {
 
         res = std::make_shared<ov::op::v1::Reshape>(stack, make_bhsd_shape(), false);
     } else if (mode == TYPE_NEOX) {
-        // Partial rotary (ggml n_dims < head_dim): only the first n_dims elements of each head
-        // are rotated; the remainder [n_dims:head_dim] passes through unchanged. cos/sin are built
-        // with width n_dims/2, so the rotated block must be exactly n_dims wide -- splitting the
-        // full head would give halves wider than cos/sin and fail the elementwise broadcast.
+        // Partial rotary (ggml n_dims < head_dim): rotate only the first n_dims, pass the rest
+        // through. cos/sin have width n_dims/2, so the rotated block must be exactly n_dims wide
+        // (splitting the full head would mismatch the elementwise broadcast).
         const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
@@ -176,8 +175,7 @@ OutputVector translate_rope(const NodeContext& context) {
         res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sub, add}, 3);
     }
 
-    // Guard against an unmapped rope mode: without this, res stays a null Output and
-    // rename_outputs_with_suffix dereferences it (crash) instead of a clean unsupported-op error.
+    // Fail cleanly on an unmapped mode rather than dereferencing a null res downstream.
     FRONT_END_CHECK_IMPLEMENTED(res.get_node_shared_ptr() != nullptr, "Unsupported ROPE mode");
 
     return rename_outputs_with_suffix({res}, context.get_name());

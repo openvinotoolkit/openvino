@@ -85,10 +85,8 @@ OutputVector translate_soft_max(const NodeContext& context) {
     auto input_node = input0.get_node_shared_ptr();
     ov::Output<Node> res;
 
-    // ggml SOFT_MAX always normalizes over ne[0] == the OV last axis. Attention softmax is rank-3
-    // ([n_head, tok, kd], last axis 2), but the MoE router softmax is rank-4 ([1, 1, tok, n_expert],
-    // last axis 3) -- so target the input's last axis, not a hardcoded 2. Computed once, reused by
-    // both the no-mask and masked Softmax constructions below.
+    // ggml SOFT_MAX reduces ne[0] == the OV last axis (rank-3 attention -> 2, rank-4 router -> 3);
+    // derive it from the rank instead of hardcoding 2. Reused by both Softmax paths below.
     const auto& in_ps = input0.get_partial_shape();
     const int64_t softmax_axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2;
 

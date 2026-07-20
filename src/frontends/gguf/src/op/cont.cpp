@@ -22,10 +22,8 @@ OutputVector translate_cont(const NodeContext & context) {
     ov::Output<Node> res;
 
     if (op_case == 1) {
-        // The input comes from a PERMUTE. translate_permute already emitted a real ov::Transpose, so
-        // the OV tensor is logically contiguous in the permuted layout -- CONT (which only makes the
-        // ggml memory contiguous) is a no-op for us. gemma3n/gemma4 use CONT(PERMUTE(inp_per_layer))
-        // before slicing per-layer embeddings; keeping this in-OV avoids a host round-trip.
+        // Input from PERMUTE: translate_permute already emitted a real Transpose, so the OV tensor
+        // is logically contiguous -- CONT (a ggml memory-contiguity op) is a no-op for us.
         return {context.get_input(0)};
     } else if (op_case == 2) {
         // The input comes from a TRANSPOSE

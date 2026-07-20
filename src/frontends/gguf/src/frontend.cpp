@@ -18,19 +18,12 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// NOTE ON DISCOVERABILITY (intentional):
-// This frontend is consumed only by direct linkage -- a caller (the llama.cpp ggml-openvino
-// backend, OpenVINO GenAI) links openvino::frontend::gguf, constructs ov::frontend::gguf::FrontEnd
-// and feeds it a GgufDecoder. It has no file-based reader (see supported_impl / load_impl: it only
-// accepts a live GgufDecoder, never a .gguf path).
-//
-// The library is installed alongside the other frontends, so it exports the standard plugin
-// registration entry points (get_api_version / get_front_end_data) -- otherwise FrontEndManager
-// would throw while scanning the frontend directory. FrontEndManager treats "gguf" as a HIDDEN
-// frontend (manager.cpp is_hidden_frontend) which keeps it out of get_available_front_ends() and
-// prevents load_by_model / load_by_framework from ever selecting it; supported_impl() also returns
-// false. Direct linkers are unaffected. Remove "gguf" from that manager-side list only once this
-// frontend gains file-based loading and passes production review.
+// Discoverability (intentional): consumed only by direct linkage -- a caller (the llama.cpp
+// ggml-openvino backend, OpenVINO GenAI) links openvino::frontend::gguf and feeds FrontEnd a live
+// GgufDecoder (no .gguf-path reader; see supported_impl / load_impl). It exports the standard
+// plugin entry points so FrontEndManager can scan the frontend dir without error, but "gguf" is
+// treated as hidden there (manager.cpp is_hidden_frontend), so it is never listed or auto-selected.
+// Drop it from that list once this frontend gains file-based loading and passes production review.
 
 struct FrontEnd::Impl {
     std::unordered_map<std::string, CreatorFunction> op_extension_translators;

@@ -329,11 +329,9 @@ TEST(GGUFOps, Softplus) {
     std::vector<float> expected(x.size());
     for (size_t i = 0; i < x.size(); ++i)
         expected[i] = std::log1p(std::exp(-std::abs(x[i]))) + std::max(x[i], 0.0f);
-    // ARM CPU runs the graph in fp16 by default. softplus(x) = log(1 + exp(-|x|)) computes an
-    // intermediate 1 + exp(-|x|) near 1.0, where fp16 spacing is ~1e-3; for small-magnitude
-    // outputs (e.g. softplus(-4) ~ 0.018) this rounding dominates and exceeds the fp32 atol.
-    // The relative tolerance in expect_near keys off the small output value, so it does not
-    // absorb this intermediate error -- widen the absolute tolerance on ARM only.
+    // ARM CPU runs the graph in fp16: softplus's intermediate 1 + exp(-|x|) is near 1.0 where fp16
+    // spacing (~1e-3) dominates for small outputs (softplus(-4) ~ 0.018), exceeding the fp32 atol.
+    // Widen the absolute tolerance on ARM only.
 #if defined(__aarch64__) || defined(__arm__)
     expect_near(out, expected, 1e-3f);
 #else
