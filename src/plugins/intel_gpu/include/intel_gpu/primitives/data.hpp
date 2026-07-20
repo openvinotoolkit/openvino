@@ -18,6 +18,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "primitive.hpp"
@@ -393,12 +395,16 @@ public:
         ob << make_data(&data_size, sizeof(size_t));
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
+        const auto& engine = mem->get_engine();
+        const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
-            if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
-                    ob << make_data(pad.data(), pad.size());
+            if (engine->can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
+                if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ob.get_offset()); pad > 0) {
+                    std::vector<uint8_t> zeros(pad, 0);
+                    ob << make_data(zeros.data(), zeros.size());
                 }
+            }
+            if (is_alloc_host_accessible(_allocation_type)) {
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
                 std::vector<uint8_t> _buf;
@@ -414,7 +420,7 @@ public:
         primitive_base<data>::load(ib);
     }
 
-    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, memory_ptr model_tensor_base) {
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, memory_ptr host_buffer_base_ptr) {
         layout output_layout = layout();
         ib >> output_layout;
 
@@ -430,29 +436,28 @@ public:
 
         bool weightless_caching = false;
         ib >> weightless_caching;
-
-        bool enable_zero_copy_mode = ib.is_mmap_tensor_4K_aligned() && ib.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                                     ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu &&
-                                     _allocation_type == allocation_type::usm_host && !weightless_caching &&
-                                     model_tensor_base != nullptr;
-        if (!enable_zero_copy_mode) {
+        const auto& dev_info = ib.get_engine().get_device_info();
+        const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
+                                            host_buffer_base_ptr != nullptr && !weightless_caching;
+        if (!can_use_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
 
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
-            if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ib.get_bytes_to_sub_buffer_boundary(), 0);
-                    ib >> make_data(pad.data(), pad.size());
+            if (ib.get_engine().can_use_host_usm_zero_copy() && !ib.is_encrypted()) {
+                // Advance input stream past padding so subbuffer base offset meets use_host_ptr() alignment requirements.
+                if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ib.get_offset()); pad > 0) {
+                    ib.seek_current_ptr(pad);
                 }
-                if (enable_zero_copy_mode) {
-                    mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
-                    ib.seek_current_ptr(data_size);
-                } else {
-                    ib >> make_data(std::move(mem->buffer_ptr()), data_size);
-                }
+            }
+            // Zero-copy: create subbuffer referencing mmap'd cache without host-to-device transfer.
+            if (can_use_zero_copy_mode) {
+                mem = ib.get_engine().create_subbuffer(*host_buffer_base_ptr, output_layout, ib.get_offset());
+                ib.seek_current_ptr(data_size);
+            } else if (is_alloc_host_accessible(_allocation_type)) {
+                ib >> make_data(std::move(mem->buffer_ptr()), data_size);
             } else {
                 const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
