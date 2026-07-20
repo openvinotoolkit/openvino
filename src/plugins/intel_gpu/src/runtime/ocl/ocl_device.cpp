@@ -310,9 +310,6 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
             info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
-        GPU_DEBUG_INFO << "GPU version: "
-            << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
-            << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
     } else if (nv_device_attr_supported) {
         info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
                         static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
@@ -376,6 +373,25 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+    auto arch_to_string = [](gpu_arch arch) -> const char* {
+        switch (arch) {
+            case gpu_arch::unknown: return "unknown";
+            case gpu_arch::gen9:    return "gen9";
+            case gpu_arch::gen11:   return "gen11";
+            case gpu_arch::xe_lp:   return "xe_lp";
+            case gpu_arch::xe_hp:   return "xe_hp";
+            case gpu_arch::xe_hpg:  return "xe_hpg";
+            case gpu_arch::xe_hpc:  return "xe_hpc";
+            case gpu_arch::xe2:     return "xe2";
+            case gpu_arch::xe3:     return "xe3";
+            case gpu_arch::xe3p:    return "xe3p";
+        }
+        return "unknown";
+    };
+    GPU_DEBUG_INFO << "GPU architecture: " << arch_to_string(info.arch) << ", version: "
+        << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+        << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
 
     return info;
 }

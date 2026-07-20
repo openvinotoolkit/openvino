@@ -151,7 +151,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
@@ -159,7 +159,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
