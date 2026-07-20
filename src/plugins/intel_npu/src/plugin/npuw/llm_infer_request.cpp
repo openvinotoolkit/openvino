@@ -20,6 +20,12 @@
 namespace {
 using ov::npuw::LLMInferRequest;
 
+int64_t get_max_position_id(const ov::SoPtr<ov::ITensor>& position_ids) {
+    OPENVINO_ASSERT(position_ids->get_size() > 0, "position_ids tensor must not be empty");
+    auto* pos_ids_data = position_ids->data<int64_t>();
+    return *std::max_element(pos_ids_data, pos_ids_data + position_ids->get_size());
+}
+
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
 
@@ -214,13 +220,8 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
                       const ov::SoPtr<ov::ITensor>& position_ids) {
     if (auto longrope_port_it = ports.find(LLMInferRequest::layer_names::longrope_input);
         longrope_port_it != ports.end()) {
-        auto* pos_ids_data = position_ids->data<int64_t>();
-        // assuming position_ids are constantly non-deacreasing.
-        // this potentially could be not true. Alternative is to find max value in position_ids
-        auto max_pos_id = pos_ids_data[position_ids->get_size() - 1];
-
         auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
-        longrope_input->data<int64_t>()[0] = max_pos_id;
+        longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
     }
 }
 }  // anonymous namespace
@@ -317,9 +318,16 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_strategy = std::make_unique<LLMContinuousKVCacheStrategy>(*this);
     }
     m_kvcache_strategy->on_initialize();
+    // Lincache shape is kvcache_size-independent, so the same tensor can be shared across all
+    // generate variants.
+    share_lincache_across_generate_variants();
 
     if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
-        m_prefix_caching_helper = std::make_unique<PrefixCachingHelper>(*this);
+        const size_t prefix_cache_count = m_npuw_llm_compiled_model->m_longrope_context_limit > 0u ? 2u : 1u;
+        m_prefix_caching_helpers.reserve(prefix_cache_count);
+        for (size_t i = 0; i < prefix_cache_count; ++i) {
+            m_prefix_caching_helpers.push_back(std::make_unique<PrefixCachingHelper>(*this));
+        }
     }
 
     if (compiled_model->m_lm_head_compiled) {
@@ -377,6 +385,26 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
     m_llm_profile.area = "LLM/execution";
+}
+
+bool ov::npuw::LLMInferRequest::use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const {
+    const auto context_limit = m_npuw_llm_compiled_model->m_longrope_context_limit;
+    if (context_limit == 0u || m_prefix_caching_helpers.size() < 2u) {
+        return false;
+    }
+
+    const auto max_position_id = get_max_position_id(position_ids);
+    return max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+}
+
+ov::npuw::PrefixCachingHelper* ov::npuw::LLMInferRequest::get_prefix_caching_helper(
+    const ov::SoPtr<ov::ITensor>& position_ids) {
+    if (m_prefix_caching_helpers.empty()) {
+        return nullptr;
+    }
+
+    const size_t cache_index = use_longrope_prefix_cache(position_ids) ? 1u : 0u;
+    return m_prefix_caching_helpers.at(cache_index).get();
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
@@ -576,6 +604,10 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     m_kvcache_request = select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    // Record the selected variant index for O(1) capacity queries and mid-decode switching.
+    const auto& reqs = m_generate_requests;
+    m_kvcache_variant_idx =
+        static_cast<size_t>(std::distance(reqs.begin(), std::find(reqs.begin(), reqs.end(), m_kvcache_request)));
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -716,6 +748,26 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
     }
 }
 
+void ov::npuw::LLMInferRequest::share_lincache_across_generate_variants() {
+    if (m_generate_requests.size() <= 1 || m_lincache_past_names.empty()) {
+        return;
+    }
+    const auto& largest_req = m_generate_requests.back();
+    const auto& largest_ports = m_generate_variant_in_ports.at(largest_req);
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> lincache_tensors;
+    for (const auto& name : m_lincache_past_names) {
+        lincache_tensors[name] = largest_req->get_tensor(largest_ports.at(name));
+    }
+    for (size_t i = 0; i < m_generate_requests.size() - 1; ++i) {
+        const auto& variant_ports = m_generate_variant_in_ports.at(m_generate_requests[i]);
+        for (const auto& name : m_lincache_past_names) {
+            m_generate_requests[i]->set_tensor(variant_ports.at(name), lincache_tensors.at(name));
+        }
+    }
+    LOG_INFO("Shared " << m_lincache_past_names.size() << " lincache tensors across " << m_generate_requests.size()
+                       << " generate variants");
+}
+
 void ov::npuw::LLMInferRequest::copy_lincache(
     std::shared_ptr<ov::IAsyncInferRequest> from_request,
     std::shared_ptr<ov::IAsyncInferRequest> to_request,
@@ -742,6 +794,40 @@ void ov::npuw::LLMInferRequest::copy_lincache(
         from_tensor->copy_to(to_tensor._ptr);
     });
     LOG_DEBUG("Done.");
+}
+
+uint32_t ov::npuw::LLMInferRequest::get_current_variant_capacity() const {
+    // The generate model's past KV input tensor is shaped to (kv_size - max_generation_token_len)
+    // by ReshapeToStatic. Capacity is the number of past tokens that fit, not the total KV window.
+    const uint32_t kv_size = m_npuw_llm_compiled_model->m_kvcache_sizes[m_kvcache_variant_idx];
+    const uint32_t max_gen_len = m_npuw_llm_compiled_model->m_kvcache_desc.max_generation_token_len;
+    OPENVINO_ASSERT(kv_size >= max_gen_len,
+                    "KV cache size ",
+                    kv_size,
+                    " is smaller than max_generation_token_len ",
+                    max_gen_len,
+                    ".");
+    return kv_size - max_gen_len;
+}
+
+bool ov::npuw::LLMInferRequest::try_switch_to_larger_variant() {
+    const size_t next_idx = m_kvcache_variant_idx + 1;
+    if (next_idx >= m_generate_requests.size()) {
+        return false;  // already at the largest variant
+    }
+    const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
+    LOG_INFO("KV cache capacity (" << kvcache_sizes[m_kvcache_variant_idx] << ") reached at "
+                                   << m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens
+                                   << " stored tokens; switching to variant with capacity " << kvcache_sizes[next_idx]
+                                   << ".");
+    const auto old_req = m_kvcache_request;
+    const auto old_in_ports = m_kvcache_in_ports;
+    m_kvcache_variant_idx = next_idx;
+    m_kvcache_request = m_generate_requests[next_idx];
+    m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
+    m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    m_kvcache_strategy->on_generate_variant_switch(old_req, old_in_ports, m_kvcache_request, m_kvcache_in_ports);
+    return true;
 }
 
 void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids) {
@@ -808,11 +894,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     uint64_t remaining_prompts = input_prompt_len;
 
-    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    auto* prefix_caching_helper = get_prefix_caching_helper(position_ids);
+    const bool enable_prefix_caching = prefix_caching_helper != nullptr;
     PrefixCacheRestorationContext cache_context;
     if (enable_prefix_caching) {
         // Prepare and restore prefix cache using helper
-        cache_context = m_prefix_caching_helper->prepare_and_restore(input_ids, input_prompt_len);
+        cache_context = prefix_caching_helper->prepare_and_restore(input_ids, input_prompt_len);
         remaining_prompts = cache_context.remaining_prompts;
     }
 
@@ -834,9 +921,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
             if (enable_prefix_caching && cache_context.restore_prefix_cache) {
-                m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
-                                                                                    attn_mask_in_tensor,
-                                                                                    kvcache_desc.num_stored_tokens);
+                prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
+                                                                                  attn_mask_in_tensor,
+                                                                                  kvcache_desc.num_stored_tokens);
                 cache_context.restore_prefix_cache = false;
             }
 
@@ -943,9 +1030,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             }
 
             if (enable_prefix_caching) {
-                m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
-                                                               cache_context.prompt_hashes,
-                                                               cache_context.token_idx);
+                prefix_caching_helper->store_computed_blocks(current_prompts_len,
+                                                             cache_context.prompt_hashes,
+                                                             cache_context.token_idx);
             }
         });
 
@@ -978,7 +1065,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_DEBUG("Done.");
 
     if (enable_prefix_caching) {
-        m_prefix_caching_helper->print_cache_status();
+        prefix_caching_helper->print_cache_status();
     }
 }
 
@@ -1135,8 +1222,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                        ".\nPlease adjust it.");
     }
 
-    // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
-    // prepare_for_new_conversation()
+    // Lazy variant switch: if the previous step exhausted the active variant's capacity,
+    // switch now before preparing inputs for this step. Guarded by m_generate_initialized
+    // because on the first step KV data is still in the prefill model and hasn't been
+    // copied to the generate model yet by on_generate_kv_init().
+    if (m_generate_initialized && kvcache_desc.num_stored_tokens >= get_current_variant_capacity()) {
+        if (!try_switch_to_larger_variant()) {
+            OPENVINO_THROW("KV-Cache is full: num_stored_tokens=",
+                           kvcache_desc.num_stored_tokens,
+                           " capacity=",
+                           get_current_variant_capacity());
+        }
+    }
 
     // Eagle3: Check for sampling result from external pipeline via VariableState
     if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
@@ -1182,7 +1279,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             // No visual tokens are generated during the generate stage
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
-
         process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)

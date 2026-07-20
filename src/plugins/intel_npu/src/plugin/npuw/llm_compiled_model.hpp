@@ -10,6 +10,14 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
@@ -79,6 +87,7 @@ private:
     friend class EmbeddingInferRequest;
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
@@ -123,6 +132,7 @@ private:
     bool m_enable_prefix_caching = false;
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
+    uint64_t m_longrope_context_limit = 0;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

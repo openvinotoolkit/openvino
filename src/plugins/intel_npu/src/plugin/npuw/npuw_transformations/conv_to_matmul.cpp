@@ -169,6 +169,10 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
         return false;
     }
 
+    if (!weight_convert_output.get_node_shared_ptr() || !scale_source.get_node_shared_ptr()) {
+        return false;
+    }
+
     const auto& conv_weight_shape = weight_convert_output.get_shape();  // [OC, IC, 1, 1]
 
     if (convolution->get_strides() != ov::Strides{1, 1} || convolution->get_dilations() != ov::Strides{1, 1} ||
