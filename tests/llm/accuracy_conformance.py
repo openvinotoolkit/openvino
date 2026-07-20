@@ -103,15 +103,17 @@ def setup_model(model_id):
 
     logger.info(f"Setting up model: {model_id}")
 
-    # Download original model
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    # Download original model from Hugging Face snapshot to ensure deterministic, offline access
+    # This avoids HF rate limits and library inference issues in subsequent conversions
+    model_cached = snapshot_download(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
-    # Save original model
+    # Cache original model for reuse in repeated test runs and potential future tests
+    # This improves efficiency when PYTEST_DO_NOT_CLEANUP is enabled
     model_path = get_model_path(model_id, "org")
     if not os.path.exists(model_path):
-        logger.info(f"Saving original model: {model_path}")
+        logger.info(f"Caching original model: {model_path}")
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
 
@@ -131,7 +133,7 @@ def setup_model(model_id):
         del evaluator
 
     del model
-    gc.collect()
+    gc.collect()  # Free large base model before quantization steps
 
     # Convert tokenizer for OpenVINO
     ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
@@ -146,7 +148,6 @@ def setup_model(model_id):
         del ov_model
         save_model(ov_tokenizer, os.path.join(int8_model_path, "openvino_tokenizer.xml"))
         save_model(ov_detokenizer, os.path.join(int8_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
 
     # Prepare INT4 model
     int4_model_path = get_model_path(model_id, PREC_INT4)
@@ -163,7 +164,6 @@ def setup_model(model_id):
         del quantized_model
         save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
         save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
 
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)
