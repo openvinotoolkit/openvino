@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -240,8 +241,13 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
         }
 
         const auto& bodies = subgraph->get_functions();
-        for (size_t body_index = 0; body_index < bodies.size(); ++body_index) {
-            const auto& parameters = bodies[body_index]->get_parameters();
+        OPENVINO_ASSERT(bodies.size() <= static_cast<size_t>(std::numeric_limits<int>::max()),
+                        "Unexpected number of subgraph bodies: ",
+                        bodies.size());
+        for (int body_index = 0; body_index < static_cast<int>(bodies.size()); ++body_index) {
+            const auto body_index_us = static_cast<size_t>(body_index);
+            const auto& body = bodies[body_index_us];
+            const auto& parameters = body->get_parameters();
             for (const auto& input_desc : subgraph->get_input_descriptions(body_index)) {
                 int64_t class_count = 0;
                 const auto source = subgraph->input(input_desc->m_input_index).get_source_output();
@@ -254,12 +260,12 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
             for (const auto& output_desc : subgraph->get_output_descriptions(body_index)) {
                 int64_t prefix_limit = 0;
                 if (infer_prefix_limit(subgraph->output(output_desc->m_output_index), prefix_limit)) {
-                    const auto& result = bodies[body_index]->get_results()[output_desc->m_body_value_index];
+                    const auto& result = body->get_results()[output_desc->m_body_value_index];
                     result->input_value(0).get_node_shared_ptr()->get_rt_info()[prefix_limit_key] = prefix_limit;
                     marked = true;
                 }
             }
-            marked |= run_on_model(bodies[body_index]);
+            marked |= run_on_model(body);
         }
     }
     return marked;
