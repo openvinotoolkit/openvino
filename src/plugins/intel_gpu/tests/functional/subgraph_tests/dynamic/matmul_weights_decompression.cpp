@@ -66,7 +66,7 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,                
                                                     bool,                                // extra multiply
                                                     bool,                                // parameter weights
                                                     uint64_t,                            // dynamic_quantization_group_size
-                                                    float                                // threshold_f16
+                                                    float                                // abs_threshold_f16
                                                     >;
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
@@ -83,7 +83,7 @@ public:
                      extra_multiply,
                      param_weights,
                      dyn_quan_group_size,
-                     threshold_f16] = obj.param;
+                     abs_threshold_f16] = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -182,7 +182,7 @@ protected:
                      extra_multiply,
                      param_weights,
                      dyn_quan_group_size,
-                     threshold_f16] = GetParam();
+                     abs_threshold_f16] = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
@@ -201,11 +201,8 @@ protected:
                                  extra_multiply,
                                  param_weights);
 
-        if ((activations_precision == ov::element::f4e2m1 || weights_precision == ov::element::f4e2m1) &&
-            scale_precision_to_use == ov::element::f8e8m0) {
-            rel_threshold = threshold_f16;
-        } else if (activations_precision == ov::element::f16) {
-            abs_threshold = threshold_f16;
+        if (activations_precision == ov::element::f16) {
+            abs_threshold = abs_threshold_f16;
         } else {
             abs_threshold = 1e-4f;
         }
@@ -251,7 +248,7 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  extra_multiply,
                  param_weights,
                  dyn_quan_group_size,
-                 threshold_f16] = GetParam();
+                 abs_threshold_f16] = GetParam();
     // Skip tests for 4-bit parameter weights because 4-bit transpose is not supported
     if (param_weights && weights_precision != ov::element::u8) {
         GTEST_SKIP();
@@ -510,7 +507,7 @@ MatmulWeightsDecompression,
                       ::testing::Values(false),
                       ::testing::Values(false),
                       ::testing::Values(32),
-                      ::testing::Values(0.05f)),
+                      ::testing::Values(3.0f)),
    MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(

@@ -9,6 +9,9 @@
 #if IS_F8_F4
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
+#endif
+
+#if F4E2M1_OUTPUT
 #include "include/f4_utils.cl"
 #endif
 
@@ -123,9 +126,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if F4E2M1_OUTPUT
-        float4 val_f = convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale;
-        val_f = clamp(val_f, -_convert_float(OUTPUT_VAL_MAX), _convert_float(OUTPUT_VAL_MAX));
-        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, val_f);
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
         vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
 #elif IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
@@ -269,12 +270,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
     VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
-    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     val *= scale;
     val += zp;
     VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #else // i8 symmetric
-    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     val *= scale;
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #endif
@@ -355,7 +354,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint b_offset = bf * INPUT0_FEATURE_PITCH;
 #endif
     const uint offset = b_offset + VEC_SIZE * sglid;
-    const uint output_byte_offset = (b_offset + VEC_SIZE * sglid) / ELEMENTS_PER_BYTE;
+    const uint output_byte_offset = offset / ELEMENTS_PER_BYTE;
 
     const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
 

@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#define IS_LOW_BIT_FP (F4E2M1_INPUT || F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F4E2M1_OUTPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+#define IS_FP8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+#define IS_FP4 (F4E2M1_INPUT || F4E2M1_OUTPUT)
 
-#if IS_LOW_BIT_FP
+#if (IS_FP8 || IS_FP4)
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
+#endif
+
+#if IS_FP4
 #include "include/f4_utils.cl"
 #endif
 
@@ -163,7 +167,7 @@ KERNEL (reorder_data)(
         OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
     #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
             OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(_convert_float(input[input_idx]));
-    #elif defined F4E2M1_INPUT
+    #elif F4E2M1_INPUT
         // FP4 unpacking: 2 elements per byte
         const uint byte_idx = input_idx / 2;
         const uint sub_idx = input_idx % 2;
@@ -251,11 +255,7 @@ KERNEL (reorder_data)(
         res = __TO_OUTPUT_REORDER_TYPE(res);
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
-    #elif defined(F8E5M2_OUTPUT) || defined(F8E4M3_OUTPUT) || defined(F8E8M0_OUTPUT)
-        // FP8 output: 1 element per byte, requires conversion function
-        OUTPUT_TYPE val_fp8_out = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
-        output[output_idx] = val_fp8_out;
-    #elif defined(F4E2M1_OUTPUT)
+    #elif F4E2M1_OUTPUT
         // FP4 packing: 2 elements per byte
         OUTPUT_TYPE val_fp_out = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
         half val_half_out = (half)val_fp_out;

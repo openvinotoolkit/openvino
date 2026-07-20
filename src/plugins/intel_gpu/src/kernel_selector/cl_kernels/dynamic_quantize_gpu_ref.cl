@@ -8,6 +8,9 @@
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8_F4
 #include "include/f8_utils.cl"
+#endif
+
+#if F4E2M1_OUTPUT
 #include "include/f4_utils.cl"
 #endif
 
