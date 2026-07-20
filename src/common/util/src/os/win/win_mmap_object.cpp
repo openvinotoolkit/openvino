@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
