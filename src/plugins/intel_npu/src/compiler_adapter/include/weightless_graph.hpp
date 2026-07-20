@@ -39,7 +39,7 @@ public:
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     std::variant<std::monostate,
                                  std::shared_ptr<const ov::Model>,
-                                 std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
+                                 std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 

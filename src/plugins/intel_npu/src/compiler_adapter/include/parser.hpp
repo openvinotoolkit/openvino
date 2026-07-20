@@ -23,7 +23,7 @@ public:
         const FilteredConfig& config,
         std::variant<std::monostate,
                      std::shared_ptr<const ov::Model>,
-                     std::pair<std::string_view, std::shared_ptr<ov::ICore>>>&& weightsSource,
+                     std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
         const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
 

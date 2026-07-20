@@ -205,9 +205,7 @@ std::shared_ptr<IGraph> IBlobFormatImportHandler::create_graph(const ov::SoPtr<I
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(backend->getInitStructs());
 
-    std::variant<std::monostate,
-                 std::shared_ptr<const ov::Model>,
-                 std::pair<std::string_view, std::shared_ptr<ov::ICore>>>
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;
     if (init_schedules.has_value()) {
         if (m_original_model) {
