@@ -8,8 +8,8 @@ on:
         required: false
         default: true
   schedule:
-    # at 03:00 every day
-    - cron: '0 3 * * *'
+    # at 06:00 every day
+    - cron: '0 6 * * *'
 
 permissions: read-all
 
@@ -39,8 +39,7 @@ jobs:
       - name: Cleanup stale dependabot branches
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Scheduled runs perform real deletions. Manual runs honor the
-          # dry_run input (defaults to true, i.e. a safe preview).
+          # Scheduled runs perform real deletions. Manual runs honor the dry_run input (defaults to true).
           # Reads as: if event is 'schedule' -> set to 'false' (delete); else use dry_run that's true by default.
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
         run: |
