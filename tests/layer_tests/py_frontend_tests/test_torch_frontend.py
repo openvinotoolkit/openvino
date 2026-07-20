@@ -841,8 +841,9 @@ def test_module_extension_dynamo_custom_callbacks():
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
-    """__make_16bit_traceable keeps ModuleExtension (Linear/Embedding) weights
-    in 16-bit while up-casting params/buffers of non-extension modules to fp32.
+    """__make_16bit_traceable exposes FP32 placeholders for ModuleExtension
+    (Linear/Embedding) weights while keeping the real 16-bit tensor stashed,
+    and up-casts params/buffers of non-extension modules to fp32.
     """
     from openvino.frontend.pytorch import patch_model
 
@@ -862,16 +863,89 @@ def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     try:
         patch_model.__make_16bit_traceable(model)
 
-        # Linear/Embedding weights are consumed by ModuleExtension and must
-        # stay in 16-bit
-        assert model.linear.weight.dtype == dtype
-        assert model.embedding.weight.dtype == dtype
+        # Linear/Embedding weights are consumed by ModuleExtension. Their
+        # public .weight is replaced with an FP32 placeholder so that model
+        # code reading weight.dtype during tracing sees FP32, while the real
+        # 16-bit tensor is stashed for the convert callback to emit as the
+        # graph constant. The placeholder must not allocate a full-size buffer.
+        assert model.linear.weight.dtype == torch.float32
+        assert model.embedding.weight.dtype == torch.float32
+        assert model.linear.weight.shape == (4, 4)
+        assert model.linear.weight.untyped_storage().nbytes() <= 4
+        assert model.linear._openvino_orig_weight.dtype == dtype
+        assert model.embedding._openvino_orig_weight.dtype == dtype
 
         # Param and non-extension module weights are up-cast to fp32.
         assert model.scale_shift_table.dtype == torch.float32
         assert model.norm.weight.dtype == torch.float32
     finally:
         patch_model.unpatch_model(model, orig_forward_name)
+
+    # After unpatching, the real 16-bit weights are restored and the stash
+    # attributes are removed, so the original model is usable again.
+    assert model.linear.weight.dtype == dtype
+    assert model.embedding.weight.dtype == dtype
+    assert not hasattr(model.linear, "_openvino_orig_weight")
+    assert not hasattr(model.embedding, "_openvino_orig_weight")
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
+    """A submodule that casts activations to its Linear weight's dtype must not
+    bake a 16-bit ``aten::to`` into the traced graph after __make_16bit_traceable.
+
+    Before the FP32-placeholder fix, tracing read the 16-bit ``weight.dtype``
+    and produced a Convert to fp16/bf16, forcing 16-bit activations at
+    inference. With the fix, ``weight.dtype`` is FP32 during tracing, so no
+    16-bit Convert appears and the weight constant keeps its 16-bit precision.
+    """
+    from openvino.frontend.pytorch import patch_model
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino import convert_model, Type
+
+    class DtypeSniffer(torch.nn.Module):
+        def __init__(self, lin):
+            super().__init__()
+            self.lin = lin
+
+        def forward(self, x):
+            # Common pattern (e.g. RMSNorm): cast activation to weight dtype.
+            x = x.to(self.lin.weight.dtype)
+            return self.lin(x)
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.lin = torch.nn.Linear(4, 3, bias=True)
+            self.sniff = DtypeSniffer(self.lin)
+
+        def forward(self, x):
+            return self.sniff(x)
+
+    model = Model().to(dtype).eval()
+    example = torch.randn(2, 4, dtype=torch.float32)
+
+    ov_dtype = Type.f16 if dtype == torch.float16 else Type.bf16
+    patch_model.__make_16bit_traceable(model)
+    try:
+        with torch.no_grad():
+            decoder = TorchScriptPythonDecoder(
+                model, example_input=(example,),
+                module_extensions=patch_model._get_16bit_extensions()[0])
+            converted_model = convert_model(decoder, example_input=(example,))
+    finally:
+        patch_model._unpatch_torch_functions()
+
+    convert_dtypes = [op.get_element_type() for op in converted_model.get_ordered_ops()
+                      if op.get_type_name() == "Convert"]
+    # No activation should be downcast to the 16-bit type.
+    assert ov_dtype not in convert_dtypes, \
+        f"Unexpected Convert to {ov_dtype}: {convert_dtypes}"
+    # The weight constant must still be stored in the original 16-bit precision.
+    const_dtypes = [op.get_element_type() for op in converted_model.get_ordered_ops()
+                    if op.get_type_name() == "Constant"]
+    assert ov_dtype in const_dtypes, \
+        f"Expected a {ov_dtype} weight constant, got {const_dtypes}"
 
 
 def verify_model(model, example_input, expected_ops):
