@@ -406,39 +406,10 @@ the described model is compatible with the current runtime.
 
    auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
 
-.. _npu-dynamic-shapes:
-
-Dynamic Shapes
-#############################
-
-Dynamic shape support on NPU is a preview (experimental) feature. The general description of what dynamic
-shapes are and how they are used can be found in the
-:doc:`dynamic shapes guide <../model-input-output/dynamic-shapes>`.
-
-Dynamic shapes are supported starting from the NPU40XX (Lunar Lake generation) platform and require
-`Windows NPU driver 32.0.100.4621 <https://www.intel.com/content/www/us/en/download/794734/914683/intel-npu-driver-windows.html>`__
-or `Linux NPU driver 1.30 <https://github.com/intel/linux-npu-driver/releases#release-v1.30.0>`__ (or newer).
-Only bounded dynamic shapes are supported, which means each dynamic dimension must specify an upper bound,
-for example ``ov::Dimension(1, 512)``.
-
-Dynamic shapes are supported only with the ``Compiler-In-Plugin`` compiler type; the ``Compiler-In-Driver``
-path does not support dynamic shapes. See the ``ov::intel_npu::compiler_type`` property description above for
-details on selecting the compiler type. The driver versions listed above are required because dynamic shape
-support depends on the driver's support for IO strides, which is available only starting from those versions.
-
-.. note::
-
-   As a preview feature, dynamic shape support currently has the following limitations:
-
-   - Support is limited to vision models and has been validated on super resolution models (e.g., ESPCN).
-   - Only bounded dynamic shapes are supported at this time. Full dynamic shape support, including
-     unbounded shapes and broader model coverage, is planned for future releases.
-
 Limitations
 #############################
 
-* Dynamic shape support is a preview feature. See the :ref:`Dynamic Shapes <npu-dynamic-shapes>` section
-  for supported platforms, drivers, and constraints.
+* Currently, only models with static shapes are supported on NPU.
 
 **Import/Export:**
 
