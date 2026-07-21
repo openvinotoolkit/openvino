@@ -278,16 +278,22 @@ macro(ov_arm_sve_optimization_flags flags)
                 list(APPEND ${flags} -march=armv8-a+sve+fp16)
             endif()
             if(NOT CMAKE_CL_64)
-                # Do NOT enable the tree/SLP auto-vectorizer for these SVE clones. Under -march=+sve
-                # the auto-vectorizer turns generic STL templates (e.g. std::vector<T>::_M_default_append
-                # zero-init/resize) into SVE. Such instantiations are emitted as WEAK COMDAT symbols with
-                # default visibility, so the linker may select the SVE copy as the single definition used
-                # by baseline (non-SVE) translation units too, executing illegal SVE instructions on cores
-                # without SVE (e.g. Cortex-A72) and crashing with SIGILL. The intentional SVE kernels use
-                # explicit ACLE intrinsics (svld1/svmla_f32/...) and do not rely on the auto-vectorizer.
-                # -fno-tree-vectorize / -fno-tree-slp-vectorize are accepted by both GCC and Clang, which
-                # are the only compilers reaching this branch (Android/MSVC/IntelLLVM handled above).
-                list(APPEND ${flags} -fno-tree-vectorize -fno-tree-slp-vectorize)
+                list(APPEND ${flags} -ftree-vectorize)
+                # Keep auto-vectorization but restrict it to Advanced SIMD (NEON) for these SVE clones.
+                # Under -march=+sve the auto-vectorizer otherwise turns generic STL templates (e.g.
+                # std::vector<T>::_M_default_append zero-init/resize) into SVE. Such instantiations are
+                # emitted as WEAK COMDAT symbols with default visibility, so the linker may select the SVE
+                # copy as the single definition used by baseline (non-SVE) translation units too, executing
+                # illegal SVE on cores without SVE (e.g. Cortex-A72) and crashing with SIGILL. Lowering the
+                # auto-vectorizer to NEON (legal on every ARMv8-A core) keeps the generic loops vectorized
+                # while preserving the intentional SVE kernels, which use explicit ACLE intrinsics
+                # (svld1/svmla_f32/...) and are unaffected. Both GCC and Clang auto-vectorize to SVE here,
+                # but the knob is compiler-specific (Android/MSVC/IntelLLVM handled above).
+                if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                    list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
+                    list(APPEND ${flags} -mllvm -scalable-vectorization=off)
+                endif()
             endif()
 
             set(${flags} ${${flags}})
