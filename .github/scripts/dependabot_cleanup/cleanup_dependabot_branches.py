@@ -205,11 +205,23 @@ def log_summary(result: CleanupResult, dry_run: bool) -> None:
 # Configuration and entry point
 # --------------------------------------------------------------------------- #
 def read_bool_env(name: str) -> bool | None:
-    """Read a boolean-ish environment variable, or None if it is unset/empty."""
+    """Read a boolean-ish environment variable.
+
+    Returns None if it is unset/empty, or if its value is not a recognized
+    boolean spelling -- a typo (e.g. ``DRY_RUN=flase``) must not silently be
+    treated as False, since that would make ``dry_run`` fall back to its safe
+    default of True rather than accidentally disabling it.
+    """
     value = os.environ.get(name)
-    if not value:
+    if value is None or not value.strip():
         return None
-    return value.strip().lower() in ("1", "true", "yes", "on")
+    normalized = value.strip().lower()
+    if normalized in ("1", "true", "yes", "on"):
+        return True
+    if normalized in ("0", "false", "no", "off"):
+        return False
+    logger.warning(f'Ignoring unrecognized boolean {name}="{value}"')
+    return None
 
 
 def read_int_env(name: str) -> int | None:
@@ -247,13 +259,14 @@ def parse_args() -> argparse.Namespace:
         help="Repository in OWNER/REPO format "
              "(defaults to the GITHUB_REPOSITORY env var)",
     )
-    parser.add_argument(
+    dry_run_group = parser.add_mutually_exclusive_group()
+    dry_run_group.add_argument(
         "--dry-run",
         dest="dry_run",
         action="store_true",
         help="Only log which branches would be deleted (default)",
     )
-    parser.add_argument(
+    dry_run_group.add_argument(
         "--no-dry-run",
         dest="dry_run",
         action="store_false",
