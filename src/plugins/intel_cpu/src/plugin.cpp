@@ -772,29 +772,41 @@ static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
-
-    CacheDecrypt decrypt{codec_xor};
-    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
-    const auto origin_weights_path = get_origin_weights_path(config);
-
+static void validate_runtime_requirements(const char* base_ptr, size_t total_bytes, size_t& offset) {
+    // requirements_magic
+    if (offset + sizeof(uint64_t) > total_bytes) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: buffer underflow reading magic.");
+    }
     uint64_t requirements_magic = 0;
-    model_stream.read(reinterpret_cast<char*>(&requirements_magic), sizeof(requirements_magic));
+    std::memcpy(&requirements_magic, base_ptr + offset, sizeof(requirements_magic));
+    offset += sizeof(requirements_magic);
     if (requirements_magic != runtime_requirements_magic) {
         OPENVINO_THROW("[CPU] Cannot import compiled blob: incompatible runtime requirements magic.");
     }
 
+    // requirements_version
+    if (offset + sizeof(uint32_t) > total_bytes) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: buffer underflow reading version.");
+    }
     uint32_t requirements_version = 0;
-    model_stream.read(reinterpret_cast<char*>(&requirements_version), sizeof(requirements_version));
+    std::memcpy(&requirements_version, base_ptr + offset, sizeof(requirements_version));
+    offset += sizeof(requirements_version);
     if (requirements_version != runtime_requirements_version) {
         OPENVINO_THROW("[CPU] Cannot import compiled blob: incompatible runtime requirements version.");
     }
 
+    // runtime_requirements
+    if (offset + sizeof(uint64_t) > total_bytes) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: buffer underflow reading requirements size.");
+    }
     uint64_t reqs_size = 0;
-    model_stream.read(reinterpret_cast<char*>(&reqs_size), sizeof(reqs_size));
-    std::string runtime_requirements(reqs_size, '\0');
-    model_stream.read(&runtime_requirements[0], reqs_size);
+    std::memcpy(&reqs_size, base_ptr + offset, sizeof(reqs_size));
+    offset += sizeof(reqs_size);
+    if (reqs_size == 0 || reqs_size > runtime_requirements_max_size || offset + reqs_size > total_bytes) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: corrupted runtime requirements block.");
+    }
+    std::string runtime_requirements(base_ptr + offset, static_cast<size_t>(reqs_size));
+    offset += static_cast<size_t>(reqs_size);
     if (!is_runtime_requirements_compatible(runtime_requirements)) {
         OPENVINO_THROW("[CPU] Cannot import compiled blob: it was built for a different runtime "
                        "configuration (OpenVINO version/isa mismatch) and cannot be executed on "
@@ -805,6 +817,33 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
                        "  current: ",
                        build_runtime_requirements());
     }
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
+
+    CacheDecrypt decrypt{codec_xor};
+    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
+    const auto origin_weights_path = get_origin_weights_path(config);
+
+    constexpr size_t max_header_footprint = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) + runtime_requirements_max_size;
+    std::vector<char> header_buffer(max_header_footprint);
+
+    model_stream.read(header_buffer.data(), static_cast<std::streamsize>(max_header_footprint));
+    size_t bytes_read = static_cast<size_t>(model_stream.gcount());
+
+    if (bytes_read < (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t))) {
+        OPENVINO_THROW("[CPU] Cannot import compiled blob: failed to read minimal requirements header.");
+    }
+
+    size_t offset = 0;
+    validate_runtime_requirements(header_buffer.data(), bytes_read, offset);
+
+    // Clear stream flags in case we hit EOF while over-reading into our fixed scratch buffer
+    model_stream.clear();
+
+    std::streamoff remaining_unread_bytes = static_cast<std::streamoff>(bytes_read - offset);
+    model_stream.seekg(-remaining_unread_bytes, std::ios_base::cur);
 
     ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
@@ -819,11 +858,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
+    size_t total_bytes = model_tensor.get_byte_size();
+    size_t offset = 0;
+
     // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
     // but is used as read-only in deserializer
-    auto* model_data_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
+    auto* base_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
+
+    validate_runtime_requirements(base_ptr, total_bytes, offset);
+
+    auto* model_data_ptr = base_ptr + offset;
+    size_t remaining_bytes = total_bytes - offset;
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, model_tensor.get_byte_size(), model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, remaining_bytes, model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
