@@ -31,106 +31,65 @@ constexpr const char* MLP_EXPERT_NAME = ".expert";
 // PartitioningCallbacks::find_node_with_rt_info).
 constexpr const char* RT_INFO_MOE_K = "npuw_moe_k";
 
+// Boilerplate macros for MoE MatcherPass classes.
+//
+// Each MoE pass class requires four identical declarations: RTTI, pattern_name(),
+// isolation_tag(), and group_name(). These macros centralise that boilerplate so
+// that adding a new model variant requires only a constructor declaration in this
+// header and a corresponding definition in moe.cpp.
+//
+// MOE_EXPERT_STATIC_INFO  — for Expert passes that isolate matched subgraph nodes.
+// MOE_ROUTER_STATIC_INFO  — for Router passes that only extract K via RT_INFO_MOE_K
+//                           and do NOT isolate any nodes. The isol_tag constructor
+//                           argument is accepted for call-site uniformity but is
+//                           intentionally unused in all Router implementations.
+// clang-format off
+#define MOE_EXPERT_STATIC_INFO(ClassName)                                                    \
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::" #ClassName);                          \
+    static constexpr const char* pattern_name()  { return #ClassName; }                      \
+    static constexpr const char* isolation_tag() { return EXPERT_TAG; }                      \
+    static constexpr const char* group_name()    { return "moe"; }
+
+#define MOE_ROUTER_STATIC_INFO(ClassName)                                                    \
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::" #ClassName);                          \
+    static constexpr const char* pattern_name()  { return #ClassName; }                      \
+    static constexpr const char* isolation_tag() { return ROUTER_TAG; }                      \
+    static constexpr const char* group_name()    { return "moe"; }
+// clang-format on
+
 class GPTOSSExpert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSExpert");
-    static constexpr const char* pattern_name() {
-        return "GPTOSSExpert";
-    }
-    static constexpr const char* isolation_tag() {
-        return EXPERT_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
+    MOE_EXPERT_STATIC_INFO(GPTOSSExpert)
     GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class GPTOSSRouter : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSRouter");
-    static constexpr const char* pattern_name() {
-        return "GPTOSSRouter";
-    }
-    // NOTE: GPTOSSRouter does NOT isolate any nodes.  It only tags the matched
-    // TopK with RT_INFO_MOE_K.  This tag is the ISOL_PRESETS lookup key used by
-    // the pattern registry ("P:GPTOSSRouter/router") — not an isolation target.
-    static constexpr const char* isolation_tag() {
-        return ROUTER_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
-    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
-    //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
+    MOE_ROUTER_STATIC_INFO(GPTOSSRouter)
     GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class Qwen3Expert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Expert");
-    static constexpr const char* pattern_name() {
-        return "Qwen3Expert";
-    }
-    static constexpr const char* isolation_tag() {
-        return EXPERT_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
+    MOE_EXPERT_STATIC_INFO(Qwen3Expert)
     Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class Qwen3Router : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Router");
-    static constexpr const char* pattern_name() {
-        return "Qwen3Router";
-    }
-    // NOTE: Qwen3Router does NOT isolate any nodes.  It only tags the matched
-    // TopK with RT_INFO_MOE_K.  This tag is the ISOL_PRESETS lookup key used by
-    // the pattern registry ("P:Qwen3Router/router") — not an isolation target.
-    static constexpr const char* isolation_tag() {
-        return ROUTER_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
-    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
-    //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
+    MOE_ROUTER_STATIC_INFO(Qwen3Router)
     Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class Gemma4Expert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Expert");
-    static constexpr const char* pattern_name() {
-        return "Gemma4Expert";
-    }
-    static constexpr const char* isolation_tag() {
-        return EXPERT_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
+    MOE_EXPERT_STATIC_INFO(Gemma4Expert)
     Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class Gemma4Router : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Gemma4Router");
-    static constexpr const char* pattern_name() {
-        return "Gemma4Router";
-    }
-    // NOTE: Gemma4Router does NOT isolate any nodes.  It only tags the matched
-    // TopK with RT_INFO_MOE_K for downstream K retrieval.
-    static constexpr const char* isolation_tag() {
-        return ROUTER_TAG;
-    }
-    static constexpr const char* group_name() {
-        return "moe";
-    }
-    // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused.
+    MOE_ROUTER_STATIC_INFO(Gemma4Router)
     Gemma4Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 

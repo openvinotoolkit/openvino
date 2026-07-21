@@ -4,7 +4,9 @@
 
 #include "moe.hpp"
 
+#include <functional>
 #include <optional>
+#include <utility>
 
 #include "../../logging.hpp"
 #include "openvino/op/ops.hpp"
@@ -78,7 +80,7 @@ void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
 // Extract K from a TopK node's constant second input and write it to rt_info
 // under the RT_INFO_MOE_K key so that PartitioningCallbacks::find_node_with_rt_info
 // can retrieve it during the partition stage.  Returns true on success.
-// Both GPTOSSRouter and Qwen3Router call this after validating the TopK node.
+// Shared across all Router MatcherPass implementations for consistency checking:
 // expected_k is updated on first call and checked for consistency on subsequent calls;
 // OPENVINO_THROW is raised if two matched layers carry different K values.
 bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
@@ -105,6 +107,120 @@ bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t
     topk_node->get_rt_info()[RT_INFO_MOE_K] = k_value;
     LOG_DEBUG("Router: tagged TopK '" << topk_node->get_friendly_name() << "' with K=" << k_value);
     return true;
+}
+
+// Shared callback factory for all Router MatcherPass implementations.
+// Validates the matched TopK node and tags it with RT_INFO_MOE_K for K-value propagation.
+// An optional guard predicate may reject the match by returning false.
+// The only difference between Router implementations is the pattern graph structure;
+// all use this helper for TopK validation and K-tagging logic.
+std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
+    const std::shared_ptr<ov::Node>& topk_pattern,
+    const char* class_name,
+    std::function<bool(const std::shared_ptr<ov::Node>&)> guard = {}) {
+    auto expected_k = std::make_shared<std::optional<size_t>>();
+    return [topk_pattern, class_name, guard, expected_k](ov::pass::pattern::Matcher& m) -> bool {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_topk = node_to_output.at(topk_pattern).get_node_shared_ptr();
+        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
+        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
+            return false;
+        }
+        if (guard && !guard(matched_topk)) {
+            return false;
+        }
+        if (!tag_topk_k(matched_topk, *expected_k)) {
+            LOG_WARN(class_name << ": failed to extract K from TopK '"
+                                << matched_topk->get_friendly_name()
+                                << "'; MoE transformation will be skipped");
+        }
+        return false;
+    };
+}
+
+// Builds the pattern graph and callback for a SwiGLU-style expert layer with a
+// parameterised gate activation operator (template parameter ActivationOp).
+// Returns (Matcher, callback) so the caller can invoke its own register_matcher().
+//
+// Pattern structure (parameterised by activation operator):
+//   Tile -> Reshape1
+//   Reshape1 -> MatMul_gate (dequant: Multiply->Convert) -> ActivationOp
+//   Reshape1 -> MatMul_up   (dequant: Multiply->Convert)
+//   ActivationOp * MatMul_up -> MatMul_down (dequant: Multiply->Convert) -> Reshape2
+//   Reshape2 * router_score -> output_multiply   [pattern root]
+//
+// Isolation strategy (applied in callback):
+// - Prefill (token_count > 1): Isolate up to output_multiply; ReduceSum stays in downstream
+// - Decoding (token_count == 1): Isolate including ReduceSum (self-contained expert subgraph)
+template <typename ActivationOp>
+std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>>
+make_swiglu_expert_matcher(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                           const std::string& isol_tag,
+                           const char* expert_name) {
+    auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
+    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
+
+    // Gate projection: dequantized weights -> MatMul -> activation
+    auto gate_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto gate_w_cvt = opp::wrap_type<ov::op::v0::Convert>({gate_w_mul});
+    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_w_cvt});
+    auto activation = opp::wrap_type<ActivationOp>({matmul_gate});
+
+    // Up projection: dequantized weights -> MatMul
+    auto up_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto up_w_cvt = opp::wrap_type<ov::op::v0::Convert>({up_w_mul});
+    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_w_cvt});
+
+    // SwiGLU merge: activation(gate) * up
+    auto merge = opp::wrap_type<ov::op::v1::Multiply>({activation, matmul_up});
+
+    // Down projection: dequantized weights -> MatMul -> Reshape
+    auto down_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto down_w_cvt = opp::wrap_type<ov::op::v0::Convert>({down_w_mul});
+    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({merge, down_w_cvt});
+    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
+
+    // Pattern root: expert output * scattered router scores
+    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
+        const bool is_decoding = is_decoding_stage(matched_output_multiply);
+        LOG_DEBUG(expert_name << " Expert pattern matched ("
+                              << (is_decoding ? "Decoding" : "Prefill") << " stage)");
+
+        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
+        };
+
+        isolate(tile);
+        isolate(reshape1);
+        isolate(gate_w_mul);
+        isolate(gate_w_cvt);
+        isolate(matmul_gate);
+        isolate(activation);
+        isolate(up_w_mul);
+        isolate(up_w_cvt);
+        isolate(matmul_up);
+        isolate(merge);
+        isolate(down_w_mul);
+        isolate(down_w_cvt);
+        isolate(matmul_down);
+        isolate(reshape2);
+        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
+
+        if (is_decoding) {
+            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
+        }
+
+        return false;
+    };
+
+    return {std::make_shared<opp::Matcher>(output_multiply, std::string("Tag") + expert_name + "Expert"),
+            std::move(callback)};
 }
 
 }  // namespace
@@ -288,37 +404,12 @@ GPTOSSRouter::GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::onli
         {opp::any_input(), opp::any_input(), slice, opp::any_input()});
 
     // Shared across layers to detect inconsistent K values.
-    auto expected_k = std::make_shared<std::optional<size_t>>();
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        // Validate TopK mode (MAX) and Router keywords
-        auto matched_topk = node_to_output.at(topk).get_node_shared_ptr();
-        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
-        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
-            return false;
-        }
-
-        std::string topk_name = matched_topk->get_friendly_name();
-        // Check if node name contains MoE router/expert patterns
-        bool is_router = (topk_name.find(MLP_ROUTER_NAME) != std::string::npos ||
-                          topk_name.find(MLP_EXPERT_NAME) != std::string::npos);
-        if (!is_router) {
-            return false;
-        }
-
-        // Extract K from the TopK constant input and tag the node so that
-        // PartitioningCallbacks::find_node_with_rt_info can retrieve it later.
-        if (!tag_topk_k(matched_topk, *expected_k)) {
-            LOG_WARN("GPTOSSRouter: failed to extract K from TopK '" << matched_topk->get_friendly_name()
-                                                                     << "'; MoE transformation will be skipped");
-        }
-
-        // Router stays in the upstream subgraph — no isolation.
-        return false;
-    };
-
-    register_matcher(std::make_shared<opp::Matcher>(scatter, "TagGPTOSSRouter"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(scatter, "TagGPTOSSRouter"),
+                     make_router_k_callback(topk, "GPTOSSRouter", [](const std::shared_ptr<ov::Node>& node) {
+                         const auto& name = node->get_friendly_name();
+                         return name.find(MLP_ROUTER_NAME) != std::string::npos ||
+                                name.find(MLP_EXPERT_NAME) != std::string::npos;
+                     }));
 }
 
 /*
@@ -349,82 +440,8 @@ GPTOSSRouter::GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::onli
 */
 Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     LOG_DEBUG("Qwen3Expert pattern matcher registered with tag: " << isol_tag);
-
-    // Input preparation: Tile -> Reshape
-    auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
-    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
-
-    // Gate projection weights: Multiply(quantized weight, scale) -> Convert
-    auto gate_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto gate_weights_convert = opp::wrap_type<ov::op::v0::Convert>({gate_weights_multiply});
-    // Gate MatMul + Swish activation
-    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_weights_convert});
-    auto swish = opp::wrap_type<ov::op::v4::Swish>({matmul_gate});
-
-    // Up projection weights: Multiply(quantized weight, scale) -> Convert
-    auto up_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto up_weights_convert = opp::wrap_type<ov::op::v0::Convert>({up_weights_multiply});
-    // Up MatMul
-    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_weights_convert});
-
-    // SwiGLU: gate * up
-    auto multiply_swiglu = opp::wrap_type<ov::op::v1::Multiply>({swish, matmul_up});
-
-    // Down projection weights: Multiply(quantized weight, scale) -> Convert
-    auto down_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto down_weights_convert = opp::wrap_type<ov::op::v0::Convert>({down_weights_multiply});
-    // Down MatMul -> Reshape
-    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({multiply_swiglu, down_weights_convert});
-    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
-
-    // Pattern root: expert_output * router_score
-    // The router score (Unsqueeze output) is produced entirely by Qwen3Router and flows
-    // in as opp::any_input() here to avoid double-claiming shared nodes.
-    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_tile = node_to_output.at(tile).get_node_shared_ptr();
-        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
-
-        LOG_DEBUG("Qwen3Expert pattern matched: " << matched_tile->get_friendly_name());
-
-        LOG_DEBUG("Qwen3 Expert Multiply output_shape: " << matched_output_multiply->get_output_partial_shape(0));
-        const bool is_decoding = is_decoding_stage(matched_output_multiply);
-        LOG_DEBUG("Qwen3 Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
-
-        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
-            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
-        };
-
-        isolate(tile);
-        isolate(reshape1);
-        isolate(gate_weights_multiply);
-        isolate(gate_weights_convert);
-        isolate(matmul_gate);
-        isolate(swish);
-        isolate(up_weights_multiply);
-        isolate(up_weights_convert);
-        isolate(matmul_up);
-        isolate(multiply_swiglu);
-        isolate(down_weights_multiply);
-        isolate(down_weights_convert);
-        isolate(matmul_down);
-        isolate(reshape2);
-        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
-
-        if (is_decoding) {
-            LOG_DEBUG("Decoding stage detected, searching for ReduceSum to isolate...");
-            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
-        }
-
-        return false;
-    };
-
-    register_matcher(std::make_shared<opp::Matcher>(output_multiply, "TagQwen3Expert"), std::move(callback));
+    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v4::Swish>(snapshot, isol_tag, "Qwen3");
+    register_matcher(std::move(matcher), std::move(callback));
 }
 
 /*
@@ -477,29 +494,8 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
 
     // Shared across layers to detect inconsistent K values.
-    auto expected_k = std::make_shared<std::optional<size_t>>();
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        // Validate: TopK should be MAX mode (selecting top-K experts)
-        auto matched_topk = node_to_output.at(topk).get_node_shared_ptr();
-        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
-        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
-            return false;
-        }
-
-        // Extract K from the TopK constant input and tag the node so that
-        // PartitioningCallbacks::find_node_with_rt_info can retrieve it later.
-        if (!tag_topk_k(matched_topk, *expected_k)) {
-            LOG_WARN("Qwen3Router: failed to extract K from TopK '" << matched_topk->get_friendly_name()
-                                                                    << "'; MoE transformation will be skipped");
-        }
-
-        // Router stays in the upstream subgraph — no isolation.
-        return false;
-    };
-
-    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagQwen3Router"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagQwen3Router"),
+                     make_router_k_callback(topk, "Qwen3Router"));
 }
 
 /*
@@ -531,74 +527,8 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     - Gate activation is Gelu (Qwen3Expert uses Swish)
 */
 Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    // Input preparation: Tile -> Reshape1 (replicate hidden states for all N experts)
-    auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
-    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
-
-    // Gate projection weights: Multiply(quantized weight, scale) -> Convert
-    auto weights_multiply1 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto weights_convert1 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply1});
-    // Gate MatMul + Gelu activation
-    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({reshape1, weights_convert1});
-    auto gelu = opp::wrap_type<ov::op::v7::Gelu>({matmul1});
-
-    // Up projection weights: Multiply(quantized weight, scale) -> Convert
-    auto weights_multiply2 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto weights_convert2 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply2});
-    // Up MatMul
-    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({reshape1, weights_convert2});
-
-    // SwiGLU merge: Gelu(gate) * up
-    auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({gelu, matmul2});
-
-    // Down projection weights: Multiply(quantized weight, scale) -> Convert
-    auto weights_multiply3 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto weights_convert3 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply3});
-    // Down MatMul -> Reshape2
-    auto matmul3 = opp::wrap_type<ov::op::v0::MatMul>({multiply1, weights_convert3});
-    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul3, opp::any_input()});
-
-    // Pattern root: expert_output * scattered_router_scores
-    // Scattered router scores (Gemma4Router's Unsqueeze output) flow in as opp::any_input().
-    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
-        const bool is_decoding = is_decoding_stage(matched_output_multiply);
-        LOG_DEBUG("Gemma4 Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
-
-        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
-            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
-        };
-
-        isolate(tile);
-        isolate(reshape1);
-        isolate(weights_multiply1);
-        isolate(weights_convert1);
-        isolate(matmul1);
-        isolate(gelu);
-        isolate(weights_multiply2);
-        isolate(weights_convert2);
-        isolate(matmul2);
-        isolate(multiply1);
-        isolate(weights_multiply3);
-        isolate(weights_convert3);
-        isolate(matmul3);
-        isolate(reshape2);
-        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
-
-        if (is_decoding) {
-            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
-        }
-
-        return false;
-    };
-
-    register_matcher(std::make_shared<opp::Matcher>(output_multiply, "TagGemma4Expert"), std::move(callback));
+    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v7::Gelu>(snapshot, isol_tag, "Gemma4");
+    register_matcher(std::move(matcher), std::move(callback));
 }
 
 /*
@@ -647,25 +577,9 @@ Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::onli
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
 
-    auto expected_k = std::make_shared<std::optional<size_t>>();
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_topk = node_to_output.at(topk).get_node_shared_ptr();
-        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
-        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
-            return false;
-        }
-
-        if (!tag_topk_k(matched_topk, *expected_k)) {
-            LOG_WARN("Gemma4Router: failed to extract K from TopK '" << matched_topk->get_friendly_name()
-                                                                     << "'; MoE transformation will be skipped");
-        }
-
-        return false;
-    };
-
-    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagGemma4Router"), std::move(callback));
+    // Shared across layers to detect inconsistent K values.
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagGemma4Router"),
+                     make_router_k_callback(topk, "Gemma4Router"));
 }
 
 }  // namespace moe
