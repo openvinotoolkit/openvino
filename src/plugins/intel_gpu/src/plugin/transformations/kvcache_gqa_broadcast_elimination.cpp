@@ -31,7 +31,7 @@ namespace ov::intel_gpu {
             return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 5 && out_ps.size() == 4;
         };
 
-        auto reshape_4d_to_5d_expand = [is_reshape_4d_to_5d](const ov::Output<ov::Node>& output) {
+        auto expand_kv_group_4d_to_5d = [is_reshape_4d_to_5d](const ov::Output<ov::Node>& output) {
             if (auto concat = ov::as_type<ov::op::v0::Concat>(output.get_node())) {
                 if (concat->get_input_size() < 2) {
                     return false;
@@ -59,12 +59,12 @@ namespace ov::intel_gpu {
         auto input_attn_mask_m = any_input();
         auto input_scale_m = any_input();
 
-        auto expand_key_m = wrap_type<ov::op::v0::Concat, ov::op::v3::Broadcast>(reshape_4d_to_5d_expand);
+        auto expand_key_m = wrap_type<ov::op::v0::Concat, ov::op::v3::Broadcast>(expand_kv_group_4d_to_5d);
 
         auto reshape2_pattern_key_m = any_input();
         auto reshape_5d_to_4d_key_m = wrap_type<ov::op::v1::Reshape>({ expand_key_m, reshape2_pattern_key_m }, reshape_5d_to_4d);
 
-        auto expand_value_m = wrap_type<ov::op::v0::Concat, ov::op::v3::Broadcast>(reshape_4d_to_5d_expand);
+        auto expand_value_m = wrap_type<ov::op::v0::Concat, ov::op::v3::Broadcast>(expand_kv_group_4d_to_5d);
 
         auto reshape2_pattern_value_m = any_input();
         auto reshape_5d_to_4d_value_m = wrap_type<ov::op::v1::Reshape>({ expand_value_m, reshape2_pattern_value_m }, reshape_5d_to_4d);
@@ -83,27 +83,14 @@ namespace ov::intel_gpu {
             if (pattern_map.count(expand_key_m) == 0 || pattern_map.count(expand_value_m) == 0) {
                 return false;
             }
-            // (Concat|Broadcast) -> Reshape(4d->5d) -> original source that was expanded.
-            std::cout << "concant boradcast reshape " << std::endl;
-            auto expand_source = [](const ov::Output<ov::Node>& expand_out) {
-                auto node = expand_out.get_node();
-                if (auto concat = ov::as_type<ov::op::v0::Concat>(node)) {
-                    return concat->input_value(0).get_node()->input_value(0);
-                }
-                if (auto broadcast = ov::as_type<ov::op::v3::Broadcast>(node)) {
-                    return broadcast->input_value(0).get_node()->input_value(0);
-                }
-                return ov::Output<ov::Node>();
-            };
-
-            auto key_source = expand_source(pattern_map.at(expand_key_m));
-            auto value_source = expand_source(pattern_map.at(expand_value_m));
-            if (!key_source.get_node() || !value_source.get_node()) {
-                return false;
+            if (pattern_map.count(expand_key_m) > 0) {
+                auto key_source = pattern_map.at(expand_key_m).get_node()->input_value(0).get_node()->input_value(0);
+                sdpa->input(1).replace_source_output(key_source);
             }
-
-            sdpa->input(1).replace_source_output(key_source);
-            sdpa->input(2).replace_source_output(value_source);
+            if (pattern_map.count(expand_value_m) > 0) {
+                auto value_source = pattern_map.at(expand_value_m).get_node()->input_value(0).get_node()->input_value(0);
+                sdpa->input(2).replace_source_output(value_source);
+            }
             return true;
         };
         auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "KVCacheGQABroadcastElimination");
