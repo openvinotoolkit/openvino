@@ -360,10 +360,12 @@ function(ov_check_all_sources_listed)
     set(_excluded_sources)
 
     foreach(_excl_target IN LISTS ARG_EXCLUDE_TARGETS)
-        get_target_property(_excl_target_sources ${_excl_target} SOURCES)
+        if(TARGET ${_excl_target})
+            get_target_property(_excl_target_sources ${_excl_target} SOURCES)
 
-        if(_excl_target_sources)
-            list(APPEND _excluded_sources ${_excl_target_sources})
+            if(_excl_target_sources)
+                list(APPEND _excluded_sources ${_excl_target_sources})
+            endif()
         endif()
     endforeach()
 
@@ -373,7 +375,7 @@ function(ov_check_all_sources_listed)
         list(APPEND _glob_patterns "${ARG_DIRECTORY}/*.${_ext}")
     endforeach()
 
-    file(GLOB_RECURSE _disk_files ${_glob_patterns})
+    file(GLOB_RECURSE _disk_files CONFIGURE_DEPENDS ${_glob_patterns})
 
     foreach(_file IN LISTS _disk_files)
         # Skip individually excluded files
