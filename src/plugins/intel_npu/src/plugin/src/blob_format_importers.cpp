@@ -27,6 +27,8 @@ constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
 constexpr std::string_view BLOB_COMPATIBILITY_SKIPPED_MESSAGE = "Blob compatibility check skipped.";
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view EMPTY_BLOB_MESSAGE = "The blob provided for import is empty";
+constexpr std::string_view BLOB_SIZE_SMALLER_THAN_MAGIC =
+    "Received a blob for import that is not a raw one and its size is smaller than the size of the magic bytes";
 constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
     "The blob provided for import doesn't have any compiler payload";
 constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler payload";
@@ -436,6 +438,8 @@ std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const FilteredConfig& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create(std::istream)");
+    const size_t input_size = MetadataBase::getFileSize(npu_formatted_blob);
+    OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
     const Logger logger(HANDLER_FACTOR_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
     if (is_raw_blob) {
@@ -447,6 +451,8 @@ std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
 
     // The V1 format is identified by some magic bytes at the end of the input
     const size_t magic_bytes_size = MAGIC_BYTES.size();
+    OPENVINO_ASSERT(input_size >= magic_bytes_size, BLOB_SIZE_SMALLER_THAN_MAGIC);
+
     std::string blob_magic_bytes;
     blob_magic_bytes.resize(magic_bytes_size);
 
