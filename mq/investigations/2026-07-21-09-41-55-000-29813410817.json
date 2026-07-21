@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-21-09-41-55-000-29813410817",
+  "timestamp": "2026-07-21T09:41:55Z",
+  "run_id": "29813410817",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29813410817",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: import_model expected 7 calls, got 6"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 7 times\n           Actual: called 6 times - unsatisfied and active",
+    "caching_test.cpp(312): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2059 ms)"
+  ],
+  "root_cause": "The LoadMultiWithConfig_race test uses a race-based retry loop and a mock expectation for import_model calls. The race condition under Windows timing means the mock sometimes receives fewer calls than expected (6 instead of 7) within the allotted window. This is a known intermittent failure (3rd occurrence) where the MULTI plugin caching race test expectation count does not account for scheduling jitter on Windows CI runners.",
+  "reproduction_steps": "Run `ov_unit_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache` on a Windows runner; the failure is intermittent and timing-dependent.",
+  "recommended_actions": [
+    "Consider widening the expected call count range in the mock (e.g., EXPECT_CALL with AtLeast instead of exact count)",
+    "Re-run the failed CI job — as a flaky test, a simple re-run is likely to pass",
+    "Track and potentially quarantine this test if it continues to fail intermittently"
+  ],
+  "prevention_strategies": "Replace exact EXPECT_CALL count matchers with range matchers (AtLeast/AtMost) for race tests, or add retry logic within the test itself to accommodate OS scheduling variance on Windows.",
+  "historical_context": "This exact pattern (signature_hash 43e136cf67333978) has been seen twice before: run 29234771303 on 2026-07-13 (PR #36488) and run 29341562536 on 2026-07-14 (PR #36872). Both prior occurrences were resolved by re-running the failing job."
+}
