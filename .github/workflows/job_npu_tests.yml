@@ -253,17 +253,33 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+      
+      #Group C: aliked + detectron2 share compatible deps (installed together).
+      - name: "Install PyTorch tests requirements (group C: aliked/detectron2)"
+        if: ${{ !cancelled() }}
+        run: |
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
+      
+      - name: PyTorch Models Tests -  NPU compile only (group C)
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
+          python3 -m pytest ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_aliked.py ^
+            ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_detectron2.py -m "%MODEL_SCOPE%" ^
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupC_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-      # Group C: llm. Disabled on NPU (if: false) - needs additional changes to enable
+      # Group D: llm. Disabled on NPU (if: false) - needs additional changes to enable
       # on Windows (gptqmodel deps + export_mode path). llm_build_deps must precede llm.txt.
-      - name: "Install PyTorch tests requirements (group C: llm)"
+      - name: "Install PyTorch tests requirements (group D: llm)"
         if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm_build_deps.txt
           python3 -m pip install --no-build-isolation -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\llm.txt
 
-      - name: PyTorch Models Tests - NPU compile-only (group C - llm)
+      - name: PyTorch Models Tests - NPU compile-only (group D - llm)
         if: false
         shell: cmd
         run: |
