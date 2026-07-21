@@ -62,8 +62,7 @@ protected:
 
     /// Scattered per-expert scores [N,ne] -> [ne,1,N,1] for broadcasting over the expert
     /// outputs: Transpose -> Reshape -> Unsqueeze (the Qwen3Router/GPTOSSRouter tail).
-    ov::Output<ov::Node> broadcast_router_scores(const ov::Output<ov::Node>& scattered,
-                                                 const std::string& name) const;
+    ov::Output<ov::Node> broadcast_router_scores(const ov::Output<ov::Node>& scattered, const std::string& name) const;
 
     /// 2D input [N,H] -> all-expert batch [ne,N,H]: Tile -> Reshape.
     ov::Output<ov::Node> tile_to_experts(const ov::Output<ov::Node>& input_2d, const std::string& name) const;
@@ -138,7 +137,7 @@ struct Gemma4MoEFFN : BatchedMoEFFN {
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 
 private:
-    std::shared_ptr<ov::Node> reduce_axis_k;  ///< router renormalization axis (over K)
+    std::shared_ptr<ov::Node> reduce_axis_k;           ///< router renormalization axis (over K)
     std::shared_ptr<ov::Node> per_expert_scale_const;  ///< learned per-expert scale [num_experts]
 };
 

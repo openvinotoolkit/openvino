@@ -459,14 +459,11 @@ std::shared_ptr<Node> build_gemma4_router_layer(const std::shared_ptr<op::v0::Pa
     return std::make_shared<op::v0::Unsqueeze>(reshape, unsqueeze_axis);
 }
 
-std::shared_ptr<Model> build_gemma4_router_graph(int64_t k_value,
-                                                 size_t hidden_dim = 16,
-                                                 size_t num_experts = 8) {
+std::shared_ptr<Model> build_gemma4_router_graph(int64_t k_value, size_t hidden_dim = 16, size_t num_experts = 8) {
     auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
     router_input->set_friendly_name("router_input");
     auto out = build_gemma4_router_layer(router_input, k_value, 0, num_experts);
-    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)},
-                                   ParameterVector{router_input});
+    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
 }
 
 std::shared_ptr<Model> build_two_gemma4_router_model(int64_t k0,

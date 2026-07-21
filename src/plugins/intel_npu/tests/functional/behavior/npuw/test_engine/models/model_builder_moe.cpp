@@ -292,8 +292,7 @@ ov::Output<ov::Node> Qwen3MoEFFN::operator()(const ov::Output<ov::Node>& input, 
     // Scatter the renormalized scores back to the full expert dimension.  The TopK indices
     // (output(1)) feed the scatter directly — no intermediate Convert — matching Qwen3Router.
     auto zeros = router_zeros(r_mm, name + ".expert.router.shapeof", name + ".expert.router.zeros");
-    auto scatter =
-        std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros, topk->output(1), divide, scatter_axis);
+    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros, topk->output(1), divide, scatter_axis);
     scatter->set_friendly_name(name + ".expert.router.scatter");
 
     auto router_scores = broadcast_router_scores(scatter, name);
@@ -302,9 +301,8 @@ ov::Output<ov::Node> Qwen3MoEFFN::operator()(const ov::Output<ov::Node>& input, 
     auto expert_3d = tile_to_experts(input_2d, name);
 
     // Gate projection -> Swish.
-    auto gate_w = weight_fn(name + ".expert.gate_proj.weight",
-                            ov::Shape{num_experts, intermediate_size, hidden_size},
-                            prec);
+    auto gate_w =
+        weight_fn(name + ".expert.gate_proj.weight", ov::Shape{num_experts, intermediate_size, hidden_size}, prec);
     auto gate_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, gate_w, false, true);
     gate_mm->set_friendly_name(name + ".expert.gate_matmul");
     // Single-input Swish (no beta) — matches real Qwen3 aten::silu and the Qwen3Expert
@@ -337,8 +335,8 @@ Gemma4MoEFFN::Gemma4MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::elemen
     // Router renormalization sums the K selected scores (last router axis), keepdims.
     reduce_axis_k = ov::opset11::Constant::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
     // Uniform per-expert scale (all ones); real Gemma4 learns this from training data.
-    per_expert_scale_const = ov::opset11::Constant::create(
-        ov::element::f32, ov::Shape{ne}, std::vector<float>(ne, 1.0f));
+    per_expert_scale_const =
+        ov::opset11::Constant::create(ov::element::f32, ov::Shape{ne}, std::vector<float>(ne, 1.0f));
 }
 
 ov::Output<ov::Node> Gemma4MoEFFN::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
@@ -365,10 +363,9 @@ ov::Output<ov::Node> Gemma4MoEFFN::operator()(const ov::Output<ov::Node>& input,
 
     // --- Router ---
     // Plain FP32 weight (Gemma4 does not quantize the router).
-    auto rw = ov::opset11::Constant::create(
-        ov::element::f32,
-        ov::Shape{num_experts, hidden_size},
-        std::vector<float>(num_experts * hidden_size, 1.0f));
+    auto rw = ov::opset11::Constant::create(ov::element::f32,
+                                            ov::Shape{num_experts, hidden_size},
+                                            std::vector<float>(num_experts * hidden_size, 1.0f));
     rw->set_friendly_name(name + ".router.weight");
     auto r_mm = std::make_shared<ov::opset11::MatMul>(input_2d, rw, false, true);
     r_mm->set_friendly_name(name + ".router.matmul");
@@ -419,18 +416,16 @@ ov::Output<ov::Node> Gemma4MoEFFN::operator()(const ov::Output<ov::Node>& input,
     auto expert_3d = tile_to_experts(input_2d, name);
 
     // Gate projection -> Gelu.
-    auto gate_w = weight_fn(name + ".expert.gate_proj.weight",
-                            ov::Shape{num_experts, intermediate_size, hidden_size},
-                            prec);
+    auto gate_w =
+        weight_fn(name + ".expert.gate_proj.weight", ov::Shape{num_experts, intermediate_size, hidden_size}, prec);
     auto gate_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, gate_w, false, true);
     gate_mm->set_friendly_name(name + ".expert.gate_matmul");
     auto gelu = std::make_shared<ov::op::v7::Gelu>(gate_mm);
     gelu->set_friendly_name(name + ".expert.gelu");
 
     // Up projection (shares expert_3d input, matching Gemma4Expert's pattern).
-    auto up_w = weight_fn(name + ".expert.up_proj.weight",
-                          ov::Shape{num_experts, intermediate_size, hidden_size},
-                          prec);
+    auto up_w =
+        weight_fn(name + ".expert.up_proj.weight", ov::Shape{num_experts, intermediate_size, hidden_size}, prec);
     auto up_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, up_w, false, true);
     up_mm->set_friendly_name(name + ".expert.up_matmul");
 
@@ -439,9 +434,8 @@ ov::Output<ov::Node> Gemma4MoEFFN::operator()(const ov::Output<ov::Node>& input,
     merged->set_friendly_name(name + ".expert.merge");
 
     // Down projection.
-    auto dn_w = weight_fn(name + ".expert.down_proj.weight",
-                          ov::Shape{num_experts, hidden_size, intermediate_size},
-                          prec);
+    auto dn_w =
+        weight_fn(name + ".expert.down_proj.weight", ov::Shape{num_experts, hidden_size, intermediate_size}, prec);
     auto dn_mm = std::make_shared<ov::opset11::MatMul>(merged, dn_w, false, true);
     dn_mm->set_friendly_name(name + ".expert.down_matmul");
 

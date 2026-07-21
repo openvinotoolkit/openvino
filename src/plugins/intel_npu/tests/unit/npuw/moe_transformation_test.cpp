@@ -7,9 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <map>
-
 #include <common_test_utils/test_common.hpp>
+#include <map>
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -754,10 +753,9 @@ inline ::intel_npu::Config make_moe_isolate_cfg() {
 }
 
 inline size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::string& tag) {
-    return static_cast<size_t>(
-        std::count_if(ens.groups.begin(), ens.groups.end(), [&tag](const ov::npuw::Group& g) {
-            return g.gettag() == tag;
-        }));
+    return static_cast<size_t>(std::count_if(ens.groups.begin(), ens.groups.end(), [&tag](const ov::npuw::Group& g) {
+        return g.gettag() == tag;
+    }));
 }
 
 // The builder model is stateful (KV cache) like a real LLM; the partitioner and the
@@ -967,7 +965,9 @@ static std::shared_ptr<Model> create_gemma4_expert_graph(size_t num_experts,
 // Verify that Gemma4Expert isolates all matched nodes with the "expert" tag.
 TEST_F(MoETransformationTest, Gemma4Expert_IsolatesNodes) {
     constexpr size_t num_experts = 8;
-    auto model = create_gemma4_expert_graph(num_experts, /*hidden_dim=*/64, /*intermediate_dim=*/128,
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
                                             /*token_count=*/1);
 
     auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
@@ -991,8 +991,11 @@ TEST_F(MoETransformationTest, Gemma4Expert_IsolatesNodes) {
 // must also be isolated into the expert group.
 TEST_F(MoETransformationTest, Gemma4Expert_DecodingIsolatesReduceSum) {
     constexpr size_t num_experts = 8;
-    auto model = create_gemma4_expert_graph(num_experts, /*hidden_dim=*/64, /*intermediate_dim=*/128,
-                                            /*token_count=*/1, /*with_reduce_sum=*/true);
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
+                                            /*token_count=*/1,
+                                            /*with_reduce_sum=*/true);
 
     auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
     snapshot->buildGraph();
@@ -1004,22 +1007,23 @@ TEST_F(MoETransformationTest, Gemma4Expert_DecodingIsolatesReduceSum) {
     // The downstream ReduceSum must be tagged "expert" (decoding path).
     bool reduce_sum_isolated = false;
     for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
-        if (group->isolatedTag() == "expert" &&
-            std::dynamic_pointer_cast<op::v1::ReduceSum>(node)) {
+        if (group->isolatedTag() == "expert" && std::dynamic_pointer_cast<op::v1::ReduceSum>(node)) {
             reduce_sum_isolated = true;
             break;
         }
     }
-    EXPECT_TRUE(reduce_sum_isolated)
-        << "Downstream ReduceSum must be isolated into the expert group in decoding mode";
+    EXPECT_TRUE(reduce_sum_isolated) << "Downstream ReduceSum must be isolated into the expert group in decoding mode";
 }
 
 // In prefill mode (token_count > 1) the downstream ReduceSum must NOT be isolated.
 TEST_F(MoETransformationTest, Gemma4Expert_PrefillDoesNotIsolateReduceSum) {
     constexpr size_t num_experts = 8;
     constexpr size_t prefill_tokens = 16;
-    auto model = create_gemma4_expert_graph(num_experts, /*hidden_dim=*/64, /*intermediate_dim=*/128,
-                                            /*token_count=*/prefill_tokens, /*with_reduce_sum=*/true);
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
+                                            /*token_count=*/prefill_tokens,
+                                            /*with_reduce_sum=*/true);
 
     auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
     snapshot->buildGraph();
@@ -1031,11 +1035,9 @@ TEST_F(MoETransformationTest, Gemma4Expert_PrefillDoesNotIsolateReduceSum) {
     for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
         if (std::dynamic_pointer_cast<op::v1::ReduceSum>(node) &&
             node->get_friendly_name() == "expert_downstream_reduce_sum") {
-            EXPECT_NE(group->isolatedTag(), "expert")
-                << "Downstream ReduceSum must NOT be isolated in prefill mode";
+            EXPECT_NE(group->isolatedTag(), "expert") << "Downstream ReduceSum must NOT be isolated in prefill mode";
         }
     }
 }
-
 
 }  // namespace

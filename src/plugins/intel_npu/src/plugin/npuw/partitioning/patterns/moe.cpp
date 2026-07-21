@@ -130,12 +130,40 @@ std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
             return false;
         }
         if (!tag_topk_k(matched_topk, *expected_k)) {
-            LOG_WARN(class_name << ": failed to extract K from TopK '"
-                                << matched_topk->get_friendly_name()
+            LOG_WARN(class_name << ": failed to extract K from TopK '" << matched_topk->get_friendly_name()
                                 << "'; MoE transformation will be skipped");
         }
         return false;
     };
+}
+
+// Shared data structure for router score pattern nodes (from MatMul to Divide).
+struct RouterScorePattern {
+    std::shared_ptr<ov::Node> matmul;
+    std::shared_ptr<ov::Node> topk;
+    std::shared_ptr<ov::Node> reduce_sum;
+    std::shared_ptr<ov::Node> divide;
+};
+
+// Builds the shared router score computation pattern (MatMul -> Softmax -> TopK -> ReduceSum -> Divide).
+// MatMul inputs are unconstrained (any_input) to support both quantized and non-quantized weight paths.
+// Returned pattern nodes can be used by different Router implementations (Qwen3, Gemma4, etc.).
+RouterScorePattern build_shared_router_score_pattern() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
+    auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});
+    auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
+    auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
+    return {matmul, topk, reduce_sum, divide};
+}
+
+// Builds the shared router tail pattern (Scatter -> Transpose -> Reshape -> Unsqueeze).
+// Pattern root is Unsqueeze; this helper encapsulates the tail logic common to all Router implementations.
+std::shared_ptr<ov::Node> build_shared_router_tail(const std::shared_ptr<ov::Node>& scatter_input) {
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter_input, opp::any_input()});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
+    return unsqueeze;
 }
 
 // Builds the pattern graph and callback for a SwiGLU-style expert layer with a
@@ -153,10 +181,10 @@ std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
 // - Prefill (token_count > 1): Isolate up to output_multiply; ReduceSum stays in downstream
 // - Decoding (token_count == 1): Isolate including ReduceSum (self-contained expert subgraph)
 template <typename ActivationOp>
-std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>>
-make_swiglu_expert_matcher(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                           const std::string& isol_tag,
-                           const char* expert_name) {
+std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> make_swiglu_expert_matcher(
+    const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+    const std::string& isol_tag,
+    const char* expert_name) {
     auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
     auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
 
@@ -189,8 +217,7 @@ make_swiglu_expert_matcher(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
         const bool is_decoding = is_decoding_stage(matched_output_multiply);
-        LOG_DEBUG(expert_name << " Expert pattern matched ("
-                              << (is_decoding ? "Decoding" : "Prefill") << " stage)");
+        LOG_DEBUG(expert_name << " Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
         auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
             isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
@@ -447,19 +474,14 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
 /*
     Qwen3 Router Pattern:
 
-    Router weights (quantized, dequantized via weight chain):
-        Convert(weight) -> Multiply(weight, scale) -> Convert -> MatMul(input, weight)
+    Shared score computation (MatMul -> Softmax -> TopK -> ReduceSum -> Divide):
+        MatMul inputs may be quantized or non-quantized; pattern uses any_input() for flexibility
 
-    Score computation:
-        MatMul -> Softmax -> TopK(values, indices)
-
-    Score normalization:
-        TopK(values) -> ReduceSum -> Divide(values, sum)   [renormalize over K selected]
+    Qwen3-specific scores path:
+        optional<Convert>({topk})  -> TopK indices may pass through Convert
+        optional<Slice>({divide})  -> Divide output may pass through Slice before scatter
 
     Scatter to full expert dimension:
-        TopK(indices) + Divide(scores) -> ScatterElementsUpdate(zero_broadcast, indices, scores)
-
-    Shape to [num_experts, token_count, 1, 1] for expert broadcast:
         ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
 
     Key difference from GPT-OSS: Softmax is BEFORE TopK (not after).
@@ -468,34 +490,22 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
                          [[maybe_unused]] const std::string& isol_tag) {
     LOG_DEBUG("Qwen3Router pattern matcher registered (K-extraction only, no isolation)");
 
-    // Router weights: Convert(weight) -> Multiply(weight, scale) -> Convert -> MatMul
-    auto weights_convert_in = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({weights_convert_in, opp::any_input()});
-    auto weights_convert_out = opp::wrap_type<ov::op::v0::Convert>({weights_multiply});
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), weights_convert_out});
+    // Use shared score computation: MatMul -> Softmax -> TopK -> ReduceSum -> Divide
+    auto score_nodes = build_shared_router_score_pattern();
 
-    // Score: Softmax -> TopK
-    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
-    auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});
-
-    // Renormalization: TopK(values)->ReduceSum, TopK(values)/ReduceSum = Divide
-    auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
-    auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
-
-    auto topk_to_scatter = opp::optional<ov::op::v0::Convert>({topk});
+    // Qwen3-specific: optional Convert on TopK indices and optional Slice on Divide
+    auto topk_to_scatter = opp::optional<ov::op::v0::Convert>({score_nodes.topk});
     auto divide_to_scatter = opp::optional<ov::op::v8::Slice>(
-        {divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        {score_nodes.divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
-    // Scatter to full expert shape (pattern root = Unsqueeze)
-    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+    // Scatter inputs: any_input() for zero_broadcast, topk_to_scatter for indices, divide_to_scatter for scores
+    auto scatter_input = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
         {opp::any_input(), topk_to_scatter, divide_to_scatter, opp::any_input()});
-    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
-    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
-    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
+    auto unsqueeze = build_shared_router_tail(scatter_input);
 
-    // Shared across layers to detect inconsistent K values.
+    // Shared K-value extraction and validation callback.
     register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagQwen3Router"),
-                     make_router_k_callback(topk, "Qwen3Router"));
+                     make_router_k_callback(score_nodes.topk, "Qwen3Router"));
 }
 
 /*
@@ -534,52 +544,40 @@ Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 /*
     Gemma4 Router Pattern:
 
-    Router projection (MatMul required; weight path may be quantized or non-quantized):
-        MatMul -> Softmax -> TopK(values, indices)
+    Shared score computation (MatMul -> Softmax -> TopK -> ReduceSum -> Divide):
+        MatMul inputs may be quantized or non-quantized; pattern uses any_input() for flexibility
 
-    Score normalization:
-        TopK(values) -> ReduceSum -> Divide(values, sum)
-
-    Per-expert scale:
+    Gemma4-specific scores path (per-expert learned scale):
         Gather(per_expert_scale, topk_indices) -> Multiply(Divide, Gather) -> Slice
+        per-expert scale is combined with renormalized scores before scatter
 
     Scatter to full expert dimension:
         ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
 
-    Key differences from Qwen3Router:
-    - Router MatMul is required, but its inputs are unconstrained to support plain-FP32 and dequantized weight paths
-    - Per-expert learned scale applied via Gather before scatter
+    Key difference from Qwen3Router:
+    - Per-expert learned scale applied via Gather+Multiply before scatter (mandatory in Gemma4)
 */
 Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                            [[maybe_unused]] const std::string& isol_tag) {
-    // MatMul inputs are kept generic so both quantized and non-quantized upstream paths match.
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
-    auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});
+    // Use shared score computation: MatMul -> Softmax -> TopK -> ReduceSum -> Divide
+    auto score_nodes = build_shared_router_score_pattern();
 
-    // Score normalization: TopK(values) -> ReduceSum; TopK(values) / ReduceSum = Divide
-    auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
-    auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
-
-    // Per-expert scale: Gather(per_expert_scale, topk_indices)
+    // Gemma4-specific: Per-expert learned scale via Gather, then Multiply and Slice
     // TopK output(1) (indices) goes through Convert before Gather port 1;
     // wrap_type can only express output(0), so both use any_input().
     auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-    // Combine renormalized scores with per-expert scale, then Slice to scatter target size
-    auto scores_multiply = opp::wrap_type<ov::op::v1::Multiply>({divide, gather});
+    auto scores_multiply = opp::wrap_type<ov::op::v1::Multiply>({score_nodes.divide, gather});
     auto slice = opp::wrap_type<ov::op::v8::Slice>(
         {scores_multiply, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
-    // Scatter scores to full expert × token layout (pattern root = Unsqueeze)
-    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+    // Scatter inputs: any_input() for indices and zero_broadcast, slice for scores
+    auto scatter_input = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
         {opp::any_input(), opp::any_input(), slice, opp::any_input()});
-    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
-    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
-    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
+    auto unsqueeze = build_shared_router_tail(scatter_input);
 
-    // Shared across layers to detect inconsistent K values.
+    // Shared K-value extraction and validation callback.
     register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagGemma4Router"),
-                     make_router_k_callback(topk, "Gemma4Router"));
+                     make_router_k_callback(score_nodes.topk, "Gemma4Router"));
 }
 
 }  // namespace moe
