@@ -6,17 +6,15 @@
 Dependabot branches are sometimes left behind after their pull request is merged
 or closed. This script finds those orphaned branches and removes them.
 
-The logic is intentionally small and split into clear steps so it is easy to read
-and to extend:
+A ``dependabot/*`` branch is deleted only if it backs no open pull request:
 
-    1. list_dependabot_branches()  -> which branches do we care about?
-    2. get_open_pr_branches()      -> which branches are still in use?
-    3. is_branch_stale()           -> the single rule that decides deletion.
-    4. delete_branch()             -> the side effect.
-    5. run_cleanup()               -> wires the steps together and reports.
-
-To change *what counts as stale* (for example, also require the branch to be a
-few days old), you only need to change ``is_branch_stale``.
+    1. list_dependabot_branches()     -> branches to inspect.
+    2. get_recent_open_pr_branches()  -> cheap fast-path subset with a recently
+                                         updated open PR.
+    3. branch_has_open_pr()           -> authoritative per-branch fallback check,
+                                         so an open PR of any age is never missed.
+    4. delete_branch()                -> the side effect.
+    5. run_cleanup()                  -> wires the steps together and reports.
 
 Run it manually (dry-run is the default, so nothing is deleted):
 
@@ -78,27 +76,13 @@ def is_dependabot_branch(branch_name: str) -> bool:
     return branch_name.startswith(DEPENDABOT_BRANCH_PREFIX)
 
 
-def is_branch_stale(branch_name: str, open_pr_branches: set[str]) -> bool:
-    """Decide whether a dependabot branch is safe to delete.
-
-    A branch is stale when it does NOT back an open pull request. That covers
-    branches whose PR was merged or closed, as well as branches that never had a
-    PR. Branches with an open PR are always kept.
-
-    This is the single place to change the deletion policy. For example, to also
-    keep very recent branches you would add that extra condition here.
-    """
-    return branch_name not in open_pr_branches
-
-
-def get_open_pr_branches(repository, max_age_days: int) -> set[str]:
+def get_recent_open_pr_branches(repository, max_age_days: int) -> set[str]:
     """Return head branch names of open PRs updated within ``max_age_days``.
 
-    The repository routinely has hundreds of open PRs, so instead of paging
-    through all of them we ask GitHub to sort by most-recently-updated and stop
-    as soon as we reach a PR older than the cutoff. Dependabot keeps active PRs
-    fresh (it rebases them as the base branch moves), so a PR that has not been
-    touched within this window is treated as no longer keeping its branch alive.
+    With hundreds of open PRs in the repository, we sort by
+    most-recently-updated and stop at the first PR older than the cutoff instead
+    of paging through all of them. This is a subset of all open-PR branches, so
+    it must never be the sole basis for deletion -- see :func:`branch_has_open_pr`.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     open_pr_branches: set[str] = set()
@@ -112,6 +96,19 @@ def get_open_pr_branches(repository, max_age_days: int) -> set[str]:
             break
         open_pr_branches.add(pull.head.ref)
     return open_pr_branches
+
+
+def branch_has_open_pr(repository, owner_login: str, branch_name: str) -> bool:
+    """Return True if ``branch_name`` currently backs at least one open PR.
+
+    This is the authoritative safety check, independent of the recent-PR window.
+    It filters server-side by head branch (``owner:branch``) so it inspects only
+    the PR(s) for this one branch rather than every open PR in the repository.
+    """
+    open_pulls = repository.get_pulls(
+        state="open", head=f"{owner_login}:{branch_name}"
+    )
+    return open_pulls.totalCount > 0
 
 
 def list_dependabot_branches(repository) -> list[str]:
@@ -141,12 +138,15 @@ def run_cleanup(repository, dry_run: bool, open_pr_max_age_days: int) -> Cleanup
 
     When ``dry_run`` is True the script only logs what it *would* delete.
     """
-    open_pr_branches = get_open_pr_branches(repository, open_pr_max_age_days)
+    recent_open_pr_branches = get_recent_open_pr_branches(
+        repository, open_pr_max_age_days
+    )
     logger.info(
-        f"Found {len(open_pr_branches)} open pull request branch(es) "
+        f"Found {len(recent_open_pr_branches)} open pull request branch(es) "
         f"updated within {open_pr_max_age_days} day(s)"
     )
 
+    owner_login = repository.full_name.split("/")[0]
     dependabot_branches = list_dependabot_branches(repository)
     logger.info(
         f'Found {len(dependabot_branches)} "{DEPENDABOT_BRANCH_PREFIX}" '
@@ -156,7 +156,15 @@ def run_cleanup(repository, dry_run: bool, open_pr_max_age_days: int) -> Cleanup
     result = CleanupResult(scanned=dependabot_branches)
 
     for branch_name in dependabot_branches:
-        if not is_branch_stale(branch_name, open_pr_branches):
+        # Fast path: branch is known to back a recently updated open PR.
+        if branch_name in recent_open_pr_branches:
+            logger.info(f'Keep    "{branch_name}" (still has an open PR)')
+            result.kept.append(branch_name)
+            continue
+
+        # Authoritative check: never delete a branch that backs an open PR,
+        # even one older than the recent-scan window.
+        if branch_has_open_pr(repository, owner_login, branch_name):
             logger.info(f'Keep    "{branch_name}" (still has an open PR)')
             result.kept.append(branch_name)
             continue
