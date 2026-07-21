@@ -15,16 +15,27 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -37,6 +48,69 @@
 namespace ov::intel_gpu {
 
 namespace {
+
+bool is_binary_eltwise(const std::shared_ptr<ov::Node>& op) {
+    return ov::op::util::is_binary_elementwise_arithmetic(op.get()) ||
+           ov::op::util::is_binary_elementwise_logical(op.get()) ||
+           ov::op::util::is_binary_elementwise_comparison(op.get()) ||
+           ov::is_type<ov::op::v13::BitwiseAnd>(op.get()) ||
+           ov::is_type<ov::op::v13::BitwiseOr>(op.get()) ||
+           ov::is_type<ov::op::v13::BitwiseXor>(op.get()) ||
+           ov::is_type<ov::op::v13::BitwiseLeftShift>(op.get()) ||
+           ov::is_type<ov::op::v13::BitwiseRightShift>(op.get());
+}
+
+bool is_all_inputs_1d(const std::shared_ptr<ov::Node>& op) {
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        const auto& in_shape = op->get_input_partial_shape(i);
+        if (in_shape.size() > 1)
+            return false;
+    }
+    return true;
+}
+
+bool is_convert_into_binary_eltwise(const std::shared_ptr<ov::Node>& op) {
+    if (!ov::is_type<ov::op::v0::Convert>(op.get()))
+        return false;
+
+    for (size_t i = 0; i < op->get_output_size(); ++i) {
+        for (auto& user : op->get_output_target_inputs(i)) {
+            const auto consumer = user.get_node()->shared_from_this();
+            if (is_binary_eltwise(consumer) && is_all_inputs_1d(consumer))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+bool is_common_const_consumer_trigger(const std::shared_ptr<ov::Node>& op) {
+    if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op))
+        return concat->get_axis() == 0;
+
+    if (((is_binary_eltwise(op) || ov::is_type<ov::op::v0::SquaredDifference>(op.get())) && is_all_inputs_1d(op)) ||
+        is_convert_into_binary_eltwise(op)) {
+        return true;
+    }
+
+    if (ov::is_type<ov::op::v1::Gather>(op.get()) ||
+        ov::is_type<ov::op::v7::Gather>(op.get()) ||
+        ov::is_type<ov::op::v8::Gather>(op.get()) ||
+        ov::is_type<ov::op::v5::GatherND>(op.get()) ||
+        ov::is_type<ov::op::v8::GatherND>(op.get()) ||
+        ov::is_type<ov::op::v1::Split>(op.get()) ||
+        ov::is_type<ov::op::v1::VariadicSplit>(op.get()) ||
+        ov::is_type<ov::op::v0::PRelu>(op.get()) ||
+        ov::is_type<ov::op::v3::ROIAlign>(op.get()) ||
+        ov::is_type<ov::op::v9::ROIAlign>(op.get()) ||
+        ov::is_type<ov::op::v15::ROIAlignRotated>(op.get()) ||
+        ov::is_type<ov::op::v5::Loop>(op.get()) ||
+        ov::is_type<ov::op::v0::TensorIterator>(op.get())) {
+        return true;
+    }
+
+    return false;
+}
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
@@ -52,6 +126,10 @@ ov::RTMap get_rt_info(const ov::Model& model) {
 
 bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
+        return true;
+    }
+
+    if (is_common_const_consumer_trigger(op)) {
         return true;
     }
 
