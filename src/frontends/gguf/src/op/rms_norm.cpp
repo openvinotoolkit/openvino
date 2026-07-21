@@ -3,12 +3,11 @@
 //
 
 #include <memory>
-#include "openvino/op/add.hpp"
+
+#include "openvino/core/node_output.hpp"
+#include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/sqrt.hpp"
+#include "openvino/pass/node_registry.hpp"
 
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -22,23 +21,15 @@ namespace op {
 OutputVector translate_rms_norm(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
+    // ggml RMS_NORM is norm-only (the weight/gamma multiply is a separate ggml MUL op), so no scale
+    // is passed. The shared helper emits the canonical form ov::pass::RMSFusion folds into
+    // ov::op::internal::RMS.
     auto input_node = context.get_input(0);
-    auto square = std::make_shared<ov::op::v1::Multiply>(input_node, input_node);
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {context.get_attribute<float>("eps")});
 
-    auto mean =
-        std::make_shared<ov::op::v1::ReduceMean>(square,
-                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
-                                                 true);
-
-    float eps = context.get_attribute<float>("eps");
-
-    auto rms = std::make_shared<ov::op::v0::Sqrt>(
-        std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {eps})));
-
-    auto reciprocal =
-        std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f}), rms);
-
-    auto res = std::make_shared<ov::op::v1::Multiply>(input_node, reciprocal);
+    ov::pass::NodeRegistry reg;
+    auto res = ov::decomposition::rms_norm(reg, input_node, axes, eps);
 
     return rename_outputs_with_suffix({res}, context.get_name());
 }
