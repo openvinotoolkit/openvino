@@ -49,14 +49,17 @@ struct BlobFormatImportersTest : public ::testing::Test {
 TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
     std::istringstream input_stream("");
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config), ov::Exception, _);
+
     const ov::Tensor input_tensor;
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
 }
 
 TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
     const std::string blob = build_blob_format_v1_without_magic();
+
     std::istringstream input_stream(blob);
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config), ov::Exception, _);
+
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
 }
@@ -67,29 +70,21 @@ TEST_F(BlobFormatImportersTest, FactoryNoMagicRawPasses) {
     std::unique_ptr<IBlobFormatImporter> importer;
 
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(input_stream, true, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<RawBlobImporter*>(importer.get()));
 
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, true, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<RawBlobImporter*>(importer.get()));
 }
 
-TEST_F(BlobFormatImportersTest, FactoryCorrectImporterBasedOnRaw) {
+TEST_F(BlobFormatImportersTest, FactoryCanImportBlobFormatV1) {
     const std::string blob = build_blob_format_v1_with_magic();
     std::istringstream input_stream(blob);
     std::unique_ptr<IBlobFormatImporter> importer;
 
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(input_stream, true, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<RawBlobImporter*>(importer.get()));
-
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, true, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<RawBlobImporter*>(importer.get()));
 
     input_stream.seekg(0, std::ios::beg);
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(input_stream, false, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<BlobFormatV1Importer*>(importer.get()));
-
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config));
-    ASSERT_TRUE(dynamic_cast<BlobFormatV1Importer*>(importer.get()));
 }
