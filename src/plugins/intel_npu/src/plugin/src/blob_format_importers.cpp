@@ -302,7 +302,7 @@ std::optional<std::vector<ov::Tensor>> RawBlobImporter::extract_init_schedules()
     return std::nullopt;
 }
 
-std::optional<int> RawBlobImporter::extract_batch_size() const {
+std::optional<int64_t> RawBlobImporter::extract_batch_size() const {
     return std::nullopt;
 }
 
@@ -389,8 +389,8 @@ std::optional<std::vector<ov::Tensor>> BlobFormatV1Importer::extract_init_schedu
     return init_schedules;
 }
 
-std::optional<int> BlobFormatV1Importer::extract_batch_size() const {
-    const std::optional<int> batch_size = m_metadata->get_batch_size();
+std::optional<int64_t> BlobFormatV1Importer::extract_batch_size() const {
+    const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
     if (batch_size.has_value()) {
         m_logger.debug("Extracted batch size: %d", batch_size.value());
     }
