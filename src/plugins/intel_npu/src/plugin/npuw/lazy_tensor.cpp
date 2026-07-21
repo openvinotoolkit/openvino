@@ -61,6 +61,19 @@ ov::Tensor Const::eval() const {
         return ov::npuw::util::copy_tensor_from_const(m_node);
     }
 
+    // Buffer-backed import case (fd == -1): the pool is an already-resident
+    // host region. Read straight from it -- no mmap, zero-copy from the pool.
+    if (m_host_region) {
+        NPUW_ASSERT(!m_read_from_bin &&
+                    "Trying to read weight from host region, but the weight has been already deserialized!");
+        if (!m_mmaped_weights) {
+            m_mmaped_weights = std::make_shared<ov::npuw::s11n::Weights>(m_host_region->data(),
+                                                                        m_host_region->size(),
+                                                                        m_host_region);
+        }
+        return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+    }
+
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
     if (!m_weights_path.empty() || m_handle_provider) {
         NPUW_ASSERT(!m_read_from_bin &&
@@ -93,8 +106,8 @@ LazyTensor::Meta Const::eval_meta() const {
         return {m_node->get_shape(), m_node->get_element_type()};
     }
 
-    // Weightless import case
-    if (!m_weights_path.empty() || m_handle_provider) {
+    // Weightless import case (mmap file/handle or buffer-backed host region)
+    if (!m_weights_path.empty() || m_handle_provider || m_host_region) {
         return {m_cached_shape, m_cached_type};
     }
 
@@ -129,7 +142,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
             // read mmaped CPU weights and allocate them on device without loading all the weights first.
             // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
-            NPUW_ASSERT(!ctx.weights_path.empty() || ctx.handle_provider);
+            NPUW_ASSERT(!ctx.weights_path.empty() || ctx.handle_provider || ctx.host_region);
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
             // Also save handle_provider if available
@@ -137,6 +150,8 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             // Carry the pool sub-region so eval() maps the same window.
             m_handle_region_offset = ctx.handle_region_offset;
             m_handle_region_size = ctx.handle_region_size;
+            // Buffer-backed host region (fd == -1): read straight from it in eval().
+            m_host_region = ctx.host_region;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
@@ -151,6 +166,7 @@ void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
     m_mmaped_weights.reset();
+    m_host_region.reset();
 }
 
 std::size_t Concat::hash() const {

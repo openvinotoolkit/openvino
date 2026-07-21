@@ -116,6 +116,9 @@ private:
     // descriptor offsets pool-relative for fd-backed weight sharing (Option B).
     std::size_t m_handle_region_offset = 0;
     std::size_t m_handle_region_size = 0;
+    // Buffer-backed weight source (fd == -1): an already-resident host region
+    // wrapped as MappedMemory. When set, eval() reads from it directly (no mmap).
+    std::shared_ptr<ov::MappedMemory> m_host_region = nullptr;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
     // FIXME: special case when a new Constant was added into the model,
     // then made into LazyTensor during folding. We need to keep a copy of it,

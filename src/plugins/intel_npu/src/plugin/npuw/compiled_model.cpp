@@ -12,6 +12,7 @@
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
 #include "gqa_compiled_model.hpp"
+#include "host_region_memory.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "lazy_tensor.hpp"
@@ -125,6 +126,8 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     // size 0 keeps the legacy whole-handle mapping at offset 0.
     std::size_t handle_region_offset = 0;
     std::size_t handle_region_size = 0;
+    // Buffer-backed weight source (fd == -1): an already-resident host pool.
+    std::shared_ptr<ov::MappedMemory> host_region = nullptr;
     if (is_weightless) {
         if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
             handle_it != properties.end()) {
@@ -145,11 +148,31 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 handle_region_offset = it->second.as<std::size_t>();
             }
         }
-        if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
+        // Buffer-backed host region (fd == -1). Mutually exclusive with the fd
+        // handle provider; consulted only when no provider was supplied.
+        if (!handle_provider) {
+            if (const auto sz_it = properties.find(ov::intel_npu::npuw::weights_host_region_size.name());
+                sz_it != properties.end() && sz_it->second.as<std::size_t>() != 0) {
+                const auto ptr_it = properties.find(ov::intel_npu::npuw::weights_host_region_ptr.name());
+                NPUW_ASSERT(ptr_it != properties.end() &&
+                            "NPUW_WEIGHTS_HOST_REGION_SIZE set without NPUW_WEIGHTS_HOST_REGION_PTR");
+                const auto region_ptr = reinterpret_cast<const void*>(ptr_it->second.as<std::uintptr_t>());
+                const auto region_size = sz_it->second.as<std::size_t>();
+                NPUW_ASSERT(region_ptr && "NPUW_WEIGHTS_HOST_REGION_PTR is null");
+                std::shared_ptr<void> keepalive = nullptr;
+                if (const auto ka_it = properties.find(ov::intel_npu::npuw::weights_host_region_keepalive.name());
+                    ka_it != properties.end()) {
+                    keepalive = ka_it->second.as<std::shared_ptr<void>>();
+                }
+                host_region =
+                    std::make_shared<ov::npuw::weights::HostRegionMemory>(region_ptr, region_size, std::move(keepalive));
+            }
+        }
+        if (!handle_provider && !host_region && properties.find(ov::weights_path.name()) != properties.end()) {
             weights_path = properties.at(ov::weights_path.name()).as<std::string>();
             NPUW_ASSERT(!weights_path.empty() &&
                         "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-        } else if (!handle_provider && properties.find(ov::hint::model.name()) != properties.end()) {
+        } else if (!handle_provider && !host_region && properties.find(ov::hint::model.name()) != properties.end()) {
             auto model_ptr = std::const_pointer_cast<ov::Model>(
                                  properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
                                  ->clone();
@@ -168,7 +191,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 }
                 consts_cache[{origin->offset, c->get_byte_size()}] = node;
             }
-        } else if (!handle_provider) {
+        } else if (!handle_provider && !host_region) {
             NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
         }
     }
@@ -183,6 +206,9 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
             } else {
                 mapped_memory = ov::load_mmap_object(handle);
             }
+        } else if (host_region) {
+            // Buffer-backed: the pool already lives in host memory (fd == -1).
+            mapped_memory = host_region;
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }
@@ -197,7 +223,8 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                           bf16_consts,
                           handle_provider,
                           handle_region_offset,
-                          handle_region_size);
+                          handle_region_size,
+                          host_region);
 }
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {

@@ -161,7 +161,8 @@ struct WeightsContext {
                    const BF16Cache& _bf16_consts,
                    const ov::FileHandleProvider& _handle_provider = nullptr,
                    std::size_t _handle_region_offset = 0,
-                   std::size_t _handle_region_size = 0);
+                   std::size_t _handle_region_size = 0,
+                   const std::shared_ptr<ov::MappedMemory>& _host_region = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -182,6 +183,10 @@ struct WeightsContext {
     // resolve pool-relative (fd-backed weight sharing, Option B).
     std::size_t handle_region_offset = 0;
     std::size_t handle_region_size = 0;
+    // Buffer-backed weight source (fd == -1): a MappedMemory wrapping an
+    // already-resident host pool. Mutually exclusive with handle_provider /
+    // weights_path. When set, `weights` is built over it. See HostRegionMemory.
+    std::shared_ptr<ov::MappedMemory> host_region = nullptr;
 };
 
 // Context for deserializing submodels with dynamic attention mechanisms

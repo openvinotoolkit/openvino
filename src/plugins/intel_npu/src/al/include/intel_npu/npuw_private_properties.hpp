@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/runtime/file_handle.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -32,6 +36,21 @@ inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"N
 // this plugin can set them without depending on a private type.
 inline constexpr ov::Property<std::size_t> weights_handle_region_offset{"NPUW_WEIGHTS_HANDLE_REGION_OFFSET"};
 inline constexpr ov::Property<std::size_t> weights_handle_region_size{"NPUW_WEIGHTS_HANDLE_REGION_SIZE"};
+
+// Buffer-backed weight sharing (fd == -1): the weights pool is an already
+// resident host region rather than a file to mmap. The caller supplies the
+// pool base pointer, its size, and a keep-alive shared_ptr that guarantees the
+// bytes outlive the compiled model. NPUW wraps this as a MappedMemory
+// (HostRegionMemory) and feeds it through the same weightless import as the fd
+// path. The pointer is carried as a uintptr_t so it round-trips through ov::Any
+// on any platform. host_region_size == 0 disables this source.
+//
+// These are mutually exclusive with the fd handle provider; the pointer already
+// addresses the pool start, so no region offset is needed here.
+inline constexpr ov::Property<std::uintptr_t> weights_host_region_ptr{"NPUW_WEIGHTS_HOST_REGION_PTR"};
+inline constexpr ov::Property<std::size_t> weights_host_region_size{"NPUW_WEIGHTS_HOST_REGION_SIZE"};
+inline constexpr ov::Property<std::shared_ptr<void>> weights_host_region_keepalive{
+    "NPUW_WEIGHTS_HOST_REGION_KEEPALIVE"};
 
 }  // namespace ov::intel_npu::npuw
 

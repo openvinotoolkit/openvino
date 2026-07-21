@@ -35,14 +35,16 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
                                                const BF16Cache& _bf16_consts,
                                                const ov::FileHandleProvider& _handle_provider,
                                                std::size_t _handle_region_offset,
-                                               std::size_t _handle_region_size)
+                                               std::size_t _handle_region_size,
+                                               const std::shared_ptr<ov::MappedMemory>& _host_region)
     : weights(_weights),
       weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts),
       handle_provider(_handle_provider),
       handle_region_offset(_handle_region_offset),
-      handle_region_size(_handle_region_size) {
+      handle_region_size(_handle_region_size),
+      host_region(_host_region) {
     is_weightless = _weights || !_consts_cache.empty();
 }
 
