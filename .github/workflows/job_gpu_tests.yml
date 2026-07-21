@@ -48,7 +48,7 @@ jobs:
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-        - /root/.cache:/root/.cache # Persistent cl_cache across runs
+        - /root/.cache/neo_compiler_cache:/root/.cache/neo_compiler_cache # Persistent cl_cache across runs
       options: ${{ inputs.options }}
     defaults:
       run:
@@ -60,8 +60,9 @@ jobs:
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+      cl_cache_dir: /root/.cache/neo_compiler_cache
       NEO_CACHE_PERSISTENT: 1
-      NEO_CACHE_MAX_SIZE: 5368709120
+      NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
     steps:
 
       - name: Download OpenVINO artifacts (package)
@@ -95,10 +96,6 @@ jobs:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
-          NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
-          NEO_CACHE_PERSISTENT: 1
-          cl_cache_dir: /root/.cache/neo_compiler_cache
-          NEO_CACHE_MAX_SIZE: 5368709120
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
