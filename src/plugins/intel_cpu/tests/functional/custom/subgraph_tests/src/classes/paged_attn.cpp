@@ -35,9 +35,14 @@
 #include "utils/arm_isa_support.h"
 #endif
 
+using namespace ov::test;
+using namespace CPUTestUtils;
+using namespace ov::op;
+
 namespace ov {
 namespace test {
 
+namespace {
 template <typename IT, typename T>
 void strided_iota(IT first, size_t n, T value, T stride) {
     // Descending order: generate values from high to low
@@ -48,6 +53,7 @@ void strided_iota(IT first, size_t n, T value, T stride) {
         const T generated = value + stride * static_cast<T>(idx);
         *first++ = generated;
     }
+}
 }
 
 std::string PagedAttnTestBase::getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
@@ -1085,6 +1091,11 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     
     #if defined(OPENVINO_ARCH_ARM)
         GTEST_SKIP();
+    #elif defined(OPENVINO_ARCH_ARM64)
+        // If SVE support is unavailable skip the test
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
+            GTEST_SKIP();
+        }
     #elif defined(OPENVINO_ARCH_X86_64)
         if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
             GTEST_SKIP();
