@@ -94,7 +94,7 @@ private:
     /**
      * @brief If a batch size a stored, this method will be used to extract it.
      */
-    virtual std::optional<int64_t> extract_batch_size() const = 0;
+    virtual std::optional<int> extract_batch_size() const = 0;
 
     /**
      * @brief If input/output layouts were stored, this method will be used to extract them.
@@ -113,7 +113,7 @@ private:
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
     std::shared_ptr<const ov::Model> m_original_model;
-    std::optional<int64_t> m_batch_size;
+    std::optional<int> m_batch_size;
     std::shared_ptr<IGraph> m_graph;
 };
 
@@ -148,7 +148,7 @@ private:
      * @note N/A
      * @return Always std::nullopt
      */
-    std::optional<int64_t> extract_batch_size() const override;
+    std::optional<int> extract_batch_size() const override;
 
     /**
      * @note N/A
@@ -194,7 +194,7 @@ private:
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override;
 
-    std::optional<int64_t> extract_batch_size() const override;
+    std::optional<int> extract_batch_size() const override;
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override;
 

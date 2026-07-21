@@ -15,6 +15,7 @@
 
 namespace {
 
+// Metadata version + compiler payload size + magic bytes
 constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
 constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
     "The blob received for parsing is too small to contain all mandatory information. Blob size: ";
@@ -579,13 +580,13 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::streampos currentStreamPos = stream.tellg();
     const size_t streamSize = MetadataBase::getFileSize(stream);
 
-    OPENVINO_ASSERT(streamSize > MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
+    OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
 
     uint64_t payloadSize;
     stream.seekg(-std::streampos(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
     stream.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
 
-    OPENVINO_ASSERT(streamSize > payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
     stream.seekg(-stream.tellg() + currentStreamPos + payloadSize, std::ios::cur);
 
     uint32_t metaVersion;
@@ -608,14 +609,14 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     const size_t blobSize = tensor.get_byte_size();
-    OPENVINO_ASSERT(blobSize > MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, blobSize);
+    OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, blobSize);
 
     const size_t magicBytesSize = MAGIC_BYTES.size();
     uint64_t payloadSize;
     payloadSize = *reinterpret_cast<const decltype(payloadSize)*>(tensor.data<const char>() + blobSize -
                                                                   magicBytesSize - sizeof(payloadSize));
 
-    OPENVINO_ASSERT(blobSize > payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 
     uint32_t metaVersion;
     metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + payloadSize);

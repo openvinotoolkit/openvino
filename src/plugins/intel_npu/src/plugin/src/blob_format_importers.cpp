@@ -302,7 +302,7 @@ std::optional<std::vector<ov::Tensor>> RawBlobImporter::extract_init_schedules()
     return std::nullopt;
 }
 
-std::optional<int64_t> RawBlobImporter::extract_batch_size() const {
+std::optional<int> RawBlobImporter::extract_batch_size() const {
     return std::nullopt;
 }
 
@@ -375,10 +375,10 @@ std::optional<std::vector<ov::Tensor>> BlobFormatV1Importer::extract_init_schedu
     std::vector<ov::Tensor> init_schedules;
     size_t cursor_position = m_metadata->get_main_schedule_size();
 
-    m_logger.debug("Extracting %d init schedules", init_sizes->size());
+    m_logger.debug("Extracting %zu init schedules", init_sizes->size());
 
     for (const uint64_t init_size : init_sizes.value()) {
-        m_logger.debug("Init size: %d", init_size);
+        m_logger.debug("Init size: %llu", init_size);
 
         init_schedules.push_back(ov::Tensor(m_compiler_payload,
                                             ov::Coordinate{cursor_position},
@@ -389,12 +389,13 @@ std::optional<std::vector<ov::Tensor>> BlobFormatV1Importer::extract_init_schedu
     return init_schedules;
 }
 
-std::optional<int64_t> BlobFormatV1Importer::extract_batch_size() const {
+std::optional<int> BlobFormatV1Importer::extract_batch_size() const {
     const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
     if (batch_size.has_value()) {
         m_logger.debug("Extracted batch size: %d", batch_size.value());
+        return std::make_optional<int>(static_cast<int>(batch_size.value()));
     }
-    return batch_size;
+    return std::nullopt;
 }
 
 std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> BlobFormatV1Importer::extract_layouts()
