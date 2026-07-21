@@ -225,14 +225,16 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         // Weights normalization
         bool is_small_matmul = true;
 
-        // When compressed weights come from a Parameter (shared/external weights) and
-        // the original matmul does not transpose B, we must avoid inserting a runtime
-        // Transpose node because the GPU permute kernel does not support INT4 data type.
+        // When sub-byte (INT4) compressed weights come from a Parameter (shared/external weights)
+        // and the original matmul does not transpose B, we must avoid inserting a runtime
+        // Transpose node because the GPU permute kernel does not support sub-byte data types.
         // Instead, use the non-transposed weight layout and let oneDNN handle it natively.
+        // Note: u8/i8 weights CAN be transposed by the GPU kernel, so this only applies to sub-byte types.
         bool is_parameter_compressed_weight = is_compressed_weight &&
             !matmul->get_transpose_b() &&
             pattern_map.count(weights_param_m) &&
-            pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr;
+            pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr &&
+            pattern_map.at(weights_param_m).get_element_type().bitwidth() < 8;
 
         if (is_parameter_compressed_weight) {
             is_small_matmul = false;
