@@ -36,7 +36,6 @@ TEST_F(CompatibilityStringCPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiled_model.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
-    std::cout << "[ INFO     ] CPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
 TEST_F(CompatibilityStringCPU, CompatibilityCheckListedInSupportedProperties) {
@@ -170,8 +169,7 @@ TEST_F(CompatibilityStringCPU, ImportRejectsMismatchedRuntimeRequirements) {
     OV_ASSERT_NO_THROW(compiled_model.export_model(good_blob));
     std::string data = good_blob.str();
 
-    const size_t descriptor_offset =
-        sizeof(ov::CacheMode) + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
+    const size_t descriptor_offset = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
     ASSERT_GT(data.size(), descriptor_offset);
 
     std::stringstream blob(data);
