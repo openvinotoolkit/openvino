@@ -256,6 +256,16 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         }
 
         if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
+            // PReLU slope tensor reshape policy
+            //
+            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of input).
+            //   ex) [1] --> [1, 1, 1, 1]
+            //       [N] --> [1, N, 1, 1]
+            //
+            // 2. Multi-dims slope tensor is handled by the numpy broadcasting rule that is defined at
+            //    'https://docs.openvino.ai/2023.0/openvino_docs_ops_broadcast_rules.html'.
+            //   ex) [N, 1, 1] --> [1, N, 1, 1]
+            //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
             if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
                 (constDims.size() == 1 && input_shape.is_static() && input_shape.size() > 1 &&
@@ -275,6 +285,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         }
 
         if (ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp)) {
+            // When inner network has 1d parameter connected to outer constant 1d data,
+            // the bytes count is the same but legacy batch/feature interpretation differs.
             consts[op].needsBatchInterpretation = constDims.size() == 1;
             return true;
         }
