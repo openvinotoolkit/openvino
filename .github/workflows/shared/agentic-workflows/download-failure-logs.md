@@ -15,139 +15,214 @@ description: |
   Run mode additionally writes logs/failed-jobs.json; PR mode additionally writes
   logs/failed-runs.json and logs/run-<run-id>-failed-jobs.json.
 steps:
+  - name: Set up Python
+    uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+    with:
+      python-version: '3.11'
+  - name: Install PyGithub
+    run: python -m pip install --quiet PyGithub
   - name: Download CI failure logs
+    shell: python
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.issue.number }}
       RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
     run: |
-      set -e
-      LOG_DIR="/tmp/gh-aw/agent/ci-doctor/logs"
-      FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
-      SUMMARY_FILE="/tmp/gh-aw/agent/ci-doctor/summary.txt"
-      mkdir -p "$LOG_DIR" "$FILTERED_DIR"
+      import glob
+      import json
+      import os
+      import re
+      import sys
+      import urllib.request
 
-      # Download the log for a single failed job and pre-locate error hints.
-      download_job_log() {
-        JOB_ID="$1"
-        LOG_FILE="$LOG_DIR/job-${JOB_ID}.log"
-        echo "Downloading log for job $JOB_ID..."
-        gh api "repos/$REPO/actions/jobs/$JOB_ID/logs" > "$LOG_FILE" 2>/dev/null \
-          || echo "(log download failed)" > "$LOG_FILE"
-        echo "  -> Saved $(wc -l < "$LOG_FILE") lines to $LOG_FILE"
+      from github import Auth, Github
 
-        HINTS_FILE="$FILTERED_DIR/job-${JOB_ID}-hints.txt"
-        grep -n -m 30 -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
-          "$LOG_FILE" > "$HINTS_FILE" 2>/dev/null || true
-        if [ -s "$HINTS_FILE" ]; then
-          echo "  -> Pre-located $(wc -l < "$HINTS_FILE") hint line(s) in $HINTS_FILE"
-        fi
-      }
+      LOG_DIR = "/tmp/gh-aw/agent/ci-doctor/logs"
+      FILTERED_DIR = "/tmp/gh-aw/agent/ci-doctor/filtered"
+      SUMMARY_FILE = "/tmp/gh-aw/agent/ci-doctor/summary.txt"
+      os.makedirs(LOG_DIR, exist_ok=True)
+      os.makedirs(FILTERED_DIR, exist_ok=True)
 
-      # Append the shared "downloaded files" + "hint files" footer to the summary.
-      write_summary_footer() {
-        echo ""
-        echo "Downloaded job log files ($LOG_DIR):"
-        for LOG_FILE in "$LOG_DIR"/job-*.log; do
-          [ -f "$LOG_FILE" ] || continue
-          echo "  $LOG_FILE ($(wc -l < "$LOG_FILE") lines)"
-        done
-        echo ""
-        echo "Filtered hint files ($FILTERED_DIR):"
-        for HINTS_FILE in "$FILTERED_DIR"/*-hints.txt; do
-          [ -s "$HINTS_FILE" ] || continue
-          echo "  $HINTS_FILE ($(wc -l < "$HINTS_FILE") matches)"
-          head -3 "$HINTS_FILE" | sed 's/^/    /'
-        done
-      }
+      HINT_RE = re.compile(
+          r"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])"
+      )
 
-      if [ -n "$RUN_ID" ]; then
-        # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----
-        echo "=== CI Doctor: Pre-downloading logs for run $RUN_ID ==="
+      repo_name = os.environ.get("REPO", "")
+      run_id = (os.environ.get("RUN_ID") or "").strip()
+      pr_number = (os.environ.get("PR_NUMBER") or "").strip()
+      token = os.environ.get("GH_TOKEN", "")
 
-        gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
-          --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
-          > "$LOG_DIR/failed-jobs.json"
+      github = Github(auth=Auth.Token(token))
+      repo = github.get_repo(repo_name)
 
-        FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-jobs.json")
-        echo "Found $FAILED_COUNT failed job(s)"
 
-        {
-          echo "=== CI Doctor Pre-Analysis ==="
-          echo "Run ID: $RUN_ID"
-          echo ""
-          echo "Failed jobs (details in $LOG_DIR/failed-jobs.json):"
-          jq -r '.[] | "  Job \(.id): \(.name)\n    Failed steps: \(.failed_steps | join(", "))"' \
-            "$LOG_DIR/failed-jobs.json"
-        } > "$SUMMARY_FILE"
+      def line_count(text):
+          return text.count("\n")
 
-        if [ "$FAILED_COUNT" -eq 0 ]; then
-          echo "No failed jobs found, skipping log download"
-        else
-          cat "$LOG_DIR/failed-jobs.json"
-          jq -r '.[].id' "$LOG_DIR/failed-jobs.json" | while read -r JOB_ID; do
-            download_job_log "$JOB_ID"
-          done
-        fi
 
-        write_summary_footer >> "$SUMMARY_FILE"
+      def download_job_log(job):
+          """Download the log for a single failed job and pre-locate error hints."""
+          log_file = os.path.join(LOG_DIR, f"job-{job.id}.log")
+          print(f"Downloading log for job {job.id}...")
+          try:
+              with urllib.request.urlopen(job.logs_url()) as response:
+                  content = response.read().decode("utf-8", "replace")
+          except Exception:
+              content = "(log download failed)\n"
+          with open(log_file, "w", encoding="utf-8") as handle:
+              handle.write(content)
+          print(f"  -> Saved {line_count(content)} lines to {log_file}")
 
-      elif [ -n "$PR_NUMBER" ]; then
-        # ---- pr mode: every failed run on a pull request head commit ----
-        echo "=== CI Doctor: Pre-downloading logs for PR #$PR_NUMBER ==="
+          hints_file = os.path.join(FILTERED_DIR, f"job-{job.id}-hints.txt")
+          matches = []
+          for number, line in enumerate(content.splitlines(), start=1):
+              if HINT_RE.search(line):
+                  matches.append(f"{number}:{line}")
+                  if len(matches) >= 30:
+                      break
+          if matches:
+              with open(hints_file, "w", encoding="utf-8") as handle:
+                  handle.write("\n".join(matches) + "\n")
+              print(f"  -> Pre-located {len(matches)} hint line(s) in {hints_file}")
 
-        HEAD_SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha' 2>/dev/null || echo "")
-        if [ -z "$HEAD_SHA" ]; then
-          echo "Could not resolve a pull request head SHA (is this a PR comment?), skipping log download"
-          echo "No pull request context available." > "$SUMMARY_FILE"
-          exit 0
-        fi
-        echo "PR head SHA: $HEAD_SHA"
 
-        # Find all workflow runs for the PR head SHA that failed or were cancelled
-        gh api --paginate "repos/$REPO/actions/runs?head_sha=$HEAD_SHA" \
-          --jq '[.workflow_runs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, url:.html_url, conclusion:.conclusion}]' \
-          > "$LOG_DIR/failed-runs.json" 2>/dev/null || echo '[]' > "$LOG_DIR/failed-runs.json"
+      def failed_jobs_for_run(workflow_run):
+          """Return the failed/cancelled jobs of a run as serialisable dicts."""
+          result = []
+          for job in workflow_run.jobs():
+              if job.conclusion in ("failure", "cancelled"):
+                  failed_steps = [step.name for step in (job.steps or []) if step.conclusion == "failure"]
+                  result.append({"id": job.id, "name": job.name, "failed_steps": failed_steps})
+          return result
 
-        # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow
-        jq 'group_by(.name) | map(max_by(.id))' "$LOG_DIR/failed-runs.json" > "$LOG_DIR/failed-runs.dedup.json"
-        mv "$LOG_DIR/failed-runs.dedup.json" "$LOG_DIR/failed-runs.json"
 
-        FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-runs.json")
-        echo "Found $FAILED_COUNT failed pipeline(s) on PR #$PR_NUMBER"
+      def write_summary_footer(handle):
+          """Append the shared 'downloaded files' + 'hint files' footer to the summary."""
+          handle.write("\n")
+          handle.write(f"Downloaded job log files ({LOG_DIR}):\n")
+          for log_file in sorted(glob.glob(os.path.join(LOG_DIR, "job-*.log"))):
+              with open(log_file, encoding="utf-8") as fh:
+                  count = line_count(fh.read())
+              handle.write(f"  {log_file} ({count} lines)\n")
+          handle.write("\n")
+          handle.write(f"Filtered hint files ({FILTERED_DIR}):\n")
+          for hints_file in sorted(glob.glob(os.path.join(FILTERED_DIR, "*-hints.txt"))):
+              with open(hints_file, encoding="utf-8") as fh:
+                  lines = fh.read().splitlines()
+              if not lines:
+                  continue
+              handle.write(f"  {hints_file} ({len(lines)} matches)\n")
+              for line in lines[:3]:
+                  handle.write(f"    {line}\n")
 
-        {
-          echo "=== CI Doctor Pre-Analysis (PR #$PR_NUMBER, head $HEAD_SHA) ==="
-          echo ""
-          echo "Failed pipelines (details in $LOG_DIR/failed-runs.json):"
-          jq -r '.[] | "  Run \(.id): \(.name) [\(.conclusion)] \(.url)"' "$LOG_DIR/failed-runs.json"
-        } > "$SUMMARY_FILE"
 
-        if [ "$FAILED_COUNT" -eq 0 ]; then
-          echo "No failed pipelines found, skipping log download"
-        else
-          cat "$LOG_DIR/failed-runs.json"
-          jq -r '.[].id' "$LOG_DIR/failed-runs.json" | while read -r RUN_ID; do
-            gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
-              --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
-              > "$LOG_DIR/run-${RUN_ID}-failed-jobs.json" 2>/dev/null || echo '[]' > "$LOG_DIR/run-${RUN_ID}-failed-jobs.json"
+      if run_id:
+          # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----
+          print(f"=== CI Doctor: Pre-downloading logs for run {run_id} ===")
 
-            jq -r '.[].id' "$LOG_DIR/run-${RUN_ID}-failed-jobs.json" | while read -r JOB_ID; do
-              download_job_log "$JOB_ID"
-            done
-          done
-        fi
+          workflow_run = repo.get_workflow_run(int(run_id))
+          failed_jobs = failed_jobs_for_run(workflow_run)
+          with open(os.path.join(LOG_DIR, "failed-jobs.json"), "w", encoding="utf-8") as handle:
+              json.dump(failed_jobs, handle, indent=2)
 
-        write_summary_footer >> "$SUMMARY_FILE"
+          failed_count = len(failed_jobs)
+          print(f"Found {failed_count} failed job(s)")
 
-      else
-        echo "Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download."
-        echo "No CI Doctor context (no RUN_ID or PR_NUMBER)." > "$SUMMARY_FILE"
-      fi
+          with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
+              handle.write("=== CI Doctor Pre-Analysis ===\n")
+              handle.write(f"Run ID: {run_id}\n")
+              handle.write("\n")
+              handle.write(f"Failed jobs (details in {LOG_DIR}/failed-jobs.json):\n")
+              for job in failed_jobs:
+                  handle.write(f"  Job {job['id']}: {job['name']}\n")
+                  handle.write(f"    Failed steps: {', '.join(job['failed_steps'])}\n")
 
-      echo ""
-      echo "✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE"
+          if failed_count == 0:
+              print("No failed jobs found, skipping log download")
+          else:
+              print(json.dumps(failed_jobs, indent=2))
+              for job in workflow_run.jobs():
+                  if job.conclusion in ("failure", "cancelled"):
+                      download_job_log(job)
+
+          with open(SUMMARY_FILE, "a", encoding="utf-8") as handle:
+              write_summary_footer(handle)
+
+      elif pr_number:
+          # ---- pr mode: every failed run on a pull request head commit ----
+          print(f"=== CI Doctor: Pre-downloading logs for PR #{pr_number} ===")
+
+          try:
+              head_sha = repo.get_pull(int(pr_number)).head.sha
+          except Exception:
+              head_sha = ""
+          if not head_sha:
+              print("Could not resolve a pull request head SHA (is this a PR comment?), skipping log download")
+              with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
+                  handle.write("No pull request context available.\n")
+              sys.exit(0)
+          print(f"PR head SHA: {head_sha}")
+
+          # Find all workflow runs for the PR head SHA that failed or were cancelled.
+          failed_runs = []
+          try:
+              for workflow_run in repo.get_workflow_runs(head_sha=head_sha):
+                  if workflow_run.conclusion in ("failure", "cancelled"):
+                      failed_runs.append({
+                          "id": workflow_run.id,
+                          "name": workflow_run.name,
+                          "url": workflow_run.html_url,
+                          "conclusion": workflow_run.conclusion,
+                      })
+          except Exception:
+              failed_runs = []
+
+          # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow.
+          latest_by_name = {}
+          for entry in failed_runs:
+              current = latest_by_name.get(entry["name"])
+              if current is None or entry["id"] > current["id"]:
+                  latest_by_name[entry["name"]] = entry
+          failed_runs = list(latest_by_name.values())
+
+          with open(os.path.join(LOG_DIR, "failed-runs.json"), "w", encoding="utf-8") as handle:
+              json.dump(failed_runs, handle, indent=2)
+
+          failed_count = len(failed_runs)
+          print(f"Found {failed_count} failed pipeline(s) on PR #{pr_number}")
+
+          with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
+              handle.write(f"=== CI Doctor Pre-Analysis (PR #{pr_number}, head {head_sha}) ===\n")
+              handle.write("\n")
+              handle.write(f"Failed pipelines (details in {LOG_DIR}/failed-runs.json):\n")
+              for entry in failed_runs:
+                  handle.write(f"  Run {entry['id']}: {entry['name']} [{entry['conclusion']}] {entry['url']}\n")
+
+          if failed_count == 0:
+              print("No failed pipelines found, skipping log download")
+          else:
+              print(json.dumps(failed_runs, indent=2))
+              for entry in failed_runs:
+                  workflow_run = repo.get_workflow_run(int(entry["id"]))
+                  run_failed_jobs = failed_jobs_for_run(workflow_run)
+                  run_jobs_path = os.path.join(LOG_DIR, f"run-{entry['id']}-failed-jobs.json")
+                  with open(run_jobs_path, "w", encoding="utf-8") as handle:
+                      json.dump(run_failed_jobs, handle, indent=2)
+                  for job in workflow_run.jobs():
+                      if job.conclusion in ("failure", "cancelled"):
+                          download_job_log(job)
+
+          with open(SUMMARY_FILE, "a", encoding="utf-8") as handle:
+              write_summary_footer(handle)
+
+      else:
+          print("Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.")
+          with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
+              handle.write("No CI Doctor context (no RUN_ID or PR_NUMBER).\n")
+
+      print("")
+      print(f"Pre-analysis complete. Agent should start with {SUMMARY_FILE}")
 ---
 
 <!--

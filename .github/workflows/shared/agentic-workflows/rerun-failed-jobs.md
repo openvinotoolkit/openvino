@@ -26,61 +26,73 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
+        - name: Install PyGithub
+          run: python -m pip install --quiet PyGithub
         - name: Re-run failed jobs
+          shell: python
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
-            set -euo pipefail
+            import json
+            import os
+            import re
+            import sys
 
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
+            from github import Auth, Github
 
-            ITEM=$(jq -c '[.items[] | select(.type == "rerun_failed_jobs")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No rerun_failed_jobs item present in agent output" >&2
-              exit 1
-            fi
+            agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
+            if not agent_output or not os.path.isfile(agent_output):
+                sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
 
-            RUN_ID=$(echo "$ITEM"     | jq -r '.run_id // ""')
-            REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-            REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
+            with open(agent_output, encoding="utf-8") as handle:
+                payload_items = json.load(handle).get("items", [])
+
+            items = [it for it in payload_items if it.get("type") == "rerun_failed_jobs"]
+            if not items:
+                sys.exit("No rerun_failed_jobs item present in agent output")
+            item = items[-1]
+
+            run_id = item.get("run_id") or ""
+            repository = item.get("repository") or ""
+            reason = item.get("reason") or ""
 
             # Validate run_id is purely numeric to avoid API path injection.
-            if ! printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$'; then
-              echo "run_id must be a numeric string, got: '$RUN_ID'" >&2
-              exit 1
-            fi
+            if not re.fullmatch(r"[0-9]+", run_id):
+                sys.exit(f"run_id must be a numeric string, got: '{run_id}'")
 
             # Fall back to the current repository when none was supplied.
-            if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-              REPOSITORY="${GITHUB_REPOSITORY}"
-            fi
+            if not repository or repository == "not_found":
+                repository = os.environ.get("GITHUB_REPOSITORY", "")
 
             # Validate repository is in owner/repo form to avoid API path injection.
-            if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-              echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-              exit 1
-            fi
+            if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
+                sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
 
-            echo "Requested re-run of failed jobs for $REPOSITORY run $RUN_ID (reason: $REASON)"
+            print(f"Requested re-run of failed jobs for {repository} run {run_id} (reason: {reason})")
+
+            token = os.environ.get("GH_TOKEN", "")
+            if not token:
+                sys.exit("GITHUB_TOKEN is not configured; cannot re-run failed jobs.")
+
+            github = Github(auth=Auth.Token(token))
+            run = github.get_repo(repository).get_workflow_run(int(run_id))
 
             # Guard against restart loops: if the run has already been attempted
             # more than once, do not re-run it again (mirrors rerunner.py).
-            ATTEMPT=$(gh api "repos/${REPOSITORY}/actions/runs/${RUN_ID}" --jq '.run_attempt')
-            if [ "${ATTEMPT:-1}" -gt 1 ]; then
-              echo "Run $RUN_ID already has $ATTEMPT attempts; not re-running to avoid loops."
-              exit 0
-            fi
+            attempt = run.run_attempt or 1
+            if attempt > 1:
+                print(f"Run {run_id} already has {attempt} attempts; not re-running to avoid loops.")
+                sys.exit(0)
 
             # Re-run ONLY the failed jobs of the analysed run.
-            gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              "repos/${REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"
+            if not run.rerun_failed_jobs():
+                sys.exit(f"GitHub API rejected the re-run request for {repository} run {run_id}.")
 
-            echo "Successfully requested re-run of failed jobs for $REPOSITORY run $RUN_ID."
+            print(f"Successfully requested re-run of failed jobs for {repository} run {run_id}.")
 ---
 
 # CI Doctor MQ — Re-run Failed Jobs
