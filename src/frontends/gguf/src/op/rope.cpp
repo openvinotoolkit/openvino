@@ -4,10 +4,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
+
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -20,9 +23,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -83,40 +84,58 @@ OutputVector translate_rope(const NodeContext& context) {
     }
 
     if (mode == TYPE_NORMAL) {
-        auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-        auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3]});
-        Output<Node> even_slice;
-        Output<Node> odd_slice;
-        int32_t unsqueeze_dim = 4;
-        even_slice = std::make_shared<ov::op::v8::Slice>(data_node, zero, end, two, neg_one);
-        odd_slice = std::make_shared<ov::op::v8::Slice>(data_node, one, end, two, neg_one);
+        // Emit the Flux-style interleaved RoPE pattern so ov::pass::RoPEFusionFlux
+        // folds this subgraph into ov::op::internal::RoPE → GPU ocl::rope::opt kernel.
+        // RoPEFusionFlux requires rank-4 x with static last two dims [n_heads, head_size].
+        // After the VIEW prologue the data is already [1,L,n_heads,head_size] (non-stateful)
+        // or [L,n_heads,head_size] (stateful, lifted to rank-4 below).
+        const int64_t n_heads   = static_cast<int64_t>(output_shape[2]);
+        const int64_t head_size = static_cast<int64_t>(output_shape[3]);
+        const int64_t half      = head_size / 2;
 
-        Output<Node> first_half =
-            std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v1::Multiply>(even_slice, cos_theta_node),
-                                                   std::make_shared<ov::op::v1::Multiply>(odd_slice, sin_theta_node));
-        Output<Node> second_half =
-            std::make_shared<ov::op::v1::Add>(std::make_shared<ov::op::v1::Multiply>(even_slice, sin_theta_node),
-                                              std::make_shared<ov::op::v1::Multiply>(odd_slice, cos_theta_node));
+        // Reshape to [1, L, n_heads, half, 2] to expose interleaved pairs (reinterprets any
+        // incoming rank in element order, so no separate rank lift is needed).
+        auto paired_shape = ov::op::v0::Constant::create(
+            ov::element::i64, {5}, std::vector<int64_t>{1, -1, n_heads, half, 2});
+        auto x_paired = std::make_shared<ov::op::v1::Reshape>(data_node, paired_shape, false);
 
-        first_half = std::make_shared<ov::op::v0::Unsqueeze>(
-            first_half,
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {unsqueeze_dim}));
-        second_half = std::make_shared<ov::op::v0::Unsqueeze>(
-            second_half,
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {unsqueeze_dim}));
-        auto stack = std::make_shared<ov::op::v0::Concat>(OutputVector{first_half, second_half}, unsqueeze_dim);
+        auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1LL});
+        auto data_split = std::make_shared<ov::op::v1::Split>(x_paired, split_axis, 2);
+        auto x0 = data_split->output(0);
+        auto x1 = data_split->output(1);
 
-        res = std::make_shared<ov::op::v1::Reshape>(stack, make_bhsd_shape(), false);
+        auto neg_one_f = ov::op::v0::Constant::create(data_node->get_element_type(), ov::Shape{}, {-1.0f});
+        auto x1_neg = std::make_shared<ov::op::v1::Multiply>(x1, neg_one_f);
+
+        auto x_rotated_paired = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_neg, x0}, -1);
+        auto x_rotated = std::make_shared<ov::op::v1::Reshape>(x_rotated_paired, make_bhsd_shape(), false);
+
+        // Expand cos/sin from [B, L, 1, half] to [B, L, 1, head_size].
+        auto expand_cos_sin = [&](ov::Output<ov::Node> cs) -> ov::Output<ov::Node> {
+            auto cs_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
+                cs, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1LL}));
+            auto bcast_target = ov::op::v0::Constant::create(
+                ov::element::i64, {5}, std::vector<int64_t>{1, 1, 1, half, 2});
+            auto bcast = std::make_shared<ov::op::v3::Broadcast>(
+                cs_unsq, bcast_target, ov::op::BroadcastType::BIDIRECTIONAL);
+            auto flat = ov::op::v0::Constant::create(
+                ov::element::i64, {4}, std::vector<int64_t>{0, 0, 0, head_size});
+            return std::make_shared<ov::op::v1::Reshape>(bcast, flat, /*special_zero=*/true);
+        };
+        auto cos_full = expand_cos_sin(cos_theta_node);
+        auto sin_full = expand_cos_sin(sin_theta_node);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(data_node, cos_full);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x_rotated, sin_full);
+        res    = std::make_shared<ov::op::v1::Add>(y1, y2);
     } else if (mode == TYPE_NEOX) {
-        // Partial rotary (ggml n_dims < head_dim): rotate only the first n_dims, pass the rest
-        // through. cos/sin have width n_dims/2, so the rotated block must be exactly n_dims wide
-        // (splitting the full head would mismatch the elementwise broadcast).
+        // Partial rotary (ggml n_dims < head_dim): only the first n_dims of every head are
+        // rotated; the remaining tail is passed through unchanged. cos/sin have width n_dims/2,
+        // so the rotated block must be exactly n_dims wide.
         const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
+        // Rotate only the first n_rot elements of every head and concatenate the untouched tail.
         Output<Node> rotary_in = data_node;
         Output<Node> pass_through;
         if (n_rot < head_dim) {
@@ -146,11 +165,8 @@ OutputVector translate_rope(const NodeContext& context) {
 
         Output<Node> rotated =
             std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_half_node, second_half_node}, -1);
-        if (n_rot < head_dim) {
-            res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1);
-        } else {
-            res = rotated;
-        }
+        res = (n_rot < head_dim) ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
+                                 : rotated;
     } else if (mode == TYPE_IMROPE) {
         // Use output_shape, not data_node->get_shape() which throws on a dynamic dim.
         int64_t n_dims = output_shape[3];
