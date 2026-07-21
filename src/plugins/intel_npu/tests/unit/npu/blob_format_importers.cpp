@@ -46,6 +46,9 @@ struct BlobFormatImportersTest : public ::testing::Test {
     FilteredConfig config;
 };
 
+/**
+ * @brief Empty blobs should not be accepted by the importer factory
+ */
 TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
     std::istringstream input_stream("");
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config), ov::Exception, _);
@@ -54,6 +57,9 @@ TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
 }
 
+/**
+ * @brief Non-raw blobs must contain the magic bytes
+ */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
     const std::string blob = build_blob_format_v1_without_magic();
 
@@ -64,6 +70,9 @@ TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
     OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
 }
 
+/**
+ * @brief Only raw blobs can be created when the magic bytes are missing
+ */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicRawPasses) {
     const std::string blob(RAW_BLOB);
     std::istringstream input_stream(blob);
@@ -75,6 +84,9 @@ TEST_F(BlobFormatImportersTest, FactoryNoMagicRawPasses) {
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, true, nullptr, config));
 }
 
+/**
+ * @brief If the magic bytes are present at the end of the input, then the factory can create "blob format v1" importers
+ */
 TEST_F(BlobFormatImportersTest, FactoryCanImportBlobFormatV1) {
     const std::string blob = build_blob_format_v1_with_magic();
     std::istringstream input_stream(blob);
