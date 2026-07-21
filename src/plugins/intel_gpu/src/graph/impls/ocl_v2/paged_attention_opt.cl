@@ -1017,9 +1017,13 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
+#if FINALIZATION_SWA_FIX
+    const uint num_of_partitions = min((uint)CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
+#else
     const uint num_of_partitions = CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE);
+#endif
 
-    if (seq_len <= SEQ_LEN_PARTITION_SIZE) {
+    if (num_of_partitions <= 1) {
         /* Short path, no need any actions for currently processing sequence */
         return;
     } else if (num_of_partitions <= SUBGROUP_SIZE * REG_VERSION_MAX_VALUES_PER_WI) {
