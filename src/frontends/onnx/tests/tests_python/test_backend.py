@@ -79,6 +79,7 @@ from tests import (
     xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
+    xfail_issue_onnx122_cast_infinity,
     xfail_issue_onnx122_qlinearmatmul,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
@@ -824,9 +825,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_uint2_cpu",
     ),
     (
-        xfail_issue_onnx122_accuracy,
+        xfail_issue_onnx122_cast_infinity,
         # Plain float-width casts: ONNX 1.22 changed the reference so double/float ->
         # narrower-float overflow yields +/-inf, while the OV Cast saturates to +/-FLT_MAX.
+        # Non-strict (infinity handling in OV core): tolerated whether they pass or fail.
         "OnnxBackendNodeModelTest.test_cast_DOUBLE_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
         "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
@@ -839,6 +841,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_expanded_cpu",
+    ),
+    (
+        xfail_issue_onnx122_accuracy,
+        # float8 Cast/CastLike variants and other ONNX 1.22 reference-data mismatches.
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_cpu",
