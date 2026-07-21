@@ -8,6 +8,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/decompositions/rope.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -148,23 +149,12 @@ OutputVector translate_rope(const NodeContext& context) {
             pass_through = std::make_shared<ov::op::v8::Slice>(data_node, n_rot_c, head_c, one, neg_one);
         }
 
-        auto data_split =
-            std::make_shared<ov::op::v1::Split>(rotary_in,
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1}),
-                                                2);
-        Output<Node> slice_data_node_0 = data_split->outputs()[0];
-        Output<Node> slice_data_node_1 = data_split->outputs()[1];
-
-        auto first_half_node = std::make_shared<ov::op::v1::Subtract>(
-            std::make_shared<ov::op::v1::Multiply>(slice_data_node_0, cos_theta_node),
-            std::make_shared<ov::op::v1::Multiply>(slice_data_node_1, sin_theta_node));
-
-        auto second_half_node = std::make_shared<ov::op::v1::Add>(
-            std::make_shared<ov::op::v1::Multiply>(slice_data_node_0, sin_theta_node),
-            std::make_shared<ov::op::v1::Multiply>(slice_data_node_1, cos_theta_node));
-
-        Output<Node> rotated =
-            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_half_node, second_half_node}, -1);
+        // Core split-halves RoPE via the shared decomposition helper: it emits the exact
+        // split + Multiply(-1)+Add + Concat pattern that ov::pass::RoPEFusion folds into
+        // ov::op::internal::RoPE (the previous hand-built Subtract form did not match and so
+        // was never fused). cos/sin already carry the n_rot/2 width.
+        ov::pass::NodeRegistry reg;
+        Output<Node> rotated = ov::decomposition::rope(reg, rotary_in, cos_theta_node, sin_theta_node, n_rot / 2);
         res = (n_rot < head_dim) ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
                                  : rotated;
     } else if (mode == TYPE_IMROPE) {
