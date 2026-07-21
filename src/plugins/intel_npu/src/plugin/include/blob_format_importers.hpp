@@ -107,8 +107,6 @@ private:
      */
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
-    void log_contents(const std::optional<std::string>& compatibility_descriptor);
-
     /**
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
