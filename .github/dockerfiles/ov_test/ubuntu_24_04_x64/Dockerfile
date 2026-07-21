@@ -48,5 +48,4 @@ ENV PATH="/venv/bin:$PATH"
 ENV PIP_VERSION="24.0"
 RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages

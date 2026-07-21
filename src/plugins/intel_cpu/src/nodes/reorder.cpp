@@ -600,11 +600,11 @@ void Reorder::reorderData(const IMemory& input,
                 tmpBuff.resize(output.getSize());
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
-                cpu_convert(data,
-                            tmpBuff.data(),
-                            DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
-                            outPrc,
-                            input.getDesc().getShape().getElementsCount());
+                cpu_parallel_convert(data,
+                                     tmpBuff.data(),
+                                     DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
+                                     outPrc,
+                                     input.getDesc().getShape().getElementsCount());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 Memory tmpMem(engine, tmpDesc, tmpBuff.data());

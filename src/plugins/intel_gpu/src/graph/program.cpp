@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <thread>
+#include <chrono>
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
@@ -9,6 +11,8 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 
@@ -502,7 +506,6 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-
 #ifdef GPU_DEBUG_CONFIG
     if (get_config().get_dry_run_path().empty() || is_internal) {
 #else
@@ -724,7 +727,6 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
@@ -732,6 +734,10 @@ void program::transfer_memory_to_device() {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
+            auto prim = data_node.get_primitive();
+            if (prim->skip_device_transfer()) {
+                continue;
+            }
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
@@ -915,9 +921,15 @@ void program::add_intermediate(program_node& node,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    if (connect_int_node_with_old_dep && !node.dependencies.empty())
-        throw std::invalid_argument(
-            "Node which is about to be added in between two other nodes should not have any existing dependencies");
+    if (connect_int_node_with_old_dep && !node.dependencies.empty()) {
+        std::string deps;
+        for (auto& dep : node.dependencies) {
+            deps += dep.first->id() + " ( " + dep.first->get_primitive()->type_string() + " ), ";
+        }
+        OPENVINO_THROW("Node which is about to be added in between two other nodes should not have any existing dependencies. Node: " + node.id() + " ( " +
+                       node.get_primitive()->type_string() + " )" + ". Next: " + next.id() + " ( " + next.get_primitive()->type_string() +
+                       " ). Dependencies: " + deps);
+    }
 
     auto& prev = next.get_dependency(prev_idx);
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
@@ -1501,6 +1513,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool is_dynamic_batch_onednn_conv = false;
+    size_t dynamic_batch_onednn_conv_count = 0;
+    bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
@@ -1529,6 +1543,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+                if (is_dynamic_batch_onednn_conv)
+                    dynamic_batch_onednn_conv_count++;
             } else {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
@@ -1694,6 +1710,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
+        if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
+            has_sdpa = true;
+        }
 #endif
     }
 
@@ -1757,7 +1776,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
-    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+
+    // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
+    constexpr size_t max_byxf_onednn_conv_count = 5;
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
+            (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
@@ -1963,10 +1987,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
-
-    if (!ob.is_encrypted() && !ob.is_offset_page_aligned()) {
-        std::vector<uint8_t> pad(ob.get_bytes_to_page_boundary(), 0);
-        ob << make_data(pad.data(), pad.size());
+    
+    const auto& dev_info = get_engine().get_device_info();
+    if (!ob.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
+        if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ob.get_offset()); pad > 0) {
+            std::vector<uint8_t> zeros(pad, 0);
+            ob << make_data(zeros.data(), zeros.size());
+        }
     }
 }
 
@@ -1995,15 +2022,14 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    const bool can_use_mmap_zero_copy = ib.is_mmap_tensor_4K_aligned() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
-                                        _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
-    memory_ptr model_tensor_base_ptr = nullptr;
-    if (can_use_mmap_zero_copy) {
-        model_tensor_base_ptr =
-            ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
-                                                   ib.get_stream_size(),
-                                                   allocation_type::usm_host,
-                                                   layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+    memory_ptr host_buffer_base_ptr = nullptr;
+
+    if (ib.get_engine().can_use_host_usm_zero_copy() && !_config.get_enable_weightless() && ib.is_tensor_aligned(ov::util::min_page_alignment)) {
+        host_buffer_base_ptr =
+            ib.get_engine().create_hostbuffer(ib.get_tensor(),
+                                              ib.get_stream_size(),
+                                              allocation_type::cl_mem,
+                                              layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
     size_t num_nodes;
@@ -2033,7 +2059,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory, model_tensor_base_ptr);
+            data_prim->load_weights(ib, weights_memory, host_buffer_base_ptr);
         }
         get_or_create(prim);
     }
@@ -2192,10 +2218,11 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         state_initializers[variable_id] = initializers;
     }
 
-    // At the end of load
-    if (!ib.is_encrypted() && !ib.is_offset_page_aligned()) {
-        std::vector<uint8_t> pad(ib.get_bytes_to_page_boundary(), 0);
-        ib >> make_data(pad.data(), pad.size());
+    const auto& dev_info = get_engine().get_device_info();
+    if (!ib.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
+        if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ib.get_offset()); pad > 0) {
+            ib.seek_current_ptr(pad);
+        }
     }
 }
 

@@ -17,12 +17,20 @@ on:
   workflow_run:
     workflows:
       - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 24.04, Python 3.12)"
+      - "Android"
+      - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
+      - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
+      - "Linux RISC-V (Ubuntu 22.04, Python 3.10)"
       - "Windows (VS 2022, Python 3.11, Release)"
+      - "Windows (VS 2022, Python 3.11, Debug)"
+      - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Webassembly"
+      - "Manylinux 2_28"
+      - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
-
-    branches:
-      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -37,279 +45,16 @@ engine:
 
 network: defaults
 
+imports:
+  - shared/agentic-workflows/download-failure-logs.md
+  - shared/agentic-workflows/notify-teams.md
+  - shared/agentic-workflows/notify-teams-recurring.md
+  - shared/agentic-workflows/rerun-failed-jobs.md
+
 safe-outputs:
-  jobs:
-    notify-teams:
-      description: "Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure."
-      runs-on: ubuntu-latest
-      output: "Notification sent to Microsoft Teams."
-      permissions:
-        contents: read
-      inputs:
-        title:
-          description: "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers."
-          required: true
-          type: string
-        failed_workflow:
-          description: "Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor MQ workflow name."
-          required: true
-          type: string
-        pipeline_url:
-          description: "URL of the failed GitHub Actions workflow run."
-          required: true
-          type: string
-        description:
-          description: "Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions."
-          required: true
-          type: string
-        pr_number:
-          description: "Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        pr_url:
-          description: "Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        author:
-          description: "GitHub login of the PR author or commit author, if known. Omit otherwise."
-          required: false
-          type: string
-          default: "not_found"
-        db_entries:
-          description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
-          required: true
-          type: string
-        occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
-          required: true
-          type: string
-        statistics:
-          description: "Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/repo-memory/default/mq/investigations/ and /tmp/gh-aw/repo-memory/default/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
-          required: true
-          type: string
-        statistics_json:
-          description: "Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\"generated_at\": <ISO8601 UTC>, \"total_patterns\": <int>, \"total_investigations\": <int>, \"patterns\": [{\"signature\": <str>, \"title\": <str>, \"category\": <str>, \"count\": <int>, \"first_seen\": <ISO8601 UTC>, \"last_seen\": <ISO8601 UTC>, \"recent_run_urls\": [<str>, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis."
-          required: true
-          type: string
-      steps:
-        - name: Send Teams notification
-          env:
-            TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-            RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            PR_NUMBER=$(echo "$ITEM"        | jq -r '.pr_number // ""')
-            PR_URL=$(echo "$ITEM"           | jq -r '.pr_url // ""')
-            AUTHOR=$(echo "$ITEM"           | jq -r '.author // ""')
-            DB_ENTRIES=$(echo "$ITEM"       | jq -r '.db_entries // ""')
-            OCCURRENCES=$(echo "$ITEM"      | jq -r '.occurrence_count // ""')
-            STATISTICS=$(echo "$ITEM"       | jq -r '.statistics // ""')
-            STATISTICS_JSON=$(echo "$ITEM"  | jq -r '.statistics_json // ""')
-
-            # Persist the full statistics database as a workflow artifact for offline review.
-            STATS_DIR="${RUNNER_TEMP:-/tmp}/ci-doctor-mq-stats"
-            mkdir -p "$STATS_DIR"
-            if [ -n "$STATISTICS_JSON" ]; then
-              # Validate and pretty-print; fall back to raw on parse error.
-              if echo "$STATISTICS_JSON" | jq '.' > "$STATS_DIR/ci-doctor-mq-statistics.json" 2>/dev/null; then
-                echo "Wrote validated statistics JSON ($(wc -c < "$STATS_DIR/ci-doctor-mq-statistics.json") bytes)"
-              else
-                echo "Warning: statistics_json failed jq parse; storing raw payload" >&2
-                printf '%s' "$STATISTICS_JSON" > "$STATS_DIR/ci-doctor-mq-statistics.json"
-              fi
-            fi
-            if [ -n "$STATISTICS" ]; then
-              printf '%s\n' "$STATISTICS" > "$STATS_DIR/ci-doctor-mq-statistics.md"
-            fi
-            echo "stats_dir=$STATS_DIR" >> "$GITHUB_OUTPUT"
-
-            # Build Adaptive Card facts conditionally (only include PR/author when present).
-            FACTS=$(jq -nc \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg pr_number       "$PR_NUMBER" \
-              --arg pr_url          "$PR_URL" \
-              --arg author          "$AUTHOR" \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg db_entries      "$DB_ENTRIES" \
-              --arg occurrences     "$OCCURRENCES" '
-                [
-                  ( $failed_workflow | select(length > 0) | { title: "Workflow",    value: . } ),
-                  ( $pipeline_url    | select(length > 0) | { title: "Pipeline",    value: ("[Open run](" + . + ")") } ),
-                  ( $pr_number       | select(length > 0) | { title: "PR",          value: (if ($pr_url | length) > 0 then ("[#" + . + "](" + $pr_url + ")") else ("#" + .) end) } ),
-                  ( $author          | select(length > 0) | { title: "Author",      value: ("@" + .) } ),
-                  ( $occurrences     | select(length > 0) | { title: "Occurrences", value: (. + "×") } ),
-                  ( $db_entries      | select(length > 0) | { title: "DB entries",  value: . } )
-                ] | map(select(. != null))')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg statistics "$STATISTICS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: ([
-                        { type: "TextBlock", text: ("\ud83d\udd34 [MQ] " + $title), weight: "Bolder", size: "Medium", color: "Attention", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" }
-                      ] + (if ($statistics | length) > 0 then [
-                        { type: "TextBlock", text: "Pattern Database Statistics", weight: "Bolder", size: "Medium", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $statistics, wrap: true, spacing: "Small" }
-                      ] else [] end))
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
-
-        - name: Upload statistics artifact
-          if: always()
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-          with:
-            name: ci-doctor-mq-statistics
-            path: ${{ runner.temp }}/ci-doctor-mq-stats
-            if-no-files-found: ignore
-            retention-days: 90
-
-    notify-teams-recurring:
-      description: "Send a recurring merge-queue failure escalation alert to Microsoft Teams. Call this ONLY when the same failure pattern has 3 or more occurrences in the last 12 hours. Do NOT call this for every failure."
-      runs-on: ubuntu-latest
-      output: "Recurring failure escalation sent to Microsoft Teams."
-      permissions:
-        contents: read
-      inputs:
-        title:
-          description: "Short, searchable description of the recurring failure pattern (same as notify_teams.title)."
-          required: true
-          type: string
-        failed_workflow:
-          description: "Name of the GitHub Actions workflow with the recurring failure."
-          required: true
-          type: string
-        pipeline_url:
-          description: "URL of the current (latest) failed workflow run."
-          required: true
-          type: string
-        recent_count:
-          description: "Number of times this failure pattern has occurred in the last 12 hours, including the current run. Report as a positive integer encoded as a string (e.g., '3', '5')."
-          required: true
-          type: string
-        description:
-          description: "Concise markdown gist of the recurring problem: what keeps failing, suspected root cause, and recommended escalation actions. Use Teams-safe markdown only (no raw HTML)."
-          required: true
-          type: string
-        affected_prs:
-          description: "Markdown-formatted list of affected PR numbers/links from the merge queue that hit this failure in the last 12 hours. One PR per line, e.g. '- [#1234](https://github.com/org/repo/pull/1234)'. Include up to 10 most recent PRs."
-          required: true
-          type: string
-        recent_run_urls:
-          description: "Markdown-formatted list of workflow run URLs that exhibited this failure in the last 12 hours. One URL per line, e.g. '- [Run 12345](https://github.com/org/repo/actions/runs/12345)'. Include up to 10 most recent runs."
-          required: true
-          type: string
-      steps:
-        - name: Send recurring failure escalation to Teams
-          env:
-            TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams_recurring")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams_recurring item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            RECENT_COUNT=$(echo "$ITEM"     | jq -r '.recent_count // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            AFFECTED_PRS=$(echo "$ITEM"     | jq -r '.affected_prs // ""')
-            RECENT_RUNS=$(echo "$ITEM"      | jq -r '.recent_run_urls // ""')
-
-            FACTS=$(jq -nc \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg recent_count    "$RECENT_COUNT" '
-                [
-                  { title: "Workflow",           value: $failed_workflow },
-                  { title: "Pipeline",           value: ("[Latest run](" + $pipeline_url + ")") },
-                  { title: "Hits (last 12 hrs)", value: ($recent_count + " occurrences") }
-                ]')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg affected_prs "$AFFECTED_PRS" \
-              --arg recent_runs "$RECENT_RUNS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: [
-                        { type: "TextBlock", text: ("\ud83d\udd01 [MQ] Recurring Failure: " + $title), weight: "Bolder", size: "Medium", color: "Warning", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" },
-                        { type: "TextBlock", text: "### Affected PRs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $affected_prs, wrap: true, spacing: "Small" },
-                        { type: "TextBlock", text: "### Recent Failure Runs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $recent_runs, wrap: true, spacing: "Small" }
-                      ]
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
+  add-comment:
+    max: 1              # at most one remediation comment per investigation
+    target: "*"         # workflow_run trigger has no PR context; agent supplies the PR number
 
 tools:
   github:
@@ -350,6 +95,17 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 - **Head SHA**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger Event**: ${{ github.event.workflow_run.event }}
 
+## Pre-Analysis Data
+
+Logs have been pre-downloaded before this session started:
+
+- **Summary**: `/tmp/gh-aw/agent/ci-doctor/summary.txt` — failed jobs, failed steps, all file locations, and pre-located error hints
+- **Job metadata**: `/tmp/gh-aw/agent/ci-doctor/logs/failed-jobs.json` — structured list of failed jobs and their failed steps
+- **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log` — full job logs downloaded from GitHub Actions
+- **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/*-hints.txt` — pre-located error lines (from logs) via generic grep heuristics
+
+**Start here**: Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` first — it lists every file location and the first few hint matches. Then examine the relevant hint files to jump directly to error locations (read ~50 lines around each hinted line number before loading the full log).
+
 ## Investigation Protocol
 
 **Trigger detection:**
@@ -372,15 +128,19 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
 ### Phase 2: Deep Log Analysis
 
-1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**
-2. **Pattern Recognition**: Analyze logs for:
+1. **Use Pre-Downloaded Logs**: Start with the files in `/tmp/gh-aw/agent/ci-doctor/`:
+   - Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` and the hint files first (minimal context load).
+   - Read ~50 lines around each hinted line number in the full log file.
+   - Only load the full log content if the hints are insufficient.
+2. **Fallback Log Retrieval**: If the pre-downloaded files are unavailable, use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**
+3. **Pattern Recognition**: Analyze logs for:
    - Error messages and stack traces
    - Dependency installation failures
    - Test failures with specific patterns
    - Infrastructure or runner issues
    - Timeout patterns
    - Memory or resource constraints
-3. **Extract Key Information**:
+4. **Extract Key Information**:
    - Primary error messages
    - File paths and line numbers where failures occurred
    - Test names that failed
@@ -400,13 +160,13 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 ### Phase 4: Root Cause Investigation
 
 1. **Categorize Failure Type**:
-   - **Code Issues**: Syntax errors, logic bugs, test failures
+   - **Code Issue**: Syntax errors, logic bugs, test failures
    - **Infrastructure**: Runner issues, network problems, resource constraints
    - **Dependencies**: Version conflicts, missing packages, outdated libraries
    - **Configuration**: Workflow configuration, environment variables
-   - **Flaky Tests**: Intermittent failures, timing issues
-   - **External Services**: Third-party API failures, downstream dependencies
-   - **Network-related**: unreachable network/services, exceeded max retries
+   - **Flaky Test**: Intermittent failures, timing issues
+   - **External Service**: Third-party API failures, downstream dependencies
+   - **Network**: unreachable network/services, exceeded max retries
 
 2. **Deep Dive Analysis**:
    - For test failures: Identify specific test methods and assertions
@@ -454,44 +214,92 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
 ### Phase 5: Pattern Storage and Knowledge Building
 
+**Artefact schemas (MANDATORY — read before writing anything):**
+Every JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:
+
+- **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/investigation.schema.json`
+  Applies to every `<timestamp>-<run-id>.json` file under `investigations/` **except** the aggregate `index.json`.
+- **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`
+  Applies to every `<signature-hash>.json` file under `patterns/`.
+- **Investigations index** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/index.schema.json`
+  Applies to the single aggregate `investigations/index.json` file.
+
+Rules that apply to all artefact types:
+
+- Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout — the previous lack of a schema is the reason older investigation/pattern files had inconsistent structures.
+- Set `"schema_version": "1.0"` on every artefact you write.
+- These schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
+- Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.
+- Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.
+
+**Validation procedure (run immediately after writing each artefact — MANDATORY):**
+
+1. Read the artefact back from disk and parse it as JSON (this also confirms it is well-formed).
+2. Read the matching schema file.
+3. Validate the parsed object against the schema. If a JSON Schema validator is available in the run environment (e.g., Python with the `jsonschema` package — `python3 -c "import jsonschema, json, sys; jsonschema.validate(json.load(open(sys.argv[1])), json.load(open(sys.argv[2])))" <artefact> <schema>`), use it. Otherwise perform an explicit conformance check covering: every `required` field present; each field's `type`/`enum`/`format` honoured; **no** field outside the schema's `properties` (because `additionalProperties` is `false`); and array `minItems`/`maxItems` limits respected.
+4. If validation fails, fix the artefact and repeat until it validates. **Never leave an invalid artefact on disk**, and do not proceed to the next phase with an unvalidated artefact.
+
 1. **Store Investigation**: Save structured investigation data to files in the persistent repo-memory directory:
    - **Persistent path**: `/tmp/gh-aw/repo-memory/default/` is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch (`memory/ci-doctor-mq`). Files written here survive across runs permanently. Files written elsewhere are **not** persisted and will be lost.
    - **MQ-specific subdirectory**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` to keep merge-queue investigations isolated from any other workflows using repo-memory.
    - Create the subdirectory if needed: `mkdir -p /tmp/gh-aw/repo-memory/default/mq/investigations /tmp/gh-aw/repo-memory/default/mq/patterns`.
    - Write the investigation report to `/tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json`
+     - The file content MUST conform to the **investigation schema** (`investigation.schema.json`) described in the "Artefact schemas" block above, and MUST be validated with the validation procedure right after writing.
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
-   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`)
-   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
+   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
+   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` following the **MANDATORY append-only read-modify-write procedure** in step 1a below. Never recreate this file from scratch.
+
+1a. **Update Investigations Index — MANDATORY append-only read-modify-write procedure**:
+
+   The index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` is a single **append-only** aggregate that references every investigation ever recorded. It MUST conform to the **index schema** (`index.schema.json`). Losing or overwriting previously recorded entries is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly.
+
+   **Step A — Read the existing index (never skip):**
+   - Attempt to read `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`.
+   - If it exists, parse it as JSON into `existing`. If it exists but fails to parse (corrupted/truncated), **do NOT overwrite it**: copy it aside to `index.corrupt-<timestamp>.json`, then reconstruct `existing.entries` by scanning every `*.json` investigation record already present under `investigations/` (excluding `index.json` itself) so no prior investigation is dropped.
+   - If the file does NOT exist, set `existing = { "schema_version": "1.0", "total": 0, "entries": [] }`.
+   - Normalize legacy shapes: if `existing` has a deprecated `investigations` array, merge its elements into `existing.entries` (deduplicating by `investigation_id`+`run_id`) and drop the `investigations` key. Map any legacy `id` field to `investigation_id`.
+   - Record `PREV_COUNT = length(existing.entries)`.
+
+   **Step B — Append the current investigation (never remove or replace prior entries):**
+   - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `pr_number` (string or null).
+   - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.
+   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries`. The only allowed mutations are: appending a new entry, or updating a single matching existing entry in place.
+
+   **Step C — Recompute and write:**
+   - Set `total = length(entries)`.
+   - Assert the **never-shrink invariant**: `total >= PREV_COUNT`. If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index.
+   - Write the object `{ schema_version: "1.0", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.
+
+   **Step D — MANDATORY verification (read-back check):**
+   - Read `index.json` back, parse it, and validate against `index.schema.json` (see the validation procedure in the "Artefact schemas" block).
+   - Verify `total == length(entries)` and `total >= PREV_COUNT`.
+   - Verify the current investigation's `investigation_id` is present in `entries` exactly once.
+   - Verify every entry that was in the pre-write `existing.entries` is still present (no prior entry was dropped).
+   - If any check fails, **do not leave the shrunken/invalid index on disk** — restore from the pre-write copy and redo from Step A.
+
+   **Common failure modes to avoid:**
+   - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.
+   - Skipping Step A and overwriting instead of appending.
+   - Writing a `total` smaller than the previous run's `total`.
+   - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.
+
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
 
-   **Schema:**
-
-   ~~~json
-   {
-     "signature": "<stable string>",
-     "title": "<short human-readable title>",
-     "category": "<Code Issue | Infrastructure | Dependencies | Configuration | Flaky Test | External Service | Network>",
-     "count": 4,
-     "first_seen": "2026-05-10T08:00:00Z",
-     "last_seen": "2026-05-12T14:30:00Z",
-     "recent_run_urls": ["https://...run4", "https://...run3", "https://...run2", "https://...run1"],
-     "affected_prs": ["https://...pr4", "https://...pr3"],
-     "recent_timestamps": ["2026-05-12T14:30:00Z", "2026-05-12T10:15:00Z", "2026-05-11T22:00:00Z", "2026-05-10T08:00:00Z"]
-   }
-   ~~~
+   **Schema:** the authoritative definition is `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`. Read that file for the exact field list, types, and constraints, and validate the record against it (see the validation procedure in the "Artefact schemas" block above).
 
    **Step-by-step procedure (follow EXACTLY in this order):**
 
    **Step A — Compute signature hash:**
-   Derive a stable `<signature-hash>` from ONLY these inputs (which do NOT change between reruns of the same failure):
-   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs
-   - Failed job name (exact string from the workflow run)
-   - Failure category (one of the 7 categories above)
+   Derive a stable `<signature-hash>` from ONLY inputs that do NOT change between reruns of the same failure **and that do NOT depend on which job the error occurred in** — the same underlying error frequently surfaces in several different jobs (e.g., the same test failing on Linux and Windows, or across shards), and those MUST collapse into a single pattern:
+   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and any embedded job / runner / OS / shard names or indices
+   - Failure category — MUST be exactly one of the values from the `category` `enum` defined in `pattern.schema.json` (identical to the `category` enum in `investigation.schema.json`). Use the schema's spelling verbatim (e.g., `Code Issue`, `Flaky Test`, `External Service`, `Network`); do **not** invent a category or use the looser prose labels from Phase 4.
 
-   Concatenate these three strings with `|` separator, then compute a hash (e.g., first 16 chars of SHA-256). Two reruns of the same failure MUST produce the same hash.
+   Do **NOT** include the failed job name in the hash. Keying on the job name would split one underlying error into a separate pattern for every job that hits it, inflating the database and breaking recurrence counting. Treat the job name(s) as descriptive metadata only (record them in `title` / the investigation, not in the hash).
+
+   Concatenate the two inputs as `<normalized-error>|<category>`, then compute a hash (e.g., first 16 chars of SHA-256). The same normalized error in the same category MUST always produce the same hash regardless of which job(s) it occurred in, and two reruns of the same failure MUST produce the same hash.
 
    **Step B — Read existing file:**
    Attempt to read `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -506,7 +314,9 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    CURRENT_PR_URL = the PR URL (or null if no PR)
 
    IF existing != null:
+       record.schema_version = "1.0"
        record.signature   = existing.signature
+       record.signature_hash = existing.signature_hash
        record.title       = title from investigation (refresh always)
        record.category    = category from investigation (refresh always)
        record.count       = existing.count + 1          ← MUST increment
@@ -518,8 +328,11 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
            → deduplicate by URL, then truncate to first 10 entries
        record.recent_timestamps = [NOW] + existing.recent_timestamps
            → keep only entries where timestamp >= (NOW - 24 hours)
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← recompute per Step C.1 (refresh always)
    ELSE:
-       record.signature   = the computed signature string
+       record.schema_version = "1.0"
+       record.signature   = the <normalized-error>|<category> signature string from Step A
+       record.signature_hash = <signature-hash>
        record.title       = title from investigation
        record.category    = category from investigation
        record.count       = 1
@@ -528,17 +341,30 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
        record.recent_run_urls = [CURRENT_RUN_URL]
        record.affected_prs = (if CURRENT_PR_URL: [CURRENT_PR_URL] else [])
        record.recent_timestamps = [NOW]
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← compute per Step C.1
    ~~~
+
+   **Step C.1 — Compute and verify `RERUN_SEARCH_STRING` (the workflow_rerunner hook):**
+   This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), which greps the failed run's logs for this string and, on a match, re-runs the failed jobs — exactly like the static entries in `.github/scripts/workflow_rerun/errors_to_look_for.json`. A rerun only helps for **transient** failures, and a string that never matches is useless:
+   - IF `category` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service` (i.e. a deterministic `Code Issue`/`Dependencies`/`Configuration` failure a restart cannot fix): set `RERUN_SEARCH_STRING = null`. A search string here would make the rerunner loop on an unfixable failure.
+   - ELSE: set `RERUN_SEARCH_STRING` to a **short, stable substring taken verbatim from a single raw log line** that uniquely identifies this failure (e.g., `Could not resolve host`, `Connection reset by peer`, `runner has received a shutdown signal`). Strip everything volatile that changes between runs or across jobs: absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and embedded job/runner/OS/shard names.
+   - Always recompute on update so a category change (e.g. `Flaky Test` → `Code Issue`) correctly clears or sets the string.
+
+   **Verify a non-null value against the rerunner's exact matcher** ([`log_analyzer.py`](../scripts/workflow_rerun/log_analyzer.py)): it normalizes a string by replacing each run of non-alphanumeric chars (`[^A-Za-z0-9]+`) with one space, lower-casing, and stripping (so `Could not resolve host: github.com` → `could not resolve host github com`), then checks whether the normalized string is a plain substring of a **single** normalized log line (matches never span line breaks). Confirm the normalized `RERUN_SEARCH_STRING` is a substring of a normalized real log line from the pre-downloaded logs, is non-empty after normalization, and is specific enough to avoid matching benign lines (no bare `error`/`failed`/`warning`). If you cannot satisfy this, set `RERUN_SEARCH_STRING = null` rather than store an unverified guess.
 
    **Step D — Write the file:**
    Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
 
    **Step E — MANDATORY verification (read-back check):**
    Immediately after writing, read the file back and verify:
+   - the record validates against `pattern.schema.json` (run the validation procedure from the "Artefact schemas" block)
+   - `schema_version` equals `"1.0"` and `signature_hash` matches the file name
    - `count` equals the value you just computed (NOT 1 unless this is genuinely the first occurrence)
    - `recent_timestamps` contains the current timestamp `NOW` as the first entry
    - `last_seen` equals `NOW`
    - `first_seen` has NOT changed from `existing.first_seen` (if file existed before)
+   - `rerun_search_string` is present and is either a non-empty string (only for the transient categories `Flaky Test`/`Infrastructure`/`Network`/`External Service`) or `null` (for every other category)
+   - if `rerun_search_string` is non-null, it still satisfies the Step C.1 verification (normalized substring of a single actual failure-log line, non-empty after normalization); otherwise set it to `null`
 
    If any check fails, you have a bug in your write logic. Fix it before proceeding.
 
@@ -559,6 +385,22 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    **Validation before calling notify_teams:** Read back the current pattern file one more time. The `count` field in the file MUST equal the `occurrence_count` value you are about to pass to `notify_teams`. If they differ, go back to Step B and redo the update.
 
 4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.
+
+5. **Backfill Missing `rerun_search_string` Fields — MANDATORY sweep, every run:**
+
+   Some pattern files were written before `rerun_search_string` existed and are missing the field entirely (as opposed to having it explicitly set to `null`). Every time you run Phase 5, after step 2 has written/updated the current failure's pattern file, sweep **all** other files in `/tmp/gh-aw/repo-memory/default/mq/patterns/` and backfill any that lack the key:
+
+   - For each `<signature-hash>.json` file in the patterns directory (including ones untouched by this run):
+     1. Read and parse the file.
+     2. If the `rerun_search_string` key is **already present** (even if its value is `null`), skip it — do not touch a file that already conforms to the schema.
+     3. If the key is **missing**, derive it from the file's own `signature` field (`<normalized-error>|<category>`) using the same rules as Step C.1, without needing the original failure logs:
+        - Split `signature` on the last `|` to recover `<normalized-error>` and `<category>`.
+        - IF `<category>` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service`: set `rerun_search_string = null`.
+        - ELSE: set `rerun_search_string = <normalized-error>` verbatim (the signature's error component was already stripped of volatile tokens per Step A, so no further normalization is needed). Since the original raw logs are unlikely to still be available for a backfill, you do NOT need to re-verify it against a live log line as Step C.1 otherwise requires — only confirm it is non-empty and not just generic noise (e.g., not solely `error`, `failed`, or `warning`). If it fails that minimal check, set it to `null` instead of guessing.
+     4. Write the updated object back to the same file, changing only the `rerun_search_string` key — do not alter `count`, timestamps, `signature`, `signature_hash`, or any other field.
+     5. Validate the rewritten file against `pattern.schema.json` (see the validation procedure in the "Artefact schemas" block) and confirm `rerun_search_string` is now present as either a non-empty string or `null`.
+
+   This step must never modify a file's `count`, `first_seen`, `last_seen`, or timestamp arrays — its only job is adding the missing key.
 
 ### Phase 5.5: Recurring Failure Escalation Check
 
@@ -605,6 +447,8 @@ ELSE:
 
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
+   - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
+   - When the investigation concludes the failure is transient and a plain restart is likely to clear it, request a re-run of only the failed jobs of the analysed run (see `rerun_failed_jobs` decision guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -663,6 +507,44 @@ Report the investigation as a Microsoft Teams notification by calling the `notif
 
 Additionally, if Phase 5.5 determines the same failure has occurred 3 or more times in the last 12 hours, call the `notify_teams_recurring` safe-output tool exactly once with the escalation details.
 
+Additionally, **when the failure is associated with a PR in the merge queue**, post a remediation comment on that PR by calling the `add_comment` safe-output tool exactly once (see field guidance below). If no PR can be identified, skip the comment.
+
+### `add_comment` field guidance
+
+Post a concise, actionable remediation comment on the affected merge-queue PR so the author has the context and next steps. Call `add_comment` **at most once per investigation** and **only** when a PR can be identified.
+
+- **`item_number`** (required) — The number of the affected PR in the merge queue (the same value reported as `notify_teams.pr_number`). This is required because the `workflow_run` trigger carries no PR context; the comment cannot be posted without it.
+
+- **`body`** (required) — Markdown comment body. Keep it focused and short. GitHub renders standard Markdown here (headings, bold, inline code, fenced code blocks with backticks, lists, links). Use this structure:
+
+```markdown
+### CI Doctor — Merge Queue failure on this PR
+
+**Pipeline**: [<failed_workflow name>](<pipeline_url>)
+**Failure**: <one-line summary, same as notify_teams.title>
+**Automatic restart**: <one of: `✅ Re-run of failed jobs requested (reason: <reason>)` when you called `rerun_failed_jobs`; `❌ Not triggered — <short reason, e.g. deterministic code failure>` otherwise>
+
+#### Possible remedy
+
+<1–4 concrete, actionable steps to fix or work around the failure, based on the
+root-cause analysis. Reference specific files/lines from the logs when available.>
+
+#### What happened
+
+<1–2 sentence plain-language description of the failure: which job(s) failed and the key error.>
+
+<If repo-memory shows this is a known/recurring pattern, add one line noting how
+many times it has been seen and link the most recent prior failure run.>
+```
+
+Source the comment content directly from the investigation you already produced:
+  * **Pipeline name + link** come from `failed_workflow` and `pipeline_url`.
+  * **Failure summary** matches `notify_teams.title`.
+  * **What happened** is a condensed version of the Root Cause Analysis (Phase 4 / Phase 6).
+  * **Possible remedy** comes from your Recommended Actions, refined with any matching pattern data from repo-memory (`/tmp/gh-aw/repo-memory/default/mq/patterns/` and `/tmp/gh-aw/repo-memory/default/mq/investigations/`). If a prior pattern exists, prefer the remedy that resolved it before.
+
+Do not duplicate the full Teams description in the comment — keep it to the pipeline reference, a short possible remedy, and a failure description.
+
 ### `notify_teams` field guidance
 
 Provide all required fields and include the optional PR-related fields whenever the failure is associated with a PR in the merge queue.
@@ -713,6 +595,12 @@ Provide all required fields and include the optional PR-related fields whenever 
 - **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: merge_group
+
+### Automatic Restart
+
+State whether an automatic re-run of the failed jobs was triggered:
+- If you called `rerun_failed_jobs`: `✅ Re-run of failed jobs requested` followed by the one-line `reason` you passed.
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
 
 ### Root Cause Analysis
 
@@ -779,6 +667,24 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 - **`affected_prs`** — Markdown bullet list of PRs affected by this failure in the last 12 hours (up to 10, e.g., `- [#1234](url)`). If no PRs can be identified, write "No PR information available."
 - **`recent_run_urls`** — Markdown bullet list of failure run URLs from the last 12 hours (up to 10, e.g., `- [Run 56789](url)`).
 
+### `rerun_failed_jobs` decision guidance
+
+Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Analysis concludes the failure is transient and a plain restart is likely to clear it — typically the `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories (runner hiccups, network timeouts, cancelled jobs, transient download/registry errors, downstream service outages).
+
+**Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
+
+Only the **failed** jobs of the analysed run are restarted; passing jobs are untouched. The job also refuses to re-run a run that already has more than one attempt, to avoid restart loops.
+
+Provide:
+
+- **`run_id`** (required) — Numeric ID of the analysed run: `${{ github.event.workflow_run.id }}` for merge-queue triggers, or the `run_id` input for `workflow_dispatch`. Pass as a numeric string.
+- **`repository`** (optional) — `owner/repo` of the analysed run. Omit to default to the current repository.
+- **`reason`** (required) — One-line justification for the restart, matching the transient cause identified in the investigation.
+
+This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. A re-run request does not replace the investigation report.
+
+Whenever you decide about a restart (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Restart` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic restart**` line of the `add_comment` body. Keep both consistent with the actual `rerun_failed_jobs` call.
+
 ## Important Guidelines
 
 - **Be Thorough**: Don't just report the error - investigate the underlying cause
@@ -801,12 +707,16 @@ You **MUST** always call at least one safe output tool before finishing:
 
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
+- **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
+- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient and a restart is likely to remedy it (see `rerun_failed_jobs` decision guidance). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
 **Valid call combinations:**
-- `notify_teams` alone — standard investigation, fewer than 3 occurrences in the last 12 hours.
-- `notify_teams` + `notify_teams_recurring` — standard investigation AND 3+ occurrences in the last 12 hours.
+- `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
+- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
+- `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
+- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 

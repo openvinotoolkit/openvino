@@ -41,7 +41,7 @@ enum class ExecutorType : uint8_t {
     Kleidiai,
 };
 
-enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise, GatherMatmul };
+enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise, GatherMatmul, GatedDeltaNet };
 
 std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);

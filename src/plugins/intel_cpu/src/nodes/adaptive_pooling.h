@@ -31,7 +31,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    int spatialDimsCount;
+    size_t spatialDimsCount;
     mutable std::vector<Dim> spatialDimsValue;
     ov::element::Type precision = ov::element::f32;
     static inline void setBinBorders(size_t* startPtr,

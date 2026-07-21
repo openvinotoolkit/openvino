@@ -22,7 +22,8 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
+                          ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
@@ -88,5 +89,13 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
+add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
+    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
+    common_test_utils
+    openvino::util)
+target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)

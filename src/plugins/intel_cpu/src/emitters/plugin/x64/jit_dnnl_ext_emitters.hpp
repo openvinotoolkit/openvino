@@ -116,6 +116,19 @@ public:
     }
 };
 
+class jit_hsigmoid_emitter : public jit_dnnl_emitter {
+public:
+    jit_hsigmoid_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
+                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                         const std::shared_ptr<ov::Node>& n,
+                         ov::element::Type exec_prc = ov::element::f32)
+        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+        kind = dnnl_eltwise_hsigmoid;
+
+        set_injector();
+    }
+};
+
 class jit_gelu_erf_emitter : public jit_dnnl_emitter {
 public:
     jit_gelu_erf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,

@@ -4,10 +4,126 @@
 
 #include "openvino/frontend/sequence_mark.hpp"
 
+#include <optional>
+
+#include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_erase.hpp"
 #include "openvino/frontend/sequence_insert.hpp"
+#include "openvino/op/identity.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace frontend {
+
+namespace {
+
+ov::Output<ov::Node> unwrap_identity(const ov::Output<ov::Node>& value) {
+    ov::Output<ov::Node> cur = value;
+    while (auto identity = ov::as_type_ptr<ov::op::v16::Identity>(cur.get_node_shared_ptr())) {
+        cur = identity->input_value(0);
+    }
+    return cur;
+}
+
+// Resolve a statically known sequence position into an index. A negative
+// position counts from the back (Python list semantics): index == size + pos.
+// `size_bias` is 1 for insert (append at index == size is valid) and 0 for
+// erase. Returns nullopt when the position is dynamic or out of range.
+std::optional<size_t> static_position(const ov::Output<ov::Node>& position, size_t size, int64_t size_bias) {
+    auto pc = ov::util::get_constant_from_source(position);
+    if (!pc) {
+        return std::nullopt;
+    }
+    const auto values = pc->cast_vector<int64_t>();
+    if (values.size() != 1) {
+        return std::nullopt;
+    }
+    int64_t pos = values[0];
+    if (pos < 0) {
+        pos += static_cast<int64_t>(size);
+    }
+    if (pos < 0 || pos >= static_cast<int64_t>(size) + size_bias) {
+        return std::nullopt;
+    }
+    return static_cast<size_t>(pos);
+}
+
+void enumerate_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& out, int depth) {
+    if (depth > 256) {
+        // Recursion guard against pathological chains. Collapsing to one opaque
+        // slot here undercounts a genuinely long Insert/Erase chain, so surface
+        // it: a >256-deep sequence chain points at an unhandled pattern rather
+        // than a real stack-depth risk.
+        OPENVINO_DEBUG("SequenceMark::get_sequence: sequence chain exceeds depth 256; element count may be "
+                       "undercounted.");
+        out.push_back(value);
+        return;
+    }
+    const auto v = unwrap_identity(value);
+    const auto node = v.get_node_shared_ptr();
+    if (auto mark = ov::as_type_ptr<SequenceMark>(node)) {
+        for (size_t i = 0; i < mark->get_input_size(); ++i) {
+            const auto in = mark->input_value(i);
+            const auto in_node = unwrap_identity(in).get_node_shared_ptr();
+            // Flatten only SequenceInsert/SequenceErase chains. A directly
+            // nested SequenceMark represents an inline nested list/tuple
+            // construct (e.g. PyTorch builds nested SequenceMarks); it must stay
+            // a single opaque element so the returned element count and
+            // index->element mapping keep matching context.get_output_size().
+            if (ov::is_type<SequenceInsert>(in_node) || ov::is_type<SequenceErase>(in_node)) {
+                enumerate_sequence(in, out, depth + 1);
+            } else {
+                out.push_back(in);
+            }
+        }
+        return;
+    }
+    if (auto ins = ov::as_type_ptr<SequenceInsert>(node)) {
+        ov::OutputVector base;
+        enumerate_sequence(ins->get_input_sequence(), base, depth + 1);
+        size_t pos = base.size();  // default (no position): append at end
+        if (ins->has_position()) {
+            auto resolved = static_position(ins->get_position(), base.size(), /*size_bias=*/1);
+            if (!resolved) {
+                // Non-constant (or out-of-range) position: the spliced index is
+                // not statically known, so keep the whole SequenceInsert as a
+                // single opaque element (documented contract). Downstream passes
+                // resolve such dynamic positions structurally (Select chains) or
+                // leave the reader unconverted.
+                out.push_back(v);
+                return;
+            }
+            pos = *resolved;
+        }
+        base.insert(base.begin() + static_cast<long>(pos), ins->get_tensor());
+        out.insert(out.end(), base.begin(), base.end());
+        return;
+    }
+    if (auto era = ov::as_type_ptr<SequenceErase>(node)) {
+        ov::OutputVector base;
+        enumerate_sequence(era->get_input_sequence(), base, depth + 1);
+        if (!base.empty()) {
+            size_t pos = base.size() - 1;  // default (no position): erase last
+            if (era->has_position()) {
+                auto resolved = static_position(era->get_position(), base.size(), /*size_bias=*/0);
+                if (!resolved) {
+                    // Non-constant (or out-of-range) position: keep the whole
+                    // SequenceErase as a single opaque element (documented
+                    // contract) rather than guessing erase-last.
+                    out.push_back(v);
+                    return;
+                }
+                pos = *resolved;
+            }
+            base.erase(base.begin() + static_cast<long>(pos));
+        }
+        out.insert(out.end(), base.begin(), base.end());
+        return;
+    }
+    out.push_back(v);
+}
+
+}  // namespace
 
 SequenceMark::SequenceMark(const ov::OutputVector& inputs) : ov::op::util::FrameworkNode(inputs, 1) {
     validate_and_infer_types();
@@ -63,28 +179,10 @@ ov::Output<ov::Node> SequenceMark::get_element(size_t index) const {
 }
 
 ov::OutputVector SequenceMark::get_sequence() const {
-    // Walk backward through SequenceInsert chain.
-    // Pattern: SM(a,b) -> SI(SM,c) -> SM -> SI(SM,d) -> SM (this)
-    // Each aten::append wraps SequenceInsert output in a new SequenceMark.
-    OutputVector appended;
-    std::shared_ptr<const ov::Node> current = shared_from_this();
-
-    while (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
-        if (mark->get_input_size() != 1)
-            break;
-        auto si = ov::as_type_ptr<const SequenceInsert>(mark->input_value(0).get_node_shared_ptr());
-        if (!si)
-            break;
-        appended.push_back(si->get_tensor());
-        current = si->get_input_sequence().get_node_shared_ptr();
-    }
-
-    // current is the base SequenceMark with direct element inputs
-    OutputVector result;
-    if (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
-        result = mark->input_values();
-    }
-    result.insert(result.end(), appended.rbegin(), appended.rend());
+    ov::OutputVector result;
+    // Enumeration is read-only; const_pointer_cast just adapts shared_from_this()
+    // to the Output<Node> the enumerator expects.
+    enumerate_sequence({std::const_pointer_cast<ov::Node>(shared_from_this()), 0}, result, 0);
     return result;
 }
 

@@ -10,6 +10,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/ops.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
@@ -4124,4 +4125,37 @@ INSTANTIATE_TEST_SUITE_P(constant_folding,
                          UnsupportedTypesTest,
                          testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);
+
+TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
+    // body subgraph inputs
+    auto it_param = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+    auto c_param = std::make_shared<op::v0::Parameter>(element::boolean, Shape{});
+
+    // Loop body has node with no evaluate
+    auto d_const =
+        op::v0::Constant::create(element::f32, Shape{3, 4}, std::vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+    auto i_const = op::v0::Constant::create(element::i64, Shape{2, 2}, std::vector<int64_t>{0, 1, 2, 3});
+    auto gather_nd = std::make_shared<op::v8::GatherND>(d_const, i_const, 0);  // → f32[2]
+    ASSERT_FALSE(gather_nd->has_evaluate());
+    auto co_result = std::make_shared<op::v0::Result>(c_param);
+    auto g_result = std::make_shared<op::v0::Result>(gather_nd);
+    auto body = std::make_shared<Model>(ResultVector{co_result, g_result}, ParameterVector{it_param, c_param});
+
+    // --- outer loop ---
+    auto trip_count = op::v0::Constant::create(element::i64, Shape{}, {1});
+    auto exec_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
+
+    auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_cond);
+    loop->set_function(body);
+    loop->set_special_body_ports({0, 0});
+    loop->set_merged_input(c_param, exec_cond, co_result);
+    // Scan output: g accumulated over iterations → Y[1, 2]
+    auto scan_out = loop->get_concatenated_slices(g_result, 0, 1, 1, -1, 0);
+
+    auto result = std::make_shared<op::v0::Result>(scan_out);
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{});
+
+    EXPECT_NO_THROW(pass::ConstantFolding().run_on_model(model));
+    EXPECT_EQ(count_ops_of_type<op::v5::Loop>(model), 1);
+}
 }  // namespace ov::test
