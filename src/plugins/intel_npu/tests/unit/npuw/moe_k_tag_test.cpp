@@ -386,8 +386,6 @@ TEST_F(Qwen3RouterTest, RouterNodesNotIsolated_WithConvertAndSlice) {
     }
 }
 
-}  // namespace
-
 // ============================================================================
 // Gemma4 Router graph helpers
 // ============================================================================
@@ -562,7 +560,5 @@ TEST_F(Gemma4RouterTest, InconsistentKAcrossLayersThrows) {
     auto model = build_two_gemma4_router_model(/*k0=*/2, /*k1=*/4);
     EXPECT_THROW(run_pass(model), ov::Exception) << "Inconsistent K values across MoE layers must throw";
 }
-
-}  // namespace
 
 }  // namespace
