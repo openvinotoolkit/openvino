@@ -701,9 +701,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
         if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
-                return is_runtime_requirements_compatible(requirements)
-                           ? ov::CompatibilityCheck::SUPPORTED
-                           : ov::CompatibilityCheck::UNSUPPORTED;
+                return is_runtime_requirements_compatible(requirements) ? ov::CompatibilityCheck::SUPPORTED
+                                                                        : ov::CompatibilityCheck::UNSUPPORTED;
             }
         }
         return ov::CompatibilityCheck::NOT_APPLICABLE;
@@ -800,8 +799,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         OPENVINO_THROW("[CPU] Cannot import compiled blob: it was built for a different runtime "
                        "configuration (OpenVINO version/isa mismatch) and cannot be executed on "
                        "this device.\n"
-                       "  blob:    ", runtime_requirements, "\n"
-                       "  current: ", build_runtime_requirements());
+                       "  blob:    ",
+                       runtime_requirements,
+                       "\n"
+                       "  current: ",
+                       build_runtime_requirements());
     }
 
     ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
