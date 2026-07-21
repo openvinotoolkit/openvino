@@ -316,22 +316,19 @@ static std::shared_ptr<ov::Node> optional_fake_convert(const std::shared_ptr<ov:
 }
 
 static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target) {
-    std::unordered_set<const ov::Node*> visited;
-    std::vector<ov::Node*> stack{root.get_node()};
-    while (!stack.empty()) {
-        auto* node = stack.back();
-        stack.pop_back();
-        if (!node || !visited.insert(node).second) {
-            continue;
-        }
-        if (node == target) {
-            return true;
-        }
-        for (const auto& input : node->input_values()) {
-            stack.push_back(input.get_node());
-        }
-    }
-    return false;
+    bool found = false;
+    std::unordered_set<ov::Node*> visited;
+    ov::op::util::visit_path(
+        root.get_node(),
+        visited,
+        [&](ov::Node* node) {
+            if (node == target)
+                found = true;
+        },
+        [](ov::Node*) {
+            return false;
+        });
+    return found;
 }
 
 StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
