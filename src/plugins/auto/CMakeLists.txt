@@ -55,7 +55,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 # convention regardless of IPF's own (fixed /MD) runtime library choice.
 if(OV_AUTO_IPF_AVAILABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF ClientApi_IMPORTS)
-    target_include_directories(${TARGET_NAME} PRIVATE ${OV_AUTO_IPF_INCLUDE_DIRS})
     target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
     target_link_libraries(${TARGET_NAME} PRIVATE ClientApi)

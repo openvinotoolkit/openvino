@@ -35,13 +35,6 @@ if(NOT TARGET ClientApi)
     return()
 endif()
 
-set(OV_AUTO_IPF_INCLUDE_DIRS
-    "${_ipf_ef_dir}/extras/c_wrapper"
-    "${_ipf_ef_dir}/src/clientapi"
-    "${_ipf_ef_dir}/src/shared"
-    PARENT_SCOPE)
-set_target_properties(ClientApi PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
-
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ClientApi EXPORT OpenVINOTargets
             RUNTIME DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
