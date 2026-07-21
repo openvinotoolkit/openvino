@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/runtime/npu_vm_runtime.hpp"
+#include "npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {

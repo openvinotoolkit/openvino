@@ -4370,15 +4370,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel) {
     // num_heads=2, kv_num_heads=1, head_size=8, current=1, past=2 (dynamic past_sequence_length). Non-rotary.
     // KV cache is int8 with per-channel dequant scales embedded as initializers (k_scale/v_scale). The dynamic
     // past shape exercises the Slice+Concat KV-cache assembly (present grows to past+current = 3).
+    // query [1, 1, 32]
     std::vector<float> query = {
         0.3054000f,  0.0820000f,  -0.4166000f, -0.3312000f, -0.4215000f, -0.0355000f, 0.0633000f,  -0.7157000f,
         0.4254000f,  0.0148000f,  -0.0655000f, -0.1313000f, 0.6356000f,  -0.0755000f, -0.0727000f, 0.2872000f,
         -0.0003000f, 0.3129000f,  0.0348000f,  0.0265000f,  0.4802000f,  -0.0247000f, -0.3604000f, -0.5037000f,
         0.0227000f,  -0.3865000f, 0.2994000f,  0.1113000f,  -0.1243000f, -0.2616000f, -0.0292000f, 0.2368000f};
+    // past_key [1, 1, 2, 8]
     std::vector<int8_t> past_key = {24, -23, 17, -27, 25, -22, 17, 18, 12, 13, 9, -18, 24, -4, -5, 0};
+    // past_value [1, 1, 2, 8]
     std::vector<int8_t> past_value = {22, -5, -18, -28, -23, 9, 15, -26, 26, -20, -14, -25, 12, -2, -7, -19};
     std::vector<int> seqlens_k = {2};
     std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
     std::vector<float> expected_output = {1.01103735f,
                                           -0.632150471f,
                                           -0.295739084f,
@@ -4395,8 +4399,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel) {
                                           0.0992611125f,
                                           0.0627523884f,
                                           -0.506907046f};
+    // expected_present_key [1, 1, 3, 8]
     std::vector<int8_t> expected_present_key = {24, -23, 17, -27, 25, -22, 17, 18, 12, 13, 9,  -18,
                                                 24, -4,  -5, 0,   0,  5,   1,  1,  12, -1, -7, -11};
+    // expected_present_value [1, 1, 3, 8]
     std::vector<int8_t> expected_present_value = {22, -5, -18, -28, -23, 9,  15, -26, 26, -20, -14, -25,
                                                   12, -2, -7,  -19, 0,   -6, 7,  2,   -6, -4,  -1,  7};
 
@@ -4412,22 +4418,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel) {
     // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly. The
     // present KV cache is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple of
     // near-zero attention outputs differ across backends (CPU vs TEMPLATE) by a few low mantissa bits.
-    test_case.run(11);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
     const auto model = convert_model("com.microsoft/gqa_i8kv_per_tensor.onnx");
 
     // Same tiny dynamic-past config as gqa_i8kv_per_channel but with a single per-tensor scale for K and V.
+    // query [1, 1, 32]
     std::vector<float> query = {
         -0.0954000f, -0.5184000f, 0.4668000f,  0.5252000f,  0.6202000f,  -0.4286000f, 0.3644000f,  0.2827000f,
         -0.2593000f, -0.1152000f, 0.2258000f,  -0.1652000f, -0.6331000f, -0.0576000f, -0.3862000f, -0.1533000f,
         -0.0389000f, -0.0381000f, -0.2434000f, 0.7596000f,  -0.0479000f, -0.0554000f, -0.5949000f, 0.2861000f,
         -0.3534000f, 0.5613000f,  0.2467000f,  -0.1424000f, 0.0029000f,  -0.8551000f, 0.0904000f,  0.4609000f};
+    // past_key [1, 1, 2, 8]
     std::vector<int8_t> past_key = {15, -24, 10, 25, 25, -30, 6, 20, 25, -16, -8, 1, 12, 0, 9, 28};
+    // past_value [1, 1, 2, 8]
     std::vector<int8_t> past_value = {-21, 16, 0, 4, -6, -1, -19, 18, 10, -30, 4, 22, -26, 12, 28, -17};
     std::vector<int> seqlens_k = {2};
     std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
     std::vector<float> expected_output = {-0.823096991f,
                                           0.329842567f,
                                           0.0983065218f,
@@ -4444,8 +4455,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
                                           -0.188379109f,
                                           0.200814918f,
                                           0.241229594f};
+    // expected_present_key [1, 1, 3, 8]
     std::vector<int8_t> expected_present_key = {15, -24, 10, 25, 25, -30, 6,  20, 25, -16, -8, 1,
                                                 12, 0,   9,  28, -1, -1,  -3, 11, -1, -1,  -9, 4};
+    // expected_present_value [1, 1, 3, 8]
     std::vector<int8_t> expected_present_value = {-21, 16, 0,  4,   -6, -1, -19, 18, 10, -30, 4, 22,
                                                   -26, 12, 28, -17, -5, 8,  4,   -2, 0,  -12, 1, 7};
 
@@ -4461,7 +4474,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
     // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly. The
     // present KV cache is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple of
     // near-zero attention outputs differ across backends (CPU vs TEMPLATE) by a few low mantissa bits.
-    test_case.run(11);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
@@ -4469,15 +4483,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
 
     // Same tiny dynamic-past config as the int8 tests but with a 4-bit KV cache: past/present KV are uint8 with
     // two signed 4-bit values packed per byte (head_size 8 -> packed dim 4), +8 storage bias, per-channel scales.
+    // query [1, 1, 32]
     std::vector<float> query = {
         -0.3970000f, -0.3313000f, -0.1520000f, -0.4047000f, 0.7195000f,  0.6105000f,  0.5133000f,  -0.4848000f,
         0.6007000f,  -0.1116000f, -0.6246000f, 0.3679000f,  -0.1469000f, 0.2853000f,  0.6529000f,  0.2068000f,
         0.4573000f,  -0.4164000f, -0.2704000f, -0.0339000f, 0.0057000f,  0.0248000f,  0.2101000f,  -0.2351000f,
         -0.0529000f, 0.1247000f,  0.0053000f,  0.1374000f,  -0.2304000f, -0.5744000f, -0.0142000f, 0.5319000f};
+    // past_key [1, 1, 2, 4]
     std::vector<uint8_t> past_key = {226, 254, 33, 147, 184, 179, 180, 95};
+    // past_value [1, 1, 2, 4]
     std::vector<uint8_t> past_value = {77, 81, 103, 126, 224, 84, 47, 39};
     std::vector<int> seqlens_k = {2};
     std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
     std::vector<float> expected_output = {-0.0702551f,
                                           0.1050181f,
                                           -0.1460064f,
@@ -4494,7 +4512,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
                                           -0.2721340f,
                                           0.0232418f,
                                           0.0025098f};
+    // expected_present_key [1, 1, 3, 4]
     std::vector<uint8_t> expected_present_key = {226, 254, 33, 147, 184, 179, 180, 95, 15, 114, 152, 11};
+    // expected_present_value [1, 1, 3, 4]
     std::vector<uint8_t> expected_present_value = {77, 81, 103, 126, 224, 84, 47, 39, 183, 168, 0, 247};
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -4507,23 +4527,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
     test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_key);
     test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_value);
     // Mixed float output + uint8 packed present KV: run() compares floats by ULP tolerance and u8 exactly.
-    // A few extra tolerance bits absorb the 7-digit precision of the small expected float literals.
-    test_case.run(8);
+    // The packed present KV is checked bit-exact; the float output uses a relaxed ULP tolerance because a
+    // couple of near-zero attention outputs differ across backends (notably GPU fp16 compute vs CPU fp32)
+    // by a few low mantissa bits, on top of the 7-digit precision of the small expected float literals.
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor) {
     const auto model = convert_model("com.microsoft/gqa_i4kv_per_tensor.onnx");
 
     // 4-bit KV cache with a single per-tensor scale for K and V (dynamic past).
+    // query [1, 1, 32]
     std::vector<float> query = {
         0.4508000f,  -0.5269000f, 0.4693000f, -0.2170000f, 0.3558000f,  0.1264000f,  -0.0002000f, -0.3639000f,
         0.6855000f,  0.6029000f,  0.1017000f, -0.0686000f, -0.0005000f, -0.3225000f, 0.7487000f,  -0.4704000f,
         0.3172000f,  -0.0167000f, 0.4925000f, 0.0029000f,  0.6619000f,  0.4461000f,  -0.1889000f, 0.5623000f,
         -0.5318000f, 0.5412000f,  0.6026000f, 0.3187000f,  -0.0172000f, 0.6877000f,  0.4319000f,  0.0561000f};
+    // past_key [1, 1, 2, 4]
     std::vector<uint8_t> past_key = {208, 146, 243, 230, 6, 46, 248, 39};
+    // past_value [1, 1, 2, 4]
     std::vector<uint8_t> past_value = {19, 117, 129, 234, 146, 27, 198, 71};
     std::vector<int> seqlens_k = {2};
     std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
     std::vector<float> expected_output = {-0.3590473f,
                                           0.0615028f,
                                           0.1610674f,
@@ -4540,7 +4567,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor) {
                                           0.2111710f,
                                           0.1523205f,
                                           0.0487500f};
+    // expected_present_key [1, 1, 3, 4]
     std::vector<uint8_t> expected_present_key = {208, 146, 243, 230, 6, 46, 248, 39, 143, 143, 255, 244};
+    // expected_present_value [1, 1, 3, 4]
     std::vector<uint8_t> expected_present_value = {19, 117, 129, 234, 146, 27, 198, 71, 240, 239, 248, 159};
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -4554,7 +4583,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor) {
     test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_value);
     // Mixed float output + uint8 packed present KV: run() compares floats by ULP tolerance and u8 exactly.
     // A few extra tolerance bits absorb the 7-digit precision of the small expected float literals.
-    test_case.run(8);
+    const size_t tolerance_bits = 8;
+    test_case.run(tolerance_bits);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_present_type_is_int8) {
@@ -4565,6 +4595,243 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_present_type_is_int8) {
     EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
     EXPECT_EQ(model->outputs()[1].get_element_type(), element::i8);
     EXPECT_EQ(model->outputs()[2].get_element_type(), element::i8);
+}
+
+// Static-shape quantized-KV GQA: reuse the dynamic-declared models but reshape past/present KV to a
+// fixed max length before compile (as a decode session does). A static past drives the
+// decomposition's ScatterUpdate branch - the complement to the dynamic (Slice+Concat) cases above
+// (onnx_model_gqa_{i8,i4}kv_*). Valid past tokens are left-aligned; trailing rows are zero padding.
+// Params carry their tensor shape so each case reads like the dynamic ones; MAX_LEN=4, VALID=2.
+static void run_gqa_static_i8(const std::string& model_path,
+                              const std::vector<float>& query,                      // [1, 1, 32]
+                              const std::vector<int8_t>& past_key,                  // [1, 1, 4, 8]  (VALID=2 + 2 pad)
+                              const std::vector<int8_t>& past_value,                // [1, 1, 4, 8]
+                              const std::vector<float>& expected_output,            // [1, 1, 16]
+                              const std::vector<int8_t>& expected_present_key,      // [1, 1, 4, 8]
+                              const std::vector<int8_t>& expected_present_value) {  // [1, 1, 4, 8]
+    const std::vector<int> seqlens_k = {2};                                         // total_sequence_length - 1
+    const std::vector<int> total_sequence_length = {3};                             // VALID + current(1)
+    auto model = convert_model(model_path);
+    model->reshape({{"query", ov::PartialShape{1, 1, 32}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 8}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 8}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    // Present KV is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple
+    // of near-zero attention outputs differ across backends (notably GPU fp16 compute vs CPU fp32).
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+static void run_gqa_static_i4(const std::string& model_path,
+                              const std::vector<float>& query,         // [1, 1, 32]
+                              const std::vector<uint8_t>& past_key,    // [1, 1, 4, 4]  (4-bit packed; VALID=2 + 2 pad)
+                              const std::vector<uint8_t>& past_value,  // [1, 1, 4, 4]
+                              const std::vector<float>& expected_output,             // [1, 1, 16]
+                              const std::vector<uint8_t>& expected_present_key,      // [1, 1, 4, 4]
+                              const std::vector<uint8_t>& expected_present_value) {  // [1, 1, 4, 4]
+    const std::vector<int> seqlens_k = {2};
+    const std::vector<int> total_sequence_length = {3};
+    auto model = convert_model(model_path);
+    model->reshape({{"query", ov::PartialShape{1, 1, 32}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 4}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 4}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 4}, past_key);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 4}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 4}, expected_present_key);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 4}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        0.676199973f,   -0.186399996f, 0.0131000001f, 0.163000003f,   -0.315600008f, 0.00079999998f, -0.00039999999f,
+        -0.701900005f,  0.407099992f,  0.240199998f,  -0.250200003f,  -0.068599999f, 0.202099994f,   -0.104500003f,
+        -0.0970999971f, -0.58130002f,  0.221799999f,  0.0496000014f,  0.109800003f,  -0.610599995f,  0.660300016f,
+        0.0617000014f,  -0.154899999f, 0.811600029f,  -0.0182000007f, -0.580299973f, -0.162100002f,  -0.915300012f,
+        0.419800013f,   -0.166600004f, -0.296999991f, 0.42899999f};
+    std::vector<int8_t> past_key = {// [1, 1, 4, 8]  (2 valid rows + 2 zero-pad rows)
+                                    25, -12, -7, -12, 2, -26, -21, 6, -9, 8, 13, -24, 6, -21, 2, -9,
+                                    0,  0,   0,  0,   0, 0,   0,   0, 0,  0, 0,  0,   0, 0,   0, 0};
+    std::vector<int8_t> past_value = {// [1, 1, 4, 8]
+                                      5, -27, 15, 21, 3, -5, -7, -18, -27, -20, -2, -4, 29, 1, 11, -15,
+                                      0, 0,   0,  0,  0, 0,  0,  0,   0,   0,   0,  0,  0,  0, 0,  0};
+    std::vector<float> expected_output = {// [1, 1, 16]
+                                          -0.474593759f,
+                                          -1.20234346f,
+                                          0.178120032f,
+                                          0.171569601f,
+                                          0.353202999f,
+                                          -0.144218877f,
+                                          -0.0652932227f,
+                                          -0.304167539f,
+                                          -0.517184019f,
+                                          -1.17207372f,
+                                          0.147790134f,
+                                          0.0977512598f,
+                                          0.370502055f,
+                                          -0.135938227f,
+                                          -0.0632485598f,
+                                          -0.278506041f};
+    std::vector<int8_t> expected_present_key = {// [1, 1, 4, 8]  (current token scattered into row 2)
+                                                25, -12, -7, -12, 2,  -26, -21, 6,  -9, 8, 13, -24, 6, -21, 2, -9,
+                                                8,  1,   2,  -14, 17, 2,   -3,  18, 0,  0, 0,  0,   0, 0,   0, 0};
+    std::vector<int8_t> expected_present_value = {// [1, 1, 4, 8]
+                                                  5, -27, 15, 21,  3,  -5, -7,  -18, -27, -20, -2, -4, 29, 1, 11, -15,
+                                                  0, -10, -4, -15, 19, -3, -15, 12,  0,   0,   0,  0,  0,  0, 0,  0};
+    run_gqa_static_i8("com.microsoft/gqa_i8kv_per_channel.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.481700003f, 0.584800005f,   0.706499994f,  -0.131799996f, 0.336299986f,   -0.0719999969f, 0.227200001f,
+        -0.301099986f, -0.683300018f,  -0.721199989f, 0.153200001f,  0.898999989f,   0.107799999f,   -0.209800005f,
+        0.764800012f,  0.0948999971f,  0.0406000018f, 0.101000004f,  -0.0529999994f, -0.123800002f,  -0.574000001f,
+        0.200599998f,  -0.0379000008f, 0.477200001f,  -0.147499993f, -0.762499988f,  -0.0397999994f, 0.679799974f,
+        -0.153400004f, -0.35589999f,   -0.477400005f, -0.419999987f};
+    std::vector<int8_t> past_key = {// [1, 1, 4, 8]
+                                    22, -18, 0, 12, 11, -27, -20, 21, 11, -30, 25, 12, -1, -14, -21, -28,
+                                    0,  0,   0, 0,  0,  0,   0,   0,  0,  0,   0,  0,  0,  0,   0,   0};
+    std::vector<int8_t> past_value = {// [1, 1, 4, 8]
+                                      -4, -21, 26, 20, -30, 25, -8, -25, 0, 1, -24, -22, 0, -8, -28, 2,
+                                      0,  0,   0,  0,  0,   0,  0,  0,   0, 0, 0,   0,   0, 0,  0,   0};
+    std::vector<float> expected_output = {// [1, 1, 16]
+                                          -0.111339986f,
+                                          -0.569531798f,
+                                          -0.308253884f,
+                                          -0.0576299429f,
+                                          -0.49910593f,
+                                          0.0202499926f,
+                                          -1.08207989f,
+                                          -0.472054809f,
+                                          -0.124352954f,
+                                          -0.633605719f,
+                                          -0.1305971f,
+                                          -0.00346517563f,
+                                          -0.694169283f,
+                                          0.228821799f,
+                                          -1.09948659f,
+                                          -0.601127982f};
+    std::vector<int8_t> expected_present_key = {// [1, 1, 4, 8]
+                                                22, -18, 0,  12, 11, -27, -20, 21, 11, -30, 25, 12, -1, -14, -21, -28,
+                                                1,  1,   -1, -2, -8, 3,   -1,  7,  0,  0,   0,  0,  0,  0,   0,   0};
+    std::vector<int8_t> expected_present_value = {// [1, 1, 4, 8]
+                                                  -4, -21, 26, 20, -30, 25, -8, -25, 0, 1, -24, -22, 0, -8, -28, 2,
+                                                  -2, -11, -1, 10, -2,  -5, -7, -6,  0, 0, 0,   0,   0, 0,  0,   0};
+    run_gqa_static_i8("com.microsoft/gqa_i8kv_per_tensor.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.39230001f,  -0.0408999994f, -0.00400000019f, 0.573599994f,  0.116400003f,  -0.0938000008f, -0.357499987f,
+        -0.315100014f, -0.5528f,       -0.617299974f,   -0.257999986f, -0.212400004f, 0.446200013f,   -0.132599995f,
+        0.236000001f,  0.480699986f,   -1.35000002f,    -0.199599996f, 0.274399996f,  -0.0159000009f, 0.0337999985f,
+        0.649600029f,  -0.158600003f,  -0.47240001f,    -0.152799994f, 0.496899992f,  -0.504800022f,  0.139400005f,
+        0.132699996f,  0.512600005f,   0.557799995f,    -0.0992999971f};
+    std::vector<uint8_t> past_key = {116, 102, 85, 139, 219, 49, 42, 147, 0, 0, 0, 0, 0, 0, 0, 0};   // [1, 1, 4, 4]
+    std::vector<uint8_t> past_value = {142, 89, 29, 107, 45, 232, 101, 43, 0, 0, 0, 0, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<float> expected_output = {                                                           // [1, 1, 16]
+                                          0.0805562586f,
+                                          0.0224338919f,
+                                          -0.111540981f,
+                                          0.109623834f,
+                                          0.0645184964f,
+                                          -0.0217945799f,
+                                          0.116869457f,
+                                          -0.205341697f,
+                                          0.0861055553f,
+                                          0.0199168622f,
+                                          -0.105454557f,
+                                          0.100671813f,
+                                          0.065640375f,
+                                          -0.0332024768f,
+                                          0.115362749f,
+                                          -0.203441381f};
+    std::vector<uint8_t> expected_present_key =
+        {116, 102, 85, 139, 219, 49, 42, 147, 64, 126, 248, 6, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<uint8_t> expected_present_value =
+        {142, 89, 29, 107, 45, 232, 101, 43, 244, 160, 254, 111, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    run_gqa_static_i4("com.microsoft/gqa_i4kv_per_channel.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.609200001f,  -0.0260000005f, 0.484299988f,  1.08350003f,   -0.689700007f, -0.0362000018f, 0.138300002f,
+        0.00779999979f, 0.587199986f,   0.559400022f,  -0.470999986f, 0.119599998f,  0.231399998f,   -0.056400001f,
+        0.517099977f,   -0.394899994f,  -0.910399973f, -0.298500001f, 0.526899993f,  0.0465999991f,  0.37560001f,
+        0.143299997f,   -0.819100022f,  0.0844999999f, 0.059700001f,  -0.358500004f, 0.0177999996f,  0.164800003f,
+        -0.0837000012f, -0.224299997f,  -0.168400005f, -0.110299997f};
+    std::vector<uint8_t> past_key = {135, 98, 52, 197, 92, 56, 191, 221, 0, 0, 0, 0, 0, 0, 0, 0};   // [1, 1, 4, 4]
+    std::vector<uint8_t> past_value = {239, 5, 193, 89, 58, 183, 15, 156, 0, 0, 0, 0, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<float> expected_output = {                                                          // [1, 1, 16]
+                                          0.18486169f,
+                                          -0.0904855728f,
+                                          -0.0726053417f,
+                                          -0.0413399786f,
+                                          -0.0626064241f,
+                                          -0.134472296f,
+                                          0.0202246904f,
+                                          -0.0823184997f,
+                                          0.192363963f,
+                                          -0.080295749f,
+                                          -0.0787638426f,
+                                          -0.0462671854f,
+                                          -0.0215136018f,
+                                          -0.150147751f,
+                                          0.0557194166f,
+                                          -0.0683222786f};
+    std::vector<uint8_t> expected_present_key =
+        {135, 98, 52, 197, 92, 56, 191, 221, 32, 159, 191, 160, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<uint8_t> expected_present_value =
+        {239, 5, 193, 89, 58, 183, 15, 156, 41, 184, 70, 101, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    run_gqa_static_i4("com.microsoft/gqa_i4kv_per_tensor.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_per_tensor) {

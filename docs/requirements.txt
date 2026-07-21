@@ -5,6 +5,7 @@ Babel==2.18.0
 beautifulsoup4==4.15.0
 breathe==4.36.0
 certifi==2026.6.17
+cmake>=3.26
 colorama==0.4.6
 Cython==3.2.8
 docutils==0.21.2
