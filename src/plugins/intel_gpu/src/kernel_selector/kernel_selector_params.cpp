@@ -351,6 +351,12 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
         case ConcatAxis::W:
             key.restrict.val.dedicated.concat.axisW = 1;
             break;
+        case ConcatAxis::U:
+            key.restrict.val.dedicated.concat.axisU = 1;
+            break;
+        case ConcatAxis::V:
+            key.restrict.val.dedicated.concat.axisV = 1;
+            break;
         case ConcatAxis::FEATURE:
             key.restrict.val.dedicated.concat.axisFeature = 1;
             break;
