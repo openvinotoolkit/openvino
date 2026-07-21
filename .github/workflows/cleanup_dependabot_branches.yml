@@ -10,6 +10,10 @@ on:
   schedule:
     # at 06:00 every Monday
     - cron: '0 6 * * 1'
+  pull_request:                      # TEMP: remove before merge
+    paths:
+      - '.github/workflows/cleanup_dependabot_branches.yml'
+      - '.github/scripts/dependabot_cleanup/**'    
 
 permissions: read-all
 
