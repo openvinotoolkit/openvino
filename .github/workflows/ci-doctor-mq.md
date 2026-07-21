@@ -39,10 +39,9 @@ if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.c
 
 permissions: read-all
 
+model: claude-sonnet-4.6
 engine:
   id: copilot
-  model: claude-sonnet-4.6
-
 network: defaults
 
 imports:
