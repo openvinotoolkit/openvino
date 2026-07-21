@@ -29,7 +29,14 @@ const std::vector<element::Type>& precision_set::get_int8_support() {
     return int8_support;
 }
 
-const std::vector<element::Type>& precision_set::get_low_bit_float_support() {
+const std::vector<element::Type>& precision_set::get_fp8_support() {
+    static const std::vector<element::Type> fp8_support = {
+        ov::element::f8e4m3,  ov::element::f8e5m2,
+    };
+    return fp8_support;
+}
+
+const std::vector<element::Type>& precision_set::get_fp8_fp4_support() {
     static const std::vector<element::Type> low_bit_float_support = {
         ov::element::f8e4m3,  ov::element::f8e5m2, ov::element::f4e2m1,
     };
