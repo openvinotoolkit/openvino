@@ -266,7 +266,8 @@ void ov::npuw::KokoroInferRequest::infer() {
     } else {
         ov::npuw::kokoro::zero_padding_durations(pred_dur_tensor->data<int32_t>(), full_len, l_max);
     }
-    auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
+    auto orig_pred_dur = ov::npuw::util::find_port_by_names(original_outputs, {"pred_dur", "phonemes"});
+    OPENVINO_ASSERT(orig_pred_dur.has_value(), "Kokoro: original 'pred_dur' ('phonemes') output not found");
     set_tensor(orig_pred_dur.value(), pred_dur_tensor);
 
     std::size_t total_frames = 0;
