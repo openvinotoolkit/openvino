@@ -153,6 +153,9 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
                                 multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::devices_utilization_threshold.name()),
+                                multi_supported_configKeys.end());
         return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 

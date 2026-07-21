@@ -579,9 +579,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
                                                     const std::string& device_luid) {
-    if (!m_telemetry_client) {
+    std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_shared<device_monitor::TelemetryClient>();
-    }
+    });
     auto result = m_telemetry_client->utilization(device_name, device_luid);
     if (result.has_value()) {
         LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
@@ -717,7 +717,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
 
-    DeviceInformation* ptr_select_device = NULL;
+    DeviceInformation* ptr_select_device = nullptr;
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
