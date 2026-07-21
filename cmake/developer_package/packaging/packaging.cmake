@@ -75,29 +75,170 @@ macro(ov_install_pdb target)
 endmacro()
 
 #
+# _ov_collect_static_deps_impl(<target>)
+#
+# Internal recursive helper: walks both INTERFACE_LINK_LIBRARIES and
+# LINK_LIBRARIES depth-first and accumulates all non-imported project targets
+# (resolved through ALIAS) into the global property _OV_STATIC_DEP_RESULT.
+# A companion global property _OV_STATIC_DEP_VISITED prevents re-visiting.
+# Generator expressions in the dep lists are silently skipped.
+#
+function(_ov_collect_static_deps_impl target)
+    # Resolve ALIAS target
+    get_target_property(_csd_alias "${target}" ALIASED_TARGET)
+    if(_csd_alias)
+        set(_csd_real "${_csd_alias}")
+    else()
+        set(_csd_real "${target}")
+    endif()
+
+    if(NOT TARGET "${_csd_real}")
+        return()
+    endif()
+
+    # Guard: skip already-visited targets
+    get_property(_csd_visited GLOBAL PROPERTY _OV_STATIC_DEP_VISITED)
+    if("${_csd_real}" IN_LIST _csd_visited)
+        return()
+    endif()
+    set_property(GLOBAL APPEND PROPERTY _OV_STATIC_DEP_VISITED "${_csd_real}")
+
+    # Skip IMPORTED targets — they belong to external packages (e.g. system TBB)
+    get_target_property(_csd_imp "${_csd_real}" IMPORTED)
+    if(_csd_imp)
+        return()
+    endif()
+
+    set_property(GLOBAL APPEND PROPERTY _OV_STATIC_DEP_RESULT "${_csd_real}")
+
+    # Collect both interface and private link deps.
+    set(_csd_all_deps "")
+    foreach(_csd_prop IN ITEMS INTERFACE_LINK_LIBRARIES LINK_LIBRARIES)
+        get_target_property(_csd_prop_deps "${_csd_real}" "${_csd_prop}")
+        if(_csd_prop_deps)
+            list(APPEND _csd_all_deps ${_csd_prop_deps})
+        endif()
+    endforeach()
+
+    foreach(_csd_dep IN LISTS _csd_all_deps)
+        # Skip generator expressions such as $<LINK_ONLY:...>
+        if(_csd_dep MATCHES "^\\$<")
+            continue()
+        endif()
+        if(TARGET "${_csd_dep}")
+            _ov_collect_static_deps_impl("${_csd_dep}")
+        endif()
+    endforeach()
+endfunction()
+
+#
+# ov_install_static_deps(<targets-list-variable> <comp>)
+#
+# Installs every target named in <targets-list-variable> and all of their
+# non-imported transitive link dependencies into the OpenVINO export set
+# (OpenVINOTargets).
+#
+macro(ov_install_static_deps _ov_isd_targets_var _ov_isd_comp)
+    set_property(GLOBAL PROPERTY _OV_STATIC_DEP_VISITED "")
+    set_property(GLOBAL PROPERTY _OV_STATIC_DEP_RESULT "")
+    foreach(_ov_isd_root IN LISTS ${_ov_isd_targets_var})
+        if(TARGET "${_ov_isd_root}")
+            _ov_collect_static_deps_impl("${_ov_isd_root}")
+        endif()
+    endforeach()
+    get_property(_ov_isd_all GLOBAL PROPERTY _OV_STATIC_DEP_RESULT)
+    foreach(_ov_isd_dep IN LISTS _ov_isd_all)
+        ov_install_static_lib("${_ov_isd_dep}" "${_ov_isd_comp}")
+    endforeach()
+    unset(_ov_isd_targets_var)
+    unset(_ov_isd_root)
+    unset(_ov_isd_dep)
+    unset(_ov_isd_all)
+endmacro()
+
+#
+# ov_register_static_deps_in_export(<targets-list-variable> <export-set-name>)
+#
+# Registers every target in <targets-list-variable> and all of their
+# non-imported transitive link dependencies into a NAMED export set without
+# the BUILD_SHARED_LIBS guard that ov_install_static_deps has.
+#
+# Used to satisfy CMake's install(EXPORT ...) validation for third-party export
+# sets (e.g. ONNXTargets) in shared builds, where ov_install_static_lib's
+# if(NOT BUILD_SHARED_LIBS) guard would otherwise leave the deps unregistered.
+#
+# NOTE: Do NOT call this for OpenVINOTargets in static builds — use
+# ov_install_static_deps instead, to avoid "exported multiple times" errors.
+#
+macro(ov_register_static_deps_in_export _ov_rsde_targets_var _ov_rsde_export)
+    set_property(GLOBAL PROPERTY _OV_STATIC_DEP_VISITED "")
+    set_property(GLOBAL PROPERTY _OV_STATIC_DEP_RESULT "")
+    foreach(_ov_rsde_root IN LISTS ${_ov_rsde_targets_var})
+        if(TARGET "${_ov_rsde_root}")
+            _ov_collect_static_deps_impl("${_ov_rsde_root}")
+        endif()
+    endforeach()
+    get_property(_ov_rsde_all GLOBAL PROPERTY _OV_STATIC_DEP_RESULT)
+    foreach(_ov_rsde_dep IN LISTS _ov_rsde_all)
+        get_target_property(_ov_rsde_alias "${_ov_rsde_dep}" ALIASED_TARGET)
+        if(_ov_rsde_alias)
+            set(_ov_rsde_real "${_ov_rsde_alias}")
+        else()
+            set(_ov_rsde_real "${_ov_rsde_dep}")
+        endif()
+        get_target_property(_ov_rsde_imp "${_ov_rsde_real}" IMPORTED)
+        if(NOT _ov_rsde_imp)
+            install(TARGETS "${_ov_rsde_real}"
+                    EXPORT "${_ov_rsde_export}"
+                    ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                    COMPONENT ${OV_CPACK_COMP_CORE}
+                    ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+        endif()
+    endforeach()
+    unset(_ov_rsde_root)
+    unset(_ov_rsde_dep)
+    unset(_ov_rsde_real)
+    unset(_ov_rsde_alias)
+    unset(_ov_rsde_imp)
+    unset(_ov_rsde_all)
+endmacro()
+
+#
 # ov_install_static_lib(<target> <comp>)
 #
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
-        get_target_property(target_type ${target} TYPE)
-        if(target_type STREQUAL "STATIC_LIBRARY")
-            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
+        # Resolve alias targets — install(TARGETS) does not accept aliases
+        get_target_property(aliased_target ${target} ALIASED_TARGET)
+        if(aliased_target)
+            set(install_target ${aliased_target})
+        else()
+            set(install_target ${target})
         endif()
 
-        # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
-        list(APPEND openvino_installed_targets ${target})
-        set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
-            "A list of OpenVINO internal targets" FORCE)
+        # Skip imported targets — they are owned by their own package config
+        get_target_property(is_imported ${install_target} IMPORTED)
+        if(NOT is_imported)
+            get_target_property(target_type ${install_target} TYPE)
+            if(target_type STREQUAL "STATIC_LIBRARY")
+                set_target_properties(${install_target} PROPERTIES EXCLUDE_FROM_ALL OFF)
+            endif()
 
-        install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+            # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
+            list(APPEND openvino_installed_targets ${install_target})
+            set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
+                "A list of OpenVINO internal targets" FORCE)
 
-        # install compile PDB file as well
-        ov_install_pdb(${target})
+            install(TARGETS ${install_target} EXPORT OpenVINOTargets
+                    ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
 
-        # export to local tree to build against static build tree
-        export(TARGETS ${target} NAMESPACE openvino::
-               APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+            # install compile PDB file as well
+            ov_install_pdb(${install_target})
+
+            # export to local tree to build against static build tree
+            export(TARGETS ${install_target} NAMESPACE openvino::
+                   APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+        endif()
     endif()
 endmacro()
 

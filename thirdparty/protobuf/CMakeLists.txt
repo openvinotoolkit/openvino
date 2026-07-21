@@ -15,8 +15,26 @@ set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-Wno-all)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # GCC may emit "non-constant condition for static assertion" in abseil's
+        # ascii.cc because static_cast<char>(i) for i >= 128 is implementation-
+        # defined when char is signed, and older GCC constexpr evaluators reject
+        # it. -fpermissive downgrades it to a warning on GCC >= 12.
+        # -funsigned-char makes char unsigned so the cast is always in-range,
+        # fixing all GCC versions.
+        ov_add_compiler_flags(-fpermissive)
+        ov_add_compiler_flags(-funsigned-char)
+    endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-ignored-qualifiers)
+        ov_add_compiler_flags(-Wno-deprecated-declarations)
+        ov_add_compiler_flags(-Wno-attributes)
+        ov_add_compiler_flags(-Wno-sign-conversion)
+        ov_add_compiler_flags(-Wno-array-bounds)
+    endif()
+    if(OV_COMPILER_IS_CLANG)
+        ov_add_compiler_flags(-Wno-sign-conversion)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
@@ -28,6 +46,16 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
+# Disable protobuf's own install/export rules (protobuf-targets / abslTargets /
+# utf8_range-targets). OpenVINO installs and exports libprotobuf(-lite) and its
+# transitive abseil dependencies itself (see thirdparty/onnx/CMakeLists.txt),
+# so leaving protobuf_INSTALL=ON would put the same abseil targets into two
+# export sets at once, which CMake rejects with "exported multiple times".
+set(protobuf_INSTALL OFF CACHE BOOL "Disable protobuf self-install (managed by OpenVINO)" FORCE)
+# utf8_range's own CMakeLists derives utf8_range_ENABLE_INSTALL from
+# protobuf_INSTALL but without FORCE, so a stale ON value cached from a
+# previous configure would otherwise survive. Force it off explicitly.
+set(utf8_range_ENABLE_INSTALL OFF CACHE BOOL "Disable utf8_range self-install (managed by OpenVINO)" FORCE)
 
 # some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
 unset(HAVE_ZLIB CACHE)
@@ -53,10 +81,33 @@ else()
     set(protobuf_dir protobuf/cmake)
 endif()
 
+# Disable warning-as-error for the entire protobuf/abseil subtree.
+# Abseil triggers -Warray-bounds on GCC 14 and -Wsign-conversion on
+# Emscripten/Clang; these are false positives in third-party code that
+# we cannot patch.
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
 set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
+
+include(GNUInstallDirs)
+
+# protobuf's own cmake/install.cmake normally rewrites the bare-path
+# INTERFACE_INCLUDE_DIRECTORIES into $<BUILD_INTERFACE:...>/$<INSTALL_INTERFACE:...>
+# generator expressions. Since protobuf_INSTALL=OFF that file is never
+# included, so apply the same fix here to avoid a "prefixed in the source
+# directory" export error when we install/export these targets ourselves.
+foreach(_proto_lib IN ITEMS libprotobuf libprotobuf-lite)
+    if(TARGET "${_proto_lib}")
+        set_property(TARGET "${_proto_lib}"
+            PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src>"
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+    endif()
+endforeach()
+unset(_proto_lib)
 
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
@@ -69,12 +120,16 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-        if(ENABLE_THREAD_SANITIZER)
-            foreach(_lib ${_protoc_libs})
+    endif()
+    # Disable thread sanitizer for all protobuf/abseil targets — protobuf
+    # is incompatible with -fsanitize=thread (especially under clang).
+    if(ENABLE_THREAD_SANITIZER)
+        foreach(_lib protoc libprotoc libprotobuf libprotobuf-lite)
+            if(TARGET ${_lib})
                 target_compile_options(${_lib} PRIVATE -fno-sanitize=thread)
-            endforeach()
-            target_link_options(protoc PRIVATE -fno-sanitize=thread)
-        endif()
+                target_link_options(${_lib} PRIVATE -fno-sanitize=thread)
+            endif()
+        endforeach()
     endif()
     ov_disable_all_warnings(${_protoc_libs} libprotobuf-lite)
     set_target_properties(libprotobuf-lite PROPERTIES
@@ -95,6 +150,13 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     endif()
 
     set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
+
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # GCC < 9 may emit "overflow in constant expression" inside bundled
+        # abseil-cpp (ascii.cc static_assert) and treats it as a hard error.
+        # -fpermissive downgrades it to a warning, allowing the build to proceed.
+        set(protoc_extra_flags "${protoc_extra_flags} -fpermissive")
+    endif()
 
     ov_native_compile_external_project(
         TARGET_NAME host_protoc

@@ -579,7 +579,9 @@ PADDLE_FRONTEND_C_API void* get_front_end_data() {
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
 #    ifdef OV_PROTOBUF_ABSL_IS_USED
-    absl::SetGlobalVLogLevel(0);
+    // absl::SetGlobalVLogLevel() was removed from newer abseil versions bundled
+    // with protobuf 4.22+; suppress logging via the min log level instead.
+    absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
 #    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
