@@ -2017,7 +2017,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    const bool can_use_mmap_zero_copy = ib.is_mmap_tensor_4K_aligned() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
+    const bool can_use_mmap_zero_copy = _config.get_enable_zero_copy_cache_load() && ib.is_mmap_tensor_4K_aligned() &&
+                                        _engine.get_device_info().arch >= gpu_arch::xe2 &&
                                         _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
     memory_ptr model_tensor_base_ptr = nullptr;
     if (can_use_mmap_zero_copy) {
