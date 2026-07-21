@@ -136,7 +136,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     });
 
     ON_CALL(*plugin, get_device_utilization)
-        .WillByDefault([](const std::string& device_name, const std::string& device_luid) -> std::optional<float> {
+        .WillByDefault([](const std::string& device_name, const std::string& device_type) -> std::optional<float> {
             return std::nullopt;
         });
 }

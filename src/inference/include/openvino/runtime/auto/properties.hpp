@@ -77,6 +77,7 @@ static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
 
 /**
  * @brief Device utilization thresholds (in percent) used by AUTO for device selection.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<std::string, unsigned>> devices_utilization_threshold{
     "DEVICES_UTILIZATION_THRESHOLD"};

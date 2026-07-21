@@ -18,7 +18,6 @@ const DeviceInformation CPU_INFO = {ov::test::utils::DEVICE_CPU, {}, 2, "01", "C
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
 const DeviceInformation OTHERS_INFO = {"OTHERS", {}, 2, "01", "OTHERS"};
-const char npuUuid[] = "000102030405060708090a0b0c0d0e0f";
 const std::vector<DeviceInformation> fp32DeviceVector = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> fp16DeviceVector = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> int8DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
@@ -291,21 +290,13 @@ public:
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::devices_utilization_threshold.name()), config))
             .WillByDefault(Return(ov::Any(properties_thresholds)));
-        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::device::luid.name()), _))
-            .WillByDefault(Return(ov::Any("00000000")));
-        ON_CALL(*core, get_property(StrEq("GPU.0"), StrEq(ov::device::luid.name()), _))
-            .WillByDefault(Return(ov::Any("00000001")));
-        ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::luid.name()), _))
-            .WillByDefault(Return(ov::Any("00000002")));
-        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::luid.name()), _))
-            .WillByDefault(Return(ov::Any(npuUuid)));
         ON_CALL(*core,
                 get_property(StrEq(ov::test::utils::DEVICE_AUTO),
                              StrEq(ov::intel_auto::devices_utilization_threshold.name()),
                              _))
             .WillByDefault(Return(ov::Any(properties_thresholds)));
         ON_CALL(*plugin, get_device_utilization)
-            .WillByDefault([this](const std::string& device_name, const std::string& device_luid) -> std::optional<float> {
+            .WillByDefault([this](const std::string& device_name, const std::string& device_type) -> std::optional<float> {
                 const auto it = deviceUtilization.find(device_name);
                 if (it == deviceUtilization.end()) {
                     return std::nullopt;

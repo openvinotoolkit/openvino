@@ -53,7 +53,8 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
-                                        m_context->m_model_priority);
+                                        m_context->m_model_priority,
+                                        m_context->m_utilization_thresholds);
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -366,7 +367,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     try {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         context.m_device_info = m_plugin->select_device(device_list,
-                context.m_model_precision, m_context->m_model_priority);
+                                                        context.m_model_precision,
+                                                        m_context->m_model_priority,
+                                                        m_context->m_utilization_thresholds);
     } catch (const std::exception&) {
         return;
     }

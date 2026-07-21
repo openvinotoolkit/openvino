@@ -77,7 +77,7 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
     MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
-                                                              const std::string& device_luid = "");
+                                                              const std::string& device_type = "");
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;

@@ -18,34 +18,38 @@ using namespace ov::auto_plugin;
 
 // Parameters: OpenVINO device name, expected telemetry metric key.
 using DeviceMonitorKeyParams = std::tuple<std::string,  // device name
+                                          std::string,  // device type
                                           std::string   // expected metric key
                                           >;
 
 class DeviceMonitorKeyTest : public ::testing::TestWithParam<DeviceMonitorKeyParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DeviceMonitorKeyParams>& obj) {
-        const auto& [device_name, expected_key] = obj.param;
+        const auto& [device_name, device_type, expected_key] = obj.param;
         std::ostringstream result;
         std::string sanitized = device_name.empty() ? "empty" : device_name;
         std::replace(sanitized.begin(), sanitized.end(), '.', '_');
-        result << "device_" << sanitized << "_key_" << (expected_key.empty() ? "none" : expected_key);
+        result << "device_" << sanitized << "_type_" << (device_type.empty() ? "none" : device_type) << "_key_"
+               << (expected_key.empty() ? "none" : expected_key);
         return result.str();
     }
 };
 
 TEST_P(DeviceMonitorKeyTest, maps_device_name_to_metric_key) {
-    const auto& [device_name, expected_key] = GetParam();
-    EXPECT_EQ(device_monitor::device_name_to_metric_key(device_name), expected_key);
+    const auto& [device_name, device_type, expected_key] = GetParam();
+    EXPECT_EQ(device_monitor::device_to_metric_key(device_name, device_type), expected_key);
 }
 
 const std::vector<DeviceMonitorKeyParams> deviceMonitorKeyConfigs = {
-    DeviceMonitorKeyParams{"CPU", "CPUUtilization"},
-    DeviceMonitorKeyParams{"GPU", "GPUUtilization"},
-    DeviceMonitorKeyParams{"GPU.0", "GPUUtilization"},
-    DeviceMonitorKeyParams{"GPU.1", "GPUUtilization"},
-    DeviceMonitorKeyParams{"NPU", "NPUUtilization"},
-    DeviceMonitorKeyParams{"UNKNOWN", ""},
-    DeviceMonitorKeyParams{"", ""}};
+    DeviceMonitorKeyParams{"CPU", "", "CPUUtilization"},
+    DeviceMonitorKeyParams{"GPU", "integrated", "IGPUUtilization"},
+    DeviceMonitorKeyParams{"GPU", "discrete", "DGPUUtilization"},
+    DeviceMonitorKeyParams{"GPU.0", "integrated", "IGPUUtilization"},
+    DeviceMonitorKeyParams{"GPU.1", "discrete", "DGPUUtilization"},
+    DeviceMonitorKeyParams{"GPU", "", ""},
+    DeviceMonitorKeyParams{"NPU", "", "NPUUtilization"},
+    DeviceMonitorKeyParams{"UNKNOWN", "", ""},
+    DeviceMonitorKeyParams{"", "", ""}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          DeviceMonitorKeyTest,

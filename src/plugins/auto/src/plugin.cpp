@@ -578,11 +578,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
-                                                    const std::string& device_luid) {
+                                                    const std::string& device_type) {
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_shared<device_monitor::TelemetryClient>();
     });
-    auto result = m_telemetry_client->utilization(device_name, device_luid);
+    auto result = m_telemetry_client->utilization(device_name, device_type);
     if (result.has_value()) {
         LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
                       device_name.c_str(),
@@ -756,17 +756,17 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (has_device_utilization_threshold) {
-                std::string device_luid;
-                if (parsed.get_device_name() != "CPU") {
+                std::string device_type;
+                if (parsed.get_device_name() == "GPU") {
                     try {
-                        device_luid = get_core()
-                                          ->get_property(device->device_name, ov::device::luid.name(), {})
+                        device_type = get_core()
+                                          ->get_property(device->device_name, ov::device::type.name(), {})
                                           .as<std::string>();
                     } catch (const std::exception&) {
-                        device_luid = device->default_device_id;
+                        device_type = "";
                     }
                 }
-                const auto device_utilization = get_device_utilization(device->device_name, device_luid);
+                const auto device_utilization = get_device_utilization(device->device_name, device_type);
                 if (!device_utilization.has_value()) {
                     LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list",
                                   device->device_name.c_str());

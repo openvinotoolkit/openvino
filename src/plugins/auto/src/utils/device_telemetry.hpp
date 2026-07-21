@@ -24,7 +24,7 @@ public:
     TelemetryClient();
     ~TelemetryClient();
 
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_luid = "");
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
 
 private:
     class Impl;
@@ -32,21 +32,32 @@ private:
 };
 
 /**
- * @brief Map an OpenVINO device name to the platform telemetry metric key.
+ * @brief Map an OpenVINO device to the platform telemetry metric key.
  *
- * "CPU"           -> "CPUUtilization"
- * "GPU", "GPU.0"  -> "GPUUtilization"
- * "NPU"           -> "NPUUtilization"
+ * "CPU"                     -> "CPUUtilization"
+ * "GPU" + "integrated" type -> "IGPUUtilization"
+ * "GPU" + "discrete" type   -> "DGPUUtilization"
+ * "NPU"                     -> "NPUUtilization"
+ *
+ * For a GPU device an empty or unrecognized device_type yields an empty key so the
+ * caller treats utilization as unavailable and keeps the device as a candidate.
  *
  * @param device_name OpenVINO device identifier (e.g. "CPU", "GPU", "GPU.0", "NPU").
+ * @param device_type ov::device::type value ("integrated" or "discrete"); only used for GPU.
  * @return Telemetry metric key, or an empty string for an unknown device type.
  */
-inline std::string device_name_to_metric_key(const std::string& device_name) {
+inline std::string device_to_metric_key(const std::string& device_name, const std::string& device_type = "") {
     if (device_name.rfind("CPU", 0) == 0) {
         return "CPUUtilization";
     }
     if (device_name.rfind("GPU", 0) == 0) {
-        return "GPUUtilization";
+        if (device_type == "integrated") {
+            return "IGPUUtilization";
+        }
+        if (device_type == "discrete") {
+            return "DGPUUtilization";
+        }
+        return "";
     }
     if (device_name.rfind("NPU", 0) == 0) {
         return "NPUUtilization";

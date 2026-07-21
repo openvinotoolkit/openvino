@@ -45,14 +45,12 @@ public:
         }
     }
 
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_luid) {
-        // Keep device_luid for API compatibility; current IPF metric is per device type.
-        static_cast<void>(device_luid);
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
         if (m_handle == nullptr) {
             LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
             return std::nullopt;
         }
-        const std::string metric_key = device_name_to_metric_key(device_name);
+        const std::string metric_key = device_to_metric_key(device_name, device_type);
         if (metric_key.empty()) {
             LOG_DEBUG_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
             return std::nullopt;
@@ -78,18 +76,13 @@ public:
             LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
                           value_as_string.c_str(),
                           device_name.c_str());
-            if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
+            if (!std::isfinite(value) || value < 0.0f) {
                 LOG_DEBUG_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
                               value_as_string.c_str(),
                               device_name.c_str());
                 return std::nullopt;
             }
-            const float utilization_percent = (value <= 1.0f) ? value * 100.0f : value;
-            const std::string utilization_percent_as_string = std::to_string(utilization_percent);
-            LOG_DEBUG_TAG("TelemetryClient: converted utilization=%s for device=%s",
-                          utilization_percent_as_string.c_str(),
-                          device_name.c_str());
-            return utilization_percent;
+            return value;
         } catch (...) {
             LOG_DEBUG_TAG("TelemetryClient: unknown exception during query for device=%s", device_name.c_str());
             return std::nullopt;
@@ -124,8 +117,8 @@ TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
-std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_luid) {
-    return m_impl->utilization(device_name, device_luid);
+std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
+    return m_impl->utilization(device_name, device_type);
 }
 
 }  // namespace device_monitor
@@ -144,9 +137,9 @@ TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
-std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_luid) {
+std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
     static_cast<void>(device_name);
-    static_cast<void>(device_luid);
+    static_cast<void>(device_type);
     return std::nullopt;
 }
 
