@@ -87,7 +87,9 @@ OutputVector translate_unfold(const NodeContext& context) {
     // transpose tensor with gathered element
     auto rank_scalar = context.mark_node(std::make_shared<v1::Reshape>(input_rank, scalar_shape, false));
     auto rank_plus_1_scalar = context.mark_node(std::make_shared<v1::Add>(rank_scalar, const_1));
-    auto dimension_plus_1_scalar = context.mark_node(std::make_shared<v1::Reshape>(dimension_plus_1, scalar_shape, false));
+    auto dimension_plus_1_scalar =
+        context.mark_node(std::make_shared<v1::Reshape>(dimension_plus_1, scalar_shape, false));
+
     auto dimension_plus_2_scalar = std::make_shared<v1::Add>(dimension_plus_1_scalar, const_1);
     auto perm_begin =
         context.mark_node(std::make_shared<v4::Range>(const_0, dimension_plus_1_scalar, const_1, element::i32));
