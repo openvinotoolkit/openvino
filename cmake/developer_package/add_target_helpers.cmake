@@ -197,7 +197,7 @@ function(ov_add_test_target_per_source)
     endif()
 
     foreach(_src IN LISTS ARG_SOURCES)
-        # Use the subdirectory-qualified stem to avoid collisions when two source files have the same basename 
+        # Use the subdirectory-qualified stem to avoid collisions when two source files have the same basename
         # but live in different subdirectories.
         file(RELATIVE_PATH _rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_src}")
         get_filename_component(_stem_dir "${_rel}" DIRECTORY)
@@ -323,4 +323,89 @@ function(ov_add_test_target)
             RUNTIME DESTINATION tests
             COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
+endfunction()
+
+#[=[
+Validates that every source file matching the given extensions that exists underDIRECTORY is also listed in the SOURCES
+property of TARGET.  Emits SEND_ERROR for each unlisted file so the developer sees all problems before configure stops.
+
+This is the recommended guard against silently-ignored files when sources are listed explicitly instead
+of via file(GLOB).  Call it once, right after the target is fully defined.
+
+Usage:
+ov_check_all_sources_listed(
+    TARGET      <target-name>
+    DIRECTORY   <root-directory-to-scan>
+    [EXTENSIONS <ext1> [<ext2> ...]]   # defaults to "cpp"
+)
+]=]
+function(ov_check_all_sources_listed)
+    cmake_parse_arguments(ARG "" "TARGET;DIRECTORY" "EXTENSIONS;EXCLUDE_DIRECTORIES;EXCLUDE_TARGETS;EXCLUDE_FILES" ${ARGN})
+
+    if(NOT ARG_TARGET)
+        message(FATAL_ERROR "ov_check_all_sources_listed: TARGET is required")
+    endif()
+
+    if(NOT ARG_DIRECTORY)
+        message(FATAL_ERROR "ov_check_all_sources_listed: DIRECTORY is required")
+    endif()
+
+    if(NOT ARG_EXTENSIONS)
+        set(ARG_EXTENSIONS cpp)
+    endif()
+
+    get_target_property(_registered_sources ${ARG_TARGET} SOURCES)
+
+    # Collect sources from all excluded targets
+    set(_excluded_sources)
+
+    foreach(_excl_target IN LISTS ARG_EXCLUDE_TARGETS)
+        get_target_property(_excl_target_sources ${_excl_target} SOURCES)
+
+        if(_excl_target_sources)
+            list(APPEND _excluded_sources ${_excl_target_sources})
+        endif()
+    endforeach()
+
+    set(_glob_patterns)
+
+    foreach(_ext IN LISTS ARG_EXTENSIONS)
+        list(APPEND _glob_patterns "${ARG_DIRECTORY}/*.${_ext}")
+    endforeach()
+
+    file(GLOB_RECURSE _disk_files ${_glob_patterns})
+
+    foreach(_file IN LISTS _disk_files)
+        # Skip individually excluded files
+        if(_file IN_LIST ARG_EXCLUDE_FILES)
+            continue()
+        endif()
+
+        # Skip files that belong to an excluded target
+        if(_file IN_LIST _excluded_sources)
+            continue()
+        endif()
+
+        # Skip files under any excluded directory
+        set(_excluded FALSE)
+
+        foreach(_excl_dir IN LISTS ARG_EXCLUDE_DIRECTORIES)
+            cmake_path(IS_PREFIX _excl_dir "${_file}" NORMALIZE _is_prefix)
+
+            if(_is_prefix)
+                set(_excluded TRUE)
+                break()
+            endif()
+        endforeach()
+
+        if(_excluded)
+            continue()
+        endif()
+
+        if(NOT _file IN_LIST _registered_sources)
+            message(SEND_ERROR
+                "[${ARG_TARGET}] '${_file}' exists on disk but is not listed in target sources and will not be compiled. "
+                "Add it to the appropriate CMakeLists.txt or sources.cmake.")
+        endif()
+    endforeach()
 endfunction()
