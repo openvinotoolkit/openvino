@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
-      contents: write
+      contents: write       # delete stale branches via the git refs API
+      pull-requests: read    # list open PRs to know which branches are still in use
     steps:
       - name: Checkout cleanup script
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -39,9 +40,12 @@ jobs:
       - name: Cleanup stale dependabot branches
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Scheduled runs perform real deletions. Manual runs honor the dry_run input (defaults to true).
-          # Reads as: if event is 'schedule' -> set to 'false' (delete); else use dry_run that's true by default.
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          # Real deletions happen only on the weekly schedule, or on a manual run
+          # where the dry_run checkbox was explicitly unchecked. Every other case
+          # (manual run with the box checked, or any other trigger) stays a dry run.
+          # The "<cond> && 'false' || 'true'" shape is safe because both sides are
+          # non-empty strings, so it never falls through to the wrong value.
+          DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)) && 'false' || 'true' }}
         run: |
           python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
             --repository-name ${GITHUB_REPOSITORY}

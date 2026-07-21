@@ -31,11 +31,16 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 
 from github import Auth, Github
 from github.GithubException import GithubException
 
 DEPENDABOT_BRANCH_PREFIX = "dependabot/"
+
+# Only open PRs updated within this many days are treated as "still in use".
+# The repository can have hundreds of open PRs, so this bounds how many we read.
+DEFAULT_OPEN_PR_MAX_AGE_DAYS = 30
 
 # Exit codes, kept explicit so the CI step is easy to reason about.
 EXIT_OK = 0
@@ -52,6 +57,7 @@ class Config:
     repository_name: str
     token: str
     dry_run: bool
+    open_pr_max_age_days: int
 
 
 @dataclass
@@ -85,12 +91,27 @@ def is_branch_stale(branch_name: str, open_pr_branches: set[str]) -> bool:
     return branch_name not in open_pr_branches
 
 
-def get_open_pr_branches(repository) -> set[str]:
-    """Return the set of head branch names that currently have an open PR.
+def get_open_pr_branches(repository, max_age_days: int) -> set[str]:
+    """Return head branch names of open PRs updated within ``max_age_days``.
 
-    PyGithub returns a ``PaginatedList``, so pagination is handled for us.
+    The repository routinely has hundreds of open PRs, so instead of paging
+    through all of them we ask GitHub to sort by most-recently-updated and stop
+    as soon as we reach a PR older than the cutoff. Dependabot keeps active PRs
+    fresh (it rebases them as the base branch moves), so a PR that has not been
+    touched within this window is treated as no longer keeping its branch alive.
     """
-    return {pull.head.ref for pull in repository.get_pulls(state="open")}
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    open_pr_branches: set[str] = set()
+    for pull in repository.get_pulls(
+        state="open", sort="updated", direction="desc"
+    ):
+        updated_at = pull.updated_at
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+        if updated_at < cutoff:
+            break
+        open_pr_branches.add(pull.head.ref)
+    return open_pr_branches
 
 
 def list_dependabot_branches(repository) -> list[str]:
@@ -108,42 +129,44 @@ def delete_branch(repository, branch_name: str) -> bool:
         repository.get_git_ref(f"heads/{branch_name}").delete()
         return True
     except GithubException as error:
-        logger.error('Failed to delete branch "%s": %s', branch_name, error)
+        logger.error(f'Failed to delete branch "{branch_name}": {error}')
         return False
 
 
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
-def run_cleanup(repository, dry_run: bool) -> CleanupResult:
+def run_cleanup(repository, dry_run: bool, open_pr_max_age_days: int) -> CleanupResult:
     """Scan dependabot branches and delete the stale ones.
 
     When ``dry_run`` is True the script only logs what it *would* delete.
     """
-    open_pr_branches = get_open_pr_branches(repository)
-    logger.info("Found %d open pull request branch(es)", len(open_pr_branches))
+    open_pr_branches = get_open_pr_branches(repository, open_pr_max_age_days)
+    logger.info(
+        f"Found {len(open_pr_branches)} open pull request branch(es) "
+        f"updated within {open_pr_max_age_days} day(s)"
+    )
 
     dependabot_branches = list_dependabot_branches(repository)
     logger.info(
-        'Found %d "%s" branch(es) to inspect',
-        len(dependabot_branches),
-        DEPENDABOT_BRANCH_PREFIX,
+        f'Found {len(dependabot_branches)} "{DEPENDABOT_BRANCH_PREFIX}" '
+        f"branch(es) to inspect"
     )
 
     result = CleanupResult(scanned=dependabot_branches)
 
     for branch_name in dependabot_branches:
         if not is_branch_stale(branch_name, open_pr_branches):
-            logger.info('Keep    "%s" (still has an open PR)', branch_name)
+            logger.info(f'Keep    "{branch_name}" (still has an open PR)')
             result.kept.append(branch_name)
             continue
 
         if dry_run:
-            logger.info('Dry-run "%s" (would be deleted)', branch_name)
+            logger.info(f'Dry-run "{branch_name}" (would be deleted)')
             result.deleted.append(branch_name)
             continue
 
-        logger.info('Delete  "%s" (no open PR)', branch_name)
+        logger.info(f'Delete  "{branch_name}" (no open PR)')
         if delete_branch(repository, branch_name):
             result.deleted.append(branch_name)
         else:
@@ -158,15 +181,15 @@ def log_summary(result: CleanupResult, dry_run: bool) -> None:
 
     logger.info("-" * 60)
     logger.info("Summary")
-    logger.info("  Scanned            : %d", len(result.scanned))
-    logger.info("  Kept (open PR)     : %d", len(result.kept))
-    logger.info("  %-18s : %d", deleted_label, len(result.deleted))
+    logger.info(f"  Scanned            : {len(result.scanned)}")
+    logger.info(f"  Kept (open PR)     : {len(result.kept)}")
+    logger.info(f"  {deleted_label:<18} : {len(result.deleted)}")
     for branch_name in result.deleted:
-        logger.info("      - %s", branch_name)
+        logger.info(f"      - {branch_name}")
     if result.failed:
-        logger.info("  Failed to delete   : %d", len(result.failed))
+        logger.info(f"  Failed to delete   : {len(result.failed)}")
         for branch_name in result.failed:
-            logger.info("      - %s", branch_name)
+            logger.info(f"      - {branch_name}")
     logger.info("-" * 60)
 
 
@@ -181,6 +204,18 @@ def read_bool_env(name: str) -> bool | None:
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
+def read_int_env(name: str) -> int | None:
+    """Read an integer environment variable, or None if unset/empty/invalid."""
+    value = os.environ.get(name)
+    if not value:
+        return None
+    try:
+        return int(value.strip())
+    except ValueError:
+        logger.warning(f'Ignoring non-integer {name}="{value}"')
+        return None
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments.
 
@@ -191,6 +226,10 @@ def parse_args() -> argparse.Namespace:
     dry_run_default = read_bool_env("DRY_RUN")
     if dry_run_default is None:
         dry_run_default = True
+
+    open_pr_max_age_default = read_int_env("OPEN_PR_MAX_AGE_DAYS")
+    if open_pr_max_age_default is None:
+        open_pr_max_age_default = DEFAULT_OPEN_PR_MAX_AGE_DAYS
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -211,6 +250,14 @@ def parse_args() -> argparse.Namespace:
         dest="dry_run",
         action="store_false",
         help="Actually delete the stale branches",
+    )
+    parser.add_argument(
+        "--open-pr-max-age-days",
+        type=int,
+        default=open_pr_max_age_default,
+        help="Only treat open PRs updated within this many days as keeping "
+             "their branch alive (defaults to the OPEN_PR_MAX_AGE_DAYS env var "
+             f"or {DEFAULT_OPEN_PR_MAX_AGE_DAYS})",
     )
     parser.set_defaults(dry_run=dry_run_default)
     return parser.parse_args()
@@ -236,6 +283,7 @@ def build_config() -> Config | None:
         repository_name=args.repository_name,
         token=token,
         dry_run=args.dry_run,
+        open_pr_max_age_days=args.open_pr_max_age_days,
     )
 
 
@@ -251,15 +299,16 @@ def main() -> int:
         return EXIT_BAD_CONFIG
 
     logger.info(
-        'Cleaning dependabot branches in "%s" (dry_run=%s)',
-        config.repository_name,
-        config.dry_run,
+        f'Cleaning dependabot branches in "{config.repository_name}" '
+        f"(dry_run={config.dry_run})"
     )
 
     github = Github(auth=Auth.Token(token=config.token))
     try:
         repository = github.get_repo(config.repository_name)
-        result = run_cleanup(repository, config.dry_run)
+        result = run_cleanup(
+            repository, config.dry_run, config.open_pr_max_age_days
+        )
     finally:
         github.close()
 
