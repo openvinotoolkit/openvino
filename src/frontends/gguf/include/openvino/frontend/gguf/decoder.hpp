@@ -13,6 +13,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/gguf/visibility.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -52,7 +53,7 @@ struct RopeConfig {
 // raw ggml `op_params` int32 arrays. A concrete decoder (e.g. the llama.cpp cgraph decoder) only
 // has to translate ggml's layout into these typed accessors -- the op translators never touch
 // ggml memory.
-class GgufDecoder : public DecoderBase {
+class GGUF_FRONTEND_API GgufDecoder : public DecoderBase {
 public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
 
