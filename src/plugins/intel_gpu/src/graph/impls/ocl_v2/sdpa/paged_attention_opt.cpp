@@ -46,6 +46,19 @@ static size_t get_seq_len_partition_size_config() {
     return val;
 }
 
+static size_t get_fa_partition_size_config() {
+    static size_t val = []() -> size_t {
+        const char* env = std::getenv("OV_GPU_PA_FA_PARTITION_SIZE");
+        if (env) {
+            size_t v = std::stoull(env);
+            if (v >= 16 && (v % paged_attention_block_size == 0))
+                return v;
+        }
+        return 0;  // 0 = no override, use default partition size
+    }();
+    return val;
+}
+
 static size_t get_sg_scale_override() {
     static size_t val = []() -> size_t {
         const char* env = std::getenv("OV_GPU_PA_SG_SCALE");
@@ -55,6 +68,16 @@ static size_t get_sg_scale_override() {
                 return v;
         }
         return 0;  // 0 = no override, use default logic
+    }();
+    return val;
+}
+
+static bool get_kv_prefetch_enabled() {
+    static bool val = []() -> bool {
+        const char* env = std::getenv("OV_GPU_PA_KV_PREFETCH");
+        if (env && std::string(env) == "1")
+            return true;
+        return false;
     }();
     return val;
 }
@@ -258,7 +281,13 @@ size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size,
     if (stage == PagedAttentionStage::PREFILL) {
         partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
     } else {
-        partition_size = get_seq_len_partition_size_config();
+        const auto desc = params.typed_desc<paged_attention>();
+        size_t fa_ps = get_fa_partition_size_config();
+        if (fa_ps > 0 && desc->sliding_window == 0) {
+            partition_size = fa_ps;
+        } else {
+            partition_size = get_seq_len_partition_size_config();
+        }
     }
 
     return partition_size;
@@ -339,13 +368,18 @@ public:
         jit.make("HEADS_NUM", desc->heads_num);
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
         jit.make("KV_HEADS_GROUP_SIZE", kv_group_size);
-        jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size_config());
+        {
+            size_t fa_ps = get_fa_partition_size_config();
+            size_t effective_partition_size = (fa_ps > 0 && desc->sliding_window == 0) ? fa_ps : get_seq_len_partition_size_config();
+            jit.make("SEQ_LEN_PARTITION_SIZE", effective_partition_size);
+        }
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
         static bool swa_block_skip_env = std::getenv("OV_GPU_PA_SWA_BLOCK_SKIP") && std::string(std::getenv("OV_GPU_PA_SWA_BLOCK_SKIP")) == "1";
         jit.make("SWA_BLOCK_SKIP", swa_block_skip_env ? 1 : 0);
         jit.make("FINALIZATION_SWA_FIX", get_finalization_swa_fix_enabled() ? 1 : 0);
+        jit.make("KV_PREFETCH", get_kv_prefetch_enabled() ? 1 : 0);
 
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         const bool is_kv_compressed = get_kv_compressed(params);
