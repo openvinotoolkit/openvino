@@ -1105,12 +1105,13 @@ public:
                         }
                     }
                     // weight shape: [ic, oc], type: u4/i8
-                    int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
+                    int64_t wei_offset =
+                        j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                     dnnl_weights[i].weight =
                         convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                     // scale shape: [ic / ic_group_size, oc], type: f16
-                    int64_t scale_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                    int64_t scale_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                moe_fusion_wei_addr.scale[i]->get_layout());
                     dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
                                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -1120,7 +1121,7 @@ public:
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
-                        int64_t zp_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                        int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
                                                           {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
