@@ -76,28 +76,10 @@ std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
     return values;
 }
 
-#ifdef __clang__
-#    pragma clang diagnostic push
-#    ifdef __has_warningop
-#        if __has_warning("-Wimplicit-const-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#        elif __has_warning("-Wimplicit-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
-#        endif
-#    endif
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#    pragma GCC diagnostic ignored "-Wbool-compare"
-#elif defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4018)
-#    pragma warning(disable : 4804)
-#endif
 template <element::Type_t ET, class U>
 bool in_t_range(const U& v) {
-    // return true;
     using ConstantT = fundamental_type_for<ET>;
+    // Sub-byte and quantized types with non-standard representable ranges
     if constexpr (ET == element::u1) {
         return true;
     } else if constexpr (ET == element::u2) {
@@ -115,35 +97,87 @@ bool in_t_range(const U& v) {
     } else if constexpr (ET == element::i4) {
         const auto temp = static_cast<ConstantT>(v);
         return -8 <= temp && temp <= 7;
-    } else if (ET == element::nf4 && !std::is_integral_v<U>) {
-        return true;
-    } else if (ET == element::f4e2m1) {
+    } else if constexpr (ET == element::nf4 || ET == element::f4e2m1) {
+        // Quantized lookup types: any value maps to nearest entry; no out-of-range concept
         return true;
     } else if constexpr (std::is_same_v<U, ConstantT>) {
         return true;
-    } else if constexpr (std::is_unsigned_v<ConstantT> && std::is_integral_v<U>) {
-        if constexpr (std::numeric_limits<ConstantT>::max() < std::numeric_limits<U>::max()) {
-            return true;
-        } else {
-            return v <= std::numeric_limits<U>::max();
-        }
     } else if constexpr (std::is_unsigned_v<ConstantT>) {
-        return v <= std::numeric_limits<U>::max();
-    } else if constexpr (std::is_integral_v<ConstantT> && std::is_integral_v<U>) {
-        if constexpr (std::numeric_limits<U>::lowest() < std::numeric_limits<ConstantT>::lowest() &&
-                      std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
-            return true;
-        } else if constexpr (std::numeric_limits<ConstantT>::lowest() < std::numeric_limits<U>::lowest() &&
-                             std::numeric_limits<U>::max() <= std::numeric_limits<ConstantT>::max()) {
-            return std::numeric_limits<U>::lowest() <= v;
-        } else if constexpr (std::numeric_limits<ConstantT>::lowest() >= std::numeric_limits<U>::lowest() &&
-                             std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
-            return v <= std::numeric_limits<U>::max();
+        // Unsigned CT, valid range [0, 2^N) where N = numeric_limits<ConstantT>::digits.
+        if constexpr (std::is_integral_v<U>) {
+            if constexpr (std::numeric_limits<U>::digits <= std::numeric_limits<ConstantT>::digits) {
+                if constexpr (std::is_unsigned_v<U>) {
+                    return true;
+                } else {
+                    return v >= U{0};
+                }
+            } else if constexpr (std::is_unsigned_v<U>) {
+                return v <= std::numeric_limits<ConstantT>::max();
+            } else {
+                return v >= U{0} && static_cast<std::make_unsigned_t<U>>(v) <= std::numeric_limits<ConstantT>::max();
+            }
         } else {
-            return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+            // Float U: upper-bound eliminated at compile time when U::max_exponent ≤ N
+            if constexpr (std::numeric_limits<U>::max_exponent <= std::numeric_limits<ConstantT>::digits) {
+                return v >= U{0};
+            } else {
+                // Use double only for double U; float is lossless for all narrower types.
+                // upper = 2^N: computed as lowest<signed_CT> * -2 to avoid unsigned overflow.
+                using CmpT = std::conditional_t<std::is_same_v<U, double>, double, float>;
+                constexpr CmpT upper =
+                    static_cast<CmpT>(std::numeric_limits<std::make_signed_t<ConstantT>>::lowest()) * CmpT{-2};
+                return v >= U{0} && static_cast<CmpT>(v) < upper;
+            }
+        }
+    } else if constexpr (std::is_integral_v<ConstantT>) {
+        // Signed CT, valid range [lowest, max].
+        if constexpr (std::is_unsigned_v<U>) {
+            // Compile-time: all unsigned U values fit when U::max < CT::max (U::digits < CT::digits)
+            if constexpr (std::numeric_limits<U>::digits < std::numeric_limits<ConstantT>::digits)
+                return true;
+            else
+                return v <= static_cast<U>(std::numeric_limits<ConstantT>::max());
+        } else if constexpr (std::is_integral_v<U>) {
+            // Compile-time: U's full range in CT's range when U::digits ≤ CT::digits
+            if constexpr (std::numeric_limits<U>::digits <= std::numeric_limits<ConstantT>::digits) {
+                return true;
+            } else {
+                return v >= std::numeric_limits<ConstantT>::lowest() && v <= std::numeric_limits<ConstantT>::max();
+            }
+        } else {
+            // Float U, valid range [-2^(N-1), 2^(N-1))
+            constexpr double lo = static_cast<double>(std::numeric_limits<ConstantT>::lowest());
+            return static_cast<double>(v) >= lo && static_cast<double>(v) < -lo;
         }
     } else {
-        return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+        // Float CT.
+        if constexpr (std::is_integral_v<U>) {
+            // Compile-time: U's full range fits when U::digits < CT::max_exponent
+            if constexpr (std::numeric_limits<U>::digits < std::numeric_limits<ConstantT>::max_exponent) {
+                return true;
+            } else {
+                // Runtime branch is only reachable when CT::max_exponent ≤ U::digits.
+                // The only CT types satisfying this for any integer U are float8/float16 (max_exponent ≤ 16),
+                // float comparison is therefore exact; double not needed.
+                const auto fv = static_cast<float>(v);
+                if constexpr (std::is_signed_v<U>) {
+                    return fv >= static_cast<float>(std::numeric_limits<ConstantT>::lowest()) &&
+                           fv <= static_cast<float>(std::numeric_limits<ConstantT>::max());
+                } else {
+                    return fv <= static_cast<float>(std::numeric_limits<ConstantT>::max());
+                }
+            }
+        } else {
+            // Float U: compile-time range inclusion via (max_exponent, digits) lexicographic order.
+            if constexpr (std::numeric_limits<U>::max_exponent < std::numeric_limits<ConstantT>::max_exponent ||
+                          (std::numeric_limits<U>::max_exponent == std::numeric_limits<ConstantT>::max_exponent &&
+                           std::numeric_limits<U>::digits <= std::numeric_limits<ConstantT>::digits)) {
+                return true;
+            } else {
+                return static_cast<U>(std::numeric_limits<ConstantT>::lowest()) <= v &&
+                       v <= static_cast<U>(std::numeric_limits<ConstantT>::max());
+            }
+        }
     }
 }
 
@@ -161,14 +195,6 @@ std::conditional_t<ET == element::nf4 && !std::is_integral_v<U>, float, fundamen
         return static_cast<fundamental_type_for<ET>>(value);
     }
 }
-
-#if defined(__clang__)
-#    pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
 
 Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
     Strides strides;

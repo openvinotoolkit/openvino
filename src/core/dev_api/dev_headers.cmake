@@ -1,0 +1,59 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(DEV_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/bound_evaluation_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/constant_fold_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/descriptor_tensor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/log_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/memory_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/meta_data.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/model_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/shape_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/so_extension.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/tensor_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/validation_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/weight_sharing_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/rt_info/weightless_caching_attributes.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_iterator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_type_info.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/float_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/nf4.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/group_query_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/moe.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/ops_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/pa_kv_reorder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_causal_conv1d.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/rms_norm.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/node_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/slice_plan.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset10_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset11_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset12_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset13_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset14_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset15_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset16_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset17_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset1_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset2_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset3_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset4_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset5_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset6_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset7_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset8_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset9_decl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/aligned_buffer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/compute_hash.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/itensor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/lazy_buffer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/shared_buffer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/string_aligned_buffer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/xml_util/constant_writer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/xml_util/xml_serialize_util.hpp
+)
