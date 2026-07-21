@@ -41,11 +41,6 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     const uint xy = (int)get_global_id(0);
     const uint x = (xy * X_BLOCK_SIZE) % OUTPUT_SIZE_X;
     const uint y = (xy * X_BLOCK_SIZE) / OUTPUT_SIZE_X;
-    const uint input_spatial_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint input_spatial_base = xy * X_BLOCK_SIZE;
-    const uint input_valid_lanes = input_spatial_base < input_spatial_size
-                                      ? min((uint)X_BLOCK_SIZE, input_spatial_size - input_spatial_base)
-                                      : 0;
 
     const uint input_x = x;
     const uint input_y = y;
@@ -134,7 +129,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
             {
 #if X_BLOCK_SIZE > 1
                 __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-                for (uint i = 0; i < input_valid_lanes; i++)
+                for (int i = 0; i < X_BLOCK_SIZE; i++)
                 {
                     const uint xb = (x + i) % INPUT0_SIZE_X;
                     const uint yb = y + (x + i) / INPUT0_SIZE_X;
@@ -152,7 +147,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 #if PADDED_INPUT
 #if X_BLOCK_SIZE > 1
             __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-            for (uint i = 0; i < input_valid_lanes; i++)
+            for (int i = 0; i < X_BLOCK_SIZE; i++)
             {
                 const uint xb = (x + i) % INPUT0_SIZE_X;
                 const uint yb = y + (x + i) / INPUT0_SIZE_X;
@@ -167,11 +162,13 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 #else // PADDED_INPUT
 
 #if X_BLOCK_SIZE > 1
-            if (input_valid_lanes == X_BLOCK_SIZE) {
+            if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= INPUT0_SIZE_X * INPUT0_SIZE_Y || (INPUT0_SIZE_X * INPUT0_SIZE_Y) % X_BLOCK_SIZE == 0) {
                 src = UNIT_BLOCK_READ_VEC(input, input_offset + k * input_fs_pitch + input_y * input_y_pitch + input_x * input_x_pitch);
             } else {
                 __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-                for (uint i = 0; i < input_valid_lanes; i++) {
+                for (int i = 0; i < X_BLOCK_SIZE; i++) {
+                    if (xy * X_BLOCK_SIZE + i >= INPUT0_SIZE_X * INPUT0_SIZE_Y)
+                        break;
 
                     const uint xb = (input_x + i) % INPUT0_SIZE_X;
                     const uint yb = input_y + (input_x + i) / INPUT0_SIZE_X;
