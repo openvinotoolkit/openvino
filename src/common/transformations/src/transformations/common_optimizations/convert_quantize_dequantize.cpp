@@ -87,7 +87,11 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         {fq_pattern},
         pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1));
     // Allow mixed precision: dequantizer can use fp16 even if quantizer uses fp32
-    auto convert2_pattern = pattern::wrap_type<v0::Convert>({convert1_pattern}, pattern::consumers_count(1));
+    auto convert2_pattern = pattern::wrap_type<v0::Convert>(
+        {convert1_pattern},
+        pattern::consumers_count(1) && [](const Output<Node>& output) {
+            return output.get_element_type().is_real();
+        });
 
     auto zero_point_pattern = pattern::any_input();
     auto sub_pattern =
@@ -118,12 +122,6 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         auto convert1 = pattern_map.at(convert1_pattern);
         auto convert2 = pattern_map.at(convert2_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
-
-        // Validate convert2 outputs floating-point type (fp32, fp16, bf16)
-        const auto& convert2_type = convert2.get_element_type();
-        if (!convert2_type.is_real()) {
-            return false;
-        }
 
         static const std::unordered_set<size_t> supported_levels{256, 65536};
         const auto levels = fq->get_levels();
