@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/system_conf.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -11,6 +12,7 @@
 #include <map>
 #include <mutex>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #ifdef __linux__
@@ -60,52 +62,148 @@ static Xbyak::util::Cpu& get_cpu_info() {
     return cpu;
 }
 
+// OV_CPU_MAX_ISA caps runtime ISA dispatch for OV kernels. Debug-caps only:
+// release builds get `isa_allowed() == true` which the compiler inlines away,
+// keeping the ISA getters branch-free. Useful to force lower-ISA path on
+// higher-ISA hardware (e.g., cap AVX-512 machine to AVX2 to reproduce
+// non-AVX-512 behavior).
+//
+// oneDNN reads ONEDNN_MAX_CPU_ISA independently and caches it on first
+// mayiuse() call. Static init order across TUs is undefined, so we cannot
+// reliably propagate OV_CPU_MAX_ISA -> ONEDNN_MAX_CPU_ISA from library code.
+// Instead we require both variables to be set to the same value: OV kernels
+// honor OV_CPU_MAX_ISA, oneDNN honors ONEDNN_MAX_CPU_ISA, no skew possible.
+enum class CpuIsaCap : int {
+    SSE41 = 10,
+    AVX = 20,
+    AVX2 = 30,
+    AVX2_VNNI = 31,
+    AVX2_VNNI_2 = 32,
+    AVX512_CORE = 40,
+    AVX512_CORE_VNNI = 41,
+    AVX512_CORE_BF16 = 42,
+    AVX512_CORE_FP16 = 43,
+    AVX512_CORE_AMX = 44,
+    AVX512_CORE_AMX_FP16 = 45,
+    ALL = 1000,
+};
+
+#    ifdef ENABLE_DEBUG_CAPS
+static CpuIsaCap parse_isa_cap(const std::string& v) {
+    if (v == "SSE41" || v == "SSE42")
+        return CpuIsaCap::SSE41;
+    if (v == "AVX")
+        return CpuIsaCap::AVX;
+    if (v == "AVX2")
+        return CpuIsaCap::AVX2;
+    if (v == "AVX2_VNNI")
+        return CpuIsaCap::AVX2_VNNI;
+    if (v == "AVX2_VNNI_2")
+        return CpuIsaCap::AVX2_VNNI_2;
+    if (v == "AVX512_CORE")
+        return CpuIsaCap::AVX512_CORE;
+    if (v == "AVX512_CORE_VNNI")
+        return CpuIsaCap::AVX512_CORE_VNNI;
+    if (v == "AVX512_CORE_BF16")
+        return CpuIsaCap::AVX512_CORE_BF16;
+    if (v == "AVX512_CORE_FP16")
+        return CpuIsaCap::AVX512_CORE_FP16;
+    if (v == "AVX512_CORE_AMX")
+        return CpuIsaCap::AVX512_CORE_AMX;
+    if (v == "AVX512_CORE_AMX_FP16")
+        return CpuIsaCap::AVX512_CORE_AMX_FP16;
+    // Unknown / DEFAULT / ALL — no cap.
+    return CpuIsaCap::ALL;
+}
+
+static std::string upper(const char* s) {
+    std::string v = s ? s : "";
+    for (auto& c : v) {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    return v;
+}
+
+static CpuIsaCap resolve_isa_cap() {
+    const std::string ov = upper(std::getenv("OV_CPU_MAX_ISA"));
+    const std::string dnn = upper(std::getenv("ONEDNN_MAX_CPU_ISA"));
+    if (ov.empty() && dnn.empty()) {
+        return CpuIsaCap::ALL;
+    }
+    OPENVINO_ASSERT(ov == dnn,
+                    "OV_CPU_MAX_ISA and ONEDNN_MAX_CPU_ISA must both be set to the same value. Got OV_CPU_MAX_ISA='",
+                    ov,
+                    "', ONEDNN_MAX_CPU_ISA='",
+                    dnn,
+                    "'");
+    return parse_isa_cap(ov);
+}
+
+static bool isa_allowed(CpuIsaCap level) {
+    static const CpuIsaCap cap = resolve_isa_cap();
+    return static_cast<int>(level) <= static_cast<int>(cap);
+}
+#    else
+static constexpr bool isa_allowed(CpuIsaCap /*level*/) {
+    return true;
+}
+#    endif
+
 bool with_cpu_x86_sse42() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tSSE42);
+    return isa_allowed(CpuIsaCap::SSE41) && get_cpu_info().has(Xbyak::util::Cpu::tSSE42);
 }
 
 bool with_cpu_x86_avx() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX);
+    return isa_allowed(CpuIsaCap::AVX) && get_cpu_info().has(Xbyak::util::Cpu::tAVX);
 }
 
 bool with_cpu_x86_avx2() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX2);
+    return isa_allowed(CpuIsaCap::AVX2) && get_cpu_info().has(Xbyak::util::Cpu::tAVX2);
 }
 
 bool with_cpu_x86_avx2_vnni() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX2 | Xbyak::util::Cpu::tAVX_VNNI);
+    return isa_allowed(CpuIsaCap::AVX2_VNNI) &&
+           get_cpu_info().has(Xbyak::util::Cpu::tAVX2 | Xbyak::util::Cpu::tAVX_VNNI);
+}
+
+bool with_cpu_x86_avx2_vnni_2() {
+    return isa_allowed(CpuIsaCap::AVX2_VNNI_2) &&
+           get_cpu_info().has(Xbyak::util::Cpu::tAVX2 | Xbyak::util::Cpu::tAVX_VNNI | Xbyak::util::Cpu::tAVX_VNNI_INT8 |
+                              Xbyak::util::Cpu::tAVX_NE_CONVERT);
 }
 
 bool with_cpu_x86_avx512f() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F);
+    return isa_allowed(CpuIsaCap::AVX512_CORE) && get_cpu_info().has(Xbyak::util::Cpu::tAVX512F);
 }
 
 bool with_cpu_x86_avx512_core() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F | Xbyak::util::Cpu::tAVX512DQ | Xbyak::util::Cpu::tAVX512BW);
+    return isa_allowed(CpuIsaCap::AVX512_CORE) &&
+           get_cpu_info().has(Xbyak::util::Cpu::tAVX512F | Xbyak::util::Cpu::tAVX512DQ | Xbyak::util::Cpu::tAVX512BW);
 }
 
 bool with_cpu_x86_avx512_core_vnni() {
-    return with_cpu_x86_avx512_core() && get_cpu_info().has(Xbyak::util::Cpu::tAVX512_VNNI);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_VNNI) && with_cpu_x86_avx512_core() &&
+           get_cpu_info().has(Xbyak::util::Cpu::tAVX512_VNNI);
 }
 
 bool with_cpu_x86_bfloat16() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_BF16) && get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 }
 
 bool with_cpu_x86_avx512_core_fp16() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_FP16);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_FP16) && get_cpu_info().has(Xbyak::util::Cpu::tAVX512_FP16);
 }
 
 bool with_cpu_x86_avx512_core_amx_int8() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_INT8);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_AMX) && get_cpu_info().has(Xbyak::util::Cpu::tAMX_INT8);
 }
 
 bool with_cpu_x86_avx512_core_amx_bf16() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_AMX) && get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
 }
 
 bool with_cpu_x86_avx512_core_amx_fp16() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
+    return isa_allowed(CpuIsaCap::AVX512_CORE_AMX_FP16) && get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
 }
 
 bool with_cpu_x86_avx512_core_amx() {
@@ -140,6 +238,9 @@ bool with_cpu_x86_avx2() {
     return false;
 }
 bool with_cpu_x86_avx2_vnni() {
+    return false;
+}
+bool with_cpu_x86_avx2_vnni_2() {
     return false;
 }
 bool with_cpu_x86_avx512f() {
