@@ -84,6 +84,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Verify devices
+        timeout-minutes: 5
         run: clinfo
 
       #
