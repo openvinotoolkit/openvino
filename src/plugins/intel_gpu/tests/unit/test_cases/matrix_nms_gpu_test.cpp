@@ -109,7 +109,9 @@ public:
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        if (!test_inputs.prime_scores_values.empty() && !is_caching_test) {
+        if (!is_caching_test && !test_inputs.prime_boxes_values.empty() && !test_inputs.prime_scores_values.empty()) {
+            ASSERT_EQ(test_inputs.prime_boxes_values.size(), test_inputs.boxes_values.size());
+            ASSERT_EQ(test_inputs.prime_scores_values.size(), test_inputs.scores_values.size());
             set_values(boxes, convert<T>(test_inputs.prime_boxes_values));
             set_values(scores, convert<T>(test_inputs.prime_scores_values));
             network->set_input_data("boxes", boxes);

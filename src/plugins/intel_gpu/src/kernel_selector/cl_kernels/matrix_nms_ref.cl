@@ -277,12 +277,15 @@ KERNEL(matrix_nms_ref_stage_2)
     // and index sorting instead of data sorting
 #if SORT_RESULT_ACROSS_BATCH == 1 && SORT_TYPE != 2
     const int size = NUM_BATCHES * NUM_CLASSES * MAX_BOXES_PER_CLASS;
-    int total_valid = 0;
+    int sort_k = 0;
     for (int i = 0; i < NUM_BATCHES; ++i) {
-        total_valid += valid_outputs[OUTPUT2_GET_INDEX(i, 0, 0, 0)];
+        int v = valid_outputs[OUTPUT2_GET_INDEX(i, 0, 0, 0)];
+        if (KEEP_TOP_K != -1 && KEEP_TOP_K < v)
+            v = KEEP_TOP_K;
+        sort_k += v;
     }
 
-    for (int i = 0; i < total_valid; ++i) {
+    for (int i = 0; i < sort_k; ++i) {
         int best = i;
         for (int j = i + 1; j < size; ++j) {
             if (FUNC_CALL(is_better_sort_type)(&box_info[j], &box_info[best]))
