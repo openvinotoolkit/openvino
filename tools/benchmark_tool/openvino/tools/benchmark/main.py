@@ -22,6 +22,8 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     check_for_static, can_measure_as_static, parse_value_for_virtual_device, is_virtual_device, is_virtual_device_found
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
+from openvino.tools.benchmark.utils.output_validation import ValidationThresholds, capture_request_inputs, \
+    run_single_inference, validate_outputs_against_reference
 
 def get_peak_memory_usage():
     if platform.system() == "Linux":
@@ -67,6 +69,10 @@ def parse_and_check_command_line():
     _, ext = os.path.splitext(args.path_to_model)
     is_network_compiled = True if ext == BLOB_EXTENSION else False
     is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
+
+    if args.validate_outputs and is_network_compiled:
+        raise Exception("Output validation is not supported for compiled .blob models. "
+                        "Please provide an IR/ONNX model so benchmark_app can build a CPU FP32 reference.")
 
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
@@ -643,6 +649,71 @@ def main():
 
         fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, pcseq)
 
+        validation_summary = None
+        if args.validate_outputs:
+            logger.info("Running output validation against CPU FP32 reference")
+
+            validation_thresholds = ValidationThresholds(
+                max_ulps_fp32=args.validation_max_ulps_fp32,
+                max_ulps_fp16=args.validation_max_ulps_fp16,
+                max_ulps_bf16=args.validation_max_ulps_bf16,
+                max_abs_fp32=args.validation_max_abs_fp32,
+                max_rel_fp32=args.validation_max_rel_fp32,
+                max_abs_fp16=args.validation_max_abs_fp16,
+                max_rel_fp16=args.validation_max_rel_fp16,
+                max_abs_bf16=args.validation_max_abs_bf16,
+                max_rel_bf16=args.validation_max_rel_bf16,
+                min_cosine_fp32=args.validation_cosine_fp32,
+                min_cosine_fp16=args.validation_cosine_fp16,
+                min_cosine_bf16=args.validation_cosine_bf16,
+                max_abs_int=args.validation_max_abs_int,
+                min_cosine_int=args.validation_cosine_int,
+            )
+
+            validation_input_request = requests[0]
+            validation_inputs = capture_request_inputs(validation_input_request, len(compiled_model.inputs))
+
+            target_outputs = run_single_inference(compiled_model, validation_inputs)
+
+            reference_model = benchmark.read_model(args.path_to_model)
+            for port in reference_model.inputs:
+                if not port.get_names():
+                    port.set_names({port.node.get_friendly_name()})
+
+            reference_inputs_info, reference_reshape = get_inputs_info(
+                args.shape,
+                args.data_shape,
+                args.layout,
+                args.batch_size,
+                args.scale_values,
+                args.mean_values,
+                reference_model.inputs,
+            )
+
+            if reference_reshape:
+                reference_shapes = {info.name: info.partial_shape for info in reference_inputs_info}
+                reference_model.reshape(reference_shapes)
+
+            pre_post_processing(reference_model, reference_inputs_info, 'f32', 'f32', '')
+            reference_compiled_model = benchmark.core.compile_model(reference_model, CPU_DEVICE_NAME, {})
+            reference_outputs = run_single_inference(reference_compiled_model, validation_inputs)
+
+            validation_summary = validate_outputs_against_reference(target_outputs, reference_outputs, validation_thresholds)
+
+            if validation_summary.passed:
+                logger.info("Output validation PASSED")
+            else:
+                logger.error("Output validation FAILED")
+                for output_result in validation_summary.output_results:
+                    if output_result.passed:
+                        continue
+                    logger.error(
+                        f"Validation mismatch for output '{output_result.name}' ({output_result.dtype_name}): "
+                        f"{output_result.failure_reason}"
+                    )
+                    if output_result.sample_mismatch_indices:
+                        logger.error(f"Sample mismatch indices: {output_result.sample_mismatch_indices}")
+
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
 
@@ -676,6 +747,33 @@ def main():
                                           ('total execution time (ms)', f'{get_duration_in_milliseconds(total_duration_sec):.2f}'),
                                           ('total number of iterations', str(iteration)),
                                       ])
+            if args.validate_outputs and validation_summary is not None:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('validation enabled', str(args.validate_outputs)),
+                                              ('validation passed', str(validation_summary.passed)),
+                                          ])
+                for output_result in validation_summary.output_results:
+                    statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                              [
+                                                  (f"validation output {output_result.name}", 'PASS' if output_result.passed else 'FAIL'),
+                                                  (f"validation cosine {output_result.name}", f"{output_result.cosine_similarity:.8f}"),
+                                              ])
+                    if output_result.max_ulp_diff is not None:
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                                  [
+                                                      (f"validation max ulp {output_result.name}", str(output_result.max_ulp_diff)),
+                                                  ])
+                    if output_result.max_abs_diff is not None:
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                                  [
+                                                      (f"validation max abs diff {output_result.name}", str(output_result.max_abs_diff)),
+                                                  ])
+                    if output_result.max_rel_diff is not None:
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                                  [
+                                                      (f"validation max rel diff {output_result.name}", str(output_result.max_rel_diff)),
+                                                  ])
             if MULTI_DEVICE_NAME not in device_name:
                 latency_prefix = None
                 if args.latency_percentile == 50:
@@ -753,6 +851,9 @@ def main():
                     logger.info(f'   Max:        {group.max:.2f} ms')
 
         logger.info(f'Throughput:   {fps:.2f} FPS')
+
+        if args.validate_outputs and validation_summary is not None and not validation_summary.passed:
+            raise RuntimeError("Output validation failed against CPU FP32 reference")
 
         del compiled_model
 

@@ -162,6 +162,39 @@ def parse_args():
     devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO'],
                       help='Optional. Enable threads->cores pinning for CPU-involved inference.')
 
+    validation = parser.add_argument_group('Output validation options')
+    validation.add_argument('--validate_outputs', type=str2bool, required=False, default=False, nargs='?', const=True,
+                            help='Optional. Validate target-device outputs against a CPU FP32 reference inference run. '
+                                 'Validation is executed once after benchmarking and is not included in performance metrics.')
+    validation.add_argument('--validation_max_ulps_fp32', type=check_nonneg, required=False, default=4,
+                            help='Optional. Maximum allowed ULP difference for FP32 outputs during validation.')
+    validation.add_argument('--validation_max_ulps_fp16', type=check_nonneg, required=False, default=64,
+                            help='Optional. Maximum allowed ULP difference for FP16 outputs during validation.')
+    validation.add_argument('--validation_max_ulps_bf16', type=check_nonneg, required=False, default=128,
+                            help='Optional. Maximum allowed ULP difference for BF16 outputs during validation.')
+    validation.add_argument('--validation_max_abs_fp32', type=float, required=False, default=1e-4,
+                            help='Optional. Maximum absolute difference for FP32 outputs during validation.')
+    validation.add_argument('--validation_max_rel_fp32', type=float, required=False, default=1e-3,
+                            help='Optional. Maximum relative difference for FP32 outputs during validation.')
+    validation.add_argument('--validation_max_abs_fp16', type=float, required=False, default=1e-2,
+                            help='Optional. Maximum absolute difference for FP16 outputs during validation.')
+    validation.add_argument('--validation_max_rel_fp16', type=float, required=False, default=5e-2,
+                            help='Optional. Maximum relative difference for FP16 outputs during validation.')
+    validation.add_argument('--validation_max_abs_bf16', type=float, required=False, default=2e-2,
+                            help='Optional. Maximum absolute difference for BF16 outputs during validation.')
+    validation.add_argument('--validation_max_rel_bf16', type=float, required=False, default=1e-1,
+                            help='Optional. Maximum relative difference for BF16 outputs during validation.')
+    validation.add_argument('--validation_cosine_fp32', type=float, required=False, default=0.999,
+                            help='Optional. Minimum cosine similarity for FP32 outputs during validation.')
+    validation.add_argument('--validation_cosine_fp16', type=float, required=False, default=0.995,
+                            help='Optional. Minimum cosine similarity for FP16 outputs during validation.')
+    validation.add_argument('--validation_cosine_bf16', type=float, required=False, default=0.99,
+                            help='Optional. Minimum cosine similarity for BF16 outputs during validation.')
+    validation.add_argument('--validation_max_abs_int', type=check_nonneg, required=False, default=1,
+                            help='Optional. Maximum absolute difference allowed for integer outputs during validation.')
+    validation.add_argument('--validation_cosine_int', type=float, required=False, default=0.999,
+                            help='Optional. Minimum cosine similarity for integer outputs during validation.')
+
     stat = parser.add_argument_group('Statistics dumping options')
     stat.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
