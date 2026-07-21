@@ -322,8 +322,8 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         break;
     case ov::element::f4e2m1:
         type = "fp4e2m1_t";
-        max_val = "(fp4e2m1_t){as_uchar((uchar)0x7)}"; // 6.0
-        min_val = "(fp4e2m1_t){as_uchar((uchar)0xF)}"; // -6.0
+        max_val = "(fp4e2m1_t){as_uchar((uchar)0x7)}";  // 6.0
+        min_val = "(fp4e2m1_t){as_uchar((uchar)0xF)}";  // -6.0
         val_one = "(fp4e2m1_t){as_uchar((uchar)0x2)}";
         val_zero = "(fp4e2m1_t){as_uchar((uchar)0x0)}";
         to_type = "_convert_fp4e2m1_t(v)";
