@@ -68,8 +68,8 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        APIBaseTest::SetUp();
         std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
         // Generic network
         actualNetwork = ov::test::utils::make_split_conv_concat();
         // Quite simple network
