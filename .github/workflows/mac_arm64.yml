@@ -98,7 +98,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
