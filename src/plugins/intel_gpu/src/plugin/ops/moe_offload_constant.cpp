@@ -202,7 +202,7 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
         ratio = static_cast<size_t>(std::clamp<long>(r, 0, 70));
     }
 
-    std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+    GPU_DEBUG_INFO << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
                    << " m_budget=" << m_budget
                    << " w_total=" << w_total
                    << " kv_runtime_conversation=" << static_cast<long long>(kv_runtime_conversation)
