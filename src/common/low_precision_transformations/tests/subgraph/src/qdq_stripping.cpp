@@ -87,3 +87,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),
                          QDQStrippingTest::getTestCaseName);
+
+class QDQStrippingTestMixed : public TransformationTestsF, public WithParamInterface<QDQStrippingTestParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<QDQStrippingTestParams>& info) {
+        const auto& [need_weights_adjustment, quantization_precision] = info.param;
+        return std::string(need_weights_adjustment ? "WeightsAdjusted" : "WeightsOriginal") + "_" +
+               quantization_precision.get_type_name();
+    }
+
+    QDQStrippingTestMixed() : TransformationTestsF() {
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    }
+
+    void SetUp() override {
+        using namespace ov::element;
+        TransformationTestsF::SetUp();
+        const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i8, u8});
+        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{256},
+                                                                                  need_weights_adjustment);
+    }
+};
+
+TEST_P(QDQStrippingTestMixed, MixedPrecision) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_mixed_precision_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_mixed_precision_pattern_ref(input_shape, need_weights_adjustment);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         QDQStrippingTestMixed,
+                         Combine(Bool(), Values(ov::element::u8, ov::element::i8)),
+                         QDQStrippingTestMixed::getTestCaseName);

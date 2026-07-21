@@ -27,11 +27,13 @@ class QDQStrippingFunction {
 public:
     static ov::Output<ov::Node> build_fq(const ov::Output<ov::Node>& input,
                                          const QuantizationParams& qp,
-                                         size_t levels = 65536);
+                                         size_t levels = 65536,
+                                         int mixed_precision = 0);
     static ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input,
                                          const ov::element::Type& quantization_precision,
                                          const QuantizationParams& qp,
-                                         bool convert_on_zero_point = true);
+                                         bool convert_on_zero_point = true,
+                                         const ov::element::Type& float_precision = ov::element::f32);
 
     // Builds a weight-DQ pattern: Constant(quantized_type) -> Convert(f32) -> Subtract(zp) -> Multiply(scale)
     // When seed is provided, generates random constant values using make_constant.
@@ -74,6 +76,11 @@ public:
                                                                  const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
                                                                      bool need_weights_adjustment = true);
+
+    static std::shared_ptr<ov::Model> build_mixed_precision_pattern(const ov::PartialShape& input_shape,
+                                                                    const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_mixed_precision_pattern_ref(const ov::PartialShape& input_shape,
+                                                                        bool need_weights_adjustment = true);
 
 private:
     // Builds one residual block: MVN → Conv+bias [→ optional FQ] + shortcut → Add.
