@@ -49,7 +49,7 @@ permissions: read-all
 jobs:
   Build:
     name: Build
-    timeout-minutes: 150
+    timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
