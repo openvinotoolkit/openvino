@@ -5,22 +5,22 @@
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 set(SOURCES
-    include/zero_backend.hpp
-    include/zero_device.hpp
-    include/zero_dynamic_infer_request.hpp
-    include/zero_dynamic_pipeline.hpp
-    include/zero_infer_request.hpp
-    include/zero_pipeline.hpp
-    include/zero_profiling.hpp
-    include/zero_variable_state.hpp
-    src/zero_backend.cpp
-    src/zero_device.cpp
-    src/zero_dynamic_infer_request.cpp
-    src/zero_dynamic_pipeline.cpp
-    src/zero_infer_request.cpp
-    src/zero_pipeline.cpp
-    src/zero_profiling.cpp
-    src/zero_variable_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_backend.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_variable_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_backend.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_profiling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_variable_state.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})

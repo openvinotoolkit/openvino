@@ -53,12 +53,12 @@ else()
 endif()
 
 set(SOURCES
-    argument_parse_helpers.cpp
-    image_quality_helper.cpp
-    main.cpp
-    map_metric_helpers.cpp
-    semantic_segmentation_helpers.cpp
-    yolo_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/argument_parse_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/image_quality_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/map_metric_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_segmentation_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/yolo_helpers.cpp
 )
 
 add_executable(${TARGET_NAME} ${SOURCES})

@@ -5,7 +5,7 @@
 set(TARGET_NAME openvino_npu_vcl_utils)
 
 set(SOURCES
-    vcl_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/vcl_api.cpp
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 

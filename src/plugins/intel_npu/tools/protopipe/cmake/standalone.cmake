@@ -53,33 +53,33 @@ if (WIN32)
 endif()
 
 set(SOURCES
-    main.cpp
-    src/graph.cpp
-    src/result.cpp
-    src/parser/config.cpp
-    src/parser/parser.cpp
-    src/scenario/accuracy_metrics.cpp
-    src/scenario/criterion.cpp
-    src/scenario/inference.cpp
-    src/scenario/scenario_graph.cpp
-    src/simulation/accuracy_mode.cpp
-    src/simulation/computation.cpp
-    src/simulation/computation_builder.cpp
-    src/simulation/dummy_source.cpp
-    src/simulation/executor.cpp
-    src/simulation/layer_validator.cpp
-    src/simulation/layers_data.cpp
-    src/simulation/layers_reader.cpp
-    src/simulation/operations.cpp
-    src/simulation/ov_layers_reader.cpp
-    src/simulation/performance_mode.cpp
-    src/simulation/reference_mode.cpp
-    src/simulation/simulation.cpp
-    src/simulation/validation_mode.cpp
-    src/utils/data_providers.cpp
-    src/utils/logger.cpp
-    src/utils/timer.cpp
-    src/utils/utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/result.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scenario/accuracy_metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scenario/criterion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scenario/inference.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scenario/scenario_graph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/accuracy_mode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/computation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/computation_builder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/dummy_source.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/executor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/layer_validator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/layers_data.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/layers_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/operations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/ov_layers_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/performance_mode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/reference_mode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/simulation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/validation_mode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/data_providers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/logger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/timer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/utils.cpp
 )
 
 add_executable(${TARGET_NAME} ${SOURCES})

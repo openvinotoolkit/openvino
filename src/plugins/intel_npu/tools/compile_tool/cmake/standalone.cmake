@@ -38,7 +38,7 @@ set(DEPENDENCIES
 )
 
 set(SOURCES
-    main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 )
 
 add_executable(${TARGET_NAME} ${SOURCES})

@@ -5,7 +5,7 @@
 set(TARGET_NAME openvino_npu_logger_utils)
 
 set(SOURCES
-    logger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
