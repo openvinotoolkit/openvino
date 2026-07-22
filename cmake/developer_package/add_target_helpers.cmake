@@ -276,18 +276,71 @@ function(ov_add_test_target_per_source)
 endfunction()
 
 #[[
-Wrapper function over ov_add_target that also registers the executable as a CTest test.
-All ov_add_target parameters (ROOT, SOURCES, LINK_LIBRARIES, INCLUDES, DEFINES,
-DEPENDENCIES, EXCLUDED_SOURCE_PATHS, etc.) are forwarded transparently.
+Wrapper over ov_add_target that builds a test executable and registers it as a CTest test.
+All ov_add_target parameters (SOURCES, ROOT, LINK_LIBRARIES, INCLUDES, DEFINES, DEPENDENCIES,
+EXCLUDED_SOURCE_PATHS, etc.) are forwarded transparently.
 
-Usage:
+SOURCE LISTING — preferred vs. legacy
+--------------------------------------
+SOURCES (preferred)
+  Pass an explicit list of source files.  CMake sees the exact file set at configure time, incremental builds are
+  reliable, and there are no hidden glob-related staleness issues.
+  Use ov_check_all_sources_listed() after the target to guard against accidentally unlisted files.
+
+ROOT (legacy / deprecated)
+  Pass a directory root; the function will GLOB_RECURSE for *.cpp under that directory.
+  New test targets should NOT use ROOT.
+
+Migration pattern — converting ROOT to SOURCES:
+  1. Replace ROOT ${CMAKE_CURRENT_SOURCE_DIR} with an explicit SOURCES list (or include() a sources.cmake).
+  2. Remove ADDITIONAL_SOURCE_DIRS and EXCLUDED_SOURCE_PATHS (handle in the SOURCES list).
+  3. Call ov_check_all_sources_listed() after the target definition to catch accidentally omitted files.
+  See src/core/tests/CMakeLists.txt for a worked example.
+
+Preferred example (SOURCES):
   ov_add_test_target(
-    NAME              <target-name>
-    LABELS            <label1> <label2>
-    GTEST_DISCOVER                          # register per-TEST() CTest entries (requires GTest)
-    TESTS_PER_SOURCE                        # delegate to ov_add_test_target_per_source (local dev only)
-    COMPONENT         <cpack-component>     # default: tests
+    NAME              my_unit_tests
+    SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/foo_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/bar_test.cpp
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        common_test_utils
+        openvino::runtime
+    DEPENDENCIES
+        openvino_template_extension
+    GTEST_DISCOVER
+    LABELS
+        OV UNIT
   )
+  ov_check_all_sources_listed(TARGET my_unit_tests
+      DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+Legacy example (ROOT — avoid for new targets):
+  ov_add_test_target(
+    NAME              my_unit_tests
+    ROOT              ${CMAKE_CURRENT_SOURCE_DIR}
+    EXCLUDED_SOURCE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/skip_this/
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        common_test_utils
+        openvino::runtime
+    DEPENDENCIES
+        openvino_template_extension
+    GTEST_DISCOVER
+    LABELS
+        OV UNIT
+  )
+
+Test-specific parameters (in addition to all ov_add_target parameters):
+  NAME              <target-name>          (required) — also becomes the CTest test name
+  LABELS            <label1> <label2>      CTest LABELS property; must come after all pass-through args
+  GTEST_DISCOVER                           Register per-TEST() CTest entries via gtest_discover_tests
+  TESTS_PER_SOURCE                         Create one executable per source file (local dev only, not CI)
+  COMPONENT         <cpack-component>      CPack install component (default: tests)
 
 Note: LABELS must be the last keyword argument when ROOT or other ov_add_target
   pass-through args are used, as it consumes all following tokens.
