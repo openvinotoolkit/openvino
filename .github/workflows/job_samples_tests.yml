@@ -7,11 +7,6 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      runner-group:
-        description: 'Runner group from which the runner will be chosen. Required for self-hosted runners selected by labels (e.g. GPU)'
-        type: string
-        required: false
-        default: ''
       image:
         description: 'Docker image to use for the job'
         type: string
@@ -32,9 +27,9 @@ permissions: read-all
 jobs:
   Samples:
     timeout-minutes: 30
-    # When 'runner-group' is provided the runner is selected by a group + labels (self-hosted, e.g. GPU);
-    # otherwise 'runner' is treated as a plain runner label string (e.g. aks-* runners).
-    runs-on: ${{ inputs.runner-group != '' && fromJSON(format('{{"group": {0}, "labels": {1}}}', toJSON(inputs.runner-group), inputs.runner)) || inputs.runner }}
+    # 'runner' may be a plain runner label string (e.g. aks-* runners) or a JSON array of
+    # labels (e.g. self-hosted GPU runners) - parse it with fromJSON only in the latter case.
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     container:
       image: ${{ inputs.image }}
       volumes:

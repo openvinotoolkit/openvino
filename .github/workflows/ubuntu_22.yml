@@ -624,8 +624,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_samples_tests.yml
     with:
-      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
-      runner-group: 'Intel-GPU'
+      runner: "[ 'self-hosted', 'igpu', 'Linux', 'Intel-GPU' ]"
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
