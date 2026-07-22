@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <memory>
+
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
 
@@ -102,3 +105,20 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerLFM2");
     explicit PositionIDsReplacerLFM2(const Output<Node>& position_ids);
 };
+
+namespace ov {
+namespace pass {
+namespace paged_attention {
+
+/// \brief Get-or-create the flattened position_ids parameter, normalize its shape to the token-major layout,
+/// and restore the rank at each existing consumer.
+///
+/// Adds a rank-1 position_ids parameter when the model does not provide one. Most consumers are fed
+/// [tokens, 1] (Unsqueeze(-1)); consumers that drop the batch dimension with an aten::select (Gather
+/// index=0, axis=0) are fed [1, tokens] (Unsqueeze(0)) to keep every per-token position. The returned
+/// parameter is the raw flattened position_ids consumed by the PositionIDsReplacer* passes.
+std::shared_ptr<ov::op::v0::Parameter> prepare_position_ids(PaParams& params);
+
+}  // namespace paged_attention
+}  // namespace pass
+}  // namespace ov

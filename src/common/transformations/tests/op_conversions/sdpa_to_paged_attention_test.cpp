@@ -962,7 +962,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto max_context_len_i64 = makeOP<v0::Convert>({max_context_len}, {dest_type_i64});
         auto max_context_len_aligned = makeOP<v1::Reshape>({max_context_len_i64, {1}}, {special_zero_true});
         auto input_ids_aligned = makeOP<v0::Unsqueeze>({input_ids, 1});
-        auto position_ids_aligned = makeOP<v0::Unsqueeze>({position_ids, 1});
 
         // Embeddings processing:
         auto embeddings = Qwen7bChatPA::gen_embeddings(input_ids_aligned);
@@ -971,9 +970,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         // RoPE emb sin/cos init:
         auto head_size = shared_ptr<Node>();
         auto rope_emb_sin =
-            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids_aligned, head_size, model_precision);
-        auto rope_emb_cos =
-            Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids_aligned, model_precision);
+            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids, model_precision);
 
         // rope Q, K:
         auto rope_Q = Qwen7bChatPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);

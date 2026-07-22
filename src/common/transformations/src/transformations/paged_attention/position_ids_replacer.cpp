@@ -4,9 +4,15 @@
 
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 
+#include <cstdint>
+#include <vector>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/gather.hpp"
@@ -44,7 +50,12 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto input_ids = any_input();
     auto input_embed = wrap_type<v8::Gather>({any_input(), input_ids, any_input()});
 
-    auto position_ids_pattern = any_input();
+    // prepare_position_ids already restores the rank at position_ids' direct consumers, so skip that Unsqueeze:
+    // this pass only fires when position_ids is detached and the model derives positions internally.
+    auto position_ids_pattern = any_input([position_ids](const Output<Node>& output) -> bool {
+        const auto node = output.get_node_shared_ptr();
+        return !(ov::as_type_ptr<v0::Unsqueeze>(node) && node->input_value(0) == position_ids);
+    });
     auto offset = wrap_type<v0::Constant>();
     auto add_offset = wrap_type<v1::Add>({position_ids_pattern, offset});
     auto convert = wrap_type<v0::Convert>({add_offset});
@@ -56,7 +67,12 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
+        const auto matched = pattern_map.at(position_ids_pattern).get_node_shared_ptr();
+        // position_ids is detached and the model derives positions internally: redirect the embedding to a
+        // rank-restored position_ids.
+        auto unsqueeze =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        replace_node(matched, unsqueeze);
         return true;
     };
 
@@ -261,4 +277,81 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
 
     auto m = std::make_shared<Matcher>(p_slice, matcher_name);
     register_matcher(m, callback);
+}
+
+namespace {
+
+// aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
+bool is_batch_drop_select(const ov::Node* node) {
+    const auto gather = ov::as_type<const v8::Gather>(node);
+    if (!gather) {
+        return false;
+    }
+    const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
+    const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
+    if (!indices || !axis) {
+        return false;
+    }
+    const auto indices_vec = indices->cast_vector<int64_t>();
+    const auto axis_vec = axis->cast_vector<int64_t>();
+    return indices_vec.size() == 1 && indices_vec[0] == 0 && axis_vec.size() == 1 && axis_vec[0] == 0;
+}
+
+// A position_ids consumer feeds a batch-drop select either directly or through a single Convert.
+bool feeds_batch_drop_select(const ov::Input<ov::Node>& consumer) {
+    const auto node = consumer.get_node();
+    if (ov::as_type<const v0::Convert>(node)) {
+        for (const auto& downstream : node->output(0).get_target_inputs()) {
+            if (is_batch_drop_select(downstream.get_node())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return is_batch_drop_select(node);
+}
+
+}  // namespace
+
+std::shared_ptr<v0::Parameter> ov::pass::paged_attention::prepare_position_ids(PaParams& params) {
+    auto position_ids = params.get("position_ids");
+    if (!position_ids) {
+        position_ids = params.add("position_ids", element::i64, PartialShape{-1});
+    } else {
+        const auto& position_ids_shape = position_ids->get_partial_shape();
+        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
+            position_ids->set_partial_shape(PartialShape{-1});
+        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
+            // Qwen2.5 VL M-RoPE: [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num, 1]
+            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
+        } else {
+            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
+                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
+        }
+        position_ids->validate_and_infer_types();
+    }
+
+    // Restore the rank of the flattened position_ids at each consumer. Most consumers expect [tokens, 1]
+    // (Unsqueeze(-1)); consumers that drop the batch dimension with an aten::select (Gather index=0, axis=0)
+    // need [1, tokens] (Unsqueeze(0)) to keep every per-token position.
+    const auto target_inputs = position_ids->output(0).get_target_inputs();
+    const std::vector<ov::Input<ov::Node>> consumers(target_inputs.begin(), target_inputs.end());
+
+    std::shared_ptr<ov::Node> column;  // [tokens, 1], shared across the default consumers.
+    for (const auto& consumer : consumers) {
+        if (feeds_batch_drop_select(consumer)) {
+            auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+            auto row = std::make_shared<v0::Unsqueeze>(position_ids, axis);
+            ov::copy_runtime_info(consumer.get_node()->shared_from_this(), {row, axis});
+            consumer.replace_source_output(row);
+        } else {
+            if (!column) {
+                column =
+                    std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+            }
+            consumer.replace_source_output(column);
+        }
+    }
+
+    return position_ids;
 }
