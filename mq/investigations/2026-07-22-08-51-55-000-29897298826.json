@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-22-08-51-55-000-29897298826",
+  "timestamp": "2026-07-22T08:51:55Z",
+  "run_id": "29897298826",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29897298826",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36797",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36797",
+  "author": "DanLiu2Intel",
+  "category": "Infrastructure",
+  "title": "Windows workflow run failed on attempt 1 with no retrievable job logs - transient runner issue",
+  "signature": "windows workflow run attempt failed no job logs available for analysis|Infrastructure",
+  "signature_hash": "7f46aad6a8e84a5a",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "Unknown (logs not accessible)",
+      "conclusion": "failure",
+      "symptom": "At least one job failed in run attempt 1; job logs are not accessible due to policy restrictions. Attempt 2 was automatically queued and all substantive jobs passed."
+    }
+  ],
+  "key_errors": [
+    "No job logs available: get_job_logs is filtered by secrecy policy. Pre-downloaded logs (failed-jobs.json) contain no entries."
+  ],
+  "root_cause": "Run attempt 1 of the Windows (VS 2022, Python 3.11, Release) pipeline for PR #36797 failed. No job logs are accessible due to GitHub Actions secrecy policy filtering. GitHub automatically retried as attempt 2, and all 21 substantive workflow jobs (Build, Python API Tests, C++ unit tests, JS API tests, CPU functional tests, tokenizers, layer tests) completed successfully in attempt 2. The PR changes are limited to NPU CMakeLists.txt files replacing GLOB_RECURSE with explicit file lists — no source code changes that could cause a deterministic build or test failure. The most likely explanation is a transient infrastructure issue (runner assignment, network, or resource constraint) on attempt 1.",
+  "reproduction_steps": "N/A - no logs available to determine exact failure. The issue appears transient as attempt 2 succeeded.",
+  "recommended_actions": [
+    "No action required: attempt 2 of the run completed successfully for all substantive jobs.",
+    "If merge queue stalls, manually re-add PR #36797 to the merge queue.",
+    "Investigate why get_job_logs is restricted for this run if further analysis is needed."
+  ],
+  "prevention_strategies": "Transient infrastructure failures in CI are expected. GitHub's automatic retry mechanism (attempt 2) handled this case correctly. No code changes needed for this PR.",
+  "historical_context": "This is the first recorded investigation with this specific signature (no retrievable logs). Other infrastructure transient failures have been recorded for Windows, including runner cancellation before assignment (bf5775e54113be48) and artifact upload failures (89059626d1cbf7b3)."
+}

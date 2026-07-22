@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 40,
+  "total": 41,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -390,6 +390,15 @@
       "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
       "pr_number": null
+    },
+    {
+      "investigation_id": "2026-07-22-08-51-55-000-29897298826",
+      "run_id": "29897298826",
+      "timestamp": "2026-07-22T08:51:55Z",
+      "title": "Windows workflow run failed on attempt 1 with no retrievable job logs - transient runner issue",
+      "category": "Infrastructure",
+      "signature_hash": "7f46aad6a8e84a5a",
+      "pr_number": "36797"
     }
   ]
 }

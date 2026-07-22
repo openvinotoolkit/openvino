@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "windows workflow run attempt failed no job logs available for analysis|Infrastructure",
+  "signature_hash": "7f46aad6a8e84a5a",
+  "title": "Windows workflow run failed on attempt 1 with no retrievable job logs - transient runner issue",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-22T08:51:55Z",
+  "last_seen": "2026-07-22T08:51:55Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29897298826"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36797"
+  ],
+  "recent_timestamps": [
+    "2026-07-22T08:51:55Z"
+  ],
+  "rerun_search_string": null
+}
