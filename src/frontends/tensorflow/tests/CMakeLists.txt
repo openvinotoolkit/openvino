@@ -81,13 +81,14 @@ endif()
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
 
-# switch_marker_lifetime.cpp reaches into the frontend-internal CfMarkerType (src/tf_utils.hpp,
-# pulled via helper_ops/switch.hpp), so add the frontend 'src' dir, its generated protobuf headers
-# (frontend binary dir) and the protobuf include. Added target-wide, but existing tests are safe: a
-# quoted #include "tf_utils.hpp" resolves to the sibling tests/tf_utils.hpp wrapper first, while
-# helper_ops/switch.hpp has no sibling and falls back to the frontend 'src' copy.
-target_include_directories(${TARGET_NAME} PRIVATE
-    ${TENSORFLOW_FRONTEND_SRC_DIR}
+# internal/switch_marker_lifetime.cpp reaches into the frontend-internal CfMarkerType
+# (src/tf_utils.hpp, pulled via helper_ops/switch.hpp), so add the frontend 'src' dir, its generated
+# protobuf headers (frontend binary dir) and the protobuf include. The generated headers and
+# protobuf are added SYSTEM so their warnings do not trip -Werror (matches how the frontend library
+# pulls protobuf via ov_link_system_libraries). The test lives under internal/ - not next to the
+# tests/tf_utils.hpp wrapper - so switch.hpp's #include "tf_utils.hpp" resolves to the frontend copy.
+target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR})
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:openvino_tensorflow_frontend,BINARY_DIR>
     $<TARGET_PROPERTY:libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 

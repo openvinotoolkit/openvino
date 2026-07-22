@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
