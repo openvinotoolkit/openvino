@@ -8,7 +8,7 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov {
 namespace reference {

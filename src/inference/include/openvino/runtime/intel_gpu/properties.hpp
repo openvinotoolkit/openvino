@@ -51,6 +51,12 @@ static constexpr Property<std::string, PropertyMutability::RO> uarch_version{"GP
 static constexpr Property<int32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
 
 /**
+ * @brief Read-only property to get cache line size for current GPU
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> cacheline_size{"GPU_CACHELINE_SIZE"};
+
+/**
  * @brief Read-only property to get statistics of GPU memory allocated by engine for each allocation type
  * It contains information about current memory usage
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
@@ -76,6 +82,12 @@ static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGRAD_CONVOLUTION"};
+
+/**
+ * @brief Enable/Disable zero-copy mode for model cache blob load.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 
 namespace hint {
 /**
@@ -140,10 +152,10 @@ static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMI
 static constexpr Property<bool> enable_lora_operation{"GPU_ENABLE_LORA_OPERATION"};
 
 /**
- * @brief Turning on this property enables kernels reuse between implementations, resulting in a lower memory footprint.
- * However, as a drawback, OpenCL set_arguments() call will be made more often, resulting in higher host pressure
- * and slower execution in some host-bottleneck cases.
- * This property is available only for single-stream scenarios and will be ignored in other cases.
+ * @brief Enables kernel reuse across implementations to reduce memory footprint.
+ * As a trade-off, OpenCL set_arguments() is invoked more frequently, which increases host CPU usage
+ * and may slow down execution.
+ * This property applies only to single-stream scenarios and is ignored otherwise.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"};
@@ -168,6 +180,16 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
 
 }  // namespace hint
+
+/**
+ * @brief Percentage (0–100) of model weights to offload to disk.
+ * When set to 0 (default), all weights are resident on GPU. A value of N means
+ * N% of eligible weights are streamed from host memory on demand via an LRU cache,
+ * reducing GPU memory usage at the cost of inference latency.
+ * Currently supported for MoE expert weights only.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
