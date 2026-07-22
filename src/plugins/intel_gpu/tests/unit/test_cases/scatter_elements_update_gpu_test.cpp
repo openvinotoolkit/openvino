@@ -82,7 +82,7 @@ void test_d2411_axisF(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
         10.f, 11.f, 5.f, 4.f,
@@ -340,7 +340,7 @@ public:
 
         const auto outputs = network->execute();
         const auto output = outputs.at("ScatterEelementsUpdatePlain").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(expected.size(), output_ptr.size());
@@ -428,7 +428,7 @@ public:
 
         const auto outputs = network->execute();
         const auto output = outputs.at("ScatterElementsUpdate").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(expected.size(), output_ptr.size());
@@ -740,7 +740,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_mean_big_1d_dynami
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results(num, 0);
     expected_results.front() = 1;
@@ -797,7 +797,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_sum_big_1d_dynamic
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results(num, 0);
     for (auto pos : target_update_positions) {
@@ -807,4 +807,78 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_sum_big_1d_dynamic
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(scatter_elements_update_gpu_fp32, smoke_sum_large_values_overflow_guard) {
+    // Verifies that f32 SUM with update values >> 32768 (= INT32_MAX / FP_SCALE)
+    // does not overflow the fixed-point accumulator.
+    // Before the CAS fix: val * 65536 > INT32_MAX → convert_int_rte() UB → result ~0.
+    auto& engine = get_test_engine();
+    const int32_t num = 1;
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1} });
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{3,  1, 1, 1} });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{3,  1, 1, 1} });
+
+    // Each update value is 1e7 (>> 32768), all scattered to index 0.
+    // Expected: output[0] = 0.0 (init) + 1e7 + 1e7 + 1e7 = 3e7
+    set_values(input1, std::vector<float>{0.0f});
+    set_values(input2, std::vector<int32_t>{0, 0, 0});
+    set_values(input3, std::vector<float>{1e7f, 1e7f, 1e7f});
+
+    topology topology;
+    topology.add(input_layout("input",   input1->get_layout()));
+    topology.add(input_layout("indices", input2->get_layout()));
+    topology.add(input_layout("updates", input3->get_layout()));
+    topology.add(scatter_elements_update("scatter_elements_update",
+                                         input_info("input"),
+                                         input_info("indices"),
+                                         input_info("updates"),
+                                         0,
+                                         ScatterElementsUpdateOp::Reduction::SUM,
+                                         true));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input",   input1);
+    network.set_input_data("indices", input2);
+    network.set_input_data("updates", input3);
+    auto outputs = network.execute();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(
+        outputs.at("scatter_elements_update").get_memory(), get_test_stream());
+
+    ASSERT_NEAR(output_ptr[0], 3e7f, 1.0f);  // must not be ~0 or inf
+}
+
+TEST(scatter_elements_update_gpu_fp32, smoke_sum_large_values_overflow_guard_dynamic) {
+    // Same overflow guard as above but with dynamic (shape-agnostic) shapes,
+    // which dispatch a different kernel path than static shapes.
+    auto& engine = get_test_engine();
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 1, 1, 1} });
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{3, 1, 1, 1} });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{3, 1, 1, 1} });
+
+    set_values(input1, std::vector<float>{0.0f});
+    set_values(input2, std::vector<int32_t>{0, 0, 0});
+    set_values(input3, std::vector<float>{1e7f, 1e7f, 1e7f});
+
+    topology topology;
+    topology.add(input_layout("input",   { ov::PartialShape{ ov::Dimension(-1) }, data_types::f32, format::bfyx }));
+    topology.add(input_layout("indices", { ov::PartialShape{ ov::Dimension(-1) }, data_types::i32, format::bfyx }));
+    topology.add(input_layout("updates", { ov::PartialShape{ ov::Dimension(-1) }, data_types::f32, format::bfyx }));
+    topology.add(scatter_elements_update("scatter_elements_update",
+                                         input_info("input"),
+                                         input_info("indices"),
+                                         input_info("updates"),
+                                         0,
+                                         ScatterElementsUpdateOp::Reduction::SUM,
+                                         true));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input",   input1);
+    network.set_input_data("indices", input2);
+    network.set_input_data("updates", input3);
+    auto outputs = network.execute();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(
+        outputs.at("scatter_elements_update").get_memory(), get_test_stream());
+
+    ASSERT_NEAR(output_ptr[0], 3e7f, 1.0f);
 }

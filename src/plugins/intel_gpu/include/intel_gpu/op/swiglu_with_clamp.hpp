@@ -82,10 +82,10 @@ public:
     void set_gate_idx(size_t gate_idx) {
         m_gate_idx = gate_idx;
     }
-    void set_clamp_min(int64_t min) {
+    void set_clamp_min(float min) {
         m_clamp_min = min;
     }
-    void set_clamp_max(int64_t max) {
+    void set_clamp_max(float max) {
         m_clamp_max = max;
     }
     void set_swiglu_beta(float beta) {

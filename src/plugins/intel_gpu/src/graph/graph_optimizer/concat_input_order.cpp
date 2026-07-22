@@ -17,7 +17,7 @@ using namespace cldnn;
 
 namespace {
 
-using shuffle_range = std::pair<int32_t, int32_t>;
+using shuffle_range = std::pair<tensor::value_type, tensor::value_type>;
 
 bool can_shuffle_features(program_node& node, program_node& concat_node, stream& stream) {
     if (node.is_type<convolution>()) {
@@ -70,10 +70,13 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
     auto old_ptr = old_weights_memory_lock.data();
     auto new_ptr = new_weights_memory_lock.data();
+
     for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
-            for (int32_t ifi = range.first; ifi < range.second; ++ifi, ++new_ifi) {
+            const int32_t range_begin = static_cast<int32_t>(range.first);
+            const int32_t range_end = static_cast<int32_t>(range.second);
+            for (int32_t ifi = range_begin; ifi < range_end; ++ifi, ++new_ifi) {
                 for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
                     for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
                         for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
@@ -179,7 +182,7 @@ void concat_input_order::run(program& p) {
                 new_order.push_back(i);
         }
         // Calculate new ranges
-        int32_t current_offset = 0;
+        tensor::value_type current_offset = 0;
         std::vector<shuffle_range> original_ranges;
         original_ranges.reserve(inputs_count);
         for (auto& feature_size : feature_sizes) {

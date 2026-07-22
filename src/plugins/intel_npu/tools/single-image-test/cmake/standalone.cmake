@@ -1,6 +1,5 @@
-#
-# Copyright (C) 2018-2026 Intel Corporation.
-# SPDX-License-Identifier: Apache 2.0
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
 
 set(CMAKE_CXX_STANDARD 17)
@@ -53,7 +52,14 @@ else()
         "Make sure you have called setupvars or have specified TBB_DIR.")
 endif()
 
-file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/argument_parse_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/image_quality_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/map_metric_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_segmentation_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/yolo_helpers.cpp
+)
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})

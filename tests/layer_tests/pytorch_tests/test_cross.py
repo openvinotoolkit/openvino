@@ -5,8 +5,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest
+
+# torch.cross without the dim argument is deprecated in PyTorch 2.9.
+# torch.linalg.cross is already tested by TestLinalgCross.
+_CROSS_NO_DIM_DEPRECATED = version.parse(torch.__version__) >= version.parse("2.9.0")
 
 
 class TestLinalgCross(PytorchLayerTest):
@@ -119,6 +125,9 @@ class TestCross(PytorchLayerTest):
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize('dtype', ['float32', 'float64'])
     def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
+        if dim is None and _CROSS_NO_DIM_DEPRECATED:
+            pytest.skip("torch.cross without dim is deprecated in this PyTorch version; "
+                        "torch.linalg.cross is already covered by TestLinalgCross")
         self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version,
                    use_convert_model=True,
                    kwargs_to_prepare_input={"x_shape": x_shape,

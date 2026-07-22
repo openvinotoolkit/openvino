@@ -63,6 +63,7 @@ class TestAddTypes(PytorchLayerTest):
                 super().__init__()
                 self.lhs_type = lhs_type
                 self.rhs_type = rhs_type
+                self.register_buffer('scalar_one', torch.tensor(1))
                 if len(lhs_shape) == 0:
                     self.forward = self.forward1
                 elif len(rhs_shape) == 0:
@@ -71,10 +72,10 @@ class TestAddTypes(PytorchLayerTest):
                     self.forward = self.forward3
 
             def forward1(self, rhs):
-                return torch.add(torch.tensor(1).to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
+                return torch.add(self.scalar_one.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
 
             def forward2(self, lhs):
-                return torch.add(lhs.to(self.lhs_type), torch.tensor(1).to(self.rhs_type), alpha=2)
+                return torch.add(lhs.to(self.lhs_type), self.scalar_one.to(self.rhs_type), alpha=2)
 
             def forward3(self, lhs, rhs):
                 return torch.add(lhs.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)

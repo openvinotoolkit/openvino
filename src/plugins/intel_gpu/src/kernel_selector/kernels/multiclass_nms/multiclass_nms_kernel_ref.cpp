@@ -89,14 +89,14 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
 
     int64_t max_output_boxes_per_class = 0;
     if (params.nms_top_k >= 0) {
-        max_output_boxes_per_class = std::min<int>(static_cast<int>(num_boxes), params.nms_top_k);
+        max_output_boxes_per_class = std::min<int64_t>(static_cast<int64_t>(num_boxes), params.nms_top_k);
     } else {
         max_output_boxes_per_class = num_boxes;
     }
 
     auto max_output_boxes_per_batch = max_output_boxes_per_class * real_num_classes;
     if (params.keep_top_k >= 0)
-        max_output_boxes_per_batch = std::min<int>(max_output_boxes_per_batch, params.keep_top_k);
+        max_output_boxes_per_batch = std::min<int64_t>(max_output_boxes_per_batch, params.keep_top_k);
 
     jit.AddConstants({
         MakeJitConstant("SORT_RESULT_TYPE", static_cast<int>(params.sort_result_type)),

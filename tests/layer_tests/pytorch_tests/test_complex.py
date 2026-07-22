@@ -18,16 +18,17 @@ class TestComplex(PytorchLayerTest):
                 self.dtype = dtype
                 x = torch.tensor([1.0 + 2.0j, 3.0 + 4.0j], dtype=dtype)
                 self.complex_attr = torch.nn.Parameter(x)
+                self.register_buffer(
+                    'complex_const',
+                    torch.tensor([5.0 + 6.0j, 7.0 + 8.0j], dtype=dtype),
+                )
 
             def forward(self, x):
-                complex_const = torch.tensor(
-                    [5.0 + 6.0j, 7.0 + 8.0j], dtype=self.dtype)
-
                 real_attr = self.complex_attr.real
                 imag_attr = self.complex_attr.imag
 
-                real_const = complex_const.real
-                imag_const = complex_const.imag
+                real_const = self.complex_const.real
+                imag_const = self.complex_const.imag
 
                 real_result = x + real_attr + real_const
                 imag_result = imag_attr + imag_const
@@ -43,6 +44,7 @@ class TestComplex(PytorchLayerTest):
         torch.complex32,
         torch.complex64,
         torch.complex128])
+    @pytest.mark.filterwarnings("ignore:ComplexHalf support is experimental:UserWarning")
     def test_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device,
                    precision, ir_version, trace_model=True)

@@ -4,7 +4,7 @@ This article describes how to build OpenVINO for Android operating systems.
 
 ## Software requirements
 
-- [CMake](https://cmake.org/download/) 3.13 or higher
+- [CMake](https://cmake.org/download/) 3.26 or higher
 - [SCons](https://scons.org/pages/download.html) 4.6.0 or higher
 - [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) (this guide has been validated with the 35.0.0 release)
 - [Android NDK](https://developer.android.com/ndk/downloads) (this guide has been validated with r28c release)
@@ -54,6 +54,9 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
 
 ### Build and install OneTBB™ (Not for RISC-V 64 architecture)
 To improve the parallelism performance of the OpenVINO™ library using OneTBB, it is required to separately build OneTBB for a specific version of the Android NDK:
+Android OpenVINO build with `THREADING=TBB` requires this separate OneTBB build.
+OpenVINO CMake configure must be called with `-DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB`.
+If `TBB_DIR` is not provided, Android configure fails by design.
   ```sh
   # Clone OneTBB™ repository 
   git clone --recursive https://github.com/oneapi-src/oneTBB $OPV_HOME_DIR/one-tbb
@@ -76,6 +79,9 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
   cmake --install $OPV_HOME_DIR/one-tbb-build
   ```
 
+Android OpenVINO configuration expects the separately built OneTBB package.
+`TBB_DIR` must be provided when configuring OpenVINO.
+
 ### Clone OpenVINO™ GenAI (Optional)
   ```sh
   git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino.genai
@@ -96,9 +102,8 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
         -DANDROID_ABI=$CURRENT_ANDROID_ABI \
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
-        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai \
-        -DTBBROOT=$OPV_HOME_DIR/one-tbb-install \
-        -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB
+        -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB \
+        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai
   # Build OpenVINO™ project 
   cmake --build $OPV_HOME_DIR/openvino-build --parallel
   # Install OpenVINO™ project 

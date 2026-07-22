@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -49,5 +52,4 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3.14t -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.14t/site-packages

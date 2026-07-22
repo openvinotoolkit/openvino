@@ -29,7 +29,7 @@ struct resample_params : public base_params {
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
-        k.EnableReampleType(resampleType);
+        k.EnableResampleType(resampleType);
         return k;
     }
 };

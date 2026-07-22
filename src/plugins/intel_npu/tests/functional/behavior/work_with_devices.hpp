@@ -85,6 +85,9 @@ TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlobCacheEnabled) {
         const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
         // call compile_model() twice to make sure compiled model is cached
         auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
+        // Workaround: destroy graph to force driver to close file descriptor to cache file
+        compiled_model2 = {};
+
         auto compiled_model3 = core->compile_model(ov_model2, target_device, configuration2);
         std::stringstream blobStream3;
         compiled_model3.export_model(blobStream3);

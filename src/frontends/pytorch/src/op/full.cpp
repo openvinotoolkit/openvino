@@ -424,6 +424,21 @@ OutputVector translate_fill_diagonal(const NodeContext& context) {
     filled_tensor = context.mark_node(std::make_shared<v1::Reshape>(filled_tensor, input_shape, false));
     return {filled_tensor};
 }
+
+OutputVector translate_empty_fx(const NodeContext& context) {
+    // aten.empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, ...)
+    // In the FX graph dtype is passed as a node attribute, not as a positional input.
+    // In OV uninitialized data is not supported, so we fill with zeros.
+    num_inputs_check(context, 1, 1);
+    auto sizes = context.get_input(0);
+    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    auto filled_tensor = base_translate_full(context, sizes, value);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    }
+    return {filled_tensor};
+};
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

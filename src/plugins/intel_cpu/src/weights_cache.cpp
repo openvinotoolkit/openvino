@@ -10,7 +10,9 @@
 #include <mutex>
 #include <string>
 #include <utility>
-#include <vector>
+#ifdef CPU_DEBUG_CAPS
+#    include <vector>
+#endif
 
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"

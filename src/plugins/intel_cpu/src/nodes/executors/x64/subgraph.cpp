@@ -8,12 +8,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <memory>
-#include <mutex>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -23,7 +20,6 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/input_repacker.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -33,6 +29,11 @@
 #include "utils/general_utils.h"
 
 #if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+#    include <iostream>
+#    include <mutex>
+#    include <string>
+
+#    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #endif
 

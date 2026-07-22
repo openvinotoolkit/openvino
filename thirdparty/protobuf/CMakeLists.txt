@@ -6,6 +6,11 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
+if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
+    string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+    string(REPLACE "-shared-libsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+endif()
+
 set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
@@ -64,6 +69,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+        if(ENABLE_THREAD_SANITIZER)
+            foreach(_lib ${_protoc_libs})
+                target_compile_options(${_lib} PRIVATE -fno-sanitize=thread)
+            endforeach()
+            target_link_options(protoc PRIVATE -fno-sanitize=thread)
+        endif()
     endif()
     ov_disable_all_warnings(${_protoc_libs} libprotobuf-lite)
     set_target_properties(libprotobuf-lite PROPERTIES
@@ -79,9 +90,14 @@ endif()
 if(NOT protobuf_BUILD_PROTOC_BINARIES)
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
 
+    if(ENABLE_THREAD_SANITIZER)
+        set(protoc_extra_flags "-fno-sanitize=thread")
+    endif()
+
     ov_native_compile_external_project(
         TARGET_NAME host_protoc
         NATIVE_INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
+        EXTRA_COMPILE_FLAGS "${protoc_extra_flags}"
         CMAKE_ARGS "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
                    "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
                    "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"

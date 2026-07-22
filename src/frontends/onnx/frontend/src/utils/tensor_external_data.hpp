@@ -6,6 +6,8 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
+
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -17,8 +19,8 @@ namespace detail {
 using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
-using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
-using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
 public:
@@ -32,7 +34,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ov::AlignedBuffer> load_external_data(const std::string& model_dir) const;
+    Buffer<ov::AlignedBuffer> load_external_data(const std::filesystem::path& model_dir) const;
 
     /// \brief      Map (mmap for lin, MapViewOfFile for win) external data from tensor passed to constructor
     ///
@@ -41,7 +43,8 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ov::MappedMemory> load_external_mmap_data(const std::string& model_dir, MappedMemoryHandles cache) const;
+    Buffer<ov::MappedMemory> load_external_mmap_data(const std::filesystem::path& model_dir,
+                                                     MappedMemoryHandles cache) const;
 
     /// \brief      Load external data from existing shared memory when m_data_location is ORT_MEM_ADDR
     ///

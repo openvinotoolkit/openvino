@@ -73,6 +73,12 @@ def test_any_class():
     assert value.value.text == "test"
 
 
+def test_any_empty():
+    ovany = OVAny(None)
+    assert ovany.value is None
+    assert ovany.get() is None
+
+
 @pytest.mark.parametrize(("value", "dtype"), [
     ("some_value", str),
     (31.23456, float),

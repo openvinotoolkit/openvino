@@ -8,7 +8,7 @@ List of a currently available ops is available [in Supported Operations](support
 For example, we want to implement our new `org.openvinotoolkit.CustomAdd` operation in version `1`.
 The first step is to add `.cpp` file in [the ops folder](../../../../src/frontends/onnx/frontend/src/op). For this particular case, it should be [op/org.openvinotoolkit](../../../../src/frontends/onnx/frontend/src/op/org.openvinotoolkit) to be consistent with the op folder layout.
 
-The definition in `.cpp` contains an implementation of transformation from [ov::frontend::onnx::Node](../../../../src/frontends/onnx/frontend/include/onnx_import/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp).
+The definition in `.cpp` contains an implementation of transformation from [ov::frontend::onnx::Node](../../../../src/frontends/onnx/frontend/src/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp).
 
 Transformation must be implemented in a correct namespace, which is defined as ov::frontend::onnx::domain::opset_N. Domain is operation domain name (ai_onnx for ONNX standard), opset_N - defined operation opset.
 
@@ -66,11 +66,11 @@ ONNX_OP("CustomAdd", OPSET_SINCE(1), ai_onnx::opset_1::custom_add, OPENVINO_ONNX
 }  // namespace ov
 ```
 
-The minimum requirement to receive an approval during the code review is the implementation of [C++ unit tests](tests.md#C++-tests) for a new operation. To make a test you may need to prepare a [prototxt file](../tests/models) with a small model which implements your operation.
+The minimum requirement to receive an approval during the code review is the implementation of [C++ unit tests](tests.md#C-tests) for a new operation. To make a test you may need to prepare a [prototxt file](../tests/models) with a small model which implements your operation.
 
 
 ## How to register a custom operation via extensions mechanism
-The complete tutorial about custom frontends extensions can be found in [frontend extensions](../../../../docs/Extensibility_UG/frontend_extensions.md). The section below will show you the most useful ways of adding extensions for the ONNX Frontend.
+The complete tutorial about custom frontends extensions can be found in [frontend extensions](../../../../docs/articles_en/documentation/openvino-extensibility/frontend-extensions.rst). The section below will show you the most useful ways of adding extensions for the ONNX Frontend.
 ### C++ based extensions
 To register your ONNX node-OV subgraph mapping, you can use `ConversionExtension` with syntax as below:
 ```cpp

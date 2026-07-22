@@ -6,6 +6,7 @@
 
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -25,7 +26,10 @@ public:
                 compile_model,
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&),
                 (const));
-    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, compile_model, (const std::string&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                compile_model,
+                (const std::filesystem::path&, const ov::AnyMap&),
+                (const));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 compile_model,
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::SoPtr<ov::IRemoteContext>&),

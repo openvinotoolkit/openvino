@@ -56,6 +56,7 @@ class TestMulTypes(PytorchLayerTest):
                 super().__init__()
                 self.lhs_type = lhs_type
                 self.rhs_type = rhs_type
+                self.register_buffer('scalar_three', torch.tensor(3))
                 if len(lhs_shape) == 0:
                     self.forward = self.forward1
                 elif len(rhs_shape) == 0:
@@ -64,10 +65,10 @@ class TestMulTypes(PytorchLayerTest):
                     self.forward = self.forward3
 
             def forward1(self, rhs):
-                return torch.mul(torch.tensor(3).to(self.lhs_type), rhs.to(self.rhs_type))
+                return torch.mul(self.scalar_three.to(self.lhs_type), rhs.to(self.rhs_type))
 
             def forward2(self, lhs):
-                return torch.mul(lhs.to(self.lhs_type), torch.tensor(3).to(self.rhs_type))
+                return torch.mul(lhs.to(self.lhs_type), self.scalar_three.to(self.rhs_type))
 
             def forward3(self, lhs, rhs):
                 return torch.mul(lhs.to(self.lhs_type), rhs.to(self.rhs_type))

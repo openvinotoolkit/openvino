@@ -1,6 +1,6 @@
 # Graph Optimization Passes
 
-Graph optimization is a collection of optimization passes that convert a general network description into a network-description-for-GPU-execution. It happens in the constructor of `cldnn::program`. In other words, the input of graph optimization is `topology` [(link)](./basic_data_structures.md#topology) and the output is `program` [(link)](./basic_data_structures.md#program-impl--).
+Graph optimization is a collection of optimization passes that convert a general network description into a network-description-for-GPU-execution. It happens in the constructor of `cldnn::program`. In other words, the input of graph optimization is `topology` [(link)](./basic_data_structures.md#topology) and the output is `program` [(link)](./basic_data_structures.md#program-impl).
 
 The transformation from the original graph into the final graph is quite complicated. The steps are divided into smaller pieces (`pass`). The purpose of this documentation is not to explain every step in detail, but to explain key steps.
 

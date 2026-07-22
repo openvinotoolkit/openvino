@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
-    OPENVINO_OP("Squeeze", "opset1");
+    OPENVINO_OP("Squeeze", "opset1", util::SqueezeBase);
 
     Squeeze();
     /// \brief Constructs a squeeze v0 operation.
@@ -43,7 +43,7 @@ namespace v15 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
-    OPENVINO_OP("Squeeze", "opset15");
+    OPENVINO_OP("Squeeze", "opset15", util::SqueezeBase);
 
     Squeeze();
     /// \brief Constructs a squeeze v15 operation.

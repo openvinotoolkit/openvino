@@ -15,7 +15,7 @@ namespace ov {
 namespace template_plugin {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(TemplatePlugin);
+OV_ITT_DOMAIN(TemplatePlugin, "ov::template_plugin");
 }
 }  // namespace itt
 }  // namespace template_plugin

@@ -5,50 +5,28 @@
 #include "openvino/util/common_util.hpp"
 
 #include <algorithm>
+#include <iterator>
 
-std::string ov::util::to_lower(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
+std::string ov::util::to_lower(std::string_view s) {
+    std::string rc{s};
+    std::transform(rc.begin(), rc.end(), rc.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
     return rc;
 }
 
-std::string ov::util::to_upper(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::toupper);
+std::string ov::util::to_upper(std::string_view s) {
+    std::string rc{s};
+    std::transform(rc.begin(), rc.end(), rc.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
     return rc;
 }
 
-std::vector<std::string> ov::util::split(const std::string& src, char delimiter, bool do_trim) {
-    size_t pos;
-    std::string token;
-    size_t start = 0;
-    std::vector<std::string> rc;
-    while ((pos = src.find(delimiter, start)) != std::string::npos) {
-        token = src.substr(start, pos - start);
-        start = pos + 1;
-        if (do_trim) {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    if (start <= src.size()) {
-        token = src.substr(start);
-        if (do_trim) {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    return rc;
-}
-
-std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
-    auto lines = ov::util::split(str, '\n');
-    std::stringstream res;
-    const char* const prefix_c = prefix.c_str();
-    for (const auto& line : lines) {
-        if (line.find(prefix_c) == 0) {
-            res << line + '\n';
-        }
-    }
+std::string ov::util::filter_lines_by_prefix(std::string_view sv, std::string_view prefix) {
+    std::ostringstream res;
+    view_transform_if(sv, std::ostream_iterator<std::string_view>(res, "\n"), "\n", [&prefix](auto&& field) {
+        return field.find(prefix) == 0;
+    });
     return res.str();
 }

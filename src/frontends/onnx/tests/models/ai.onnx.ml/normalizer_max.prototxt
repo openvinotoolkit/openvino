@@ -1,0 +1,56 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    output: "Y"
+    name: "Normalizer_MAX"
+    op_type: "Normalizer"
+    attribute {
+      name: "norm"
+      s: "MAX"
+      type: STRING
+    }
+    domain: "ai.onnx.ml"
+  }
+  name: "normalizer_max_graph"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 15
+}
+opset_import {
+  domain: "ai.onnx.ml"
+  version: 3
+}

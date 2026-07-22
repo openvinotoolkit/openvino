@@ -12,7 +12,7 @@ The software was validated on the following devices:
 
 ## Software requirements
 
-- [CMake](https://cmake.org/download/) 3.13 or higher
+- [CMake](https://cmake.org/download/) 3.26 or higher
 - GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
 - Python 3.10 for OpenVINO Runtime Python API
 
@@ -120,12 +120,12 @@ In order to test applications without hardware one can use emulation software. T
 
 For example, to emulate RVV 0.7.1:
 ```sh
-<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v0.7.1 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,v=true,vext_spec=v0.7.1 <executable_file_path>
 ```
 
 Or to emulate RVV 1.0:
 ```sh
-<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v1.0 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,v=true,vext_spec=v1.0 <executable_file_path>
 ```
 
 ## See also

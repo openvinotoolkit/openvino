@@ -6,7 +6,8 @@
 
 #include <memory>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -22,29 +23,61 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto moe_3gemm_fused_compressed_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
+
+    // Shared expert weights
+    auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_up_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_up_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+
+    // Without shared expert: 12 inputs [hs, routing, topk, w0, s0, zp0, w1, s1, zp1, w2, s2, zp2]
+    auto moe_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(
+        {any_input(), any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
+
+    // With shared expert: 22 inputs
+    auto moe_shared_m = wrap_type<ov::op::internal::MOECompressed>(
+        {any_input(), any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
+         zp_2_m, sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
+
+    auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{moe_no_shared_m, moe_shared_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
-        auto moe_3gemm_fused_compressed =
-            ov::as_type_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>(pattern_map.at(moe_3gemm_fused_compressed_m).get_node_shared_ptr());
-        if (!moe_3gemm_fused_compressed || transformation_callback(moe_3gemm_fused_compressed)) {
+        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(m.get_match_root());
+        if (!moe_compressed || transformation_callback(moe_compressed)) {
+            return false;
+        }
+        // Only apply to GEMM3_SWIGLU (the 3-GEMM fused path)
+        if (moe_compressed->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
             return false;
         }
 
-        ov::enable_keep_const_precision(pattern_map.at(wei_0_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(wei_1_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(wei_2_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_0_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_1_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_2_m).get_node_shared_ptr());
+        auto enable_if_present = [&](const std::shared_ptr<Node>& pattern_node) {
+            if (pattern_map.count(pattern_node)) {
+                 ov::enable_keep_const_precision(pattern_map.at(pattern_node).get_node_shared_ptr());
+            }
+        };
+
+        enable_if_present(wei_0_m);
+        enable_if_present(wei_1_m);
+        enable_if_present(wei_2_m);
+        enable_if_present(zp_0_m);
+        enable_if_present(zp_1_m);
+        enable_if_present(zp_2_m);
+        enable_if_present(sh_gate_wei_m);
+        enable_if_present(sh_gate_zp_m);
+        enable_if_present(sh_up_wei_m);
+        enable_if_present(sh_up_zp_m);
+        enable_if_present(sh_down_wei_m);
+        enable_if_present(sh_down_zp_m);
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_3gemm_fused_compressed_m, "KeepMOE3GemmConstPrecision");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "KeepMOE3GemmConstPrecision");
     this->register_matcher(m, callback);
 }
 

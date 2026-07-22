@@ -19,7 +19,7 @@ public:
     KleidiGemm(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc);
     void executeGemm(const void* a, const void* b, void* c);
     void packB(const float16_t* inp, const float16_t* bias, float16_t* packed_out);
-    const size_t get_packed_rhs_size() const;
+    size_t get_packed_rhs_size() const;
 
 private:
     static constexpr kai_matmul_clamp_f16_f16_f16p_ukernel ukernel{
@@ -51,7 +51,7 @@ KleidiGemm::KleidiGemm(size_t _M, size_t _N, size_t _K, size_t _lda, size_t _ldb
       sr(ukernel.get_sr()),
       packedRHSsize(kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(_N, _K)) {};
 
-const size_t KleidiGemm::get_packed_rhs_size() const {
+size_t KleidiGemm::get_packed_rhs_size() const {
     return packedRHSsize;
 }
 

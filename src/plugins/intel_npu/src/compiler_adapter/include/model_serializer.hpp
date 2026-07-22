@@ -10,6 +10,8 @@
 #include <string>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
@@ -19,6 +21,7 @@ namespace intel_npu {
 struct SerializedIR {
     std::shared_ptr<uint8_t> buffer = nullptr;
     size_t size = 0;
+    ov::intel_npu::ModelSerializerVersion serializerVersion = MODEL_SERIALIZER_VERSION::defaultValue();
     std::optional<uint64_t> hash = std::nullopt;
 };
 
@@ -33,8 +36,12 @@ namespace compiler_utils {
  *
  * @param compilerVersion The compiler version reported by the driver.
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
- * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
- * the optimized one is used instead (weights pointers are stored instead).
+ * @param serializerVersion The version of the serialization algorithm that should be applied. If not "AUTO", then only
+ * the given version will be attempted. Otherwise, the NPU plugin will choose the version based on the support offered
+ * by the compiler-adapter and preference.
+ * @param isOptionSupportedByCompiler Function that allows querying the support offered by the compiler-adapter for a
+ * given <config option, value> pair. The serializer will use this function to determine the compatibility of the
+ * algorithm. If "nullptr" is passed, then the compatibility check is skipped.
  * @param computeModelHash If true, a hash of the model will also be returned.
  * @param storeWeightlessCacheAttribute If true, the returned serialized model will also contain within its runtime
  * information the WeightlessCacheAttributes stored using a custom format. This format can be interpreted by the
@@ -44,8 +51,10 @@ namespace compiler_utils {
  */
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion = 11,
-                         const bool useBaseModelSerializer = true,
+                         const uint32_t supportedOpsetVersion,
+                         const ov::intel_npu::ModelSerializerVersion serializerVersion,
+                         const std::function<bool(const std::string&, const std::optional<std::string>&)>&
+                             isOptionSupportedByCompiler = nullptr,
                          const bool computeModelHash = false,
                          const bool storeWeightlessCacheAttribute = false);
 

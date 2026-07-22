@@ -274,6 +274,10 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     {
         int input_offset_z = offset_z + pz;
         bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
+        // Clamp offsets to valid range so that masked-off SIMD lanes
+        // compute safe addresses (prevents OOB on Xe2+ where masked
+        // reads are no longer silently ignored).
+        uint safe_z = (uint)clamp(input_offset_z, 0, (int)(INPUT0_SIZE_Z - 1));
         if(!zero_z)
         {
             __attribute__((opencl_unroll_hint(POOL_SIZE_Y)))
@@ -281,6 +285,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
             {
                 int input_offset_y = offset_y + py;
                 bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
+                uint safe_y = (uint)clamp(input_offset_y, 0, (int)(INPUT0_SIZE_Y - 1));
                 if(!zero_y)
                 {
                     __attribute__((opencl_unroll_hint(POOL_SIZE_X)))
@@ -288,9 +293,10 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                     {
                         int input_offset_x = offset_x + px;
                         bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
+                        uint safe_x = (uint)clamp(input_offset_x, 0, (int)(INPUT0_SIZE_X - 1));
                         if(!zero)
                         {
-                            const uint input_idx = batch_and_feature_offset + input_offset_z*IN_Z_PITCH + input_offset_y*IN_Y_PITCH + input_offset_x*IN_X_PITCH;
+                            const uint input_idx = batch_and_feature_offset + safe_z*IN_Z_PITCH + safe_y*IN_Y_PITCH + safe_x*IN_X_PITCH;
                             IN_VEC16 ch16_data;
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             if (!last_in_f_group) {

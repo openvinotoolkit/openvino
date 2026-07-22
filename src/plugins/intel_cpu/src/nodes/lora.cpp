@@ -22,7 +22,6 @@
 #include "openvino/core/type.hpp"
 #include "ov_ops/lora_subgraph.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu::node {
 

@@ -4,6 +4,7 @@
 
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/kv_cache_compressed.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "gather_shape_inference.hpp"
 #include "concat_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -207,8 +208,8 @@ KVCacheCompressed::KVCacheCompressed(const OutputVector& inputs,
     : KVCache(inputs, past_variable, true, trim, concat_axis, gather_axis, output_type)
     , m_compressed(true)
     , m_quantization_attrs(quantization_attrs) {
-    OPENVINO_ASSERT(quantization_attrs.quantization_dt == ov::element::i8,
-                    "[GPU] Only I8 data type is currently supported for KV-cache compression");
+    OPENVINO_ASSERT(cldnn::one_of(quantization_attrs.quantization_dt , {element::i8, element::i4, element::u4}),
+                    "[GPU] data type is currently not supported for KV-cache compression");
 
     m_variable = past_variable;
     size_t output_size = 3;

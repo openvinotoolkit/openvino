@@ -480,7 +480,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
                                                        const std::vector<ov::Output<const ov::Node>>& input_info,
-                                                       bool& reshape_required) {
+                                                       bool& reshape_required,
+                                                       bool compile_only) {
     std::map<std::string, std::vector<std::string>> shape_map = parse_input_parameters(shape_string, input_info);
     std::map<std::string, std::vector<std::string>> data_shapes_map =
         parse_input_parameters(data_shapes_string, input_info);
@@ -711,15 +712,27 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             } else if (!data_shapes_map.empty()) {
                 throw std::logic_error("Can't find model input name \"" + name + "\" in \"-data_shape " +
                                        data_shapes_string + "\" command line parameter");
-            } else {
+            } else if (!compile_only) {
                 throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
-                                       "of model with dynamic shapes.");
+                                       "of model with dynamic shapes. "
+                                       "If you only need to compile the model without running inference, "
+                                       "use -niter 0 to skip this requirement.");
             }
 
             // Update shape with batch if needed (only in static shape case)
             // Update blob shape only not affecting network shape to trigger dynamic batch size case
             if (batch_size != 0) {
-                if (ov::layout::has_batch(info.layout)) {
+                if (info.dataShape.empty()) {
+                    // dataShape can be empty only when compile_only=true and the input is dynamic with no
+                    // -data_shape/-i provided.
+                    if (!compile_only) {
+                        throw std::logic_error("dataShape is empty for input '" + item.get_any_name() +
+                                               "' in non-compile_only mode.");
+                    }
+                    slog::warn << "-b option is ignored in compile_only mode (no concrete data shape available for '"
+                               << item.get_any_name() << "')." << slog::endl;
+                    is_there_at_least_one_batch_dim = true;
+                } else if (ov::layout::has_batch(info.layout)) {
                     std::size_t batch_index = ov::layout::batch_idx(info.layout);
                     if (info.dataShape.at(batch_index) != batch_size) {
                         if (info.partialShape.is_static()) {
@@ -772,7 +785,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::map<std::string, std::vector<std::string>>& fileNames,
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
-                                                       const std::vector<ov::Output<const ov::Node>>& input_info) {
+                                                       const std::vector<ov::Output<const ov::Node>>& input_info,
+                                                       bool compile_only) {
     bool reshape_required = false;
     return get_inputs_info(shape_string,
                            layout_string,
@@ -782,7 +796,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            scale_string,
                            mean_string,
                            input_info,
-                           reshape_required);
+                           reshape_required,
+                           compile_only);
 }
 
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {

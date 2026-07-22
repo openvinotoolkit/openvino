@@ -20,6 +20,12 @@ public:
     IncreasePositionIdsPrecisionForQwen25VL();
 };
 
+class IncreasePositionIdsPrecisionForQwen3VL : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen3VL");
+    IncreasePositionIdsPrecisionForQwen3VL();
+};
+
 class IncreasePositionIdsPrecisionForLtxVideo : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForLtxVideo");
@@ -30,6 +36,12 @@ class IncreasePositionIdsPrecisionForGPTOSS : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGPTOSS");
     IncreasePositionIdsPrecisionForGPTOSS();
+};
+
+class IncreasePositionIdsPrecisionForGemma4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGemma4");
+    IncreasePositionIdsPrecisionForGemma4();
 };
 
 

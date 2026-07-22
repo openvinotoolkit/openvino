@@ -19,6 +19,7 @@
 
 #include <vector>
 #include <utility>
+#include <mutex>
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -69,7 +70,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _pd(),
         _prim() {
             _enable_profiling = config.get_enable_profiling();
-            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty()) {
+            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty() ||
+                         !config.get_average_counters().empty()) {
                 _enable_profiling = true;
             }
         }
@@ -529,6 +531,9 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
+#ifdef OV_GPU_WITH_ZE_RT
+        static std::mutex execute_mutex;
+#endif
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
         auto net_id = network.get_id();
@@ -544,6 +549,11 @@ protected:
 
         if (!instance.can_be_optimized()) {
             try {
+#ifdef OV_GPU_WITH_ZE_RT
+                // Prevent race condition issue for Level Zero runtime
+                // To be removed once MFDNN-15356 is resolved
+                std::lock_guard<std::mutex> lock(execute_mutex);
+#endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
                 OPENVINO_THROW(err.what());

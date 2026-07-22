@@ -179,10 +179,11 @@ When a GitHub Actions job has failed:
 
 ## How to Write Review Comments
 - Use this severity prefix:
-  - `[BLOCKER]` correctness, security, data corruption, ABI/API breakage, missing critical test
-  - `[HIGH]` likely regression/perf issue, unsafe assumption, incomplete coverage
-  - `[MEDIUM]` maintainability/readability concerns that may cause future defects
-  - `[LOW]` minor style/nit
+  - `[BLOCKER]` must be fixed before merge: crash, silent data corruption, exploitable security vulnerability, incorrect inference results, or irreversible ABI/API breakage affecting already-released OpenVINO versions
+  - `[HIGH]` high-confidence likely regression, measurable performance degradation, unsafe assumption that could silently become a bug, missing regression test for a bug fix, or incomplete coverage of a safety-critical path
+  - `[MEDIUM]` maintainability, readability, or design concerns that may cause future defects
+  - `[LOW]` minor clarity or maintainability nit that is not tooling-enforced and does not affect merge readiness
+- If severity is uncertain between `[BLOCKER]` and `[HIGH]`, use `[HIGH]`.
 - Each comment should include:
   1. What is wrong/risky
   2. Why it matters in OpenVINO context

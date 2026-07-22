@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
@@ -41,7 +42,6 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -84,7 +84,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 }
 
 // this method get all memory ptrs of childs of one port to redefine descs for them
-static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port) {
+static std::vector<MemoryPtr> getToMemories(const Node* node, const int port) {
     std::vector<MemoryPtr> memories;
     for (auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
@@ -95,6 +95,13 @@ static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port)
 static void nullifyUndefinedDims(VectorDims& dims) {
     std::transform(dims.begin(), dims.end(), dims.begin(), [](const size_t& dim) {
         return dim == Shape::UNDEFINED_DIM ? 0 : dim;
+    });
+}
+
+static bool hasEmptyDims(const dnnl::memory& mem) {
+    const auto& dims = mem.get_desc().get_dims();
+    return std::any_of(dims.begin(), dims.end(), [](const dnnl::memory::dim dim) {
+        return dim == 0;
     });
 }
 
@@ -119,7 +126,7 @@ public:
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0 ? -1 : 1;
 
-        iter_count = full_dims[axis] / abs_stride;
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
@@ -153,6 +160,10 @@ public:
     void execute(const dnnl::stream& strm, int iter) override {
         OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
 
+        if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+            return;
+        }
+
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
                                   chunk_stride_in_byte * iter);
@@ -181,6 +192,10 @@ public:
 
     void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
+            if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+                return;
+            }
+
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }

@@ -4,6 +4,7 @@
 
 #include "zero_device.hpp"
 
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -64,11 +65,15 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
 }
 
 std::string ZeroDevice::getName() const {
-//    KMD is setting usDeviceID from VpuFamilyID.h
+// Blacklisted deviceIDs
+#define LEGACY_NPU_3000_DEVICE_ID 0x6240
+
+// KMD is setting usDeviceID from VpuFamilyID.h
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
 #define NPU_5010_DEVICE_ID   0xB03E
+#define NPU_5020_DEVICE_ID   0xFD3E
 
     std::string name;
     switch (_device_properties.deviceId) {
@@ -82,6 +87,11 @@ std::string ZeroDevice::getName() const {
     case NPU_5010_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU5010;
         break;
+    case NPU_5020_DEVICE_ID:
+        name = ov::intel_npu::Platform::NPU5020;
+        break;
+    case LEGACY_NPU_3000_DEVICE_ID:
+        OPENVINO_THROW("[LEGACY] NPU device ID 0x", std::hex, _device_properties.deviceId, " is not supported!");
     default:
         name = ov::intel_npu::Platform::AUTO_DETECT;
     }
@@ -174,10 +184,9 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
-std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
-    const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const Config& config) {
-    if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
+std::shared_ptr<InferRequest> ZeroDevice::createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                                             const Config& config) {
+    if (compiledModel->get_graph()->is_dynamic()) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
@@ -187,4 +196,32 @@ void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
     if (properties.count(ov::log::level.name()) != 0) {
         _log.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
+}
+
+bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const {
+    if (_initStructs->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
+    }
+
+    ze_validate_runtime_requirements_output_t output = {};
+    output.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_OUTPUT;
+    output.pNext = nullptr;
+
+    const ze_result_t result =
+        zeDeviceValidateRuntimeRequirements(_initStructs->getDevice(), compatibilityDescriptor.c_str(), &output);
+
+    if (result != ZE_RESULT_SUCCESS) {
+        _log.warning("zeDeviceValidateRuntimeRequirements returned error: 0x%x", static_cast<uint32_t>(result));
+        return false;
+    }
+
+    // Only REQUIREMENTS_MET and MET_RECOMPILATION_ADVISABLE are treated as compatible.
+    // NOT_APPLICABLE (the descriptor does not apply to this device) and REQUIREMENTS_NOT_MET are
+    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here
+    return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
+           output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
+}
+
+IDevice::DeviceProperties ZeroDevice::getDeviceProperties() const {
+    return {_device_properties.deviceId, _device_properties.subdeviceId, _device_properties.numSlices};
 }

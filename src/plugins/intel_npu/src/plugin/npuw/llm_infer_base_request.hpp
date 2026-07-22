@@ -5,6 +5,7 @@
 #pragma once
 
 #include "llm_compiled_model.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -23,6 +24,9 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* longrope_input = "npuw_longrope_input";
+        static constexpr const char* per_layer_inputs = "per_layer_inputs";
+        static constexpr const char* visual_pos_masks = ov::npuw::util::kVisualPosMasksParamName;
+        static constexpr const char* deepstack_visual_embeds = ov::npuw::util::kDeepstackVisualEmbedsParamName;
     };
 
     struct layer_ids {
@@ -45,11 +49,11 @@ public:
     }
 
 protected:
-    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            const PortsMap& in_ports,
-                            const PortsMap& out_ports,
-                            uint32_t num_tokens,
-                            bool v_transposed);
+    virtual void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                    const PortsMap& in_ports,
+                                    const PortsMap& out_ports,
+                                    uint32_t num_tokens,
+                                    bool v_transposed);
     void init_tensor(const ov::Output<const ov::Node>& port);
     void init_ports();
 

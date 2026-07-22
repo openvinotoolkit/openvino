@@ -46,7 +46,34 @@ jobs:
     env:
       HF_CACHE_PATH: /mount/caches/huggingface
     steps:
-      steps:
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${HF_CACHE_PATH}
+
+      - name: Cleanup cache
+        run: |
+          echo "Delete cache files if they have not been used in over 30 days"
+          [ ! -z "${HF_CACHE_PATH}" ] && find ${HF_CACHE_PATH} ! -type d -atime +30 -delete
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${HF_CACHE_PATH}
+
+  Cleanup_HF_Cache_HRZ_iGPU:
+    name: Cleanup HuggingFace cache (HRZ)
+    runs-on:
+      group: Intel-GPU
+      labels: [ 'self-hosted', 'igpu', 'Linux' ]
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mnt/caches:/mnt/caches
+    env:
+      HF_CACHE_PATH: /mnt/caches/huggingface
+    steps:
       - name: Pre-Collecting Cache Info
         run: |
           echo "Cache info: "

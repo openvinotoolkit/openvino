@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/compiled_model.hpp"
 
@@ -19,9 +20,9 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),
                         InstanceMethod("input", &CompiledModelWrap::get_input),
-                        InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
+                        InstanceAccessor("inputs", &CompiledModelWrap::get_inputs, nullptr),
                         InstanceMethod("output", &CompiledModelWrap::get_output),
-                        InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs"),
+                        InstanceAccessor("outputs", &CompiledModelWrap::get_outputs, nullptr),
                         InstanceMethod("exportModelSync", &CompiledModelWrap::export_model),
                         InstanceMethod("setProperty", &CompiledModelWrap::set_property),
                         InstanceMethod("getProperty", &CompiledModelWrap::get_property)});
@@ -29,9 +30,7 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to CompiledModel prototype.");
     auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
@@ -48,8 +47,12 @@ ov::CompiledModel& CompiledModelWrap::get_compiled_model() {
 }
 
 Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& info) {
-    ov::InferRequest infer_request = _compiled_model.create_infer_request();
-    return InferRequestWrap::wrap(info.Env(), infer_request);
+    try {
+        return InferRequestWrap::wrap(info.Env(), _compiled_model.create_infer_request());
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {

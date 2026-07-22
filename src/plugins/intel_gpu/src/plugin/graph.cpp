@@ -35,8 +35,43 @@
 #include <algorithm>
 #include <fstream>
 #include <utility>
+#include <optional>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+namespace {
+
+std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
+    const std::vector<cldnn::instrumentation::profiling_interval>& intervals) {
+    std::optional<std::chrono::microseconds> earliest_timestamp;
+    std::optional<std::chrono::microseconds> executing_timestamp;
+
+    for (const auto& interval : intervals) {
+        if (!interval.is_valid_start) {
+            continue;
+        }
+
+        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
+        if (!earliest_timestamp.has_value() || interval_start < earliest_timestamp.value()) {
+            earliest_timestamp = interval_start;
+        }
+
+        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+            if (!executing_timestamp.has_value() || interval_start < executing_timestamp.value()) {
+                executing_timestamp = interval_start;
+            }
+        }
+    }
+
+    auto start_time = executing_timestamp.value_or(earliest_timestamp.value_or(std::chrono::microseconds::zero()));
+    if (start_time == std::chrono::microseconds::zero()) {
+        return std::nullopt;
+    }
+
+    return start_time;
+}
+
+}  // namespace
 
 namespace ov::intel_gpu {
 
@@ -137,12 +172,12 @@ Graph::~Graph() {
 
         auto print_entry = [this, &get_time_str, &log_level](std::string name, HostTimeProfilingEntry& entry, int64_t iters_num = 1) {
             if (log_level == 1) {
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer enqueue host time: "
+                GPU_DEBUG_COUT << "[network_id=" << m_network->get_id() << " stream_id=" << m_stream_id << " iter_num=" << iters_num << "] " << name << " infer enqueue host time: "
                                << get_time_str(entry.enqueue, iters_num) << std::endl;
             } else if (log_level >= 2) {
                 auto total_time = entry.inputs_processing + entry.enqueue + entry.wait + entry.outputs_processing;
 
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer host time: "
+                GPU_DEBUG_COUT << "[network_id=" << m_network->get_id() << " stream_id=" << m_stream_id << " iter_num=" << iters_num << "] " << name << " infer host time: "
                                << get_time_str(total_time, iters_num) << std::endl;
                 GPU_DEBUG_COUT << " - " << " Inputs processing: " << get_time_str(entry.inputs_processing, iters_num) << std::endl;
                 GPU_DEBUG_COUT << " - " << " Enqueue: " << get_time_str(entry.enqueue, iters_num) << std::endl;
@@ -160,13 +195,13 @@ Graph::~Graph() {
 
             const auto begin = std::begin(host_exec_times) + 1;
             const auto end = std::end(host_exec_times);
-            avg.inputs_processing = std::accumulate(begin, end, 0,
+            avg.inputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.inputs_processing; });
-            avg.enqueue = std::accumulate(begin, end, 0,
+            avg.enqueue = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.enqueue; });
-            avg.wait = std::accumulate(begin, end, 0,
+            avg.wait = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.wait; });
-            avg.outputs_processing = std::accumulate(begin, end, 0,
+            avg.outputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.outputs_processing; });
 
             const auto iters_num = host_exec_times.size() - 1;
@@ -247,6 +282,8 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "detection_output", "DetectionOutput" },
                 { "eltwise", "Eltwise" },
                 { "fully_connected", "FullyConnected" },
+                { "gated_delta_net", "GatedDeltaNet" },
+                { "paged_causal_conv1d", "PagedCausalConv1D" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
                 { "gru_seq", "GRU_Seq" },
@@ -665,6 +702,13 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
+        std::optional<std::chrono::microseconds> start_time;
+
+        auto execIter = executedPrimitives.find(primId);
+        if (execIter != executedPrimitives.end() && execIter->second) {
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, execIter->second->get_profiling_info()};
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
+        }
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
             return false;
@@ -690,6 +734,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.status = perfCounter.status;
         extPerfEntry.cpu_time = std::chrono::microseconds(perfCounter.cpu_avg());
         extPerfEntry.real_time = std::chrono::microseconds(perfCounter.realTime_avg());
+        extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
         extPerfEntry.node_name = layerName;
 
         if (combinePrimByIRLayers) {
@@ -741,6 +786,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             // Collect timings
             long long cpuTime = 0;
             long long deviceTime = 0;
+            std::optional<std::chrono::microseconds> start_time;
 
             for (auto &interval : cldnnInfo.intervals) {
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
@@ -754,6 +800,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     cpuTime += count;
                 }
             }
+
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
 
             std::string layerName = getClearName(primId);
 
@@ -769,12 +817,16 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     } else {
                         extPerfEntry.exec_type = pi.kernel_id;
                     }
+                    if (extPerfEntry.exec_type == "undef") {
+                        extPerfEntry.exec_type = get_network()->get_implementation_info(primId);
+                    }
 
                     extPerfEntry.node_type = getUpperCaseName(pi.type_id);
                     extPerfEntry.node_name = pi.original_id;
                     extPerfEntry.status = ov::ProfilingInfo::Status::EXECUTED;
                     extPerfEntry.cpu_time = std::chrono::microseconds(cpuTime);
                     extPerfEntry.real_time = std::chrono::microseconds(deviceTime);
+                    extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
 
                     if (pi.type_id == "input_layout") {
                         extPerfEntry.node_type = "Input";
@@ -801,9 +853,10 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
 
         if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
             std::swap(first_res->second.cpu_time,        second_res->second.cpu_time);
-            std::swap(first_res->second.real_time,   second_res->second.real_time);
+            std::swap(first_res->second.real_time,       second_res->second.real_time);
             std::swap(first_res->second.status,          second_res->second.status);
             std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+            std::swap(first_res->second.start_time,      second_res->second.start_time);
         }
     }
 

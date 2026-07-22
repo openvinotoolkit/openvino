@@ -71,9 +71,9 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
 }
 

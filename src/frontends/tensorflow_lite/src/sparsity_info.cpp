@@ -12,6 +12,55 @@ bool ov::frontend::tensorflow_lite::SparsityInfo::is_copyable() const {
     return false;
 }
 
+// Re-evaluates m_disabled against the actually-populated metadata. Disables
+// the SparsityInfo whenever any precondition densify() depends on is missing
+// or inconsistent, so that TensorLitePlace falls back to the raw constant
+// buffer. The contract enforced here:
+//
+//   1. shape is non-empty;
+//   2. traversal_order length is at least the tensor rank;
+//   3. block_map size equals (traversal_order.size() - shape.size()), so for
+//      a standard CSR layout (traversal_order length == rank) block_map must
+//      be empty, and for a block-sparse layout it must list exactly the
+//      block dimensions appended after the rank-many leading dims (per
+//      schema.fbs:187-211);
+//   4. dim_format size matches traversal_order size (DimensionMetadata is
+//      one entry per traversal-order position);
+//   5. data_desc size matches dim_format size, and every SPARSE_CSR entry
+//      carries non-null array_segments + array_indices payloads (densify()
+//      dereferences these without a null check).
+//
+// Anything tighter (e.g. integer ranges in the segments/indices buffers)
+// stays inside read_sparse_data() / densify(); that level of validation
+// requires the actual flatbuffers vector type and is independent of the
+// "is the metadata even shaped correctly" question handled here.
+void ov::frontend::tensorflow_lite::SparsityInfo::enable() {
+    if (m_shape.size() == 0 || m_traversal_order.size() < m_shape.size()) {
+        m_disabled = true;
+        return;
+    }
+    if (m_block_map.size() != m_traversal_order.size() - m_shape.size()) {
+        m_disabled = true;
+        return;
+    }
+    if (m_dim_format.size() != m_traversal_order.size()) {
+        m_disabled = true;
+        return;
+    }
+    if (m_data_desc.size() != m_dim_format.size()) {
+        m_disabled = true;
+        return;
+    }
+    for (size_t i = 0; i < m_dim_format.size(); ++i) {
+        if (m_dim_format[i] == ::tflite::DimensionType_SPARSE_CSR &&
+            (m_data_desc[i].segments == nullptr || m_data_desc[i].indices == nullptr)) {
+            m_disabled = true;
+            return;
+        }
+    }
+    m_disabled = false;
+}
+
 // Overflow-safe multiplication for size calculations.
 // Throws on overflow to prevent heap buffer allocation with a truncated size,
 // which would lead to out-of-bounds writes during sparse data deserialization.

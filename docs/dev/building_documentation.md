@@ -5,8 +5,7 @@ The following procedure was validated on Windows and Ubuntu operation systems.
 ## Table of content:
 
 * [Installing dependencies](#installing-dependencies)
-* [Building documentation](#installing-dependencies)
-* [Additional Resources](#additional-resources)
+* [Building documentation](#building-documentation)
 
 ## Installing dependencies
 
@@ -15,7 +14,7 @@ The `doxygen` and `latex` must be installed in addition to usual build dependenc
 ### Windows
 
 * [miktex](https://miktex.org/)
-* [doxygen](http://doxygen.nl/files/doxygen-1.8.20-setup.exe) (version >= 1.8.20)
+* [doxygen](https://doxygen.nl/download.html) (version >= 1.8.20)
 * [Graphviz](https://graphviz.org/download/)
 
 ### Ubuntu systems

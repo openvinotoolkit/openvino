@@ -90,13 +90,13 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 }
 }  // namespace detail
 
-Graph::Graph(const std::string& model_dir,
+Graph::Graph(const std::filesystem::path& model_dir,
              const std::shared_ptr<ModelProto>& model_proto,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
     : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), mmap_cache, std::move(extensions)) {}
 
-Graph::Graph(const std::string& model_dir,
+Graph::Graph(const std::filesystem::path& model_dir,
              const std::shared_ptr<ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              detail::MappedMemoryHandles mmap_cache,

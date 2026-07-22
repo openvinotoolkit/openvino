@@ -57,7 +57,7 @@ layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, 
         num_classes = std::max<ov::Dimension::value_type>(1, num_classes - 1);
     }
 
-    int max_output_boxes_per_class = 0;
+    ov::Dimension::value_type max_output_boxes_per_class = 0;
     if (attrs.nms_top_k >= 0) {
         max_output_boxes_per_class = std::min<ov::Dimension::value_type>(num_boxes, attrs.nms_top_k);
     } else {

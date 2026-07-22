@@ -47,7 +47,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -91,7 +91,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 1.f, 4.f, 5.f,
@@ -137,7 +137,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 2.f, 0.f, 8.f, 0.f, 3.f, 0.f, 9.f,
@@ -183,7 +183,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 2.f, 0.f, 3.f, 0.f, 4.f, 1.f, 5.f,
@@ -231,7 +231,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -284,7 +284,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("stb_to_bfyx").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -337,7 +337,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("stb_to_bfyx").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -413,7 +413,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -457,7 +457,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 1.f, 4.f, 5.f,
@@ -503,7 +503,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 2.f, 0.f, 8.f, 0.f, 3.f, 0.f, 9.f,
@@ -549,7 +549,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 2.f, 0.f, 3.f, 0.f, 4.f, 1.f, 5.f,
@@ -595,7 +595,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_batch").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -652,7 +652,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("stb_to_bfyx").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 1.f, 16.f, 17.f, 32.f, 33.f, 48.f, 49.f,
@@ -706,7 +706,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("stb_to_bfyx").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
             0.f, 1.f, 0.f, 4.f, 0.f, 19.f, 0.f, 22.f,

@@ -300,7 +300,8 @@ function(ov_disable_all_warnings)
         get_target_property(target_type ${target} TYPE)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-            target_compile_options(${target} PRIVATE /WX-)
+            # restrict to C/CXX sources only
+            target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
         elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             target_compile_options(${target} PRIVATE -w)
             # required for LTO
@@ -397,24 +398,6 @@ function(ov_link_system_libraries TARGET_NAME)
             target_link_libraries(${TARGET_NAME} ${MODE} ${arg})
         endif()
     endforeach()
-endfunction()
-
-#
-# ov_try_use_gold_linker()
-#
-# Tries to use gold linker in current scope (directory, function)
-#
-function(ov_try_use_gold_linker)
-    # don't use the gold linker, if the mold linker is set
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
-        return()
-    endif()
-
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-    endif()
 endfunction()
 
 #

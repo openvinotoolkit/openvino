@@ -1,0 +1,112 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+doc_string: "Malformed Loop: has loop-carried deps but body has too few outputs (only cond_out, missing state outputs)"
+graph {
+  name: "loop_body_outputs_oob"
+  node {
+    input: "trip_count"
+    input: ""
+    input: "a_init"
+    output: "a_final"
+    output: "a_values"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        name: "loop body with too few outputs"
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "a_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "trip_count"
+  }
+  input {
+    name: "a_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "a_final"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "a_values"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

@@ -76,7 +76,8 @@ def parse_and_check_command_line():
         args.api_type = "sync" if args.perf_hint == "latency" else "async"
 
     if args.api_type == "sync":
-        if args.time == 0 and (args.number_infer_requests > args.number_iterations):
+        if args.time is None and args.number_iterations is not None and args.number_iterations != 0 \
+                and args.number_infer_requests > args.number_iterations:
             raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
 
     return args, is_network_compiled
@@ -97,6 +98,12 @@ def main():
 
         def is_flag_set_in_command_line(flag):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
+
+        # When number_iterations is explicitly set to 0 (via -niter 0 or --number_iterations 0),
+        # compile the model and exit without running inference. The default is None, so == 0
+        # is only true on an explicit user request. Useful for validating compilation of models
+        # with dynamic shapes that would otherwise require -shape, -data_shape, or -i.
+        compile_only = args.number_iterations == 0
 
         device_name = args.target_device
 
@@ -489,6 +496,19 @@ def main():
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
+
+        if compile_only:
+            logger.info("Model compiled successfully. Skipping inference due to -niter 0.")
+            next_step(additional_info='skipped')  # 8 - Querying optimal runtime parameters
+            next_step(additional_info='skipped')  # 9 - Creating infer requests and preparing input tensors
+            next_step(additional_info='skipped')  # 10 - Measuring performance
+            next_step()                           # 11 - Dumping statistics report
+            if args.dump_config:
+                dump_config(args.dump_config, config)
+                logger.info(f"OpenVINO configuration settings were dumped to {args.dump_config}")
+            if statistics:
+                statistics.dump()
+            return
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()

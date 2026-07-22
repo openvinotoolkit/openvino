@@ -437,7 +437,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
 
     str << "Output ";
     if (!start_out_node_names.empty()) {
-        str << "\"" << util::join(start_out_node_names) << "\"";
+        str << "\"" << util::join<std::ostream>(start_out_node_names) << "\"";
     }
     str << ":" << std::endl;
     str << "    Model's data tensor: ";

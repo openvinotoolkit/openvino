@@ -11,6 +11,9 @@
 
 #include "ocl/ocl_engine_factory.hpp"
 #include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL_RT
 
 #include <string>
 #include <vector>
@@ -100,6 +103,11 @@ bool engine::supports_allocation(allocation_type type) const {
     if (allocation_type::usm_shared == type)
         return false;
     return _device->get_mem_caps().support_allocation_type(type);
+}
+
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
@@ -258,12 +266,17 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        ret = sycl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
-#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
@@ -309,8 +322,9 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
                         "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
-                        "Please try to reduce batch size or use lower precision.");
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
+                        "Please try to reduce batch size, use lower precision, "
+                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
@@ -341,6 +355,7 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::engine& engine::get_onednn_engine() const {
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
     return *_onednn_engine;
 }

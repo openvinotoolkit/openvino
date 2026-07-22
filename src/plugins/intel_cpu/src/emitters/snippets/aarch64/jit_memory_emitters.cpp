@@ -29,6 +29,8 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
@@ -77,29 +79,24 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h,
 
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
-    bool is_supported_precision =
-        any_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
     count = load->get_count();
-    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset);
+    const auto mode = ov::is_type<ov::intel_cpu::LoadConvertTruncation>(expr->get_node()) ? arithmetic_mode::truncation
+                                                                                          : arithmetic_mode::saturation;
+    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
 size_t jit_memory_emitter::get_aux_gprs_count() const {
-    // for runtime arguments: for offset and for effective address
-    return is_offset_runtime ? 2 : 0;
+    return is_offset_runtime ? 1 : 0;
 }
 
 std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, aux_gpr_idxs.size() >= 2),
-                              "If offset is dynamic, memory emitter needs at least two aux gprs!");
+    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
+                              "If offset is dynamic, memory emitter needs at least one aux gpr!");
     auto available_aux_gprs = aux_gpr_idxs;
     if (is_offset_runtime) {
-        available_aux_gprs.pop_back();  // Remove effective address GPR
-        available_aux_gprs.pop_back();  // Remove offset GPR
+        available_aux_gprs.pop_back();
     }
     return available_aux_gprs;
 }
@@ -112,36 +109,28 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
     auto reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
     XReg aux_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs.back())) : XReg(0);
-    XReg eff_addr_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs[aux_gpr_idxs.size() - 2])) : XReg(0);
-
-    auto eff_in = in_idxs;
-    auto eff_out = out_idxs;
+    auto data_reg = XReg(0);
+    if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
+        data_reg = XReg(in_idxs[0]);
+    } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
+        data_reg = XReg(out_idxs[0]);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
+    }
 
     if (is_offset_runtime) {
-        XReg data_reg(0);
-        if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-            data_reg = XReg(in_idxs[0]);
-        } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
-            data_reg = XReg(out_idxs[0]);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
-        }
-
         // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
         h->ldr(aux_gpr,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
-        h->add(eff_addr_gpr, data_reg, aux_gpr);
-
-        if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-            eff_in[0] = static_cast<size_t>(eff_addr_gpr.getIdx());
-        } else {  // vec_to_gpr
-            OV_CPU_JIT_EMITTER_ASSERT(in_out_type_ == emitter_in_out_map::vec_to_gpr, "Expected vec_to_gpr type");
-            eff_out[0] = static_cast<size_t>(eff_addr_gpr.getIdx());
-        }
+        h->add(data_reg, data_reg, aux_gpr);
     }
 
-    emit_impl(eff_in, eff_out);
+    emit_impl(in_idxs, out_idxs);
+
+    if (is_offset_runtime) {
+        h->sub(data_reg, data_reg, aux_gpr);
+    }
 
     emitter_postamble();
 }
@@ -210,15 +199,13 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
-    bool is_supported_precision =
-        any_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(store != nullptr, "Expects Store expression");
     count = store->get_count();
-    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset);
+    const auto mode = ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())
+                          ? arithmetic_mode::truncation
+                          : arithmetic_mode::saturation;
+    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

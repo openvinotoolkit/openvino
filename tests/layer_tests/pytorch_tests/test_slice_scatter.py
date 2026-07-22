@@ -32,6 +32,7 @@ class TestSliceScatter(PytorchLayerTest):
 
     import torch
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(("src", "dim", "start", "end", "step"),
                              [(torch.ones(2), 1, 1, 2, 1),])
     def aten_slice_scatter(self, src, dim, start, end, step, ie_device, precision, ir_version):

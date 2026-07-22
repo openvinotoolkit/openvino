@@ -13,6 +13,8 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "transformations/tpp/common/op/brgemm.hpp"
@@ -28,6 +30,22 @@ IShapeInferSnippetsFactory::TRegistry make_common_cpu_shape_infer_registry() {
         {ov::intel_cpu::FusedMulAdd::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>&) {
              return std::make_shared<NumpyBroadcastShapeInfer>();
+         }},
+        {ov::intel_cpu::LoadConvertSaturation::get_type_info_static(),
+         [](const std::shared_ptr<ov::Node>&) {
+             return std::make_shared<PassThroughShapeInfer>();
+         }},
+        {ov::intel_cpu::LoadConvertTruncation::get_type_info_static(),
+         [](const std::shared_ptr<ov::Node>&) {
+             return std::make_shared<PassThroughShapeInfer>();
+         }},
+        {ov::intel_cpu::StoreConvertSaturation::get_type_info_static(),
+         [](const std::shared_ptr<ov::Node>&) {
+             return std::make_shared<PassThroughShapeInfer>();
+         }},
+        {ov::intel_cpu::StoreConvertTruncation::get_type_info_static(),
+         [](const std::shared_ptr<ov::Node>&) {
+             return std::make_shared<PassThroughShapeInfer>();
          }},
         {ov::intel_cpu::SwishNode::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>&) {
@@ -53,10 +71,5 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     }
     return {};
 }
-
-#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
-const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry =
-    detail::make_common_cpu_shape_infer_registry();
-#endif
 
 }  // namespace ov::snippets

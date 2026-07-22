@@ -9,6 +9,7 @@
 #include "op/op_translation_utils.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
 #include "tensor_lite_place.hpp"
@@ -17,6 +18,7 @@
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 
@@ -56,21 +58,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    if (variants[0].is<std::string>()) {
-        std::string model_path = variants[0].as<std::string>();
-        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
+    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+        if (GraphIteratorFlatBuffer::is_supported(*path)) {
             return true;
         }
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variants[0].is<std::wstring>()) {
-        std::wstring model_path = variants[0].as<std::wstring>();
-        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-            return true;
-        }
-    }
-#endif
-    else if (variants[0].is<GraphIterator::Ptr>()) {
+    } else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
@@ -80,25 +72,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
-        if (variants[0].is<std::string>()) {
-            std::string model_path = variants[0].as<std::string>();
-            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-                return std::make_shared<tensorflow_lite::InputModel>(
-                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
-                    m_telemetry);
+        if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+            if (GraphIteratorFlatBuffer::is_supported(*path)) {
+                return std::make_shared<tensorflow_lite::InputModel>(std::make_shared<GraphIteratorFlatBuffer>(*path),
+                                                                     m_telemetry);
             }
-        }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (variants[0].is<std::wstring>()) {
-            std::wstring model_path = variants[0].as<std::wstring>();
-            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-                return std::make_shared<tensorflow_lite::InputModel>(
-                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
-                    m_telemetry);
-            }
-        }
-#endif
-        else if (variants[0].is<GraphIterator::Ptr>()) {
+        } else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<tensorflow_lite::InputModel>(graph_iterator, m_telemetry);
         }
@@ -298,6 +277,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
+    // TSGeneral runs ConstantFolding; mark dequantization before it.
+    manager.register_pass<ov::pass::MarkDequantization>(
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);

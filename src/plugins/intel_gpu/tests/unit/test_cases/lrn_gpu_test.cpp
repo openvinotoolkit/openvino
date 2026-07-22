@@ -44,7 +44,7 @@ void test_fp32_basic(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.99901f, 3.99486f, 5.98519f,
@@ -96,7 +96,7 @@ void test_fp32_basic2(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.99889f, 3.99525f, 5.98696f,
@@ -148,7 +148,7 @@ void test_fp16_basic1(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.99889f, 3.99525f, 5.98696f,
@@ -200,7 +200,7 @@ void test_fp32_basic3(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f,      0.999792f, 1.99911f, 2.99755f, 3.99466f, 4.99f,    5.98313f, 6.97361f, 7.96102f, 8.94493f, 9.92493f,

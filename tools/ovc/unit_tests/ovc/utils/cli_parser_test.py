@@ -491,7 +491,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
             'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extension', 'verbose', 'share_weights'},
+                                     'extension', 'verbose', 'share_weights', 'dynamo'},
         }
 
         params = get_mo_convert_params()

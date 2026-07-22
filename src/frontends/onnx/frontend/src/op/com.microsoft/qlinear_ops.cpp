@@ -5,14 +5,13 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
@@ -59,14 +58,8 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
         ", B_zero_point: ",
         B_zero_point.get_element_type());
 
-    auto A_minus_zero_point = std::make_shared<v1::Subtract>(A, A_zero_point);
-    auto B_minus_zero_point = std::make_shared<v1::Subtract>(B, B_zero_point);
-
-    auto A_minus_zero_point_float = std::make_shared<v0::Convert>(A_minus_zero_point, A_scale.get_element_type());
-    auto B_minus_zero_point_float = std::make_shared<v0::Convert>(B_minus_zero_point, B_scale.get_element_type());
-
-    auto A_scaled = std::make_shared<v1::Multiply>(A_scale, A_minus_zero_point_float);
-    auto B_scaled = std::make_shared<v1::Multiply>(B_scale, B_minus_zero_point_float);
+    auto A_scaled = ov::decomposition::low_precision_dequantize(A, A_scale, A_zero_point);
+    auto B_scaled = ov::decomposition::low_precision_dequantize(B, B_scale, B_zero_point);
 
     auto result_scaled = binary_op(A_scaled, B_scaled);
 

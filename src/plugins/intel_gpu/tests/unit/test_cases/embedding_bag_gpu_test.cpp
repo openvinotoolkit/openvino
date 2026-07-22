@@ -61,7 +61,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -114,7 +114,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -195,7 +195,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -318,7 +318,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -413,7 +413,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -478,7 +478,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.9f, -1.8f,
@@ -543,7 +543,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -601,7 +601,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -716,7 +716,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -817,7 +817,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -886,7 +886,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.9f, -1.8f,
@@ -955,7 +955,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -1017,7 +1017,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -1136,7 +1136,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -1228,7 +1228,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -1338,7 +1338,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -1424,7 +1424,7 @@ void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
             0, 8, 15,  15, 9,  7,

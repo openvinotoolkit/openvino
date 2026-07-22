@@ -26,6 +26,9 @@
 
 namespace ov {
 namespace op {
+namespace v0 {
+class FakeQuantize;
+}  // namespace v0
 namespace util {
 
 template <class T>
@@ -79,6 +82,10 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
  */
 float cast_eps_to_float(double eps_d);
 
+inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    return constant && shape_size(constant->get_shape()) == 1;
+}
+
 template <typename T>
 bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -103,8 +110,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-    if (!is_scalar_or_single_elem) {
+    if (!is_scalar_or_single_elem_constant(constant)) {
         return false;
     }
 
@@ -152,6 +158,8 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<ov::op::v0::Constant>& const_node,
                                           float& value,
                                           bool check_value_range = true);
+
+TRANSFORMATIONS_API bool fq_ranges_are_equal(const std::shared_ptr<const ov::Node>& fq);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<ov::op::v0::Constant>& constant,
                                                              const PartialShape& shape);
@@ -217,6 +225,18 @@ TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
                                             std::unordered_set<ov::Node*>& visited,
                                             std::function<void(ov::Node*)> func,
                                             std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
+ * \brief Checks whether two FakeQuantize ops share identical quantization parameters: the same number
+ * of levels, the same auto-broadcast spec, and equal input_low/input_high/output_low/output_high
+ * constants.
+ *
+ * \param lhs  The first FakeQuantize.
+ * \param rhs  The second FakeQuantize.
+ * \return true if both ops are valid and have identical parameters.
+ */
+TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov::op::v0::FakeQuantize>& lhs,
+                                                        const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,

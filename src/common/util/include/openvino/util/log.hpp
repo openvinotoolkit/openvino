@@ -40,7 +40,7 @@ private:
     std::stringstream m_stream;
 };
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#if defined(ENABLE_DEBUG_CAPS) || defined(ENABLE_OPENVINO_DEBUG)
 /* Template function _write_all_to_stream has duplicates
  * It's defined in:
  * intel_cpu/src/utils/debug_capabilities and src/core/include/openvino/core/except.hpp
@@ -58,6 +58,29 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE) \
         ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, __FILE__, __LINE__).stream()
+
+static inline bool is_terminal_output() {
+#    ifdef _WIN32
+    // No Windows support for colored logs for now.
+    return false;
+#    else
+    static const bool stdout_to_terminal = isatty(fileno(stdout));
+    return stdout_to_terminal;
+#    endif
+}
+
+#    define OPENVINO_RESET            (ov::util::is_terminal_output() ? "\033[0m" : "")
+#    define OPENVINO_RED              (ov::util::is_terminal_output() ? "\033[31m" : "")
+#    define OPENVINO_GREEN            (ov::util::is_terminal_output() ? "\033[1;32m" : "")
+#    define OPENVINO_YELLOW           (ov::util::is_terminal_output() ? "\033[33m" : "")
+#    define OPENVINO_BLOCK_BEG        "{"
+#    define OPENVINO_BLOCK_END        "}"
+#    define OPENVINO_BLOCK_BODY       "│"
+#    define OPENVINO_BLOCK_BODY_RIGHT "├─"
+
+#endif
+
+#ifdef ENABLE_OPENVINO_DEBUG
 
 #    define OPENVINO_ERR(...)                                                                  \
         do {                                                                                   \
@@ -79,28 +102,26 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
             ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 
+#else
+#    define OPENVINO_ERR(...) \
+        do {                  \
+        } while (0)
+#    define OPENVINO_WARN(...) \
+        do {                   \
+        } while (0)
+#    define OPENVINO_INFO(...) \
+        do {                   \
+        } while (0)
+#    define OPENVINO_DEBUG(...) \
+        do {                    \
+        } while (0)
+#endif
+
+#ifdef ENABLE_DEBUG_CAPS
+
 static const bool logging_enabled = ov::util::getenv_bool("OV_MATCHER_LOGGING");
 static const std::unordered_set<std::string> matchers_to_log =
     ov::util::split_by_delimiter(ov::util::getenv_string("OV_MATCHERS_TO_LOG"), ',');
-
-static inline bool is_terminal_output() {
-#    ifdef _WIN32
-    // No Windows support for colored logs for now.
-    return false;
-#    else
-    static const bool stdout_to_terminal = isatty(fileno(stdout));
-    return stdout_to_terminal;
-#    endif
-}
-
-#    define OPENVINO_RESET            (ov::util::is_terminal_output() ? "\033[0m" : "")
-#    define OPENVINO_RED              (ov::util::is_terminal_output() ? "\033[31m" : "")
-#    define OPENVINO_GREEN            (ov::util::is_terminal_output() ? "\033[1;32m" : "")
-#    define OPENVINO_YELLOW           (ov::util::is_terminal_output() ? "\033[33m" : "")
-#    define OPENVINO_BLOCK_BEG        "{"
-#    define OPENVINO_BLOCK_END        "}"
-#    define OPENVINO_BLOCK_BODY       "│"
-#    define OPENVINO_BLOCK_BODY_RIGHT "├─"
 
 #    define OPENVINO_LOG_MATCHING(matcher_ptr, ...)                                                               \
         do {                                                                                                      \
@@ -122,18 +143,6 @@ static inline bool is_terminal_output() {
         } while (0)
 
 #else
-#    define OPENVINO_ERR(...) \
-        do {                  \
-        } while (0)
-#    define OPENVINO_WARN(...) \
-        do {                   \
-        } while (0)
-#    define OPENVINO_INFO(...) \
-        do {                   \
-        } while (0)
-#    define OPENVINO_DEBUG(...) \
-        do {                    \
-        } while (0)
 #    define OPENVINO_LOG_MATCHING(matcher_ptr, ...) \
         do {                                        \
         } while (0)

@@ -4,15 +4,17 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "subgraphs_builders.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "openvino/op/relu.hpp"
 
 namespace {
 
 class SerializeBaseTest : virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    std::string cacheDirName = "cache_serialize";
+    std::string cacheDirName;
 
     void run() override {
+        cacheDirName = ov::test::utils::generateTestFilePrefix() + "_cache_serialize";
         std::stringstream model_stream;
         ov::AnyMap config = { ov::cache_dir(cacheDirName) };
         compiledModel = core->compile_model(function, targetDevice);
@@ -73,11 +75,7 @@ protected:
     std::string cacheDir;
 
     void SetUp() override {
-        std::stringstream ss;
-        ss << std::hex << std::hash<std::string>{}(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-
-        // Base (no trailing slash first)
-        cacheDir = ss.str() + GetParam();
+        cacheDir = ov::test::utils::generateTestFilePrefix() + GetParam();
 
         // Clean previous
         ov::test::utils::removeFilesWithExt(cacheDir, "blob");

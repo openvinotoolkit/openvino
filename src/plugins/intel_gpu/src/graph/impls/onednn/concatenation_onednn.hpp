@@ -23,7 +23,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
-        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };
+        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {
             format::any,
             format::bfyx,
@@ -79,15 +79,12 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             return feature_dim.get_length() % feature_block_size == 0;
         };
 
-        // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
+        // oneDNN blocked format contract requires zero-filled fsv padding lanes for unaligned feature blocks.
+        // Apply the same feature alignment requirement to both input and output layouts.
         if (!is_feature_aligned(out_layout)) {
             return false;
         }
 
-        const auto& concat_node = node.as<concatenation>();
-        auto concat_axis = concat_node.get_primitive()->axis;
-
-        size_t index = 0;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
 
@@ -100,13 +97,8 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
 
-            // WA: Onednn has an issue in simple_concat blocked format Odd value, will be fixed next release.
-            if (index !=0 && concat_axis == 1 &&
-                !format::is_simple_data_format(in_layout.format) &&
-                in_layout.get_partial_shape()[1].is_static() &&
-                in_layout.get_partial_shape()[1].get_length() % 2 != 0)
+            if (!is_feature_aligned(in_layout))
                 return false;
-            index++;
         }
 
         return true;

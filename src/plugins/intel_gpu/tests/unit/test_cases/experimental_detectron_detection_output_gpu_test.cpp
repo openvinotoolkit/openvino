@@ -149,7 +149,7 @@ public:
         const auto outputs = network->execute();
 
         const auto output_boxes = outputs.at(eddo_id).get_memory();
-        const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_boxes_ptr(output_boxes, get_test_stream());
         ASSERT_EQ(output_boxes_ptr.size(), param.max_detections_per_image * 4);
 
         const primitive_id output_scores_id = "OutputScores";
@@ -160,7 +160,7 @@ public:
         reorder_score_net.set_input_data(b_output_scores_id, b_output_scores);
         const auto score_result = reorder_score_net.execute();
         const auto output_scores = score_result.at(output_scores_id).get_memory();
-        const cldnn::mem_lock<T> output_scores_ptr(output_scores, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_scores_ptr(output_scores, get_test_stream());
         ASSERT_EQ(output_scores_ptr.size(), param.max_detections_per_image);
 
         const primitive_id output_classes_id = "OutputClasses";
@@ -171,7 +171,7 @@ public:
         reorder_classes_net.set_input_data(b_output_classes_id, b_output_classes);
         const auto classes_result = reorder_classes_net.execute();
         const auto output_classes = classes_result.at(output_classes_id).get_memory();
-        const cldnn::mem_lock<int32_t> output_classes_ptr(output_classes, get_test_stream());
+        const cldnn::mem_lock<int32_t, mem_lock_type::read> output_classes_ptr(output_classes, get_test_stream());
         ASSERT_EQ(output_classes_ptr.size(), param.max_detections_per_image);
 
         const auto& expected_boxes = param.expected_boxes;

@@ -83,7 +83,7 @@ class TestScaledDotProductAttention(PytorchLayerTest):
         if PytorchLayerTest.use_torch_export() and not mask and is_causal:
             pytest.xfail(reason="Unsupported case for torch.export")
         dtype = np.float64
-        self._test(*self.create_model(mask, is_causal, dtype, mask_shape),
+        self._test(*self.create_model(mask, is_causal, dtype, mask_shape, enable_gqa=False),
                    ie_device, precision, ir_version, dynamic_shapes=dyn_shapes,
                    kwargs_to_prepare_input={"dtype": dtype})
 

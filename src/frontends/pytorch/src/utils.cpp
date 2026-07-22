@@ -680,7 +680,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         } else if (op_type == "aten::add") {
             // Insert at beginning because we're walking backward through the chain.
             // Elements from RHS list come before any elements appended after this add operation.
-            auto&& rhs_list = get_list_as_outputs(fw_node->get_input_source_output(1));
+            auto&& rhs_list = get_list_as_outputs(fw_node->get_input_source_output(1), unsqueeze_for_concat);
             res.insert(res.begin(), rhs_list.begin(), rhs_list.end());
         } else {
             break;

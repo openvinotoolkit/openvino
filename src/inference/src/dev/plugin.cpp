@@ -8,7 +8,7 @@
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
@@ -56,7 +56,7 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<co
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::filesystem::path& model_path,
                                                         const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(ov::util::path_to_string(model_path), properties), m_so});
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

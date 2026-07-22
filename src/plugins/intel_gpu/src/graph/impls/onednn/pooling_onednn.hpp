@@ -66,9 +66,9 @@ struct PoolingImplementationManager : public ImplementationManager {
             format::bs_fs_zyx_bsv32_fsv32,
         };
 
-        bool fp_case = everyone_is(ov::element::f16, in_dt, out_dt);
+        bool fp_case = one_of(in_dt, {ov::element::f16, ov::element::bf16}) && everyone_is(in_dt, out_dt);
         bool u8s8_case = one_of(in_dt, {ov::element::i8, ov::element::u8}) &&
-                         one_of(out_dt, {ov::element::i8, ov::element::u8, ov::element::f32, ov::element::f16});
+                         one_of(out_dt, {ov::element::i8, ov::element::u8, ov::element::f32, ov::element::f16, ov::element::bf16});
 
         if (!fp_case && !u8s8_case)
             return false;

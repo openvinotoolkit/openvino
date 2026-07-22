@@ -22,6 +22,7 @@ protected:
 
         auto prim = params.typed_desc<moe_mask_gen>();
         jit.make("NUM_EXPERTS_PER_TOKEN", prim->num_experts_per_token);
+        jit.make("ONEDNN_GROUPED_GEMM_USED", prim->onednn_grouped_gemm_used);
 
         return jit;
     }

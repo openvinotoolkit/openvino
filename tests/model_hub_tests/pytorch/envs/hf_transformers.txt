@@ -1,0 +1,24 @@
+# Extra dependencies for test_hf_transformers.py and test_llm.py
+# These are common model-hub deps not needed by layer tests
+# before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
+transformers==4.47.1
+datasets==3.0.1
+huggingface-hub==0.25.2
+hf_transfer==0.1.9
+sentencepiece==0.2.1
+sacremoses==0.1.1
+soundfile==0.12.1
+pandas==2.2.3
+av==13.0.0
+
+# requirements for specific HF models
+# - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
+rjieba==0.1.11
+# - katuni4ka/tiny-random-qwen
+# - katuni4ka/tiny-random-internlm2
+transformers_stream_generator==0.0.5
+einops==0.8.0
+
+# librosa/pyctcdecode needed internally by some HF audio models
+librosa==0.10.2; python_version < "3.12"
+pyctcdecode==0.5.0; python_version < "3.12"

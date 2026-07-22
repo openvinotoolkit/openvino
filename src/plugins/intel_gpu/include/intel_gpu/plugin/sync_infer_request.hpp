@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
@@ -18,6 +19,26 @@
 namespace ov::intel_gpu {
 
 class CompiledModel;
+class Graph;
+
+/// @brief Thread-safe wrapper around VariableStateBase that acquires the graph mutex
+/// before delegating reset() calls. This ensures that reset_state() from one InferRequest
+/// does not race with infer() on a sibling InferRequest sharing the same CompiledModel.
+/// See: https://github.com/openvinotoolkit/openvino/issues/36458
+class ThreadSafeVariableStateWrapper : public ov::IVariableState {
+public:
+    ThreadSafeVariableStateWrapper(std::shared_ptr<ov::IVariableState> state,
+                                    std::shared_ptr<Graph> graph);
+
+    void reset() override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+private:
+    std::shared_ptr<ov::IVariableState> m_state;
+    std::shared_ptr<Graph> m_graph;
+};
+
 
 enum class TensorOwner : uint8_t {
     USER = 0,
@@ -44,7 +65,7 @@ public:
 
     explicit SyncInferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);
     SyncInferRequest(const SyncInferRequest &) = delete;
-    ~SyncInferRequest() override = default;
+    ~SyncInferRequest() override;
 
     void infer() override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -118,8 +139,14 @@ private:
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
     uint64_t total_output_bytes = 0;
+
+    // Per-output-port OutputMemoryBlock for zero-copy dynamic output.
+    // Keyed by output port index. Only populated when USM host memory is available.
+    std::unordered_map<size_t, std::unique_ptr<OutputMemoryBlock>> m_output_memory_blocks;
+
     // Variable to hold the inference request string with compiled model name
     // to prevent this string being constructed for each inference call
-    std::string m_itt_infer_request_str;};
+    std::string m_itt_infer_request_str;
+};
 
 }  // namespace ov::intel_gpu

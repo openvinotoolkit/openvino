@@ -90,8 +90,7 @@ std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts(moe_mask_gen_
     // tokens_per_expert
     output_layouts.emplace_back(impl_param.get_input_layout(0));
     // experts_info_start_idx
-    auto experts_info_start_idx_shape = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
-    output_layouts.emplace_back(experts_info_start_idx_shape, data_types::i32, format::bfyx);
+    output_layouts.emplace_back(impl_param.get_input_layout(1));
     // experts_id
     auto experts_ids_shape = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
     output_layouts.emplace_back(experts_ids_shape, data_types::i32, format::bfyx);

@@ -166,12 +166,24 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
-        return false;
-    }
-
-    if (srcDesc->getPrecision() != ov::element::f32) {
+    // BF16 dynamic-quant path requires native x86 BF16 HW support (AVX512_BF16) AND an
+    // AVX512-VNNI impl in oneDNN (only avx512_core_vnni instance is registered for bf16 src).
+    const auto srcPrecision = srcDesc->getPrecision();
+    if (srcPrecision == ov::element::bf16) {
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+            return false;
+        }
+        // On AMX-capable HW, AMX BF16 TMUL outperforms VNNI int8 dyn-quant for bf16 src.
+        // Disable the bf16 dyn-quant entry here so the AMX BF16 path stays in use.
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            return false;
+        }
+    } else if (srcPrecision == ov::element::f32) {
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
+            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
+            return false;
+        }
+    } else {
         return false;
     }
 
@@ -198,9 +210,13 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-    int ic = weightsDesc->getShape().getStaticDims()[1];
+    size_t ic = weightsDesc->getShape().getStaticDims()[1];
 
-    if (ic < static_cast<int>(simdWidth)) {
+    if (ic < simdWidth) {
+        return false;
+    }
+
+    if (ic < dqGroupSize) {
         return false;
     }
 
@@ -215,7 +231,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     if (zpPtr && zpPtr->getShape().getRank() != 1) {
         auto zpDims = zpPtr->getShape().getStaticDims();
-        int groupsNum = zpDims[1];
+        auto groupsNum = zpDims[1];
         size_t groupSize = ic / groupsNum;
         if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;

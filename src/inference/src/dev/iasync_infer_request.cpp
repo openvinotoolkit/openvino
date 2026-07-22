@@ -4,13 +4,19 @@
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+#include <atomic>
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
+
+/// @brief Thread-safe global counter for unique inference request IDs that
+/// are needed for asynchronous inference.
+static std::atomic<uint64_t> g_inference_uid = {1};
 
 namespace {
 
@@ -37,7 +43,8 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
 ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
-    : m_sync_request(request),
+    : m_infer_id(0),
+      m_sync_request(request),
       m_request_executor(task_executor),
       m_callback_executor(callback_executor) {
     if (m_request_executor && m_sync_request)
@@ -59,7 +66,7 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
 void ov::IAsyncInferRequest::wait() {
     // Just use the last '_futures' member to wait pipeline completion
     auto future = [this] {
-        std::lock_guard<std::mutex> lock{m_mutex};
+        std::lock_guard lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
     if (future.valid()) {
@@ -72,7 +79,7 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
 
     // Just use the last '_futures' member to wait pipeline completion
     auto future = [this] {
-        std::lock_guard<std::mutex> lock{m_mutex};
+        std::lock_guard lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
 
@@ -91,7 +98,7 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
 }
 
 void ov::IAsyncInferRequest::cancel() {
-    std::lock_guard<std::mutex> lock{m_mutex};
+    std::lock_guard lock{m_mutex};
     if (m_state == InferState::BUSY) {
         m_state = InferState::CANCELLED;
     }
@@ -99,8 +106,8 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
-    std::lock_guard<std::mutex> lock{m_mutex};
-    m_callback = std::move(callback);
+    std::lock_guard lock{m_mutex};
+    m_callback = std::make_shared<std::function<void(std::exception_ptr)>>(std::move(callback));
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
@@ -119,6 +126,7 @@ void ov::IAsyncInferRequest::start_async_thread_unsafe() {
 void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginStage,
                                              const Pipeline::iterator itEndStage,
                                              const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
+    m_infer_id = g_inference_uid++;
     auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
     OPENVINO_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
@@ -130,6 +138,8 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
     const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
     return std::bind(
         [this, itStage, itEndStage](std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor) mutable {
+            // Propagate the inference ID through all subsequent stages for this instance of the pipeline
+            OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Inference, "Inference::pipeline", "InferenceID", m_infer_id);
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
@@ -150,22 +160,18 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
                     std::promise<void> promise;
-                    std::function<void(std::exception_ptr)> callback;
+                    std::shared_ptr<std::function<void(std::exception_ptr)>> callback;
                     {
-                        std::lock_guard<std::mutex> lock{m_mutex};
+                        std::lock_guard lock{m_mutex};
                         m_state = InferState::IDLE;
                         promise = std::move(m_promise);
-                        std::swap(callback, m_callback);
+                        callback = m_callback;
                     }
-                    if (callback) {
+                    if (callback && *callback) {
                         try {
-                            callback(currentException);
+                            (*callback)(currentException);
                         } catch (...) {
                             currentException = std::current_exception();
-                        }
-                        std::lock_guard<std::mutex> lock{m_mutex};
-                        if (!m_callback) {
-                            std::swap(callback, m_callback);
                         }
                     }
                     if (nullptr == currentException) {

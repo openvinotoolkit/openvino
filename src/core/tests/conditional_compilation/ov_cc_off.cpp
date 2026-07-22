@@ -38,12 +38,16 @@ TEST(conditional_compilation, op_scope_with_disabled_cc) {
 TEST(conditional_compilation, all_ops_enabled_in_opset) {
     ov::OpSet opset("test_opset2");
     INSERT_OP(test_opset2, Abs, ov::op::v0);
-    EXPECT_NE(opset.create("Abs"), nullptr);
-    EXPECT_NE(opset.create_insensitive("Abs"), nullptr);
+    auto node = std::shared_ptr<ov::Node>(opset.create("Abs"));
+    EXPECT_NE(node.get(), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create_insensitive("Abs"));
+    EXPECT_NE(node.get(), nullptr);
 
     INSERT_OP(test_opset2, Constant, ov::op::v0);
-    EXPECT_NE(opset.create("Constant"), nullptr);
-    EXPECT_NE(opset.create_insensitive("Constant"), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create("Constant"));
+    EXPECT_NE(node.get(), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create_insensitive("Constant"));
+    EXPECT_NE(node.get(), nullptr);
 }
 
 namespace {

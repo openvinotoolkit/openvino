@@ -105,11 +105,7 @@ public:
     void disable() {
         m_disabled = true;
     }
-    void enable() {
-        // We dont count on data_desc in case other data is absent
-        m_disabled = (m_shape.size() == 0 || m_traversal_order.size() == 0 || m_block_map.size() == 0 ||
-                      m_dim_format.size() == 0);
-    }
+    void enable();
     // Unpack sparse tensor and returns dense data
     void* dense_data() {
         if (m_disabled)
