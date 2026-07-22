@@ -5,6 +5,7 @@
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -445,6 +446,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     std::shared_ptr<ov::AlignedBuffer> constant_buffer;
     bool external_data_valid = has_external_data();
+    // Weightless caching info is only meaningful for data backed by an external file,
+    // where the constant's bytes can be reloaded from a known offset. It is intentionally
+    // not set for the ORT in-memory address case (offset there is a raw pointer, not a
+    // file offset) nor for inline initializers.
+    bool has_weightless_offset = false;
+    size_t weightless_offset = 0;
     if (external_data_valid) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
@@ -456,8 +463,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant_buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
             constant_buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+            has_weightless_offset = true;
+            weightless_offset = ext_data.offset();
         } else {
             constant_buffer = ext_data.load_external_data(m_model_dir);
+            has_weightless_offset = true;
+            weightless_offset = ext_data.offset();
         }
         if (element_count == 0 && constant_buffer) {
             element_count = constant_buffer->size() * 8 / ov_type.bitwidth();
@@ -609,6 +620,15 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant->get_default_output().set_names({names.begin(), names.end()});
         }
     }
+
+    // Set the weightless caching attribute only for constants whose data comes from an
+    // external file, using the actual byte offset in that file. Inline initializers and
+    // ORT in-memory tensors don't have a reloadable file offset and thus get no attribute.
+    if (has_weightless_offset) {
+        constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(constant->get_byte_size(), weightless_offset, constant->get_element_type());
+    }
+
     return constant;
 }
 
