@@ -26,7 +26,7 @@ class ExtractImagePatchesKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     using DispatchData = CommonDispatchData;
-    virtual ~ExtractImagePatchesKernelBase() {}
+    ~ExtractImagePatchesKernelBase() override {}
 
 protected:
     virtual JitConstants GetJitConstants(const extract_image_patches_params& params) const;
