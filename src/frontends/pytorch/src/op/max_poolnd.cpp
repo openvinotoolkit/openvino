@@ -4,27 +4,8 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/framework_node.hpp"
-#include "pt_framework_node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
-// After utils.hpp: this opens ns ...::pytorch::op, but utils.hpp uses unqualified op:: (== ov::op).
-#include "max_poolnd.hpp"
 
 namespace ov {
 namespace frontend {
@@ -33,105 +14,19 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
-                                   Output<Node> input,
-                                   int dims,
-                                   bool return_indices,
-                                   const Shape& kernel,
-                                   const Strides& strides,
-                                   const Shape& pads,
-                                   const Strides& dilations,
-                                   RoundingType rounding_type) {
-    auto input_shape = rg.make<v3::ShapeOf>(input);
-
-    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
-    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
-    bool is_static = input.get_partial_shape().rank().is_static();
-    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
-
-    if (is_static) {
-        if (no_batch_dim) {
-            input = rg.make<v0::Unsqueeze>(input, const_0);
-        }
-    } else {
-        input = rg.make<v0::Unsqueeze>(input, const_0);
-        auto unsqueeze_shape = rg.make<v3::ShapeOf>(input);
-        auto rank = rg.make<v0::ShapeOf>(unsqueeze_shape);
-        auto end_index = rg.make<v1::Add>(rank, const_1);
-        auto start_index = v0::Constant::create(element::i64, Shape{1}, {-dims - 2});
-        auto reshape_pattern = rg.make<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0);
-        input = rg.make<v1::Reshape>(input, reshape_pattern, true);
-    }
-
-    auto res = rg.make<
-        v14::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type, PadType::EXPLICIT, element::i64, 2);
-    if (is_static) {
-        if (no_batch_dim) {
-            if (return_indices) {
-                auto out1 = res->output(0);
-                auto out2 = res->output(1);
-                out1 = rg.make<v0::Squeeze>(out1, const_0);
-                out2 = rg.make<v0::Squeeze>(out2, const_0);
-                return {out1, out2};
-            } else {
-                auto squeezed = rg.make<v0::Squeeze>(res, const_0);
-                return {squeezed};
-            }
-        } else {
-            if (return_indices) {
-                return {res->output(0), res->output(1)};
-            } else {
-                return {res};
-            }
-        }
-
-    } else {
-        auto pooled_output_shape = rg.make<v3::ShapeOf>(res);
-
-        auto start_index_input = v0::Constant::create(element::i64, Shape{1}, {-dims});
-        auto slice_input_shape = rg.make<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0);
-
-        auto start_index_pooled = v0::Constant::create(element::i64, Shape{1}, {-dims});
-        auto end_index_pooled = v0::Constant::create(element::i64, Shape{1}, {2 + dims});
-        auto slice_pooled_output_shape =
-            rg.make<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0);
-
-        auto concat_shape = rg.make<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0);
-        if (return_indices) {
-            auto out1 = res->output(0);
-            auto out2 = res->output(1);
-            out1 = rg.make<v1::Reshape>(out1, concat_shape, true);
-            out2 = rg.make<v1::Reshape>(out2, concat_shape, true);
-            return {out1, out2};
-        } else {
-            auto reshaped = rg.make<v1::Reshape>(res, concat_shape, true);
-            return {reshaped};
-        }
-    }
-}
-
 OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool return_indices) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
 
     // The MaxPool kernel is a constructor attribute, but PyTorch can build kernel_size from runtime
-    // values (e.g. [1, x.size(3)]). If any element is non-constant now, defer to
-    // MaxPoolDynamicKernelResolver: once shapes propagate (e.g. convert_model(input=...)) it may
-    // become static and lower to a plain MaxPool, else fall back to ReduceMax.
-    bool kernel_is_static = true;
+    // values (e.g. [1, x.size(3)]). If any element is non-constant now, fail conversion so the op is
+    // left as a PtFrameworkNode: MaxPoolDynamicKernelResolver picks it up after shapes propagate and
+    // either folds it to a plain MaxPool (e.g. convert_model(input=...)) or a ReduceMax fallback.
     for (const auto& e : get_list_as_outputs(context.get_input(1))) {
-        if (!ov::util::get_constant_from_source(e)) {
-            kernel_is_static = false;
-            break;
-        }
-    }
-    if (!kernel_is_static) {
-        // Keep the return_indices ? 2 : 1 arity on the placeholder so downstream consumers (and the
-        // FX list-construct wrapper) see the expected ports.
-        const size_t num_outputs = return_indices ? 2 : 1;
-        auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), num_outputs);
-        context.mark_node(fw_node);
-        return fw_node->outputs();
+        PYTORCH_OP_CONVERSION_CHECK(ov::util::get_constant_from_source(e),
+                                    "aten::max_pool",
+                                    dims,
+                                    "d with a non-constant kernel_size is deferred to a normalization pass.");
     }
 
     // All kernel elements are constant -> build the static MaxPool directly.
