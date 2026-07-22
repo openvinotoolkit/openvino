@@ -71,7 +71,7 @@ Common
 
 * Introduced optimized memory management for constant weights when loading and compiling models from IR and ONNX formats on Windows, reducing peak memory usage and RAM pressure to enable inference on memory-constrained systems. Linux support was added in 26.2.
 
-* Improved compatibility with the latest Linux toolchains, enabling successful source builds on Ubuntu 26.04 with GCC 15.
+* Added official support for Ubuntu 26.04 LTS, including support for building OpenVINO from source with GCC 15.
 
 * Fixed constant folding for the Loop node, enabling a broader range of ONNX models to compile successfully during model optimization.
 
