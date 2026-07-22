@@ -7,11 +7,21 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen. Required for self-hosted runners selected by labels (e.g. GPU)'
+        type: string
+        required: false
+        default: ''
       image:
         description: 'Docker image to use for the job'
         type: string
         required: false
         default: null
+      options:
+        description: 'Docker options to use for the job'
+        type: string
+        required: false
+        default: ''
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -22,12 +32,15 @@ permissions: read-all
 jobs:
   Samples:
     timeout-minutes: 30
-    runs-on: ${{ inputs.runner }}
+    # When 'runner-group' is provided the runner is selected by a group + labels (self-hosted, e.g. GPU);
+    # otherwise 'runner' is treated as a plain runner label string (e.g. aks-* runners).
+    runs-on: ${{ inputs.runner-group != '' && fromJSON(format('{{"group": {0}, "labels": {1}}}', toJSON(inputs.runner-group), inputs.runner)) || inputs.runner }}
     container:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: ${{ inputs.options }}
     defaults:
       run:
         shell: bash
