@@ -75,9 +75,8 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_weightless_cache_attribute) {
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
 
-    // The model has one external initializer ("A", 2x2 f32 stored in tensors_data/tensor.data
-    // with a default offset of 0) and one inline Constant node ("B"). Only the constant backed
-    // by external data must carry the WeightlessCacheAttribute, with the real byte offset and size.
+    // "A" is an external initializer (offset 0); "B" is an inline Constant node.
+    // Only the external one must carry WeightlessCacheAttribute.
     size_t external_constants = 0;
     for (const auto& op : model->get_ordered_ops()) {
         const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
@@ -93,7 +92,6 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_weightless_cache_attribute) {
             EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
             ++external_constants;
         } else {
-            // Inline initializers / constants must not receive the attribute.
             EXPECT_EQ(it, rt_info.end()) << "Inline constant '" << const_node->get_friendly_name()
                                          << "' unexpectedly has WeightlessCacheAttribute";
         }

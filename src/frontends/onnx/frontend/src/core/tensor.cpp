@@ -446,10 +446,8 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     std::shared_ptr<ov::AlignedBuffer> constant_buffer;
     bool external_data_valid = has_external_data();
-    // Weightless caching info is only meaningful for data backed by an external file,
-    // where the constant's bytes can be reloaded from a known offset. It is intentionally
-    // not set for the ORT in-memory address case (offset there is a raw pointer, not a
-    // file offset) nor for inline initializers.
+    // Only set for data backed by an external file. In the ORT case the "offset" is a raw
+    // memory address of a temporary buffer, not a reloadable file offset, so it is skipped.
     bool has_weightless_offset = false;
     size_t weightless_offset = 0;
     if (external_data_valid) {
@@ -621,9 +619,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         }
     }
 
-    // Set the weightless caching attribute only for constants whose data comes from an
-    // external file, using the actual byte offset in that file. Inline initializers and
-    // ORT in-memory tensors don't have a reloadable file offset and thus get no attribute.
     if (has_weightless_offset) {
         constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
             ov::WeightlessCacheAttribute(constant->get_byte_size(), weightless_offset, constant->get_element_type());
