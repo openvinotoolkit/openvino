@@ -1099,7 +1099,11 @@ TEST(GGUFOps, Cpy) {
     std::copy(x.begin(), x.end(), x_t.data<int32_t>());
     auto out = run_on_cpu(model, {{"x", x_t}});
 
-    std::vector<float> expected(x.begin(), x.end());
+    std::vector<float> expected;
+    expected.reserve(x.size());
+    for (int32_t v : x) {
+        expected.push_back(static_cast<float>(v));
+    }
     expect_near(out, expected, 0.0f);
 }
 
