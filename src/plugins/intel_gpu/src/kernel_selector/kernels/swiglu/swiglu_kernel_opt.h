@@ -10,7 +10,7 @@ namespace kernel_selector {
 class SwiGLUKernelOpt : public SwiGLUKernelBase {
 public:
     SwiGLUKernelOpt() : SwiGLUKernelBase("swiglu_gpu_opt") {}
-    virtual ~SwiGLUKernelOpt() {}
+    ~SwiGLUKernelOpt() override {}
 
 protected:
     KernelsPriority GetKernelsPriority(const Params& params) const override;

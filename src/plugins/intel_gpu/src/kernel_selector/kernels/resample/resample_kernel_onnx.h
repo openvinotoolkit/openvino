@@ -11,7 +11,7 @@ class ResampleKernelOnnx : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
     ResampleKernelOnnx() : ResampleKernelBase("resample_onnx") {}
-    virtual ~ResampleKernelOnnx() = default;
+    ~ResampleKernelOnnx() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
