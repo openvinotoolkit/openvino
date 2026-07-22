@@ -208,9 +208,9 @@ def read_bool_env(name: str) -> bool | None:
     """Read a boolean-ish environment variable.
 
     Returns None if it is unset/empty, or if its value is not a recognized
-    boolean spelling -- a typo (e.g. ``DRY_RUN=flase``) must not silently be
-    treated as False, since that would make ``dry_run`` fall back to its safe
-    default of True rather than accidentally disabling it.
+    boolean spelling. A typo (e.g. ``DRY_RUN=flase``) must never be silently
+    read as False: returning None instead lets the caller fall back to the
+    safe default (True for DRY_RUN) rather than accidentally disabling it.
     """
     value = os.environ.get(name)
     if value is None or not value.strip():
