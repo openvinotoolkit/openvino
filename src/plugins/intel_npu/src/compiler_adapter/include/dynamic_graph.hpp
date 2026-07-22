@@ -8,7 +8,7 @@
 
 #include <mutex>
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -16,152 +16,19 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class DynamicGraph final : public IDynamicGraph {
+class DynamicGraph final : public IGraph {
 public:
-    struct MemRefTypeImpl {
-        npu_vm_runtime_mem_ref_handle_t _memRef;
-        bool _ptrUpdated = false;
-        bool _shapeUpdated = false;
-        bool _strideUpdated = false;
-
-        MemRefTypeImpl() : _memRef(nullptr) {}
-
-        ~MemRefTypeImpl() {
-            destroyMemRef();
-        }
-
-        void UpdateMemRefHandleStatus(MemRefType& memref) {
-            // Update current MemRef handle to use latest metadata
-            if (_memRef == nullptr) {
-                createMemRef(memref._dimsCount);
-            } else {
-                // Create a temporary MemRefType based on current handle and compare, use arg to create right size
-                MemRefType tempMemRef(memref._basePtr,
-                                      memref._data,
-                                      memref._offset,
-                                      memref._sizes,
-                                      memref._strides,
-                                      memref._dimsCount);
-                alignWithHandle(tempMemRef);
-                // Check ptr
-                if (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||
-                    memref._offset != tempMemRef._offset) {
-                    _ptrUpdated = true;
-                } else {
-                    _ptrUpdated = false;
-                }
-
-                // Check shape
-                if (memref._sizes != tempMemRef._sizes) {
-                    _shapeUpdated = true;
-                } else {
-                    _shapeUpdated = false;
-                }
-
-                // Check strides
-                if (memref._strides != tempMemRef._strides) {
-                    _strideUpdated = true;
-                } else {
-                    _strideUpdated = false;
-                }
-            }
-            auto result = npuVMRuntimeSetMemRef(_memRef,
-                                                memref._basePtr,
-                                                memref._data,
-                                                memref._offset,
-                                                memref._sizes.data(),
-                                                memref._strides.data(),
-                                                memref._dimsCount);
-            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                throw std::runtime_error("Failed to update MemRef handle");
-            }
-        }
-
-        void alignWithHandle(MemRefType& memref) {
-            if (_memRef == nullptr) {
-                return;
-            }
-
-            if (npuVMRuntimeParseMemRef(_memRef,
-                                        &memref._basePtr,
-                                        &memref._data,
-                                        &memref._offset,
-                                        memref._sizes.data(),
-                                        memref._strides.data(),
-                                        &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                throw std::runtime_error("Failed to parse MemRef handle");
-            }
-        }
-
-    private:
-        void createMemRef(int64_t dimsCount) {
-            if (_memRef == nullptr) {
-                auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
-                if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                    OPENVINO_THROW("Failed to create MemRef handle");
-                }
-            }
-        }
-
-        void destroyMemRef() {
-            if (_memRef != nullptr) {
-                npuVMRuntimeDestroyMemRef(_memRef);
-                _memRef = nullptr;
-            }
-        }
-    };
-
-    struct GraphArgumentsImpl {
-        std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
-        std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
-        npu_vm_runtime_execute_params_t _executeParams = {};
-
-        ~GraphArgumentsImpl() {
-            if (_executeParams.executionContext != nullptr) {
-                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
-                _executeParams.executionContext = nullptr;
-            }
-        }
-    };
-
-    class Impl {
-        using MemRefTypeImpl = DynamicGraph::MemRefTypeImpl;
-
-    public:
-        virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
-        virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
-        virtual void setArgumentValueWithStrides(uint32_t argi,
-                                                 const void* argv,
-                                                 const std::vector<size_t>& strides) = 0;
-        virtual uint64_t getNumSubgraphs() = 0;
-        virtual void getBinding(GraphArguments& binding) = 0;
-        virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                  GraphArguments& args,
-                                  std::vector<ze_command_list_handle_t>& commandLists,
-                                  ze_command_queue_handle_t commandQueue,
-                                  ze_fence_handle_t fence,
-                                  ze_event_handle_t event,
-                                  ze_graph_profiling_pool_handle_t profiling) = 0;
-        virtual void predictOutputShape(GraphArguments& args,
-                                        std::vector<MemRefType>& inputDescriptors,
-                                        std::vector<MemRefType>& outputDescriptors) = 0;
-        virtual ~Impl() {};
-    };
-
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 bool blobAllocatedByPlugin,
                  const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    void set_argument_value(uint32_t argi, const void* argv) const override;
+    void* get_handle() const override;
 
-    void set_argument_value_with_strides(uint32_t id,
-                                         const void* data,
-                                         const std::vector<size_t>& strides) const override;
-
-    ze_graph_handle_t get_handle() const override;
+    bool is_dynamic() const override {
+        return true;
+    }
 
     ~DynamicGraph() override;
 
@@ -181,22 +48,6 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 GraphArguments& args,
-                 std::vector<ze_command_list_handle_t>& commandLists,
-                 ze_command_queue_handle_t commandQueue,
-                 ze_fence_handle_t inferenceFence,
-                 ze_event_handle_t event,
-                 ze_graph_profiling_pool_handle_t profiling) override;
-
-    void getBinding(GraphArguments& args) override;
-
-    uint64_t get_num_subgraphs() const override;
-
-    void predict_output_shape(GraphArguments& args,
-                              std::vector<MemRefType>& inputDescriptors,
-                              std::vector<MemRefType>& outputDescriptors) override;
-
     std::optional<bool> is_profiling_blob() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
@@ -207,6 +58,10 @@ private:
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
+    void initialize_engine();
+    void create_execution_engine();
+    void prepare_metadata();
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     NetworkMetadata _metadata;
@@ -215,12 +70,6 @@ private:
     // change, keep the same workload type to avoid creating a queue with an unexpected workload.
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
-
-    /**
-     * @brief Stores the number of subgraphs for dynamic models
-     * @note the number of subgraphs will be one for static models
-     */
-    uint64_t _num_of_subgraphs = 1;
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
@@ -243,7 +92,9 @@ private:
 
     Logger _logger;
 
-    std::unique_ptr<Impl> _impl;
+    npu_vm_runtime_handle_t _engine = nullptr;
+    npu_vm_runtime_properties_t _engineProperties{};
+    bool _engineInitialized = false;
 };
 
 }  // namespace intel_npu

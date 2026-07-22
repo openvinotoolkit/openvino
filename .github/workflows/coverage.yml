@@ -338,6 +338,7 @@ jobs:
           popd
 
       - name: Verify GPU device availability
+        timeout-minutes: 5
         run: clinfo
 
       - name: Restore coverage notes

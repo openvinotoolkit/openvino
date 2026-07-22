@@ -84,6 +84,13 @@ std::vector<PreluParams> generatePreluFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<PreluParams> preluParams{
+        PreluParams(ov::Shape{},
+                    IN_ET,
+                    std::vector<T>{-4},
+                    std::vector<T>{-2},
+                    ov::Shape{1},
+                    std::vector<T>{0.5},
+                    "scalar_data"),
         PreluParams(ov::Shape{6},
                     IN_ET,
                     std::vector<T>{1, 2, -3, -4, 5, 6},
