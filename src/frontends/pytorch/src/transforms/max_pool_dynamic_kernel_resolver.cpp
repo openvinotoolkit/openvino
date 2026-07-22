@@ -373,8 +373,7 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                     op_label + " with a non-constant kernel_size is only supported with ceil_mode=False.");
                 return false;
             }
-            if (static_cast<int>(elem_is_const.size()) != dims ||
-                static_cast<int>(elem_runtime_val.size()) != dims) {
+            if (static_cast<int>(elem_is_const.size()) != dims || static_cast<int>(elem_runtime_val.size()) != dims) {
                 add_exception_to_fw_node(fw_node,
                                          op_label + ": could not interpret the non-constant kernel_size (expected " +
                                              std::to_string(dims) + " spatial entries).");
