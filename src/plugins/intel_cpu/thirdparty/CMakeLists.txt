@@ -148,10 +148,42 @@ function(ov_add_onednn)
         set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
     endif()
 
+    # oneDNN treats clang-cl as Clang in its MSVC generator path and adds
+    # Unix-style frame-pointer flags (-fno-omit-frame-pointer and
+    # -mno-omit-leaf-frame-pointer). clang-cl ignores these flags and reports
+    # noisy -Wunknown-argument warnings, while oneDNN's MSVC branch avoids them.
+    # Temporarily expose clang-cl as MSVC only while configuring oneDNN, then
+    # restore the real compiler IDs immediately after add_subdirectory.
+    if(OV_COMPILER_IS_CLANG_CL)
+        set(OV_ONEDNN_C_COMPILER_ID ${CMAKE_C_COMPILER_ID})
+        set(OV_ONEDNN_CXX_COMPILER_ID ${CMAKE_CXX_COMPILER_ID})
+        set(CMAKE_C_COMPILER_ID MSVC)
+        set(CMAKE_CXX_COMPILER_ID MSVC)
+    endif()
+
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
-    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    if(DEFINED OV_ONEDNN_CXX_COMPILER_ID)
+        set(CMAKE_C_COMPILER_ID ${OV_ONEDNN_C_COMPILER_ID})
+        set(CMAKE_CXX_COMPILER_ID ${OV_ONEDNN_CXX_COMPILER_ID})
+        unset(OV_ONEDNN_C_COMPILER_ID)
+        unset(OV_ONEDNN_CXX_COMPILER_ID)
+    endif()
+
+    # Clear MASM source compile flags so assembler invocations do not inherit
+    # /clang:... options or other C/C++ global flags. Collect MLAS ASM files
+    # and explicitly remove per-source COMPILE_FLAGS.
+    if(OV_COMPILER_IS_CLANG_CL)
+        file(GLOB_RECURSE _mlas_asm_files
+            "${CMAKE_CURRENT_SOURCE_DIR}/mlas/lib/amd64/*.asm"
+        )
+        if(_mlas_asm_files)
+            set_source_files_properties(${_mlas_asm_files} PROPERTIES COMPILE_FLAGS "")
+        endif()
+    endif()
+
+# 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
     endif()
 
@@ -183,9 +215,37 @@ endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas EXCLUDE_FROM_ALL)
+
     # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(mlas PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+    endif()
+
+    # Ensure MLAS C/C++ translation units are compiled with the required
+    # ISA feature flags when using clang-cl on Windows. Use per-target
+    # target_compile_options with language generator-expressions so these
+    # /clang: flags apply only to C/C++ compile rules.
+    if(OV_COMPILER_IS_CLANG_CL)
+        target_compile_options(mlas PRIVATE
+            $<$<COMPILE_LANGUAGE:C>:/clang:-msse4.1>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-msse4.1>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mssse3>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mssse3>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx2>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx2>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mfma>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mfma>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512f>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512f>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512bw>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512bw>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512dq>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512dq>
+            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512vl>
+            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512vl>
+        )
     endif()
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()

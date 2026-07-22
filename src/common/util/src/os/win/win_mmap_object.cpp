@@ -276,9 +276,18 @@ public:
         return valid(m_handle);
     }
 
+#if defined(__clang__)
+    // Clang rejects certain casts in constexpr evaluation (INVALID_HANDLE_VALUE
+    // may expand to a non-constexpr expression). Make this non-constexpr under
+    // clang while preserving constexpr for other compilers (MSVC).
+    static bool valid(HANDLE h) {
+        return h != INVALID_HANDLE_VALUE && h != nullptr;
+    }
+#else
     static constexpr bool valid(HANDLE h) {
         return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
+#endif
 };
 
 class MapHolder : public ov::MappedMemory {
