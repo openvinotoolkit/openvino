@@ -9,7 +9,7 @@ permissions:
 
 env:
   GC_REPO: https://x-access-token:${{ secrets.GC_TOKEN }}@github.com/intel-sandbox/graph-compiler
-  GC_TAG: ap/ocl-events
+  GC_TAG: main
   BUILD_DIR: ${{ github.workspace }}-gc-build
   OUTPUT_DIR: ${{ github.workspace }}-gc-bin
 
@@ -59,6 +59,7 @@ jobs:
           exclude='.*ScaledAttnLayerGPUMlirTest.CompareWithRefs.*|mlir_Transpose.*|mlir_ReshapeAndTranspose.*'
 
           export OV_MLIR=1
+          export OV_GPU_QUEUE_TYPE=out-of-order
           func_tests="$OUTPUT_DIR/bin/intel64/Release/ov_gpu_func_tests"
           filter=$(printf '%s:' \
             'MLIRExecution.SimpleMatmulf16' \
