@@ -1349,4 +1349,59 @@ TEST(GGUFOps, Fill) {
     expect_near(out, expected);
 }
 
+// Div: plain element-wise divide when both inputs already share a shape.
+// (The silu(x)/x -> sigmoid(x) fold requires input 0 to be a Multiply(x,Sigmoid(x)) node, which a
+// single-op decoder cannot express -- that path is exercised by the qwen2moe E2E test instead.)
+TEST(GGUFOps, Div) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {2, 3})
+                     .input("b", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> a{1, 2, 3, 4, 5, 6};
+    std::vector<float> b{2, 4, 3, 8, 5, 12};
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 3}, a)}, {"b", make_f32_tensor({2, 3}, b)}});
+
+    std::vector<float> expected(a.size());
+    for (size_t i = 0; i < a.size(); ++i)
+        expected[i] = a[i] / b[i];
+    expect_near(out, expected);
+}
+
+// Div with ggml-style integer-repeat broadcast: the denominator [1,2] repeats to match [1,4].
+TEST(GGUFOps, DivBroadcast) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {1, 4})
+                     .input("b", ov::element::f32, {1, 2})
+                     .output("out", ov::element::f32, {1, 4})
+                     .build();
+
+    std::vector<float> a{2, 4, 6, 8};
+    std::vector<float> b{2, 4};  // repeats to {2, 4, 2, 4}
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({1, 4}, a)}, {"b", make_f32_tensor({1, 2}, b)}});
+
+    expect_near(out, {1, 1, 3, 2});
+}
+
+// Set: write src into a contiguous region of dst (flattened) starting at set_offset_elems.
+TEST(GGUFOps, Set) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET")
+                     .input("dst", ov::element::f32, {2, 4})
+                     .input("src", ov::element::f32, {1, 2})
+                     .output("out", ov::element::f32, {2, 4})
+                     .attr<int64_t>("set_offset_elems", 2)
+                     .build();
+
+    std::vector<float> dst(8, 1.0f);
+    std::vector<float> src{10, 20};
+    auto out = run_on_cpu(model, {{"dst", make_f32_tensor({2, 4}, dst)}, {"src", make_f32_tensor({1, 2}, src)}});
+
+    // Flattened dst with src written at [2,3], reshaped back to [2,4].
+    expect_near(out, {1, 1, 10, 20, 1, 1, 1, 1});
+}
+
 }  // namespace
