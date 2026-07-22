@@ -237,7 +237,9 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                downcast<const sycl::gpu_usm>(mem2).get_buffer();
 }
 
-void* sycl_engine::get_user_context() const {
+void* sycl_engine::get_user_context(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::sycl,
+        "[GPU] SYCL engine can only provide SYCL context but requested context for ", rt_type);
      auto& sycl_device = downcast<sycl::sycl_device>(*_device);
      return const_cast<void*>(static_cast<const void*>(&sycl_device.get_context()));
 }
