@@ -267,8 +267,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
     info.supports_non_uniform_work_group = device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>();
 #elif CL_HPP_TARGET_OPENCL_VERSION >= 200
-    // OpenCL C2.0: work_group_<ops> are mandatory.
-    info.supports_work_group_collective_functions = true;
+    // Can't query the optional CL3.0 feature below target 300; assume unsupported and use safe CL2.0.
+    info.supports_work_group_collective_functions = false;
     info.supports_non_uniform_work_group = true;
 #else
     info.supports_work_group_collective_functions = false;
