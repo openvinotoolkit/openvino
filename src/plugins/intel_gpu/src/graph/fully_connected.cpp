@@ -130,8 +130,12 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (weights_pshape.size() != 2) {
-        // Detect 3D weights being passed to oneDNN
-        if (supports_immad && weights_pshape.size() == 4 && weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+        // Detect real 3D+ weights passed to oneDNN. For legacy static shape infer,
+        // plain 2D weights may be represented as 4D layout (e.g. [3,1,1,1]);
+        // that case must be reshaped back to 2D instead of taking batched MatMul path.
+        if (supports_immad && desc->weights_rank > 2 &&
+            weights_pshape.size() == 4 && weights_layout.batch() > 1 &&
+            weights_layout.spatial(1) == feature) {
             return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
         } else {
             weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
