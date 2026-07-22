@@ -35,6 +35,8 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::device_bind_buffer("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("NO")},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::compile_for_all("YES")},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::compile_for_all("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
@@ -102,6 +104,7 @@ const std::vector<ov::AnyMap> default_properties = {
     {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
     {ov::intel_auto::device_bind_buffer(false)},
     {ov::intel_auto::enable_startup_fallback(true)},
+    {ov::intel_auto::compile_for_all(false)},
     {ov::intel_auto::schedule_policy(ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)},
     {ov::device::priorities("")}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,

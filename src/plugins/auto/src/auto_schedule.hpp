@@ -31,6 +31,9 @@ private:
     SoCompiledModel wait_first_compiled_model_ready() override;
     void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
+    // Compile the model to the remaining candidate devices (excluding CPU and the actual
+    // device) purely to populate the cache blobs, then release the compiled models.
+    void warmup_compile_other_devices_for_cache();
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
