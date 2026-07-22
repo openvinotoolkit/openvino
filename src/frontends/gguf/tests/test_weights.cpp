@@ -110,3 +110,83 @@ TEST(GGUFWeightPlain, F16) {
     for (size_t i = 0; i < vals.size(); ++i)
         EXPECT_NEAR(a[i], static_cast<float>(vals[i]), 1e-6f);
 }
+
+// An F32 weight is wrapped directly as a Constant (no dequant, no Convert); round-trips exactly.
+TEST(GGUFWeightPlain, F32) {
+    std::vector<float> vals{1.0f, -2.0f, 3.5f, -4.25f, 0.0f, 7.0f};
+    ov::Tensor data(ov::element::u8, ov::Shape{vals.size() * sizeof(float)});
+    std::memcpy(data.data(), vals.data(), data.get_byte_size());
+
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NONE")
+                     .output("w", ov::element::f32, {2, 3})
+                     .attr<ov::Tensor>("data", data)
+                     .attr<std::string>("quant_type", "F32")
+                     .build();
+
+    auto out = run_on_cpu(model, {});
+    ASSERT_EQ(out.get_size(), vals.size());
+    const float* a = out.data<float>();
+    for (size_t i = 0; i < vals.size(); ++i)
+        EXPECT_EQ(a[i], vals[i]);
+}
+
+// A BF16 weight is wrapped as a bf16 Constant then Convert'ed to f32 for the translators.
+TEST(GGUFWeightPlain, BF16) {
+    std::vector<ov::bfloat16> vals{1.0f, -2.0f, 3.5f, -4.25f, 0.0f, 7.0f};
+    ov::Tensor data(ov::element::u8, ov::Shape{vals.size() * sizeof(ov::bfloat16)});
+    std::memcpy(data.data(), vals.data(), data.get_byte_size());
+
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NONE")
+                     .output("w", ov::element::f32, {2, 3})
+                     .attr<ov::Tensor>("data", data)
+                     .attr<std::string>("quant_type", "BF16")
+                     .build();
+
+    auto out = run_on_cpu(model, {});
+    ASSERT_EQ(out.get_size(), vals.size());
+    const float* a = out.data<float>();
+    for (size_t i = 0; i < vals.size(); ++i)
+        EXPECT_NEAR(a[i], static_cast<float>(vals[i]), 1e-6f);
+}
+
+// Contract tests for the two ggml types that are NOT supported as stored GGUF *weights*.
+//
+// Q8_K is a ggml intermediate activation-quantization type: it only ever appears as the
+// on-the-fly quantized activation in a dot product, never as a weight tensor stored in a .gguf.
+// The frontend therefore does not accept it as a weight -- gguf_type_from_name knows the name
+// (so a stray reference is a clear error, not a silent misparse), but make_weight_node has no
+// Q8_K path and rejects it. If a future model ever stores Q8_K weights, wire it into the
+// make_weight_node switch and turn this into a value test.
+TEST(GGUFWeightUnsupported, Q8KIsNotAStoredWeight) {
+    // One Q8_K block = 292 bytes covers 256 weights.
+    ov::Tensor data(ov::element::u8, ov::Shape{292});
+    std::memset(data.data(), 0, data.get_byte_size());
+    EXPECT_ANY_THROW({
+        SingleOpBuilder()
+            .op("GGML_OP_NONE")
+            .output("w", ov::element::f32, {1, 256})
+            .attr<ov::Tensor>("data", data)
+            .attr<std::string>("quant_type", "Q8_K")
+            .build();
+    });
+}
+
+// MXFP4 is supported ONLY as rank-5 MoE-packed expert weights ([1,n_expert,m,k_blocks,17]),
+// which MUL_MAT_ID dequantizes on-graph (see GGUFOps.MulMatIdMxfp4Packed). A plain 2D MXFP4
+// weight is not a shape the frontend produces, so make_weight_node rejects it. This pins that
+// the standalone-dequant path is intentionally absent (the packed path is the supported one).
+TEST(GGUFWeightUnsupported, Mxfp4TwoDimIsNotAStoredWeight) {
+    // 1 block (17 bytes) covers 32 weights.
+    ov::Tensor data(ov::element::u8, ov::Shape{17});
+    std::memset(data.data(), 0, data.get_byte_size());
+    EXPECT_ANY_THROW({
+        SingleOpBuilder()
+            .op("GGML_OP_NONE")
+            .output("w", ov::element::f32, {1, 32})
+            .attr<ov::Tensor>("data", data)
+            .attr<std::string>("quant_type", "MXFP4")
+            .build();
+    });
+}

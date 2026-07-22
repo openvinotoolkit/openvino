@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 #include "op_test_utils.hpp"
 
@@ -17,79 +18,94 @@ using namespace ov_gguf_test;
 
 namespace {
 
-// Elementwise binary ops over two equally-shaped f32 inputs.
+// ── Elementwise binary ops (two equally-shaped f32 inputs) ──────────────────────
+// add / mul / sub / div share the exact same graph shape and driver, so they are
+// parameterized over (op type, reference lambda) rather than duplicated.
 
-TEST(GGUFOps, Add) {
+struct BinaryCase {
+    const char* name;
+    const char* op_type;
+    std::function<float(float, float)> ref;
+};
+
+class GGUFBinaryElementwise : public ::testing::TestWithParam<BinaryCase> {};
+
+TEST_P(GGUFBinaryElementwise, MatchesReference) {
+    const BinaryCase c = GetParam();
     auto model = SingleOpBuilder()
-                     .op("GGML_OP_ADD")
+                     .op(c.op_type)
                      .input("a", ov::element::f32, {2, 4})
                      .input("b", ov::element::f32, {2, 4})
                      .output("out", ov::element::f32, {2, 4})
                      .build();
 
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8};
-    std::vector<float> b{8, 7, 6, 5, 4, 3, 2, 1};
-    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 4}, a)}, {"b", make_f32_tensor({2, 4}, b)}});
-
-    std::vector<float> expected(a.size());
-    for (size_t i = 0; i < a.size(); ++i)
-        expected[i] = a[i] + b[i];
-    expect_near(out, expected);
-}
-
-TEST(GGUFOps, Mul) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_MUL")
-                     .input("a", ov::element::f32, {2, 4})
-                     .input("b", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8};
-    std::vector<float> b{2, 2, 2, 2, 3, 3, 3, 3};
-    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 4}, a)}, {"b", make_f32_tensor({2, 4}, b)}});
-
-    std::vector<float> expected(a.size());
-    for (size_t i = 0; i < a.size(); ++i)
-        expected[i] = a[i] * b[i];
-    expect_near(out, expected);
-}
-
-TEST(GGUFOps, Sub) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_SUB")
-                     .input("a", ov::element::f32, {2, 4})
-                     .input("b", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> a{10, 20, 30, 40, 50, 60, 70, 80};
-    std::vector<float> b{1, 2, 3, 4, 5, 6, 7, 8};
-    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 4}, a)}, {"b", make_f32_tensor({2, 4}, b)}});
-
-    std::vector<float> expected(a.size());
-    for (size_t i = 0; i < a.size(); ++i)
-        expected[i] = a[i] - b[i];
-    expect_near(out, expected);
-}
-
-TEST(GGUFOps, Div) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_DIV")
-                     .input("a", ov::element::f32, {2, 4})
-                     .input("b", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
+    // Inputs chosen to be valid for every op (non-zero divisor for div).
     std::vector<float> a{10, 20, 30, 40, 50, 60, 70, 80};
     std::vector<float> b{2, 4, 5, 8, 10, 12, 14, 16};
     auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 4}, a)}, {"b", make_f32_tensor({2, 4}, b)}});
 
     std::vector<float> expected(a.size());
     for (size_t i = 0; i < a.size(); ++i)
-        expected[i] = a[i] / b[i];
+        expected[i] = c.ref(a[i], b[i]);
     expect_near(out, expected);
 }
+
+INSTANTIATE_TEST_SUITE_P(GGUFOps,
+                         GGUFBinaryElementwise,
+                         ::testing::Values(BinaryCase{"add", "GGML_OP_ADD", [](float x, float y) { return x + y; }},
+                                           BinaryCase{"mul", "GGML_OP_MUL", [](float x, float y) { return x * y; }},
+                                           BinaryCase{"sub", "GGML_OP_SUB", [](float x, float y) { return x - y; }},
+                                           BinaryCase{"div", "GGML_OP_DIV", [](float x, float y) { return x / y; }}),
+                         [](const ::testing::TestParamInfo<BinaryCase>& i) { return std::string(i.param.name); });
+
+// ── Elementwise unary ops (single f32 input) ────────────────────────────────────
+// silu / gelu(tanh) / tanh / softplus share the same one-input graph and driver.
+
+struct UnaryCase {
+    const char* name;
+    const char* op_type;
+    std::function<float(float)> ref;
+    float atol;
+};
+
+class GGUFUnaryElementwise : public ::testing::TestWithParam<UnaryCase> {};
+
+TEST_P(GGUFUnaryElementwise, MatchesReference) {
+    const UnaryCase c = GetParam();
+    auto model = SingleOpBuilder()
+                     .op(c.op_type)
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .build();
+
+    std::vector<float> x{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = c.ref(x[i]);
+    expect_near(out, expected, c.atol);
+}
+
+// ggml GELU is the tanh approximation, but the frontend maps GGML_UNARY_OP_GELU to v7::Gelu(TANH)
+// which is close enough to the exact (erf) form to check against it at 1e-3.
+// Softplus uses 1e-3 to cover ARM CPU fp16 execution (small outputs where fp16 spacing ~1e-3
+// dominates); on x86 fp32 the exact reference still matches comfortably within that bound.
+INSTANTIATE_TEST_SUITE_P(
+    GGUFOps,
+    GGUFUnaryElementwise,
+    ::testing::Values(
+        UnaryCase{"silu", "GGML_UNARY_OP_SILU", [](float x) { return x / (1.0f + std::exp(-x)); }, 1e-4f},
+        UnaryCase{"gelu",
+                  "GGML_UNARY_OP_GELU",
+                  [](float x) { return 0.5f * x * (1.0f + std::erf(x / std::sqrt(2.0f))); },
+                  1e-3f},
+        UnaryCase{"tanh", "GGML_UNARY_OP_TANH", [](float x) { return std::tanh(x); }, 1e-4f},
+        UnaryCase{"softplus",
+                  "GGML_UNARY_OP_SOFTPLUS",
+                  [](float x) { return std::log1p(std::exp(-std::abs(x))) + std::max(x, 0.0f); },
+                  1e-3f}),
+    [](const ::testing::TestParamInfo<UnaryCase>& i) { return std::string(i.param.name); });
 
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
@@ -110,40 +126,6 @@ TEST(GGUFOps, Scale) {
     for (size_t i = 0; i < x.size(); ++i)
         expected[i] = x[i] * scale + bias;
     expect_near(out, expected);
-}
-
-// Unary ops.
-TEST(GGUFOps, Silu) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_UNARY_OP_SILU")
-                     .input("x", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> x{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3};
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
-
-    std::vector<float> expected(x.size());
-    for (size_t i = 0; i < x.size(); ++i)
-        expected[i] = x[i] / (1.0f + std::exp(-x[i]));
-    expect_near(out, expected, 1e-4f);
-}
-
-TEST(GGUFOps, Gelu) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_UNARY_OP_GELU")
-                     .input("x", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> x{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3};
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
-
-    // Exact (erf) GELU: 0.5 * x * (1 + erf(x / sqrt(2))).
-    std::vector<float> expected(x.size());
-    for (size_t i = 0; i < x.size(); ++i)
-        expected[i] = 0.5f * x[i] * (1.0f + std::erf(x[i] / std::sqrt(2.0f)));
-    expect_near(out, expected, 1e-3f);
 }
 
 // RMS norm over the last axis (eps in op-params slot 0).
@@ -296,47 +278,6 @@ TEST(GGUFOps, SwiGLU) {
         }
     }
     expect_near(out, expected, 1e-4f);
-}
-
-// Tanh: elementwise hyperbolic tangent (1-input 1to1 template).
-TEST(GGUFOps, Tanh) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_UNARY_OP_TANH")
-                     .input("x", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> x{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3};
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
-
-    std::vector<float> expected(x.size());
-    for (size_t i = 0; i < x.size(); ++i)
-        expected[i] = std::tanh(x[i]);
-    expect_near(out, expected, 1e-4f);
-}
-
-// Softplus: numerically-stable log(1 + exp(x)).
-TEST(GGUFOps, Softplus) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_UNARY_OP_SOFTPLUS")
-                     .input("x", ov::element::f32, {2, 4})
-                     .output("out", ov::element::f32, {2, 4})
-                     .build();
-
-    std::vector<float> x{-4, -2, -0.5f, 0, 0.5f, 2, 4, 8};
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
-
-    std::vector<float> expected(x.size());
-    for (size_t i = 0; i < x.size(); ++i)
-        expected[i] = std::log1p(std::exp(-std::abs(x[i]))) + std::max(x[i], 0.0f);
-    // ARM CPU runs the graph in fp16: softplus's intermediate 1 + exp(-|x|) is near 1.0 where fp16
-    // spacing (~1e-3) dominates for small outputs (softplus(-4) ~ 0.018), exceeding the fp32 atol.
-    // Widen the absolute tolerance on ARM only.
-#if defined(__aarch64__) || defined(__arm__)
-    expect_near(out, expected, 1e-3f);
-#else
-    expect_near(out, expected, 1e-4f);
-#endif
 }
 
 // Clamp: elementwise clamp to [min, max] (bounds from typed attributes).
@@ -1001,6 +942,228 @@ TEST(GGUFOps, MulMatIdMxfp4Packed) {
     }
     // token0 (expert1): row0=3.0*1=3, row1=4.0*1=4 ; token1 (expert0): row0=1.0, row1=2.0
     expect_near(out, expected, 1e-4f);
+}
+
+// MulMat: batched matmul A @ B^T. The translator binds B=input(0), A=input(1) and emits
+// MatMul(A, B, transpose_b=true), so out[t][n] = sum_k a[t][k] * b[n][k].
+TEST(GGUFOps, MulMat) {
+    // b (weight) [1,1,N=2,K=3]; a (activation) [1,1,T=2,K=3]; out [1,1,T=2,N=2].
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MUL_MAT")
+                     .input("b", ov::element::f32, {1, 1, 2, 3})
+                     .input("a", ov::element::f32, {1, 1, 2, 3})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> b{1, 2, 3, 4, 5, 6};  // rows n0=[1,2,3], n1=[4,5,6]
+    std::vector<float> a{1, 0, 1, 0, 1, 0};  // tokens t0=[1,0,1], t1=[0,1,0]
+    auto out = run_on_cpu(model, {{"b", make_f32_tensor({1, 1, 2, 3}, b)}, {"a", make_f32_tensor({1, 1, 2, 3}, a)}});
+
+    // t0=[1,0,1]: n0=1+3=4, n1=4+6=10 ; t1=[0,1,0]: n0=2, n1=5
+    std::vector<float> expected{4, 10, 2, 5};
+    expect_near(out, expected, 1e-4f);
+}
+
+// FlashAttnExt: scaled-dot-product attention. Inputs q,k,v,mask; output softmax(q@k^T*scale + mask)@v
+// transposed to [1,T,H,D]. The op runs the SDPA in fp16 internally, so the tolerance is fp16-scale.
+TEST(GGUFOps, FlashAttnExt) {
+    // q [1,H=1,T=2,D=2]; k,v [1,H=1,Tk=2,D=2]; mask [1,1,T=2,Tk=2]. scale = 1.0.
+    const float scale = 1.0f;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 1, 2, 2})
+                     .input("k", ov::element::f32, {1, 1, 2, 2})
+                     .input("v", ov::element::f32, {1, 1, 2, 2})
+                     .input("mask", ov::element::f32, {1, 1, 2, 2})
+                     .output("out", ov::element::f32, {1, 2, 1, 2})
+                     .attr<float>("scale", scale)
+                     .build();
+
+    std::vector<float> q{1, 0, 0, 1};
+    std::vector<float> k{1, 0, 0, 1};
+    std::vector<float> v{1, 2, 3, 4};
+    std::vector<float> mask{0, 0, 0, 0};
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, 1, 2, 2}, q)},
+                           {"k", make_f32_tensor({1, 1, 2, 2}, k)},
+                           {"v", make_f32_tensor({1, 1, 2, 2}, v)},
+                           {"mask", make_f32_tensor({1, 1, 2, 2}, mask)}});
+
+    // Reference SDPA (H=1). scores[t][s] = scale * dot(q[t], k[s]) + mask[t][s]; softmax over s;
+    // out[t][d] = sum_s p[t][s] * v[s][d]. Output layout [1,T,1,D] == flat over (t,d).
+    const int T = 2, Tk = 2, D = 2;
+    std::vector<float> expected(T * D);
+    for (int t = 0; t < T; ++t) {
+        std::vector<float> z(Tk);
+        float mx = -1e30f;
+        for (int s = 0; s < Tk; ++s) {
+            float dot = 0.f;
+            for (int d = 0; d < D; ++d)
+                dot += q[t * D + d] * k[s * D + d];
+            z[s] = scale * dot + mask[t * Tk + s];
+            mx = std::max(mx, z[s]);
+        }
+        float sum = 0.f;
+        for (int s = 0; s < Tk; ++s) {
+            z[s] = std::exp(z[s] - mx);
+            sum += z[s];
+        }
+        for (int d = 0; d < D; ++d) {
+            float acc = 0.f;
+            for (int s = 0; s < Tk; ++s)
+                acc += (z[s] / sum) * v[s * D + d];
+            expected[t * D + d] = acc;
+        }
+    }
+    expect_near(out, expected, 2e-2f);  // fp16 SDPA
+}
+
+// GatedDeltaNet (qwen3next linear attention) as a recurrent scan. Minimal scalar case
+// B=H=S=1, T=2 exercises the full per-token gated delta update + output packing
+// [attn_t0, attn_t1, final_state].
+TEST(GGUFOps, GatedDeltaNet) {
+    const int64_t B = 1, T = 2, H = 1, S = 1;
+    auto shp = ov::PartialShape{B, T, H, S};
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GATED_DELTA_NET")
+                     .input("q", ov::element::f32, shp)
+                     .input("k", ov::element::f32, shp)
+                     .input("v", ov::element::f32, shp)
+                     .input("g", ov::element::f32, shp)
+                     .input("beta", ov::element::f32, shp)
+                     .input("state", ov::element::f32, {1, 1, 1, 1})
+                     .output("out", ov::element::f32, {1, 1, T * B + S * B, S * H})
+                     .build();
+
+    // Per-token scalars (see reference math below). g2 = ln(2) so exp(g)=2.
+    const float ln2 = std::log(2.0f);
+    std::vector<float> q{2, 1}, k{1, 2}, v{3, 1}, g{0, ln2}, beta{0.5f, 1};
+    std::vector<float> state0{0};
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, (size_t)T, 1, 1}, q)},
+                           {"k", make_f32_tensor({1, (size_t)T, 1, 1}, k)},
+                           {"v", make_f32_tensor({1, (size_t)T, 1, 1}, v)},
+                           {"g", make_f32_tensor({1, (size_t)T, 1, 1}, g)},
+                           {"beta", make_f32_tensor({1, (size_t)T, 1, 1}, beta)},
+                           {"state", make_f32_tensor({1, 1, 1, 1}, state0)}});
+
+    // Scalar recurrence (scale = 1/sqrt(S) = 1):
+    //   decayed = state * exp(g); delta = (v - decayed*k) * beta;
+    //   state' = decayed + delta*k; attn = state' * q.
+    float state = state0[0];
+    std::vector<float> expected;
+    for (int t = 0; t < T; ++t) {
+        float decayed = state * std::exp(g[t]);
+        float delta = (v[t] - decayed * k[t]) * beta[t];
+        state = decayed + delta * k[t];
+        expected.push_back(state * q[t]);  // attn_t
+    }
+    expected.push_back(state);  // final state, packed after the attn outputs
+    expect_near(out, expected, 1e-4f);
+}
+
+// Im2col 1D: unfold a width-KW sliding window over the innermost image axis. For IC=1, stride=1,
+// no pad/dilation, image [1,2,3] with KW=2 yields the two windows [1,2] and [2,3].
+TEST(GGUFOps, Im2col1D) {
+    // kernel [1,1,IC=1,KW=2] (only its shape is read); image [1,N=1,1,IW=3]; out [1,1,OW=2,IC*KW=2].
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL")
+                     .input("kernel", ov::element::f32, {1, 1, 1, 2})
+                     .input("image", ov::element::f32, {1, 1, 1, 3})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     // {s0,s1,p0,p1,d0,d1,is_2D}: stride 1, no pad, no dilation, 1D.
+                     .attr<std::vector<int32_t>>("im2col_params", {1, 0, 0, 0, 1, 0, 0})
+                     .build();
+
+    // The kernel is only read for its shape, so its Parameter is pruned during conversion and has no
+    // runtime port -- feed only the image.
+    std::vector<float> image{1, 2, 3};
+    auto out = run_on_cpu(model, {{"image", make_f32_tensor({1, 1, 1, 3}, image)}});
+
+    // window at ow=0 -> [img0,img1]=[1,2]; ow=1 -> [img1,img2]=[2,3].
+    std::vector<float> expected{1, 2, 2, 3};
+    expect_near(out, expected, 1e-4f);
+}
+
+// Cpy: a ggml copy is a dtype convert to the destination type. i32 -> f32 upcast round-trips
+// the integer values exactly.
+TEST(GGUFOps, Cpy) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CPY")
+                     .input("x", ov::element::i32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .build();
+
+    std::vector<int32_t> x{1, 2, 3, 4, 5, 6, 7, 8};
+    ov::Tensor x_t(ov::element::i32, ov::Shape{2, 4});
+    std::copy(x.begin(), x.end(), x_t.data<int32_t>());
+    auto out = run_on_cpu(model, {{"x", x_t}});
+
+    std::vector<float> expected(x.begin(), x.end());
+    expect_near(out, expected, 0.0f);
+}
+
+// Cont (op_case 1/2): after a PERMUTE/TRANSPOSE the OV tensor is already logically contiguous, so
+// CONT is an identity passthrough of its input.
+TEST(GGUFOps, Cont) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONT")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .op_case(1)  // input from PERMUTE
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
+    expect_near(out, x, 0.0f);
+}
+
+// GeGLU: split the last axis in half -> gelu(a) * b, where gelu is ggml's tanh approximation.
+TEST(GGUFOps, GeGLU) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_GEGLU")
+                     .input("x", ov::element::f32, {2, 8})
+                     .output("out", ov::element::f32, {2, 4})
+                     .attr<bool>("swapped", false)
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8, -1, -2, -3, -4, 1, 1, 1, 1};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 8}, x)}});
+
+    // gelu_tanh(a) = 0.5*a*(1 + tanh(sqrt(2/pi)*(a + 0.044715*a^3)))
+    auto gelu_tanh = [](float a) {
+        const float k = std::sqrt(2.0f / static_cast<float>(M_PI));
+        return 0.5f * a * (1.0f + std::tanh(k * (a + 0.044715f * a * a * a)));
+    };
+    std::vector<float> expected(8);
+    for (size_t r = 0; r < 2; ++r) {
+        for (size_t c = 0; c < 4; ++c) {
+            float a = x[r * 8 + c];
+            float b = x[r * 8 + 4 + c];
+            expected[r * 4 + c] = gelu_tanh(a) * b;
+        }
+    }
+    expect_near(out, expected, 1e-3f);
+}
+
+// Add1: ggml adds a (broadcast) scalar to the input. The translator is the generic 2-input Add,
+// which broadcasts the [1,1] operand across the [2,4] input.
+TEST(GGUFOps, Add1) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_ADD1")
+                     .input("a", ov::element::f32, {2, 4})
+                     .input("b", ov::element::f32, {1, 1})
+                     .output("out", ov::element::f32, {2, 4})
+                     .build();
+
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8};
+    std::vector<float> b{5};
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 4}, a)}, {"b", make_f32_tensor({1, 1}, b)}});
+
+    std::vector<float> expected(a.size());
+    for (size_t i = 0; i < a.size(); ++i)
+        expected[i] = a[i] + b[0];
+    expect_near(out, expected);
 }
 
 }  // namespace
