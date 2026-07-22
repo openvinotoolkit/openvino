@@ -216,6 +216,17 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
                                                           const ov::SoPtr<ov::ITensor>& dst,
                                                           uint32_t src_offset_tokens,
                                                           uint32_t chunk_tokens) {
+    // MoE models (e.g. Gemma4 26B A4B) may carry dangling per_layer_inputs with
+    // zero-sized tensors.
+    if (src->get_byte_size() == 0u || dst->get_byte_size() == 0u) {
+        OPENVINO_ASSERT(src->get_byte_size() == 0u && dst->get_byte_size() == 0u,
+                        "per_layer_inputs zero-byte mismatch between src and dst. src_bytes=",
+                        src->get_byte_size(),
+                        ", dst_bytes=",
+                        dst->get_byte_size());
+        return;
+    }
+
     const auto src_seq_len = src->get_shape().at(1);
     const auto dst_seq_len = dst->get_shape().at(1);
     OPENVINO_ASSERT(chunk_tokens > 0u, "chunk_tokens must be > 0");
