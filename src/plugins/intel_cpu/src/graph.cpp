@@ -10,12 +10,14 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -58,7 +60,9 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
@@ -1597,6 +1601,72 @@ public:
 #    endif
 
 #endif
+
+// [DEBUG] Non-finite (NaN/Inf) output scanner to localize the first node that
+// corrupts activations. Enabled at runtime via OV_CPU_CHECK_NONFINITE=1 (works
+// in release builds too, independent of ENABLE_DEBUG_CAPS). Prints the node
+// type / name / output precision as soon as a NaN or Inf is produced, then
+// aborts so the offending node is unambiguous in CI logs.
+bool nonFiniteCheckEnabled() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("OV_CPU_CHECK_NONFINITE");
+        return env != nullptr && env[0] == '1';
+    }();
+    return enabled;
+}
+
+template <typename T>
+bool scanFloatBufferForNonFinite(const void* data, size_t count) {
+    const auto* p = static_cast<const T*>(data);
+    for (size_t i = 0; i < count; ++i) {
+        const float v = static_cast<float>(p[i]);
+        if (std::isnan(v) || std::isinf(v)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void checkNodeOutputsForNonFinite(const NodePtr& node) {
+    for (size_t port = 0; port < node->getOriginalOutputsNumber(); ++port) {
+        const auto mem = node->getDstMemoryAtPort(port);
+        if (!mem || !mem->isDefined()) {
+            continue;
+        }
+        const auto prec = mem->getPrecision();
+        const size_t count = mem->getShape().getElementsCount();
+        if (count == 0) {
+            continue;
+        }
+        const void* data = mem->getData();
+        if (!data) {
+            continue;
+        }
+        bool bad = false;
+        switch (prec) {
+        case ov::element::f32:
+            bad = scanFloatBufferForNonFinite<float>(data, count);
+            break;
+        case ov::element::f16:
+            bad = scanFloatBufferForNonFinite<ov::float16>(data, count);
+            break;
+        case ov::element::bf16:
+            bad = scanFloatBufferForNonFinite<ov::bfloat16>(data, count);
+            break;
+        default:
+            continue;  // only floating point outputs are of interest
+        }
+        if (bad) {
+            std::cerr << "[OV_CPU_CHECK_NONFINITE] First non-finite (NaN/Inf) output detected:"
+                      << "\n    node type : " << node->getTypeStr() << "\n    node name : " << node->getName()
+                      << "\n    layers    : " << node->getOriginalLayers() << "\n    exec index: "
+                      << node->getExecIndex() << "\n    out port  : " << port << "\n    precision : "
+                      << prec.get_type_name() << "\n    elements  : " << count << std::endl;
+            std::abort();
+        }
+    }
+}
+
 }  // namespace
 
 /* group all the profiling macros into a single one
@@ -1614,6 +1684,10 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
     }
 
     node->execute(m_stream, numaId);
+
+    if (nonFiniteCheckEnabled()) {
+        checkNodeOutputsForNonFinite(node);
+    }
 }
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
