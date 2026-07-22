@@ -170,6 +170,10 @@ TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
     core = ov::Core{};
     auto request = compiled_model.create_infer_request();
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVHoldersTestOnImportedNetwork);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVHoldersTestWithConfig);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -197,7 +197,7 @@ void start_broadcast_test_dynamic(format input_format,
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<outT> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<outT, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_data_size; ++i) {
         ASSERT_EQ(output_ptr[i], output_data[i]);
@@ -262,7 +262,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
     auto outputs = network->execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (tensor::value_type b = 0; b < output_5d.at(0); ++b) {
         for (tensor::value_type f = 0; f < output_5d.at(1); ++f) {
@@ -2316,7 +2316,7 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
     auto output = outputs.at("output").get_memory();
 
     ASSERT_NE(output, nullptr);
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);

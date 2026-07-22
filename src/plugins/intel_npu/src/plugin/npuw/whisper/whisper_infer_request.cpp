@@ -22,6 +22,8 @@ void ov::npuw::WhisperInferRequest::prepare_for_new_conversation() {
     ov::npuw::util::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0);
     ov::npuw::util::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
+
+    m_alignment_tensors.clear();
 }
 
 void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -55,6 +57,13 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
                                                  1u,
                                                  0u,
                                                  m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
+
+    // for word-level timestamps
+    auto decomposed_sdpa_size = m_npuw_llm_compiled_model->m_decomposed_sdpa_size;
+    for (size_t idx = 0; idx < decomposed_sdpa_size; idx++) {
+        auto name = whisper_layer_names::qk_scores_ + std::to_string(idx);
+        m_alignment_tensors.insert({name, m_prefill_request->get_tensor(m_prefill_out_ports.at(name))});
+    }
 
     LOG_DEBUG("Done");
 }
@@ -209,4 +218,24 @@ void ov::npuw::WhisperInferRequest::infer() {
     } else {
         infer_generate(input_ids);
     }
+}
+
+// FIXME: Whisper Decompose SDPA
+ov::SoPtr<ov::ITensor> ov::npuw::WhisperInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    const auto& port_names = port.get_names();
+
+    if (port_names.count(whisper_layer_names::qk_scores) > 0) {
+        for (auto name : port_names) {
+            if (name.find(whisper_layer_names::qk_scores_) != std::string::npos) {
+                auto alignment_tensor = m_alignment_tensors.at(name);
+                if (!alignment_tensor) {
+                    OPENVINO_THROW(
+                        "Cross-attention qk scaled scores tensor is not available. Please run inference first.");
+                }
+                return alignment_tensor;
+            }
+        }
+    }
+
+    return ov::npuw::LLMInferRequest::get_tensor(port);
 }

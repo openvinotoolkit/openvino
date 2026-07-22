@@ -261,7 +261,7 @@ void copy_tensor_names(Tensor& dst, const Tensor& src) {
 }
 
 std::ostream& operator<<(std::ostream& out, const Tensor& tensor) {
-    out << "Tensor(" << util::join(tensor.get_names()) << ")";
+    out << "Tensor(" << util::join<std::ostream>(tensor.get_names()) << ")";
     return out;
 }
 }  // namespace descriptor

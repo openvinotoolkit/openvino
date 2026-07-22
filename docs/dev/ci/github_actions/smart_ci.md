@@ -192,8 +192,8 @@ corresponding components.
 ### Adding Validation for a Component
 If you want to add a new validation job to test your new component or choose an existing one, go to the
 desired workflow in [.github/workflows](../../../../.github/workflows). The main ones include
-[ubuntu_22.yml](../../../../.github/workflows/ubuntu_22.yml), [windows.yml](../../../../.github/workflows/windows.yml) and
-[mac.yml](../../../../.github/workflows/mac.yml). If Smart CI is enabled for the pipeline, you will find the Smart_CI job
+[ubuntu_22.yml](../../../../.github/workflows/ubuntu_22.yml), [windows_vs2022_release.yml](../../../../.github/workflows/windows_vs2022_release.yml) and
+[mac_arm64.yml](../../../../.github/workflows/mac_arm64.yml). If Smart CI is enabled for the pipeline, you will find the Smart_CI job
 in the beginning of the workflow:
 ```yaml
 jobs:

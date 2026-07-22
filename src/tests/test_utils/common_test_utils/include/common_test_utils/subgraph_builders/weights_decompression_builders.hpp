@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov {
@@ -35,9 +36,12 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const DecompressionType decompression_subtract_type,
     const bool reshape_on_decompression_constant,
     const std::optional<bool>& insert_transpose_node = std::nullopt,
-    const size_t seed = 1);
+    const size_t seed = 1,
+    const bool extra_multiply = false,
+    const bool param_weights = false);
 
-// do real quantization of a random float tensor to get weights and scales
+// Real-quantize a random fp32 tensor. Source range [-0.1, 0.1) matches LLM FFN weights;
+// wider ranges sink deep-chain outputs into bf16/f16 noise.
 std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     const ov::Shape& weights_shape,
     const int group_size,
@@ -56,10 +60,9 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                                           const int group_size,
                                                           const ov::element::Type data_precision,
                                                           const ov::element::Type output_precision,
-                                                          const bool add_subtract,
-                                                          const bool reshape_on_decompression_constant,
-                                                          const bool per_tensor_zp,
-                                                          const bool per_tensor_scale);
+                                                          const DecompressionType decompression_multiply_type,
+                                                          const DecompressionType decompression_subtract_type,
+                                                          const bool reshape_on_decompression_constant);
 
 }  // namespace utils
 }  // namespace test

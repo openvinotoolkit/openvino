@@ -40,18 +40,23 @@ protected:
                             const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
                             const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
                             const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
-        auto param_shape = matched_param->get_partial_shape();
-        NPUW_ASSERT(param_shape.size() == 4u);
-        // NB: Transpose Parameter that correspond to V-tensor it will
-        // speed-up its multiplication with attention scores
-        std::swap(param_shape[2], param_shape[3]);
+        // NB: The same param->concat pair may be matched multiple times when the
+        // V-concat output feeds more than one downstream branch (e.g. shared KV-cache
+        // across attention layers in Gemma4).  Guard the shared-state mutations so they
+        // are applied exactly once; per-branch matmul transpose_b is always set.
+        if (matched_concat->get_axis() != 3u) {
+            auto param_shape = matched_param->get_partial_shape();
+            NPUW_ASSERT(param_shape.size() == 4u);
+            // NB: Transpose Parameter that correspond to V-tensor it will
+            // speed-up its multiplication with attention scores
+            std::swap(param_shape[2], param_shape[3]);
 
-        matched_param->set_partial_shape(param_shape);
+            matched_param->set_partial_shape(param_shape);
 
-        auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-
-        matched_transpose->set_argument(1, order_cst);
-        matched_concat->set_axis(3u);
+            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+            matched_transpose->set_argument(1, order_cst);
+            matched_concat->set_axis(3u);
+        }
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
     }
@@ -330,6 +335,7 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
+
     rewr.run_on_model(model);
 
     ov::pass::Validate().run_on_model(model);

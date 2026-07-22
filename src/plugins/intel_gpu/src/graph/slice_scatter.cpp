@@ -67,10 +67,13 @@ void slice_scatter_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    build_deps();
+
+    if (input_memory_ptr() == nullptr)
         return;
 
-    build_deps();
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
 
     if (static_cast<bool>(_outputs[0]) && get_node().get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());

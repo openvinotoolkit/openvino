@@ -32,10 +32,6 @@
         "ticket": 131424
     },
     {
-        "error_text": "Failure when receiving data from the peer",
-        "ticket": 137121
-    },
-    {
         "error_text": "Network is unreachable",
         "ticket": 130955
     },
@@ -64,16 +60,8 @@
         "ticket": 147958
     },
     {
-        "error_text": "Unable to make request: ECONNRESET",
-        "ticket": 148702
-    },
-    {
         "error_text": "json.decoder.JSONDecodeError: Unterminated string starting at",
         "ticket": 151796
-    },
-    {
-        "error_text": "lost communication with the server",
-        "ticket": 152565
     },
     {
         "error_text": "Upload progress stalled",

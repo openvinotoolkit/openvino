@@ -85,6 +85,7 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                                  "AvgPool",
                                  "AvgPool3D",
                                  "CONV_2D",
+                                 "CONV_3D",
                                  "MAX_POOL_2D",
                                  "AVERAGE_POOL_2D",
                                  "TRANSPOSE_CONV",
@@ -114,7 +115,7 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                op_type == "MaxPool3D" || op_type == "MaxPoolWithArgmax" || op_type == "ExtractImagePatches" ||
                op_type == "DepthwiseConv2dNative" || op_type == "AvgPool" || op_type == "AvgPool3D" ||
                op_type == "CONV_2D" || op_type == "MAX_POOL_2D" || op_type == "AVERAGE_POOL_2D" ||
-               op_type == "DEPTHWISE_CONV_2D") {
+               op_type == "DEPTHWISE_CONV_2D" || op_type == "CONV_3D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,

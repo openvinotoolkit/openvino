@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/fedora:29
 
@@ -114,7 +117,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+# Install newer ninja (dnf ships older version lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
 
 # Install Node
 ENV NODE_VERSION=21.7.3

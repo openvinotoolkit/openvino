@@ -73,7 +73,7 @@ private:
     std::vector<int> getBatchShape() const {
         if (withBatchShape) {
             const auto batchShapeSize =
-                static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
+                static_cast<int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
             std::vector<int> batchShape(batchShapeSize);
             const auto* batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
             batchShape.assign(batchShapePtr, batchShapePtr + batchShapeSize);

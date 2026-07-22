@@ -21,6 +21,7 @@ struct dynamic_quantize_params : public base_params {
     bool use_asymmetric_quantization = false;
     bool combine_scales_and_zp = false;
     bool generate_precomputed_reduction = false;
+    bool is_int4_compressed = false;
 };
 
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {

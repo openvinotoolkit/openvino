@@ -256,7 +256,7 @@ LIRComparator::Result LIRComparator::compare_handlers(const SpecificIterationHan
             if (pass->get_type_info() != pass_ref->get_type_info() || pass->merge(pass_ref) == nullptr) {
                 return Result::error("Passes are not equal: " + std::string(pass->get_type_name()) + " and " +
                                      std::string(pass_ref->get_type_name()) +
-                                     ". Pass names or parameters are not matched, or merge method is not overrided.");
+                                     ". Pass names or parameters are not matched, or merge method is not overridden.");
             }
         }
         return Result::ok();

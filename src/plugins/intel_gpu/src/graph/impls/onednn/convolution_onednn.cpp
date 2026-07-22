@@ -222,6 +222,11 @@ protected:
                                                                             dnnl::memory::data_type& wzp_data_type) {
         auto attrs = impl_params.attrs_onednn;
 
+        // accumulation_mode::any allows oneDNN to use f16 as the accumulation type.
+        if (impl_params.get_input_layout(0).data_type == data_types::f16) {
+            attrs->set_accumulation_mode(dnnl::accumulation_mode::any);
+        }
+
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
             auto a_zp_dtype = a_zp.get_output_layout().data_type;

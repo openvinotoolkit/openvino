@@ -74,10 +74,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 else
                     new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
                                                             : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+            } else if (current_shape.size() == 4 && is_weight_3d) {
+                new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
+                                                        : ov::Shape{current_shape[0], current_shape[1], current_shape[2] * current_shape[3]};
+            } else if (current_shape.size() == 4 && !is_weight_3d) {
+                new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1] * current_shape[2], current_shape[3]}
+                                                        : ov::Shape{current_shape[0] * current_shape[1], current_shape[2] * current_shape[3]};
             } else {
-                OPENVINO_ASSERT(current_shape.size() == 4 && is_weight_3d);
-                    new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
-                                                            : ov::Shape{current_shape[0], current_shape[1], current_shape[3] * current_shape[2]};
+                OPENVINO_THROW("Unexpected constant shape rank ", current_shape.size(),
+                                " with is_weight_3d=", is_weight_3d);
             }
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 
@@ -90,13 +95,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             std::shared_ptr<ov::Node> result = nullptr;
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
-                result = std::dynamic_pointer_cast<ov::Node>(constant);
+                result = constant;
             else if (constant->get_element_type() == ov::element::u4)
-                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
-            else if (weight_u8 && sub_with_convert)
-                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
+            // Only unsigned ZP types can be converted to u8.
+            else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed())
+                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
             else
-                result = std::dynamic_pointer_cast<ov::Node>(constant);
+                result = constant;
 
             ov::copy_weightless_cache_attr(node, result);
             return result;
@@ -174,9 +180,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> new_fc = nullptr;
         if (with_zero_point) {
             new_fc =
-                std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc_input_zp, fc->get_output_type());
+                std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc_input_zp, fc->get_output_type(), fc->get_transpose_b());
         } else {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc->get_output_type());
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc->get_output_type(), fc->get_transpose_b());
         }
 
         result_nodes.push_back(new_fc);

@@ -15,8 +15,10 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <sstream>
-#include <string>
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
 
 #include "common/primitive_hashing_utils.hpp"
 #include "common/utils.hpp"

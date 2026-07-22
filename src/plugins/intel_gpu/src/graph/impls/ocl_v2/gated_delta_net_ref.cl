@@ -14,59 +14,94 @@ inline float FUNC(l2norm_scale)(float sum, float extra_scale, float eps) {
     return rsqrt(sum + eps) * extra_scale;
 }
 
-inline float FUNC(sum8)(float8 v) {
-    return v.s0 + v.s1 + v.s2 + v.s3 + v.s4 + v.s5 + v.s6 + v.s7;
+inline float FUNC(dot8_fma)(float8 a, float8 b) {
+    float acc = a.s0 * b.s0;
+    acc = fma(a.s1, b.s1, acc);
+    acc = fma(a.s2, b.s2, acc);
+    acc = fma(a.s3, b.s3, acc);
+    acc = fma(a.s4, b.s4, acc);
+    acc = fma(a.s5, b.s5, acc);
+    acc = fma(a.s6, b.s6, acc);
+    acc = fma(a.s7, b.s7, acc);
+    return acc;
 }
 
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
-inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, int lane_k_base, float8* b_q, float8* b_k) {
+inline float8 FUNC(load_q8_as_float8)(const __global INPUT0_TYPE* p) {
+#    if INPUT0_TYPE_SIZE == 2
+    return convert_float8(vload8(0, (const __global half*)p));
+#    elif INPUT0_TYPE_SIZE == 4
+    return convert_float8(vload8(0, (const __global float*)p));
+#    else
+    float8 v = (float8)(0.0f);
+#        pragma unroll
+    for (int i = 0; i < 8; i++)
+        v[i] = convert_float(p[i]);
+    return v;
+#    endif
+}
+
+inline float8 FUNC(load_k8_as_float8)(const __global INPUT1_TYPE* p) {
+#    if INPUT1_TYPE_SIZE == 2
+    return convert_float8(vload8(0, (const __global half*)p));
+#    elif INPUT1_TYPE_SIZE == 4
+    return convert_float8(vload8(0, (const __global float*)p));
+#    else
+    float8 v = (float8)(0.0f);
+#        pragma unroll
+    for (int i = 0; i < 8; i++)
+        v[i] = convert_float(p[i]);
+    return v;
+#    endif
+}
+
+inline float4 FUNC(load_v4_as_float4)(const __global INPUT2_TYPE* p) {
+#    if INPUT2_TYPE_SIZE == 2
+    return convert_float4(vload4(0, (const __global half*)p));
+#    elif INPUT2_TYPE_SIZE == 4
+    return convert_float4(vload4(0, (const __global float*)p));
+#    else
+    float4 v = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+#        pragma unroll
+    for (int i = 0; i < 4; i++)
+        v[i] = convert_float(p[i]);
+    return v;
+#    endif
+}
+
+inline void FUNC(
+    prepare_qk)(const __global INPUT0_TYPE* q, const __global INPUT1_TYPE* k, int q_offset, int k_offset, int lane_k_base, float8* b_q, float8* b_k) {
     const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
 #    if FUSE_QK_L2NORM
     // normalize k and q (l2norm + q scale)
     float k_sum = 0.0f;
-#        pragma unroll
-    for (int c = 0; c < K_CHUNKS; c++) {
-        float8 lane_k = (float8)(0.0f);
-#        pragma unroll
-        for (int j = 0; j < 8; j++) {
-            int k_idx = lane_k_base + c * 8 + j;
-            lane_k[j] = convert_float(k[k_offset + k_idx]);
-            k_sum += lane_k[j] * lane_k[j];
-        }
-        b_k[c] = lane_k;
-    }
-    float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
-    for (int c = 0; c < K_CHUNKS; c++)
-        b_k[c] *= (float8)(k_scale);
-
     float q_sum = 0.0f;
 #        pragma unroll
     for (int c = 0; c < K_CHUNKS; c++) {
-        float8 lane_q = (float8)(0.0f);
-#        pragma unroll
-        for (int j = 0; j < 8; j++) {
-            int q_idx = lane_k_base + c * 8 + j;
-            lane_q[j] = convert_float(q[q_offset + q_idx]);
-            q_sum += lane_q[j] * lane_q[j];
-        }
+        int idx = lane_k_base + c * 8;
+        float8 lane_k = FUNC(load_k8_as_float8)(k + k_offset + idx);
+        float8 lane_q = FUNC(load_q8_as_float8)(q + q_offset + idx);
+        b_k[c] = lane_k;
         b_q[c] = lane_q;
+        k_sum += FUNC(dot8_fma)(lane_k, lane_k);
+        q_sum += FUNC(dot8_fma)(lane_q, lane_q);
     }
+    float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
     float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, Q_L2_NORM_EPS);
-    for (int c = 0; c < K_CHUNKS; c++)
+
+#        pragma unroll
+    for (int c = 0; c < K_CHUNKS; c++) {
+        b_k[c] *= (float8)(k_scale);
         b_q[c] *= (float8)(q_scale);
+    }
 #    else
 #        pragma unroll
     for (int c = 0; c < K_CHUNKS; c++) {
-        float8 lane_k = (float8)(0.0f);
-        float8 lane_q = (float8)(0.0f);
-#        pragma unroll
-        for (int j = 0; j < 8; j++) {
-            int idx = lane_k_base + c * 8 + j;
-            lane_k[j] = convert_float(k[k_offset + idx]);
-            lane_q[j] = convert_float(q[q_offset + idx]) * SCALE_FACTOR;
-        }
+        int idx = lane_k_base + c * 8;
+        float8 lane_k = FUNC(load_k8_as_float8)(k + k_offset + idx);
+        float8 lane_q = FUNC(load_q8_as_float8)(q + q_offset + idx);
         b_k[c] = lane_k;
-        b_q[c] = lane_q;
+        b_q[c] = lane_q * (float8)(SCALE_FACTOR);
     }
 #    endif
 }
@@ -183,25 +218,28 @@ KERNEL(gated_delta_net_ref)
 
         // V load
         float4 b_v_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-#    pragma unroll
+#    if (V_BLOCK_SIZE == 4)
+        b_v_vec = FUNC(load_v4_as_float4)(v + v_offset + start_iv);
+#    else
+#        pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
             b_v_vec[v_idx] = convert_float(v[v_offset + curr_iv]);
         }
+#    endif
 
         // 3. RECURRENT UPDATE
         float4 dot_part_k_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
         float4 dot_part_q_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-            int curr_iv = start_iv + v_idx;
-            for (int c = 0; c < K_CHUNKS; c++)
-                h_state[v_idx][c] *= (float8)(b_g);
-
             float dot_part_k = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_k += FUNC(sum8)(fma(h_state[v_idx][c], b_k[c], (float8)(0.0f)));
+            for (int c = 0; c < K_CHUNKS; c++) {
+                float8 s = h_state[v_idx][c] * (float8)(b_g);
+                h_state[v_idx][c] = s;
+                dot_part_k += FUNC(dot8_fma)(s, b_k[c]);
+            }
             dot_part_k_vec[v_idx] = dot_part_k;
         }
 
@@ -211,15 +249,14 @@ KERNEL(gated_delta_net_ref)
                                   sub_group_reduce_add(dot_part_k_vec.s3));
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-            int curr_iv = start_iv + v_idx;
             float update_val = (b_v_vec[v_idx] - h_k_vec[v_idx]) * b_beta;
-            for (int c = 0; c < K_CHUNKS; c++)
-                h_state[v_idx][c] += (b_k[c] * (float8)(update_val));
-
             float dot_part_q = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_q += FUNC(sum8)(fma(h_state[v_idx][c], b_q[c], (float8)(0.0f)));
+            for (int c = 0; c < K_CHUNKS; c++) {
+                float8 s = fma(b_k[c], (float8)(update_val), h_state[v_idx][c]);
+                h_state[v_idx][c] = s;
+                dot_part_q += FUNC(dot8_fma)(s, b_q[c]);
+            }
             dot_part_q_vec[v_idx] = dot_part_q;
         }
 

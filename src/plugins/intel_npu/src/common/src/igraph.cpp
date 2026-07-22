@@ -24,6 +24,10 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
     OPENVINO_THROW("set_argument_value_with_strides not implemented");
 }
 
+std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
+    OPENVINO_THROW("get_compatibility_descriptor not implemented");
+}
+
 void IGraph::initialize(const FilteredConfig& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 
@@ -42,8 +46,12 @@ const NetworkMetadata& IGraph::get_metadata() const {
     OPENVINO_THROW("get_metadata not implemented");
 }
 
-ze_graph_handle_t IGraph::get_handle() const {
+void* IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
+}
+
+bool IGraph::is_dynamic() const {
+    return false;
 }
 
 void IGraph::update_network_name(std::string_view) {
@@ -93,5 +101,7 @@ void IGraph::set_last_submitted_id(uint32_t) {
 uint32_t IGraph::get_last_submitted_id() const {
     OPENVINO_THROW("get_last_submitted_id not implemented");
 }
+
+void IGraph::evict_memory() {}
 
 }  // namespace intel_npu

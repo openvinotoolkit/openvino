@@ -147,6 +147,7 @@ private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
     ov::SoPtr<IRemoteContext> m_context;
+    std::shared_ptr<const void> m_weight_context;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor

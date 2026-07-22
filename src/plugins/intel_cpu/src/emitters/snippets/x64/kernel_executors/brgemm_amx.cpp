@@ -17,9 +17,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
 
 #include "cache/multi_cache.h"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"

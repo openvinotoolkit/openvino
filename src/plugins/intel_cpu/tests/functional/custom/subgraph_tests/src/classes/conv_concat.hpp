@@ -50,9 +50,9 @@ const std::vector<CPUSpecificParams> blockedCPUParams3D();
 
 const ov::Shape inputShapes2D();
 const ov::Shape inputShapes3D();
-const int axis();
-const ov::op::PadType paddingType();
-const size_t numOutChannels();
+int axis();
+ov::op::PadType paddingType();
+size_t numOutChannels();
 
 const ov::Shape kernelSize3D();
 const ov::Shape strides3D();

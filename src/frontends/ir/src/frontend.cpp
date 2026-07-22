@@ -18,6 +18,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "transformations/fp16_compression/convert_legacy_precision_attribute.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
 
@@ -163,7 +164,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&](std::string weights_path) -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&](std::filesystem::path weights_path) -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
             return std::make_shared<InputModel>(*provided_model_stream,
                                                 weights,
@@ -243,7 +244,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
 
-    return create_input_model(ov::util::path_to_string(weights_path));
+    return create_input_model(std::move(weights_path));
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
@@ -261,6 +262,7 @@ std::string FrontEnd::get_name() const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager("Frontend:IR:normalize");
     manager.register_pass<pass::ResolveNameCollisions>();
+    manager.register_pass<pass::ConvertLegacyPrecisionAttribute>();
     manager.run_passes(model);
 }
 

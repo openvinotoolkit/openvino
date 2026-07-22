@@ -88,6 +88,10 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
 
     ASSERT_EQ(expectedTargets, exeTargets);
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS);
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -93,9 +93,15 @@ public:
         auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param, is_shape_agnostic);
         const size_t dims_num = params.inputs[0].Dimentions();
 
-        std::vector<int32_t> begin(prim->begin.begin(), prim->begin.end());
-        std::vector<int32_t> end(prim->end.begin(), prim->end.end());
-        std::vector<int32_t> strides(prim->strides.begin(), prim->strides.end());
+        auto to_i32_vec = [](const auto& src) {
+            std::vector<int32_t> dst;
+            dst.reserve(src.size());
+            for (const auto& v : src) dst.push_back(static_cast<int32_t>(v));
+            return dst;
+        };
+        std::vector<int32_t> begin = to_i32_vec(prim->begin);
+        std::vector<int32_t> end = to_i32_vec(prim->end);
+        std::vector<int32_t> strides = to_i32_vec(prim->strides);
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         if (!begin.empty() && !params.has_dynamic_tensors()) {
@@ -149,11 +155,17 @@ public:
         auto shrink_axis_mask_ = prim->shrink_axis_mask;
         auto ellipsis_mask_ = prim->ellipsis_mask;
 
-        std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
-        std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
-        std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
-        std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-        std::vector<uint8_t> ellipsis_mask(ellipsis_mask_.begin(), ellipsis_mask_.end());
+        auto to_u8_vec = [](const auto& src) {
+            std::vector<uint8_t> dst;
+            dst.reserve(src.size());
+            for (const auto& v : src) dst.push_back(static_cast<uint8_t>(v));
+            return dst;
+        };
+        std::vector<uint8_t> begin_mask = to_u8_vec(begin_mask_);
+        std::vector<uint8_t> end_mask = to_u8_vec(end_mask_);
+        std::vector<uint8_t> new_axis_mask = to_u8_vec(new_axis_mask_);
+        std::vector<uint8_t> shrink_axis_mask = to_u8_vec(shrink_axis_mask_);
+        std::vector<uint8_t> ellipsis_mask = to_u8_vec(ellipsis_mask_);
         params.end_mask = std::move(end_mask);
         pad_vector_to_size(params.end_mask, dims_num, 0, prim->ellipsis_mask);
         params.begin_mask = std::move(begin_mask);

@@ -61,8 +61,8 @@ namespace intel_gpu {
                 return false;
 
             auto clamp_node = ov::as_type_ptr<ov::op::v0::Clamp>(pattern_map.at(clamp_m).get_node_shared_ptr());
-            auto clamp_min_value = clamp_node->get_min();
-            auto clamp_max_value = clamp_node->get_max();
+            auto clamp_min_value = static_cast<float>(clamp_node->get_min());
+            auto clamp_max_value = static_cast<float>(clamp_node->get_max());
 
             size_t gate_idx = 0;
             if (ov::is_type<ov::op::v4::Swish>(mul_node_ptr->get_input_node_shared_ptr(1)))

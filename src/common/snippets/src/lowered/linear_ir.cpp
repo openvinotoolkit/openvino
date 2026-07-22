@@ -48,16 +48,25 @@
 namespace ov::snippets::lowered {
 
 LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+#ifdef SNIPPETS_DEBUG_CAPS
     : m_config(std::move(config)),
+#else
+    : m_config(config),
+#endif
       m_loop_manager(std::make_shared<LoopManager>()),
       m_shape_infer_factory(factory),
       m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)),
-      m_expression_factory(std::make_shared<ExpressionFactory>(m_shape_infer_factory)) {}
+      m_expression_factory(std::make_shared<ExpressionFactory>(m_shape_infer_factory)) {
+}
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
+#ifdef SNIPPETS_DEBUG_CAPS
     : LinearIR(std::move(config), factory) {
+#else
+    : LinearIR(config, factory) {
+#endif
     const auto total_nodes = model->get_ops().size();
     const auto inputs_count = model->get_parameters().size();
     const auto outputs_count = model->get_results().size();
@@ -80,13 +89,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
             last_param = it;
         }
     }
-    for (const auto& param_expr : m_parameter_expressions) {
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
-    }
-    for (const auto& result_expr : m_result_expressions) {
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
-    }
-
+    update_dynamic_state();
     enumerate_expressions();
 }
 
@@ -159,6 +162,20 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
 
 bool LinearIR::is_dynamic() const {
     return m_is_dynamic;
+}
+
+void LinearIR::update_dynamic_state() {
+    bool is_dynamic = false;
+    for (const auto& param_expr : m_parameter_expressions) {
+        is_dynamic = is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
+    }
+    for (const auto& result_expr : m_result_expressions) {
+        is_dynamic = is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
+    }
+    for (const auto& [loop_id, loop_info] : m_loop_manager->get_map()) {
+        is_dynamic = is_dynamic || loop_info->is_dynamic();
+    }
+    m_is_dynamic = is_dynamic;
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {

@@ -290,7 +290,7 @@ TEST(type_prop, transpose_order_as_parameter_shape) {
     EXPECT_EQ(r->get_output_partial_shape(v1::Transpose::ARG_T), PartialShape({Dimension(4, 16), 6, Dimension(2, 8)}));
 }
 
-/** \brief Transpose with order as paramater shape dimensions after multiple transformations. */
+/** \brief Transpose with order as parameter shape dimensions after multiple transformations. */
 TEST(type_prop, transpose_order_as_parameter_shape_after_transformation) {
     const auto arg = make_shared<v0::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
 
@@ -426,4 +426,34 @@ TEST_P(TransposeTest, propagate_symbols) {
     const auto output = make_shared<op::v1::Transpose>(input, order);
 
     EXPECT_EQ(get_shape_symbols(output->get_output_partial_shape(op::v1::Transpose::ARG_T)), exp_symbols);
+}
+
+TEST(type_prop, transpose_arg_string_element_type_static) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::string, Shape{3, 4});
+    auto input_order = ov::op::v0::Constant::create(element::i64, Shape{2}, vector<int64_t>{1, 0});
+
+    auto r = make_shared<op::v1::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::string);
+    EXPECT_EQ(r->get_output_partial_shape(0), (PartialShape{4, 3}));
+}
+
+TEST(type_prop, transpose_arg_string_element_type_dynamic_shape) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::string, PartialShape{-1, -1, -1});
+    auto input_order = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+
+    auto r = make_shared<op::v1::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::string);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, transpose_arg_string_element_type_empty_order) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::string, Shape{2, 3, 4});
+    auto input_order = ov::op::v0::Constant::create(element::i64, Shape{0}, vector<int64_t>{});
+
+    auto r = make_shared<op::v1::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::string);
+    EXPECT_EQ(r->get_output_partial_shape(0), (PartialShape{4, 3, 2}));
 }

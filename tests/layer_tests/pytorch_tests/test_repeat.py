@@ -59,22 +59,26 @@ class TestRepeatList(PytorchLayerTest):
                    kwargs_to_prepare_input={"repeats_shape": repeats}, fx_kind="aten.repeat.default")
 
 
-class TestRepeatFromFlanT5(PytorchLayerTest):
+class TestRepeatExtendedMask(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.randn(1, 15),)
 
     def create_model(self):
         import torch
-        from transformers.modeling_utils import ModuleUtilsMixin
 
         class aten_repeat(torch.nn.Module):
             def forward(self, x):
-                return ModuleUtilsMixin.create_extended_attention_mask_for_decoder(x.size(), x)
+                batch_size, seq_length = x.size()
+                seq_ids = torch.arange(seq_length, device=x.device)
+                causal_mask = seq_ids[None, None, :].repeat(batch_size, seq_length, 1) <= seq_ids[None, :, None]
+                causal_mask = causal_mask.to(x.dtype)
+                extended_attention_mask = causal_mask[:, None, :, :] * x[:, None, None, :]
+                return extended_attention_mask
 
         return aten_repeat(), "aten::repeat"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_repeat_t5(self, ie_device, precision, ir_version):
+    def test_repeat_extended_mask(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)

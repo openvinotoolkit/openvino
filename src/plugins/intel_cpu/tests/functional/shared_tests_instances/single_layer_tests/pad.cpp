@@ -8,6 +8,7 @@
 
 namespace {
 using ov::test::PadLayerTest;
+using ov::test::PadStringLayerTest;
 using ov::op::PadMode;
 
 const std::vector<ov::element::Type> model_types = {
@@ -152,5 +153,35 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerTest,
         pad4Dparams,
         PadLayerTest::getTestCaseName
+);
+
+const std::vector<ov::test::PadStringLayerTestParamSet> padStringParams = {
+    // 1-D: pad only at begin
+    {{2}, {0}, "<pad>", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{4}}), ov::test::utils::DEVICE_CPU},
+    // 1-D: pad only at end
+    {{0}, {3}, "", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3}}), ov::test::utils::DEVICE_CPU},
+    // 1-D: pad both sides
+    {{1}, {2}, "FILL", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{5}}), ov::test::utils::DEVICE_CPU},
+    // 2-D: pad rows and columns
+    {{1, 1}, {1, 1}, "_", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3, 4}}), ov::test::utils::DEVICE_CPU},
+    // 2-D: pad only rows
+    {{2, 0}, {1, 0}, "X", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{2, 3}}), ov::test::utils::DEVICE_CPU},
+    // 2-D: pad only columns
+    {{0, 1}, {0, 2}, "", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{2, 3}}), ov::test::utils::DEVICE_CPU},
+    // negative (crop) on begin
+    {{-1}, {0}, "", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{4}}), ov::test::utils::DEVICE_CPU},
+    // dynamic shape, 1-D
+    {{1}, {1}, "<pad>", {{{-1}, {{3}, {5}}}}, ov::test::utils::DEVICE_CPU},
+    // dynamic shape, 2-D
+    {{1, 1}, {1, 1}, "_", {{{-1, -1}, {{2, 3}, {4, 2}}}}, ov::test::utils::DEVICE_CPU},
+    // 3-D
+    {{1, 0, 0}, {0, 1, 0}, "?", ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{2, 3, 4}}), ov::test::utils::DEVICE_CPU},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_PadString,
+        PadStringLayerTest,
+        ::testing::ValuesIn(padStringParams),
+        PadStringLayerTest::getTestCaseName
 );
 }  // namespace

@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import openvino.opset13 as ops
+import openvino.opset17 as ops_opset17
 from openvino import Shape, Type
 
 R_TOLERANCE = 1e-6  # global relative tolerance
@@ -119,6 +120,26 @@ def test_erf():
     assert node.get_type_name() == "Erf"
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == [6]
+
+
+def test_erfinv():
+    input_tensor = np.array([-0.9, -0.5, 0.0, 0.5, 0.9], dtype=np.float32)
+
+    node = ops_opset17.erfinv(input_tensor)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "ErfInv"
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == [5]
+
+
+def test_erfinv_parameter():
+    data = ops.parameter(Shape([2, 3, 4]), dtype=np.float32, name="data")
+
+    node = ops_opset17.erfinv(data)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "ErfInv"
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
 def test_hswish():

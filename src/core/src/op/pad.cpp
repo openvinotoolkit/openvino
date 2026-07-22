@@ -24,11 +24,7 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  op::PadMode pad_mode)
-    : op::util::PadBase(arg,
-                        pads_begin,
-                        pads_end,
-                        op::v0::Constant::create(arg.get_element_type(), Shape{}, {0}),
-                        pad_mode) {
+    : op::util::PadBase(arg, pads_begin, pads_end, pad_mode) {
     constructor_validate_and_infer_types();
 }
 
@@ -69,11 +65,7 @@ op::v12::Pad::Pad(const Output<Node>& arg,
                   const Output<Node>& pads_begin,
                   const Output<Node>& pads_end,
                   op::PadMode pad_mode)
-    : op::util::PadBase(arg,
-                        pads_begin,
-                        pads_end,
-                        op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0}),
-                        pad_mode) {
+    : op::util::PadBase(arg, pads_begin, pads_end, pad_mode) {
     constructor_validate_and_infer_types();
 }
 

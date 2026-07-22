@@ -206,5 +206,28 @@ void pad(const char* data,
          const op::PadMode pad_mode) {
     impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
 }
+
+void pad(const std::string* data,
+         std::string_view pad_value,
+         std::string* out,
+         const Shape& data_shape,
+         const Shape& out_shape,
+         const CoordinateDiff& padding_below,
+         const CoordinateDiff& padding_above) {
+    Coordinate in_coord(data_shape.size());
+    for (const auto& out_coord : CoordinateTransformBasic{out_shape}) {
+        bool in_bounds = true;
+        for (size_t ax = 0; ax < data_shape.size(); ++ax) {
+            const ptrdiff_t c = static_cast<ptrdiff_t>(out_coord[ax]) - padding_below[ax];
+            if (c < 0 || c >= static_cast<ptrdiff_t>(data_shape[ax])) {
+                in_bounds = false;
+                break;
+            }
+            in_coord[ax] = static_cast<size_t>(c);
+        }
+        out[coordinate_index(out_coord, out_shape)] =
+            in_bounds ? data[coordinate_index(in_coord, data_shape)] : pad_value;
+    }
+}
 }  // namespace reference
 }  // namespace ov

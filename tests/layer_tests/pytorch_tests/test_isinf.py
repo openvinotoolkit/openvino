@@ -8,7 +8,9 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (np.array([1, 0, -1]),))
+@pytest.mark.parametrize('input_tensor',
+                         (np.array([float("inf"), float("nan"), -float("inf"), 0.0, 1.0, -1.0],
+                                   dtype=np.float32),))
 class TestIsInf(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -19,7 +21,7 @@ class TestIsInf(PytorchLayerTest):
         class aten_isinf(torch.nn.Module):
 
             def forward(self, input_tensor):
-                return torch.isinf(input_tensor * float("inf"))
+                return torch.isinf(input_tensor)
 
         return aten_isinf(), "aten::isinf"
 

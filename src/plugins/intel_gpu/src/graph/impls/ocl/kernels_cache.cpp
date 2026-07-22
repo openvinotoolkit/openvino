@@ -5,7 +5,9 @@
 #include "kernels_cache.hpp"
 #include <regex>
 
+#ifdef ENABLE_CM_FOR_GPU
 #include "impls/cm/utils/kernels_db.hpp"
+#endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
@@ -209,9 +211,14 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     for (auto& header : new_headers) {
                         if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
                             all_headers.push_front(header);
-                            std::string_view header_code = prog.language == kernel_language::OCLC_V2
+                            std::string_view header_code =
+#ifdef ENABLE_CM_FOR_GPU
+                                prog.language == kernel_language::OCLC_V2
                                 ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
                                 : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
+#else
+                                ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
+#endif
                             sources_to_process.push_back(std::string(header_code) + "\n");
                         }
                     }

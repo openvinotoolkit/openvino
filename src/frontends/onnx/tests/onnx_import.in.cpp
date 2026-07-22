@@ -320,6 +320,131 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_model_with_initializers) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_default) {
+    const auto model = convert_model("col2im_2D_default_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 4]
+    std::vector<float> input_data =
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
+    test_case.add_input<float>(ov::Shape{1, 4, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 3, 3]
+    std::vector<float> expected_output = {1.0f, 7.0f, 6.0f, 12.0f, 34.0f, 22.0f, 11.0f, 27.0f, 16.0f};
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 3, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_dilations) {
+    const auto model = convert_model("col2im_2D_dilations_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 9]
+    std::vector<float> input_data(36, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 9}, input_data);
+
+    // image_shape: [5, 5]
+    test_case.add_input<int64_t>(ov::Shape{2}, {5, 5});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 5, 5]
+    std::vector<float> expected_output = {1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 2.0f, 2.0f, 4.0f,
+                                          2.0f, 2.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f};
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 5, 5}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_pads) {
+    const auto model = convert_model("col2im_2D_pads_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 9]
+    std::vector<float> input_data(36, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 9}, input_data);
+
+    // image_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 2, 2]
+    std::vector<float> expected_output = {4.0f, 4.0f, 4.0f, 4.0f};
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_strides) {
+    const auto model = convert_model("col2im_2D_strides_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 4]
+    std::vector<float> input_data(16, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 4}, input_data);
+
+    // image_shape: [4, 4]
+    test_case.add_input<int64_t>(ov::Shape{2}, {4, 4});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 4, 4]
+    std::vector<float> expected_output(16, 1.0f);
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 4, 4}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_batch) {
+    const auto model = convert_model("col2im_2D_batch_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [2, 4, 4]
+    std::vector<float> input_data(32, 1.0f);
+    test_case.add_input<float>(ov::Shape{2, 4, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [2, 1, 3, 3]
+    std::vector<float> single_batch_output = {1.0f, 2.0f, 1.0f, 2.0f, 4.0f, 2.0f, 1.0f, 2.0f, 1.0f};
+    std::vector<float> expected_output;
+    expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
+    expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
+
+    test_case.add_expected_output<float>(ov::Shape{2, 1, 3, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_channel) {
+    const auto model = convert_model("col2im_2D_channel_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 12, 4]
+    std::vector<float> input_data(48, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 12, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 3, 3, 3]
+    std::vector<float> single_channel_output = {1.0f, 2.0f, 1.0f, 2.0f, 4.0f, 2.0f, 1.0f, 2.0f, 1.0f};
+    std::vector<float> expected_output;
+    for (int i = 0; i < 3; ++i) {
+        expected_output.insert(expected_output.end(), single_channel_output.begin(), single_channel_output.end());
+    }
+
+    test_case.add_expected_output<float>(ov::Shape{1, 3, 3, 3}, expected_output);
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto model = convert_model("addmul_abc.onnx");
@@ -452,6 +577,62 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
     test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    auto model = convert_model("relu_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    auto model = convert_model("relu_opset13.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::bfloat16>(
+        {ov::bfloat16(-1), ov::bfloat16(-2), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.add_expected_output<ov::bfloat16>(
+        {ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int8) {
+    auto model = convert_model("relu_opset14_int8.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int8_t>({-3, -1, 0, 1, 2, 5});
+    test_case.add_expected_output<int8_t>({0, 0, 0, 1, 2, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int16) {
+    auto model = convert_model("relu_opset14_int16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int16_t>({-300, -1, 0, 1, 200, 500});
+    test_case.add_expected_output<int16_t>({0, 0, 0, 1, 200, 500});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int32) {
+    auto model = convert_model("relu_opset14_int32.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int32_t>({-100000, -1, 0, 1, 200000, 500000});
+    test_case.add_expected_output<int32_t>({0, 0, 0, 1, 200000, 500000});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int64) {
+    auto model = convert_model("relu_opset14_int64.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({-1000000000LL, -1, 0, 1, 1000000000LL, 2000000000LL});
+    test_case.add_expected_output<int64_t>({0, 0, 0, 1, 1000000000LL, 2000000000LL});
     test_case.run();
 }
 
@@ -1106,6 +1287,49 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// Numerical stability tests for ReduceLogSumExp (issue #32839).
+// The old naive implementation log(sum(exp(x))) overflows to Inf for inputs >= 89.
+// The stable implementation k + log(sum(exp(x - k))) should produce correct finite results.
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_large_values) {
+    // Uses opset 1-12 model with keepdims=true, reducing all axes
+    auto model = convert_model("reduce_log_sum_exp.onnx");
+
+    // input data shape (1, 1, 4, 4) - all values 100.0, well above overflow threshold (~88.7)
+    Inputs inputs{ov::test::NDArray<float, 4>(
+                      {{{{100, 100, 100, 100}, {100, 100, 100, 100}, {100, 100, 100, 100}, {100, 100, 100, 100}}}})
+                      .get_vector()};
+
+    // Expected: 100 + log(16) = 100 + 2.77258872... = 102.77258872
+    // Old naive implementation would produce Inf here
+    auto expected_output = ov::test::NDArray<float, 4>({{{{102.77259f}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18_large_values) {
+    // Uses opset 18 model with keepdims=false, reducing non-trailing axes
+    // This also tests the broadcasting fix for keepdims=false
+    auto model = convert_model("reduce_log_sum_exp_18.onnx");
+
+    // input data shape (1, 1, 4, 4) - all values 100.0
+    Inputs inputs{ov::test::NDArray<float, 4>(
+                      {{{{100, 100, 100, 100}, {100, 100, 100, 100}, {100, 100, 100, 100}, {100, 100, 100, 100}}}})
+                      .get_vector()};
+
+    // output data shape (4) - each element reduces 4 values along axis 2
+    // Expected: 100 + log(4) = 100 + 1.38629... = 101.38629
+    auto expected_output = ov::test::NDArray<float, 1>({101.38629f, 101.38629f, 101.38629f, 101.38629f}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
     auto model = convert_model("reduce_l1.onnx");
 
@@ -1661,6 +1885,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
     test_case.add_expected_output<float>(expected_output_shape, {1.0, 3.0});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest_f64) {
+    const auto model = convert_model("resize10_down_scales_const_nearest_f64.onnx");
+
+    // Input data shape (1, 1, 2, 4)
+    // Input const scales values {1.0, 1.0, 0.6, 0.6}
+    // mode: nearest
+    // elem_type: 11 (double / f64)
+
+    Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<double>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    test_case.add_expected_output<double>(expected_output_shape, {1.0, 3.0});
     test_case.run();
 }
 
@@ -3204,6 +3443,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_zero_norm) {
+    // Ref: https://onnx.ai/onnx/operators/onnx__LpNormalization.html
+    const auto model = convert_model("lp_norm_p2.onnx");
+
+    const Shape data_shape{2, 3, 4};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(data_shape, {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 0.f, 0.f,
+                                            13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 0.f, 0.f});
+    test_case.add_expected_output<float>(
+        data_shape,
+        {0.0766965f,  0.14142136f, 0.19611613f, 0.24253564f, 0.28216633f, 0.31622776f, 0.34570536f, 0.37139067f,
+         0.39391932f, 0.41380295f, 0.0f,        0.0f,        0.9970545f,  0.98994946f, 0.9805807f,  0.97014254f,
+         0.9593655f,  0.9486833f,  0.9383431f,  0.9284767f,  0.91914505f, 0.9103665f,  0.0f,        0.0f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization) {
     const auto model = convert_model("instance_norm.onnx");
 
@@ -3426,8 +3682,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
-    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ov::Exception)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+    const auto model = convert_model("scatter_nd_opset16_reduction_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Duplicate indices (1 appears twice) exercise the `add` reduction:
+    // updates 10 and 12 both target index 1, so result[1] = 2 + 10 + 12 = 24.
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_input<int64_t>({4, 1, 1, 7});
+    test_case.add_input<float>({9.f, 10.f, 12.f, 11.f});
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 24.f, 3.f, 4.f, 14.f, 6.f, 7.f, 19.f});
+
+    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
@@ -5570,6 +5835,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node_ort_mem) {
+    const auto model = convert_model("expand_scalar_failsafe_node_ort_mem.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{1.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_scan15_fib_like) {
     const auto model = convert_model("scan15_fib_like.onnx");
 
@@ -5910,6 +6186,60 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample) {
          12.7000f, 13.5000f, 6.9000f, 3.0000f, 6.1500f,  6.5500f, 6.9500f, 7.3500f,  3.7500});
 
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_linear) {
+    const auto model = convert_model("grid_sample_opset20.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, gen_range<float>(16));
+    test_case.add_input<float>(
+        Shape{1, 6, 6, 2},
+        {-1.0000f, -1.0000f, -0.6000f, -1.0000f, -0.2000f, -1.0000f, 0.2000f,  -1.0000f, 0.6000f,  -1.0000f, 1.0000f,
+         -1.0000f, -1.0000f, -0.6000f, -0.6000f, -0.6000f, -0.2000f, -0.6000f, 0.2000f,  -0.6000f, 0.6000f,  -0.6000f,
+         1.0000f,  -0.6000f, -1.0000f, -0.2000f, -0.6000f, -0.2000f, -0.2000f, -0.2000f, 0.2000f,  -0.2000f, 0.6000f,
+         -0.2000f, 1.0000f,  -0.2000f, -1.0000f, 0.2000f,  -0.6000f, 0.2000f,  -0.2000f, 0.2000f,  0.2000f,  0.2000f,
+         0.6000f,  0.2000f,  1.0000f,  0.2000f,  -1.0000f, 0.6000f,  -0.6000f, 0.6000f,  -0.2000f, 0.6000f,  0.2000f,
+         0.6000f,  0.6000f,  0.6000f,  1.0000f,  0.6000f,  -1.0000f, 1.0000f,  -0.6000f, 1.0000f,  -0.2000f, 1.0000f,
+         0.2000f,  1.0000f,  0.6000f,  1.0000f,  1.0000f,  1.0000});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 6},
+        {0.0000f,  0.1500f,  0.5500f, 0.9500f, 1.3500f,  0.7500f, 0.6000f, 1.5000f,  2.3000f,
+         3.1000f,  3.9000f,  2.1000f, 2.2000f, 4.7000f,  5.5000f, 6.3000f, 7.1000f,  3.7000f,
+         3.8000f,  7.9000f,  8.7000f, 9.5000f, 10.3000f, 5.3000f, 5.4000f, 11.1000f, 11.9000f,
+         12.7000f, 13.5000f, 6.9000f, 3.0000f, 6.1500f,  6.5500f, 6.9500f, 7.3500f,  3.7500});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_cubic) {
+    const auto model = convert_model("grid_sample_opset20_cubic.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, gen_range<float>(16));
+    test_case.add_input<float>(
+        Shape{1, 6, 6, 2},
+        {-1.0000f, -1.0000f, -0.6000f, -1.0000f, -0.2000f, -1.0000f, 0.2000f,  -1.0000f, 0.6000f,  -1.0000f, 1.0000f,
+         -1.0000f, -1.0000f, -0.6000f, -0.6000f, -0.6000f, -0.2000f, -0.6000f, 0.2000f,  -0.6000f, 0.6000f,  -0.6000f,
+         1.0000f,  -0.6000f, -1.0000f, -0.2000f, -0.6000f, -0.2000f, -0.2000f, -0.2000f, 0.2000f,  -0.2000f, 0.6000f,
+         -0.2000f, 1.0000f,  -0.2000f, -1.0000f, 0.2000f,  -0.6000f, 0.2000f,  -0.2000f, 0.2000f,  0.2000f,  0.2000f,
+         0.6000f,  0.2000f,  1.0000f,  0.2000f,  -1.0000f, 0.6000f,  -0.6000f, 0.6000f,  -0.2000f, 0.6000f,  0.2000f,
+         0.6000f,  0.6000f,  0.6000f,  1.0000f,  0.6000f,  -1.0000f, 1.0000f,  -0.6000f, 1.0000f,  -0.2000f, 1.0000f,
+         0.2000f,  1.0000f,  0.6000f,  1.0000f,  1.0000f,  1.0000});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 6},
+        {-0.2344f, -0.3005f, 0.1930f, 0.5570f, 1.1332f,  0.6094f, 0.3594f, 1.2865f,  2.1882f,
+         2.9965f,  4.4699f,  2.2330f, 2.1783f, 5.2767f,  5.6800f, 6.4080f, 8.1440f,  3.8658f,
+         3.6343f,  8.5098f,  8.5920f, 9.3200f, 11.3770f, 5.3218f, 6.0939f, 14.0200f, 13.6572f,
+         14.4655f, 17.2033f, 7.9675f, 3.1406f, 7.1937f,  6.9430f, 7.3070f, 8.6273f,  3.9844f});
+
+    test_case.run_with_tolerance_as_fp(1.0e-3f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_5d_input_rejected) {
+    EXPECT_THROW(convert_model("grid_sample_opset20_5d.onnx"), ov::Exception);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
@@ -7408,6 +7738,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
     test_case.run();
 }
 
+/// @brief Testing ONNX SequenceLength operator via SequenceConstruct fast path.
+/// All inputs are graph initializers (constants), so SequenceLength is constant-folded
+/// at conversion time to the scalar value 3.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_length_constant_sequence) {
+    const auto model = convert_model("sequence_length_3_elements.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase middle element.
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase(pos=1) -> SequenceAt(pos=0) -> a.
+/// After erasing element at index 1 (b), the sequence is [a, c]; SequenceAt(0) returns a.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_middle_element) {
+    const auto model = convert_model("sequence_erase_middle.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b (erased)
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c
+    test_case.add_expected_output<float>(Shape{2}, {10., 20.});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase last element (no position input).
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase() -> SequenceAt(pos=1) -> b.
+/// After erasing the last element (c), the sequence is [a, b]; SequenceAt(1) returns b.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_last_element) {
+    const auto model = convert_model("sequence_erase_last.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c (erased)
+    test_case.add_expected_output<float>(Shape{2}, {30., 40.});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX BitShift with an Y output of uint32 type
 /// The input model was taken from a bug report, where parsing the type of the Y input
 /// failed.
@@ -7457,6 +7829,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_biased) {
     test_case.run_with_tolerance_as_fp(0.0001f);
 }
 
+// Minimal smoke test for the standard ONNX opset-23 RMSNormalization translator.
+// Verifies that the decomposition built via ov::decomposition::rms_norm produces
+// the expected RMS-normalized output. Comprehensive coverage lives in the ONNX
+// node conformance suite (test_rms_normalization_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rms_normalization) {
+    const auto model = convert_model("rms_normalization.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 4}, {1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    // RMS over last axis: sqrt(mean(x^2) + 1e-5)
+    //   Row 0: sqrt(7.5 + 1e-5) ~ 2.738614
+    //   Row 1: sqrt(1.0 + 1e-5) ~ 1.0000050
+    test_case.add_expected_output<float>(
+        Shape{2, 4},
+        {0.36514688f, 0.73029375f, 1.09544063f, 1.46058750f, 0.99999499f, 0.99999499f, 0.99999499f, 0.99999499f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+// Minimal smoke test for the standard ONNX opset-23 RotaryEmbedding translator.
+// Uses cos=1, sin=0 so the rotation is identity — the test verifies that the
+// reshape/transpose/decomposition pipeline plumbs the input through unchanged.
+// Comprehensive correctness coverage lives in the ONNX node conformance suite
+// (test_rotary_embedding_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
+    const auto model = convert_model("rotary_embedding.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    const std::vector<float> input = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
+    test_case.add_input<float>(Shape{1, 1, 2, 4}, input);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 4}, input);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
@@ -7477,9 +7882,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
                                 -0.072010f, 1.003533f,  0.361636f,  -0.645120f, 0.361396f,  1.538037f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {0.143204f, -0.312989f, 0.232224f,  -0.004593f, -0.555314f, 0.383667f,  0.235821f,  -0.206320f,
-         0.154587f, 0.028000f,  -0.570602f, 0.413158f,  -0.428041f, 0.006260f,  -0.832314f, -0.546679f,
-         0.298202f, 0.292189f,  -0.625760f, 0.324462f,  0.962753f,  -0.387417f, 0.509615f,  0.017205f});
+        {0.143205f, -0.312989f, 0.232224f,  -0.004592f, -0.555314f, 0.383666f,  0.235821f,  -0.206320f,
+         0.154587f, 0.028000f,  -0.570603f, 0.413158f,  -0.428041f, 0.006261f,  -0.832314f, -0.546679f,
+         0.298202f, 0.292189f,  -0.625760f, 0.324463f,  0.962753f,  -0.387417f, 0.509615f,  0.017205f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7503,9 +7908,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_3d) {
                                 0.813517f,  -1.230864f, 0.227460f,  1.307143f,  -1.607483f, 0.184634f});
     test_case.add_expected_output<float>(
         Shape{1, 4, 6},
-        {-0.376205f, -1.164383f, 0.494832f,  1.251880f,  -1.010314f, -0.134396f, -0.433258f, -0.718601f,
-         0.898995f,  0.979683f,  -0.832299f, -0.209895f, -1.080272f, 0.093997f,  1.487117f,  0.203439f,
-         -0.572602f, -0.311992f, -0.340959f, -1.273095f, 0.406927f,  -0.541346f, 0.026989f,  -0.646756f});
+        {-0.816504f, 0.238808f,  -0.665579f, -0.060809f, -0.843913f, 0.576091f,  -0.524377f, -0.428967f,
+         0.031840f,  -0.012819f, -1.422445f, 0.157862f,  -0.073136f, -0.735764f, 0.342599f,  0.410357f,
+         -0.630925f, 0.507768f,  -0.197636f, -0.370013f, 0.007059f,  -0.711657f, -0.161920f, 1.430161f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7533,10 +7938,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_4d) {
     test_case.add_expected_output<float>(
         Shape{1, 4, 4, 3},
         {0.357977f,  0.265504f,  -1.042098f, 0.420300f,  0.040855f,  -0.967495f, 0.294989f,  0.216078f,
-         -1.011940f, 0.274893f,  0.215012f,  -1.007991f, 1.105739f,  0.072415f,  -0.710253f, 0.288786f,
-         0.032542f,  -0.470010f, 0.351593f,  0.006968f,  -0.509201f, 0.309487f,  0.065849f,  -0.691483f,
-         0.049388f,  0.099175f,  -0.919799f, 0.268812f,  0.031392f,  -0.937286f, 0.548290f,  0.176453f,
-         -1.039254f, 0.600669f,  0.085532f,  -1.012268f, 0.247689f,  0.055143f,  -0.270079f, 0.423475f,
+         -1.011940f, 0.274893f,  0.215012f,  -1.007991f, 0.324332f,  0.377184f,  -1.079051f, 0.140310f,
+         0.069755f,  -0.926549f, 0.196098f,  0.122324f,  -0.957042f, 0.791963f,  0.093056f,  -1.045666f,
+         -0.043123f, 0.276709f,  -0.463525f, 0.146081f,  0.278636f,  -0.665001f, 0.872397f,  0.204653f,
+         -0.902212f, 0.233920f,  0.045356f,  -0.650669f, 0.247689f,  0.055143f,  -0.270079f, 0.423475f,
          0.074996f,  -0.605837f, 0.572569f,  0.121736f,  -0.539797f, -0.127635f, 0.346899f,  -0.659494f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
@@ -7580,12 +7985,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mqa_4d) {
                                 1.098777f});
     test_case.add_expected_output<float>(
         Shape{1, 4, 4, 3},
-        {0.337986f,  -0.303017f, 0.547312f,  0.205010f,  -0.423954f, 0.599464f,  0.558864f,  -0.305937f,
-         0.481555f,  0.487686f,  -0.377153f, 0.524956f,  -0.169225f, -0.387052f, 0.832382f,  0.005277f,
-         -0.308193f, 0.762964f,  -0.027680f, -0.357686f, 0.754208f,  0.108195f,  -0.432638f, 0.547678f,
+        {0.337986f,  -0.303017f, 0.547312f,  0.205010f,  -0.423954f, 0.599463f,  0.558864f,  -0.305937f,
+         0.481555f,  0.487686f,  -0.377153f, 0.524956f,  -0.169226f, -0.387052f, 0.832382f,  0.005277f,
+         -0.308193f, 0.762964f,  -0.027681f, -0.357686f, 0.754208f,  0.108196f,  -0.432638f, 0.547678f,
          0.597206f,  -0.330012f, 0.463645f,  0.332367f,  -0.286605f, 0.489778f,  0.550417f,  -0.424551f,
          0.558099f,  0.385289f,  -0.361417f, 0.535184f,  0.273678f,  -0.371122f, 0.586114f,  0.322549f,
-         -0.312850f, 0.592683f,  0.691556f,  -0.417891f, 0.548147f,  0.397891f,  -0.242785f, 0.454272f});
+         -0.312850f, 0.592683f,  0.691556f,  -0.417890f, 0.548147f,  0.397891f,  -0.242785f, 0.454272f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7623,17 +8028,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_3d) {
                                 0.473238f,  -0.072829f, -0.846794f, -1.514847f, -0.446515f, 0.856399f});
     test_case.add_expected_output<float>(
         Shape{1, 3, 32},
-        {-0.704795f, 0.707981f,  0.593540f,  -0.898167f, 1.008786f,  0.399956f,  0.432802f,  1.435332f,  -0.019993f,
-         1.311787f,  -0.201133f, 2.317111f,  0.445180f,  -0.896102f, -0.965436f, 0.532888f,  -0.251821f, 0.630770f,
-         -0.325360f, -1.050858f, 0.983863f,  0.369530f,  -0.032157f, 0.748155f,  -0.048911f, 1.124254f,  -0.210208f,
-         1.941960f,  0.327995f,  -0.843507f, -0.842911f, 0.574183f,  -0.474955f, 0.530429f,  0.053854f,  -0.919247f,
-         1.248044f,  0.406687f,  -0.272292f, 0.869132f,  -0.184070f, 0.404185f,  -0.092606f, 0.242662f,  -0.321041f,
-         -0.812016f, -0.344628f, 0.774335f,  -0.372639f, 0.473363f,  -0.174731f, -0.937587f, 1.314551f,  0.406163f,
-         -0.511668f, 0.651625f,  -0.183792f, 0.282770f,  -0.218555f, 0.203643f,  -0.240109f, -0.643703f, -0.287215f,
-         0.768312f,  -0.479064f, 0.635002f,  0.117315f,  -0.960196f, 1.059176f,  0.390321f,  0.084115f,  1.038653f,
-         -0.054916f, 1.087806f,  -0.209541f, 1.864920f,  0.302044f,  -0.836003f, -0.818654f, 0.582872f,  -0.866851f,
-         0.733830f,  0.921344f,  -0.842817f, 1.020930f,  0.411125f,  0.593132f,  1.678388f,  -0.154474f, 0.530392f,
-         -0.150549f, 0.603883f,  -0.158533f, -0.775794f, -0.438776f, 0.729069f});
+        {-0.578544f, 0.906466f,  0.478973f,  -0.269664f, 0.824521f,  0.163096f,  0.379487f,  1.367918f,  -0.228119f,
+         0.938606f,  -0.176255f, -0.213897f, 0.699997f,  0.071186f,  0.145251f,  0.919134f,  -0.311386f, 0.091799f,
+         -0.057718f, -0.457374f, -0.090073f, -0.486672f, -0.311790f, 0.810723f,  -0.398406f, 0.348400f,  0.234535f,
+         -0.407879f, 0.272713f,  -0.532246f, -0.636800f, 0.777365f,  -0.031783f, 0.998567f,  -0.512509f, 0.063863f,
+         0.631195f,  -0.053956f, -0.075798f, 0.656805f,  -0.155417f, 1.099274f,  -0.198931f, 0.702556f,  0.677710f,
+         -0.218220f, -0.233016f, 0.786070f,  -0.288275f, -0.219073f, -0.362853f, -0.590179f, -0.078985f, -0.178768f,
+         -0.097950f, 0.816286f,  -0.472167f, 0.188257f,  0.128272f,  -0.552101f, 0.747385f,  -0.110647f, -0.713881f,
+         0.743961f,  -0.766305f, 0.875843f,  0.820194f,  -0.378289f, 0.890933f,  0.235868f,  0.533681f,  1.611858f,
+         -0.461761f, 0.887748f,  0.238967f,  -0.423998f, 0.782344f,  0.184127f,  0.364423f,  1.225991f,  -0.431317f,
+         0.092407f,  0.014144f,  -0.563205f, 0.566190f,  -0.119241f, -0.574239f, 0.759954f,  -0.489198f, 0.175638f,
+         0.126567f,  -0.573394f, 0.846203f,  -0.042984f, -0.744475f, 0.736579f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7657,9 +8062,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_causal) {
                                 1.644968f,  -0.249036f, 0.576557f,  0.311250f,  3.078881f,  1.119575f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {-0.107030f, -1.035242f, -0.553649f, -0.151585f, -0.912711f, -0.529596f, -0.308122f, -0.584946f,
-         -0.412347f, -0.755049f, 0.745656f,  -0.131881f, -0.530501f, -0.575818f, -0.275052f, -0.891396f,
-         -0.767198f, 0.059461f,  -0.424143f, -0.658454f, 0.108633f,  -1.459665f, -0.765383f, 1.122714f});
+        {-0.107030f, -1.035242f, -0.553649f, -0.151585f, -0.912711f, -0.529595f, -0.308122f, -0.584946f,
+         -0.412347f, -0.755049f, 0.745657f,  -0.131881f, -0.530501f, -0.575818f, -0.275052f, -0.891395f,
+         -0.767198f, 0.059460f,  -0.424142f, -0.658454f, 0.108633f,  -1.459665f, -0.765382f, 1.122714f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7700,9 +8105,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_float) {
                                 0.0f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {0.259723f,  -0.904317f, 0.638592f, -0.670611f, -0.498413f, -0.257053f, -0.529244f, -0.382512f,
+        {0.259723f,  -0.904317f, 0.638592f, -0.670610f, -0.498413f, -0.257053f, -0.529244f, -0.382512f,
          -0.320152f, -0.514261f, 0.291701f, -0.555729f, 0.835692f,  -1.129707f, 0.529804f,  1.204720f,
-         -1.947056f, -0.278264f, 1.169140f, -1.832562f, -0.273470f, 1.201381f,  -2.001133f, -0.412585f});
+         -1.947056f, -0.278264f, 1.169140f, -1.832562f, -0.273470f, 1.201382f,  -2.001132f, -0.412585f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7729,9 +8134,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_bool) {
         {true, false, false, false, true, true, false, false, true, true, true, false, true, true, true, true});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {0.756989f,  -0.922165f, 0.869606f,  1.003041f,  -0.373216f, 1.283574f,  0.603106f, -0.411673f,
+        {0.756989f,  -0.922165f, 0.869606f,  1.003042f,  -0.373216f, 1.283574f,  0.603106f, -0.411673f,
          0.590585f,  0.369631f,  -0.489830f, 0.009988f,  0.279969f,  -1.125489f, 2.445752f, 0.231076f,
-         -0.724973f, 1.887900f,  0.229914f,  -0.068798f, 0.681135f,  0.338080f,  0.258214f, 0.664186f});
+         -0.724973f, 1.887901f,  0.229914f,  -0.068798f, 0.681136f,  0.338080f,  0.258214f, 0.664186f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7755,8 +8160,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_custom_scale) {
                                 -0.360966f, 1.159330f,  -1.081063f, 0.615936f,  0.593101f,  -0.309546f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {0.175016f,  0.297030f,  1.008947f,  -0.314262f, -0.197272f, -0.397901f, -0.615684f, -0.441686f,
-         -0.360722f, -0.612660f, -0.599629f, 1.158077f,  0.054589f,  0.835598f,  -0.574787f, -0.731885f,
+        {0.175016f,  0.297030f,  1.008946f,  -0.314263f, -0.197272f, -0.397902f, -0.615685f, -0.441686f,
+         -0.360722f, -0.612660f, -0.599629f, 1.158077f,  0.054589f,  0.835598f,  -0.574786f, -0.731885f,
          0.722422f,  0.079574f,  -0.591538f, 0.747547f,  -0.051516f, -0.699099f, 0.720287f,  0.091489f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
@@ -7846,9 +8251,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap) {
                                 0.267050f,  0.889631f,  0.082284f, 1.065480f,  -0.517288f, 1.409347f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {-0.217309f, -0.010507f, 0.432435f, -0.418403f, 0.393266f,  -0.258099f, -0.274749f, 0.222249f,
-         0.149638f,  -0.297697f, 0.183658f, 0.133947f,  0.548682f,  -0.324988f, 1.232658f,  0.393897f,
-         0.368712f,  -0.122598f, 0.260566f, 0.421482f,  -0.243643f, 0.329124f,  0.370001f,  -0.109046f});
+        {-0.217310f, -0.010507f, 0.432435f, -0.418403f, 0.393266f,  -0.258099f, -0.274749f, 0.222249f,
+         0.149638f,  -0.297697f, 0.183658f, 0.133948f,  0.548682f,  -0.324987f, 1.232658f,  0.393897f,
+         0.368712f,  -0.122598f, 0.260566f, 0.421482f,  -0.243643f, 0.329123f,  0.370001f,  -0.109046f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7872,9 +8277,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_causal_softcap) {
                                 1.644968f,  -0.249036f, 0.576557f,  0.311250f,  3.078881f,  1.119575f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {-0.201853f, -0.724072f, -0.430133f, -0.234045f, -0.630293f, -0.405222f, -0.332883f, -0.469627f,
-         -0.355742f, -0.732414f, 0.696189f,  -0.129281f, -0.326636f, -0.078002f, 0.361213f,  -0.583892f,
-         -0.368495f, 0.273408f,  -0.393912f, -0.557303f, 0.172777f,  -0.918016f, -0.294001f, 0.962115f});
+        {-0.107030f, -1.035242f, -0.553649f, -0.204205f, -0.767998f, -0.501187f, -0.336917f, -0.508691f,
+         -0.395867f, -0.732414f, 0.696189f,  -0.129281f, -0.530501f, -0.575818f, -0.275052f, -0.969258f,
+         -0.808488f, 0.131632f,  -0.415063f, -0.666371f, 0.144377f,  -0.918016f, -0.294001f, 0.962115f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -7906,17 +8311,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mqa_3d) {
                                 -0.012247f, -0.897254f, 0.075805f, -0.677162f, 0.975120f,  -0.147057f});
     test_case.add_expected_output<float>(
         Shape{1, 3, 32},
-        {0.584764f,  0.724167f,  0.503125f,  0.499875f,  0.105035f,  -0.625041f, 0.657639f,  0.136957f,  0.561326f,
-         0.682043f,  0.229291f,  0.147373f,  0.011446f,  -0.687052f, 0.802709f,  0.090234f,  0.468962f,  0.677608f,
-         0.096148f,  0.687705f,  -0.176568f, -0.779856f, 0.830123f,  0.257721f,  0.620987f,  0.722240f,  0.533878f,
-         0.244191f,  0.174668f,  -0.592084f, 0.659237f,  0.063294f,  0.270539f,  0.623238f,  -0.452431f, 1.312983f,
-         -0.630656f, -1.021292f, 1.040076f,  0.519944f,  0.573690f,  0.686437f,  0.269369f,  0.120435f,  0.040868f,
-         -0.671063f, 0.786234f,  0.076085f,  0.596900f,  0.703859f,  0.398307f,  0.179405f,  0.106362f,  -0.632444f,
-         0.724410f,  0.069487f,  0.463907f,  0.680591f,  0.107749f,  0.755809f,  -0.183249f, -0.781909f, 0.820756f,
-         0.273910f,  0.387734f,  0.625262f,  -0.304596f, 0.584345f,  -0.396129f, -0.906919f, 1.017432f,  0.299585f,
-         0.380968f,  0.640075f,  -0.225713f, 0.804712f,  -0.392961f, -0.899516f, 0.968444f,  0.344800f,  0.544325f,
-         0.695915f,  0.290788f,  0.422251f,  -0.006723f, -0.690354f, 0.758272f,  0.153030f,  0.550951f,  0.630505f,
-         -0.084503f, -0.401461f, -0.066788f, -0.745357f, 0.977725f,  -0.002030f});
+        {0.584764f,  0.724167f,  0.503125f,  0.499875f,  0.105036f,  -0.625041f, 0.657639f,  0.136957f,  0.270539f,
+         0.623238f,  -0.452432f, 1.312982f,  -0.630656f, -1.021292f, 1.040076f,  0.519945f,  0.387734f,  0.625261f,
+         -0.304596f, 0.584346f,  -0.396129f, -0.906920f, 1.017433f,  0.299586f,  0.561326f,  0.682043f,  0.229291f,
+         0.147373f,  0.011446f,  -0.687052f, 0.802709f,  0.090234f,  0.573690f,  0.686437f,  0.269369f,  0.120435f,
+         0.040868f,  -0.671063f, 0.786234f,  0.076085f,  0.380968f,  0.640075f,  -0.225713f, 0.804712f,  -0.392960f,
+         -0.899516f, 0.968444f,  0.344800f,  0.468962f,  0.677608f,  0.096148f,  0.687704f,  -0.176567f, -0.779856f,
+         0.830123f,  0.257721f,  0.596900f,  0.703859f,  0.398307f,  0.179405f,  0.106362f,  -0.632445f, 0.724410f,
+         0.069488f,  0.544325f,  0.695915f,  0.290789f,  0.422250f,  -0.006723f, -0.690354f, 0.758271f,  0.153030f,
+         0.620987f,  0.722240f,  0.533878f,  0.244191f,  0.174668f,  -0.592084f, 0.659237f,  0.063294f,  0.463907f,
+         0.680591f,  0.107749f,  0.755809f,  -0.183249f, -0.781910f, 0.820756f,  0.273910f,  0.550951f,  0.630505f,
+         -0.084503f, -0.401460f, -0.066788f, -0.745357f, 0.977726f,  -0.002029f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -8048,12 +8453,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_kv_cache_gqa) {
                                          {0.076141f,
                                           -0.128282f,
                                           -0.279242f,
-                                          -0.229337f,
-                                          -0.029947f,
-                                          0.363563f,
-                                          0.338080f,
-                                          0.709321f,
-                                          -0.281886f,
+                                          0.467538f,
+                                          -0.493630f,
+                                          -0.304832f,
+                                          -0.333913f,
+                                          0.380137f,
+                                          0.196774f,
                                           -0.308233f,
                                           0.372735f,
                                           0.221593f});
@@ -8104,12 +8509,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_diff_seq_len) {
     test_case.add_expected_output<float>(Shape{1, 2, 2, 3},
                                          {0.087744f,
                                           0.192022f,
-                                          -1.163300f,
+                                          -1.163301f,
                                           -0.317679f,
-                                          0.342993f,
+                                          0.342994f,
                                           -1.627566f,
                                           0.149217f,
-                                          0.118020f,
+                                          0.118019f,
                                           -0.205577f,
                                           0.717496f,
                                           0.189523f,
@@ -8155,9 +8560,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap_mask_float) {
     // Y: (1, 2, 4, 3)
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {-0.337778f, 1.083041f,  -0.154105f, -0.339207f, 0.462505f,  -0.138030f, -0.370519f, 0.002809f,
-         0.361551f,  -0.745861f, -0.868438f, -1.783549f, 0.011989f,  -1.158582f, 0.926068f,  0.141611f,
-         -1.070733f, 1.395292f,  0.616303f,  -0.716178f, -0.001065f, 0.855951f,  -0.863237f, 0.067472f});
+        {-0.297563f, 1.375707f,  -0.150056f, -0.170432f, 0.910380f,  -0.100291f, -0.363657f, 0.017126f,
+         0.397768f,  -0.745860f, -0.868437f, -1.783548f, -0.638962f, -1.323090f, 1.642015f,  -0.057527f,
+         -1.099181f, 1.857277f,  0.568421f,  -0.696923f, 0.045950f,  0.855951f,  -0.863237f, 0.067472f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -8185,9 +8590,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_softcap_mask_bool) {
     // Y: (1, 2, 4, 3)
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
-        {-0.241921f, 0.798990f, -0.230361f, 0.031411f,  0.426047f, -0.109958f, -0.235019f, 0.815910f,
-         -0.332928f, 0.011776f, 0.637913f,  -0.187854f, 0.077533f, -0.218485f, 0.436238f,  -0.007613f,
-         0.145932f,  0.949036f, -0.284543f, -0.485247f, 0.518275f, 1.190462f,  -0.484776f, 1.201895f});
+        {-0.718407f, 0.894924f, -0.294950f, 0.083588f,  0.255165f,  -0.060837f, -0.269058f, 0.827289f,
+         -0.379579f, 0.011777f, 0.637912f,  -0.187854f, -0.185288f, -0.129821f, 0.043811f,  -0.168807f,
+         0.340980f,  0.976508f, -0.357822f, -0.477100f, 0.489599f,  1.190461f,  -0.484776f, 1.201895f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -8221,12 +8626,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_batch2) {
     // Y: (2, 2, 4, 3)
     test_case.add_expected_output<float>(
         Shape{2, 2, 4, 3},
-        {-0.166310f, 0.212826f,  0.543234f,  -0.213388f, 0.101926f,  0.318213f,  -0.244788f, 0.644003f,
-         0.065711f,  -0.246961f, 0.717591f,  0.121477f,  0.259517f,  -1.429630f, -0.810381f, 0.316639f,
-         -1.466488f, -0.807307f, 0.461846f,  -1.459568f, -0.789374f, 0.353310f,  -1.386105f, -1.080682f,
-         -0.116249f, -0.031849f, -0.247218f, -0.044228f, -0.413143f, 0.152197f,  -0.035514f, -0.486822f,
-         0.250045f,  -0.074804f, 0.083506f,  -0.153397f, 0.785283f,  -0.624480f, 0.412796f,  0.880455f,
-         -0.668594f, 1.260619f,  0.931097f,  -0.776981f, -0.151116f, 0.801838f,  -0.673882f, 0.952639f});
+        {-0.166310f, 0.212826f,  0.543234f,  -0.213388f, 0.101926f,  0.318213f,  -0.244788f, 0.644002f,
+         0.065710f,  -0.246961f, 0.717590f,  0.121477f,  0.259517f,  -1.429630f, -0.810381f, 0.316639f,
+         -1.466488f, -0.807307f, 0.461846f,  -1.459568f, -0.789375f, 0.353310f,  -1.386105f, -1.080682f,
+         -0.116249f, -0.031850f, -0.247219f, -0.044228f, -0.413144f, 0.152197f,  -0.035515f, -0.486823f,
+         0.250045f,  -0.074804f, 0.083506f,  -0.153397f, 0.785283f,  -0.624481f, 0.412797f,  0.880455f,
+         -0.668594f, 1.260620f,  0.931096f,  -0.776981f, -0.151115f, 0.801838f,  -0.673882f, 0.952639f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
@@ -8252,8 +8657,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_present_no_past) {
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
         {1.135819f,  0.473164f, 0.391118f,  0.387219f, 0.351068f,  -0.033320f, 0.515863f, 0.408149f,
-         -0.001368f, 0.225511f, 0.208291f,  0.004389f, -0.568707f, 0.630642f,  0.114516f, -0.462505f,
-         0.597372f,  1.021277f, -0.496153f, 0.599542f, 0.792319f,  -0.305059f, 0.656953f, 0.223635f});
+         -0.001367f, 0.225511f, 0.208291f,  0.004389f, -0.568708f, 0.630642f,  0.114516f, -0.462505f,
+         0.597372f,  1.021277f, -0.496154f, 0.599542f, 0.792318f,  -0.305059f, 0.656953f, 0.223635f});
     // present_key: (1, 2, 4, 3) — same as K (no past to concatenate)
     test_case.add_expected_output<float>(
         Shape{1, 2, 4, 3},
@@ -8294,10 +8699,255 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_gqa_causal) {
     test_case.add_expected_output<float>(
         Shape{1, 4, 4, 3},
         {-0.372207f, 1.088749f,  1.884586f,  1.043291f,  -0.077079f, -0.335489f, 0.256285f,  -0.624200f,
-         0.527349f,  0.517354f,  -0.237278f, -0.074090f, 0.513600f,  -0.532701f, -1.169917f, 0.115278f,
-         -0.473270f, -0.823793f, -0.248875f, -0.389089f, -0.318127f, 0.186889f,  -0.530199f, -0.385138f,
-         -0.372207f, 1.088749f,  1.884586f,  0.717689f,  0.191092f,  0.175188f,  0.189007f,  -0.193952f,
-         0.749369f,  -0.011048f, 0.054519f,  -0.166278f, 0.513600f,  -0.532701f, -1.169917f, -1.055831f,
+         0.527349f,  0.517354f,  -0.237278f, -0.074090f, -0.372207f, 1.088749f,  1.884586f,  0.420766f,
+         0.435643f,  0.640882f,  0.231063f,  -0.034779f, 0.743644f,  0.222117f,  -0.325168f, -0.371449f,
+         0.513600f,  -0.532701f, -1.169917f, -2.030353f, -0.153132f, 1.040669f,  -0.652405f, -0.318728f,
+         0.096893f,  0.433480f,  -0.778922f, -0.306615f, 0.513600f,  -0.532701f, -1.169917f, -1.055831f,
          -0.298535f, 0.193851f,  -0.273476f, -0.274162f, 0.408617f,  -0.612912f, -0.347982f, 0.594694f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_nonpad) {
+    // Attention opset-24: nonpad_kv_seqlen (input[6]) without causal masking.
+    // NP=[3] means key positions 0,1,2 are valid; position 3 is padding and gets -inf.
+    auto model = convert_model("attention_opset24_nonpad_no_causal.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 2, 3)
+    test_case.add_input<float>({0.496714f,
+                                -0.138264f,
+                                0.647689f,
+                                1.523030f,
+                                -0.234153f,
+                                -0.234137f,
+                                1.579213f,
+                                0.767435f,
+                                -0.469474f,
+                                0.542560f,
+                                -0.463418f,
+                                -0.465730f});
+    // K: (1, 2, 4, 3) — 4 key positions, only first 3 are valid
+    test_case.add_input<float>({0.241962f,  -1.913280f, -1.724918f, -0.562288f, -1.012831f, 0.314247f,
+                                -0.908024f, -1.412304f, 1.465649f,  -0.225776f, 0.067528f,  -1.424748f,
+                                -0.544383f, 0.110923f,  -1.150994f, 0.375698f,  -0.600639f, -0.291694f,
+                                -0.601707f, 1.852278f,  -0.013497f, -1.057711f, 0.822545f,  -1.220844f});
+    // V: (1, 2, 4, 3)
+    test_case.add_input<float>({0.208864f,  -1.959670f, -1.328186f, 0.196861f,  0.738467f,  0.171368f,
+                                -0.115648f, -0.301104f, -1.478522f, -0.719844f, -0.460639f, 1.057122f,
+                                0.343618f,  -1.763040f, 0.324084f,  -0.385082f, -0.676922f, 0.611676f,
+                                1.031000f,  0.931280f,  -0.839218f, -0.309212f, 0.331263f,  0.975545f});
+    // NP: (1,) int64 — nonpad_kv_seqlen=3; key position 3 (0-indexed) is masked
+    test_case.add_input<int64_t>({3});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 3},
+                                         {0.052911f,
+                                          -0.303529f,
+                                          -0.910063f,
+                                          0.160128f,
+                                          -1.147706f,
+                                          -1.029466f,
+                                          0.359800f,
+                                          -0.328604f,
+                                          -0.032156f,
+                                          0.116432f,
+                                          -0.807110f,
+                                          0.265676f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_nonpad_causal) {
+    // Attention opset-24: nonpad_kv_seqlen (input[6]) with is_causal=1.
+    // Q=(1,2,3,4), K/V=(1,2,4,4), NP=[3].
+    // Causal masking uses per-batch offset = NP[b] - seq_q = 3-3 = 0, so query i
+    // can attend to key j only if j <= i (and j < NP[b]=3).
+    auto model = convert_model("attention_opset24_nonpad.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 3, 4)
+    test_case.add_input<float>({0.304717f, -1.039984f, 0.750451f,  0.940565f,  -1.951035f, -1.302179f,
+                                0.127840f, -0.316243f, -0.016801f, -0.853044f, 0.879398f,  0.777792f,
+                                0.066031f, 1.127241f,  0.467509f,  -0.859292f, 0.368751f,  -0.958883f,
+                                0.878450f, -0.049926f, -0.184862f, -0.680930f, 1.222541f,  -0.154529f});
+    // K: (1, 2, 4, 4) — 4 key positions, NP=3 so position 3 is padding
+    test_case.add_input<float>({-0.428328f, -0.352134f, 0.532309f,  0.365444f, 0.412733f,  0.430821f,  2.141648f,
+                                -0.406415f, -0.512243f, -0.813773f, 0.615979f, 1.128972f,  -0.113947f, -0.840156f,
+                                -0.824481f, 0.650593f,  0.743254f,  0.543154f, -0.665510f, 0.232161f,  0.116686f,
+                                0.218689f,  0.871429f,  0.223596f,  0.678914f, 0.067579f,  0.289119f,  0.631288f,
+                                -1.457156f, -0.319671f, -0.470373f, -0.638878f});
+    // V: (1, 2, 4, 4)
+    test_case.add_input<float>({-0.275142f, 1.494941f,  -0.865831f, 0.968278f,  -1.682870f, -0.334885f, 0.162753f,
+                                0.586222f,  0.711227f,  0.793347f,  -0.348725f, -0.462352f, 0.857976f,  -0.191304f,
+                                -1.275686f, -1.133287f, -0.919452f, 0.497161f,  0.142426f,  0.690485f,  -0.427253f,
+                                0.158540f,  0.625590f,  -0.309347f, 0.456775f,  -0.661926f, -0.363054f, -0.381738f,
+                                -1.195840f, 0.486972f,  -0.469402f, 0.012494f});
+    // NP: (1,) int64
+    test_case.add_input<int64_t>({3});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 4},
+        {-0.275142f, 1.494941f, -0.865831f, 0.968278f, -0.625305f, 1.039784f,  -0.609978f, 0.873244f,
+         -0.229102f, 0.659618f, -0.340898f, 0.214390f, -0.919452f, 0.497161f,  0.142426f,  0.690485f,
+         -0.588904f, 0.269752f, 0.466907f,  0.019024f, -0.209522f, -0.062957f, 0.212245f,  -0.169502f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_nonpad_batch2) {
+    // Attention opset-24: nonpad_kv_seqlen with batch=2 and different NP per batch.
+    // Q=(2,2,3,4), K/V=(2,2,5,4), NP=[4,3].
+    // batch0 attends to first 4 of 5 keys; batch1 attends to first 3 of 5 keys.
+    auto model = convert_model("attention_opset24_nonpad_batch2.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (2, 2, 3, 4)
+    test_case.add_input<float>({0.304717f,  -1.039984f, 0.750451f,  0.940565f,  -1.951035f, -1.302179f, 0.127840f,
+                                -0.316243f, -0.016801f, -0.853044f, 0.879398f,  0.777792f,  0.066031f,  1.127241f,
+                                0.467509f,  -0.859292f, 0.368751f,  -0.958883f, 0.878450f,  -0.049926f, -0.184862f,
+                                -0.680930f, 1.222541f,  -0.154529f, -0.428328f, -0.352134f, 0.532309f,  0.365444f,
+                                0.412733f,  0.430821f,  2.141648f,  -0.406415f, -0.512243f, -0.813773f, 0.615979f,
+                                1.128972f,  -0.113947f, -0.840156f, -0.824481f, 0.650593f,  0.743254f,  0.543154f,
+                                -0.665510f, 0.232161f,  0.116686f,  0.218689f,  0.871429f,  0.223596f});
+    // K: (2, 2, 5, 4)
+    test_case.add_input<float>(
+        {0.678914f,  0.067579f,  0.289119f,  0.631288f,  -1.457156f, -0.319671f, -0.470373f, -0.638878f, -0.275142f,
+         1.494941f,  -0.865831f, 0.968278f,  -1.682870f, -0.334885f, 0.162753f,  0.586222f,  0.711227f,  0.793347f,
+         -0.348725f, -0.462352f, 0.857976f,  -0.191304f, -1.275686f, -1.133287f, -0.919452f, 0.497161f,  0.142426f,
+         0.690485f,  -0.427253f, 0.158540f,  0.625590f,  -0.309347f, 0.456775f,  -0.661926f, -0.363054f, -0.381738f,
+         -1.195840f, 0.486972f,  -0.469402f, 0.012494f,  0.480747f,  0.446531f,  0.665385f,  -0.098485f, -0.423298f,
+         -0.079718f, -1.687334f, -1.447112f, -1.322700f, -0.997247f, 0.399774f,  -0.905479f, -0.378163f, 1.299228f,
+         -0.356264f, 0.737516f,  -0.933618f, -0.205438f, -0.950022f, -0.339033f, 0.840308f,  -1.727320f, 0.434424f,
+         0.237736f,  -0.594150f, -1.446058f, 0.072130f,  -0.529493f, 0.232676f,  0.021852f,  1.601779f,  -0.239356f,
+         -1.023497f, 0.179276f,  0.219997f,  1.359188f,  0.835111f,  0.356871f,  1.463303f,  -1.188763f});
+    // V: (2, 2, 5, 4)
+    test_case.add_input<float>(
+        {-0.639752f, -0.926576f, -0.389810f, -1.376686f, 0.635151f,  -0.222223f, -1.470806f, -1.015579f, 0.313514f,
+         0.838127f,  1.996731f,  2.913862f,  0.414409f,  -0.989538f, -2.132046f, 0.267711f,  -0.812941f, -0.415357f,
+         -0.612097f, -0.140791f, 1.065980f,  0.157049f,  -0.158635f, -1.035654f, -1.674683f, -0.486308f, -0.053783f,
+         1.767930f,  0.130275f,  0.982740f,  -0.499296f, -1.184944f, -0.965117f, -0.725226f, 2.128470f,  -0.821387f,
+         0.838489f,  -0.902927f, 0.931573f,  0.384951f,  -0.156638f, -0.040763f, -0.654788f, 0.446072f,  -0.454983f,
+         -1.225606f, -1.277938f, 0.172588f,  1.579091f,  0.159992f,  -0.118638f, 0.285826f,  1.306002f,  0.219382f,
+         -0.410927f, 1.106289f,  0.428756f,  1.535756f,  0.183234f,  -1.224469f, -1.368159f, 1.650928f,  1.723666f,
+         -0.179519f, -0.383187f, 1.461444f,  -1.107046f, -0.894727f, 0.643327f,  -0.394605f, -0.005122f, -0.163443f,
+         0.337575f,  1.407482f,  0.090585f,  0.643939f,  -2.050172f, -0.048718f, -0.843230f, -1.218813f});
+    // NP: (2,) int64 — batch0: 4 valid keys, batch1: 3 valid keys
+    test_case.add_input<int64_t>({4, 3});
+    test_case.add_expected_output<float>(
+        Shape{2, 2, 3, 4},
+        {0.009392f,  -0.620808f, -0.812215f, -0.250534f, 0.470663f,  -0.584199f, -1.636398f, -0.280570f,
+         0.091853f,  -0.608515f, -0.928561f, -0.169159f, -0.235244f, 0.127771f,  0.156132f,  -0.401827f,
+         -0.375653f, -0.009321f, 0.519857f,  -0.504480f, -0.467376f, 0.089608f,  0.316920f,  -0.356973f,
+         0.648660f,  -0.155292f, -0.501900f, 0.317381f,  0.337211f,  -0.042779f, -0.529540f, 0.385004f,
+         0.766880f,  -0.068461f, -0.431613f, 0.325611f,  -0.718205f, 1.321787f,  0.354411f,  -0.469744f,
+         -0.439705f, 0.921091f,  0.402069f,  -0.362922f, -0.130429f, 0.560614f,  0.248558f,  -0.319526f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_short_mask) {
+    // Attention opset-24: pad_attn_mask_last_dim feature.
+    // The attention mask last dim (2) is shorter than seq_kv (5); it is padded
+    // with -inf on the right so queries can only attend to the first 2 key positions.
+    // Q=(1,2,3,4), K/V=(1,2,5,4), M=(1,2,3,2).
+    auto model = convert_model("attention_opset24_short_mask.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 3, 4)
+    test_case.add_input<float>({0.304717f, -1.039984f, 0.750451f,  0.940565f,  -1.951035f, -1.302179f,
+                                0.127840f, -0.316243f, -0.016801f, -0.853044f, 0.879398f,  0.777792f,
+                                0.066031f, 1.127241f,  0.467509f,  -0.859292f, 0.368751f,  -0.958883f,
+                                0.878450f, -0.049926f, -0.184862f, -0.680930f, 1.222541f,  -0.154529f});
+    // K: (1, 2, 5, 4)
+    test_case.add_input<float>({-0.428328f, -0.352134f, 0.532309f,  0.365444f,  0.412733f,  0.430821f,  2.141648f,
+                                -0.406415f, -0.512243f, -0.813773f, 0.615979f,  1.128972f,  -0.113947f, -0.840156f,
+                                -0.824481f, 0.650593f,  0.743254f,  0.543154f,  -0.665510f, 0.232161f,  0.116686f,
+                                0.218689f,  0.871429f,  0.223596f,  0.678914f,  0.067579f,  0.289119f,  0.631288f,
+                                -1.457156f, -0.319671f, -0.470373f, -0.638878f, -0.275142f, 1.494941f,  -0.865831f,
+                                0.968278f,  -1.682870f, -0.334885f, 0.162753f,  0.586222f});
+    // V: (1, 2, 5, 4)
+    test_case.add_input<float>({0.711227f,  0.793347f,  -0.348725f, -0.462352f, 0.857976f,  -0.191304f, -1.275686f,
+                                -1.133287f, -0.919452f, 0.497161f,  0.142426f,  0.690485f,  -0.427253f, 0.158540f,
+                                0.625590f,  -0.309347f, 0.456775f,  -0.661926f, -0.363054f, -0.381738f, -1.195840f,
+                                0.486972f,  -0.469402f, 0.012494f,  0.480747f,  0.446531f,  0.665385f,  -0.098485f,
+                                -0.423298f, -0.079718f, -1.687334f, -1.447112f, -1.322700f, -0.997247f, 0.399774f,
+                                -0.905479f, -0.378163f, 1.299228f,  -0.356264f, 0.737516f});
+    // M: (1, 2, 3, 2) — last dim=2 < seq_kv=5; padded to (1,2,3,5) with -inf
+    test_case.add_input<float>({-0.933618f,
+                                -0.205438f,
+                                -0.950022f,
+                                -0.339033f,
+                                0.840308f,
+                                -1.727320f,
+                                0.434424f,
+                                0.237736f,
+                                -0.594150f,
+                                -1.446058f,
+                                0.072130f,
+                                -0.529493f});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 4},
+        {0.808959f,  0.137587f, -0.966064f, -0.909182f, 0.766826f,  0.420290f, -0.699925f, -0.716551f,
+         0.722346f,  0.718735f, -0.418965f, -0.513192f, -0.591964f, 0.472406f, -0.060673f, -0.027479f,
+         -0.725475f, 0.475627f, -0.151039f, -0.018641f, -0.741497f, 0.476013f, -0.161883f, -0.017581f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_qk_output_mode2) {
+    // Attention opset-24: qk_matmul_output_mode=2 (capture QK after mask is applied).
+    // Also uses softcap=3.0 and a float attention mask.
+    // Q/K/V=(1,2,3,4), M=(1,2,3,3). Outputs: Y=(1,2,3,4), QK=(1,2,3,3).
+    auto model = convert_model("attention_opset24_qk_mode2.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 3, 4)
+    test_case.add_input<float>({0.304717f, -1.039984f, 0.750451f,  0.940565f,  -1.951035f, -1.302179f,
+                                0.127840f, -0.316243f, -0.016801f, -0.853044f, 0.879398f,  0.777792f,
+                                0.066031f, 1.127241f,  0.467509f,  -0.859292f, 0.368751f,  -0.958883f,
+                                0.878450f, -0.049926f, -0.184862f, -0.680930f, 1.222541f,  -0.154529f});
+    // K: (1, 2, 3, 4)
+    test_case.add_input<float>({-0.428328f, -0.352134f, 0.532309f,  0.365444f,  0.412733f, 0.430821f,
+                                2.141648f,  -0.406415f, -0.512243f, -0.813773f, 0.615979f, 1.128972f,
+                                -0.113947f, -0.840156f, -0.824481f, 0.650593f,  0.743254f, 0.543154f,
+                                -0.665510f, 0.232161f,  0.116686f,  0.218689f,  0.871429f, 0.223596f});
+    // V: (1, 2, 3, 4)
+    test_case.add_input<float>({0.678914f,  0.067579f,  0.289119f,  0.631288f,  -1.457156f, -0.319671f,
+                                -0.470373f, -0.638878f, -0.275142f, 1.494941f,  -0.865831f, 0.968278f,
+                                -1.682870f, -0.334885f, 0.162753f,  0.586222f,  0.711227f,  0.793347f,
+                                -0.348725f, -0.462352f, 0.857976f,  -0.191304f, -1.275686f, -1.133287f});
+    // M: (1, 2, 3, 3) — float attention mask
+    test_case.add_input<float>({-0.919452f,
+                                0.497161f,
+                                0.142426f,
+                                0.690485f,
+                                -0.427253f,
+                                0.158540f,
+                                0.625590f,
+                                -0.309347f,
+                                0.456775f,
+                                -0.661926f,
+                                -0.363054f,
+                                -0.381738f,
+                                -1.195840f,
+                                0.486972f,
+                                -0.469402f,
+                                0.012494f,
+                                0.480747f,
+                                0.446531f});
+    // Expected Y: (1, 2, 3, 4)
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 4},
+        {-0.645291f, 0.640593f, -0.596159f, 0.303328f,  0.167027f, 0.622625f,  -0.223111f, 0.692986f,
+         -0.111348f, 0.714915f, -0.394855f, 0.608125f,  0.509970f, 0.198505f,  -0.730667f, -0.662047f,
+         0.438403f,  0.265512f, -0.629766f, -0.572710f, 0.331303f, -0.015486f, -0.802805f, -0.658513f});
+    // Expected QK: (1, 2, 3, 3) — after softcap and mask (mode=2 in opset-24 ordering)
+    test_case.add_expected_output<float>(Shape{1, 2, 3, 3},
+                                         {-0.434304f,
+                                          0.945117f,
+                                          1.201931f,
+                                          1.305019f,
+                                          -0.905122f,
+                                          1.023684f,
+                                          1.150112f,
+                                          0.279324f,
+                                          1.475905f,
+                                          -1.580981f,
+                                          -0.287711f,
+                                          -0.147472f,
+                                          -1.192417f,
+                                          0.068247f,
+                                          -0.176501f,
+                                          -0.244547f,
+                                          -0.186292f,
+                                          0.873769f});
     test_case.run_with_tolerance_as_fp(1e-4f);
 }

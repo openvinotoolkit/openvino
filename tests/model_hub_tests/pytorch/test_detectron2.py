@@ -23,8 +23,9 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         self.image = Image.open(response.raw)
         self.image = self.image.resize([640, 480])
 
-        subprocess.run([sys.executable, "-m", "pip", "install",
-                       "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install",
+                              "setuptools<78",  # detectron2 needs pkg_resources, removed in setuptools>=78
+                              "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
     @retry(3, exceptions=(OSError,), delay=10, exponential_backoff=True, backoff_multiplier=2, max_delay=120)
     def load_model(self, model_name, model_link):

@@ -24,6 +24,44 @@ using namespace tests;
 
 class check_hash_value: public ::testing::Test {
 public:
+    // These tests verify that primitive and parameter hashes are non-zero and
+    // consistent between cached and non-cached networks.
+    //
+    // Limitation: because cldnn::hash_combine (runtime/utils.hpp) relies on std::hash<T>,
+    // whose output is implementation-defined and varies across compilers and versions,
+    // these tests cannot compare against fixed golden values. As a consequence, they will
+    // not detect silent changes to the set of fields fed into a hash function (e.g. a new
+    // field accidentally omitted from primitive::hash()). Sensitivity tests that mutate
+    // individual fields and assert hash changes would cover that gap.
+    struct hash_pair {
+        size_t primitive_hash;
+        size_t params_hash;
+    };
+
+    hash_pair get_hashes(cldnn::network& net, const std::string& key_prim_id) {
+        const auto prim_inst = net.get_primitive(key_prim_id);
+        const auto prim = prim_inst->desc();
+        return { prim->hash(), prim_inst->get_impl_params()->hash() };
+    }
+
+    hash_pair get_fc_hashes(cldnn::network& net, const std::string& key_prim_id) {
+        const auto prim_inst = net.get_primitive(key_prim_id);
+        const auto prim = prim_inst->desc();
+        return { prim->hash(), prim->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash() };
+    }
+
+    void verify_hash(const hash_pair& h, const std::string& label) {
+        ASSERT_NE(h.primitive_hash, 0UL) << label << ": primitive hash should be non-zero";
+        ASSERT_NE(h.params_hash, 0UL) << label << ": params hash should be non-zero";
+    }
+
+    void verify_hash_consistency(const hash_pair& ref, const hash_pair& cached, const std::string& label) {
+        ASSERT_EQ(cached.primitive_hash, ref.primitive_hash)
+            << label << ": primitive hash must be preserved across caching";
+        ASSERT_EQ(cached.params_hash, ref.params_hash)
+            << label << ": params hash must be preserved across caching";
+    }
+
     void test_eltwise_basic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -36,15 +74,13 @@ public:
         topology.add(input_layout("input2", input2->get_layout()));
         topology.add(eltwise(key_prim_id, { input_info("input"), input_info("input2") }, eltwise_mode::sum));
 
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "eltwise");
+
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 4145865612957978777UL);
-        ASSERT_EQ(params_hash, 1717643793116242977UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "eltwise");
     }
 
     void test_fc_basic(bool is_caching_test) {
@@ -57,26 +93,25 @@ public:
         auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f16, format::bfyx });
 
         const auto key_prim_id = "fc";
-        topology topology(
-            input_layout("input", input_prim->get_layout()),
-            data("weights", weights_prim),
-            data("bias", bias_prim),
-            fully_connected(key_prim_id, input_info("input"), "weights", "bias")
-        );
+        // Program build may detach primitive data memory, so use independent topologies.
+        auto make_topology = [&]() {
+            return topology(
+                input_layout("input", input_prim->get_layout()),
+                data("weights", weights_prim),
+                data("bias", bias_prim),
+                fully_connected(key_prim_id, input_info("input"), "weights", "bias")
+            );
+        };
 
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
+        auto ref = get_fc_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "fc");
+
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
-        if (!engine.get_device_info().supports_immad) {
-            ASSERT_EQ(primitive_hash, 7598234300934878892UL);
-            ASSERT_EQ(params_hash, 14588531505879944960UL);
-        } else {
-            ASSERT_EQ(primitive_hash, 7598234300934878892UL);
-            ASSERT_EQ(params_hash, 2121456519277740670UL);
-        }
+        auto h = get_fc_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "fc");
     }
 
     void test_gather_basic(bool is_caching_test) {
@@ -97,15 +132,13 @@ public:
             gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, 5, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
         );
 
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "gather");
+
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 7823853951962111674UL);
-        ASSERT_EQ(params_hash, 5049423120420866837UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "gather");
     }
 
     void test_gemm_basic(bool is_caching_test) {
@@ -121,14 +154,13 @@ public:
         topology.add(crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 }));
         topology.add(gemm(key_prim_id, { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true));
 
-        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "gemm");
 
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-        ASSERT_EQ(primitive_hash, 13388149315122571178UL);
-        ASSERT_EQ(params_hash, 17362657208739837157UL);
+        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "gemm");
     }
 
     void test_permute_basic(bool is_caching_test) {
@@ -141,15 +173,13 @@ public:
             input_layout("input", input->get_layout()),
             permute(key_prim_id, input_info("input"), { 0, 1, 2, 3 }));
 
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "permute");
+
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-        ASSERT_EQ(params_hash, 15976735712435632434UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "permute");
     }
 
     void test_reorder_basic(bool is_caching_test) {
@@ -168,15 +198,13 @@ public:
             input_layout("input", input->get_layout()),
             reorder(key_prim_id, input_info("input"), output_layout));
 
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "reorder");
+
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 16293979194373117692UL);
-        ASSERT_EQ(params_hash, 3897060862522441010UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "reorder");
     }
 
     void test_reshape_basic(bool is_caching_test) {
@@ -194,15 +222,13 @@ public:
         reshape_prim.output_paddings = {padding({0, 0, 2, 2})};
         topology.add(reshape_prim);
 
+        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "reshape");
+
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-        ASSERT_EQ(params_hash, 6426521365118381035UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "reshape");
     }
 
     void test_conv_basic(bool is_caching_test) {
@@ -213,21 +239,23 @@ public:
         auto biases = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
 
         auto key_prim_id = "convolution";
-        topology topology(
-            input_layout("input", input->get_layout()),
-            data("weights", weights),
-            data("biases", biases),
-            convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+        auto make_topology = [&]() {
+            return topology(
+                input_layout("input", input->get_layout()),
+                data("weights", weights),
+                data("biases", biases),
+                convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+        };
 
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "conv");
+
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-
-        ASSERT_EQ(primitive_hash, 10199782087454290518UL);
-        ASSERT_EQ(params_hash, 655948409235783525UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "conv");
     }
 
     void test_quantize_basic(bool is_caching_test) {
@@ -240,24 +268,28 @@ public:
         auto output_high = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
 
         auto key_prim_id = "quantize";
-        topology topology;
-        topology.add(
-            input_layout("input", input->get_layout()),
-            data("input_low", input_low),
-            data("input_high", input_high),
-            data("output_low", output_low),
-            data("output_high", output_high),
-            quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
-        );
+        auto make_topology = [&]() {
+            topology topology;
+            topology.add(
+                input_layout("input", input->get_layout()),
+                data("input_low", input_low),
+                data("input_high", input_high),
+                data("output_low", output_low),
+                data("output_high", output_high),
+                quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
+            );
+            return topology;
+        };
 
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
+        auto ref = get_hashes(*ref_net, key_prim_id);
+        verify_hash(ref, "quantize");
+
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-        const auto  prim_inst = net->get_primitive(key_prim_id);
-        const auto  primitve  = prim_inst->desc();
-
-        const auto primitive_hash = primitve->hash();
-        const auto params_hash = prim_inst->get_impl_params()->hash();
-        ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-        ASSERT_EQ(params_hash, 9610563181439837451UL);
+        auto h = get_hashes(*net, key_prim_id);
+        verify_hash_consistency(ref, h, "quantize");
     }
 };
 

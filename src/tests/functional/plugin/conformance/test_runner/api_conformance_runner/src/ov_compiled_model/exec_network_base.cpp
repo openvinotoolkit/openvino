@@ -6,6 +6,10 @@
 #include "ov_api_conformance_helpers.hpp"
 
 
+namespace ov::test::behavior {
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledModelSetType);
+}  // namespace ov::test::behavior
+
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;

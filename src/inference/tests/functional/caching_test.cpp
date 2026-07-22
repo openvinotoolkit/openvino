@@ -44,6 +44,56 @@ namespace ov::weight_sharing {
 inline bool operator==(const ov::wsh::WeightMetaData& lhs, const ov::wsh::WeightMetaData& rhs) {
     return std::tie(lhs.m_offset, lhs.m_size) == std::tie(rhs.m_offset, rhs.m_size);
 }
+
+inline bool operator==(const ov::wsh::WeightSource& lhs, const ov::wsh::WeightSource& rhs) {
+    const auto lhs_buff = lhs.m_weights.lock();
+    const auto rhs_buff = rhs.m_weights.lock();
+    return lhs.m_device == rhs.m_device && lhs_buff == rhs_buff;
+}
+
+inline bool are_weight_registries_equal(const WeightRegistry& lhs, const WeightRegistry& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    for (const auto& [data_id, weight_meta_map] : lhs) {
+        const auto rhs_it = rhs.find(data_id);
+        if (rhs_it == rhs.end()) {
+            return false;
+        }
+        const auto& rhs_weight_meta_map = rhs_it->second;
+        if (weight_meta_map.size() != rhs_weight_meta_map.size()) {
+            return false;
+        }
+        for (const auto& [weight_id, weight_meta_data] : weight_meta_map) {
+            const auto rhs_weight_it = rhs_weight_meta_map.find(weight_id);
+            if (rhs_weight_it == rhs_weight_meta_map.end()) {
+                return false;
+            }
+            if (!(weight_meta_data == rhs_weight_it->second)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+inline bool are_weight_source_registries_equal(const WeightSourceRegistry& lhs, const WeightSourceRegistry& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    for (const auto& [key, value] : lhs) {
+        auto it = rhs.find(key);
+        if (it == rhs.end()) {
+            return false;
+        }
+        // Ensure WeightSource objects compare equal
+        if (!(value == it->second)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace ov::weight_sharing
 
 using namespace ::testing;
@@ -1588,7 +1638,7 @@ TEST_P(CachingTest, TestNoCachingProperties) {
     }
 }
 
-TEST_P(CachingTest, TestThrowOnExport) {
+TEST_P(CachingTest, TestThrowOnExportFailure) {
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -1607,6 +1657,66 @@ TEST_P(CachingTest, TestThrowOnExport) {
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
             EXPECT_ANY_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
+        });
+    }
+}
+
+TEST_P(CachingTest, TestIgnoreOvExceptionExportFailure) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1).WillOnce(Invoke([&](std::ostream&) {
+                OPENVINO_THROW("export failed");
+            }));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
+        });
+    }
+}
+
+TEST_P(CachingTest, TestIgnoreStreamExportFailure) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1).WillOnce(Invoke([&](std::ostream& stream) {
+                stream << "partial";
+                stream.setstate(std::ios_base::badbit);
+            }));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
         });
     }
 }
@@ -3163,15 +3273,20 @@ TEST_P(CachingTest, import_from_cache_model_by_custom_model_rt_info) {
 }
 
 MATCHER_P(IsAnyShCtx, other, "") {
+    bool result = false;
     if (arg.first == ov::internal::model_sharing_context.name()) {
         const auto& map = arg.second.template as<ov::internal::WeightSharingCtxPtr>();
         if (map) {
-            return map->m_weight_registry == other.m_weight_registry;
+            result = are_weight_registries_equal(map->m_weight_registry, other.m_weight_registry);
+            if (result) {
+                result = are_weight_source_registries_equal(map->m_runtime_sources, other.m_runtime_sources);
+            }
+
         } else if (!map && other.m_weight_registry.empty()) {
-            return true;
+            result = true;
         }
     }
-    return false;
+    return result;
 }
 
 TEST_P(CachingTest, test_share_weight_create_ctx_single_core) {
@@ -3183,10 +3298,14 @@ TEST_P(CachingTest, test_share_weight_create_ctx_single_core) {
                                                             std::string("mock_engine") + OV_BUILD_POSTFIX),
                          deviceName);
     const auto empty_ctx = ov::wsh::Context();
-    const auto ctx1 = [] {
-        auto constants_meta = ov::wsh::WeightMetaMap{{0, ov::wsh::WeightMetaData{0, 100, ov::element::u8}}};
-        auto tmp = ov::wsh::WeightRegistry{{1, std::move(constants_meta)}};
-        return ov::wsh::Context{tmp, {}};
+    auto wt_1 = std::make_shared<ov::AlignedBuffer>(200);
+
+    const auto ctx1 = [&] {
+        auto constants_meta = ov::wsh::WeightMetaMap{{0, ov::wsh::WeightMetaData{0, 200, ov::element::u8}}};
+        auto runtime_sources = ov::wsh::WeightSourceRegistry{{0, ov::wsh::WeightSource{"", wt_1}}};
+        return ov::wsh::Context{ov::wsh::WeightRegistry{{1, std::move(constants_meta)}},
+                                {},
+                                std::move(runtime_sources)};
     }();
 
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
@@ -3241,14 +3360,15 @@ TEST_P(CachingTest, test_share_weight_create_ctx_single_core) {
 
 TEST_P(CachingTest, test_share_weight_create_ctx) {
     m_cacheDir += ".bin";
+    auto wt_1 = std::make_shared<ov::AlignedBuffer>(200);
 
     const auto empty_ctx = ov::wsh::Context();
-    const auto ctx1 = [] {
+    const auto ctx1 = [&] {
         auto constants_meta = ov::wsh::WeightMetaMap{{0, ov::wsh::WeightMetaData{0, 200, ov::element::u8}}};
-        // auto c = std::make_shared<ov::wsh::Context>();
-        // c->m_constants_meta_data = {{1, std::move(constants_meta)}};
-        // return c;
-        return ov::wsh::Context{ov::wsh::WeightRegistry{{1, std::move(constants_meta)}}, {}};
+        auto runtime_sources = ov::wsh::WeightSourceRegistry{{0, ov::wsh::WeightSource{"", wt_1}}};
+        return ov::wsh::Context{ov::wsh::WeightRegistry{{1, std::move(constants_meta)}},
+                                {},
+                                std::move(runtime_sources)};
     }();
 
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
@@ -3308,21 +3428,26 @@ TEST_P(CachingTest, test_share_weight_create_ctx) {
 TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
     // use ov::weight path as cache property to force different blob id for same model
     m_cacheDir += ".bin";
+
+    auto wt_1 = std::make_shared<ov::AlignedBuffer>(200);
+
     const auto empty_ctx = ov::wsh::Context();
     auto cm1 = ov::wsh::WeightMetaMap{{1, ov::wsh::WeightMetaData{0, 200, ov::element::u8}},
                                       {2, ov::wsh::WeightMetaData{200, 200, ov::element::u8}}};
     auto wt_c1 = ov::wsh::WeightRegistry{{10, cm1}};
-    auto ctx1 = ov::wsh::Context();
-    ctx1.m_weight_registry = wt_c1;
+    auto ctx1 = ov::wsh::Context{wt_c1, {}, {}};
+    ctx1.m_cache_sources = {{10, ov::wsh::WeightSource{"", wt_1}}};
+    ctx1.m_runtime_sources = {{1, ov::wsh::WeightSource{"", wt_1}}};
 
     auto cm2 = ov::wsh::WeightMetaMap{{1, ov::wsh::WeightMetaData{0, 300, ov::element::u8}},
                                       {2, ov::wsh::WeightMetaData{300, 300, ov::element::u8}}};
     auto wt_c2 = ov::wsh::WeightRegistry{{20, cm2}};
-    auto ctx2 = ov::wsh::Context();
-    ctx2.m_weight_registry = wt_c2;
+    auto ctx2 = ov::wsh::Context{wt_c2, {}, {}};
+    ctx2.m_runtime_sources = {{1, ov::wsh::WeightSource{"", wt_1}}};
 
-    auto final_ctx = ov::wsh::Context();
-    final_ctx.m_weight_registry = {{10, cm1}, {20, cm2}};
+    auto final_ctx =
+        ov::wsh::Context{ov::wsh::WeightRegistry{{10, cm1}, {20, cm2}}, ctx1.m_cache_sources, ctx1.m_runtime_sources};
+
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(),
@@ -3418,7 +3543,7 @@ TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
         EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
         EXPECT_CALL(*mockPlugin, get_property(ov::weights_path.name(), _)).WillOnce(Return(""));
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::cache_dir(m_cacheDir));
+            core.set_property(ov::cache_path(m_cacheDir));
             m_testFunction(core);
         });
         EXPECT_EQ(comp_models.size(), 2);

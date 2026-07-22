@@ -132,7 +132,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {

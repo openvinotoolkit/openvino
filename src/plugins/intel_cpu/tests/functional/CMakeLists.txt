@@ -20,6 +20,8 @@ add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/arm_isa_support.h
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/arm_isa_support.cpp
     ${CPU_ISA_TRAITS_RV64})
 set(CPU_UTILS_LINK_LIBRARIES openvino::runtime::dev)
 set(CPU_UTILS_INCLUDE_PATHS)
@@ -41,7 +43,7 @@ target_include_directories(cpuUtils PRIVATE ${CPU_UTILS_INCLUDE_PATHS})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
+set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models openvino::reference)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")

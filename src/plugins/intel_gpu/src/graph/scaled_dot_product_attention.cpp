@@ -19,13 +19,13 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(scaled_dot_product_attention)
 layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_attention_node const& /* node */,
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
-
-    auto transpose_shape = [&desc](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
-        if (desc->input_q_transpose_order.empty())
+    auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
+        if (order.empty())
             return shape;
 
         auto shape_transposed = ov::PartialShape(shape);
         auto rank_diff = shape.size() - order.size();
+
         for (size_t i = 0; i < order.size(); i++) {
             size_t idx = static_cast<size_t>(order[i]);
             shape_transposed[i + rank_diff] = shape[idx + rank_diff];
@@ -35,10 +35,17 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     };
 
     auto input0_layout = impl_param.get_input_layout(0);
+    auto input2_layout = impl_param.get_input_layout(2);
+
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
     auto output_type = desc->output_data_types[0].value_or(default_out_dt);
     auto output_format = input0_layout.format;
-    auto output_shape = transpose_shape(input0_layout.get_partial_shape(), desc->input_q_transpose_order); // output shape matches with Q input shape
+    auto q_shape = transpose_shape(input0_layout.get_partial_shape(),
+                                desc->input_q_transpose_order);
+    auto output_shape = q_shape;
+    auto v_shape = transpose_shape(input2_layout.get_partial_shape(),
+                                desc->input_v_transpose_order);
+    output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
 
     return { layout{output_shape, output_type, output_format, desc->output_paddings[0]} };
 }
@@ -61,6 +68,16 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
     std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
+    }
+
+    // For INT4 KV-cache, restore logical head size from query for shape inference
+    if (prim->is_kv_compressed) {
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && input_shapes.size() >= 3) {
+            auto q_last = input_shapes[0][input_shapes[0].size() - 1];
+            input_shapes[1][input_shapes[1].size() - 1] = q_last;
+            input_shapes[2][input_shapes[2].size() - 1] = q_last;
+        }
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,

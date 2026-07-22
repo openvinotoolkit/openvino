@@ -174,6 +174,10 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
     return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
+std::string getModelFromTestModelZoo(const std::filesystem::path& relModelPath) {
+    return ov::util::path_to_string(ov::util::make_path(getExecutableDirectory()) / relModelPath);
+}
+
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
         std::string sep{FileTraits<char>::file_separator};
@@ -251,9 +255,10 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
 
 FileHandle open_ro_file(const std::filesystem::path& path) {
 #ifdef _WIN32
+    // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the handle is open, matching POSIX unlink()
     return ::CreateFileW(path.c_str(),
                          GENERIC_READ,
-                         FILE_SHARE_READ,
+                         FILE_SHARE_READ | FILE_SHARE_DELETE,
                          nullptr,
                          OPEN_EXISTING,
                          FILE_ATTRIBUTE_NORMAL,
@@ -262,4 +267,5 @@ FileHandle open_ro_file(const std::filesystem::path& path) {
     return ::open(path.c_str(), O_RDONLY);
 #endif
 }
+
 }  // namespace ov::test::utils

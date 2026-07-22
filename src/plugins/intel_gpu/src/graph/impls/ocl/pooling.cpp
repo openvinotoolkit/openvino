@@ -138,9 +138,9 @@ public:
         uint32_t kernel_x = kernel.size() >= 1 ? static_cast<uint32_t>(kernel[kernel.size() - 1]) : 1;
         pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
+        uint32_t pad_z = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0));
+        uint32_t pad_y = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0));
+        uint32_t pad_x = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0));
         pp.poolPad  = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;

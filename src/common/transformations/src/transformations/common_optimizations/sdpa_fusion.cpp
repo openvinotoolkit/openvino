@@ -523,12 +523,12 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         // Align output shapes by inserting Squeeze/Unsqueeze nodes as needed when the fused SDPA output rank
         // differs from the original output rank.
 
-        sdpa = try_align_outputs(sdpa, m.get_match_root());
-        if (!sdpa) {
+        const auto aligned_output = try_align_outputs(sdpa, m.get_match_root());
+        if (!aligned_output) {
             return false;
         }
 
-        ov::replace_node(m.get_match_root(), sdpa);
+        ov::replace_node(m.get_match_root(), aligned_output);
 
         return true;
     };

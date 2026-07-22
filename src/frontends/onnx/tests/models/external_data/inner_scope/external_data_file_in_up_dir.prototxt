@@ -18,14 +18,6 @@ graph {
         key: "location",
         value: "../tensors_data/tensor.data"
     }
-    external_data {
-        key: "offset",
-        value: "4096"
-    }
-    external_data {
-        key: "length",
-        value: "16"
-    }
     data_location: 1
   }
   input {

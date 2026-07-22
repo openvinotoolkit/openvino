@@ -233,7 +233,6 @@ private:
 
 public:
     CoreImpl();
-
     ~CoreImpl() override = default;
 
     /**

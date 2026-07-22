@@ -64,11 +64,7 @@ TEST_P(KVCacheTest, Inference) {
 }
 
 TEST_P(KVCacheTest, Inference_cached) {
-    std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-    std::string cacheDirName = ss.str();
+    std::string cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
     {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
@@ -113,11 +109,7 @@ class KVCacheTests: public ::testing::Test {
         };
         std::string cacheDirName;
         if (is_caching_test) {
-            std::stringstream ss;
-            ss << "gpu_model_cache_" << std::hash<std::string>{}(
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-            cacheDirName = ss.str();
+            cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);
@@ -290,11 +282,7 @@ class KVCacheTests: public ::testing::Test {
 
         std::string cacheDirName;
         if (is_caching_test) {
-            std::stringstream ss;
-            ss << "gpu_model_cache_" << std::hash<std::string>{}(
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-            cacheDirName = ss.str();
+            cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);

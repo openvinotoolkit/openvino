@@ -8,6 +8,7 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -207,6 +208,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
 #include "openvino/opsets/opset16_tbl.hpp"
+#include "openvino/opsets/opset17_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

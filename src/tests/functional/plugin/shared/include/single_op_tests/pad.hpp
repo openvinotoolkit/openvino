@@ -15,5 +15,9 @@ TEST_P(PadLayerTest, Inference) {
 TEST_P(Pad12LayerTest, Inference) {
     run();
 }
+
+TEST_P(PadStringLayerTest, Inference) {
+    run();
+}
 }  // namespace test
 }  // namespace ov

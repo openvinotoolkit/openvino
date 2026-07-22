@@ -77,6 +77,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
                          OVClassCompiledModelGetIncorrectPropertyTest,
                          ::testing::Values("HETERO:TEMPLATE"));
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES);
+
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
                          OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));

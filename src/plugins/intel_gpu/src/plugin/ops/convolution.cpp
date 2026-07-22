@@ -34,7 +34,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto outDims = op->get_output_partial_shape(0);
 
     cldnn::primitive_id weights = inputs[op::Convolution::Args::WEIGHTS].pid;
-    const uint32_t groups = std::max<int64_t>(op->get_groups(), 1);
+    const uint32_t groups = static_cast<uint32_t>(std::max<int64_t>(op->get_groups(), 1));
     const bool weights_have_group_dim = op->get_groups() > 0;
 
     auto strides = op->get_strides();
@@ -99,11 +99,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in ConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     auto weightsName = inputs[1];
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
@@ -184,11 +179,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in GroupConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
 
@@ -288,8 +278,8 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
                                        weights,
                                        "",
                                        true,
-                                       groups,
-                                       deformable_groups_num,
+                                       static_cast<uint32_t>(groups),
+                                       static_cast<uint32_t>(deformable_groups_num),
                                        strides,
                                        dilations,
                                        padding,

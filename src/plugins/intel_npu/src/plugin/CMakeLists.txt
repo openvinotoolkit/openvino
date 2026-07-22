@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
-file(GLOB_RECURSE NPUW_SOURCES "npuw/*.cpp" "npuw/*.hpp")
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
 set(NPU_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
@@ -25,7 +24,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
-        openvino_npu_driver_compiler_adapter
+        openvino_npu_compiler_adapter
         openvino_npu_level_zero_backend
 )
 

@@ -28,6 +28,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -38,7 +39,7 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap, bool>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -51,7 +52,8 @@ public:
                      enableXattn,
                      sinkInput,
                      slidingWindow,
-                     additional_config] = obj.param;
+                     additional_config,
+                     addSharedReader] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -72,6 +74,8 @@ public:
         result << "EnableXattn=" << enableXattn << "_";
         result << "SinkInput=" << sinkInput << "_";
         result << "SlidingWindow=" << slidingWindow << "_";
+        if (addSharedReader)
+            result << "SharedKVCache=1_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -94,7 +98,8 @@ public:
                                          ov::Dimension::value_type head_size = 64,
                                          ov::Dimension::value_type head_num = 8,
                                          bool use_sink_input = true,
-                                         int32_t sliding_window = 0) {
+                                         int32_t sliding_window = 0,
+                                         bool add_shared_reader = false) {
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
@@ -107,6 +112,10 @@ public:
         auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                       ov::element::dynamic,
                                       "value_cache.0");
+
+        enable_keep_const_precision(key_cache);
+        enable_keep_const_precision(value_cache);
+        
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subsequence_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
@@ -160,6 +169,9 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto token_type_ids = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+
+        auto qq_bias = std::make_shared<ov::op::v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
+        auto qq_bias_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -187,7 +199,9 @@ public:
                                           adaptive_rkv_evictable_sizes,
                                           adaptive_rkv_diversity_block_set_indices,
                                           adaptive_rkv_diversity_block_set_indices_begins,
-                                          token_type_ids};
+                                          token_type_ids,
+                                          qq_bias,
+                                          qq_bias_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
 
@@ -195,13 +209,45 @@ public:
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
         paged_attn->get_rt_info()["v_head_size"] = head_size;
+
+        if (add_shared_reader) {
+            // Gemma 4-style architecture: the writer layer's output feeds into the
+            // reader layer via a residual connection (hidden = q + PA1_output).
+            auto hidden = std::make_shared<ov::op::v1::Add>(q, paged_attn->output(0));
+
+            // PA2 K/V inputs: separate parameters filled with distinct values at runtime.
+            //
+            // In a real Gemma 4 reader layer there are no K/V linear projections, but the
+            // PA op signature still requires K/V inputs. The SDPAToPA transformation wires
+            // whatever the original graph had into these ports. When write_kv_cache=false,
+            // the kernel ignores them entirely — it only reads from the shared cache.
+            auto k_reader =
+                make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k_reader");
+            auto v_reader =
+                make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v_reader");
+            params.push_back(k_reader);
+            params.push_back(v_reader);
+
+            OutputVector pa2_inputs = paged_attn_inputs;
+            pa2_inputs[0] = hidden;
+            pa2_inputs[1] = k_reader;
+            pa2_inputs[2] = v_reader;
+            auto paged_attn_2 = std::make_shared<op::PagedAttentionExtension>(pa2_inputs, /*write_kv_cache=*/false);
+            paged_attn_2->get_rt_info()["num_k_heads"] = head_num;
+            paged_attn_2->get_rt_info()["k_head_size"] = head_size;
+            paged_attn_2->get_rt_info()["num_v_heads"] = head_num;
+            paged_attn_2->get_rt_info()["v_head_size"] = head_size;
+            return std::make_shared<ov::Model>(OutputVector{paged_attn, paged_attn_2}, params);
+        }
+
         return std::make_shared<ov::Model>(OutputVector{paged_attn}, params);
     }
 
     virtual std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                                      ov::Dimension::value_type head_size = 64,
                                                      ov::Dimension::value_type head_num = 8,
-                                                     bool use_sink_input = true) {
+                                                     bool use_sink_input = true,
+                                                     bool add_shared_reader = false) {
         // q, k, v use L,B,H,S layout
         ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape, sink_shape;
         ov::ParameterVector inputParams;
@@ -270,6 +316,7 @@ public:
         // Parameters order: q, k, v, atten_mask, scale, [sink], past_kv, beam_idx
         size_t atten_mask_idx = 3;
         size_t scale_idx = 4;
+        size_t sink_idx = use_sink_input ? 5 : 0;
 
         std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp;
         // For sliding window case, set causal=false because we provide explicit mask with sliding window logic
@@ -279,7 +326,6 @@ public:
         if (use_sink_input) {
             // 7-parameter SDPA constructor with sink support
             // Parameters: query, key, value, attn_mask, scale, sink, causal
-            size_t sink_idx = 5;
             sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in,
                                                                            k_in,
                                                                            v_in,
@@ -321,6 +367,36 @@ public:
                                                   true);  // use LBHS to better compare data between pa and sdpa
         SinkVector sinks{pastk_assign, pastv_assign};
         ov::OutputVector results{reshapeSDP};
+
+        if (add_shared_reader) {
+            // SDPA2 (reader): uses residual query (q + SDPA1_output), reads same KV cache.
+            // transposeSDP is SDPA1 output in [L, B, H, S], same as inputParams[0] (q).
+            auto hidden_4d = std::make_shared<ov::op::v1::Add>(inputParams[0], transposeSDP);
+            auto hidden_query = std::make_shared<ov::op::v1::Transpose>(hidden_4d, preOrder);
+
+            std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp2;
+            if (use_sink_input) {
+                sdp2 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(hidden_query,
+                                                                                k_in,
+                                                                                v_in,
+                                                                                inputParams[atten_mask_idx],
+                                                                                inputParams[scale_idx],
+                                                                                inputParams[sink_idx],
+                                                                                use_causal);
+            } else {
+                sdp2 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(hidden_query,
+                                                                                k_in,
+                                                                                v_in,
+                                                                                inputParams[atten_mask_idx],
+                                                                                inputParams[scale_idx],
+                                                                                use_causal);
+            }
+            sdp2->set_friendly_name("mha_reader");
+            auto transposeSDP2 = std::make_shared<ov::op::v1::Transpose>(sdp2, postOrder);
+            auto reshapeSDP2 = std::make_shared<ov::op::v1::Reshape>(transposeSDP2, constReshape, true);
+            results.push_back(reshapeSDP2);
+        }
+
         auto model = std::make_shared<Model>(results, sinks, inputParams, "sdpa_model");
         return model;
     }
@@ -332,7 +408,8 @@ public:
                      enableXattn,
                      sinkInput,
                      slidingWindow,
-                     additional_config] = this->GetParam();
+                     additional_config,
+                     addSharedReader] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -346,10 +423,9 @@ public:
         ov::ParameterVector inputParams;
 
         this->sliding_window = slidingWindow;
-        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow);
+        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, addSharedReader);
+        functionRefs = get_ref_model(inType, 64, 8, sinkInput, addSharedReader);
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        functionRefs = get_ref_model(inType, 64, 8, sinkInput);
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         // Check if the reference model uses sink input by examining the number of parameters
@@ -475,6 +551,23 @@ public:
             inputs.insert({function->get_parameters()[7], block_indices});
             inputs.insert({function->get_parameters()[8], block_indices_begins});
 
+            // Reader layer K/V inputs (params [9] and [10], only present when model
+            // has a shared-cache reader PA). Values differ from writer's K/V so that
+            // an incorrect write would visibly corrupt the cache.
+            if (function->get_parameters().size() > 9) {
+                // Fill k_reader/v_reader with zeros — maximally different from the
+                // descending strided_iota data used for k/v (~13000 range).
+                // If write_kv_cache=false is broken and PA2 writes these zeros to cache,
+                // the attention output will differ drastically from the reference.
+                auto reader_shape = ov::Shape{qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]};
+                for (size_t p = 9; p <= 10; p++) {
+                    auto param = function->get_parameters()[p];
+                    ov::Tensor t{param->get_element_type(), reader_shape};
+                    memset(t.data(), 0, t.get_byte_size());
+                    inputs.insert({param, t});
+                }
+            }
+
             // Note: sink is a Constant in the model, not a Parameter, so no need to provide input for it
 
             past_len_count += static_cast<int32_t>(qkv_shape[0]);
@@ -553,6 +646,45 @@ public:
             state.reset();
         }
     }
+    void init_kv_cache(size_t block_nums) {
+        for (const auto& input : compiledModel.inputs()) {
+            for (auto& name : input.get_names()) {
+                auto cache_precision = input.get_element_type();
+                ov::PartialShape pshape;
+                if (name.find("key_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                } else if (name.find("value_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                }
+            }
+        }
+    }
+
+    std::vector<ov::Tensor> run_pa_inference(bool extendBlockIndices, bool sinkInput) {
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            for (size_t out_idx = 0; out_idx < compiledModel.outputs().size(); out_idx++) {
+                auto tensor = inferRequest.get_output_tensor(out_idx);
+                ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+                tensor.copy_to(copy);
+                outputs.push_back(copy);
+            }
+        }
+        return outputs;
+    }
+
     std::vector<size_t> transposeOrder;
     size_t keyGroupSize = 0;
     bool quantKeyByChannel = false;
@@ -568,38 +700,8 @@ public:
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices, bool sinkInput = true) {
         function = model;
         prepare();
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 1024 / 32;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
-        }
-        return outputs;
+        init_kv_cache(1024 / 32);
+        return run_pa_inference(extendBlockIndices, sinkInput);
     }
 
     std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool sinkInput) {
@@ -613,10 +715,12 @@ public:
                 inferRequest.set_tensor(input.first, input.second);
             }
             inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
+            for (size_t out_idx = 0; out_idx < compiledModel.outputs().size(); out_idx++) {
+                auto tensor = inferRequest.get_output_tensor(out_idx);
+                ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+                tensor.copy_to(copy);
+                outputs.push_back(copy);
+            }
         }
         reset();
         return outputs;
@@ -625,8 +729,8 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config,
+                 addSharedReader] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -671,7 +775,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),
                                             ::testing::Values(0),
-                                            ::testing::ValuesIn(additional_configs)),
+                                            ::testing::ValuesIn(additional_configs),
+                                            ::testing::Values(false)),  // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
@@ -683,7 +788,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
                                             ::testing::Values(true, false),  // sinkInput
                                             ::testing::Values(0, 8),         // sliding_window = 8
                                             ::testing::Values(ov::AnyMap{
-                                                {ov::intel_cpu::enable_sage_attn.name(), false}})),
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(false)),  // addSharedReader
+                         PagedAttnTestBase::getTestCaseName);
+
+// PA1(write=true) + PA2(write=false) sharing the same KV cache.
+// Verifies that PA2 reads the cache populated by PA1 and produces matching output.
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
+                         PagedAttnVSSDPATest,
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                                            ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(false),   // extendBlockIndices
+                                            ::testing::Values(false),   // enableXattn
+                                            ::testing::Values(false),   // sinkInput
+                                            ::testing::Values(0),       // slidingWindow
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(true)),   // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -692,9 +813,11 @@ public:
     std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
                                              ov::Dimension::value_type head_num = 8,
-                                             bool use_sink_input = false) override {
-        // PagedAttnVSMatmulTest reference model doesn't use sink input
+                                             bool use_sink_input = false,
+                                             bool add_shared_reader = false) override {
+        // PagedAttnVSMatmulTest reference model doesn't use sink input or shared reader
         (void)use_sink_input;  // Suppress unused parameter warning
+        (void)add_shared_reader;
         // q, k, v use L,B,H,S layout
         ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape;
         ov::ParameterVector inputParams;
@@ -830,38 +953,8 @@ public:
         configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         function = model;
         prepare();
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 4;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices, false);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
-        }
-        return outputs;
+        init_kv_cache(4);
+        return run_pa_inference(extendBlockIndices, false);
     }
 
     std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model) {
@@ -887,8 +980,15 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
+    const auto& [inType,
+                 inputShapes,
+                 extendBlockIndices,
+                 enableXattn,
+                 sinkInput,
+                 slidingWindow,
+                 additional_config,
+                 addSharedReader] = this->GetParam();
+    ASSERT_FALSE(addSharedReader) << "PagedAttnVSMatmulTest does not support shared KV-cache (addSharedReader=true)";
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -925,7 +1025,287 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),  // sinkInput = false
                                             ::testing::Values(0),      // sliding_window = 0
-                                            ::testing::ValuesIn(additional_configs)),
+                                            ::testing::ValuesIn(additional_configs),
+                                            ::testing::Values(false)),  // addSharedReader
+                         PagedAttnTestBase::getTestCaseName);
+}  // namespace
+
+// Regression test: executor cache collision with mixed head_size.
+// Two PA nodes with head_size=256 and head_size=512 in ONE compiled model.
+// Without the fix, PA2 reuses BRGEMM kernels configured for PA1's head_size,
+// producing garbage. Requires f16 KV cache to trigger the BRGEMM code path.
+class PagedAttnCacheCollisionTest : public PagedAttnTestBase {
+public:
+    static constexpr int64_t hs2_val = 512;
+
+    void SetUp() override {
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput,
+                     slidingWindow, additional_config, addSharedReader] = this->GetParam();
+        (void)enableXattn; (void)addSharedReader; (void)sinkInput; (void)slidingWindow;
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        rel_threshold = 0.1f;
+        abs_threshold = 0.05f;
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        configuration.insert(additional_config.begin(), additional_config.end());
+        init_input_shapes(inputShapes);
+        this->sliding_window = 0;
+
+        auto hs1 = static_cast<int64_t>(targetStaticShapes[0][0][3]);
+        auto head_num = static_cast<int64_t>(targetStaticShapes[0][0][2]);
+
+        function = get_mixed_head_model(inType, hs1, head_num);
+        functionRefs = get_ref_model(inType, hs2_val, head_num, false, false);
+
+        targetStaticShapes2_.reserve(targetStaticShapes.size());
+        for (const auto& step : targetStaticShapes) {
+            auto shape2 = step;
+            shape2[0][3] = static_cast<size_t>(hs2_val);
+            shape2[1][3] = static_cast<size_t>(hs2_val);
+            targetStaticShapes2_.push_back(shape2);
+        }
+    }
+
+    std::shared_ptr<ov::Model> get_mixed_head_model(ov::element::Type data_type, int64_t hs1, int64_t hn) {
+        auto q1 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q1");
+        auto k1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "k1");
+        auto v1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "v1");
+        auto kc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "key_cache.0");
+        auto vc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "value_cache.0");
+        enable_keep_const_precision(kc1);
+        enable_keep_const_precision(vc1);
+
+        auto q2 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q2");
+        auto k2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "k2");
+        auto v2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "v2");
+        auto kc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "key_cache.1");
+        auto vc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "value_cache.1");
+        enable_keep_const_precision(kc2);
+        enable_keep_const_precision(vc2);
+
+        auto past_lens = make_param(PartialShape{Dimension::dynamic()}, element::i32, "past_lens");
+        auto subseq = make_param(PartialShape{Dimension::dynamic()}, element::i32, "subsequence_begins");
+        auto blk_idx = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices");
+        auto blk_begins = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices_begins");
+
+        auto make_consts = [](int64_t hs) {
+            float sv = 1.0f / std::sqrt(static_cast<float>(hs));
+            OutputVector c;
+            c.push_back(v0::Constant::create(element::f32, Shape{}, {sv}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {1024}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {64}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {8}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{}));
+            c.push_back(v0::Constant::create(element::u8, Shape{0}, std::vector<uint8_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            return c;
+        };
+
+        auto consts1 = make_consts(hs1);
+        OutputVector pa1_inputs = {q1, k1, v1, kc1, vc1, past_lens, subseq, blk_idx, blk_begins};
+        pa1_inputs.insert(pa1_inputs.end(), consts1.begin(), consts1.end());
+        auto pa1 = std::make_shared<PagedAttentionExtension>(pa1_inputs);
+        pa1->get_rt_info()["num_k_heads"] = static_cast<size_t>(hn);
+        pa1->get_rt_info()["k_head_size"] = static_cast<size_t>(hs1);
+        pa1->get_rt_info()["num_v_heads"] = static_cast<size_t>(hn);
+        pa1->get_rt_info()["v_head_size"] = static_cast<size_t>(hs1);
+
+        auto residual = std::make_shared<v1::Add>(q1, pa1->output(0));
+
+        auto consts2 = make_consts(hs2_val);
+        OutputVector pa2_inputs = {q2, k2, v2, kc2, vc2, past_lens, subseq, blk_idx, blk_begins};
+        pa2_inputs.insert(pa2_inputs.end(), consts2.begin(), consts2.end());
+        auto pa2 = std::make_shared<PagedAttentionExtension>(pa2_inputs);
+        pa2->get_rt_info()["num_k_heads"] = static_cast<size_t>(hn);
+        pa2->get_rt_info()["k_head_size"] = static_cast<size_t>(hs2_val);
+        pa2->get_rt_info()["num_v_heads"] = static_cast<size_t>(hn);
+        pa2->get_rt_info()["v_head_size"] = static_cast<size_t>(hs2_val);
+
+        ParameterVector params = {q1, k1, v1, kc1, vc1, q2, k2, v2, kc2, vc2,
+                                  past_lens, subseq, blk_idx, blk_begins};
+        return std::make_shared<Model>(OutputVector{residual, pa2->output(0)}, params);
+    }
+
+    void generate(int idx,
+                  const bool isPagedAttn,
+                  const std::vector<ov::Shape>& targetInputStaticShapes,
+                  bool extendBlockIndices,
+                  bool use_sink_input = true) override {
+        if (!isPagedAttn) {
+            PagedAttnTestBase::generate(idx, false, targetInputStaticShapes, extendBlockIndices, use_sink_input);
+            return;
+        }
+
+        inputs.clear();
+        auto fill_tensor = [](ov::Tensor& t, float val) {
+            auto* p = t.data<float>();
+            for (size_t i = 0; i < t.get_size(); i++)
+                p[i] = val + 0.1f * static_cast<float>(t.get_size() - 1 - i);
+        };
+
+        auto params = function->get_parameters();
+        auto seq_len = targetInputStaticShapes[0][0];
+        size_t batch = targetInputStaticShapes[0][1];
+        size_t tokens = seq_len * batch;
+        size_t hs1 = static_cast<size_t>(targetStaticShapes[0][0][3]);
+        size_t hn = targetStaticShapes[0][0][2];
+
+        // PA1: q1, k1, v1
+        ov::Tensor tq1(element::f32, {tokens, hn * hs1}); fill_tensor(tq1, idx + 10.0f);
+        ov::Tensor tk1(element::f32, {tokens, hn * hs1}); fill_tensor(tk1, idx + 11.0f);
+        ov::Tensor tv1(element::f32, {tokens, hn * hs1}); fill_tensor(tv1, idx + 12.0f);
+        inputs.insert({params[0], tq1});
+        inputs.insert({params[1], tk1});
+        inputs.insert({params[2], tv1});
+        inputs.insert({params[3], key_cache});
+        inputs.insert({params[4], value_cache});
+
+        // PA2: q2, k2, v2 — same offsets as SDPA reference
+        size_t hs2 = static_cast<size_t>(hs2_val);
+        ov::Tensor tq2(element::f32, {tokens, hn * hs2}); fill_tensor(tq2, idx + 1.0f);
+        ov::Tensor tk2(element::f32, {tokens, hn * hs2}); fill_tensor(tk2, idx + 2.0f);
+        ov::Tensor tv2(element::f32, {tokens, hn * hs2}); fill_tensor(tv2, idx + 3.0f);
+        inputs.insert({params[5], tq2});
+        inputs.insert({params[6], tk2});
+        inputs.insert({params[7], tv2});
+        inputs.insert({params[8], key_cache_1});
+        inputs.insert({params[9], value_cache_1});
+
+        // Shared block management
+        int32_t total_blocks = intel_cpu::div_up(static_cast<int32_t>(tokens) + past_len_count, 32);
+        ov::Tensor t_past(element::i32, {1});
+        ov::Tensor t_sub(element::i32, {2});
+        ov::Tensor t_bi(element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
+        ov::Tensor t_bib(element::i32, {2});
+
+        t_past.data<int32_t>()[0] = (idx == 0) ? 0 : past_len_count;
+        t_sub.data<int32_t>()[0] = 0;
+        t_sub.data<int32_t>()[1] = static_cast<int32_t>(tokens);
+        t_bib.data<int32_t>()[0] = 0;
+        t_bib.data<int32_t>()[1] = total_blocks;
+        for (int32_t i = 0; i < total_blocks; i++)
+            t_bi.data<int32_t>()[i] = i;
+
+        inputs.insert({params[10], t_past});
+        inputs.insert({params[11], t_sub});
+        inputs.insert({params[12], t_bi});
+        inputs.insert({params[13], t_bib});
+
+        past_len_count += static_cast<int32_t>(tokens);
+    }
+
+    void init_all_kv_caches(size_t block_nums) {
+        for (const auto& input : compiledModel.inputs()) {
+            for (const auto& name : input.get_names()) {
+                auto prec = input.get_element_type();
+                auto ps = input.get_partial_shape();
+                if (name == "key_cache.0") {
+                    ps[0] = block_nums;
+                    key_cache = ov::Tensor(prec, ps.get_shape());
+                    std::memset(key_cache.data(), 0, key_cache.get_byte_size());
+                } else if (name == "value_cache.0") {
+                    ps[0] = block_nums;
+                    value_cache = ov::Tensor(prec, ps.get_shape());
+                    std::memset(value_cache.data(), 0, value_cache.get_byte_size());
+                } else if (name == "key_cache.1") {
+                    ps[0] = block_nums;
+                    key_cache_1 = ov::Tensor(prec, ps.get_shape());
+                    std::memset(key_cache_1.data(), 0, key_cache_1.get_byte_size());
+                } else if (name == "value_cache.1") {
+                    ps[0] = block_nums;
+                    value_cache_1 = ov::Tensor(prec, ps.get_shape());
+                    std::memset(value_cache_1.data(), 0, value_cache_1.get_byte_size());
+                }
+            }
+        }
+    }
+
+    ov::Tensor key_cache_1;
+    ov::Tensor value_cache_1;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes2_;
+};
+
+TEST_P(PagedAttnCacheCollisionTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    // Run PA model (single compilation — both PA nodes share executor cache)
+    past_len_count = 0;
+    prepare();
+    init_all_kv_caches(1024 / 32);
+    std::vector<ov::Tensor> actualOutputs;
+    int idx = 0;
+    for (auto&& shapes : targetStaticShapes) {
+        generate(idx++, true, shapes, false, false);
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+        }
+        inferRequest.infer();
+        auto tensor = inferRequest.get_output_tensor(1);
+        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+        tensor.copy_to(copy);
+        actualOutputs.push_back(copy);
+    }
+
+    // Run SDPA reference for PA2 (head_size=hs2)
+    past_len_count = 0;
+    auto saved_function = function;
+    function = functionRefs;
+    prepare();
+    std::vector<ov::Tensor> expectedOutputs;
+    idx = 0;
+    for (auto&& shapes : targetStaticShapes2_) {
+        generate(idx++, false, shapes, false, false);
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+        }
+        inferRequest.infer();
+        auto tensor = inferRequest.get_output_tensor(0);
+        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+        tensor.copy_to(copy);
+        expectedOutputs.push_back(copy);
+    }
+    reset();
+    function = saved_function;
+
+    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size());
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+namespace {
+const std::vector<InputShapes> inputShapesCacheCollision = {{
+    // [L, B=1, H=4, S=256] — PA1 head_size; PA2 uses S=512
+    {{-1, 1, 4, 256}, {{10, 1, 4, 256}, {1, 1, 4, 256}}},
+    {{-1, 1, 4, 256}, {{0, 1, 4, 256}, {10, 1, 4, 256}}},
+}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnExecutorCacheCollision,
+                         PagedAttnCacheCollisionTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(inputShapesCacheCollision),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(false)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

@@ -1,0 +1,6 @@
+@echo off
+REM Copyright (C) 2018-2026 Intel Corporation
+REM SPDX-License-Identifier: Apache-2.0
+
+"@OV_RPI_WRAPPER_REAL_TOOL@" @OV_RPI_WRAPPER_FLAGS@ %*
+exit /b %ERRORLEVEL%

@@ -106,7 +106,7 @@ public:
         if (output_layout.format == format::winograd_2x3_s1_data) {
             params.winograd_input_offset_x = 0;
             params.winograd_input_offset_y = 0;
-            params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
+            params.winograd_nr_tiles_x = static_cast<uint32_t>(ceil_div(output_layout.spatial(0), 4));
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();

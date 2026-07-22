@@ -321,10 +321,9 @@ public:
         return copy;
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
         if (canCompileOpt()) {
-            auto params = instance.get_impl_params();
-            auto x = extract_channel(ChannelName::X, params->get_input_layout(kUpdates));
+            auto x = extract_channel(ChannelName::X, impl_params.get_input_layout(kUpdates));
             if (x >= VEC_SIZE) {
                 return {KernelsTypes::UPDATE_OPT};
             }

@@ -15,8 +15,8 @@ static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov:
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    int32_t group = op->get_group();
-    int64_t axis = ov::util::try_normalize_axis(op->get_axis(), op->get_input_partial_shape(0).rank(), *op);
+    int32_t group = static_cast<int32_t>(op->get_group());
+    int32_t axis = static_cast<int32_t>(ov::util::try_normalize_axis(op->get_axis(), op->get_input_partial_shape(0).rank(), *op));
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputs[0],

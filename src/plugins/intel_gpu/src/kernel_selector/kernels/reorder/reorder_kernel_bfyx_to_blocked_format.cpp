@@ -40,6 +40,7 @@ ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
+    k.EnableDynamicShapesSupport();
 
     return k;
 }
@@ -119,7 +120,9 @@ static inline size_t GetTileSize(const reorder_params& params) {
         return MIN_TILE_SIZE;
     }
 
-    if (params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
+    // For shape-agnostic (dynamic shapes), Feature count is unknown at compile time.
+    // Use DEFAULT_TILE_SIZE; remainder path handles small features.
+    if (!params.is_shape_agnostic && params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
         return MIN_TILE_SIZE;
     }
 
@@ -178,53 +181,93 @@ CommonDispatchData ReorderKernel_bfyx_to_blocked_format::SetDefault(const reorde
 JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
 
-    const size_t b = params.inputs[0].Batch().v;
-    const size_t f = params.inputs[0].Feature().v;
-    const size_t x = params.inputs[0].X().v;
     const size_t tile_size = GetTileSize(params);
     const size_t input_ndims = params.inputs[0].GetDims().size();
     const size_t fsv_alignment = GetFsvAlignment(params);
 
-    const auto& gws = GetGWS(params);
-    const auto& lws = GetBestLwsFromGws(params, gws, tile_size, tile_size);
-    const uint64_t total_lws = lws[0] * lws[1] * lws[2];
-
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
-    jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM", CeilDiv(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
-    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
 
     if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         jit.AddConstant(MakeJitConstant("FS_B_YX_FSV", 1));
     }
 
-    if (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+    const bool is_double_blocked = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
-        const size_t bsv_alignment = GetBsvAlignment(params);
-        jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
-        jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, bsv_alignment)));
-        jit.AddConstant(MakeJitConstant("BSV_ALIGNMENT", bsv_alignment));
-    }
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32;
 
-    // whether F is tile_size-aligned
-    if (f % tile_size == 0) {
-        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
+    if (params.is_shape_agnostic) {
+        // Runtime expressions for shape-dependent constants
+        jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM",
+            "((INPUT0_FEATURE_NUM + " + std::to_string(fsv_alignment) + " - 1) / " + std::to_string(fsv_alignment) + ")"));
+
+        // TRANS_BUF_SIZE: use maximum possible LWS product to guarantee SLM is large enough at any runtime shape
+        const size_t elem_size = params.outputs[0].ElementSize();
+        const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
+        const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
+        size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_size * tile_size));
+        jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * max_num_work_items));
+
+        // F remainder: always emit both paths (remainder size unknown at compile time)
+        std::string ts = std::to_string(tile_size);
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", "(INPUT0_FEATURE_NUM % " + ts + ")"));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION",
+            "(f >= (INPUT0_FEATURE_NUM - (INPUT0_FEATURE_NUM % " + ts + "))) && (f < INPUT0_FEATURE_NUM) && ((INPUT0_FEATURE_NUM % " + ts + ") != 0)"));
+        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION",
+            "((f < INPUT0_FEATURE_NUM) && ((INPUT0_FEATURE_NUM % " + ts + ") == 0 || f < (INPUT0_FEATURE_NUM - (INPUT0_FEATURE_NUM % " + ts + "))))"));
+
+        // X remainder: always emit both paths
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", "(INPUT0_SIZE_X % " + ts + ")"));
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION",
+            "(x >= (INPUT0_SIZE_X - (INPUT0_SIZE_X % " + ts + "))) && (x < INPUT0_SIZE_X) && ((INPUT0_SIZE_X % " + ts + ") != 0)"));
+        jit.AddConstant(MakeJitConstant("X_NO_REMAINDER_CONDITION",
+            "((x < INPUT0_SIZE_X) && ((INPUT0_SIZE_X % " + ts + ") == 0 || x < (INPUT0_SIZE_X - (INPUT0_SIZE_X % " + ts + "))))"));
+
+        if (is_double_blocked) {
+            const size_t bsv_alignment = GetBsvAlignment(params);
+            jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
+            jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM",
+                "((INPUT0_BATCH_NUM + " + std::to_string(bsv_alignment) + " - 1) / " + std::to_string(bsv_alignment) + ")"));
+            jit.AddConstant(MakeJitConstant("BSV_ALIGNMENT", bsv_alignment));
+        }
     } else {
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
-        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
-    }
+        const size_t b = params.inputs[0].Batch().v;
+        const size_t f = params.inputs[0].Feature().v;
+        const size_t x = params.inputs[0].X().v;
 
-    // whether x is tile_size-aligned
-    if (x % tile_size != 0) {
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % tile_size));
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
-        jit.AddConstant(MakeJitConstant("X_NO_REMAINDER_CONDITION", "(x < (INPUT0_SIZE_X - X_REMAINDER_SIZE))"));
+        jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM", CeilDiv(f, fsv_alignment)));
+
+        const auto& gws = GetGWS(params);
+        const auto& lws = GetBestLwsFromGws(params, gws, tile_size, tile_size);
+        const uint64_t total_lws = lws[0] * lws[1] * lws[2];
+        jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
+
+        if (is_double_blocked) {
+            const size_t bsv_alignment = GetBsvAlignment(params);
+            jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
+            jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, bsv_alignment)));
+            jit.AddConstant(MakeJitConstant("BSV_ALIGNMENT", bsv_alignment));
+        }
+
+        // whether F is tile_size-aligned
+        if (f % tile_size == 0) {
+            jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
+        } else {
+            jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
+            jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
+            jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
+        }
+
+        // whether x is tile_size-aligned
+        if (x % tile_size != 0) {
+            jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % tile_size));
+            jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
+            jit.AddConstant(MakeJitConstant("X_NO_REMAINDER_CONDITION", "(x < (INPUT0_SIZE_X - X_REMAINDER_SIZE))"));
+        }
     }
 
     return jit;
@@ -275,6 +318,12 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
 
 KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& p) const {
     const reorder_params& params = static_cast<const reorder_params&>(p);
+
+    // For dynamic shapes, skip shape-dependent heuristics
+    if (params.is_shape_agnostic) {
+        return FORCE_PRIORITY_5;
+    }
+
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 

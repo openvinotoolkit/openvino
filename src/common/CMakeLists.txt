@@ -8,6 +8,10 @@ add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 add_subdirectory(util)
 
+if(ENABLE_OV_ZERO_LOADER)
+    add_subdirectory(zero_loader)
+endif()
+
 if(ENABLE_INTEL_CPU)
     add_subdirectory(snippets)
 endif()

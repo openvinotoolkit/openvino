@@ -94,7 +94,11 @@ if(TBB_FOUND)
         # On Windows there is no RPATH, so copy downloaded/custom TBB DLLs next to openvino.dll.
         # System TBB is already findable by the loader, so no copying is needed in that case.
         _ov_get_tbb_location(TBB::tbb _ov_tbb_dll_location)
-        cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
+            cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        else()
+            get_filename_component(_ov_tbb_dll_dir "${_ov_tbb_dll_location}" DIRECTORY)
+        endif()
         file(GLOB _ov_tbb_dlls "${_ov_tbb_dll_dir}/*.dll")
         if(_ov_tbb_dlls)
             add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
@@ -158,8 +162,43 @@ set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 ov_developer_package_export_targets(TARGET openvino_runtime_dev
                                     INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
 
-file(GLOB_RECURSE dev_api_src "${CMAKE_CURRENT_SOURCE_DIR}/OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/*.hpp")
-ov_add_clang_format_target(openvino_runtime_dev_clang FOR_SOURCES ${plugin_api_src})
+set(dev_api_headers
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/compilation_context.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/device_id_parser.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/exec_model_info.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iasync_infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/icache_manager.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/icompiled_model.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/icore.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iinfer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/internal_properties.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iplugin.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iremote_context.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iremote_tensor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/isync_infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/ivariable_state.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/make_tensor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/memory_solver.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/performance_heuristics.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/plugin_config.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/plugin_itt.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/single_file_storage.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/so_ptr.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/system_conf.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/tlv_format.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/weightless_properties_utils.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/cpu_message.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/cpu_streams_executor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/cpu_streams_executor_internal.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/cpu_streams_info.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/executor_manager.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/immediate_executor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/istreams_executor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/itask_executor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_local.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_safe_containers.hpp
+)
+ov_add_clang_format_target(openvino_runtime_dev_clang FOR_SOURCES ${dev_api_headers})
 
 ov_ncc_naming_style(FOR_TARGET openvino_runtime_dev
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src/inference/dev_api/openvino"

@@ -60,12 +60,10 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeLP: return gpu_arch::xe_lp;
         case ngen::HW::XeHP: return gpu_arch::xe_hp;
         case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
-        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::XeHPC: OPENVINO_THROW("[GPU] XeHPC is not supported");
         case ngen::HW::Xe2: return gpu_arch::xe2;
         case ngen::HW::Xe3: return gpu_arch::xe3;
-        case ngen::HW::XE3P_35_10: return gpu_arch::xe3p_35_10;
-        case ngen::HW::XE3P_35_11: return gpu_arch::xe3p_35_11;
-        case ngen::HW::XE3P_UNKNOWN: return gpu_arch::xe3p_unknown;
+        case ngen::HW::Xe3p: return gpu_arch::xe3p;
         case ngen::HW::Gen10:
         case ngen::HW::Unknown: return gpu_arch::unknown;
     }
@@ -210,6 +208,10 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.dev_type = get_device_type(device);
     info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
+    info.cacheline_size = device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE>();
+    // Alignment requirement (in bits) for sub-buffer offsets, converting to bytes and ensuring at least 1 byte alignment.
+    auto bits = device.getInfo<CL_DEVICE_MEM_BASE_ADDR_ALIGN>(); 
+    info.sub_buffer_base_alignment = std::max<uint32_t>(1, bits / 8);
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
     info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
@@ -311,9 +313,6 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
             info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
-        GPU_DEBUG_INFO << "GPU version: "
-            << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
-            << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
     } else if (nv_device_attr_supported) {
         info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
                         static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
@@ -357,6 +356,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.device_memory_ordinal = 0;
     info.supports_cp_offload = false;
     info.supports_counter_based_events = false;
+    info.supports_leo = false;
 
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
     using namespace dnnl::impl::gpu::intel::jit;
@@ -376,6 +376,25 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+    auto arch_to_string = [](gpu_arch arch) -> const char* {
+        switch (arch) {
+            case gpu_arch::unknown: return "unknown";
+            case gpu_arch::gen9:    return "gen9";
+            case gpu_arch::gen11:   return "gen11";
+            case gpu_arch::xe_lp:   return "xe_lp";
+            case gpu_arch::xe_hp:   return "xe_hp";
+            case gpu_arch::xe_hpg:  return "xe_hpg";
+            case gpu_arch::xe_hpc:  return "xe_hpc";
+            case gpu_arch::xe2:     return "xe2";
+            case gpu_arch::xe3:     return "xe3";
+            case gpu_arch::xe3p:    return "xe3p";
+        }
+        return "unknown";
+    };
+    GPU_DEBUG_INFO << "GPU architecture: " << arch_to_string(info.arch) << ", version: "
+        << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+        << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
 
     return info;
 }

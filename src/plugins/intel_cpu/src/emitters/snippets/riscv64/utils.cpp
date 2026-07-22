@@ -6,13 +6,11 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <set>
 #include <vector>
 
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
-#include "snippets/emitter.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
 namespace ov::intel_cpu::riscv64::utils {
@@ -68,70 +66,6 @@ Xbyak_riscv::Reg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     }
 
     OPENVINO_THROW("No available auxiliary GPR registers");
-}
-
-std::vector<Xbyak_riscv::Reg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
-    std::vector<Xbyak_riscv::Reg> result;
-    std::vector<size_t> current_used = used_gpr_idxs;
-
-    for (size_t i = 0; i < count; ++i) {
-        auto aux_reg = get_aux_gpr(current_used);
-        result.push_back(aux_reg);
-        current_used.push_back(aux_reg.getIdx());
-    }
-
-    return result;
-}
-
-Xbyak_riscv::Reg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
-                                            const std::vector<size_t>& aux_gpr_idxs,
-                                            std::set<snippets::Reg>& regs_to_spill) {
-    if (!aux_gpr_idxs.empty()) {
-        return Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.front()));
-    }
-
-    // Find an available register and mark it for spilling
-    auto aux_reg = get_aux_gpr(used_gpr_reg_idxs);
-    regs_to_spill.insert({snippets::RegType::gpr, static_cast<size_t>(aux_reg.getIdx())});
-    return aux_reg;
-}
-
-void push_ptr_with_runtime_offset_on_stack(ov::intel_cpu::riscv64::jit_generator_t* h,
-                                           int32_t stack_offset,
-                                           const Xbyak_riscv::Reg& ptr_reg,
-                                           const std::vector<Xbyak_riscv::Reg>& aux_regs,
-                                           size_t runtime_offset) {
-    OPENVINO_ASSERT(aux_regs.size() >= 3, "Need at least 3 auxiliary registers");
-
-    const auto& aux1 = aux_regs[0];
-    const auto& aux2 = aux_regs[1];
-
-    // Load runtime offset from runtime params
-    h->lw(aux1, Xbyak_riscv::a0, static_cast<int32_t>(runtime_offset));
-
-    // Add offset to pointer
-    h->add(aux2, ptr_reg, aux1);
-
-    // Store adjusted pointer to stack
-    h->sw(aux2, Xbyak_riscv::sp, stack_offset);
-}
-
-void push_ptr_with_static_offset_on_stack(ov::intel_cpu::riscv64::jit_generator_t* h,
-                                          int32_t stack_offset,
-                                          const Xbyak_riscv::Reg& ptr_reg,
-                                          const std::vector<Xbyak_riscv::Reg>& aux_regs,
-                                          size_t ptr_offset) {
-    OPENVINO_ASSERT(aux_regs.size() >= 2, "Need at least 2 auxiliary registers");
-
-    if (ptr_offset == 0) {
-        // Direct store without offset
-        h->sw(ptr_reg, Xbyak_riscv::sp, stack_offset);
-    } else {
-        // Add static offset and store
-        const auto& aux = aux_regs[0];
-        h->addi(aux, ptr_reg, static_cast<int32_t>(ptr_offset));
-        h->sw(aux, Xbyak_riscv::sp, stack_offset);
-    }
 }
 
 }  // namespace ov::intel_cpu::riscv64::utils

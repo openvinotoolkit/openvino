@@ -159,7 +159,7 @@ private:
 
         auto output = outputs.at("slice").get_memory();
 
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<T> wanted_output_ptr(params.wanted_output, get_test_stream());
 
         ASSERT_EQ(output->get_layout(), params.wanted_output->get_layout());
@@ -331,4 +331,86 @@ TYPED_TEST(SliceTest, bfzyx) {
     this->RunAllTestCasesForParams(params);
 }
 
-} // anonymous namespace
+// int8 Slice: dedicated small-value case (the shared TYPED_TEST data exceeds the i8 range). Covers the
+// i8 output path enabled for a quantized KV cache (GroupQueryAttention int8/int4 dynamic Slice+Concat).
+TEST(slice_gpu_i8, bfyx) {
+    auto& engine = get_test_engine();
+
+    // input [1,1,2,4] i8, slice axis 2 -> [1,1,1,4] (second row).
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1, 2, 4}, data_types::i8, format::bfyx});
+    auto start = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+
+    set_values<int8_t>(input, {1, 2, 3, 4, -5, -6, -7, -8});
+    set_values<int64_t>(start, {1});
+    set_values<int64_t>(stop, {2});
+    set_values<int64_t>(step, {1});
+    set_values<int64_t>(axes, {2});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("slice").get_memory();
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {-5, -6, -7, -8};
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+    for (size_t i = 0; i < expected_results.size(); ++i)
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
+}
+
+// f8e4m3 Slice: values are exactly representable, so the sliced (byte-moved) result is exact. Covers
+// the f8 output path enabled for a quantized KV cache (GroupQueryAttention f8e4m3 dynamic Slice+Concat).
+TEST(slice_gpu_f8e4m3, bfyx) {
+    auto& engine = get_test_engine();
+
+    // input [1,1,2,4] f8e4m3, slice axis 2 -> [1,1,1,4] (second row).
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1, 2, 4}, data_types::f8e4m3, format::bfyx});
+    auto start = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+
+    set_values<ov::float8_e4m3>(input, {1.0f, 2.0f, 3.0f, 4.0f, -0.5f, -1.5f, -2.5f, -0.25f});
+    set_values<int64_t>(start, {1});
+    set_values<int64_t>(stop, {2});
+    set_values<int64_t>(step, {1});
+    set_values<int64_t>(axes, {2});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("slice").get_memory();
+    cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<ov::float8_e4m3> expected_results = {-0.5f, -1.5f, -2.5f, -0.25f};
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+    for (size_t i = 0; i < expected_results.size(); ++i)
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
+}
+
+}  // anonymous namespace

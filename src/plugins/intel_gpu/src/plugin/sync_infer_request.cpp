@@ -85,6 +85,34 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
+// -------------- ThreadSafeVariableStateWrapper (see issue #36458) ----------------------------- //
+// ----------------------------------------------------------------------------------------------- //
+
+ThreadSafeVariableStateWrapper::ThreadSafeVariableStateWrapper(
+    std::shared_ptr<ov::IVariableState> state,
+    std::shared_ptr<Graph> graph)
+    : ov::IVariableState(state->get_name())
+    , m_state(std::move(state))
+    , m_graph(std::move(graph)) {}
+
+void ThreadSafeVariableStateWrapper::reset() {
+    // Acquire the same mutex that infer() holds during shape inference
+    // to prevent concurrent modification of variable state layouts.
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->reset();
+}
+
+void ThreadSafeVariableStateWrapper::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->set_state(state);
+}
+
+ov::SoPtr<ov::ITensor> ThreadSafeVariableStateWrapper::get_state() const {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    return m_state->get_state();
+}
+
+// ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
 // ----------------------------------------------------------------------------------------------- //
 
@@ -131,7 +159,13 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
     for (const auto& pair : m_variables) {
-        ret.emplace_back(pair.second, nullptr);
+        // Wrap each variable state with a thread-safe proxy that acquires the
+        // graph mutex before reset()/set_state(), preventing concurrent
+        // modification during shape inference on sibling InferRequests.
+        // See: https://github.com/openvinotoolkit/openvino/issues/36458
+        ret.emplace_back(
+            std::make_shared<ThreadSafeVariableStateWrapper>(pair.second, m_graph),
+            nullptr);
     }
     return ret;
 }
@@ -674,10 +708,17 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
 
     // For dynamic outputs with USM host support, create an OutputMemoryBlock
     // that will be plugged into the graph to enable zero-copy output.
-    if (shape.is_dynamic() && can_use_usm_host(m_graph->get_engine(), total_output_bytes)) {
+    auto&& engine = m_graph->get_engine();
+    const auto& device_info = engine.get_device_info();
+    // In the case of dynamic shapes, the total_output_bytes is useless as the actual output size is determined only at runtime.
+    // For dGPUs, using USM Host memory for outputs may lead to performance degradation in some scenarios (see can_use_usm_host impl).
+    // We have to be conservative and enable USM Host memory for dynamic outputs only on iGPUs. 
+    if (cldnn::device_type::integrated_gpu == device_info.dev_type &&
+        shape.is_dynamic() &&
+        can_use_usm_host(engine, total_output_bytes)) {
         auto device_et = convert_to_supported_device_type(element_type);
         if (!is_convert_required(device_et, element_type)) {
-            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(m_graph->get_engine());
+            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(engine);
         }
     }
 }

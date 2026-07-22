@@ -75,6 +75,27 @@ $ dpkg -l | grep intel-opencl-icd
 ii  intel-opencl-icd       25.31.34666.3-0             amd64        Intel graphics compute runtime for OpenCL
 ```
 
+## If clinfo reports `build program : error -6` for kernel queries
+
+`clinfo | grep 'Preferred work group size multiple'` returning `<getWGsizes:...: build program : error -6>`
+indicates the OpenCL kernel compiler (IGC) is broken despite the device being recognized.
+
+**Potential Cause:** Stale manually-installed `intel-igc-core` / `intel-igc-opencl` packages (not managed by the PPA)
+shadow the newer `libigc2` installed by `kobuk-team/intel-graphics` PPA.
+
+Remove and reinstall the IGC packages:
+```bash
+sudo apt-get remove -y intel-igc-core intel-igc-opencl intel-igc-core-2 intel-igc-opencl-2
+sudo apt-get install -y intel-opencl-icd
+```
+After reinstallation, all lines of `clinfo | grep 'Preferred work group size multiple'` should show some number, like `64`.
+
+If the failure persists, check `apt-cache policy` to understand the package state better:
+```bash
+apt-cache policy intel-igc-core intel-igc-opencl intel-igc-core-2 intel-igc-opencl-2
+```
+A package installed outside of apt (e.g. via `dpkg -i`) will show only priority `100` with `/var/lib/dpkg/status` as its sole source and no repository URL. Such packages are never auto-upgraded and can shadow newer versions installed by a PPA.
+
 ## Use LD_DEBUG=libs to trace loaded libraries
 
 For more details, see the [OpenCL on Linux](https://github.com/bashbaug/OpenCLPapers/blob/markdown/OpenCLOnLinux.md)

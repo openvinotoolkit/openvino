@@ -17,13 +17,13 @@
 using namespace ov::frontend::tensorflow;
 
 namespace {
-std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
-    std::vector<std::string> res;
+std::vector<std::filesystem::path> list_files_in_dir(const std::filesystem::path& directory_path) {
+    std::vector<std::filesystem::path> res;
     try {
         ov::util::iterate_files(
-            ov::util::make_path(directory_path),
+            directory_path,
             [&res](const std::filesystem::path& file_path) {
-                res.push_back(ov::util::path_to_string(file_path));
+                res.push_back(file_path);
             },
             true);
     } catch (...) {
@@ -33,11 +33,11 @@ std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
 }
 }  // namespace
 
-CheckpointV1Reader::CheckpointV1Reader(const std::string& checkpoints) : m_checkpoints(checkpoints) {}
+CheckpointV1Reader::CheckpointV1Reader(const std::filesystem::path& checkpoints) : m_checkpoints(checkpoints) {}
 
 void CheckpointV1Reader::initialize() {
     // figure out if the input is a file or a directory of checkpoints
-    std::vector<std::string> checkpoints_paths;
+    std::vector<std::filesystem::path> checkpoints_paths;
     if (ov::util::directory_exists(m_checkpoints)) {
         checkpoints_paths = list_files_in_dir(m_checkpoints);
     } else if (ov::util::file_exists(m_checkpoints)) {
@@ -48,18 +48,20 @@ void CheckpointV1Reader::initialize() {
 
     m_variables_info_map.clear();
 
-    for (auto checkpoint_path : checkpoints_paths) {
+    for (const auto& checkpoint_path : checkpoints_paths) {
         // create ifstream for each shard
         std::shared_ptr<std::ifstream> shard_stream =
             std::make_shared<std::ifstream>(checkpoint_path, std::ifstream::in | std::ifstream::binary);
-        FRONT_END_GENERAL_CHECK(
-            shard_stream && shard_stream->is_open(),
-            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path + "does not exist");
+        FRONT_END_GENERAL_CHECK(shard_stream && shard_stream->is_open(),
+                                "[TensorFlow Frontend] incorrect model: checkpoint file ",
+                                checkpoint_path,
+                                " does not exist");
         const int32_t shard_ind = static_cast<int32_t>(m_shards.size());
         m_shards.push_back(shard_stream);
-        m_shard_names.push_back(checkpoint_path);
+        const std::string shard_name = ov::util::path_to_string(checkpoint_path);
+        m_shard_names.push_back(shard_name);
         std::string value;
-        find_entry(shard_stream, checkpoint_path, SAVED_TENSOR_SLICES_KEY, value);
+        find_entry(shard_stream, shard_name, SAVED_TENSOR_SLICES_KEY, value);
 
         // parse empty index block
         // This is only present at the first item of each checkpoint file and serves
