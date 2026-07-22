@@ -22,15 +22,7 @@ torch.manual_seed(0)
 
 # Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
 NPU_PRECOMMIT_SKIP = {
-    "COCO": "*",
-    "Cityscapes/mask_rcnn_R_50_FPN": "*",
-    "Detectron1": "*",
-    "LVISv0.5": "*",
-    "Misc/cascade_mask_rcnn_R_50_FPN_3x": "*",
-    "Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv": "*",
-    "Misc/mask_rcnn_R_50_FPN_3x_syncbn": "*",
-    "Misc/scratch_mask_rcnn_R_50_FPN_9x_syncbn": "*",
-    "PascalVOC": "*",
+    "aliked-n16rot": "*",
 }
 
 def custom_op_loop(context):
@@ -87,6 +79,11 @@ def read_image(path, idx):
 
 class TestAlikedConvertModel(TestTorchConvertModel):
     def setup_class(self):
+        # On NPU aliked is unsupported (see NPU_PRECOMMIT_SKIP), so skip the whole class
+        # before the native `sh build.sh` step in setup (which also fails on Windows).
+        if "NPU" in os.environ.get("TEST_DEVICE", ""):
+            pytest.skip("aliked is skipped on NPU (models unsupported in compile-only)")
+
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
             f"git clone https://github.com/mvafin/ALIKED.git {self.repo_dir.name}")

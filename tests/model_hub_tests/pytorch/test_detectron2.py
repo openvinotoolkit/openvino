@@ -36,6 +36,12 @@ NPU_PRECOMMIT_SKIP = {
 
 class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
+        # On NPU all detectron2 precommit models are unsupported (see NPU_PRECOMMIT_SKIP),
+        # so skip the whole class before the detectron2 build in setup (which also fails on
+        # Windows). Skipping here reports as skipped instead of erroring in setup.
+        if "NPU" in os.environ.get("TEST_DEVICE", ""):
+            pytest.skip("detectron2 is skipped on NPU (models unsupported in compile-only)")
+
         from PIL import Image
         import requests
 
