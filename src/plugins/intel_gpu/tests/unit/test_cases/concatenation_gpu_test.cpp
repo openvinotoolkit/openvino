@@ -2463,3 +2463,39 @@ INSTANTIATE_TEST_SUITE_P(smoke,
         TestParamType_concat_fsv32(1, { 64, 64, 64, 64 }, 1, 1, data_types::i8)
     ),
     concat_gpu_b_fs_yx_fsv32_force::PrintToStringParamName);
+
+// f8e4m3 Concat: exercises the f8 in/out path enabled for a quantized KV cache (GroupQueryAttention
+// f8e4m3 dynamic Slice+Concat). Uses a dynamic shape (as GQA does) and concatenates two f8 inputs along
+// the feature axis; values are exactly representable so the result is exact.
+TEST(concat_gpu, dynamic_f8e4m3) {
+    auto& engine = get_test_engine();
+
+    layout layout0_dyn = {{1, -1, 2, 2}, data_types::f8e4m3, format::bfyx};
+    layout layout1_dyn = {{1, -1, 2, 2}, data_types::f8e4m3, format::bfyx};
+
+    topology topology(input_layout("input0", layout0_dyn),
+                      input_layout("input1", layout1_dyn),
+                      concatenation("concat", {input_info("input0"), input_info("input1")}, 1, data_types::f8e4m3));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = cldnn::network::build_network(engine, topology, config);
+
+    auto input0 = engine.allocate_memory({{1, 1, 2, 2}, data_types::f8e4m3, format::bfyx});
+    auto input1 = engine.allocate_memory({{1, 1, 2, 2}, data_types::f8e4m3, format::bfyx});
+    set_values<ov::float8_e4m3>(input0, {0.5f, 1.0f, 1.5f, 2.0f});
+    set_values<ov::float8_e4m3>(input1, {-0.5f, -1.0f, -1.5f, -2.0f});
+
+    network->set_input_data("input0", input0);
+    network->set_input_data("input1", input1);
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.begin()->first, "concat");
+
+    auto output_memory = outputs.at("concat").get_memory();
+    cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    std::vector<float> expected = {0.5f, 1.0f, 1.5f, 2.0f, -0.5f, -1.0f, -1.5f, -2.0f};
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        ASSERT_EQ(expected[i], static_cast<float>(output_ptr[i])) << "i=" << i;
+}
