@@ -9,6 +9,7 @@
 #include "openvino/core/except.hpp"
 
 #include <cstddef>
+#include <cstring>
 #include <vector>
 
 namespace cldnn {
@@ -25,23 +26,36 @@ constexpr uint16_t SPIRV_OP_ENTRY_POINT = 15u;
 // Execution model value for OpenCL kernels
 constexpr uint32_t SPIRV_EXEC_MODEL_KERNEL = 6u;
 
+// Read a uint32_t from an unaligned/potentially-aliased byte pointer via
+// memcpy.  Compilers (GCC/Clang/MSVC) fold this into a single load
+// instruction when the pointer is in fact aligned, so there is no
+// runtime overhead in the common case.
+inline uint32_t read_u32(const void* p) noexcept {
+    uint32_t v;
+    std::memcpy(&v, p, sizeof(v));
+    return v;
+}
+
 bool is_spirv(const void* data, size_t bytes) {
     if (!data || bytes < sizeof(uint32_t))
         return false;
-    return *reinterpret_cast<const uint32_t*>(data) == SPIRV_MAGIC;
+    return read_u32(data) == SPIRV_MAGIC;
 }
 
 std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t bytes) {
-    const uint32_t* words = static_cast<const uint32_t*>(data);
     const size_t word_count = bytes / sizeof(uint32_t);
+    if (word_count < 5)
+        return {};
 
-    if (word_count < 5 || words[0] != SPIRV_MAGIC)
+    const auto* p = static_cast<const uint8_t*>(data);
+
+    if (read_u32(p) != SPIRV_MAGIC)
         return {};
 
     std::vector<std::string> names;
     size_t i = 5;  // skip the five-word header
     while (i < word_count) {
-        const uint32_t first_word  = words[i];
+        const uint32_t first_word  = read_u32(p + i * sizeof(uint32_t));
         const uint16_t opcode      = static_cast<uint16_t>(first_word & 0xFFFFu);
         const uint16_t instr_words = static_cast<uint16_t>(first_word >> 16u);
 
@@ -60,13 +74,16 @@ std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t byt
         // one null-terminator word).
         if (opcode == SPIRV_OP_ENTRY_POINT &&
             instr_words >= 4 &&
-            words[i + 1] == SPIRV_EXEC_MODEL_KERNEL) {
+            read_u32(p + (i + 1) * sizeof(uint32_t)) == SPIRV_EXEC_MODEL_KERNEL) {
             const char* name_start =
-                reinterpret_cast<const char*>(&words[i + 3]);
+                reinterpret_cast<const char*>(p + (i + 3) * sizeof(uint32_t));
             const size_t max_name_bytes =
                 (static_cast<size_t>(instr_words) - 3) * sizeof(uint32_t);
-            names.emplace_back(name_start,
-                               ::strnlen(name_start, max_name_bytes));
+            const char* name_end = static_cast<const char*>(
+                std::memchr(name_start, '\0', max_name_bytes));
+            const size_t name_len =
+                name_end ? static_cast<size_t>(name_end - name_start) : max_name_bytes;
+            names.emplace_back(name_start, name_len);
         }
 
         i += instr_words;
