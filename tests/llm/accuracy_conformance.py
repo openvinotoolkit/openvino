@@ -103,8 +103,8 @@ def setup_model(model_id):
 
     logger.info(f"Setting up model: {model_id}")
 
-    # Download original model from Hugging Face snapshot to ensure deterministic, offline access
-    # This avoids HF rate limits and library inference issues in subsequent conversions
+    # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
+    # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
     model_cached = snapshot_download(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
