@@ -862,6 +862,7 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
                                                       ov::SoPtr<ov::ITensor> position_ids,
+                                                      ov::SoPtr<ov::ITensor> token_type_ids,
                                                       ov::SoPtr<ov::ITensor> per_layer_inputs,
                                                       ov::SoPtr<ov::ITensor> visual_pos_masks,
                                                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds) {
@@ -889,6 +890,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+
+    const auto token_type_ids_it = m_prefill_in_ports.find(layer_names::token_type_ids);
+    const bool has_token_type_ids = token_type_ids_it != m_prefill_in_ports.end();
+    ov::SoPtr<ov::ITensor> token_type_ids_in_tensor;
+    if (has_token_type_ids) {
+        OPENVINO_ASSERT(token_type_ids,
+                        "token_type_ids input is provided, but the prefill model does not have a token_type_ids port.");
+        token_type_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
+    }
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -1001,7 +1011,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
             m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
-            // Gemma4: copy the current chunk of per_layer_inputs right-aligned on seq_len dim.
+            // Gemma4 E2B/E4B: copy the current chunk of per_layer_inputs right-aligned on seq_len dim.
             // Source shape: [1, input_prompt_len, num_layers, proj_dim]
             // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
             if (per_layer_inputs) {
@@ -1010,6 +1020,21 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                                      dst,
                                                                      kvcache_desc.num_stored_tokens,
                                                                      static_cast<uint32_t>(current_prompts_len));
+            }
+
+            // Gemma4-26B-A4B MoE: token_type_ids is [BATCH, SEQ_LEN].
+            // clear the tail window only for last chunk, then right-align current tokens.
+            if (has_token_type_ids) {
+                const size_t total_len = token_type_ids_in_tensor->get_size();
+                if (current_prompts_len < chunk_prompt_len) {
+                    // Skip clear for full chunks since copy_n overwrites the whole window.
+                    std::fill_n(token_type_ids_in_tensor->data<int64_t>() + total_len - chunk_prompt_len,
+                                chunk_prompt_len,
+                                int64_t{0});
+                }
+                std::copy_n(token_type_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
+                            current_prompts_len,
+                            token_type_ids_in_tensor->data<int64_t>() + total_len - current_prompts_len);
             }
 
             // Prepare KV blocks or bind memory for this chunk via strategy.
@@ -1166,12 +1191,10 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     m_llm_profile["1/prefill:3.infer"].record([&]() {
         if (use_chunk_prefill) {
-            OPENVINO_ASSERT(!token_type_ids,
-                            "Chunking is not implemented for Gemma model family yet. "
-                            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
             infer_chunked_prefill(input_ids,
                                   attention_mask,
                                   position_ids,
+                                  token_type_ids,
                                   per_layer_inputs,
                                   visual_pos_masks,
                                   deepstack_visual_embeds);

@@ -768,10 +768,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // If chunk size covers the entire prompt, just follow the static behavior.
     // Otherwise, use chunking and align the prompt size to the chunk size.
     if (m_use_chunk_prefill) {
-        OPENVINO_ASSERT(
-            !ov::npuw::util::has_input(model, "token_type_ids") || !ov::npuw::util::has_input(model, "inputs_embeds"),
-            "Chunking is not implemented for Gemma model family yet. "
-            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {

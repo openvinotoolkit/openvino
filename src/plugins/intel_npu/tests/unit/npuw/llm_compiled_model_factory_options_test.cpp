@@ -856,4 +856,22 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
+// Regression: Gemma4 26B A4B MoE (inputs_embeds + token_type_ids + dangling per_layer_inputs
+// with zero proj_dim) must not throw the old "Chunking is not implemented for Gemma model
+// family yet" assert. chunk_size == max_prompt_len enters the m_use_chunk_prefill block
+// but gracefully falls back to static, avoiding unrelated TTI Select shape issues in the
+// synthetic model.
+TEST_F(LLMCompiledModelFactoryOptionsTest, Gemma4MoEModelWithInputsEmbedsAndTokenTypeIdsCompilesWithChunkPrefill) {
+    RecordingFactory recorder;
+    auto model = ov::test::npuw::build_gemma4_moe_style_test_model();
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "128"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+}
+
 }  // namespace
