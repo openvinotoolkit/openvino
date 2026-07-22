@@ -10,8 +10,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -27,6 +27,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -401,6 +402,11 @@ void Graph::Activate() {
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
     // We probably want to avoid such uncertainty
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
+
+    // [DEBUG] one-time precision-config dump (no-op unless OV_CPU_CHECK_NONFINITE
+    // / OV_CPU_NONFINITE_STATS is set); see the tracer block below.
+    logPrecisionConfigOnce(getConfig(), GetName());
+
     Allocate();
 
     CreatePrimitivesAndExecConstants();
@@ -1603,69 +1609,232 @@ public:
 
 #endif
 
-// [DEBUG] Non-finite (NaN/Inf) output scanner to localize the first node that
-// corrupts activations. Enabled at runtime via OV_CPU_CHECK_NONFINITE=1 (works
-// in release builds too, independent of ENABLE_DEBUG_CAPS). Prints the node
-// type / name / output precision as soon as a NaN or Inf is produced, then
-// aborts so the offending node is unambiguous in CI logs.
-bool nonFiniteCheckEnabled() {
-    static const bool enabled = [] {
+// ============================================================================
+// [DEBUG] Non-finite (NaN/Inf) activation tracer.
+//
+// Purpose: localize the FIRST CPU-graph node that produces NaN/Inf so failures
+// like torch.multinomial "probability tensor contains inf/nan" can be traced
+// back to the exact OpenVINO op (suspected f16-overflow on ARM64).
+//
+// Enablement (all via env vars, so a single release build covers everything;
+// works independently of ENABLE_DEBUG_CAPS):
+//   OV_CPU_CHECK_NONFINITE=1  scan every float output after each node executes;
+//                             on the first non-finite value print a full report
+//                             (node identity, precision, first bad index/value,
+//                             per-output min/max, and whether each *input* was
+//                             already non-finite) and THROW so the exception
+//                             propagates to Python naming the exact node.
+//   OV_CPU_CHECK_NONFINITE=2  same, but only log and continue (do not throw) —
+//                             useful to see every node that goes non-finite.
+//   OV_CPU_NONFINITE_STATS=1  additionally log min/max of every float output of
+//                             every node (very verbose; whole-run value ranges).
+//
+// Notes:
+//  * All output goes to std::cout (matches OV_CPU_VERBOSE / blob-dump) and is
+//    explicitly flushed; we deliberately do NOT std::abort() (abort skips
+//    buffer flushes and surfaces as an opaque SIGABRT in CI).
+//  * Sizes are derived from bytes / element-size to stay safe on any layout.
+// ============================================================================
+enum class NonFiniteMode : uint8_t { Off, Throw, LogOnly };
+
+NonFiniteMode nonFiniteMode() {
+    static const NonFiniteMode mode = [] {
         const char* env = std::getenv("OV_CPU_CHECK_NONFINITE");
+        if (env == nullptr) {
+            return NonFiniteMode::Off;
+        }
+        if (env[0] == '2') {
+            return NonFiniteMode::LogOnly;
+        }
+        if (env[0] == '1') {
+            return NonFiniteMode::Throw;
+        }
+        return NonFiniteMode::Off;
+    }();
+    return mode;
+}
+
+bool nonFiniteStatsEnabled() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("OV_CPU_NONFINITE_STATS");
         return env != nullptr && env[0] == '1';
     }();
     return enabled;
 }
 
+// Result of scanning a single float buffer.
+struct NonFiniteScan {
+    bool isFloat = false;        // buffer had a recognized float precision
+    size_t elements = 0;         // number of elements scanned
+    size_t nanCount = 0;         // total NaNs
+    size_t infCount = 0;         // total +/-Inf
+    long long firstBadIdx = -1;  // index of first non-finite element (-1 if none)
+    float firstBadVal = 0.0F;    // value at firstBadIdx
+    float minVal = std::numeric_limits<float>::infinity();
+    float maxVal = -std::numeric_limits<float>::infinity();
+
+    [[nodiscard]] bool bad() const {
+        return nanCount != 0 || infCount != 0;
+    }
+};
+
 template <typename T>
-bool scanFloatBufferForNonFinite(const void* data, size_t count) {
+void scanTyped(const void* data, size_t count, NonFiniteScan& r) {
     const auto* p = static_cast<const T*>(data);
     for (size_t i = 0; i < count; ++i) {
         const float v = static_cast<float>(p[i]);
-        if (std::isnan(v) || std::isinf(v)) {
-            return true;
+        if (std::isnan(v)) {
+            ++r.nanCount;
+            if (r.firstBadIdx < 0) {
+                r.firstBadIdx = static_cast<long long>(i);
+                r.firstBadVal = v;
+            }
+        } else if (std::isinf(v)) {
+            ++r.infCount;
+            if (r.firstBadIdx < 0) {
+                r.firstBadIdx = static_cast<long long>(i);
+                r.firstBadVal = v;
+            }
+            r.minVal = std::min(r.minVal, v);
+            r.maxVal = std::max(r.maxVal, v);
+        } else {
+            r.minVal = std::min(r.minVal, v);
+            r.maxVal = std::max(r.maxVal, v);
         }
     }
-    return false;
+}
+
+// Scan a memory object's float payload. Non-float precisions are ignored.
+NonFiniteScan scanMemory(const IMemory* mem) {
+    NonFiniteScan r;
+    if (mem == nullptr || !mem->isDefined()) {
+        return r;
+    }
+    const void* data = mem->getData();
+    if (data == nullptr) {
+        return r;
+    }
+    const auto prec = mem->getPrecision();
+    if (prec.size() == 0) {
+        return r;
+    }
+    // Prefer the logical element count (guarded by isStatic() to avoid the
+    // assert inside getElementsCount()); it reads no more than the allocated
+    // buffer and avoids scanning blocked-layout padding, which could otherwise
+    // hold uninitialized values and cause false NaN/Inf positives. Fall back to
+    // bytes/element-size only if the shape is not static.
+    const auto& shape = mem->getShape();
+    const size_t count = shape.isStatic() ? shape.getElementsCount() : (mem->getSize() / prec.size());
+    if (count == 0) {
+        return r;
+    }
+    r.elements = count;
+    switch (prec) {
+    case ov::element::f32:
+        r.isFloat = true;
+        scanTyped<float>(data, count, r);
+        break;
+    case ov::element::f16:
+        r.isFloat = true;
+        scanTyped<ov::float16>(data, count, r);
+        break;
+    case ov::element::bf16:
+        r.isFloat = true;
+        scanTyped<ov::bfloat16>(data, count, r);
+        break;
+    default:
+        break;  // only floating point buffers are of interest
+    }
+    return r;
 }
 
 void checkNodeOutputsForNonFinite(const NodePtr& node) {
+    const bool stats = nonFiniteStatsEnabled();
     for (size_t port = 0; port < node->getOriginalOutputsNumber(); ++port) {
         const auto mem = node->getDstMemoryAtPort(port);
-        if (!mem || !mem->isDefined()) {
+        const NonFiniteScan out = scanMemory(mem.get());
+        if (!out.isFloat) {
             continue;
         }
-        const auto prec = mem->getPrecision();
-        const size_t count = mem->getShape().getElementsCount();
-        if (count == 0) {
+
+        if (stats && !out.bad()) {
+            std::cout << "[OV_CPU_NONFINITE] ok  exec#" << node->getExecIndex() << " " << node->getTypeStr() << " '"
+                      << node->getName() << "' out[" << port << "] " << mem->getPrecision().get_type_name()
+                      << " min=" << out.minVal << " max=" << out.maxVal << " n=" << out.elements << "\n";
+        }
+
+        if (!out.bad()) {
             continue;
         }
-        const void* data = mem->getData();
-        if (!data) {
-            continue;
+
+        std::ostringstream os;
+        os << "[OV_CPU_CHECK_NONFINITE] non-finite output detected"
+           << "\n    node type   : " << node->getTypeStr() << "\n    node name   : " << node->getName()
+           << "\n    algorithm   : " << algToString(node->getAlgorithm())
+           << "\n    prim type   : " << node->getPrimitiveDescriptorType()
+           << "\n    orig layers : " << node->getOriginalLayers() << "\n    exec index  : " << node->getExecIndex()
+           << "\n    out port    : " << port << "\n    precision   : " << mem->getPrecision().get_type_name()
+           << "\n    elements    : " << out.elements << "\n    NaN count   : " << out.nanCount
+           << "\n    Inf count   : " << out.infCount << "\n    first bad   : idx " << out.firstBadIdx << " = "
+           << out.firstBadVal << "\n    finite range: [" << out.minVal << ", " << out.maxVal << "]";
+
+        // Report the finiteness of every input, so we can tell whether this
+        // node CREATED the non-finite value or merely propagated it.
+        os << "\n    inputs:";
+        for (size_t in = 0; in < node->getOriginalInputsNumber(); ++in) {
+            const auto src = node->getSrcMemoryAtPort(in);
+            const NonFiniteScan sc = scanMemory(src.get());
+            os << "\n      in[" << in << "] ";
+            if (!sc.isFloat) {
+                os << (src ? src->getPrecision().get_type_name() : "null") << " (non-float, skipped)";
+            } else {
+                os << sc.elements << "x" << src->getPrecision().get_type_name()
+                   << (sc.bad() ? " NON-FINITE" : " finite") << " NaN=" << sc.nanCount << " Inf=" << sc.infCount
+                   << " range=[" << sc.minVal << ", " << sc.maxVal << "]";
+            }
         }
-        bool bad = false;
-        switch (prec) {
-        case ov::element::f32:
-            bad = scanFloatBufferForNonFinite<float>(data, count);
-            break;
-        case ov::element::f16:
-            bad = scanFloatBufferForNonFinite<ov::float16>(data, count);
-            break;
-        case ov::element::bf16:
-            bad = scanFloatBufferForNonFinite<ov::bfloat16>(data, count);
-            break;
-        default:
-            continue;  // only floating point outputs are of interest
-        }
-        if (bad) {
-            std::cerr << "[OV_CPU_CHECK_NONFINITE] First non-finite (NaN/Inf) output detected:"
-                      << "\n    node type : " << node->getTypeStr() << "\n    node name : " << node->getName()
-                      << "\n    layers    : " << node->getOriginalLayers() << "\n    exec index: "
-                      << node->getExecIndex() << "\n    out port  : " << port << "\n    precision : "
-                      << prec.get_type_name() << "\n    elements  : " << count << std::endl;
-            std::abort();
+
+        std::cout << os.str() << std::endl;  // endl flushes
+        std::cout.flush();
+
+        if (nonFiniteMode() == NonFiniteMode::Throw) {
+            // Throwing (rather than abort) lets ExecuteNodeWithCatch wrap this
+            // into an OPENVINO_THROW that names the node and reaches Python as a
+            // clean RuntimeError instead of an opaque SIGABRT.
+            OPENVINO_THROW("Non-finite (NaN/Inf) produced by this node: ",
+                           node->getTypeStr(),
+                           " '",
+                           node->getName(),
+                           "' out[",
+                           port,
+                           "] prec ",
+                           mem->getPrecision().get_type_name(),
+                           " (NaN=",
+                           out.nanCount,
+                           " Inf=",
+                           out.infCount,
+                           "). See [OV_CPU_CHECK_NONFINITE] log above.");
         }
     }
+}
+
+// One-time dump of the resolved precision configuration for this compiled
+// model. This is the cheapest possible signal for the f16-overflow hypothesis:
+// it tells us, without any per-node scanning, whether the graph actually runs
+// in f16 with ACL fast-math on this ARM host. Gated on OV_CPU_CHECK_NONFINITE
+// or OV_CPU_NONFINITE_STATS so it never appears in normal runs.
+void logPrecisionConfigOnce(const Config& config, const std::string& graphName) {
+    if (nonFiniteMode() == NonFiniteMode::Off && !nonFiniteStatsEnabled()) {
+        return;
+    }
+    std::cout << "[OV_CPU_PRECISION_CFG] graph '" << graphName << "'"
+              << " inferencePrecision=" << config.inferencePrecision.get_type_name()
+              << " setExplicitly=" << config.inferencePrecisionSetExplicitly << " executionMode="
+              << (config.executionMode == ov::hint::ExecutionMode::ACCURACY ? "ACCURACY" : "PERFORMANCE")
+              << " aclFastMath=" << config.aclFastMath
+              << " kvCachePrecision=" << config.kvCachePrecision.get_type_name()
+              << " fcDynQuantGroupSize=" << config.fcDynamicQuantizationGroupSize << std::endl;
+    std::cout.flush();
 }
 
 }  // namespace
@@ -1686,7 +1855,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 
     node->execute(m_stream, numaId);
 
-    if (nonFiniteCheckEnabled()) {
+    if (nonFiniteMode() != NonFiniteMode::Off || nonFiniteStatsEnabled()) {
         checkNodeOutputsForNonFinite(node);
     }
 }
