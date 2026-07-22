@@ -6,9 +6,12 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
@@ -33,7 +36,10 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_CONCAT", op::translate_concat},
         {"GGML_OP_CONT", op::translate_cont},
         {"GGML_OP_CPY", op::translate_cpy},
+        {"GGML_OP_CUMSUM", op::translate_cumsum},
+        {"GGML_OP_DIAG", op::translate_diag},
         {"GGML_OP_DIV", op::translate_1to1_match_2_inputs<v1::Divide>},
+        {"GGML_OP_FILL", op::translate_fill},
         {"GGML_OP_FLASH_ATTN_EXT", op::translate_flash_attn_ext},
         {"GGML_OP_GATED_DELTA_NET", op::translate_gated_delta_net},
         {"GGML_OP_GET_ROWS", op::translate_get_rows},
@@ -54,12 +60,18 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_SCALE", op::translate_scale},
         {"GGML_OP_SET_ROWS", op::translate_set_rows},
         {"GGML_OP_SOFT_MAX", op::translate_soft_max},
+        {"GGML_OP_SQR", op::translate_sqr},
+        {"GGML_OP_SQRT", op::translate_sqrt},
         {"GGML_OP_SSM_CONV", op::translate_ssm_conv},
         {"GGML_OP_SUB", op::translate_1to1_match_2_inputs<v1::Subtract>},
         {"GGML_OP_SUM_ROWS", op::translate_sum_rows},
+        {"GGML_OP_TRI", op::translate_tri},
         {"GGML_OP_TRANSPOSE", op::translate_transpose},
         {"GGML_OP_VIEW", op::translate_view},
+        {"GGML_UNARY_OP_EXP", op::translate_1to1_match_1_input<v0::Exp>},
         {"GGML_UNARY_OP_GELU", op::translate_unary_gelu},
+        {"GGML_UNARY_OP_NEG", op::translate_1to1_match_1_input<v0::Negative>},
+        {"GGML_UNARY_OP_SIGMOID", op::translate_1to1_match_1_input<v0::Sigmoid>},
         {"GGML_UNARY_OP_SILU", op::translate_unary_silu},
         {"GGML_UNARY_OP_SOFTPLUS", op::translate_1to1_match_1_input<v4::SoftPlus>},
         {"GGML_UNARY_OP_TANH", op::translate_1to1_match_1_input<v0::Tanh>},

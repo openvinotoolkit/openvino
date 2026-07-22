@@ -1171,4 +1171,182 @@ TEST(GGUFOps, Add1) {
     expect_near(out, expected);
 }
 
+// Cumsum: prefix sum along ggml dim 0 = the last OV axis. Each row accumulates independently.
+TEST(GGUFOps, Cumsum) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CUMSUM")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
+
+    std::vector<float> expected{1, 3, 6, 10, 5, 11, 18, 26};
+    expect_near(out, expected);
+}
+
+// Sqr: element-wise square.
+TEST(GGUFOps, Sqr) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SQR")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{1, -2, 3, -4, 0.5f, -0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = x[i] * x[i];
+    expect_near(out, expected);
+}
+
+// Sqrt: element-wise square root (non-negative inputs).
+TEST(GGUFOps, Sqrt) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SQRT")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, 4.0f, 9.0f, 2.0f, 0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = std::sqrt(x[i]);
+    expect_near(out, expected);
+}
+
+// Diag: a [.,.,1,n] vector becomes a [.,.,n,n] diagonal matrix (row axis = OV axis 2).
+TEST(GGUFOps, Diag) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIAG")
+                     .input("x", ov::element::f32, {1, 1, 1, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .build();
+
+    std::vector<float> x{2, 5, 7};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t i = 0; i < n; ++i)
+        expected[i * n + i] = x[i];
+    expect_near(out, expected);
+}
+
+// Unary Sigmoid: 1 / (1 + exp(-x)) via the 1to1 template.
+TEST(GGUFOps, UnarySigmoid) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_SIGMOID")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = 1.0f / (1.0f + std::exp(-x[i]));
+    expect_near(out, expected);
+}
+
+// Unary Exp: element-wise exponential (moderate inputs to stay well inside f32 range).
+TEST(GGUFOps, UnaryExp) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_EXP")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = std::exp(x[i]);
+    expect_near(out, expected);
+}
+
+// Unary Neg: element-wise negation.
+TEST(GGUFOps, UnaryNeg) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_NEG")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{1, -2, 3, -4, 0.5f, -0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = -x[i];
+    expect_near(out, expected);
+}
+
+// Tri: zero out elements outside a triangular region of a square matrix. tri_type selects the region:
+// 0=UPPER_DIAG (col>=row), 1=UPPER (col>row), 2=LOWER_DIAG (col<=row), 3=LOWER (col<row).
+TEST(GGUFOps, TriLowerDiag) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TRI")
+                     .input("x", ov::element::f32, {1, 1, n, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .attr<int>("tri_type", 2)  // LOWER_DIAG: keep col <= row
+                     .build();
+
+    // Row-major [n,n] with distinct values.
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, static_cast<size_t>(n), static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t row = 0; row < n; ++row)
+        for (int64_t col = 0; col < n; ++col)
+            if (col <= row)
+                expected[row * n + col] = x[row * n + col];
+    expect_near(out, expected);
+}
+
+// Tri UPPER (strict): keep col > row.
+TEST(GGUFOps, TriUpper) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TRI")
+                     .input("x", ov::element::f32, {1, 1, n, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .attr<int>("tri_type", 1)  // UPPER: keep col > row
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, static_cast<size_t>(n), static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t row = 0; row < n; ++row)
+        for (int64_t col = 0; col < n; ++col)
+            if (col > row)
+                expected[row * n + col] = x[row * n + col];
+    expect_near(out, expected);
+}
+
+// Fill: set every element to a constant scalar; output has the input's shape.
+TEST(GGUFOps, Fill) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FILL")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .attr<float>("fill_value", -1.5f)
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6};  // ignored; only shape matters
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size(), -1.5f);
+    expect_near(out, expected);
+}
+
 }  // namespace
