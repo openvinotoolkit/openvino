@@ -313,8 +313,7 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                     op_label + " with a non-constant kernel_size is only supported with ceil_mode=False.");
                 return false;
             }
-            if (static_cast<int>(elem_is_const.size()) != dims ||
-                static_cast<int>(elem_runtime_val.size()) != dims) {
+            if (static_cast<int>(elem_is_const.size()) != dims || static_cast<int>(elem_runtime_val.size()) != dims) {
                 add_exception_to_fw_node(fw_node,
                                          op_label + ": could not interpret the non-constant kernel_size (expected " +
                                              std::to_string(dims) + " spatial entries).");
@@ -338,12 +337,16 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                 }
             }
             if (reduce_axes.empty()) {
-                add_exception_to_fw_node(
-                    fw_node, op_label + ": a non-constant kernel_size that pools no axis is unexpected.");
+                add_exception_to_fw_node(fw_node,
+                                         op_label + ": a non-constant kernel_size that pools no axis is unexpected.");
                 return false;
             }
-            new_outputs =
-                build_dynamic_kernel_max_pool(rg, dims, fw_node->input_value(0), elem_is_const, elem_runtime_val, reduce_axes);
+            new_outputs = build_dynamic_kernel_max_pool(rg,
+                                                        dims,
+                                                        fw_node->input_value(0),
+                                                        elem_is_const,
+                                                        elem_runtime_val,
+                                                        reduce_axes);
         }
 
         // copy_runtime_info (not _and_name) so the guard nodes keep their op-labeled friendly names
