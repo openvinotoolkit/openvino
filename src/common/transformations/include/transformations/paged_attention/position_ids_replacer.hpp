@@ -22,6 +22,7 @@ class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
 class TRANSFORMATIONS_API PositionIDsReplacerLFM2;
 class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
+class TRANSFORMATIONS_API EliminateDropBatch;
 
 }  // namespace pass
 }  // namespace ov
@@ -106,18 +107,29 @@ public:
     explicit PositionIDsReplacerLFM2(const Output<Node>& position_ids);
 };
 
+/**
+ * @brief After SDPAToPagedAttention flattens position_ids, the batch dimension no longer exists, so an
+ * aten::select(dim=0, index=0) that dropped it (lowered to Gather(index=0, axis=0)) becomes redundant.
+ *
+ * This transformation detects Parameter(name == "position_ids") -> Unsqueeze(optional) -> Convert(optional) ->
+ * Gather(index=0, axis=0) and removes the Gather, reconnecting its consumers to the Gather's data input.
+ */
+class ov::pass::EliminateDropBatch : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateDropBatch");
+    EliminateDropBatch();
+};
+
 namespace ov {
 namespace pass {
 namespace paged_attention {
 
-/// \brief Get-or-create the flattened position_ids parameter, normalize its shape to the token-major layout,
-/// and restore the rank at each existing consumer.
+/// \brief Get-or-create the flattened position_ids parameter and normalize its shape to the token-major layout.
 ///
-/// Adds a rank-1 position_ids parameter when the model does not provide one. Most consumers are fed
-/// [tokens, 1] (Unsqueeze(-1)); consumers that drop the batch dimension with an aten::select (Gather
-/// index=0, axis=0) are fed [1, tokens] (Unsqueeze(0)) to keep every per-token position. The returned
-/// parameter is the raw flattened position_ids consumed by the PositionIDsReplacer* passes.
-std::shared_ptr<ov::op::v0::Parameter> prepare_position_ids(PaParams& params);
+/// Adds a rank-1 position_ids parameter when the model does not provide one. The batch-drop select chain
+/// (position_ids -> Convert -> Gather(index=0, axis=0)) is handled separately by EliminateDropBatch.
+/// The returned parameter is the raw flattened position_ids consumed by the PositionIDsReplacer* passes.
+TRANSFORMATIONS_API std::shared_ptr<ov::op::v0::Parameter> prepare_position_ids(PaParams& params);
 
 }  // namespace paged_attention
 }  // namespace pass

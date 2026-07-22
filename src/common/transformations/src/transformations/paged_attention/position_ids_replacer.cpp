@@ -41,6 +41,27 @@ using ov::pass::pattern::wrap_type;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
+
+namespace {
+
+// aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
+bool is_batch_drop_select(const ov::Node* node) {
+    const auto gather = ov::as_type<const v8::Gather>(node);
+    if (!gather) {
+        return false;
+    }
+    const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
+    const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
+    if (!indices || !axis) {
+        return false;
+    }
+    const auto indices_vec = indices->cast_vector<int64_t>();
+    const auto axis_vec = axis->cast_vector<int64_t>();
+    return indices_vec.size() == 1 && indices_vec[0] == 0 && axis_vec.size() == 1 && axis_vec[0] == 0;
+}
+
+}  // namespace
+
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
 // position_ids parameter is missing, consider replacing always existing attention_mask parameter with a sub-graph using
 // a new slot_mapping parameter.
@@ -50,8 +71,8 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto input_ids = any_input();
     auto input_embed = wrap_type<v8::Gather>({any_input(), input_ids, any_input()});
 
-    // prepare_position_ids already restores the rank at position_ids' direct consumers, so skip that Unsqueeze:
-    // this pass only fires when position_ids is detached and the model derives positions internally.
+    // This pass only fires when position_ids is detached and the model derives positions internally, so skip
+    // graphs that already have a dedicated Unsqueeze on position_ids.
     auto position_ids_pattern = any_input([position_ids](const Output<Node>& output) -> bool {
         const auto node = output.get_node_shared_ptr();
         return !(ov::as_type_ptr<v0::Unsqueeze>(node) && node->input_value(0) == position_ids);
@@ -279,39 +300,32 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
     register_matcher(m, callback);
 }
 
-namespace {
+ov::pass::EliminateDropBatch::EliminateDropBatch() {
+    MATCHER_SCOPE(EliminateDropBatch);
 
-// aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
-bool is_batch_drop_select(const ov::Node* node) {
-    const auto gather = ov::as_type<const v8::Gather>(node);
-    if (!gather) {
-        return false;
-    }
-    const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
-    const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
-    if (!indices || !axis) {
-        return false;
-    }
-    const auto indices_vec = indices->cast_vector<int64_t>();
-    const auto axis_vec = axis->cast_vector<int64_t>();
-    return indices_vec.size() == 1 && indices_vec[0] == 0 && axis_vec.size() == 1 && axis_vec[0] == 0;
-}
+    // Parameter(name == "position_ids") -> Unsqueeze(optional) -> Convert(optional) -> Gather(index=0, axis=0)
+    auto p_position_ids = wrap_type<v0::Parameter>([](const Output<Node>& output) -> bool {
+        return output.get_names().count("position_ids") != 0;
+    });
+    auto p_unsqueeze = ov::pass::pattern::optional<v0::Unsqueeze>({p_position_ids, any_input()});
+    auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
+    auto p_gather =
+        wrap_type<v8::Gather>({p_convert, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()});
 
-// A position_ids consumer feeds a batch-drop select either directly or through a single Convert.
-bool feeds_batch_drop_select(const ov::Input<ov::Node>& consumer) {
-    const auto node = consumer.get_node();
-    if (ov::as_type<const v0::Convert>(node)) {
-        for (const auto& downstream : node->output(0).get_target_inputs()) {
-            if (is_batch_drop_select(downstream.get_node())) {
-                return true;
-            }
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        const auto gather = m.get_match_root();
+        if (!is_batch_drop_select(gather.get())) {
+            return false;
         }
-        return false;
-    }
-    return is_batch_drop_select(node);
-}
+        // The flattened position_ids no longer has a batch dimension to drop, so remove the Gather and
+        // reconnect its consumers to its data input.
+        ov::replace_output_update_name(gather->output(0), gather->input_value(0));
+        return true;
+    };
 
-}  // namespace
+    auto m = std::make_shared<Matcher>(p_gather, matcher_name);
+    register_matcher(m, callback);
+}
 
 std::shared_ptr<v0::Parameter> ov::pass::paged_attention::prepare_position_ids(PaParams& params) {
     auto position_ids = params.get("position_ids");
@@ -329,28 +343,6 @@ std::shared_ptr<v0::Parameter> ov::pass::paged_attention::prepare_position_ids(P
                            position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
         }
         position_ids->validate_and_infer_types();
-    }
-
-    // Restore the rank of the flattened position_ids at each consumer. Most consumers expect [tokens, 1]
-    // (Unsqueeze(-1)); consumers that drop the batch dimension with an aten::select (Gather index=0, axis=0)
-    // need [1, tokens] (Unsqueeze(0)) to keep every per-token position.
-    const auto target_inputs = position_ids->output(0).get_target_inputs();
-    const std::vector<ov::Input<ov::Node>> consumers(target_inputs.begin(), target_inputs.end());
-
-    std::shared_ptr<ov::Node> column;  // [tokens, 1], shared across the default consumers.
-    for (const auto& consumer : consumers) {
-        if (feeds_batch_drop_select(consumer)) {
-            auto axis = v0::Constant::create(element::i32, Shape{}, {0});
-            auto row = std::make_shared<v0::Unsqueeze>(position_ids, axis);
-            ov::copy_runtime_info(consumer.get_node()->shared_from_this(), {row, axis});
-            consumer.replace_source_output(row);
-        } else {
-            if (!column) {
-                column =
-                    std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-            }
-            consumer.replace_source_output(column);
-        }
     }
 
     return position_ids;
