@@ -4,7 +4,46 @@
 
 #[[
 function to create CMake target and setup its options in a declarative style.
-Example:
+
+SOURCE LISTING — preferred vs. legacy
+--------------------------------------
+SOURCES (preferred)
+  Pass an explicit list of source and header files.  CMake sees the exact file set at configure time, incremental
+  builds are reliable, and there are no hidden glob-related staleness issues.
+  See src/common/util/CMakeLists.txt for the canonical example.
+
+ROOT (legacy / deprecated)
+  Pass a directory root; the function will GLOB_RECURSE for *.cpp / *.h / *.hpp under that directory (and any
+  ADDITIONAL_SOURCE_DIRS).  New targets should NOT use ROOT.  Existing targets should be migrated to explicit
+  SOURCES lists when the opportunity arises.
+
+Migration pattern — converting ROOT to SOURCES:
+  1. Replace ROOT ${CMAKE_CURRENT_SOURCE_DIR} with an explicit SOURCES list.
+  2. Remove ADDITIONAL_SOURCE_DIRS and EXCLUDED_SOURCE_PATHS (handle in SOURCES).
+  3. Use target_sources() for platform-specific files (WIN32/UNIX conditionals).
+  See src/common/util/CMakeLists.txt for a worked example.
+
+Preferred example (SOURCES):
+ov_add_target(
+   NAME core_lib
+   ADD_CLANG_FORMAT
+   TYPE <SHARED / STATIC / EXECUTABLE>
+   SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/foo.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/foo.hpp
+   INCLUDES
+        ${SDL_INCLUDES}
+        /some/specific/path
+   LINK_LIBRARIES
+        link_dependencies
+   DEPENDENCIES
+        dependencies
+        openvino::important_plugin
+   DEFINES
+        DEF1 DEF2
+)
+
+Legacy example (ROOT — avoid for new targets):
 ov_add_target(
    NAME core_lib
    ADD_CLANG_FORMAT
@@ -41,10 +80,10 @@ function(ov_add_target)
         NAME # name of target
         )
     set(oneValueOptionalArgs
-        ROOT # root directory to be used for recursive search of source files (optional when SOURCES is provided)
-        )
+        ROOT # [LEGACY] root directory for GLOB_RECURSE source discovery; prefer SOURCES for new targets
+    )
     set(multiValueArgs
-        SOURCES                       # Explicit source file list; when provided ROOT glob is skipped
+        SOURCES                       # [PREFERRED] Explicit source file list; when provided ROOT glob is skipped
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
         DEPENDENCIES                  # compile order dependencies (no link implied)
