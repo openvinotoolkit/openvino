@@ -44,6 +44,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace {
@@ -346,6 +347,24 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
+
+    auto attn_isolation = [](auto properties) {
+        if (properties.count("NPUW_ATTN") > 0 && properties.at("NPUW_ATTN") != "STATIC") {
+            return true;
+        }
+
+        if (properties.count("NPUW_ONLINE_ISOLATE") > 0) {
+            auto val = properties.at("NPUW_ONLINE_ISOLATE").template as<std::string>();
+            return val == "ATTN" || val.find("attn") != std::string::npos;
+        }
+        return false;
+    };
+
+    if (attn_isolation(properties)) {
+        // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
+        // the attention isolation to work properly
+        ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
@@ -2440,6 +2459,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
                           BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
                           BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
+                          BIND(npuw::partitioning::online::keep_block_tag, NPUW_ONLINE_KEEP_BLOCKS_TAGGED),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
