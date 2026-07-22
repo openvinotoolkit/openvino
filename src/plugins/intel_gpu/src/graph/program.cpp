@@ -2024,7 +2024,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     memory_ptr host_buffer_base_ptr = nullptr;
 
-    if (ib.get_engine().can_use_host_usm_zero_copy() && !_config.get_enable_weightless() && ib.is_tensor_aligned(ov::util::min_page_alignment)) {
+    if (_config.get_enable_zero_copy_cache_load() && ib.get_engine().can_use_host_usm_zero_copy() && !_config.get_enable_weightless() &&
+        ib.is_tensor_aligned(ov::util::min_page_alignment)) {
         host_buffer_base_ptr =
             ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
