@@ -88,9 +88,11 @@ jobs:
       #
 
       - name: Build cpp samples
+        if: ${{ inputs.test_type == "unit" }}
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
 
       - name: Run hello_query_device sample
+        if: ${{ inputs.test_type == "unit" }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           $INSTALL_DIR/samples_bin/hello_query_device
