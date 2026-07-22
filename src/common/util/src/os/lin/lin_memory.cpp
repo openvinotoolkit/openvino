@@ -209,8 +209,13 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     }
 }
 
-PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
-    return PrefetchToken(submit_page_toucher_tasks(ptr, size, prefetch_thread_count(size)));
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    if (num_threads == 0) {
+        madvise_hint(ptr, size);
+        return {};
+    }
+    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
 }
 
 }  // namespace ov::util

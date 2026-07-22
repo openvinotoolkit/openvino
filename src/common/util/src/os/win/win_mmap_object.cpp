@@ -306,6 +306,8 @@ public:
 
     void hint_prefetch(size_t offset, size_t size) override;
 
+    void hint_prefetch_async(size_t offset, size_t size) override {}
+
 private:
     /**
      * @brief Remaps a placeholder region by replacing it with a file-backed view.

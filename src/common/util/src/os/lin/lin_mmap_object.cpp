@@ -219,7 +219,9 @@ public:
 
     void hint_prefetch_async(size_t offset, size_t size) override {
         if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
-            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size);
+            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
+                                                 plan.m_aligned_size,
+                                                 util::prefetch_thread_count(plan.m_aligned_size));
             adopt_pending_prefetch(token.detach());
         }
     }

@@ -47,10 +47,17 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Asynchronous variant of @ref vm_prefetch: submits page-population to the shared pool and
- * returns immediately with a @ref PrefetchToken to wait on. Returns an empty token if the work
- * could not be scheduled.
+ * returns immediately with a @ref PrefetchToken to wait on.
+ *
+ * @param ptr          Page-aligned base address of the range.
+ * @param size         Multiple of the system page size.
+ * @param num_threads  Number of population jobs to split the range into; @c 0 requests only a
+ *                     lightweight advisory OS hint instead of touching pages and returns an empty
+ *                     token.
+ *
+ * Returns an empty token if the work could not be scheduled.
  */
-PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept;
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Move-only RAII handle for background page-population started by @ref vm_prefetch_async.
