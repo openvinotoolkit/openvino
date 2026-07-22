@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <map>
+#include <memory>
+#include <utility>
+
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "convert_matmul_to_fc.hpp"
@@ -10,7 +14,9 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/subtract.hpp"
@@ -42,6 +48,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         ov::OutputVector{compressed_weights_input_m, general_weights_m});
     auto matmul_m =
         ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
+
+    auto shared_convert_cache =
+        std::make_shared<std::map<std::pair<std::shared_ptr<ov::Node>, bool>, ov::Output<ov::Node>>>();
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -215,7 +224,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Weights normalization
         bool is_small_matmul = true;
-        if (shape_a.is_static() && shape_b.is_static()) {
+        if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
              if (matmul->get_transpose_a())
@@ -232,66 +241,71 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // dimension. When both M and N are large the GEMM becomes
              // compute-bound and the transposed layout (acb) is faster (the
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
-             // the non-transposed path to K >= 8192 and (M <= 512 or N <= 4096)
-             // to keep the wins while avoiding those regressions.
+             // the non-transposed path to XMX-capable GPUs (supports_immad) with
+             // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
              if (k >= 8192 && (m <= 512 || n <= 4096) &&
                  matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
                  is_small_matmul = false;
              }
         }
 
-        if (is_small_matmul) {
-            // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
-            bool can_reuse_transpose = false;
-            if (!matmul->get_transpose_b()) {
-                if (transpose_node && transpose_node->get_input_size() == 2) {
-                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-                    if (order_constant) {
-                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
-
-                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
-                        std::iota(expected_order.begin(), expected_order.end(), 0);
-                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
-
-                        can_reuse_transpose = order == expected_order;
-                    }
-                }
-
-                fc_input_b = can_reuse_transpose ? transpose_node
-                                                 : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-            }
-        } else {
-            if (!matmul->get_transpose_b()) {
-                if (transpose_node && transpose_node->get_input_size() == 2) {
-                    auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-                    if (order_constant) {
-                        std::vector<size_t> order = order_constant->cast_vector<size_t>();
-
-                        std::vector<size_t> expected_order(fc_input_b.get_partial_shape().size());
-                        std::iota(expected_order.begin(), expected_order.end(), 0);
-                        std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
-
-                        if (order == expected_order)
-                            fc_input_b = transpose_node;
-                    }
-                }
-            } else {
-                fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-            }
-        }
-
-        // Input normalization
         if (matmul->get_transpose_a()) {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        // Connect Convert to new input if needed
-        if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            auto new_convert = convert->clone_with_new_inputs({fc_input_b});
-            new_ops.push_back(new_convert);
-            new_convert->validate_and_infer_types();
-            fc_input_b = new_convert;
+        auto can_reuse_transpose = [&transpose_node](const ov::Output<ov::Node>& weights) {
+            if (!transpose_node || transpose_node->get_input_size() != 2) {
+                return false;
+            }
+            auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+            if (!order_constant) {
+                return false;
+            }
+            std::vector<size_t> order = order_constant->cast_vector<size_t>();
+            std::vector<size_t> expected_order(weights.get_partial_shape().size());
+            std::iota(expected_order.begin(), expected_order.end(), 0);
+            std::swap(*(expected_order.end() - 1), *(expected_order.end() - 2));
+            return order == expected_order;
+        };
+
+        auto convert = is_convert ? pattern_map.at(weights_m).get_node_shared_ptr() : nullptr;
+        const auto cache_key = std::make_pair(convert, is_small_matmul);
+        const auto cached = is_convert ? shared_convert_cache->find(cache_key) : shared_convert_cache->end();
+        if (is_convert && cached != shared_convert_cache->end()) {
+            fc_input_b = cached->second;
+        } else {
+            if (is_small_matmul) {
+                // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
+                if (!matmul->get_transpose_b()) {
+                    fc_input_b = can_reuse_transpose(fc_input_b)
+                                     ? transpose_node
+                                     : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                }
+            } else {
+                if (!matmul->get_transpose_b()) {
+                    if (can_reuse_transpose(fc_input_b)) {
+                        fc_input_b = transpose_node;
+                    }
+                } else {
+                    fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                }
+            }
+
+            // Connect Convert to new input if needed
+            if (is_convert) {
+                auto new_convert = convert->clone_with_new_inputs({fc_input_b});
+                ov::copy_runtime_info(convert, new_convert);
+                if (ov::is_decompression(convert)) {
+                    ov::mark_as_decompression(new_convert);
+                }
+                if (ov::pass::constant_folding_is_disabled(convert)) {
+                    ov::disable_constant_folding(new_convert);
+                }
+                new_ops.push_back(new_convert);
+                new_convert->validate_and_infer_types();
+                fc_input_b = new_convert;
+                shared_convert_cache->emplace(cache_key, fc_input_b);
+            }
         }
 
         auto no_bias = std::make_shared<op::Placeholder>();

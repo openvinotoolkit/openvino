@@ -12,7 +12,7 @@ namespace kernel_selector {
 class ConvolutionKernel_fs_byx_fsv32_depthwise : public ConvolutionKernelBase {
 public:
     ConvolutionKernel_fs_byx_fsv32_depthwise();
-    virtual ~ConvolutionKernel_fs_byx_fsv32_depthwise() {}
+    ~ConvolutionKernel_fs_byx_fsv32_depthwise() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;

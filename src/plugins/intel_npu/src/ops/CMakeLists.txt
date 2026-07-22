@@ -6,12 +6,12 @@ set(TARGET_NAME openvino_npu_ops)
 set(TARGET_ALIAS openvino::npu_ops)
 set(TARGET_EXPORT_NAME npu_ops)
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/intel_npu/ops/flash_attention_tile.cpp
 )
 
-file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+set(HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/ops/flash_attention_tile.hpp
 )
 
 add_library(${TARGET_NAME} STATIC ${SOURCES} ${HEADERS})

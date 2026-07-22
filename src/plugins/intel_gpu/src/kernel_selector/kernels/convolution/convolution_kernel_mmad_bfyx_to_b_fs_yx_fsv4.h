@@ -14,7 +14,7 @@ class ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4 : public ConvolutionKernelBase
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4() : ConvolutionKernelBase("convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv4") {}
-    virtual ~ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4() {}
+    ~ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;

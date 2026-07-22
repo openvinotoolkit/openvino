@@ -50,7 +50,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     using FusedOpDesc = fused_operation_desc;
     using DispatchData = CommonDispatchData;
-    virtual ~GemmKernelBase() {}
+    ~GemmKernelBase() override {}
 
 protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;

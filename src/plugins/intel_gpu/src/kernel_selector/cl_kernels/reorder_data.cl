@@ -233,6 +233,11 @@ KERNEL (reorder_data)(
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE_SAT(res)
     #endif
 	    #define __TO_OUTPUT_REORDER_COMPUTE_TYPE(res) __TO_OUTPUT_REORDER_TYPE(res)
+    #elif F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT
+        // fp8 encoders are overloaded on float/half only; a non-float `res` (e.g. uchar from an integer
+        // input) makes the call ambiguous, so encode from float. (f8->f8 identity is handled below.)
+        #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(convert_float(res))
+		#define __TO_OUTPUT_REORDER_COMPUTE_TYPE(res) __TO_OUTPUT_REORDER_TYPE(res)
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(res)
 		#define __TO_OUTPUT_REORDER_COMPUTE_TYPE(res) TO_OUTPUT_REORDER_COMPUTE_TYPE(res)
@@ -263,6 +268,10 @@ KERNEL (reorder_data)(
 
         atomic_and(&output_u32[main_idx], ~(0x0F << shift));
         atomic_or(&output_u32[main_idx], (val_u32 << shift));
+    #elif (F8E5M2_INPUT && F8E5M2_OUTPUT) || (F8E4M3_INPUT && F8E4M3_OUTPUT) || (F8E8M0_INPUT && F8E8M0_OUTPUT)
+        // f8->f8 layout reorder: `res` is already the fp8 OUTPUT_TYPE, so store it directly. Re-encoding
+        // via TO_OUTPUT_TYPE/ACTIVATION has no overload for the fp8 struct (and a copy needs none).
+        output[output_idx] = res_tmp;
     #else
         output[output_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_COMPUTE_TYPE(res_tmp), ACTIVATION_PARAMS_TYPED));
     #endif

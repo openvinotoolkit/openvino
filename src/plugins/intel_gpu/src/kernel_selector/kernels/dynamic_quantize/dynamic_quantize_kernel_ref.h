@@ -27,7 +27,7 @@ struct dynamic_quantize_params : public base_params {
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {
 public:
     DynamicQuantizeKernelRef() : KernelBaseOpenCL("dynamic_quantize_gpu_ref") {}
-    virtual ~DynamicQuantizeKernelRef() {}
+    ~DynamicQuantizeKernelRef() override {}
 
     virtual JitConstants GetJitConstants(const dynamic_quantize_params& params) const;
     virtual CommonDispatchData SetDefault(const dynamic_quantize_params& params) const;
