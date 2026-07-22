@@ -205,8 +205,22 @@ private:
     Output<Node> m_tiny;
 };
 
-OutputVector svd_common(const NodeContext& context) {
+}  // namespace
+
+OutputVector translate_svd(const NodeContext& context) {
+    // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
     num_inputs_check(context, 1, 3);
+
+    // PyTorch zero-fills U/V when compute_uv=False, but this translator always produces real U/V,
+    // so reject a constant-false (or non-constant, possibly-false) compute_uv. input_is_none checks
+    // the input size internally, so no separate get_input_size guard is needed.
+    if (!context.input_is_none(2)) {
+        const auto c = ov::util::get_constant_from_source(context.get_input(2));
+        PYTORCH_OP_CONVERSION_CHECK(c, "aten::svd with a non-constant compute_uv is not supported.");
+        const auto vals = c->cast_vector<bool>();
+        PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0], "aten::svd with compute_uv=False is not supported.");
+    }
+
     auto x = context.get_input(0);
     // The Jacobi decomposition is 3x3-only; guard the trailing axes (non-3x3 fails at conversion
     // or loudly at runtime).
@@ -232,21 +246,6 @@ OutputVector svd_common(const NodeContext& context) {
         V = context.mark_node(std::make_shared<v1::ConvertLike>(V, x));
     }
     return {U, S, V};
-}
-
-}  // namespace
-
-OutputVector translate_svd(const NodeContext& context) {
-    // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
-    // PyTorch zero-fills U/V when compute_uv=False, but this translator always produces real U/V,
-    // so reject a constant-false (or non-constant, possibly-false) compute_uv.
-    if (context.get_input_size() > 2 && !context.input_is_none(2)) {
-        const auto c = ov::util::get_constant_from_source(context.get_input(2));
-        PYTORCH_OP_CONVERSION_CHECK(c, "aten::svd with a non-constant compute_uv is not supported.");
-        const auto vals = c->cast_vector<bool>();
-        PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0], "aten::svd with compute_uv=False is not supported.");
-    }
-    return svd_common(context);
 };
 
 }  // namespace op

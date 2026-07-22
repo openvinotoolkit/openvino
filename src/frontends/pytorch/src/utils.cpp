@@ -19,6 +19,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -818,6 +819,83 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
     auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(mask));
     auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
     return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
+}
+
+OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
+                                   Output<Node> input,
+                                   int dims,
+                                   bool return_indices,
+                                   const Shape& kernel,
+                                   const Strides& strides,
+                                   const Shape& pads,
+                                   const Strides& dilations,
+                                   RoundingType rounding_type) {
+    auto input_shape = rg.make<v3::ShapeOf>(input);
+
+    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+    bool is_static = input.get_partial_shape().rank().is_static();
+    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
+
+    if (is_static) {
+        if (no_batch_dim) {
+            input = rg.make<v0::Unsqueeze>(input, const_0);
+        }
+    } else {
+        input = rg.make<v0::Unsqueeze>(input, const_0);
+        auto unsqueeze_shape = rg.make<v3::ShapeOf>(input);
+        auto rank = rg.make<v0::ShapeOf>(unsqueeze_shape);
+        auto end_index = rg.make<v1::Add>(rank, const_1);
+        auto start_index = v0::Constant::create(element::i64, Shape{1}, {-dims - 2});
+        auto reshape_pattern = rg.make<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0);
+        input = rg.make<v1::Reshape>(input, reshape_pattern, true);
+    }
+
+    auto res = rg.make<
+        v14::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type, PadType::EXPLICIT, element::i64, 2);
+    if (is_static) {
+        if (no_batch_dim) {
+            if (return_indices) {
+                auto out1 = res->output(0);
+                auto out2 = res->output(1);
+                out1 = rg.make<v0::Squeeze>(out1, const_0);
+                out2 = rg.make<v0::Squeeze>(out2, const_0);
+                return {out1, out2};
+            } else {
+                auto squeezed = rg.make<v0::Squeeze>(res, const_0);
+                return {squeezed};
+            }
+        } else {
+            if (return_indices) {
+                return {res->output(0), res->output(1)};
+            } else {
+                return {res};
+            }
+        }
+
+    } else {
+        auto pooled_output_shape = rg.make<v3::ShapeOf>(res);
+
+        auto start_index_input = v0::Constant::create(element::i64, Shape{1}, {-dims});
+        auto slice_input_shape = rg.make<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0);
+
+        auto start_index_pooled = v0::Constant::create(element::i64, Shape{1}, {-dims});
+        auto end_index_pooled = v0::Constant::create(element::i64, Shape{1}, {2 + dims});
+        auto slice_pooled_output_shape =
+            rg.make<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0);
+
+        auto concat_shape = rg.make<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0);
+        if (return_indices) {
+            auto out1 = res->output(0);
+            auto out2 = res->output(1);
+            out1 = rg.make<v1::Reshape>(out1, concat_shape, true);
+            out2 = rg.make<v1::Reshape>(out2, concat_shape, true);
+            return {out1, out2};
+        } else {
+            auto reshaped = rg.make<v1::Reshape>(res, concat_shape, true);
+            return {reshaped};
+        }
+    }
 }
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {

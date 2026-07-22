@@ -4,6 +4,8 @@
 
 #include "max_pool_dynamic_kernel_resolver.hpp"
 
+#include <optional>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -15,14 +17,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
-// After utils.hpp: op/max_poolnd.hpp opens ns ...::pytorch::op, but utils.hpp uses unqualified
-// op:: (== ov::op).
-#include "op/max_poolnd.hpp"
 
 namespace ov {
 namespace frontend {
@@ -60,36 +60,31 @@ bool input_is_none_or_missing(const std::shared_ptr<ov::op::util::FrameworkNode>
     return is_none_node(fw->input_value(index));
 }
 
-// Fold an optional list attribute (stride/padding/dilation) to i64. Empty vector when the input is
-// absent/None/empty ("use the default"). Raises OpConversionFailure when present but not
-// constant-foldable: a runtime stride/padding/dilation fits neither lowering, and treating it as
-// the default would miscompute. `attr_name` names the attribute in the message.
-std::vector<int64_t> fold_optional_list(const std::shared_ptr<ov::op::util::FrameworkNode>& fw,
-                                        size_t index,
-                                        int dims,
-                                        const char* attr_name) {
+// Fold an optional list attribute (stride/padding/dilation) to i64. Returns an (possibly empty)
+// vector when foldable -- empty means the input is absent/None/empty ("use the default"). Returns
+// nullopt when the input is present but not constant-foldable: a runtime stride/padding/dilation
+// fits neither lowering, so the caller rejects the op (leaving the framework node) instead.
+std::optional<std::vector<int64_t>> fold_optional_list(const std::shared_ptr<ov::op::util::FrameworkNode>& fw,
+                                                       size_t index) {
     if (input_is_none_or_missing(fw, index))
-        return {};
+        return std::vector<int64_t>{};
     auto src = fw->input_value(index);
     if (is_empty_list(src))
-        return {};
+        return std::vector<int64_t>{};
     auto folded = ov::util::get_constant_from_source(concat_list_construct(src));
-    PYTORCH_OP_CONVERSION_CHECK(folded,
-                                "aten::max_pool",
-                                dims,
-                                "d with a non-constant ",
-                                attr_name,
-                                " is not supported.");
+    if (!folded)
+        return std::nullopt;
     return folded->cast_vector<int64_t>();
 }
 
-// Fold the optional ceil_mode flag. False (the default) when absent/None; raises OpConversionFailure
-// when present but not constant-foldable (a runtime ceil_mode fits neither lowering).
-bool fold_ceil_mode(const std::shared_ptr<ov::op::util::FrameworkNode>& fw, size_t index, int dims) {
+// Fold the optional ceil_mode flag. False (the default) when absent/None; nullopt when present but
+// not constant-foldable (a runtime ceil_mode fits neither lowering).
+std::optional<bool> fold_ceil_mode(const std::shared_ptr<ov::op::util::FrameworkNode>& fw, size_t index) {
     if (input_is_none_or_missing(fw, index))
         return false;
     auto ceil_c = ov::util::get_constant_from_source(fw->input_value(index));
-    PYTORCH_OP_CONVERSION_CHECK(ceil_c, "aten::max_pool", dims, "d with a non-constant ceil_mode is not supported.");
+    if (!ceil_c)
+        return std::nullopt;
     return ceil_c->cast_vector<bool>()[0];
 }
 
@@ -130,86 +125,23 @@ Output<Node> guard_full_extent_axis(ov::pass::NodeRegistry& rg,
     return guarded;
 }
 
-// Decompose a max_pool whose kernel_size is only known at runtime. MaxPool takes the window as
-// constructor attributes, so a runtime kernel (e.g. F.max_pool2d(x, [1, x.size(3)])) is handled
-// only as a global pool over a full spatial axis -- a ReduceMax (keep_dims=True to match MaxPool).
-// Per axis: elem_const_val 1 = window of 1 (identity), non-constant = full-extent pool (reduce).
+// Build the full-extent ReduceMax decomposition for a runtime kernel. `reduce_axes` are the negative
+// spatial-axis indices to pool (exactly the non-constant kernel elements); each is first guarded to
+// equal its runtime kernel value, so a strided pool (kernel < extent) fails loudly at inference.
+// The config is validated by the caller before this pure builder runs, so it never rejects.
 OutputVector build_dynamic_kernel_max_pool(ov::pass::NodeRegistry& rg,
                                            int dims,
-                                           bool return_indices,
                                            const Output<Node>& input,
                                            const std::vector<bool>& elem_is_const,
-                                           const std::vector<int64_t>& elem_const_val,
                                            const std::vector<Output<Node>>& elem_runtime_val,
-                                           bool stride_is_default,
-                                           const std::vector<int64_t>& pads,
-                                           const std::vector<int64_t>& dilations,
-                                           bool ceil_mode) {
-    PYTORCH_OP_CONVERSION_CHECK(static_cast<int>(elem_is_const.size()) == dims,
-                                "aten::max_pool",
-                                dims,
-                                "d: could not interpret the non-constant kernel_size (expected ",
-                                dims,
-                                " spatial entries).");
-    PYTORCH_OP_CONVERSION_CHECK(!return_indices,
-                                "aten::max_pool",
-                                dims,
-                                "d with a non-constant kernel_size and return_indices=True is not supported.");
-    // Exact only for a full-extent pool with default placement: stride=kernel, no pad, dilation 1,
-    // ceil_mode=False.
-    PYTORCH_OP_CONVERSION_CHECK(stride_is_default,
-                                "aten::max_pool",
-                                dims,
-                                "d with a non-constant kernel_size is only supported with the default stride "
-                                "(stride=kernel_size).");
-    for (auto p : pads) {
-        PYTORCH_OP_CONVERSION_CHECK(p == 0,
-                                    "aten::max_pool",
-                                    dims,
-                                    "d with a non-constant kernel_size is only supported with zero padding.");
-    }
-    for (auto d : dilations) {
-        PYTORCH_OP_CONVERSION_CHECK(d == 1,
-                                    "aten::max_pool",
-                                    dims,
-                                    "d with a non-constant kernel_size is only supported with dilation 1.");
-    }
-    PYTORCH_OP_CONVERSION_CHECK(!ceil_mode,
-                                "aten::max_pool",
-                                dims,
-                                "d with a non-constant kernel_size is only supported with ceil_mode=False.");
-
-    PYTORCH_OP_CONVERSION_CHECK(static_cast<int>(elem_runtime_val.size()) == dims,
-                                "aten::max_pool",
-                                dims,
-                                "d: could not recover the runtime kernel_size elements.");
-
-    // Per axis: reduce it (full-extent) or leave it (window 1). Each runtime element is guarded to
-    // equal the axis extent first, so a strided pool (kernel < extent) fails loudly.
+                                           const std::vector<int64_t>& reduce_axes) {
     Output<Node> guarded = input;
-    std::vector<int64_t> reduce_axes;
     for (int i = 0; i < dims; ++i) {
-        const int64_t axis = static_cast<int64_t>(i) - dims;  // negative index of this spatial axis
         if (!elem_is_const[i]) {
-            // Runtime element: must span the whole axis (global pool).
+            // Runtime element: guard that it spans the whole axis (global pool).
             guarded = guard_full_extent_axis(rg, guarded, dims, i, elem_runtime_val[i]);
-            reduce_axes.push_back(axis);
-        } else if (elem_const_val[i] == 1) {
-            continue;  // window of 1 (default stride) is an identity
-        } else {
-            // A static window > 1 is a sliding-window pool a ReduceMax cannot represent.
-            PYTORCH_OP_CONVERSION_CHECK(false,
-                                        "aten::max_pool",
-                                        dims,
-                                        "d with a non-constant kernel_size is only supported when every pooled axis "
-                                        "spans its full extent (the kernel along statically-sized axes must be 1).");
         }
     }
-    PYTORCH_OP_CONVERSION_CHECK(!reduce_axes.empty(),
-                                "aten::max_pool",
-                                dims,
-                                "d: a non-constant kernel_size that pools no axis is unexpected.");
-
     auto axes = rg.make<v0::Constant>(element::i64, Shape{reduce_axes.size()}, reduce_axes);
     auto res = rg.make<v1::ReduceMax>(guarded, axes, /*keep_dims=*/true);
     return {res};
@@ -233,6 +165,8 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
         const std::string op_type = op_type_it->second;
         const int dims = dims_from_op_type(op_type);
         const bool return_indices = fw_node->get_output_size() == 2;
+        // Op label used in the annotations below; the unconverted-ops reporter surfaces them.
+        const std::string op_label = "aten::max_pool" + std::to_string(dims) + "d";
 
         // Re-probe the kernel_size now that shapes have propagated. get_list_as_outputs handles both
         // the SequenceMark form and a list already lowered to elementwise outputs.
@@ -265,75 +199,151 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
             elem_runtime_val.assign(dims, r0);
         }
 
+        // We don't throw from transformations: on any config neither lowering can honor, annotate the
+        // framework node with the reason and return false, leaving it for the unconverted-ops reporter.
         ov::pass::NodeRegistry rg;
         OutputVector new_outputs;
 
-        // Folding the optional attributes and the ReduceMax guards raise OpConversionFailure for a
-        // config neither lowering can honor. Route it to the standard unconverted-ops reporter
-        // instead of letting it escape run_passes.
-        try {
-            if (kernel_is_static) {
-                // Kernel now fully constant -> build the static MaxPool.
-                Shape kernel;
-                for (auto v : elem_const_val)
-                    kernel.push_back(static_cast<size_t>(v));
+        if (kernel_is_static) {
+            // Kernel now fully constant -> build the static MaxPool.
+            Shape kernel;
+            for (auto v : elem_const_val)
+                kernel.push_back(static_cast<size_t>(v));
 
-                auto stride_vals = fold_optional_list(fw_node, 2, dims, "stride");
-                Strides strides;
-                if (stride_vals.empty()) {
-                    strides = kernel;  // default stride is kernel
-                } else {
-                    for (auto v : stride_vals)
-                        strides.push_back(static_cast<size_t>(v));
-                }
-                auto pad_vals = fold_optional_list(fw_node, 3, dims, "padding");
-                Shape pads;
-                if (pad_vals.empty()) {
-                    pads = Shape(kernel.size(), 0);
-                } else {
-                    for (auto v : pad_vals)
-                        pads.push_back(static_cast<size_t>(v));
-                }
-                auto dil_vals = fold_optional_list(fw_node, 4, dims, "dilation");
-                Strides dilations(dims, 1);
-                if (!dil_vals.empty()) {
-                    dilations.clear();
-                    for (auto v : dil_vals)
-                        dilations.push_back(static_cast<size_t>(v));
-                }
-                RoundingType rounding_type =
-                    fold_ceil_mode(fw_node, 5, dims) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
-                new_outputs = op::build_static_max_pool(rg,
-                                                        fw_node->input_value(0),
-                                                        dims,
-                                                        return_indices,
-                                                        kernel,
-                                                        strides,
-                                                        pads,
-                                                        dilations,
-                                                        rounding_type);
-            } else {
-                // Kernel still dynamic -> the ReduceMax full-extent decomposition (with guards).
-                bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
-                auto pads = fold_optional_list(fw_node, 3, dims, "padding");
-                auto dilations = fold_optional_list(fw_node, 4, dims, "dilation");
-                bool ceil_mode = fold_ceil_mode(fw_node, 5, dims);
-                new_outputs = build_dynamic_kernel_max_pool(rg,
-                                                            dims,
-                                                            return_indices,
-                                                            fw_node->input_value(0),
-                                                            elem_is_const,
-                                                            elem_const_val,
-                                                            elem_runtime_val,
-                                                            stride_is_default,
-                                                            pads,
-                                                            dilations,
-                                                            ceil_mode);
+            auto stride_vals = fold_optional_list(fw_node, 2);
+            if (!stride_vals) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant stride is not supported.");
+                return false;
             }
-        } catch (const std::exception& e) {
-            // Unsupported config: annotate the placeholder so the unconverted-ops reporter surfaces it.
-            add_exception_to_fw_node(fw_node, e.what());
-            return false;
+            Strides strides;
+            if (stride_vals->empty()) {
+                strides = kernel;  // default stride is kernel
+            } else {
+                for (auto v : *stride_vals)
+                    strides.push_back(static_cast<size_t>(v));
+            }
+            auto pad_vals = fold_optional_list(fw_node, 3);
+            if (!pad_vals) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant padding is not supported.");
+                return false;
+            }
+            Shape pads;
+            if (pad_vals->empty()) {
+                pads = Shape(kernel.size(), 0);
+            } else {
+                for (auto v : *pad_vals)
+                    pads.push_back(static_cast<size_t>(v));
+            }
+            auto dil_vals = fold_optional_list(fw_node, 4);
+            if (!dil_vals) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant dilation is not supported.");
+                return false;
+            }
+            Strides dilations(dims, 1);
+            if (!dil_vals->empty()) {
+                dilations.clear();
+                for (auto v : *dil_vals)
+                    dilations.push_back(static_cast<size_t>(v));
+            }
+            auto ceil_mode = fold_ceil_mode(fw_node, 5);
+            if (!ceil_mode) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant ceil_mode is not supported.");
+                return false;
+            }
+            RoundingType rounding_type = *ceil_mode ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
+            new_outputs = build_static_max_pool(rg,
+                                                fw_node->input_value(0),
+                                                dims,
+                                                return_indices,
+                                                kernel,
+                                                strides,
+                                                pads,
+                                                dilations,
+                                                rounding_type);
+        } else {
+            // Kernel still dynamic -> the ReduceMax full-extent decomposition. It is exact only for a
+            // global pool with default placement: reject everything else, leaving the framework node.
+            if (return_indices) {
+                add_exception_to_fw_node(
+                    fw_node,
+                    op_label + " with a non-constant kernel_size and return_indices=True is not supported.");
+                return false;
+            }
+            bool stride_is_default = input_is_none_or_missing(fw_node, 2) || is_empty_list(fw_node->input_value(2));
+            if (!stride_is_default) {
+                add_exception_to_fw_node(fw_node,
+                                         op_label + " with a non-constant kernel_size is only supported with the "
+                                                    "default stride (stride=kernel_size).");
+                return false;
+            }
+            auto pad_vals = fold_optional_list(fw_node, 3);
+            if (!pad_vals) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant padding is not supported.");
+                return false;
+            }
+            for (auto p : *pad_vals) {
+                if (p != 0) {
+                    add_exception_to_fw_node(
+                        fw_node,
+                        op_label + " with a non-constant kernel_size is only supported with zero padding.");
+                    return false;
+                }
+            }
+            auto dil_vals = fold_optional_list(fw_node, 4);
+            if (!dil_vals) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant dilation is not supported.");
+                return false;
+            }
+            for (auto d : *dil_vals) {
+                if (d != 1) {
+                    add_exception_to_fw_node(
+                        fw_node,
+                        op_label + " with a non-constant kernel_size is only supported with dilation 1.");
+                    return false;
+                }
+            }
+            auto ceil_mode = fold_ceil_mode(fw_node, 5);
+            if (!ceil_mode) {
+                add_exception_to_fw_node(fw_node, op_label + " with a non-constant ceil_mode is not supported.");
+                return false;
+            }
+            if (*ceil_mode) {
+                add_exception_to_fw_node(
+                    fw_node,
+                    op_label + " with a non-constant kernel_size is only supported with ceil_mode=False.");
+                return false;
+            }
+            if (static_cast<int>(elem_is_const.size()) != dims ||
+                static_cast<int>(elem_runtime_val.size()) != dims) {
+                add_exception_to_fw_node(fw_node,
+                                         op_label + ": could not interpret the non-constant kernel_size (expected " +
+                                             std::to_string(dims) + " spatial entries).");
+                return false;
+            }
+            // Per axis: reduce it (full-extent) or leave it (window 1); a static window > 1 is a
+            // sliding-window pool a ReduceMax cannot represent.
+            std::vector<int64_t> reduce_axes;
+            for (int i = 0; i < dims; ++i) {
+                const int64_t axis = static_cast<int64_t>(i) - dims;  // negative index of this spatial axis
+                if (!elem_is_const[i]) {
+                    reduce_axes.push_back(axis);
+                } else if (elem_const_val[i] == 1) {
+                    continue;  // window of 1 (default stride) is an identity
+                } else {
+                    add_exception_to_fw_node(
+                        fw_node,
+                        op_label + " with a non-constant kernel_size is only supported when every pooled axis spans "
+                                   "its full extent (the kernel along statically-sized axes must be 1).");
+                    return false;
+                }
+            }
+            if (reduce_axes.empty()) {
+                add_exception_to_fw_node(
+                    fw_node, op_label + ": a non-constant kernel_size that pools no axis is unexpected.");
+                return false;
+            }
+            new_outputs =
+                build_dynamic_kernel_max_pool(rg, dims, fw_node->input_value(0), elem_is_const, elem_runtime_val, reduce_axes);
         }
 
         // copy_runtime_info (not _and_name) so the guard nodes keep their op-labeled friendly names
