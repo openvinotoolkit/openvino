@@ -378,7 +378,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
         find_package(Protobuf 5.26.0 QUIET CONFIG)
         if(NOT Protobuf_FOUND)
-            find_package(Protobuf 4.22.0 QUIET CONFIG)
+            find_package(Protobuf 4.25.1 QUIET CONFIG)
         endif()
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
@@ -388,7 +388,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
                 set(protobuf_config CONFIG)
             endif()
             # otherwise, fallback to existing default
-            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
+            find_package(Protobuf 4.25.1 REQUIRED ${protobuf_config})
         endif()
 
         # with newer protobuf versions (4.22 and newer), we use CONFIG first
@@ -400,16 +400,14 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             set(PROTOC_EXECUTABLE protobuf::protoc)
         endif()
     else()
-        add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
-        # protobuf fails to build with -fsanitize=thread by clang
-        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
-            foreach(proto_target protoc libprotobuf libprotobuf-lite)
-                if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                    target_link_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                endif()
-            endforeach()
+        # Workaround for compilation issues of Protobuf 4.25.1 on MSVC with C++20.
+        # Remove once Protobuf is updated further.
+        if(MSVC)
+            ov_apply_patch(
+                PATCH "${CMAKE_SOURCE_DIR}/cmake/patches/protobuf/0001-fix-msvc-constexpr-kvtable.patch")
         endif()
+
+        add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward additional variables used in the other places
@@ -417,24 +415,24 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
 
     # set public / interface compile options
     function(_ov_fix_protobuf_warnings target_name)
-        set(link_type PUBLIC)
-        if(ENABLE_SYSTEM_PROTOBUF)
-            set(link_type INTERFACE)
-        endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET ${original_name})
-                # during build protobuf's cmake creates aliased targets
-                set(target_name ${original_name})
+        if(TARGET ${target_name})
+            set(link_type PUBLIC)
+            if(ENABLE_SYSTEM_PROTOBUF)
+                set(link_type INTERFACE)
             endif()
-            target_compile_options(${target_name} ${link_type} -Wno-undef)
+            if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+                get_target_property(original_name ${target_name} ALIASED_TARGET)
+                if(TARGET ${original_name})
+                    # during build protobuf's cmake creates aliased targets
+                    set(target_name ${original_name})
+                endif()
+                target_compile_options(${target_name} ${link_type} -Wno-undef)
+            endif()
         endif()
     endfunction()
 
     _ov_fix_protobuf_warnings(protobuf::libprotobuf)
-    if(TARGET protobuf::libprotobuf-lite)
-        _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
-    endif()
+    _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
 endif()
 
 #
@@ -559,7 +557,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.18.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
