@@ -9,6 +9,7 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
