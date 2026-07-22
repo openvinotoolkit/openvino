@@ -16,7 +16,7 @@ public:
 
     batch_to_space_kernel_selector();
 
-    virtual ~batch_to_space_kernel_selector() {}
+    ~batch_to_space_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
