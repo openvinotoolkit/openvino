@@ -1244,69 +1244,49 @@ protected:
     }
 };
 
-class fc_fp16_swiglu_ocl_static : public fc_fp16_swiglu_ocl {
-public:
-    void run_test(bool is_per_channel_quan) {
-        fc_fp16_swiglu_ocl::run_test(false, is_per_channel_quan);
-    }
-};
-
-TEST_P(fc_fp16_swiglu_ocl_static, basic) {
+TEST_P(fc_fp16_swiglu_ocl, basic_static) {
     if (engine.get_device_info().supports_immad)
         return;
 
     if (engine.get_device_info().execution_units_count < 128)
         return;
-    run_test(false);
+    run_test(false, false);
 }
 
-TEST_P(fc_fp16_swiglu_ocl_static, per_channel_quan) {
+TEST_P(fc_fp16_swiglu_ocl, per_channel_quan_static) {
     if (engine.get_device_info().supports_immad)
         return;
 
     if (engine.get_device_info().execution_units_count < 128)
         return;
-    run_test(true);
+    run_test(false, true);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl_static, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+TEST_P(fc_fp16_swiglu_ocl, basic_dynamic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test(true, false);
+}
+
+TEST_P(fc_fp16_swiglu_ocl, per_channel_quan_dynamic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test(true, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_2, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_3, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_4, 2, 3 },
 }));
 
-class fc_fp16_swiglu_ocl_dynamic : public fc_fp16_swiglu_ocl {
-public:
-    void run_test(bool is_per_channel_quan) {
-        fc_fp16_swiglu_ocl::run_test(true, is_per_channel_quan);
-    }
-};
-
-TEST_P(fc_fp16_swiglu_ocl_dynamic, basic) {
-    if (engine.get_device_info().supports_immad)
-        return;
-
-    if (engine.get_device_info().execution_units_count < 128)
-        return;
-    run_test(false);
-}
-
-TEST_P(fc_fp16_swiglu_ocl_dynamic, per_channel_quan) {
-    if (engine.get_device_info().supports_immad)
-        return;
-
-    if (engine.get_device_info().execution_units_count < 128)
-        return;
-    run_test(true);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_1, 2, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_2, 2, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_3, 2, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_4, 2, 3 },
-}));
 
 class fc_imad_int8_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
 public:
