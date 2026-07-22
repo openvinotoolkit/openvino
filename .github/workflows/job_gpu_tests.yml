@@ -56,6 +56,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/build
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
@@ -81,6 +82,18 @@ jobs:
       - name: Verify devices
         timeout-minutes: 5
         run: clinfo
+
+      #
+      # Samples
+      #
+
+      - name: Build cpp samples
+        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
+
+      - name: Run hello_query_device sample
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          $INSTALL_DIR/samples_bin/hello_query_device
 
       #
       # Tests
