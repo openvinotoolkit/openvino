@@ -464,3 +464,34 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
             ref = model(example).numpy()
         ov_out = compiled((example.numpy(),))[compiled.outputs[0]]
         assert np.max(np.abs(ov_out.astype(np.float64) - ref.astype(np.float64))) < 1e-4
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_static_input_explicit_stride_uses_maxpool(self, ie_device, precision, ir_version):
+        # As above, but with an explicit non-default stride alongside the deferred kernel. When the
+        # shape folds, the resolver's static branch builds a plain MaxPool with that stride; the stride
+        # list is normalized to the spatial rank so it becomes a valid MaxPool attribute (not a
+        # mismatched/wrapped size). The result must match PyTorch.
+        if ie_device != "CPU":
+            pytest.skip("structural + numeric assertion is checked on CPU")
+
+        class aten_max_pool_dyn_stride(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3)], stride=2)
+
+        example = torch.randn(1, 8, 12, 16, dtype=torch.float32)
+        model = aten_max_pool_dyn_stride().eval()
+        ov_model = ov.convert_model(model, example_input=example,
+                                    input=[ov.PartialShape([1, 8, 12, 16])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "MaxPool" in op_types, f"expected the folded static MaxPool; ops: {op_types}"
+        assert "ReduceMax" not in op_types, f"ReduceMax fallback must not be present; ops: {op_types}"
+        assert not any("FrameworkNode" in t for t in op_types), \
+            f"deferred placeholder must be resolved; ops: {op_types}"
+
+        # Numeric check against the PyTorch reference (framework golden, per project rule).
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+        with torch.no_grad():
+            ref = model(example).numpy()
+        ov_out = compiled((example.numpy(),))[compiled.outputs[0]]
+        assert np.max(np.abs(ov_out.astype(np.float64) - ref.astype(np.float64))) < 1e-4

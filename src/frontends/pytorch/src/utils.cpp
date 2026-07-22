@@ -832,8 +832,8 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
                                    RoundingType rounding_type) {
     auto input_shape = rg.make<v3::ShapeOf>(input);
 
-    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
-    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto const_0 = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto const_1 = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
     bool is_static = input.get_partial_shape().rank().is_static();
     bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
 
@@ -846,7 +846,7 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
         auto unsqueeze_shape = rg.make<v3::ShapeOf>(input);
         auto rank = rg.make<v0::ShapeOf>(unsqueeze_shape);
         auto end_index = rg.make<v1::Add>(rank, const_1);
-        auto start_index = v0::Constant::create(element::i64, Shape{1}, {-dims - 2});
+        auto start_index = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims - 2});
         auto reshape_pattern = rg.make<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0);
         input = rg.make<v1::Reshape>(input, reshape_pattern, true);
     }
@@ -876,11 +876,11 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
     } else {
         auto pooled_output_shape = rg.make<v3::ShapeOf>(res);
 
-        auto start_index_input = v0::Constant::create(element::i64, Shape{1}, {-dims});
+        auto start_index_input = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims});
         auto slice_input_shape = rg.make<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0);
 
-        auto start_index_pooled = v0::Constant::create(element::i64, Shape{1}, {-dims});
-        auto end_index_pooled = v0::Constant::create(element::i64, Shape{1}, {2 + dims});
+        auto start_index_pooled = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims});
+        auto end_index_pooled = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{2 + dims});
         auto slice_pooled_output_shape =
             rg.make<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0);
 

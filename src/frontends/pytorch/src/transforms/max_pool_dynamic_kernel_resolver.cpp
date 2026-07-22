@@ -85,7 +85,29 @@ std::optional<bool> fold_ceil_mode(const std::shared_ptr<ov::op::util::Framework
     auto ceil_c = ov::util::get_constant_from_source(fw->input_value(index));
     if (!ceil_c)
         return std::nullopt;
-    return ceil_c->cast_vector<bool>()[0];
+    auto vals = ceil_c->cast_vector<bool>();
+    if (vals.empty())
+        return std::nullopt;
+    return vals[0];
+}
+
+// Normalize a folded stride/padding/dilation list to exactly `dims` entries: broadcast a size-1
+// list (PyTorch's scalar int[N] form) and reject a length that is neither 1 nor `dims`, or any
+// value below `min_val` (stride/dilation must be >= 1, padding >= 0). The min_val check also
+// rejects a negative that would otherwise wrap to a huge size_t. Returns nullopt on any rejection;
+// the caller then annotates the framework node and leaves it (no throw), matching the pass contract.
+std::optional<std::vector<size_t>> normalize_pool_attr(const std::vector<int64_t>& vals, int dims, int64_t min_val) {
+    if (static_cast<int>(vals.size()) != 1 && static_cast<int>(vals.size()) != dims)
+        return std::nullopt;
+    std::vector<size_t> out;
+    out.reserve(static_cast<size_t>(dims));
+    for (int i = 0; i < dims; ++i) {
+        const int64_t v = vals.size() == 1 ? vals[0] : vals[i];
+        if (v < min_val)
+            return std::nullopt;
+        out.push_back(static_cast<size_t>(v));
+    }
+    return out;
 }
 
 // Runtime-assert that spatial axis `spatial_idx` (within the trailing `dims` axes) has extent `k`:
@@ -215,12 +237,19 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
                 add_exception_to_fw_node(fw_node, op_label + " with a non-constant stride is not supported.");
                 return false;
             }
+            // Normalize each attr to `dims` entries: broadcast a scalar (int[N]) form and reject a
+            // bad length or an out-of-range value, so a size-1 or negative list cannot reach the
+            // MaxPool op as a mismatched/wrapped size_t.
             Strides strides;
             if (stride_vals->empty()) {
                 strides = kernel;  // default stride is kernel
             } else {
-                for (auto v : *stride_vals)
-                    strides.push_back(static_cast<size_t>(v));
+                auto n = normalize_pool_attr(*stride_vals, dims, /*min_val=*/1);
+                if (!n) {
+                    add_exception_to_fw_node(fw_node, op_label + " with an unsupported stride is not supported.");
+                    return false;
+                }
+                strides = Strides(*n);
             }
             auto pad_vals = fold_optional_list(fw_node, 3);
             if (!pad_vals) {
@@ -231,8 +260,12 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
             if (pad_vals->empty()) {
                 pads = Shape(kernel.size(), 0);
             } else {
-                for (auto v : *pad_vals)
-                    pads.push_back(static_cast<size_t>(v));
+                auto n = normalize_pool_attr(*pad_vals, dims, /*min_val=*/0);
+                if (!n) {
+                    add_exception_to_fw_node(fw_node, op_label + " with an unsupported padding is not supported.");
+                    return false;
+                }
+                pads = Shape(*n);
             }
             auto dil_vals = fold_optional_list(fw_node, 4);
             if (!dil_vals) {
@@ -241,9 +274,12 @@ MaxPoolDynamicKernelResolver::MaxPoolDynamicKernelResolver() {
             }
             Strides dilations(dims, 1);
             if (!dil_vals->empty()) {
-                dilations.clear();
-                for (auto v : *dil_vals)
-                    dilations.push_back(static_cast<size_t>(v));
+                auto n = normalize_pool_attr(*dil_vals, dims, /*min_val=*/1);
+                if (!n) {
+                    add_exception_to_fw_node(fw_node, op_label + " with an unsupported dilation is not supported.");
+                    return false;
+                }
+                dilations = Strides(*n);
             }
             auto ceil_mode = fold_ceil_mode(fw_node, 5);
             if (!ceil_mode) {
