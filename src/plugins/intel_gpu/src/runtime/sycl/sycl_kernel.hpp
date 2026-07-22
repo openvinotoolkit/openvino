@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
