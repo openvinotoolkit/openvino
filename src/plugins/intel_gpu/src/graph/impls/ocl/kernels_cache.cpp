@@ -30,6 +30,7 @@
 #endif
 
 #include <cassert>
+#include <cstring>
 #include <sstream>
 #include <fstream>
 #include <set>
@@ -531,7 +532,8 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
         if (bin.size() < sizeof(uint32_t)) {
             return false;
         }
-        auto magic = reinterpret_cast<const uint32_t*>(bin.data())[0];
+        uint32_t magic;
+        std::memcpy(&magic, bin.data(), sizeof(magic));
         return magic == ELF_MAGIC || magic == SPIRV_MAGIC;
     };
 
