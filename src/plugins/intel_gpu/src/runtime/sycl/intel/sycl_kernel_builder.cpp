@@ -13,10 +13,41 @@
 #include <ocloc_api.h>
 
 #include <cstring>
+#include <exception>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace {
+
+#if defined(_WIN32)
+constexpr const char* OCLOC_LIBRARY_NAME = "ocloc64.dll";
+#else
+constexpr const char* OCLOC_LIBRARY_NAME = "libocloc.so";
+#endif
+
+struct OclocApi {
+    std::shared_ptr<void> lib;
+    pOclocInvoke invoke;
+    decltype(&oclocFreeOutput) free_output;
+};
+
+// Load ocloc and resolve its entry points exactly once per process.
+const OclocApi& get_ocloc_api() {
+    static const OclocApi api = [] {
+        OclocApi a;
+        try {
+            a.lib = ov::util::load_shared_object(OCLOC_LIBRARY_NAME);
+            a.invoke = reinterpret_cast<pOclocInvoke>(ov::util::get_symbol(a.lib, "oclocInvoke"));
+            a.free_output = reinterpret_cast<decltype(&oclocFreeOutput)>(
+                ov::util::get_symbol(a.lib, "oclocFreeOutput"));
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("[GPU] failed to load ocloc library '", OCLOC_LIBRARY_NAME, "': ", e.what());
+        }
+        return a;
+    }();
+    return api;
+}
 
 uint32_t query_device_ip_version(::sycl::device device) {
     namespace syclex = ::sycl::ext::oneapi::experimental;
@@ -33,10 +64,9 @@ std::vector<std::byte> opencl_c_to_spirv(const std::string& source,
                                          const std::string& options,
                                          uint32_t device_ip_version,
                                          std::string& build_log) {
-    auto lib = ov::util::load_shared_object("libocloc.so");
-
-    auto* invoke_fn = reinterpret_cast<pOclocInvoke>(ov::util::get_symbol(lib, "oclocInvoke"));
-    auto* free_fn = reinterpret_cast<decltype(&oclocFreeOutput)>(ov::util::get_symbol(lib, "oclocFreeOutput"));
+    const auto& ocloc = get_ocloc_api();
+    auto* invoke_fn = ocloc.invoke;
+    auto* free_fn = ocloc.free_output;
 
     // Build the ocloc argument list:
     //   ocloc -spv_only [-device <ip_ver>] [-options <options>] -file kernel.cl
