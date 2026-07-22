@@ -1132,7 +1132,8 @@ TEST(GGUFOps, GeGLU) {
 
     // gelu_tanh(a) = 0.5*a*(1 + tanh(sqrt(2/pi)*(a + 0.044715*a^3)))
     auto gelu_tanh = [](float a) {
-        const float k = std::sqrt(2.0f / static_cast<float>(M_PI));
+        const float pi = 3.14159265358979323846f;
+        const float k = std::sqrt(2.0f / pi);
         return 0.5f * a * (1.0f + std::tanh(k * (a + 0.044715f * a * a * a)));
     };
     std::vector<float> expected(8);
