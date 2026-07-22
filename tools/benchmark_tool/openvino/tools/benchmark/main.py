@@ -559,7 +559,7 @@ def main():
                 else:
                     paths_to_input.append(os.path.abspath(*path))
 
-        data_queue = get_input_data(paths_to_input, app_inputs_info)
+        data_queue = get_input_data(paths_to_input, app_inputs_info, args.input_preset, args.validate_outputs)
 
         static_mode = check_for_static(app_inputs_info)
         allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)

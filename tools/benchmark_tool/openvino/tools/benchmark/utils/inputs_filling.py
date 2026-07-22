@@ -88,8 +88,60 @@ def verify_objects_to_be_used(objects_to_be_used_map: dict[str, list[str]], info
             logger.warning(f"Some {input_type_name} will be dublicated: {total_frames} is required, "
                             f"but only {objects_to_be_used_map[info.name]} were provided.")
 
-def get_input_data(paths_to_input, app_input_info):
+def has_llm_decode_signature(app_input_info: list[AppInputInfo]) -> bool:
+    names = {info.name.lower() for info in app_input_info}
+    has_required = all(name in names for name in ["input_ids", "attention_mask", "position_ids"])
+    has_kv = any("past_key_values" in name for name in names)
+    return has_required and has_kv
+
+
+def create_rs_for_layer(layer_name: str, base_seed: int = 20260722):
+    layer_seed = base_seed + sum((idx + 1) * ord(ch) for idx, ch in enumerate(layer_name))
+    return np.random.RandomState(np.random.MT19937(np.random.SeedSequence(layer_seed)))
+
+
+def fill_tensors_with_llm_decode_preset(layer: AppInputInfo, attention_mask_len: int) -> list[Tensor]:
+    name = layer.name.lower()
+    dtype = get_dtype(layer.element_type)
+    rs = create_rs_for_layer(layer.name)
+    tensors = []
+
+    for shape in layer.shapes:
+        data = np.ndarray(shape, dtype=dtype)
+
+        if name == "input_ids":
+            # Keep token IDs in a small valid range to avoid unrealistic decode states.
+            data[:] = np.array([[1]], dtype=dtype)
+        elif name == "attention_mask":
+            data[:] = np.ones(shape, dtype=dtype)
+        elif name == "position_ids":
+            position = max(attention_mask_len - 1, 0)
+            data[:] = np.array([[position]], dtype=dtype)
+        elif "past_key_values" in name:
+            data[:] = rs.normal(0.0, 0.01, list(shape)).astype(dtype)
+        else:
+            data[:] = rs.normal(0.0, 0.02, list(shape)).astype(dtype)
+
+        tensors.append(Tensor(data))
+    return tensors
+
+
+def get_input_data(paths_to_input, app_input_info, input_preset='none', prepare_for_validation=False):
     image_mapping, numpy_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
+    has_mapped_inputs = bool(image_mapping or numpy_mapping or binary_mapping)
+
+    use_llm_decode_preset = input_preset == 'llm_decode'
+    if input_preset == 'auto' and prepare_for_validation and not has_mapped_inputs and has_llm_decode_signature(app_input_info):
+        use_llm_decode_preset = True
+
+    attention_mask_len = 1
+    if use_llm_decode_preset:
+        for info in app_input_info:
+            if info.name.lower() == 'attention_mask' and info.shapes and len(info.shapes[0]) > 1:
+                attention_mask_len = int(info.shapes[0][1])
+                break
+
+        logger.info("Built-in LLM decode input preset is enabled")
 
     image_sizes = get_image_sizes(app_input_info)
     batch_sizes_map = get_batch_sizes_per_input_map(app_input_info)
@@ -112,7 +164,10 @@ def get_input_data(paths_to_input, app_input_info):
                 verify_objects_to_be_used(binaries_to_be_used_map, info, total_frames, "binaries")
             else:
                 if not (info.is_image_info and len(image_sizes) == 1):
-                    logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
+                    if use_llm_decode_preset:
+                        logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with built-in LLM decode preset values!")
+                    else:
+                        logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
         else:
             if info.name in image_mapping:
                 logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
@@ -137,8 +192,12 @@ def get_input_data(paths_to_input, app_input_info):
             logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
             data[port] = get_image_info_tensors(image_size, info)
         else:
-            logger.info(f"Fill input '{info.name}' with random values ")
-            data[port] = fill_tensors_with_random(info)
+            if use_llm_decode_preset:
+                logger.info(f"Fill input '{info.name}' with built-in LLM decode preset values")
+                data[port] = fill_tensors_with_llm_decode_preset(info, attention_mask_len)
+            else:
+                logger.info(f"Fill input '{info.name}' with random values ")
+                data[port] = fill_tensors_with_random(info)
 
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 

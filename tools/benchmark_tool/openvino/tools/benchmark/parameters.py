@@ -133,6 +133,10 @@ def parse_args():
     advs.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
                       help='Optional. If true inputs filling only once before measurements (default for static models), '
                                      'else inputs filling is included into loop measurement (default for dynamic models)', )
+    advs.add_argument('--input_preset', type=str, required=False, default='auto', choices=['none', 'auto', 'llm_decode'],
+                      help='Optional. Built-in input preparation preset when input files are not provided. '
+                           "'none' keeps random filling, 'llm_decode' uses deterministic decode-like values for LLM inputs, "
+                           "'auto' enables llm_decode preset only for validation runs on detected LLM decode signatures.")
     advs.add_argument('-no_warmup', action='store_true', required=False, default=False,
                   help='Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments. Otherwise, not recommended.')
     advs.add_argument('-infer_precision', type=str, required=False,
