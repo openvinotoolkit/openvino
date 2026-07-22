@@ -5,7 +5,12 @@
 
 set(TARGET_NAME "npu_tools_utils")
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/data_type_converters.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/tensor_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/tools_helpers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_utils.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})
