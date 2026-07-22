@@ -89,7 +89,7 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 ```yaml
 Build:
   ...
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: aks-linux-16-cores-32gb-st
   container:
     image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     volumes:
@@ -164,7 +164,7 @@ key under the `container` key to make them accessible for `sccache` inside the c
 ```yaml
 Build:
   ...
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: aks-linux-16-cores-32gb-st
   container:
     image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     volumes:

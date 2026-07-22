@@ -28,7 +28,7 @@ For example, the [`job_python_unit_tests.yml`](./../../../../.github/workflows/j
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-st'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 ```
@@ -44,7 +44,7 @@ reusable workflow example in the [`ubuntu_22.yml`](./../../../../.github/workflo
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-st'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 ```

@@ -91,7 +91,7 @@ that are going to be used further in a workflow, to `images` parameter of the `h
 ```yaml
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-st
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -119,7 +119,7 @@ that are going to be used further in a workflow, to `images` parameter of the `h
   Build:
     needs: [Smart_CI, Docker]
     ...
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
 ```

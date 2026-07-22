@@ -13,12 +13,12 @@ longer workflows (such as builds or functional tests) should use the self-hosted
 The runners are specified for each job using the `runs-on` key.
 
 An example `Build` job from the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml)
-workflow, using the `aks-linux-16-cores-32gb` runner group:
+workflow, using the `aks-linux-16-cores-32gb-st` runner group:
 
 ```yaml
 Build:
   ...
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: aks-linux-16-cores-32gb-st
   ...
 ```
 
@@ -60,15 +60,15 @@ The group names generally follow the pattern:
 
 Examples:
 * `aks-win-16-cores-32gb` - the Windows x86_64 runners with 16 cores and 32 GB of RAM available
-* `aks-linux-16-cores-arm` - the Linux ARM64 runners with 16 cores and 32 GB of RAM available
+* `aks-linux-16-cores-arm-st` - the Linux ARM64 runners with 16 cores and 32 GB of RAM available
 
 The available configurations are:
 
 |             | Group Name        | CPU Cores    | RAM in GB        | Architecture         | Examples                                           |
 |-------------|-------------------|--------------|------------------|----------------------|----------------------------------------------------|
 | Windows     | `aks-win-*`       | `4`/`8`/`16` | `8`/`16`/`32`    | `x86_64`<sup>*</sup> | `aks-win-4-cores-8gb`/`aks-win-16-cores-32gb`      |
-| Linux       | `aks-linux-*`     | `4`/`8`/`16` | `16`/`32`        | `x86_64`<sup>*</sup> | `aks-linux-4-cores-16gb`/`aks-linux-16-cores-32gb` |
-| Linux ARM64 | `aks-linux-*-arm` | `16`         | `32`<sup>*</sup> | `arm`                | `aks-linux-16-cores-arm`                           |
+| Linux       | `aks-linux-*`     | `4`/`8`/`16` | `16`/`32`        | `x86_64`<sup>*</sup> | `aks-linux-4-cores-16gb-st`/`aks-linux-16-cores-32gb-st` |
+| Linux ARM64 | `aks-linux-*-arm` | `16`         | `32`<sup>*</sup> | `arm`                | `aks-linux-16-cores-arm-st`                           |
 
 * `*` - Not specified in the group name
 
@@ -122,29 +122,29 @@ The configuration of a runner required for a job (building, testing, other tasks
 nature of the job. Jobs that are more memory and/or CPU-intensive require a more robust configuration.
 
 The `Build` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses
-the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
+the `aks-linux-16-cores-32gb-st` group as specified in the `runs-on` key:
 ```yaml
 Build:
   ...
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: aks-linux-16-cores-32gb-st
   ...
 ```
 
-The `aks-linux-16-cores-32gb` group has machines with 16-core CPU and 32 GB of RAM.
+The `aks-linux-16-cores-32gb-st` group has machines with 16-core CPU and 32 GB of RAM.
 These resources are suitable for using in parallel by the build tools in the `Build` job.
 
-The `C++ unit tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses the `aks-linux-4-cores-16gb` group:
+The `C++ unit tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses the `aks-linux-4-cores-16gb-st` group:
 ```yaml
 CXX_Unit_Tests:
   name: C++ unit tests
   ...
   with:
-    runner: aks-linux-4-cores-16gb
+    runner: aks-linux-4-cores-16gb-st
     ...
 ```
 
 As the C++ tests can not use a large number of cores for parallel execution like
-the build tools in the `Build` job, it is not beneficial to use the `aks-linux-16-cores-32gb` group for them.
+the build tools in the `Build` job, it is not beneficial to use the `aks-linux-16-cores-32gb-st` group for them.
 
 Instead, it is advisable to use runners with more cores/RAM for tasks that can load them.
 
