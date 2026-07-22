@@ -826,7 +826,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
-    constexpr size_t max_header_footprint = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) + runtime_requirements_max_size;
+    constexpr size_t max_header_footprint =
+        sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) + runtime_requirements_max_size;
     std::vector<char> header_buffer(max_header_footprint);
 
     model_stream.read(header_buffer.data(), static_cast<std::streamsize>(max_header_footprint));
