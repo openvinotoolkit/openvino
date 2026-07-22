@@ -37,11 +37,8 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
             format::bfwzyx
         };
 
-        static const std::vector<ov::element::Type_t> supported_in_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::i32
-        };
+        static const std::vector<ov::element::Type_t> supported_in_types =
+            {ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8, ov::element::f8e4m3};
 
         static const std::vector<ov::element::Type_t> supported_out_types = {
             ov::element::f32,
@@ -49,6 +46,7 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
             ov::element::i32,
             ov::element::i8,
             ov::element::u8,
+            ov::element::f8e4m3,
         };
 
         const auto& in0_layout = node.get_input_layout(0);

@@ -103,6 +103,8 @@ jobs:
       build-debian-packages: true
       build-contrib: true
       build-additional-python-packages: true
+      build-variant: 'levelzero'
+      store_artifacts: false
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'

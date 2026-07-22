@@ -12,7 +12,7 @@ public:
     using Parent = LRNKernelBase;
 
     LRNKernelAcrossChannelRef() : Parent("lrn_gpu_across_channel_ref") {}
-    virtual ~LRNKernelAcrossChannelRef() {}
+    ~LRNKernelAcrossChannelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

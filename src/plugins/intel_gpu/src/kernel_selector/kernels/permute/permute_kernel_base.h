@@ -12,7 +12,7 @@ namespace kernel_selector {
 class PermuteKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~PermuteKernelBase() {}
+    ~PermuteKernelBase() override {}
 
     bool Validate(const Params& p) const override;
     KernelsData GetKernelsData(const Params& params) const override;

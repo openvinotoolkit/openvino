@@ -51,6 +51,9 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -299,6 +302,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
+    jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
+    jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_node<jit_is_inf_emitter>();
+    jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<jit_is_nan_emitter>();
     jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_node<jit_mish_emitter>();
     jitters[ov::op::v0::Negative::get_type_info_static()] = emitter_factory.from_node<jit_negative_emitter>();
     jitters[ov::op::v0::PRelu::get_type_info_static()] = emitter_factory.from_node<jit_prelu_emitter>();
@@ -451,8 +457,9 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
     return ov::snippets::RegType::undefined;
 }
 
-bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    bool need = false;
+bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
+    bool need = std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_gemm_emitter>(e) ||
+                std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_gemm_copy_b_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||

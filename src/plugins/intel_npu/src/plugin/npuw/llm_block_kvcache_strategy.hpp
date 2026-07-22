@@ -114,6 +114,10 @@ public:
     void on_prefill_chunk_begin(uint32_t current_prompts_len) override;
     void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) override;
     void on_generate_kv_init() override;
+    void on_generate_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& old_req,
+                                    const PortsMap& old_in_ports,
+                                    const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
+                                    const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
 
 private:

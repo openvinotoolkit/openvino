@@ -130,7 +130,7 @@ public:
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
         const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
         const size_t heads_num = desc->heads_num;
-        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        const size_t merged_q_num = XAttentionEstimateGeneratorBase::get_wg_seq_len(params) / block_size;
         const size_t sum_per_token_in_block = block_size / STRIDE;
         const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
         const size_t sizeof_softmax = sizeof(float);
@@ -726,6 +726,13 @@ private:
         GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
 
         if (params.get_device_info().arch < gpu_arch::xe2) {
+            return block_size_128;
+        }
+
+        // head_size=256 partition path on Xe2+ shrinks wg_seq_len to num_team * q_step = 128.
+        // SPARSE_BLOCK_SIZE must not exceed wg_seq_len, otherwise blocks_per_wg = 0 in the
+        // kernel's sparse-mask indexing.
+        if (desc->k_head_size == 256) {
             return block_size_128;
         }
 

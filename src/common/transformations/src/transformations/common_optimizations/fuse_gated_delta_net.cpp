@@ -442,7 +442,11 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src, c
                 auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
 
                 auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
-                if (!reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
+                // Verify that all dimensions except head count are compatible with the reference.
+                // The head count dim (second-to-last) is intentionally different in grouped-query graphs.
+                ov::PartialShape relaxed_ref = ref_ps;
+                relaxed_ref[ref_rank.get_length() - 2] = ov::Dimension::dynamic();
+                if (!reshaped->get_output_partial_shape(0).compatible(relaxed_ref)) {
                     return {};
                 }
 
