@@ -6562,8 +6562,12 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
 
 // Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
 // inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
-// (non-GQA) or the repeat_kv Unsqueeze-Broadcast-Reshape expansion (gqa == true).
-static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, bool fq_on_v, bool gqa) {
+// (non-GQA) or the repeat_kv Unsqueeze-Broadcast-Reshape expansion (gqa == true). With per_channel,
+// the FakeQuantize limits are per-channel (not scalar) instead of the a8w8 per-tensor limits.
+static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k,
+                                                               bool fq_on_v,
+                                                               bool gqa,
+                                                               bool per_channel = false) {
     const int num_q_heads = 4;
     const int num_kv_heads = gqa ? 2 : 4;
     const int head_dim = 128;
@@ -6639,8 +6643,17 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, boo
         return makeOP<v1::Reshape>({bcast, reshape_target}, {{"special_zero", false}});
     };
 
-    // a8w8 activation FakeQuantize: 5 inputs, per-tensor scalar limits.
-    auto make_fq = [](const std::shared_ptr<ov::Node>& data) -> std::shared_ptr<ov::Node> {
+    // a8w8 activation FakeQuantize: 5 inputs. Per-tensor scalar limits by default; per-channel limits
+    // (shape [1, num_kv_heads, 1, 1]) when per_channel is set - such an FQ is not tolerated by the pass.
+    auto make_fq = [&](const std::shared_ptr<ov::Node>& data) -> std::shared_ptr<ov::Node> {
+        if (per_channel) {
+            const ov::Shape limit_shape{1, (size_t)num_kv_heads, 1, 1};
+            auto in_low = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, -8.0f));
+            auto in_high = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, 8.0f));
+            auto out_low = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, -8.0f));
+            auto out_high = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, 8.0f));
+            return std::make_shared<v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 256);
+        }
         auto in_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
         auto in_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
         auto out_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
@@ -6744,6 +6757,23 @@ INSTANTIATE_TEST_SUITE_P(SDPAToPATest_ActivationFakeQuantize,
                                            std::make_tuple(true, false, true),    // GQA, FQ on K
                                            std::make_tuple(false, true, true),    // GQA, FQ on V
                                            std::make_tuple(true, true, true)));   // GQA a8w8
+
+// A per-channel FakeQuantize on the KV-cache concat cannot be re-applied equivalently onto the
+// flattened PagedAttention feed, so it is deliberately not tolerated: the pattern does not bind, SDPA
+// is not converted, and beam_idx / attention_mask survive -> "Model references undeclared parameters"
+// (the same behavior as before FakeQuantize support was added). This guards against silently dropping
+// a quantization the pass cannot preserve.
+TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/true,
+                                              /*fq_on_v=*/false,
+                                              /*gqa=*/false,
+                                              /*per_channel=*/true);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model),
+                    ov::AssertFailure,
+                    ::testing::HasSubstr("Model references undeclared parameters"));
+}
 
 /*
 As there's often a need to cover specific model's architecutres in these
