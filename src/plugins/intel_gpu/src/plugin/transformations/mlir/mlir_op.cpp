@@ -29,7 +29,7 @@
 #include "gc/Utils/Error.h"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
+#include "properties.hpp"
 
 namespace {
 

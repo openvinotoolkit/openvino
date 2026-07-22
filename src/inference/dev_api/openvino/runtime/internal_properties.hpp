@@ -174,33 +174,6 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
-/* 
-* @brief Namespace for properties related to MLIR operations within the GPU plugin.
- * These properties are used as evaluation context parameters for MLIR operations,
- * assisting in managing events, result tracking, and kernel argument types.
- */
-namespace mlir_meta {
-
-/**
- * @brief This key identifies a list of cl_event to wait for a kernel execution.
- * @ingroup ov_dev_api_plugin_mlir_meta_api
- */
-static constexpr Property<std::vector<void*>> wait_list{"EVENTS_WAIT_LIST"};
-
-/**
- * @brief This key identifies a pointer to a list that should be filled with
- * result cl_events of a kernel execution.
- * @ingroup ov_dev_api_plugin_mlir_meta_api
- */
-static constexpr Property<std::vector<void*>*> result_events{"RESULT_EVENTS"};
-
-/**
- * @brief This key identifies whether the kernel argument at [i] position is USM pointer
- * @ingroup ov_dev_api_plugin_mlir_meta_api
- */
-static constexpr Property<std::vector<bool>> is_kernel_arg_usm{"IS_KERNEL_ARG_USM"};
-
-} // namespace mlir_meta
 /**
  * @brief KV cache quantization algorithm.
  * Selects SCALAR vs TURBO for integer cache precision (u8/u4); defaults to SCALAR when unset.
