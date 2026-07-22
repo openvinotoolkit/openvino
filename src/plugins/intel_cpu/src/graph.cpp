@@ -108,6 +108,14 @@ using namespace dnnl;
 
 namespace ov::intel_cpu {
 
+namespace {
+// [DEBUG] Forward declaration for the non-finite activation tracer's one-time
+// precision-config dump; defined in the anonymous namespace lower in this file
+// (see the "[DEBUG] Non-finite (NaN/Inf) activation tracer" block). Declared
+// here so Graph::Activate() below can call it.
+void logPrecisionConfigOnce(const Config& config, const std::string& graphName);
+}  // namespace
+
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
     CPU_DEBUG_CAP_ENABLE(average_counters(*this));
@@ -1830,9 +1838,11 @@ void logPrecisionConfigOnce(const Config& config, const std::string& graphName) 
     std::cout << "[OV_CPU_PRECISION_CFG] graph '" << graphName << "'"
               << " inferencePrecision=" << config.inferencePrecision.get_type_name()
               << " setExplicitly=" << config.inferencePrecisionSetExplicitly << " executionMode="
-              << (config.executionMode == ov::hint::ExecutionMode::ACCURACY ? "ACCURACY" : "PERFORMANCE")
-              << " aclFastMath=" << config.aclFastMath
-              << " kvCachePrecision=" << config.kvCachePrecision.get_type_name()
+              << (config.executionMode == ov::hint::ExecutionMode::ACCURACY ? "ACCURACY" : "PERFORMANCE");
+#if defined(OV_CPU_WITH_ACL)
+    std::cout << " aclFastMath=" << config.aclFastMath;
+#endif
+    std::cout << " kvCachePrecision=" << config.kvCachePrecision.get_type_name()
               << " fcDynQuantGroupSize=" << config.fcDynamicQuantizationGroupSize << std::endl;
     std::cout.flush();
 }
