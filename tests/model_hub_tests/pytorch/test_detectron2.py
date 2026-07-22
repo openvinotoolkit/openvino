@@ -9,8 +9,30 @@ import pytest
 import torch
 from models_hub_common.utils import get_models_list, compare_two_tensors, retry
 
-from torch_utils import TestTorchConvertModel, process_pytest_marks
+from torch_utils import TestTorchConvertModel, process_pytest_marks, skip_unsupported_npu_precommit
 
+# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "COCO-Detection/faster_rcnn_R_50_FPN_1x": "*",
+    "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x": "*",
+    "COCO-Detection/retinanet_R_50_FPN_1x": "*",
+    "COCO-Detection/rpn_R_50_C4_1x": "*",
+    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_1x": "*",
+    "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x": "*",
+    "COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x": "*",
+    "COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x": "*",
+    "Cityscapes/mask_rcnn_R_50_FPN": "*",
+    "Detectron1-Comparisons/faster_rcnn_R_50_FPN_noaug_1x": "*",
+    "Detectron1-Comparisons/keypoint_rcnn_R_50_FPN_1x": "*",
+    "Detectron1-Comparisons/mask_rcnn_R_50_FPN_noaug_1x": "*",
+    "LVISv0.5-InstanceSegmentation/mask_rcnn_R_50_FPN_1x": "*",
+    "LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x": "*",
+    "Misc/cascade_mask_rcnn_R_50_FPN_3x": "*",
+    "Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv": "*",
+    "Misc/mask_rcnn_R_50_FPN_3x_syncbn": "*",
+    "Misc/scratch_mask_rcnn_R_50_FPN_9x_syncbn": "*",
+    "PascalVOC-Detection/faster_rcnn_R_50_C4": "*",
+}
 
 class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
@@ -99,6 +121,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
+        skip_unsupported_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("Detectron2 models are not enabled on ARM")
         self.run(name, None, ie_device)

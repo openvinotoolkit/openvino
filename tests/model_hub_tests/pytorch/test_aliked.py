@@ -15,11 +15,23 @@ import torch
 from openvino import convert_model, Model, PartialShape, Type
 from openvino.frontend import ConversionExtension
 
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_unsupported_npu_precommit
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
+# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "COCO": "*",
+    "Cityscapes/mask_rcnn_R_50_FPN": "*",
+    "Detectron1": "*",
+    "LVISv0.5": "*",
+    "Misc/cascade_mask_rcnn_R_50_FPN_3x": "*",
+    "Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv": "*",
+    "Misc/mask_rcnn_R_50_FPN_3x_syncbn": "*",
+    "Misc/scratch_mask_rcnn_R_50_FPN_9x_syncbn": "*",
+    "PascalVOC": "*",
+}
 
 def custom_op_loop(context):
     map = context.get_input(0)
@@ -131,6 +143,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
     @pytest.mark.precommit
     @pytest.mark.parametrize("name", get_supported_precommit_models())
     def test_convert_model_all_models_default(self, name, ie_device):
+        skip_unsupported_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
