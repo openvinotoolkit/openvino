@@ -269,10 +269,6 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
 }
 
 TEST(MLIRExecution, SDPABasic) {
-    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
-    if (mode != "GC_GPU" && mode != "GC")
-        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
-                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
     const ov::PartialShape query_shape{4, 4096, 64};
     const ov::PartialShape key_shape{4, 4096, 64};
     const ov::PartialShape value_shape{4, 4096, 64};
@@ -359,11 +355,6 @@ TEST(MLIRExecution, SDPABasic) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf32) {
-    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
-    if (mode != "GC_GPU" && mode != "GC")
-        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
-                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
-
     ov::Core core;
     auto model = core.read_model(
         model_full_path("matmul_64_128_f32.xml"));
@@ -405,11 +396,6 @@ TEST(MLIRExecution, SimpleMatmulf32) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
-    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
-    if (mode != "GC_GPU" && mode != "GC")
-        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
-                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
-
     ov::Core core;
     auto model = core.read_model(
         model_full_path("matmul_64_128_f32.xml"));
@@ -451,11 +437,6 @@ TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf16) {
-    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
-    if (mode != "GC_GPU" && mode != "GC")
-        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
-                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
-
     ov::Core core;
     auto model = core.read_model(
         model_full_path("matmul_64_128_f16.xml"));

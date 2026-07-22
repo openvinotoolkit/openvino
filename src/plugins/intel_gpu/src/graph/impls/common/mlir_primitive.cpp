@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "intel_gpu/primitives/mlir_primitive.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"   // cldnn::make_tensor
 #include "mlir_primitive_inst.h"
 #include "openvino/core/node.hpp"
@@ -48,7 +49,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         output_gpu_tensors.reserve(instance.outputs_memory_count());
         is_usm_ptr.reserve(instance.inputs_memory_count() + instance.outputs_memory_count());
 
-        auto process_buffer = [&stream, &is_usm_ptr](memory::ptr mem, ov::TensorVector& tensors) {
+        auto process_buffer = [&is_usm_ptr](memory::ptr mem, ov::TensorVector& tensors) {
             switch (mem->get_allocation_type()) {
                 case allocation_type::cl_mem: {
                     if (void* cl_buff = mem->get_handle()) {
@@ -98,34 +99,52 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         meta.insert(ov::internal::mlir_meta::is_kernel_arg_usm(is_usm_ptr));
 
         std::vector<void*> events_list;
-        cl_event* result_event = nullptr;
+        std::vector<void*> result_events;
+        const bool need_result_events = instance.get_config().get_enable_profiling() ||
+                                        stream.get_queue_type() == QueueTypes::out_of_order;
+        if (need_result_events) {
+            meta.insert(ov::internal::mlir_meta::result_events(&result_events));
+        }
+        event::ptr marker;
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
-            events_list.reserve(dependent_events.size() + 1);
+            std::vector<event::ptr> depends;
+            depends.reserve(dependent_events.size());
             for (auto& ev : dependent_events) {
+                if (!ev) {
+                    continue;
+                }
                 if (void* cl_ev = ev->get_handle()) {
                     events_list.push_back(cl_ev);
                 } else {
-                    OPENVINO_THROW("Unsupported event type");
+                    depends.push_back(ev);
                 }
             }
-            meta.insert(ov::internal::mlir_meta::wait_list(events_list));
-            // 'cl_event' is a pointer itself, that's why we pass pointer to a pointer here.
-            meta.insert(ov::internal::mlir_meta::result_event(reinterpret_cast<void**>(result_event)));
+            if (!depends.empty()) {
+                marker = stream.enqueue_marker(depends, true);
+                if (void* cl_ev = marker->get_handle()) {
+                    events_list.push_back(cl_ev);
+                }
+            }
+            if (!events_list.empty()) {
+                meta.insert(ov::internal::mlir_meta::wait_list(events_list));
+            }
         }
 
         OPENVINO_ASSERT(op->evaluate(
                         output_gpu_tensors, input_gpu_tensors, meta),
                         "[GPU] Couldn't execute MLIROp ", op->get_friendly_name());
 
-        event::ptr ev;
-        if (stream.get_queue_type() == QueueTypes::out_of_order) {
-            OPENVINO_ASSERT(result_event != nullptr, "Result cl_event is not set");
-            ev = stream.create_base_event(*result_event);
-        } else {
-            ev = stream.create_user_event(true);
+        if (!result_events.empty()) {
+            std::vector<event::ptr> events;
+            events.reserve(result_events.size());
+            for (auto event : result_events) {
+                events.push_back(stream.create_base_event(event));
+            }
+            return stream.aggregate_events(events, true);
         }
 
-        return ev;
+        OPENVINO_ASSERT(!need_result_events, "Result cl_events are not set");
+        return stream.create_user_event(true);
     }
 
     static std::unique_ptr<primitive_impl> create(const mlir_primitive_node& arg,

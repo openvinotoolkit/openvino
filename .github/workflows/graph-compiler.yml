@@ -9,7 +9,7 @@ permissions:
 
 env:
   GC_REPO: https://x-access-token:${{ secrets.GC_TOKEN }}@github.com/intel-sandbox/graph-compiler
-  GC_TAG: main
+  GC_TAG: ap/ocl-events
   BUILD_DIR: ${{ github.workspace }}-gc-build
   OUTPUT_DIR: ${{ github.workspace }}-gc-bin
 
