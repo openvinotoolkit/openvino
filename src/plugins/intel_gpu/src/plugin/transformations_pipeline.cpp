@@ -114,6 +114,7 @@
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
+#include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
@@ -1653,6 +1654,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
+        // Absorb a trailing Transpose({0,2,1,3}) into the SDPA output order so
+        // the attention output-projection FC reads a contiguous [S, H*D] input.
+        manager.register_pass<ov::intel_gpu::SDPATransposeFusion>();
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();

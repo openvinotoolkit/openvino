@@ -18,6 +18,15 @@
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
+// When output_transpose_order is non-identity (e.g. {0,2,1,3} heads<->seq swap),
+// the physical output buffer is transposed.  SDPA_OUTPUT_GET_INDEX remaps logical
+// (batch, heads, seq, head_size) indices through the transpose order to physical pitches.
+#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
+    #define SDPA_OUTPUT_GET_INDEX(b, h, s, d)  OUTPUT_GET_INDEX(b, s, h, d)
+#else
+    #define SDPA_OUTPUT_GET_INDEX(b, h, s, d)  OUTPUT_GET_INDEX(b, h, s, d)
+#endif
+
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
@@ -922,7 +931,7 @@ KERNEL(sdpa_opt)(
         } else {
             const uint seq_idx_end = 1;
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
-                const uint output_offset = OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx + seq_idx, head_size_idx);
+                const uint output_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx + seq_idx, head_size_idx);
                 output[output_offset] = acc[seq_idx];
             }
         }
@@ -2607,8 +2616,12 @@ KERNEL(sdpa_opt)(
         uint output_offset = block_start_pos * V_HEAD_SIZE * NUM_HEADS + num_heads_dim * V_HEAD_SIZE + sgid * SUBGROUP_SIZE;
         const uint output_pitch = V_HEAD_SIZE * NUM_HEADS;
 #else
-        uint output_offset = OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx, sgid * SUBGROUP_SIZE);
-        const uint output_pitch = V_HEAD_SIZE;
+        uint output_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx, sgid * SUBGROUP_SIZE);
+#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
+        const uint output_pitch = V_HEAD_SIZE * NUM_HEADS;  // seq stride = FEATURE pitch in [B,S,H,D]
+#else
+        const uint output_pitch = V_HEAD_SIZE;              // seq stride = Y pitch in [B,H,S,D]
+#endif
 #endif
 
         #ifdef V_HEAD_SIZE_LEFTOVER
@@ -2786,8 +2799,13 @@ KERNEL(sdpa_opt_finalization_stage)(
             acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
     }
     const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * V_HEAD_SIZE) +
+#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
+                            target_seq_idx * (NUM_HEADS * V_HEAD_SIZE) +
+                            b1_idx * (V_HEAD_SIZE) +
+#else
                             b1_idx * (TARGET_SEQ_LEN * V_HEAD_SIZE) +
                             target_seq_idx * (V_HEAD_SIZE) +
+#endif
                             local_id;
 
     output[out_offset] = TO_OUTPUT_TYPE(acc) / TO_OUTPUT_TYPE(global_exp_sum);
