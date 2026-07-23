@@ -2378,8 +2378,9 @@ TEST_P(permute_f_y_axes_tile, combined) {
 // Constraints (see PermuteKernel_xy_swap::Validate):
 //   * 4D plain bfyx layout only.
 //   * Order must be {0, 1, 3, 2}.
-//   * Both X and Y must be divisible by one of the supported tile sizes (32 or 16).
 //   * No dynamic shapes; pitches must equal logical dims.
+// X and Y need NOT be tile-aligned: when neither divides a supported tile size
+// (32/16) the kernel uses a WG_DIM tile with per-tile remainder handling.
 // Sizes here use the test convention {B, F, Y, X}.
 class permute_xy_swap : public TiledPermuteTest {};
 
@@ -2399,6 +2400,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_xy_swap,
                              // larger / batched
                              {{1, 32, 128, 64}, format::bfyx},
                              {{4, 16, 64, 128}, format::bfyx},
+                             // remainder path (X and/or Y not tile-aligned)
+                             {{1, 16, 72, 256}, format::bfyx},  // Y=72 ragged (pi05 K-transpose)
+                             {{1, 16, 256, 72}, format::bfyx},  // X=72 ragged (reverse)
+                             {{2, 3, 72, 100}, format::bfyx},   // both X and Y ragged
+                             {{1, 1, 17, 33}, format::bfyx},    // both ragged, small
+                             {{3, 5, 100, 72}, format::bfyx},   // both ragged, batched
+                             {{1, 8, 24, 40}, format::bfyx},    // both ragged (24, 40)
                          }),
                          TiledPermuteTest::PrintToStringParamName);
 
