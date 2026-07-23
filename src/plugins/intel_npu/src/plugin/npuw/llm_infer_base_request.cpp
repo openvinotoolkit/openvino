@@ -49,7 +49,12 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     }
 }
 
-void ov::npuw::LLMInferBaseRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+void ov::npuw::LLMInferBaseRequest::init_tensor(const ov::Output<const ov::Node>& port,
+                                                std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> const_tensors) {
+    auto port_name = *port.get_names().begin();
+    if (const_tensors.find(port_name) != const_tensors.end()) {
+        return;
+    }
     ov::SoPtr<ITensor> tensor;
     tensor = ov::ISyncInferRequest::get_tensor(port);
 
@@ -70,11 +75,11 @@ void ov::npuw::LLMInferBaseRequest::init_tensor(const ov::Output<const ov::Node>
     }
 }
 
-void ov::npuw::LLMInferBaseRequest::init_ports() {
+void ov::npuw::LLMInferBaseRequest::init_ports(std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> const_tensors) {
     for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
-        init_tensor(input_port);
+        init_tensor(input_port, const_tensors);
     }
     for (const auto& output_port : m_npuw_llm_compiled_model->outputs()) {
-        init_tensor(output_port);
+        init_tensor(output_port, const_tensors);
     }
 }

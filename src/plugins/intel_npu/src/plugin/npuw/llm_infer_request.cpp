@@ -239,7 +239,7 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
-    init_ports();
+    init_ports(compiled_model->m_separate_vocab_tensors);
 
     auto input_ids_port =
         ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
@@ -333,6 +333,20 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (compiled_model->m_lm_head_compiled) {
         m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
         OPENVINO_ASSERT(m_lm_head_request);
+        if (compiled_model->m_separate_vocab_tensors.size() > 0) {
+            for (const auto& [name, tensor] : compiled_model->m_separate_vocab_tensors) {
+                m_prefill_request->set_tensor(m_prefill_in_ports.at(name), tensor);
+                for (auto& generate_req : m_generate_requests) {
+                    const auto& variant_in_ports = m_generate_variant_in_ports.at(generate_req);
+                    generate_req->set_tensor(variant_in_ports.at(name),
+                                            tensor);
+                }                    
+                auto lm_head_port =
+                    ov::npuw::util::find_port_by_name(compiled_model->m_lm_head_compiled->inputs(), name).value();
+                m_lm_head_request->set_tensor(lm_head_port, tensor);
+            }
+        }
+
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
         m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),

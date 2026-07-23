@@ -118,6 +118,7 @@ protected:
     // Used to propagate dummy tensors to sub-requests on conversation reset, ensuring that
     // sub-requests also release stale block tensor refs.
     std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_generate_base_requests;
+    bool vocab_as_input = false;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
