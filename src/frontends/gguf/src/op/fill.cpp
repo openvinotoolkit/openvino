@@ -8,6 +8,7 @@
 
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
 
 #include "node_context.hpp"
@@ -29,7 +30,13 @@ OutputVector translate_fill(const NodeContext& context) {
     auto x = context.get_input(0);
     float fill_value = context.get_attribute<float>("fill_value");
 
-    auto val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {fill_value});
+    ov::Output<ov::Node> val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {fill_value});
+    // Emit the fill scalar in the output type so the result matches the ggml tensor's dtype (the
+    // broadcast target keeps the shape; the type comes from the scalar).
+    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    if (output_type.is_static() && output_type != ov::element::f32) {
+        val = std::make_shared<ov::op::v0::Convert>(val, output_type);
+    }
     auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(x, ov::element::i64);
     auto res = std::make_shared<ov::op::v3::Broadcast>(val, target_shape);
 

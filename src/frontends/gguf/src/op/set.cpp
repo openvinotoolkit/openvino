@@ -31,10 +31,17 @@ namespace op {
 OutputVector translate_set(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
-    auto dst = context.get_input(0);
-    auto src = context.get_input(1);
+    ov::Output<ov::Node> dst = context.get_input(0);
+    ov::Output<ov::Node> src = context.get_input(1);
 
-    src = std::make_shared<ov::op::v0::Convert>(src, context.get_attribute<ov::element::Type>("output_type"));
+    // ScatterUpdate requires data (dst) and updates (src) to share an element type. ggml's SET keeps
+    // the destination's type as the result type, so cast both operands to output_type (a no-op when
+    // dst is already that type, the common case).
+    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    src = std::make_shared<ov::op::v0::Convert>(src, output_type);
+    if (dst.get_element_type() != output_type) {
+        dst = std::make_shared<ov::op::v0::Convert>(dst, output_type);
+    }
 
     const int64_t offset_elems = context.get_attribute<int64_t>("set_offset_elems");
 
