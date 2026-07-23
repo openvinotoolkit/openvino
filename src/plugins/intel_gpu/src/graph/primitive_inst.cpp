@@ -221,15 +221,21 @@ uint32_t primitive_inst::get_network_id() const { return get_network().get_id();
 void primitive_inst::check_memory_compatibility(const memory& mem, const layout& l) const {
     // The layout with empty tensor (scalar) is regarded as 1 dimension with value 1
     bool single_value_layout = false;
+    bool mem_is_single_value = false;
     if (!l.is_dynamic()) {
         const auto& layout_ps = l.get_partial_shape();
         single_value_layout = (layout_ps.size() == 1 && layout_ps[0] == 1);
     }
-
     const auto& mem_layout = mem.get_layout();
+    if (!mem_layout.is_dynamic()) {
+        const auto& mem_ps = mem_layout.get_partial_shape();
+        mem_is_single_value = (mem_ps.size() == 1 && mem_ps[0] == 1);
+    }
+
     OPENVINO_ASSERT((mem_layout == l)
                     || l.is_dynamic()
-                    || (mem_layout.get_partial_shape().size() == 0 && single_value_layout),
+                    || (mem_layout.get_partial_shape().size() == 0 && single_value_layout)
+                    || (l.get_partial_shape().size() == 0 && mem_is_single_value),
                     "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
                     "Node layout: ", l.to_short_string(), "\n",
                     "Memory layout: ", mem_layout.to_short_string());

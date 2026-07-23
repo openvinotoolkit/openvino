@@ -253,13 +253,19 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
 
             // execution condition is the result of body network execution
-            if (body_execution_condition_mem != nullptr) {
+            if (!instance.get_condition_id().empty()) {
+                // Re-fetch the memory pointer each iteration because in dynamic
+                // models the primitive's output memory may not be allocated
+                // until after the first body execution.
                 auto execution_id = instance.get_condition_id();
-                if (body_network->has_event(execution_id)) {
-                    auto ev = body_network->get_primitive_event(execution_id);
-                    if (ev) ev->wait();
+                body_execution_condition_mem = body_network->get_primitive(execution_id)->output_memory_ptr();
+                if (body_execution_condition_mem != nullptr) {
+                    if (body_network->has_event(execution_id)) {
+                        auto ev = body_network->get_primitive_event(execution_id);
+                        if (ev) ev->wait();
+                    }
+                    execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
                 }
-                execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }
             GPU_DEBUG_IF(!execution_condition) {
                 GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;
