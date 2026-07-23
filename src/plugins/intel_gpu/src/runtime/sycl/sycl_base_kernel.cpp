@@ -70,12 +70,15 @@ void sycl_base_kernel::set_arguments(const kernel_arguments_desc& args_desc,
         using T = argument_desc::Types;
         if (ad.t == T::SCALAR) {
             a.kind = arg_t::kind_t::SCALAR;
-            if (data.scalars && ad.index < data.scalars->size())
-                a.scalar = (*data.scalars)[ad.index];
+            OPENVINO_ASSERT(data.scalars && ad.index < data.scalars->size(),
+                            "The allocated scalar is necessary to set kernel arguments.");
+            a.scalar = (*data.scalars)[ad.index];
         } else if (ad.t == T::LOCAL_MEMORY_SIZE) {
             a.kind = arg_t::kind_t::LOCAL_MEM;
-            if (data.local_memory_args && ad.index < data.local_memory_args->size())
-                a.local_size = (*data.local_memory_args)[ad.index];
+            OPENVINO_ASSERT(data.local_memory_args && ad.index < data.local_memory_args->size()
+                            && (*data.local_memory_args)[ad.index],
+                            "The allocated local memory is necessary to set kernel arguments.");
+            a.local_size = (*data.local_memory_args)[ad.index];
         } else {
             a.kind = arg_t::kind_t::BUFFER;
             a.mem = resolve_arg_mem(ad, data);
