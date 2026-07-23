@@ -23,7 +23,7 @@ class ReverseKernelRef : public KernelBaseOpenCL {
 public:
     ReverseKernelRef() : KernelBaseOpenCL("reverse_ref") {}
 
-    virtual ~ReverseKernelRef() {}
+    ~ReverseKernelRef() override {}
 
     virtual JitConstants GetJitConstants(const reverse_params& params) const;
 

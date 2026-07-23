@@ -10,7 +10,7 @@ namespace kernel_selector {
 class PoolingKernelGPURef : public PoolingKernelBase {
 public:
     PoolingKernelGPURef() : PoolingKernelBase("pooling_gpu_ref") {}
-    virtual ~PoolingKernelGPURef() {}
+    ~PoolingKernelGPURef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
