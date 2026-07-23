@@ -32,19 +32,6 @@ Quantization formats verified in the above runs: `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K
 paths; these are exercised by the unit tests but have not each been tied to a specific
 end-to-end real-model run.
 
-## Not yet supported
-
-These architectures either fail to convert, fail at inference, or produce incorrect
-output today. They are tracked as known gaps, not regressions.
-
-| Architecture | Status | Blocking issue |
-|---|---|---|
-| `gpt-oss`    | Blocked | MXFP4-packed expert weights are rejected by the frontend weight path (`unsupported weight quant type: mxfp4`). Needs the packed-MXFP4 MoE weight branch. |
-| `phi3`       | Fails   | Broadcast-merge failure during inference on the long-RoPE / sliding-window attention path. |
-| `minicpm`    | Fails   | Tensor ROI check fails at decode (`roi_end <= max_dim`); prefill succeeds but generation aborts. |
-| `hunyuan`    | Fails   | Model loads and runs but emits incoherent output — numerics are wrong. |
-| `qwen3-next` | Fails   | Gated-delta-net recurrent-state cache reorder (`inp->s_copy`) is not implemented on the swap path. Shared unfinished work — fails on all OpenVINO execution modes. |
-
 ## How verification was performed
 
 ```sh
