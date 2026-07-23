@@ -7,7 +7,8 @@
 
 Checks: >
   -*,
-  modernize-use-override
+  modernize-use-override,
+  modernize-deprecated-headers
 # Treat every enabled check as an error so they are enforced during the build.
 # Scope is controlled via 'Checks' above; matches the CPU plugin configuration.
 WarningsAsErrors: '*'
