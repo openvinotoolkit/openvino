@@ -14,7 +14,9 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -59,6 +61,13 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
 
+    // The token count T is dynamic: the stateful model is compiled once with a dynamic token axis and
+    // reused across dispatches with different token counts (prefill vs decode vs 0-token). Every
+    // T-dependent reshape uses -1 on the token axis and the Loop trip count is read at runtime, so the
+    // static T read above (convert-time only) is used solely for the fully-static dims (B/H_v/S_v/H_k).
+    (void) T;
+
+    auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto axis_2 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
 
@@ -82,14 +91,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
-        auto new_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{B, H_v, T, S_v});
+        // [B, H_v, T, S_v] with T dynamic (-1).
+        auto new_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{B, H_v, -1, S_v});
         q_bh = std::make_shared<ov::op::v1::Reshape>(q_transposed, new_shape, false);
         k_bh = std::make_shared<ov::op::v1::Reshape>(k_transposed, new_shape, false);
     }
 
-    // Merge batch and head: [B*H_v, T, last]
+    // Merge batch and head: [B*H_v, T, last] with T dynamic (-1).
     auto merge_bh = [&](ov::Output<ov::Node> x, int64_t last_dim) {
-        auto shape = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{B * H_v, T, last_dim});
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{B * H_v, -1, last_dim});
         return std::make_shared<ov::op::v1::Reshape>(x, shape, false);
     };
     auto q_m = merge_bh(q_bh, S_v);
@@ -151,7 +161,10 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         ov::OutputVector{body_cond_out, state_updated, attn_out_unsq},
         ov::ParameterVector{body_iter, body_state, body_q, body_k, body_v, body_g, body_beta});
 
-    auto trip_count = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{T});
+    // Trip count = runtime token count T, read from q_m's dynamic token axis (axis 1) rather than the
+    // convert-time constant, so the same compiled Loop runs any token count.
+    auto qm_shape = std::make_shared<ov::op::v3::ShapeOf>(q_m, ov::element::i64);
+    auto trip_count = std::make_shared<ov::op::v8::Gather>(qm_shape, axis_1, axis_0);
     auto exec_cond = ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{1}, std::vector<bool>{true});
 
     auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
@@ -167,8 +180,10 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto final_state_out = loop->get_iter_value(state_updated, -1);
     auto attn_concat_out = loop->get_concatenated_slices(attn_out_unsq, 0, 1, 1, -1, 1);
 
-    // Pack [attn | state] into ggml's output layout: OV [1, 1, T*B + S_v*B, S_v*H_v].
-    auto attn_4d_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{B, H_v, T, S_v});
+    // Pack [attn | state] into ggml's output layout: OV [1, 1, T*B + S_v*B, S_v*H_v] with the token
+    // count T dynamic. attn_4d keeps T on axis 2 as -1; the final [1,1,rows,S_v*H_v] reshape derives its
+    // row count with a -1 so the packed height (T*B + S_v*B) follows the runtime token count.
+    auto attn_4d_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{B, H_v, -1, S_v});
     auto attn_4d = std::make_shared<ov::op::v1::Reshape>(attn_concat_out, attn_4d_shape, false);
     auto attn_perm = std::make_shared<ov::op::v1::Transpose>(attn_4d, perm_0213);
     auto flat_shape_1d = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{-1});
@@ -179,8 +194,9 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto state_1d = std::make_shared<ov::op::v1::Reshape>(state_4d, flat_shape_1d, false);
 
     auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn_1d, state_1d}, 0);
+    // [1, 1, -1, S_v*H_v]: the row axis (T*B + S_v*B) is dynamic via -1.
     auto out_shape =
-        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, T * B + S_v * B, S_v * H_v});
+        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
     return rename_outputs_with_suffix({res}, context.get_name());

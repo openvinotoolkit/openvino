@@ -30,8 +30,15 @@ OutputVector translate_reshape(const NodeContext & context) {
 
     int op_case = context.get_attribute<int>("op_case", 0);
     FRONT_END_CHECK_IMPLEMENTED(
-        op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4 || op_case == 5 || op_case == 6,
+        op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4 || op_case == 5 || op_case == 6 ||
+            op_case == 7 || op_case == 8,
         "Unsupported RESHAPE case");
+
+    if (op_case == 8) {
+        // Identity reshape (ggml src ne == node ne): a no-op. Pass the input through so any dynamic
+        // token axis it carries is preserved (a static reshape would bake in the compile-time count).
+        return {context.get_input(0)};
+    }
 
     auto output_shape = context.get_output_shape().to_shape();
     std::shared_ptr<ov::Node> new_shape_node;
@@ -58,7 +65,22 @@ OutputVector translate_reshape(const NodeContext & context) {
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
 
     } else if (op_case == 6) {
-        new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, output_shape);
+        // The output layout rearranges dims relative to the input (e.g. qwen3-next q/k_conv_predelta:
+        // [128,2,8,T] -> [128,16,T,1]). The decoder supplies the OV-order target with -1 on the dynamic
+        // token axis so the stateful model reuses across token counts; fall back to the static output
+        // shape when no dynamic axis was inferred.
+        auto tgt = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
+        if (tgt.empty()) {
+            tgt.assign(output_shape.begin(), output_shape.end());
+        }
+        new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
+
+    } else if (op_case == 7) {
+        // General fully-static reshape (no dynamic token axis): reshape straight to the static
+        // output shape. Used by qwen3-next's recurrent-state predelta reshape [262144]->[16,128,128].
+        new_shape_node = ov::op::v0::Constant::create(
+            ov::element::i64, {output_shape.size()},
+            std::vector<int64_t>(output_shape.begin(), output_shape.end()));
     }
     auto res = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, false);
     return rename_outputs_with_suffix({res}, context.get_name());
