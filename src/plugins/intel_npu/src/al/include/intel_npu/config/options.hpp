@@ -233,6 +233,52 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
     }
 };
 
+// Controls the verbosity of the NPU compiler's own logging, independently of LOG_LEVEL (which controls the
+// plugin-side logging). This is a plugin-side (RunTime) option: it is never serialized to the compiler under its
+// own key. Instead the resolved value (see resolve()) is what the plugin forwards to the compiler under the
+// compiler-understood LOG_LEVEL key.
+// The option is intentionally left without a default value: an unset option means "inherit LOG_LEVEL", which
+// cannot be expressed from defaultValue() alone (it has no visibility of other options). resolve() implements
+// that fallback.
+struct COMPILER_LOG_LEVEL final : OptionBase<COMPILER_LOG_LEVEL, ov::log::Level> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_log_level.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::log::Level";
+    }
+
+    static std::string_view envVar() {
+        return "OV_NPU_COMPILER_LOG_LEVEL";
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    /**
+     * @brief Returns the effective compiler log level.
+     * @param config The configuration to resolve the compiler log level against.
+     * @return The explicitly-set COMPILER_LOG_LEVEL when present (via property or OV_NPU_COMPILER_LOG_LEVEL env
+     * var), otherwise the plugin LOG_LEVEL it inherits from.
+     */
+    static ov::log::Level resolve(const Config& config) {
+        if (config.has<COMPILER_LOG_LEVEL>()) {
+            return config.get<COMPILER_LOG_LEVEL>();
+        }
+        return config.get<LOG_LEVEL>();
+    }
+};
+
 struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     static std::string_view key() {
         return ov::intel_npu::platform.name();

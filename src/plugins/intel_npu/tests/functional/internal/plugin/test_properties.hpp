@@ -8,12 +8,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <exception>
 #include <memory>
 #include <random>
 #include <thread>
+#include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -91,6 +93,7 @@ public:
         npu_config.enable(std::move(o_name), false);          \
     } while (0)
         REGISTER_OPTION(LOG_LEVEL);
+        REGISTER_OPTION(COMPILER_LOG_LEVEL);
         REGISTER_OPTION(CACHE_DIR);
         REGISTER_OPTION(CACHE_MODE);
         REGISTER_OPTION(COMPILED_BLOB);
@@ -213,6 +216,29 @@ TEST_P(PropertiesManagerTests, ExpectRunTimeSpecialBothPropertyIsSupported) {
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     ASSERT_TRUE(isSupported);
+}
+
+using CompilerLogLevelPropertyTests = PropertiesManagerTests;
+
+TEST_P(CompilerLogLevelPropertyTests, InheritsPluginLogLevelWhenUnset) {
+    propertiesManager->setProperty({{ov::log::level(ov::log::Level::DEBUG)}});
+
+    ov::Any retrieved;
+    OV_ASSERT_NO_THROW(retrieved = propertiesManager->getProperty(ov::intel_npu::compiler_log_level.name()));
+    ASSERT_EQ(retrieved.as<ov::log::Level>(), ov::log::Level::DEBUG);
+}
+
+TEST_P(CompilerLogLevelPropertyTests, IsIndependentFromLogLevel) {
+    propertiesManager->setProperty({{ov::log::level(ov::log::Level::DEBUG)},
+                                    {ov::intel_npu::compiler_log_level(ov::log::Level::ERR)}});
+
+    ov::Any compilerLevel;
+    OV_ASSERT_NO_THROW(compilerLevel = propertiesManager->getProperty(ov::intel_npu::compiler_log_level.name()));
+    ASSERT_EQ(compilerLevel.as<ov::log::Level>(), ov::log::Level::ERR);
+
+    ov::Any pluginLevel;
+    OV_ASSERT_NO_THROW(pluginLevel = propertiesManager->getProperty(ov::log::level.name()));
+    ASSERT_EQ(pluginLevel.as<ov::log::Level>(), ov::log::Level::DEBUG);
 }
 
 using CompatibilityCheckTests = PropertiesManagerTests;

@@ -779,6 +779,29 @@ std::string serializeConfig(const FilteredConfig& config,
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
 
+    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
+    // NPU_COMPILER_LOG_LEVEL, forward that (resolved) value to the compiler under LOG_LEVEL, replacing whatever the
+    // plugin LOG_LEVEL contributed. When NPU_COMPILER_LOG_LEVEL is unset, the compiler keeps inheriting the plugin
+    // LOG_LEVEL exactly as before (this branch is a no-op), preserving backward compatibility.
+    if (config.has<COMPILER_LOG_LEVEL>()) {
+        std::ostringstream levelStr;
+        levelStr << COMPILER_LOG_LEVEL::resolve(config);
+        std::ostringstream logLevelEntry;
+        logLevelEntry << ov::log::level.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << levelStr.str()
+                      << VALUE_DELIMITER;
+
+        std::ostringstream existingLogLevel;
+        existingLogLevel << ov::log::level.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+        if (std::regex_search(content, std::regex(existingLogLevel.str()))) {
+            content = std::regex_replace(content, std::regex(existingLogLevel.str()), logLevelEntry.str());
+        } else {
+            if (!content.empty()) {
+                content += " ";
+            }
+            content += logLevelEntry.str();
+        }
+    }
+
     // Special cases
     const auto& removeOptionIfUnsupported = [&](const std::string& optionName) {
         if (std::regex_search(content, std::regex(optionName))) {

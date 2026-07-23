@@ -22,7 +22,8 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompiler
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                                       ov::intel_npu::CompilerType& compilerType,
-                                                                      std::string_view platform) const {
+                                                                      std::string_view platform,
+                                                                      const std::optional<ov::log::Level>& compilerLogLevel) const {
     const auto device = engineBackend != nullptr ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
@@ -32,7 +33,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
                 if (_pluginCompilerIsPresent) {
                     try {
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                                       device->getDeviceProperties());
+                                                                       device->getDeviceProperties(),
+                                                                       compilerLogLevel);
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
                         compilerType = ov::intel_npu::CompilerType::DRIVER;
@@ -50,10 +52,12 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
         if (device == nullptr) {
-            return std::make_unique<PluginCompilerAdapter>(nullptr);
+            return std::make_unique<PluginCompilerAdapter>(nullptr, std::nullopt, compilerLogLevel);
         }
 
-        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(), device->getDeviceProperties());
+        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
+                                                       device->getDeviceProperties(),
+                                                       compilerLogLevel);
     } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
         if (device == nullptr) {
             OPENVINO_THROW("Could not find an NPU device. The driver compiler requires a valid device to be present in "

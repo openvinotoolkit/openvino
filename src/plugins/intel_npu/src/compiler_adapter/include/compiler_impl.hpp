@@ -14,14 +14,24 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
+    /**
+     * @brief Constructs the in-process VCL compiler, loading it from the given library directory.
+     * @param libraryDir Directory containing the VCL compiler library.
+     * @param deviceProperties Device properties to pass to the compiler, if a device is available.
+     * @param compilerLogLevel Verbosity of the compiler's own logging. When left unset, it
+     * falls back to the global plugin logger level. It is deliberately decoupled from the plugin
+     * LOG_LEVEL so compiler verbosity can be controlled independently via NPU_COMPILER_LOG_LEVEL.
+     */
     VCLCompilerImpl(const std::string& libraryDir,
-                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
+                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
+                    const std::optional<ov::log::Level>& compilerLogLevel = std::nullopt);
     ~VCLCompilerImpl();
 
     /**
