@@ -54,7 +54,7 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
         return CL_INVALID_ARG_VALUE;
 
     GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
-    return kernel.setArg(idx, size, NULL);
+    return kernel.setArg(idx, size, nullptr);
 }
 
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
