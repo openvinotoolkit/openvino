@@ -106,8 +106,8 @@ static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
  * @brief [Only for NPU Plugin]
  * Type: ov::log::Level
  * Controls the verbosity of the NPU compiler's own logging, independently of ov::log::level (which
- * controls the plugin-side logging). This lets a user raise plugin logging (e.g. ov::log::Level::DEBUG)
- * without also enabling the compiler's much more verbose internal logging, and vice versa.
+ * controls the plugin-side logging). This lets a user raise plugin logging without also enabling
+ * the compiler's much more verbose internal logging, and vice versa.
  * @note If this property is not set, the compiler log level inherits the value of ov::log::level.
  * @ingroup ov_runtime_npu_prop_cpp_api
  */

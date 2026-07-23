@@ -125,9 +125,6 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
 
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
-    // The compiler's own log verbosity is driven by NPU_COMPILER_LOG_LEVEL when set (threaded in as
-    // compilerLogLevel), otherwise it inherits the plugin log level. The +1 maps ov::log::Level (NO=-1..TRACE=4)
-    // onto __vcl_log_level_t (VCL_LOG_NONE=0..).
     const ov::log::Level effectiveCompilerLogLevel = compilerLogLevel.value_or(Logger::global().level());
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(effectiveCompilerLogLevel) + 1);
 

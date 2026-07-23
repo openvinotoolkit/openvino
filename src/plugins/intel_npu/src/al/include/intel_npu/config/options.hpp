@@ -235,9 +235,9 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
 
 // Controls the verbosity of the NPU compiler's own logging, independently of LOG_LEVEL (which controls the
 // plugin-side logging). This is a plugin-side (RunTime) option: it is never serialized to the compiler under its
-// own key. Instead the resolved value (see resolve()) is what the plugin forwards to the compiler under the
+// own key. Instead the resolved value is what the plugin forwards to the compiler under the
 // compiler-understood LOG_LEVEL key.
-// The option is intentionally left without a default value: an unset option means "inherit LOG_LEVEL", which
+// The option is intentionally left without a default value: an unset option means it inherits LOG_LEVEL, which
 // cannot be expressed from defaultValue() alone (it has no visibility of other options). resolve() implements
 // that fallback.
 struct COMPILER_LOG_LEVEL final : OptionBase<COMPILER_LOG_LEVEL, ov::log::Level> {
