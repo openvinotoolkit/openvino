@@ -37,21 +37,23 @@ inline uint32_t read_u32(const void* p) noexcept {
     return v;
 }
 
+// Validates the SPIR-V module header: non-null pointer, at least the 5-word
+// header (magic, version, generator, bound, schema) present, and correct magic.
 bool is_spirv(const void* data, size_t bytes) {
-    if (!data || bytes < sizeof(uint32_t))
+    if (!data || bytes < 5 * sizeof(uint32_t))
         return false;
     return read_u32(data) == SPIRV_MAGIC;
 }
 
+// Extracts entry point names (OpEntryPoint with ExecutionModel=Kernel) from a
+// SPIR-V module. Throws if the input is not a valid SPIR-V binary.
 std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t bytes) {
+    if (!is_spirv(data, bytes)) {
+        OPENVINO_THROW("[GPU] extract_spirv_kernel_names: invalid SPIR-V binary");
+    }
+
     const size_t word_count = bytes / sizeof(uint32_t);
-    if (word_count < 5)
-        return {};
-
     const auto* p = static_cast<const uint8_t*>(data);
-
-    if (read_u32(p) != SPIRV_MAGIC)
-        return {};
 
     std::vector<std::string> names;
     size_t i = 5;  // skip the five-word header
@@ -205,10 +207,7 @@ void sycl_kernel::create_kernels(const ::sycl::context& ctx,
                                  std::vector<kernel::ptr>& out) {
     namespace syclex = ::sycl::ext::oneapi::experimental;
 
-    if (!is_spirv(spirv_binary.data(), spirv_binary.size())) {
-        OPENVINO_THROW("[GPU] sycl_kernel::create: invalid SPIR-V binary");
-    }
-
+    // extract_spirv_kernel_names throws if the binary is not a valid SPIR-V module.
     auto kernel_names = extract_spirv_kernel_names(spirv_binary.data(), spirv_binary.size());
 
     // Drop kernel names that are not executable
