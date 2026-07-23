@@ -123,6 +123,18 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_values = 8;
         config.sv_sg_per_wg_scores = 2;
     }
+
+    // Perf-investigation toggles (default off = struct/branch values above). Lets one build
+    // A/B kq_sg_tile_keys and kq_sg_per_wg_keys without a rebuild per config, to confirm the
+    // ISA-predicted "kq_sg_tile_keys=32 is slower via SLM-driven occupancy drop" finding on
+    // device time. SDPA_OCL_KQ_TILE_KEYS overrides kq_sg_tile_keys; SDPA_OCL_KQ_PER_WG_KEYS
+    // overrides kq_sg_per_wg_keys (use =4 with tile_keys=32 to hold kq_wg_tile_keys=128 and
+    // thus S_slm/occupancy constant). Remove once the investigation is done.
+    if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_KEYS"))
+        config.kq_sg_tile_keys = std::atoi(env);
+    if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_KEYS"))
+        config.kq_sg_per_wg_keys = std::atoi(env);
+
     return config;
 }
 
@@ -304,6 +316,7 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
+    // extra_options += " -cl-intel-256-GRF-per-thread";
 
     return base_options + extra_options;
 }
@@ -437,6 +450,18 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
+    const bool q_2d_compatible = ocl_config.subgroup_size == 16 &&
+                                 ov::element::Type(Q.data_type).size() == 2 &&
+                                 (head_size == 64u || head_size == 128u) &&
+                                 ldq % 16 == 0 &&
+                                 !Q.data_padding &&
+                                 !Q.data_padding.is_dynamic();
+    int q_2d = q_2d_compatible;
+    if (q_2d_compatible) {
+        if (const char* env = std::getenv("SDPA_OCL_Q_2D"))
+            q_2d = std::atoi(env);
+    }
+    jit.make("USE_2D_BLOCK_IO_Q", q_2d);
     // 2D block IO uses 16-bit reads and half-sized byte pitches for K/V, which are invalid
     // for i8 compressed KV-cache. Force the manual scalar load/dequant path in that case.
     jit.make("USE_2D_BLOCK_IO", !config.is_kv_compressed && (ldk % 16 == 0) && (ldv % 16 == 0) && (lda % 16 == 0));
