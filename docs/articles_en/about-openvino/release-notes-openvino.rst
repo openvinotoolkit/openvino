@@ -24,44 +24,44 @@ OpenVINO Release Notes
 What's New
 ++++++++++
 
-More GenAI coverage and framework integrations to minimize code changes
-------------------------------------------------------------------------
+More Gen AI coverage and frameworks integrations to minimize code changes
+-------------------------------------------------------------------------
 
 * New models supported:
 
-  * On CPU and GPU: Harrier-OSS-v1, SmolLM3-3B, Gemma-4, Qwen3-8B with EAGLE-3
+  * On CPU and GPU: Harrier-OSS-v1, SmolLM3-3B, Gemma-4, Qwen3-8B with Eagle-3
 
-  * Extended to GPU and NPU: YOLO26
+  * Extended GPU & NPUs: Yolo26
 
-  * Extended to NPU: LFM2, LFM2.5, Qwen3-VL
+  * Extended to NPUs: LFM2, LFM2.5, Qwen3-VL
 
-* Added support for Hugging Face Transformers v5.5.
+* Support for Hugging Face Transformers v5.5, ensuring compatibility with the latest model architectures on Hugging Face
 
 Broader LLM model support and more model compression techniques
 ---------------------------------------------------------------
 
-* OpenVINO™ GenAI extended the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to improve token generation on CPU, GPU, and NPU.
+* OpenVINO™ GenAI extends the EAGLE3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding TopK sampling to deliver additional tokengeneration speedups on CPUs, GPUs, and NPUs.
 
-* Enabled MoE weight offloading to disk, reducing memory requirements when running large MoE models.
+* MoE offloading to disk enabled, allowing 30B MoE models like Gemma 4 26B and Qwen330B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokenspersecond (TPS) generation rates.
 
-* Added GroupedMatMul to accelerate native execution of Mixture of Experts (MoE) models, enabling faster support for new MoE architectures and improving their out-of-the-box performance.
+* Added GroupedMatMul to accelerate native execution of MixtureofExperts (MoE) models, enabling faster support for new MoE architectures and improving their outofthebox performance.
 
-* Enabled lazy weight loading for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
+* Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
-* Added FP8 quantization support for ONNX models in the Neural Network Compression Framework (NNCF), expanding low-precision inference options.
+* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding lowprecision inference options for production deployments.
 
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
-* Added support for Intel® Xeon® 6+ processors.
+* Introducing support for Intel® Xeon® 6+ processors (formerly codenamed Clearwater Forest)
 
-* Added native Windows packages for OpenVINO GenAI and OpenVINO Tokenizers through WinGet, enabling installation with a single command.
+* OpenVINO GenAI and tokenizers are now available as a native Windows package via WinGet, allowing developers to install and get started with a single command on Windows.
 
-* OpenVINO™ Model Server simplified model deployment and unified REST API endpoints, reducing command complexity while providing standard ``v1/chat/completions`` support for integration with other serving frameworks.
+* OpenVINO™ Model Server simplifies model deployment and unifies REST API endpoints, reducing command complexity while providing standard v1/chat/completions support for easier integration with other serving frameworks.
 
-* OpenVINO™ Model Server added support for audio models, including Kokoro TTS and Qwen3-ASR, enabling speech generation and transcription workflows.
+* OpenVINO™ Model Server adds support for audio models, including Kokoro TTS and Qwen3ASR, enabling speech generation and transcription workflows.
 
-* OpenVINO™ Model Server strengthened support for LLMs with linear attention, such as Gemma 4 and Qwen3.5/6, and extended tool parser support to MiniCPM-V5 and LFM2.5.
+* OpenVINO™ Model Server further hardens support for LLMs with linear attention, (such as Gemma 4 and Qwen3.5/6), and extends toolparser support to MiniCPM5 and LFM2.5, improving accuracy and reliability.
 
 OpenVINO™ Runtime
 +++++++++++++++++
