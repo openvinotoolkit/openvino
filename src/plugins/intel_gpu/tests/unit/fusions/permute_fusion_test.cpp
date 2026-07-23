@@ -11,8 +11,12 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <openvino/runtime/core.hpp>
 #include <openvino/core/model.hpp>

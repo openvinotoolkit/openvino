@@ -47,7 +47,7 @@
 #include "lstm_seq_inst.h"
 #include "group_normalization_inst.h"
 #include "to_string_utils.h"
-#include "fused_shape_utils.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 #include <vector>
 #include <memory>
 #include <utility>
