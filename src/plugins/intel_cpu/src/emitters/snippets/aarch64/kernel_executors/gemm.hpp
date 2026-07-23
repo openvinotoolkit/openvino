@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
@@ -16,6 +17,7 @@
 #include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp_qsi8cxp_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -153,6 +155,8 @@ private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        GemmKernelKaiConfig& config) const override;
+
+    mutable ov::threading::ThreadLocal<std::vector<uint8_t>> m_packed_lhs;
 };
 
 }  // namespace ov::intel_cpu::aarch64

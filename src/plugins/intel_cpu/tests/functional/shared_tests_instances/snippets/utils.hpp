@@ -25,10 +25,13 @@ static inline bool is_fp16_supported_by_brgemm() {
            ov::with_cpu_neon_fp16();
 }
 
-// The shared snippets i8 tests require BRGEMM post-op/fusion coverage.
-static inline bool is_i8_supported() {
+static inline bool is_i8_supported_by_brgemm() {
     return ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni() ||
            ov::with_cpu_x86_avx512_core_amx_int8();
+}
+
+static inline bool is_i8_supported() {
+    return is_i8_supported_by_brgemm() || ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm();
 }
 
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {

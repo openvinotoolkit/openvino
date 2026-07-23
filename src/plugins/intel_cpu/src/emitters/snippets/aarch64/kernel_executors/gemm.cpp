@@ -179,7 +179,8 @@ static void pack_lhs_i8(const uint8_t* src,
 
 static void execute_i8_impl(const GemmKernelKaiConfig& config,
                             const GemmKaiCallArgs* args,
-                            const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel& ukernel) {
+                            const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel& ukernel,
+                            std::vector<uint8_t>& packed_lhs) {
     const auto& M = config.get_M();
     const auto& N = config.get_N();
     const auto& K = config.get_K();
@@ -188,7 +189,7 @@ static void execute_i8_impl(const GemmKernelKaiConfig& config,
 
     const size_t packed_lhs_size =
         kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(M, K, ukernel.get_mr(), ukernel.get_kr(), ukernel.get_sr());
-    std::vector<uint8_t> packed_lhs(packed_lhs_size);
+    packed_lhs.resize(packed_lhs_size);
     pack_lhs_i8(static_cast<const uint8_t*>(args->A),
                 M,
                 K,
@@ -301,7 +302,8 @@ void GemmI8KaiKernelExecutor::execute(const GemmI8KaiKernelExecutor* executor, c
     OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
     execute_i8_impl(static_cast<const GemmKernelKaiConfig&>(executor->get_config()),
                     args,
-                    *executor->get_kernel()->gemm_ukernel);
+                    *executor->get_kernel()->gemm_ukernel,
+                    executor->m_packed_lhs.local());
 }
 
 }  // namespace ov::intel_cpu::aarch64
