@@ -27,6 +27,7 @@ public:
                        const std::string& options,
                        std::vector<kernel::ptr>& out) const override;
 
+private:
     const sycl_device& _device;
 };
 
