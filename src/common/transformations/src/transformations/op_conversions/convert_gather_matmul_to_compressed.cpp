@@ -14,6 +14,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -23,6 +24,8 @@
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
+
+namespace v0 = ov::op::v0;
 
 ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGatherMatmulCompressed(
     const std::vector<ov::element::Type>& supported_activation_types,
@@ -63,12 +66,20 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
                                                                                                   batched_weights,
                                                                                                   result_nodes);
 
+        // [DBG] VCL can't handle element::dynamic ZP placeholder; use weight element type.
+        // GPU detects "no ZP" via count()==0 (not element type), so changing the type is safe.
+        std::shared_ptr<ov::Node> final_zp = bgm_input_zp;
+        if (bgm_input_zp->get_output_element_type(0) == ov::element::dynamic) {
+            const auto weight_et = weights_block->get_anchor("weights", pattern_map).value().get_element_type();
+            final_zp = v0::Constant::create(weight_et, ov::Shape{0}, std::vector<int>{0});
+            result_nodes.push_back(final_zp);
+        }
         auto new_bgm = std::make_shared<GatherMatmulCompressed>(pattern_map.at(activation),
                                                                 bgm_input_b,
                                                                 pattern_map.at(indices),
                                                                 pattern_map.at(bias),
                                                                 bgm_input_scale,
-                                                                bgm_input_zp);
+                                                                final_zp);
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
