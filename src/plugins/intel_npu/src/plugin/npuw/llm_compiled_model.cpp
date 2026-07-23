@@ -489,14 +489,21 @@ void apply_moe_config(ov::AnyMap& stage_config,
                       const std::string& stage_name) {
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
         LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
-        // MoE expert and router pattern isolation options
+        // Set NPUW_ONLINE_ISOLATE separately: append "MOE" to any existing preset (e.g. "ATTN")
+        // instead of using merge_config_with, which would silently overwrite it.
         const ov::AnyMap expert_opts = {
             {"NPUW_ONLINE_PIPELINE", "REP"},
-            {"NPUW_ONLINE_ISOLATE", "MOE"},
             {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
+        auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
+        if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
+            isol_it->second = isol_it->second.as<std::string>() + ",MOE";
+            LOG_INFO("MoE config: appended MOE to NPUW_ONLINE_ISOLATE -> " << isol_it->second.as<std::string>());
+        } else {
+            stage_config["NPUW_ONLINE_ISOLATE"] = "MOE";
+        }
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
         if (stage_name == "PREFILL") {
             NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "

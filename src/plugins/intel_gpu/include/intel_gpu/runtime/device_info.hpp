@@ -146,7 +146,7 @@ struct device_info {
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
     std::optional<uint32_t> cacheline_size;     ///< Cache line size in bytes
-
+    std::optional<uint32_t> sub_buffer_base_alignment;  ///< Alignment requirement (in bytes) for sub-buffer offsets
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 
     uint64_t timer_resolution;                  ///< [ZE] Resolution of device timer used for profiling in cycles/sec
