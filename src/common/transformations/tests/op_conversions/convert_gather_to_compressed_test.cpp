@@ -304,3 +304,63 @@ TEST_F(TransformationTestsF, MoveDecompressionAfterGatherMultiConsumer) {
                                                 ov::ParameterVector{indices, matmul_input});
     }
 }
+
+// GatherBlockQuantized symmetric (no zero_point) path: the ONNX FE emits
+// Constant(u4 [V,nb,bs]) -> Convert(f32) -> Multiply(scale [V,nb,1]) -> Reshape 3D->2D [V,H] -> Gather.
+// This must fuse to GatherCompressed(u4 [V,H], indices, axis, 0, scale [V,nb]) with NO zero_point.
+// (Test4 above covers the with-zp variant; this locks in the symmetric branch used by int4/uint4 embeddings.)
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_GBQ_NoZP_U4) {
+    {
+        auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        auto weights_const = v0::Constant::create(ov::element::u4, ov::Shape{32, 4, 4}, {1});
+        auto convert = std::make_shared<v0::Convert>(weights_const, ov::element::f32);
+        auto scale_const = v0::Constant::create(ov::element::f32, ov::Shape{32, 4, 1}, {1});
+        auto scale = std::make_shared<v1::Multiply>(convert, scale_const);
+        auto reshape_const = v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 16});
+        auto reshape = std::make_shared<v1::Reshape>(scale, reshape_const, false);
+        auto gather = std::make_shared<v8::Gather>(reshape, input1, axis_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertGatherToGatherCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        auto weights_const = v0::Constant::create(ov::element::u4, ov::Shape{32, 16}, {1});
+        auto scale_const = v0::Constant::create(ov::element::f32, ov::Shape{32, 4}, {1});
+        auto gather_compressed =
+            std::make_shared<ov::op::internal::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gather_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+// GatherBlockQuantized with float16 scales (no zero_point): the dequant precision follows the scales, so the
+// Gather runs directly on f16 with no trailing Convert to f32. GatherCompressed output must be f16.
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_GBQ_NoZP_FP16) {
+    {
+        auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        auto weights_const = v0::Constant::create(ov::element::u4, ov::Shape{32, 4, 4}, {1});
+        auto convert = std::make_shared<v0::Convert>(weights_const, ov::element::f16);
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{32, 4, 1}, {1});
+        auto scale = std::make_shared<v1::Multiply>(convert, scale_const);
+        auto reshape_const = v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 16});
+        auto reshape = std::make_shared<v1::Reshape>(scale, reshape_const, false);
+        auto gather = std::make_shared<v8::Gather>(reshape, input1, axis_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertGatherToGatherCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        auto weights_const = v0::Constant::create(ov::element::u4, ov::Shape{32, 16}, {1});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{32, 4}, {1});
+        auto gather_compressed =
+            std::make_shared<ov::op::internal::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gather_compressed}, ov::ParameterVector{input1});
+    }
+}
