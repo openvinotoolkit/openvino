@@ -130,6 +130,15 @@ Step 1: Download and Install the OpenVINO Core Components
             tar -xf openvino_2026.3.0.tgz
             sudo mv openvino_toolkit_ubuntu22_2026.3.0.22446.ce03a15d415_arm64 /opt/intel/openvino_2026.3.0
 
+      .. tab-item:: ARM 32-bit
+         :sync: arm-32
+
+         .. code-block:: sh
+
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_debian10_2026.2.1.21919.ede283a88e3_armhf.tgz --output openvino_2026.2.1.tgz
+            tar -xf openvino_2026.2.1.tgz
+            sudo mv openvino_toolkit_debian10_2026.2.1.21919.ede283a88e3_armhf /opt/intel/openvino_2026.2.1
+
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
    .. code-block:: sh

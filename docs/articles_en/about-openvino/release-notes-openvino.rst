@@ -24,44 +24,44 @@ OpenVINO Release Notes
 What's New
 ++++++++++
 
-More Gen AI coverage and frameworks integrations to minimize code changes
--------------------------------------------------------------------------
+More GenAI coverage and framework integrations to minimize code changes
+------------------------------------------------------------------------
 
 * New models supported:
 
-  * On CPU and GPU: Harrier-OSS-v1, SmolLM3-3B, Gemma-4, Qwen3-8B with Eagle-3
+  * On CPU and GPU: Harrier-OSS-v1, SmolLM3-3B, Gemma-4, Qwen3-8B with EAGLE-3
 
-  * Extended GPU & NPUs: Yolo26
+  * Extended to GPU and NPU: YOLO26
 
-  * Extended to NPUs: LFM2, LFM2.5, Qwen3-VL
+  * Extended to NPU: LFM2, LFM2.5, Qwen3-VL
 
-* Support for Hugging Face Transformers v5.5, ensuring compatibility with the latest model architectures on Hugging Face
+* Added support for Hugging Face Transformers v5.5.
 
 Broader LLM model support and more model compression techniques
 ---------------------------------------------------------------
 
-* OpenVINO™ GenAI extends the EAGLE3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding TopK sampling to deliver additional tokengeneration speedups on CPUs, GPUs, and NPUs.
+* OpenVINO™ GenAI extended the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to improve token generation on CPU, GPU, and NPU.
 
 * Enabled MoE weight offloading to disk, reducing memory requirements when running large MoE models.
 
-* Added GroupedMatMul to accelerate native execution of MixtureofExperts (MoE) models, enabling faster support for new MoE architectures and improving their outofthebox performance.
+* Added GroupedMatMul to accelerate native execution of Mixture of Experts (MoE) models, enabling faster support for new MoE architectures and improving their out-of-the-box performance.
 
-* Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
+* Enabled lazy weight loading for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
-* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding lowprecision inference options for production deployments.
+* Added FP8 quantization support for ONNX models in the Neural Network Compression Framework (NNCF), expanding low-precision inference options.
 
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
 * Added support for Intel® Xeon® 6+ processors.
 
-* OpenVINO GenAI and tokenizers are now available as a native Windows package via WinGet, allowing developers to install and get started with a single command on Windows.
+* Added native Windows packages for OpenVINO GenAI and OpenVINO Tokenizers through WinGet, enabling installation with a single command.
 
-* OpenVINO™ Model Server simplifies model deployment and unifies REST API endpoints, reducing command complexity while providing standard v1/chat/completions support for easier integration with other serving frameworks.
+* OpenVINO™ Model Server simplified model deployment and unified REST API endpoints, reducing command complexity while providing standard ``v1/chat/completions`` support for integration with other serving frameworks.
 
-* OpenVINO™ Model Server adds support for audio models, including Kokoro TTS and Qwen3ASR, enabling speech generation and transcription workflows.
+* OpenVINO™ Model Server added support for audio models, including Kokoro TTS and Qwen3-ASR, enabling speech generation and transcription workflows.
 
-* OpenVINO™ Model Server further hardens support for LLMs with linear attention, (such as Gemma 4 and Qwen3.5/6), and extends toolparser support to MiniCPM5 and LFM2.5, improving accuracy and reliability.
+* OpenVINO™ Model Server strengthened support for LLMs with linear attention, such as Gemma 4 and Qwen3.5/6, and extended tool parser support to MiniCPM-V5 and LFM2.5.
 
 OpenVINO™ Runtime
 +++++++++++++++++
@@ -69,18 +69,18 @@ OpenVINO™ Runtime
 Common
 ------
 
-* Introduced optimized memory management for constant weights when loading and compiling models from IR and ONNX formats on Windows, reducing peak memory usage and RAM pressure to enable inference on memory-constrained systems. Linux support was added in 26.2.
+* Introduced optimized memory management for constant weights when loading and compiling models from IR and ONNX formats on Windows, reducing peak memory usage and RAM pressure to enable inference on memory-constrained systems. Linux support was added in 2026.2.
 
 * Added official support for Ubuntu 26.04 LTS, including support for building OpenVINO from source with GCC 15.
 
 * Fixed constant folding for the Loop node, enabling a broader range of ONNX models to compile successfully during model optimization.
 
-* Resolved an XML parsing issue to safely detect and report malformed XML plugin confugration files, improving robustness and providing clearer diagnostics during plugin initialization and registration.
+* Resolved an XML parsing issue to safely detect and report malformed XML plugin configuration files, improving robustness and providing clearer diagnostics during plugin initialization and registration.
 
 CPU Device Plugin
 -----------------
 
-* Enabled tree-mask support in Paged Attention for Eagle3 Tree Sampling, broadening speculative decoding capabilities for LLM inference.
+* Enabled tree-mask support in PagedAttention for EAGLE-3 tree sampling, broadening speculative decoding capabilities for LLM inference.
 
 * Enabled Adaptive R-KV support, improving key-value cache efficiency during LLM inference.
 
@@ -113,7 +113,7 @@ NPU Device Plugin
 OpenVINO Python API
 -------------------
 
-* Updated core dependencies to include the latest security fixes and stability improvements, helping deliver a more secure and dependable OpenVINO experience.
+* Updated core dependencies with security and stability fixes.
 
 OpenVINO C API
 --------------
@@ -125,7 +125,7 @@ OpenVINO Node.js API
 
 * Added GenAI API support for ``Image2ImagePipeline`` and ``InpaintingPipeline``.
 
-* Added image decoding support for image generation pipeline.
+* Added image decoding support for the image generation pipeline.
 
 * Refactored ``InitWorker`` to throw catchable errors for easier problem diagnosis.
 
@@ -169,9 +169,9 @@ OpenVINO Model Server
 
 * Simplified deployment of classic models by enabling direct deployment without versioning by pointing ``--model_path`` to a model file, in addition to a folder with model versions.
 
-* Extended OVMS CLI support for easier configuration and deployment of local models, including the ability to add classic models to multi-model config file alongside generative models.
+* Extended OVMS CLI support for configuring and deploying local models, including the ability to add classic and generative models to the same multi-model configuration file.
 
-* Preview support for Kokoro model in OpenAI API ``/audio/speech`` endpoint, including multi-language support via the optional eSpeak component.
+* Preview: Added support for the Kokoro model in the OpenAI API ``/audio/speech`` endpoint, including multilingual support through the optional eSpeak component.
 
 * Extended support for Automatic Speech Recognition (ASR) models beyond the Whisper model family, enabling more generic audio endpoint support for models such as Qwen-ASR.
 
@@ -181,14 +181,12 @@ OpenVINO Model Server
 
 * Preview: Added support for Omni models.
 
-* Dropped support for the TensorFlow Serving (TFS) API. KServe API is recommended for classic model deployments.
-
 Neural Network Compression Framework
 ++++++++++++++++++++++++++++++++++++
 
-* Added FP8 support for ONNX backend, enabling both full and weight-only quantized FP8 ONNX models via NNCF.
+* Added FP8 support for the ONNX backend, enabling both full and weight-only quantized FP8 ONNX models through NNCF.
 
-* Added preliminary support for INT2 and INT3 data types for weight compression via ``nncf.compress_weights()`` for OpenVINO backend.
+* Added preliminary support for INT2 and INT3 data types for weight compression through ``nncf.compress_weights()`` for the OpenVINO backend.
 
 * Added support for the GroupedMatMul operation in data-free weight compression.
 
@@ -197,26 +195,26 @@ Neural Network Compression Framework
 OpenVINO Tokenizers
 +++++++++++++++++++
 
-* Optimized BPE node performance and internal caching, delivering significant end-to-end performance improvements for tokenizer workloads.
+* Optimized BPE node performance and internal caching, improving end-to-end performance for tokenizer workloads.
 
-* Improve compatibility with Hugging Face Transformers v5.7 and later.
+* Improved compatibility with Hugging Face Transformers v5.7 and later.
 
-* Add ONNX translators for SentencepieceTokenizer, SentencepieceDecoder, VectorToString, StringJoin and StringSplit operations.
+* Added ONNX translators for SentencepieceTokenizer, SentencepieceDecoder, VectorToString, StringJoin, and StringSplit operations.
 
 OpenVINO GenAI
 ++++++++++++++
 
 * Introduced new pipelines:
 
-  * Preview: Introduced ``OmniPipeline`` with support for Qwen3-Omni, enabling multimodal understanding with combined text and speech output.
+  * Preview: Added ``OmniPipeline`` with support for Qwen3-Omni, enabling multimodal understanding with combined text and speech output.
 
-  * ``EmbeddingPipeline`` enables multimodal embedding generation with Qwen3-VL-Embedding.
+  * Added ``EmbeddingPipeline`` for multimodal embedding generation with Qwen3-VL-Embedding.
 
-  * ``ASRPipeline`` provides a common interface for automatic speech recognition models.
+  * Added ``ASRPipeline`` as a common interface for automatic speech recognition models.
 
-* Added Kokoro text-to-speech model support to Text2SpeechPipeline.
+* Added Kokoro text-to-speech model support to ``Text2SpeechPipeline``.
 
-* Support for speech recognition with Qwen3-ASR.
+* Added support for speech recognition with Qwen3-ASR.
 
 * Extended VLM support to include Gemma 3n and Gemma 4 12B. Gemma 4 models also support the PagedAttention backend and stateful multi-token prediction.
 
@@ -224,7 +222,7 @@ OpenVINO GenAI
 
 * Enabled CDPruner visual token pruning for Qwen3-VL, reducing KV cache usage and improving TTFT and throughput.
 
-* Extended the EAGLE 3 speculative decoding pipeline to LLMs and VLMs, enhancing continuous batching and adding Top-K sampling to deliver additional token generation speedups on CPU, GPU, and NPU.
+* Extended the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing continuous batching and adding Top-K sampling to improve token generation on CPU, GPU, and NPU.
 
 * Improved VideoChat-Flash vision encoder performance.
 
@@ -232,7 +230,7 @@ OpenVINO GenAI
 
 * Extended performance metrics to report LLM sampling duration and per-stage speech recognition latency.
 
-* Improve ``apply_chat_template`` performance by caching compiled Minja templates resulting in reduced TTFT during generation.
+* Improved ``apply_chat_template`` performance by caching compiled Minja templates, reducing TTFT during generation.
 
 Other Changes and Known Issues
 ++++++++++++++++++++++++++++++
