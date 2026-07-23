@@ -23,6 +23,16 @@ bool ov::npuw::batched::requested(const std::shared_ptr<ov::npuw::ICompiledModel
            is_enabled(ov::intel_npu::npuw::text_embed::enabled.name());
 }
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::create(
+    const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
+    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (!requested(inner)) {
+        return inner;
+    }
+    LOG_INFO("Wrapping with ov::npuw::batched::CompiledModel.");
+    return std::make_shared<CompiledModel>(inner, plugin);
+}
+
 ov::npuw::batched::CompiledModel::CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
                                                 const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::npuw::ICompiledModel(nullptr, plugin),  // I/O comes from the inner via inputs()/outputs()

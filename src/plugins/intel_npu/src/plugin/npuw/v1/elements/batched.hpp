@@ -19,9 +19,8 @@ namespace ov::npuw::batched {
 // True when the given compiled model is tagged for batched single-shot scoring --
 // currently the text rerank and text embedding pipelines. The tag is read from the
 // model's own properties (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED, recorded in its config
-// and serialized with it into the blob), so both entry points --
-// npuw::ICompiledModel::create on compile and the NPUW import path on blob import --
-// decide identically whether to apply the batched element.
+// and serialized with it into the blob), which is what lets CompiledModel::create()
+// decide identically at both NPUW entry points.
 bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 
 // A compiled-model decorator that adds batched (batch > 1) execution on top of an
@@ -42,13 +41,20 @@ bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 // identical and batching is purely a throughput/ergonomics choice. It is NOT
 // valid for autoregressive generation, where state must persist across calls.
 //
-// It is instantiated at the NPUW entry points only: npuw::ICompiledModel::create()
-// on compilation and the plugin's NPUW import path on blob import (the element is
-// runtime-only and is not part of the serialized blob). Both wrap the
-// LLMCompiledModel produced there from the very same model, which is what
-// guarantees the inner is the matching batch-1 compilation.
+// It is applied via create() at the NPUW entry points only:
+// npuw::ICompiledModel::create() on compilation and the plugin's NPUW import path
+// on blob import (the element is runtime-only and is not part of the serialized
+// blob). Both wrap the LLMCompiledModel produced there from the very same model,
+// which is what guarantees the inner is the matching batch-1 compilation.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
+    // Factory used by the NPUW entry points. Returns the inner model unwrapped
+    // when it is not tagged for batched scoring (see requested()), keeping the
+    // untagged path zero-overhead -- the same convention as the other elements'
+    // create() no-op paths.
+    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
+                                                            const std::shared_ptr<const ov::IPlugin>& plugin);
+
     CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
                   const std::shared_ptr<const ov::IPlugin>& plugin);
 

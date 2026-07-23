@@ -174,15 +174,15 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                 return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
                 // Properties are required for ov::weights_path
-                auto llm_compiled_model = ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+                //
                 // The batched-scoring element is a runtime-only decorator and is not
-                // part of the blob - re-apply it by querying the imported model, whose
-                // scoring tag is restored from the blob (or re-supplied with the import
-                // properties), mirroring ov::npuw::ICompiledModel::create().
-                if (ov::npuw::batched::requested(llm_compiled_model)) {
-                    return std::make_shared<ov::npuw::batched::CompiledModel>(llm_compiled_model, pluginSO);
-                }
-                return llm_compiled_model;
+                // part of the blob - batched::CompiledModel::create() re-applies it to
+                // the imported model, whose scoring tag is restored from the blob (or
+                // re-supplied with the import properties), mirroring the compile-side
+                // entry point in ov::npuw::ICompiledModel::create().
+                return ov::npuw::batched::CompiledModel::create(
+                    ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties),
+                    pluginSO);
             } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
                 OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
                                "the current ORC serializer.");

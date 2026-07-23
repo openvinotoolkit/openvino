@@ -245,6 +245,24 @@ TEST_F(NPUWBatchedElementTest, RequestedFromModel) {
     EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}})));
 }
 
+// create() is the single gating point used by both NPUW entry points (compile and
+// blob import): tagged models come back wrapped, untagged ones pass through as-is.
+TEST_F(NPUWBatchedElementTest, CreateWrapsOnlyWhenRequested) {
+    const auto model_with = [&](ov::AnyMap props) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder, std::move(props));
+    };
+
+    const auto plain = model_with({});
+    EXPECT_EQ(ov::npuw::batched::CompiledModel::create(plain, m_plugin), plain);
+
+    const auto tagged = model_with({{"NPUW_TEXT_RERANK", true}});
+    const auto wrapped = ov::npuw::batched::CompiledModel::create(tagged, m_plugin);
+    ASSERT_NE(wrapped, nullptr);
+    ASSERT_NE(wrapped, tagged);
+    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::batched::CompiledModel>(wrapped), nullptr);
+    EXPECT_EQ(&wrapped->inputs(), &tagged->inputs());
+}
+
 TEST_F(NPUWBatchedElementTest, ForwardsInnerIO) {
     auto inner = make_inner();
     auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
