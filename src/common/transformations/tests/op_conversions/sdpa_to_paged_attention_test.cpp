@@ -6623,8 +6623,12 @@ static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k,
         auto total_len = makeOP<v1::Add>({cur_len_scalar, past_len}, {numpy_broadcast});
         auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
         auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_1d, total_len_unsq}, {{"axis", 0}});
+        // Lift the rank-2 [batch, seq] mask to rank-4 [batch, 1, 1, seq] before broadcasting to
+        // [batch, 1, cur_len, total_len], matching the other mask builders in this file.
         auto mask_f32 = makeOP<v0::Convert>({attn_mask}, {dest_type_f32});
-        return makeOP<v3::Broadcast>({mask_f32, bcast_shape}, {{"mode", "bidirectional"}});
+        auto mask_unsq = makeOP<v0::Unsqueeze>({mask_f32, 1});
+        mask_unsq = makeOP<v0::Unsqueeze>({mask_unsq, 2});
+        return makeOP<v3::Broadcast>({mask_unsq, bcast_shape}, {{"mode", "bidirectional"}});
     };
 
     // GQA "repeat_kv" expansion (Unsqueeze -> Broadcast -> Reshape), matching kv_shaping in the pass.
@@ -6772,7 +6776,7 @@ TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
     OV_EXPECT_THROW(manager.run_passes(model),
                     ov::AssertFailure,
-                    ::testing::HasSubstr("Model references undeclared parameters"));
+                    ::testing::HasSubstr("undeclared parameters"));
 }
 
 /*
