@@ -95,11 +95,20 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      gather_axis != quantize_axis,
                      "GatherBlockQuantized: 'gather_axis' and 'quantize_axis' must differ");
+    // 'quantize_axis' must be the last dimension. This matches the ORT CPU kernel's uint8 constraint and,
+    // for int4/uint4, guarantees numerical correctness of the compressed-gather fusion: the plugins'
+    // ConvertGatherToGatherCompressed collapses the reinterpreted [.., nb, block_size] table by merging its
+    // last two dimensions, which only reconstructs the logical table when the quantized axis is last.
+    // A non-last quantize_axis would otherwise silently mis-fuse on CPU/GPU (see the shape check below).
+    CHECK_VALID_NODE(node,
+                     quantize_axis == r - 1,
+                     "GatherBlockQuantized: 'quantize_axis' must be the last dimension, got: ",
+                     quantize_axis,
+                     " (rank ",
+                     r,
+                     ")");
     if (is_u8) {
         CHECK_VALID_NODE(node, gather_axis == 0, "GatherBlockQuantized: for uint8 data 'gather_axis' must be 0");
-        CHECK_VALID_NODE(node,
-                         quantize_axis == r - 1,
-                         "GatherBlockQuantized: for uint8 data 'quantize_axis' must be the last dimension");
     }
 
     // components == 8/bits for the (deferred) uint8 sub-byte variant; always 1 for the supported types here.
@@ -133,15 +142,15 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
                      static_cast<int64_t>(scales_shape.size()) == r,
                      "GatherBlockQuantized: 'scales' must have the same rank as 'data'");
     for (int64_t i = 0; i < r; ++i) {
-        const auto expected = (i == quantize_axis) ? static_cast<size_t>(nb) : data_shape[i];
+        const auto expected = (i == quantize_axis) ? static_cast<size_t>(nb) : data_shape[static_cast<size_t>(i)];
         CHECK_VALID_NODE(node,
-                         scales_shape[i] == expected,
+                         scales_shape[static_cast<size_t>(i)] == expected,
                          "GatherBlockQuantized: 'scales' shape mismatch at axis ",
                          i,
                          ", expected ",
                          expected,
                          ", got ",
-                         scales_shape[i]);
+                         scales_shape[static_cast<size_t>(i)]);
     }
 
     // ---- indices ----

@@ -5651,3 +5651,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_neg_axi
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_quantize_axis_not_last) {
+    // quantize_axis is not the last dimension (quantize_axis=0, gather_axis=1). This must be rejected:
+    // the compressed-gather fusion reconstructs the table by merging the trailing dims, which is only
+    // valid when the quantized axis is last, so importing a non-last quantize_axis is disallowed.
+    EXPECT_THROW(convert_model("com.microsoft/gather_block_quantized_quantize_axis_not_last.onnx"), ov::Exception);
+}
