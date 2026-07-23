@@ -133,20 +133,21 @@ void sycl_kernel::launch(::sycl::handler& cgh,
     int arg_idx = 0;
     for (const auto& arg : args) {
         if (arg.kind == arg_t::kind_t::BUFFER) {
-            if (arg.mem) {
-                if (auto* gb = dynamic_cast<gpu_buffer*>(arg.mem.get())) {
-                    // SYCL buffer: create a read-write accessor on the
-                    // (sub-)buffer so the runtime registers the dependency and
-                    // passes the cl_mem to the OpenCL kernel argument.
-                    auto acc = gb->get_buffer().template get_access<::sycl::access::mode::read_write>(cgh);
-                    cgh.set_arg(arg_idx, acc);
-                } else if (auto* gu = dynamic_cast<gpu_usm*>(arg.mem.get())) {
-                    // USM pointer: pass the device pointer directly.
-                    void* ptr = gu->buffer_ptr();
-                    cgh.set_arg(arg_idx, ptr);
-                } else {
-                    OPENVINO_THROW("[GPU] sycl_kernel::launch: unknown memory type at arg index ", arg_idx);
-                }
+            if (!arg.mem) {
+                OPENVINO_THROW("[GPU] sycl_kernel::launch: null memory for BUFFER arg at index ", arg_idx);
+            }
+            if (auto* gb = dynamic_cast<gpu_buffer*>(arg.mem.get())) {
+                // SYCL buffer: create a read-write accessor on the
+                // (sub-)buffer so the runtime registers the dependency and
+                // passes the cl_mem to the OpenCL kernel argument.
+                auto acc = gb->get_buffer().template get_access<::sycl::access::mode::read_write>(cgh);
+                cgh.set_arg(arg_idx, acc);
+            } else if (auto* gu = dynamic_cast<gpu_usm*>(arg.mem.get())) {
+                // USM pointer: pass the device pointer directly.
+                void* ptr = gu->buffer_ptr();
+                cgh.set_arg(arg_idx, ptr);
+            } else {
+                OPENVINO_THROW("[GPU] sycl_kernel::launch: unknown memory type at arg index ", arg_idx);
             }
         } else if (arg.kind == arg_t::kind_t::LOCAL_MEM) {
             ::sycl::local_accessor<std::byte, 1> local_acc(arg.local_size, cgh);
