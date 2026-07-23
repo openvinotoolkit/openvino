@@ -282,6 +282,138 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     auto p = GetParam();
     execute(p, true);
 }
+
+// Test that an explicit causal attention mask produces the same result as is_causal=true.
+static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
+                                     int seq_q, int seq_kv, int head_size) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto q_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * q_num_heads * seq_q * head_size, -1.0f, 1.0f);
+    auto k_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
+    auto v_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
+
+    // Build causal attention mask: shape [1, 1, seq_q, seq_kv]
+    // 0 for valid positions (row >= col offset), -inf for masked positions.
+    const size_t mask_size = static_cast<size_t>(seq_q) * seq_kv;
+    std::vector<ov::float16> mask_data(mask_size);
+    const int col_offset = seq_kv - seq_q;
+    for (int r = 0; r < seq_q; ++r) {
+        for (int c = 0; c < seq_kv; ++c) {
+            if (c <= r + col_offset) {
+                mask_data[r * seq_kv + c] = ov::float16(0.0f);
+            } else {
+                mask_data[r * seq_kv + c] = ov::float16(-INFINITY);
+            }
+        }
+    }
+
+    const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout kv_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
+
+    const layout q_dyn_layout({batch, q_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout kv_dyn_layout({batch, kv_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout mask_dyn_layout({1, 1, -1, -1}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    // --- Golden reference: is_causal=false, explicit mask as 4th input, static shapes ---
+    auto make_ref_output = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                                 false, -1,
+                                                 {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3},
+                                                 {}, false);
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    // --- Optimized path: is_causal=true, no mask input, dynamic shapes ---
+    auto make_opt_output = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_dyn_layout));
+        topo.add(input_layout("k", kv_dyn_layout));
+        topo.add(input_layout("v", kv_dyn_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v")},
+                                                 true, -1,
+                                                 {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3},
+                                                 {}, false);
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    auto ref_mem = make_ref_output();
+    auto opt_mem = make_opt_output();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+
+    ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        ASSERT_FALSE(std::isnan(static_cast<float>(ref_ptr[i]))) << "NaN in explicit mask output at index " << i;
+        ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in is_causal output at index " << i;
+    }
+
+    const float sim = cosineSimilarity(ref_ptr, opt_ptr);
+    ASSERT_GE(sim, 0.99f) << "explicit mask vs is_causal cosine similarity too low: " << sim;
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 1, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_40q_10kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 10, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_40q_10kv_444seq) {
+    run_sdpa_causal_mask(1, 40, 10, 1, 444, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
+    run_sdpa_causal_mask(1, 32, 8, 1, 1024, 128);
+}
 #endif
 
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
