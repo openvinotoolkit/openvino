@@ -33,14 +33,13 @@ protected:
  *             Gather
  */
 
-using GatherWeightsDecompressionParams = std::tuple<std::string,        // Device name
+using GatherWeightsDecompressionParams = std::tuple<std::string,                          // Device name
                                                     GatherDecompressionShapeParams,
-                                                    ov::element::Type,  // data type
-                                                    ov::element::Type,  // output type
-                                                    bool,               // decompression subtract
-                                                    bool,               // reshape on decompression constants
-                                                    bool,               // per-tensor scale
-                                                    bool>;              // per-tensor zero-point
+                                                    ov::element::Type,                    // data type
+                                                    ov::element::Type,                    // output type
+                                                    ov::test::utils::DecompressionType,   // decompression multiply type
+                                                    ov::test::utils::DecompressionType,   // decompression subtract type
+                                                    bool>;                                // reshape on decompression constants
 
 class GatherWeightsDecompression : public testing::WithParamInterface<GatherWeightsDecompressionParams>,
                                    virtual public ov::test::GatherWeightsDecompressionBase {
@@ -55,10 +54,9 @@ protected:
                                              const int group_size,
                                              const ov::element::Type data_precision,
                                              const ov::element::Type output_precision,
-                                             const bool add_subtract,
-                                             const bool reshape_on_decompression,
-                                             const bool per_tensor_zp,
-                                             const bool per_tensor_scale);
+                                             const ov::test::utils::DecompressionType decompression_multiply_type,
+                                             const ov::test::utils::DecompressionType decompression_subtract_type,
+                                             const bool reshape_on_decompression);
     void check_results();
     void SetUp() override;
 };

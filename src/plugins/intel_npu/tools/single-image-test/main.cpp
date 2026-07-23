@@ -1772,13 +1772,13 @@ bool computeMAP(const std::map<std::string, ov::Tensor>& outputs, const std::map
 
 bool testMAP(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     if (outputs.size() != references.size()) {
-        std::cout << "Actual and reference has different number of output blobs" << std::endl;
-        return false;
+        std::cout << "Warning: Actual and reference have different number of output blobs ("
+                  << outputs.size() << " vs " << references.size() << ")" << std::endl;
     }
 
-    // For single-image detection models with pred_boxes and logits outputs,
-    // compute mAP directly from all outputs rather than per-layer
-    std::cout << "Computing mAP for single-image detection model" << std::endl;
+    // Compute mAP from detection model outputs.
+    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor)
+    std::cout << "Computing mAP for detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
         std::cout << " - " << tensorName << " : " << tensor.get_shape() << std::endl;

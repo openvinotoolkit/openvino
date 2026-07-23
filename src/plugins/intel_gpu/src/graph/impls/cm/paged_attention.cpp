@@ -130,7 +130,7 @@ public:
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
         const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
         const size_t heads_num = desc->heads_num;
-        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        const size_t merged_q_num = XAttentionEstimateGeneratorBase::get_wg_seq_len(params) / block_size;
         const size_t sum_per_token_in_block = block_size / STRIDE;
         const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
         const size_t sizeof_softmax = sizeof(float);
@@ -492,7 +492,9 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (desc->write_kv_cache) {
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
@@ -655,7 +657,7 @@ public:
 
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f32);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
@@ -724,6 +726,13 @@ private:
         GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
 
         if (params.get_device_info().arch < gpu_arch::xe2) {
+            return block_size_128;
+        }
+
+        // head_size=256 partition path on Xe2+ shrinks wg_seq_len to num_team * q_step = 128.
+        // SPARSE_BLOCK_SIZE must not exceed wg_seq_len, otherwise blocks_per_wg = 0 in the
+        // kernel's sparse-mask indexing.
+        if (desc->k_head_size == 256) {
             return block_size_128;
         }
 

@@ -8,7 +8,9 @@ ov::pass::Attributes::Attributes() {
     register_factory<ov::FusedNames>();
     register_factory<PrimitivesPriority>();
     register_factory<DisableConstantFolding>();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     register_factory<DisableFP16Compression>();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     register_factory<DisablePrecisionConversion>();
     register_factory<NmsSelectedIndices>();
     register_factory<OldApiMapOrder>();

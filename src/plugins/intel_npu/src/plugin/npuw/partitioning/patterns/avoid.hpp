@@ -40,14 +40,6 @@ public:
     GemmaRoPE(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
 };
 
-// Pattern: Interpolate in downsampling case (input spatial dims > output spatial dims)
-// Matches any Interpolate node and checks at callback time whether it is downsampling.
-class DownsampleInterpolate : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::avoid::DownsampleInterpolate");
-    DownsampleInterpolate(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
-};
-
 // Pattern: FloorMod and its direct input producer — both need FP32 precision.
 class FloorModFP32 : public ov::pass::MatcherPass {
 public:

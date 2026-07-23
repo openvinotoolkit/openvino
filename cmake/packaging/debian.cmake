@@ -108,6 +108,7 @@ macro(ov_cpack_settings)
         2026.0.0
         2026.1.0
         2026.2.0
+        2026.3.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -325,6 +326,19 @@ macro(ov_cpack_settings)
             "package-name-doesnt-match-sonames")
         list(APPEND frontends tensorflow_lite)
         set(tensorflow_lite_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_GGUF_FRONTEND)
+        set(CPACK_COMPONENT_GGUF_DESCRIPTION "OpenVINO GGUF Frontend")
+        set(CPACK_COMPONENT_GGUF_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_GGUF_PACKAGE_NAME "libopenvino-gguf-frontend-${cpack_name_ver}")
+        # since GGUF FE is a linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_GGUF_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(gguf
+            # we have different package name strategy; it suggests libopenvino-gguf-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends gguf)
+        set(gguf_copyright "generic")
     endif()
 
     #

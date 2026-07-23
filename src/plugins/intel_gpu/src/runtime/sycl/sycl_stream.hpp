@@ -19,7 +19,7 @@ namespace sycl {
 
 class sycl_stream : public stream {
 public:
-    ::sycl::queue& get_sycl_queue() { return _command_queue; }
+    ::sycl::queue& get_sycl_queue() const { return _command_queue; }
 
     sycl_stream(const sycl_engine& engine, const ExecutionConfig& config);
     sycl_stream(const sycl_engine& engine, const ExecutionConfig& config, void* handle);
@@ -51,8 +51,6 @@ public:
     event::ptr create_base_event() override;
     event::ptr create_base_event(::sycl::event& event);
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
-
-    // const sycl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
     static QueueTypes detect_queue_type(void* queue_handle);
 

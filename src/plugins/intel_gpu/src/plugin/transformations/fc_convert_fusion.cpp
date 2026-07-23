@@ -41,23 +41,35 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         auto it = pattern_map.find(fully_connected);
         if (it != pattern_map.end()) {
             m_fc = it->second.get_node_shared_ptr();
-            new_fc = std::make_shared<op::FullyConnected>(m_fc->input_value(0), m_weights, m_bias, output_type);
+            auto m_fc_typed = ov::as_type_ptr<op::FullyConnected>(m_fc);
+            OPENVINO_ASSERT(m_fc_typed);
+            new_fc = std::make_shared<op::FullyConnected>(m_fc->input_value(0),
+                                                          m_weights,
+                                                          m_bias,
+                                                          output_type,
+                                                          m_fc_typed->get_transpose_b());
+
         } else {
             m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
+            auto m_fc_typed = ov::as_type_ptr<op::FullyConnectedCompressed>(m_fc);
+            OPENVINO_ASSERT(m_fc_typed);
+
 
             if (m_fc->input_values().size() == 4)
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
-                                                                        output_type);
+                                                                        output_type,
+                                                                        m_fc_typed->get_transpose_b());
             else
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         m_fc->input_value(4),
-                                                                        output_type);
+                                                                        output_type,
+                                                                        m_fc_typed->get_transpose_b());
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), new_fc);

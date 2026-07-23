@@ -9,6 +9,16 @@
 
 #include "openvino/util/util.hpp"
 
+/// @brief Widens a narrow string literal to a native path literal.
+/// On Windows (where std::filesystem::path::value_type is wchar_t) this prepends L.
+/// On other platforms it is a no-op.
+#ifdef _WIN32
+#    define OV_WSTR_IMPL(s) L##s
+#    define OV_WSTR(s)      OV_WSTR_IMPL(s)
+#else
+#    define OV_WSTR(s) s
+#endif
+
 namespace ov::util {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

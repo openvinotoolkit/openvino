@@ -34,6 +34,7 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::vector<ov::Output<const ov::Node>> m_prefill_past_kv_ports;
 
+    std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
 
     ov::SoPtr<ov::ITensor> m_input_ids_in_tensor;

@@ -40,7 +40,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -256,8 +256,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         fc->set_friendly_name(matmul->get_friendly_name());
         /// todo: CVS-130863 Remove after fp16_compression is copyable
-        if (ov::fp16_compression_is_disabled(matmul)) {
-            disable_fp16_compression(fc);
+        if (ov::is_conversion_disabled(matmul, element::f16)) {
+            ov::disable_conversion(fc, element::f16);
         }
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);

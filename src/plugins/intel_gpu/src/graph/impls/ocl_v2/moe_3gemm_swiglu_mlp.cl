@@ -5,8 +5,6 @@
 
 #include "include/batch_headers/sub_group_block_read.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 // Fake group size for compatibility and computation performance balance.
 // Each gk-iteration of the inner GEMV loop processes FAKE_GROUP_SIZE K-elements
 // using a single (scale, zp) entry, so FAKE_GROUP_SIZE must divide both
@@ -454,7 +452,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     const __global MOE_SCALE_DT* shared_up_scale,
     const __global MOE_ZP_DT* shared_up_zp,
     const __global half* shared_gate_gate_weight,  // [HIDDEN_SIZE] (assuming no scale/zp for now, or pre-dequantized)
-    __global MOE_DTYPE* routing_weights,           // Input routing weights, will append shared gate result at end
+    __global MOE_DTYPE* shared_gate_out,           // [token_num] — output: sigmoid(dot(x, gate_weight)) for shared expert
 #    endif
     __global MOE_DTYPE* x,    // [token_num, HIDDEN_SIZE]
     __global MOE_DTYPE* y) {  // [token_num * EXPERTS_PER_TOKEN, INTERMEDIATE_SIZE]
@@ -593,7 +591,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 
 #    if SHARED_EXPERT_ENABLE
     // Compute scalar gate for shared expert using all threads in the workgroup.
-    // Only the N-block-0 workgroup writes routing_weights[MAX_TOPK]; other N-block workgroups
+    // Only the N-block-0 workgroup writes shared_gate_out[token_idx]; other N-block workgroups
     // skip this entirely to avoid redundant work and races.
     if (is_shared && get_group_id(2) == 0) {
         // Step 1: every thread accumulates a partial dot product over its slice of HIDDEN_SIZE.
@@ -620,11 +618,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
             float final_val = (id_local < num_sg) ? shared_gate_partial[id_local] : 0.0f;
             final_val = sub_group_reduce_add(final_val);
             if (id_local == 0) {
-                routing_weights[token_idx * EXPERTS_PER_TOKEN + MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
+                shared_gate_out[token_idx] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
             }
         }
     }
-    // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
+    // shared_gate_out[token_idx] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
@@ -644,14 +642,13 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 inline void down_gemv_n2x_u4(const __global uchar* weight,
                              __global half* scales,
                              __global uchar* zps,
-                             __global MOE_DTYPE* routing_weights,
+                             MOE_DTYPE routing_weight_val,
                              __global half* y,
                              int N,
                              int K,
                              half* x2,
                              float* xg_sum) {
     int id_local = get_sub_group_local_id();
-    int expert_no = get_global_id(0);
     int n_start = get_global_id(2) * N_BLOCK;
     int n_end = n_start + N_BLOCK;
 
@@ -758,8 +755,8 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
         sum_all0 = sub_group_reduce_add(sum_all0);
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
-            y[n] = sum_all0 * routing_weights[expert_no];
-            y[n + 1] = sum_all1 * routing_weights[expert_no];
+            y[n] = sum_all0 * routing_weight_val;
+            y[n + 1] = sum_all1 * routing_weight_val;
         }
     }
 }
@@ -767,14 +764,13 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 inline void down_gemv_n2x_u8(const __global uchar* weight,
                              __global half* scales,
                              __global uchar* zps,
-                             __global MOE_DTYPE* routing_weights,
+                             MOE_DTYPE routing_weight_val,
                              __global half* y,
                              int N,
                              int K,
                              half* x2,
                              float* xg_sum) {
     int id_local = get_sub_group_local_id();
-    int expert_no = get_global_id(0);
     int n_start = get_global_id(2) * N_BLOCK;
     int n_end = n_start + N_BLOCK;
 
@@ -880,15 +876,14 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
         sum_all0 = sub_group_reduce_add(sum_all0);
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
-            y[n] = sum_all0 * routing_weights[expert_no];
-            y[n + 1] = sum_all1 * routing_weights[expert_no];
+            y[n] = sum_all0 * routing_weight_val;
+            y[n + 1] = sum_all1 * routing_weight_val;
         }
     }
 }
 
-inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* routing_weights, __global half* y, int N, int K, half* x2) {
+inline void down_gemv_n2x_f16(const __global half* weight, MOE_DTYPE routing_weight_val, __global half* y, int N, int K, half* x2) {
     int id_local = get_sub_group_local_id();
-    int expert_no = get_global_id(0);
     int n_start = get_global_id(2) * N_BLOCK;
     int n_end = n_start + N_BLOCK;
 
@@ -967,8 +962,8 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
         sum_all0 = sub_group_reduce_add(sum_all0);
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
-            y[n] = sum_all0 * routing_weights[expert_no];
-            y[n + 1] = sum_all1 * routing_weights[expert_no];
+            y[n] = sum_all0 * routing_weight_val;
+            y[n + 1] = sum_all1 * routing_weight_val;
         }
     }
 }
@@ -983,7 +978,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
                                                                            const __global MOE_ZP_DT* shared_down_zp,
 #    endif
                                                                            const __global MOE_DTYPE* x,          // [token_num * EXPERTS_PER_TOKEN, INTERMEDIATE_SIZE]
-                                                                           __global MOE_DTYPE* routing_weights,  // [token_num * EXPERTS_PER_TOKEN]
+                                                                           const __global MOE_DTYPE* routing_weights,  // [token_num * MAX_TOPK] compact buffer from MoERouterFused
+#    if SHARED_EXPERT_ENABLE
+                                                                           const __global MOE_DTYPE* shared_gate_in,   // [token_num] separate shared expert gate values
+#    endif
                                                                            __global MOE_DTYPE* y) {              // [token_num * EXPERTS_PER_TOKEN, HIDDEN_SIZE]
     // global: [token_num*EXPERTS_PER_TOKEN, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int flat_id = get_global_id(0);
@@ -1102,12 +1100,20 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    // Compute the routing weight for this (token, expert) work item.
+    // routing_weights is compact [token_num * MAX_TOPK]; shared expert gate is separate.
+#    if SHARED_EXPERT_ENABLE
+    MOE_DTYPE routing_weight_val = is_shared ? shared_gate_in[token_idx] : routing_weights[token_idx * MAX_TOPK + expert_slot];
+#    else
+    MOE_DTYPE routing_weight_val = routing_weights[token_idx * MAX_TOPK + expert_slot];
+#    endif
+
 #    if WEIGHT_COMPRESSEION_DT == 0
-    down_gemv_n2x_u4(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
+    down_gemv_n2x_u4(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
 #    elif WEIGHT_COMPRESSEION_DT == 1
-    down_gemv_n2x_u8(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
+    down_gemv_n2x_u8(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
 #    elif WEIGHT_COMPRESSEION_DT == 2
-    down_gemv_n2x_f16(weight, routing_weights, y, N, K, x2);
+    down_gemv_n2x_f16(weight, routing_weight_val, y, N, K, x2);
 #    endif
 }
 

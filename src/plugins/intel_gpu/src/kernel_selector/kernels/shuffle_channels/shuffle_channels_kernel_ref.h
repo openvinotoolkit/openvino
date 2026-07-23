@@ -20,7 +20,7 @@ struct shuffle_channels_params : public base_params {
 class ShuffleChannelsKernelRef : public KernelBaseOpenCL {
 public:
     ShuffleChannelsKernelRef() : KernelBaseOpenCL("shuffle_channels_ref") {}
-    virtual ~ShuffleChannelsKernelRef() {}
+    ~ShuffleChannelsKernelRef() override {}
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;

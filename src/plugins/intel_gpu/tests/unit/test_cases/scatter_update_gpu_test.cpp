@@ -2287,3 +2287,97 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
         }
     }
 }
+
+// Integer-typed ScatterUpdate (i8/u8). Exercises the byte-movement path enabled for a quantized KV
+// cache (GroupQueryAttention int8/int4). Dictionary is scattered by index; result is exact.
+template <typename T>
+void test_int_d8111_axisB(bool is_caching_test) {
+    //  Dictionary : 8x1x1x1, Indexes : 4x1x1x1, Updates : 4x1x1x1, Axis : 0
+    //  Indexes:    4, 3, 1, 7
+    //  Updates:    9, 10, 11, 12
+    //  Dictionary: 1, 2, 3, 4, 5, 6, 7, 8
+    //  Output:     1, 11, 3, 10, 9, 6, 7, 12
+    const auto dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    for (const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({dt, plain_2d_format, tensor{8, 1, 1, 1}});               // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{4, 1, 1, 1}});  // Indexes
+        auto input3 = engine.allocate_memory({dt, plain_2d_format, tensor{4, 1, 1, 1}});               // Updates
+        auto axis = 0;
+
+        set_values<T>(input1, {T(1), T(2), T(3), T(4), T(5), T(6), T(7), T(8)});
+        set_values(input2, {4.f, 3.f, 1.f, 7.f});
+        set_values<T>(input3, {T(9), T(10), T(11), T(12)});
+
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, dt));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, dt));
+        topology.add(scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, dt));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("InputDictionary", input1);
+        network->set_input_data("InputText", input2);
+        network->set_input_data("InputUpdates", input3);
+        auto outputs = network->execute();
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        std::vector<T> expected_results = {T(1), T(11), T(3), T(10), T(9), T(6), T(7), T(12)};
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i << ", target_format=" << target_format;
+        }
+    }
+}
+
+TEST(scatter_update_gpu_i8, d8111_axisB) {
+    test_int_d8111_axisB<int8_t>(false);
+}
+
+TEST(scatter_update_gpu_u8, d8111_axisB) {
+    test_int_d8111_axisB<uint8_t>(false);
+}
+
+// f8e4m3 ScatterUpdate: values are exactly representable, so the scattered (byte-moved) result is
+// exact. Uses plain bfyx directly - the fp8 reorder-to-blocked-format path used by the i8/u8 helper
+// above is unsupported. Covers the f8 path enabled for a quantized KV cache (GroupQueryAttention f8e4m3).
+TEST(scatter_update_gpu_f8e4m3, d8111_axisB) {
+    auto& engine = get_test_engine();
+
+    //  Dictionary: 1..8; Indexes: 4,3,1,7; Updates: 9,10,11,12; Axis 0 -> Output: 1,11,3,10,9,6,7,12
+    auto dictionary = engine.allocate_memory({ov::PartialShape{8, 1, 1, 1}, data_types::f8e4m3, format::bfyx});
+    auto indices = engine.allocate_memory({ov::PartialShape{4, 1, 1, 1}, data_types::f32, format::bfyx});
+    auto updates = engine.allocate_memory({ov::PartialShape{4, 1, 1, 1}, data_types::f8e4m3, format::bfyx});
+
+    set_values<ov::float8_e4m3>(dictionary, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    set_values(indices, {4.f, 3.f, 1.f, 7.f});
+    set_values<ov::float8_e4m3>(updates, {9.0f, 10.0f, 11.0f, 12.0f});
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", dictionary->get_layout()));
+    topology.add(input_layout("InputText", indices->get_layout()));
+    topology.add(input_layout("InputUpdates", updates->get_layout()));
+    topology.add(scatter_update("scatter_update", input_info("InputDictionary"), input_info("InputText"), input_info("InputUpdates"), 0));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("InputDictionary", dictionary);
+    network.set_input_data("InputText", indices);
+    network.set_input_data("InputUpdates", updates);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scatter_update").get_memory();
+    cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<ov::float8_e4m3> expected_results = {1.0f, 11.0f, 3.0f, 10.0f, 9.0f, 6.0f, 7.0f, 12.0f};
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+    for (size_t i = 0; i < expected_results.size(); ++i)
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
+}

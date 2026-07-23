@@ -29,8 +29,8 @@ InfoForEDROIFeature get_info_for_ed_roi_feature(
 
     out_shape[1] = input_shapes[1][1];
 
-    result.output_rois_features_shape = out_shape;
-    result.output_rois_shape = out_rois_shape;
+    result.output_rois_features_shape = std::move(out_shape);
+    result.output_rois_shape = std::move(out_rois_shape);
 
     return result;
 }
@@ -45,7 +45,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureE
     std::vector<std::vector<float>> input_data;
     std::vector<ov::Shape> input_shapes;
     for (const auto& input : inputs) {
-        const auto current_shape = input.get_shape();
+        const auto& current_shape = input.get_shape();
         input_data.push_back(get_floats(input, current_shape));
         input_shapes.push_back(current_shape);
     }

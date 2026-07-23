@@ -919,6 +919,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
+            // fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops
+            // (ACTIVATION does not compile on the 1-byte fp8 struct), so block fusion into an fp8 output.
+            if (should_fuse && input.get_output_layout().data_type == data_types::f8e4m3 &&
+                (input.is_type<concatenation>() || input.is_type<scatter_update>())) {
+                should_fuse = false;
+            }
+
             if (!should_fuse)
                 return;
 
@@ -1000,7 +1007,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
+            // fp8 scatter_update byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
+            should_fuse |=
+                input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
 
