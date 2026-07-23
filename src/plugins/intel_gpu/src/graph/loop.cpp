@@ -796,6 +796,48 @@ void loop_inst::update_output_layout() {
     }
 }
 
+void loop_inst::handle_zero_iterations() {
+    update_output_layout();
+
+    for (const auto& output_mapping : _output_primitive_maps) {
+        if (output_mapping.axis >= 0)
+            continue;
+
+        const auto back_edge = std::find_if(_back_edges.begin(), _back_edges.end(), [&](const loop::backedge_mapping& mapping) {
+            return mapping.from == output_mapping.internal_id.pid;
+        });
+        if (back_edge == _back_edges.end())
+            continue;
+
+        const auto input_mapping = std::find_if(_input_primitive_maps.begin(),
+                                                _input_primitive_maps.end(),
+                                                [&](const loop::io_primitive_map& mapping) {
+                                                    return mapping.internal_id.pid == back_edge->to;
+                                                });
+        OPENVINO_ASSERT(input_mapping != _input_primitive_maps.end(),
+                        id(),
+                        " has no input mapping for backedge destination ",
+                        back_edge->to);
+
+        auto initial_mem = get_external_memory(input_mapping->external_id.pid, input_mapping->external_id.idx);
+        OPENVINO_ASSERT(initial_mem != nullptr, id(), " initial carried memory should not be null");
+
+        const auto initial_layout = get_external_output_layout(input_mapping->external_id.pid,
+                                                               input_mapping->external_id.idx);
+        if (!initial_mem->get_layout().identical(initial_layout)) {
+            OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
+                            "initial layout size(", initial_layout.to_short_string(),
+                            ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
+            initial_mem = _network.get_engine().reinterpret_buffer(*initial_mem, initial_layout);
+        }
+
+        const auto output_idx = output_mapping.external_id.idx;
+        set_output_layout(initial_layout, output_idx);
+        set_output_memory(initial_mem, false, output_idx);
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+}
+
 void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterations) const {
     size_t num_iters = static_cast<size_t>(num_iterations);
     OPENVINO_ASSERT(num_iters > 0 && num_iters == sliced_mems.size(), "num_iterations(", num_iters,

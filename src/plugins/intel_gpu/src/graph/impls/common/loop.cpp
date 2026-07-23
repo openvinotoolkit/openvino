@@ -182,7 +182,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             memory::ptr num_actual_iterations_mem = outer_network.get_primitive(instance.get_num_iterations_id())->output_memory_ptr();
             write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
 
-            instance.update_output_layout();
+            instance.handle_zero_iterations();
             ev->set();
             return ev;
         }

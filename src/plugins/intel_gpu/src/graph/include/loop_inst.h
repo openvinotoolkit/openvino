@@ -351,6 +351,7 @@ public:
 
     void update_shape() override { primitive_inst::update_shape(); }
     void update_output_layout();
+    void handle_zero_iterations();
 
     // num_iteration is used for slicing input memory
     int64_t get_num_iterations();
