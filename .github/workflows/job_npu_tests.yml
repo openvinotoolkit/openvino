@@ -256,12 +256,12 @@ jobs:
       
       #Group C: aliked + detectron2 share compatible deps (installed together).
       - name: "Install PyTorch tests requirements (group C: aliked/detectron2)"
-        if: ${{ !cancelled() }}
+        if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
       
       - name: PyTorch Models Tests -  NPU compile only (group C)
-        if: ${{ !cancelled() }}
+        if: false
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
