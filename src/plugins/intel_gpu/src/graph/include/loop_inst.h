@@ -14,6 +14,7 @@
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace cldnn {
@@ -369,6 +370,7 @@ private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id, size_t mem_idx = 0) const;
     layout get_external_output_layout(const primitive_id& external_id, size_t mem_idx = 0) const;
+    std::pair<memory::ptr, layout> get_external_memory_and_layout(const input_info& external_id) const;
     std::shared_ptr<concatenated_memory_mapping> get_sliced_mem(const primitive_id& internal_id) const;
     int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
     std::vector<event::ptr> handle_buffers_for_next_iteration(const backedge_memory_mapping& mapping,

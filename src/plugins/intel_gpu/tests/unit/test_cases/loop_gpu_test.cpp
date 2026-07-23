@@ -491,15 +491,33 @@ TEST(loop_gpu, zero_iterations_dynamic_merged_output) {
     auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), 1);
 
-    mem_lock<int64_t, mem_lock_type::read> num_iteration_ptr{num_iteration_mem, get_test_stream()};
-    ASSERT_EQ(num_iteration_ptr[0], 0);
+    {
+        mem_lock<int64_t, mem_lock_type::read> num_iteration_ptr{num_iteration_mem, get_test_stream()};
+        ASSERT_EQ(num_iteration_ptr[0], 0);
+    }
 
     auto output_mem = outputs.begin()->second.get_memory();
     ASSERT_EQ(output_mem->get_layout().get_partial_shape(), input_shape);
+    {
+        mem_lock<float, mem_lock_type::read> output_ptr{output_mem, get_test_stream()};
+        for (size_t index = 0; index < input_data.size(); ++index) {
+            ASSERT_FLOAT_EQ(output_ptr[index], input_data[index]);
+        }
+    }
 
-    mem_lock<float, mem_lock_type::read> output_ptr{output_mem, get_test_stream()};
-    for (size_t index = 0; index < input_data.size(); ++index) {
-        ASSERT_FLOAT_EQ(output_ptr[index], input_data[index]);
+    auto preset_output_mem = engine.allocate_memory(input_layout);
+    network->set_output_memory("loop", preset_output_mem);
+    outputs = network->execute();
+    ASSERT_EQ(outputs.size(), 1);
+
+    output_mem = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), input_shape);
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *preset_output_mem));
+    {
+        mem_lock<float, mem_lock_type::read> output_ptr{output_mem, get_test_stream()};
+        for (size_t index = 0; index < input_data.size(); ++index) {
+            ASSERT_FLOAT_EQ(output_ptr[index], input_data[index]);
+        }
     }
 }
 

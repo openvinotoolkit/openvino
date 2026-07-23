@@ -527,20 +527,10 @@ void loop_inst::preprocess_backedge_memory() {
         const auto backedge_to_prim = body_network->get_primitive(back_edge.to);
         const auto backedge_from_prim = body_network->get_primitive(back_edge.from);
 
-        memory::ptr initial_mem;
         OPENVINO_ASSERT(!input_map_ptrs.empty(), id(), " has no input_mapping for backedged input");
-        auto& external_id = input_map_ptrs.front()->external_id;
-        initial_mem = get_external_memory(external_id.pid, external_id.idx);
-        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
-        // so memory layout needs to be re-interprete according to original layout.
-        auto initial_layout = get_external_output_layout(external_id.pid, external_id.idx);
-        OPENVINO_ASSERT(initial_mem != nullptr, "initial_mem should not be null");
-        if (!initial_mem->get_layout().identical(initial_layout)) {
-            OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
-                            "initial layout size(", initial_layout.to_short_string(),
-                            ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
-            initial_mem = body_network->get_engine().reinterpret_buffer(*initial_mem, initial_layout);
-        }
+        const auto& external_id = input_map_ptrs.front()->external_id;
+        auto initial_mem_and_layout = get_external_memory_and_layout(external_id);
+        auto initial_mem = std::move(initial_mem_and_layout.first);
 
         GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.from " << back_edge.from << std::endl;
         GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.to   " << back_edge.to << std::endl;
@@ -654,6 +644,21 @@ memory::ptr loop_inst::get_external_memory(const primitive_id& external_id, size
 layout loop_inst::get_external_output_layout(const primitive_id& external_id, size_t mem_idx) const {
     const auto outputPrim = _network.get_primitive(external_id);
     return outputPrim->get_output_layout(mem_idx);
+}
+
+std::pair<memory::ptr, layout> loop_inst::get_external_memory_and_layout(const input_info& external_id) const {
+    auto external_mem = get_external_memory(external_id.pid, external_id.idx);
+    const auto external_layout = get_external_output_layout(external_id.pid, external_id.idx);
+    OPENVINO_ASSERT(external_mem != nullptr, id(), " external memory should not be null");
+
+    if (!external_mem->get_layout().identical(external_layout)) {
+        OPENVINO_ASSERT(external_layout.bytes_count() <= external_mem->get_layout().bytes_count(),
+                        "external layout size(", external_layout.to_short_string(),
+                        ") should not exceed external memory size(", external_mem->get_layout().to_short_string(), ")");
+        external_mem = _network.get_engine().reinterpret_buffer(*external_mem, external_layout);
+    }
+
+    return {external_mem, external_layout};
 }
 
 loop_inst::typed_primitive_inst(network & network, loop_node const & node)
@@ -809,32 +814,40 @@ void loop_inst::handle_zero_iterations() {
         if (back_edge == _back_edges.end())
             continue;
 
-        const auto input_mapping = std::find_if(_input_primitive_maps.begin(),
-                                                _input_primitive_maps.end(),
-                                                [&](const loop::io_primitive_map& mapping) {
-                                                    return mapping.internal_id.pid == back_edge->to;
-                                                });
-        OPENVINO_ASSERT(input_mapping != _input_primitive_maps.end(),
+        const auto input_map_ptrs = find_io_primitive_maps(_input_primitive_maps,
+                                                           _output_primitive_maps,
+                                                           back_edge->to,
+                                                           false);
+        OPENVINO_ASSERT(!input_map_ptrs.empty(),
                         id(),
                         " has no input mapping for backedge destination ",
                         back_edge->to);
 
-        auto initial_mem = get_external_memory(input_mapping->external_id.pid, input_mapping->external_id.idx);
-        OPENVINO_ASSERT(initial_mem != nullptr, id(), " initial carried memory should not be null");
+        const auto& external_id = input_map_ptrs.front()->external_id;
+        auto [initial_mem, initial_layout] = get_external_memory_and_layout(external_id);
 
-        const auto initial_layout = get_external_output_layout(input_mapping->external_id.pid,
-                                                               input_mapping->external_id.idx);
-        if (!initial_mem->get_layout().identical(initial_layout)) {
-            OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
-                            "initial layout size(", initial_layout.to_short_string(),
-                            ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
-            initial_mem = _network.get_engine().reinterpret_buffer(*initial_mem, initial_layout);
+        const auto output_idx = static_cast<size_t>(output_mapping.external_id.idx);
+        set_output_layout(initial_layout, output_idx);
+        const bool output_allocated = output_idx < _outputs.size() && _outputs[output_idx] != nullptr;
+        if (!output_allocated) {
+            set_output_memory(initial_mem, false, output_idx);
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+            continue;
         }
 
-        const auto output_idx = output_mapping.external_id.idx;
-        set_output_layout(initial_layout, output_idx);
-        set_output_memory(initial_mem, false, output_idx);
-        set_flag(ExecutionFlags::MEMORY_CHANGED);
+        auto output_mem = _outputs[output_idx];
+        if (output_mem == initial_mem)
+            continue;
+
+        if (_network.get_engine().is_the_same_buffer(*output_mem, *initial_mem)) {
+            if (output_mem->get_layout() != initial_layout)
+                _outputs[output_idx] = initial_mem;
+        } else if (output_mem->get_layout() == initial_layout) {
+            output_mem->copy_from(get_network().get_stream(), *initial_mem);
+        } else {
+            set_output_memory(initial_mem, false, output_idx);
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
     }
 }
 
