@@ -405,7 +405,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     if (params.outputs[0].GetDType() == Datatype::BF16) {
-                        bf16_optional_cast = [&useVload8](const std::string& s) {
+                        bf16_optional_cast = [](const std::string& s) {
                             return "_convert_as_bfloat16_float(" + s + ")";
                         };
                     }
@@ -413,7 +413,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                     break;
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     if (params.inputs[input.index].GetDType() == Datatype::BF16) {
-                        bf16_optional_cast = [&useVload8](const std::string& s) {
+                        bf16_optional_cast = [](const std::string& s) {
                             return "_convert_as_bfloat16_float(" + s + ")";
                         };
                     }
