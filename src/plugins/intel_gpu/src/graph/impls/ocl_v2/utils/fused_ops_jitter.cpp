@@ -703,7 +703,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     if (conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ) {
         if (input_tensor.is_dynamic()) {
             LayoutJitter input_jitter(input_tensor, params.in_port_to_shape_info_offset.at(input_id));
-            JitTerm input_tensor_count{"1"};
+            std::string has_multiple_elements;
             for (const auto channel : {ov::intel_gpu::ChannelName::BATCH,
                                        ov::intel_gpu::ChannelName::FEATURE,
                                        ov::intel_gpu::ChannelName::V,
@@ -712,11 +712,14 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
                                        ov::intel_gpu::ChannelName::Z,
                                        ov::intel_gpu::ChannelName::Y,
                                        ov::intel_gpu::ChannelName::X}) {
-                input_tensor_count = input_tensor_count * JitTerm{input_jitter.dim(channel)};
+                const auto dim_gt_1 = JitTerm{input_jitter.dim(channel)}.gt(JitTerm{1}).str();
+                if (!has_multiple_elements.empty())
+                    has_multiple_elements += " || ";
+                has_multiple_elements += dim_gt_1;
             }
             auto block_load = make_block_read(input_dt, vec_size, in_ptr + index_func_call);
             auto scalar_load = broadcast(in_ptr[index_func_call], input_dt, vec_size);
-            return ternary(input_tensor_count.gt(JitTerm{1}), block_load, scalar_load);
+            return ternary(JitTerm{"(" + has_multiple_elements + ")"}, block_load, scalar_load);
         }
 
         if (input_tensor.count() > 1) {

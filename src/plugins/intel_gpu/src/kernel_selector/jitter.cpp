@@ -2342,9 +2342,12 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 // The compile-time logical size of a fully dynamic tensor may be reported as one even though
                 // the runtime tensor contains multiple elements. Select the load at runtime to preserve scalar
                 // broadcasting while using a subgroup block read for non-scalar tensors.
-                auto tensor_length = GetInputTensorName(input_id) + "_LENGTH";
+                const auto tensor_name = GetInputTensorName(input_id);
+                const auto has_multiple_elements = tensor_name + "_SIZE_X > 1 || " + tensor_name + "_SIZE_Y > 1 || " + tensor_name + "_SIZE_Z > 1 || " +
+                                                   tensor_name + "_SIZE_W > 1 || " + tensor_name + "_SIZE_U > 1 || " + tensor_name + "_SIZE_V > 1 || " +
+                                                   tensor_name + "_FEATURE_NUM > 1 || " + tensor_name + "_BATCH_NUM > 1";
                 auto scalar_load = Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
-                return "((" + tensor_length + " > 1) ? " + Broadcast(block_read, input_dt, vec_size) + " : " + scalar_load + ")";
+                return "((" + has_multiple_elements + ") ? " + Broadcast(block_read, input_dt, vec_size) + " : " + scalar_load + ")";
             }
 
             if (input_tensor.LogicalSize() > 1) {
