@@ -227,7 +227,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     #endif
 
     i = 0;
-    if ((workers_per_data > SUB_GROUP_SIZE) && USE_BLOCK_WRITE && !HAS_FUSED_OPS)
+    if ((workers_per_data > SUB_GROUP_SIZE) && USE_BLOCK_WRITE)
     {
         const uint obase = output_data_offset + subgroup_offset;
         const uint gbase = subgroup_offset;
@@ -243,10 +243,16 @@ KERNEL(rms_gpu_bfyx_opt)(
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
 #if ELEMENTWISE_AFFINE
-                o[j] = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
-                o[j] = TO_OUTPUT_TYPE(rms * data_value);
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
 #endif
+                #if HAS_FUSED_OPS
+                    LAST_DIM = subgroup_offset + (i + j) * sgs + get_sub_group_local_id();
+                    FUSED_OPS;
+                    normalized = FUSED_OPS_RESULT;
+                #endif
+                o[j] = normalized;
             }
             DT_OUTPUT_BLOCK_WRITE8(output, obase + i * sgs, o);
         }
@@ -262,10 +268,16 @@ KERNEL(rms_gpu_bfyx_opt)(
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
 #if ELEMENTWISE_AFFINE
-                o[j] = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
-                o[j] = TO_OUTPUT_TYPE(rms * data_value);
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
 #endif
+                #if HAS_FUSED_OPS
+                    LAST_DIM = subgroup_offset + (i + j) * sgs + get_sub_group_local_id();
+                    FUSED_OPS;
+                    normalized = FUSED_OPS_RESULT;
+                #endif
+                o[j] = normalized;
             }
             DT_OUTPUT_BLOCK_WRITE4(output, obase + i * sgs, o);
         }
@@ -281,10 +293,16 @@ KERNEL(rms_gpu_bfyx_opt)(
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
 #if ELEMENTWISE_AFFINE
-                o[j] = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
-                o[j] = TO_OUTPUT_TYPE(rms * data_value);
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
 #endif
+                #if HAS_FUSED_OPS
+                    LAST_DIM = subgroup_offset + (i + j) * sgs + get_sub_group_local_id();
+                    FUSED_OPS;
+                    normalized = FUSED_OPS_RESULT;
+                #endif
+                o[j] = normalized;
             }
             DT_OUTPUT_BLOCK_WRITE2(output, obase + i * sgs, o);
         }
@@ -303,6 +321,11 @@ KERNEL(rms_gpu_bfyx_opt)(
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
 #endif
+        #if HAS_FUSED_OPS
+            LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * sgs;
+            FUSED_OPS;
+            normalized = FUSED_OPS_RESULT;
+        #endif
         output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * sgs] = normalized;
     }
     if (leftovers != 0 && local_data_idx < leftovers)
