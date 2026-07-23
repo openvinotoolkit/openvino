@@ -47,6 +47,13 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
 
+    // The micro-kernel's store addressing (convert_strides("DST","OUTPUT",order)) computes
+    // output strides assuming the physical output buffer is laid out according to
+    // output_transpose_order. Apply the transpose to the output shape so the allocated
+    // buffer matches the strides the kernel writes with; otherwise the kernel stores
+    // with transposed strides into an un-transposed buffer, causing out-of-bounds writes.
+    output_shape = transpose_shape(output_shape, desc->output_transpose_order);
+
     return { layout{output_shape, output_type, output_format, desc->output_paddings[0]} };
 }
 

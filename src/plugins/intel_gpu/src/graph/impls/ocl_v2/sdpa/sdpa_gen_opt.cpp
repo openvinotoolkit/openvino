@@ -106,6 +106,23 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
         }
+
+        // Signal when output_transpose_order is non-identity so the kernel can
+        // swap head and seq indices in output writes.
+        {
+            bool is_identity = true;
+            const auto& out_order = desc->output_transpose_order;
+            for (size_t i = 0; i < out_order.size() && is_identity; i++)
+                is_identity = (out_order[i] == static_cast<int64_t>(i));
+            if (!is_identity) {
+                auto extended_out_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+                jit.make("OUTPUT_TRANSPOSE_ORDER_PRESENT", 1);
+                jit.make("OUTPUT_TRANSPOSE_0", extended_out_order[0]);
+                jit.make("OUTPUT_TRANSPOSE_1", extended_out_order[1]);
+                jit.make("OUTPUT_TRANSPOSE_2", extended_out_order[2]);
+                jit.make("OUTPUT_TRANSPOSE_3", extended_out_order[3]);
+            }
+        }
     }
 
     if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
