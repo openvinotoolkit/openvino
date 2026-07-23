@@ -8,6 +8,7 @@
 #include "sycl_memory.hpp"
 #include "openvino/core/except.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <vector>
@@ -91,6 +92,15 @@ std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t byt
     return names;
 }
 
+// Entry point names present in a SPIR-V module but not usable as executable kernels.
+// These are compiler-internal (vendor-specific) synthetic entries and cannot be
+// looked up via ext_oneapi_get_kernel().
+//   - "Intel_Symbol_Table_Void_Program": IGC bookkeeping entry for externally-linked
+//     / indirectly-called symbols.
+bool is_ignored_kernel_name(const std::string& name) {
+    return name == "Intel_Symbol_Table_Void_Program";
+}
+
 } // namespace
 
 std::vector<uint8_t> sycl_kernel::get_binary() const {
@@ -105,7 +115,7 @@ std::string sycl_kernel::get_build_log() const {
 
 void sycl_kernel::launch(::sycl::handler& cgh,
                          const kernel_arguments_desc& args_desc) {
-    // get stored_args by value to avoid data race
+    // Get stored_args by value to avoid data race
     const auto args = stored_args();
 
     const auto& gws = args_desc.workGroups.global;
@@ -199,7 +209,16 @@ void sycl_kernel::create_kernels(const ::sycl::context& ctx,
         OPENVINO_THROW("[GPU] sycl_kernel::create: invalid SPIR-V binary");
     }
 
-    const auto& kernel_names = extract_spirv_kernel_names(spirv_binary.data(), spirv_binary.size());
+    auto kernel_names = extract_spirv_kernel_names(spirv_binary.data(), spirv_binary.size());
+
+    // Drop kernel names that are not executable
+    kernel_names.erase(std::remove_if(kernel_names.begin(), kernel_names.end(),
+                                      is_ignored_kernel_name),
+                       kernel_names.end());
+
+    if (kernel_names.empty()) {
+        OPENVINO_THROW("[GPU] sycl_kernel::create_kernels: no executable kernel entry points found in SPIR-V binary");
+    }
 
     try {
         auto src_bundle = syclex::create_kernel_bundle_from_source(ctx,
@@ -208,11 +227,6 @@ void sycl_kernel::create_kernels(const ::sycl::context& ctx,
         auto exec_bundle = syclex::build(src_bundle);
 
         for (const auto& kernel_name : kernel_names) {
-            // "Intel_Symbol_Table_Void_Program" is a synthetic entry point emitted by IGC to hold
-            // externally-linked / indirectly-called symbols. It is not an executable kernel, so skip it.
-            if (kernel_name == "Intel_Symbol_Table_Void_Program")
-                continue;
-
             ::sycl::kernel k = exec_bundle.ext_oneapi_get_kernel(kernel_name);
             out.push_back(std::make_shared<sycl_kernel>(k, kernel_name, spirv_binary, build_log));
         }
