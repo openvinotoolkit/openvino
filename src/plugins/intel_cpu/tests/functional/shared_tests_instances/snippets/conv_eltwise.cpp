@@ -18,7 +18,8 @@ ov::Shape convInputShape {1, 10, 16, 16};
 constexpr size_t convAddNumNodes = 5;  // num nodes = 5: Convert + Convolution + 3 Reorders on Convs in&outs
 constexpr size_t convAddNumSubgraphs = 0;  // num subgraphs = 0: No subgraph since all ops eltwises fused into Convolution
 #elif defined(OPENVINO_ARCH_ARM64)
-// ARM64 inserts one additional reorder for the binary post-op input to match the convolution output layout.
+// ARM64 does not support Convolution+Sum fusion, so Add, Abs, and Sqrt form one Subgraph.
+// One additional Reorder produces six compiled nodes.
 constexpr size_t convAddNumNodes = 6;
 constexpr size_t convAddNumSubgraphs = 1;
 #else  // defined(OPENVINO_ARCH_RISCV64)
