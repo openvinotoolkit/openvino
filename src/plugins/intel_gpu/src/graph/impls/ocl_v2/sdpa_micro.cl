@@ -229,7 +229,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
     #else
-        causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
+        causal_k = min(k, k- q + (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
     /* Extend causal_k to cover the full bidirectional group that overlaps
@@ -732,6 +732,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             col_offset += k - q;
             causal_q_begin += k - q;
         #endif
+    #elif !IS_PAGED_ATTENTION && !SLIDING_WINDOW_SIZE
+        col_offset += k - q;
+        causal_q_begin += k - q;
     #endif
 
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
