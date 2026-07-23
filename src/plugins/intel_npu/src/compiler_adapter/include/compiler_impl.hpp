@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -19,7 +20,8 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(const std::string& library_dir);
+    VCLCompilerImpl(const std::string& libraryDir,
+                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
     ~VCLCompilerImpl();
 
     /**
@@ -53,7 +55,7 @@ public:
      *                          Allocate W3 -> Init2
      *
      * This is why there is an additional parameter callNumber:
-     * Compiler should somehow understand wich Init(or Main) to return
+     * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
     ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
@@ -85,20 +87,13 @@ public:
      */
     bool get_supported_options(std::vector<char>& options) const;
 
-    bool is_option_supported(const std::string& option,
-                             const std::optional<std::string>& optValue = std::nullopt) const;
-
     /**
-     * @brief Checks whether the given option and value are supported by the compiler for the specified device.
-     * This overload is used when a device descriptor is available, allowing device-specific validation.
-     * @param in_device_desc Pointer to a device descriptor containing the device ID, number of
-     * tiles and stepping information used for device-specific checks
+     * @brief Checks whether the given option and value are supported by the compiler
      * @param option The option name to check
      * @param optValue The option value to validate
-     * @return true if the option and value are supported for the given device, false otherwise
+     * @return true if the option and value are supported, false otherwise
      */
-    bool is_option_supported(vcl_device_desc_t* in_device_desc,
-                             const std::string& option,
+    bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const;
 
     std::shared_ptr<void> getLinkedLibrary() const;

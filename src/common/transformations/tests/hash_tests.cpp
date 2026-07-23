@@ -8,7 +8,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "transformations/hash.hpp"
 
 namespace v0 = ov::op::v0;

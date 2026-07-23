@@ -23,7 +23,7 @@ struct gather_nd_params : public base_params {
 class GatherNDKernelRef : public KernelBaseOpenCL {
 public:
     GatherNDKernelRef() : KernelBaseOpenCL("gather_nd_ref") {}
-    virtual ~GatherNDKernelRef() {}
+    ~GatherNDKernelRef() override {}
     virtual JitConstants GetJitConstants(const gather_nd_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_nd_params& params) const;
     KernelsData GetKernelsData(const Params& params) const override;

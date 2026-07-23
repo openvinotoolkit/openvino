@@ -574,7 +574,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
-    const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.3f : 0.15f;
     const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);

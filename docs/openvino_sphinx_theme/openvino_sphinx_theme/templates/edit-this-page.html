@@ -1,4 +1,14 @@
 </br>
+{% if meta is defined and meta is not none and meta.get("explore_github_url") %}
+<div class="editthispage">
+    <a class="button button-size-m"
+       href="{{ meta.get('explore_github_url') | e }}"
+       target="_blank"
+       rel="noopener noreferrer">
+        {{ _("Explore on GitHub") }}
+    </a>
+</div>
+{% endif %}
 {% if sourcename is defined and theme_use_edit_page_button==true and page_source_suffix and has_github_page %}
 {% set src = sourcename.split('.') %}
 <div class="editthispage">
