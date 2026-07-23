@@ -151,9 +151,9 @@ public:
         m_xattn_meta.clear();
         m_xattn_find_wg_map.clear();
         m_xattn_post_wg_map.clear();
-        m_xattn_meta.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * XATTN_META_STRIDE);
-        m_xattn_find_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
-        m_xattn_post_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
+        m_xattn_meta.reserve((!subsequence_begins.empty() ? (subsequence_begins.size() - 1) : 0) * XATTN_META_STRIDE);
+        m_xattn_find_wg_map.reserve((!subsequence_begins.empty() ? (subsequence_begins.size() - 1) : 0) * 2);
+        m_xattn_post_wg_map.reserve((!subsequence_begins.empty() ? (subsequence_begins.size() - 1) : 0) * 2);
 
         auto to_i32_checked = [](size_t value, const char* field_name) {
             OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),

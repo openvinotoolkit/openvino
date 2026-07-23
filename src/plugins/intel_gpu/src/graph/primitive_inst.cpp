@@ -578,7 +578,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_n
     if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
-        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+        if (get_node().is_type<fully_connected>() && !dependencies().empty() && dep_memory(0).get_layout().is_static()
             && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
             GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
                 << "  allocated: " << dep_memory(0).count()
@@ -1480,7 +1480,7 @@ void primitive_inst::do_runtime_skip_reorder() {
     if (can_be_optimized())
         return;
 
-    if (_impl_params->fused_desc.size() > 0)
+    if (!_impl_params->fused_desc.empty())
         return;
 
     // set successive reorder can_be_optimized if layouts are same
@@ -2016,7 +2016,7 @@ void primitive_inst::do_runtime_skip_resample() {
 }
 
 bool primitive_inst::has_inner_networks() const {
-    return (_impl_params->inner_nets.size() > 0);
+    return (!_impl_params->inner_nets.empty());
 }
 
 void primitive_inst::add_dep_events(const std::vector<event::ptr>& events) {
@@ -3165,7 +3165,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl && impl->get_kernels_source().size() > 0) {
+            if (impl && !impl->get_kernels_source().empty()) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }

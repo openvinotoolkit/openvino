@@ -488,7 +488,7 @@ public:
         std::vector<cl_mem>& surfaces,
         cl_int * err = NULL)
         : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
-        if (pfn_acquire != NULL && m_surfaces.size()) {
+        if (pfn_acquire != NULL && !m_surfaces.empty()) {
             cl_int error = pfn_acquire(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),
@@ -501,7 +501,7 @@ public:
     }
 
     ~SharedSurfLock() {
-        if (pfn_release != NULL && m_surfaces.size()) {
+        if (pfn_release != NULL && !m_surfaces.empty()) {
             cl_int error = pfn_release(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),

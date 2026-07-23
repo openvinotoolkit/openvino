@@ -40,7 +40,7 @@ void CustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
     CheckStrAttrAndReturnError(node, "type", "SimpleGPU");
     CheckIntAttrAndReturnError(node, "version", 1);
     m_layerName = get_str_attr(node, "name", "");
-    CheckAndReturnError(m_layerName.length() == 0, "Missing Layer name in CustomLayer");
+    CheckAndReturnError(m_layerName.empty(), "Missing Layer name in CustomLayer");
 
     // Process child nodes
     ProcessKernelNode(node.child("Kernel"));
@@ -51,9 +51,9 @@ void CustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
 
 void CustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     CheckNodeTypeAndReturnError(node, "Kernel");
-    CheckAndReturnError(m_kernelSource.length() > 0, "Multiple definition of Kernel");
+    CheckAndReturnError(!m_kernelSource.empty(), "Multiple definition of Kernel");
     m_kernelEntry = get_str_attr(node, "entry", "");
-    CheckAndReturnError(m_kernelEntry.length() == 0, "No Kernel entry in layer: " << get_str_attr(node.parent(), "name"));
+    CheckAndReturnError(m_kernelEntry.empty(), "No Kernel entry in layer: " << get_str_attr(node.parent(), "name"));
 
     // Handle Source nodes
     FOREACH_CHILD(sourceNode, node, "Source") {
@@ -80,7 +80,7 @@ void CustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     FOREACH_CHILD(defineNode, node, "Define") {
         KernelDefine kd;
         kd.name = get_str_attr(defineNode, "name", "");
-        CheckAndReturnError((kd.name.length() == 0), "Missing name for define node");
+        CheckAndReturnError((kd.name.empty()), "Missing name for define node");
         kd.param = get_str_attr(defineNode, "param", "");
         kd.default_value = get_str_attr(defineNode, "default", "");
         std::string type = get_str_attr(defineNode, "type", "");
@@ -132,7 +132,7 @@ void CustomLayer::ProcessCompilerOptionsNode(const pugi::xml_node & node) {
         return;  // Optional node doesn't exist
     }
     CheckNodeTypeAndReturnError(node, "CompilerOptions");
-    CheckAndReturnError(m_compilerOptions.length() > 0, "Multiple definition of CompilerOptions");
+    CheckAndReturnError(!m_compilerOptions.empty(), "Multiple definition of CompilerOptions");
     m_compilerOptions = get_str_attr(node, "options", "");
 }
 
