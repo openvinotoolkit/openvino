@@ -4,7 +4,20 @@
 
 set(TARGET_NAME openvino_npu_al)
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/compat_string_parser.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/npuw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/options.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npu_mlir_runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npu_private_properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npuw_private_properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/prefix.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/profiling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/weights_pointer_attribute.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config/npuw.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

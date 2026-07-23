@@ -12,7 +12,7 @@ public:
     using Parent = DepthToSpaceKernelBase;
 
     DepthToSpaceKernelBlock2Opt() : DepthToSpaceKernelBase("depth_to_space_block2_opt") {}
-    virtual ~DepthToSpaceKernelBlock2Opt() {}
+    ~DepthToSpaceKernelBlock2Opt() override {}
 
     bool Validate(const Params&) const override;
     JitConstants GetJitConstants(const depth_to_space_params& params) const override;

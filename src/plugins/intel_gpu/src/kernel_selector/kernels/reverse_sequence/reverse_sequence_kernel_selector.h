@@ -16,7 +16,7 @@ public:
 
     reverse_sequence_kernel_selector();
 
-    virtual ~reverse_sequence_kernel_selector() {}
+    ~reverse_sequence_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

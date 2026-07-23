@@ -33,7 +33,7 @@ struct normalize_params : public base_params {
 class NormalizeKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~NormalizeKernelBase() {}
+    ~NormalizeKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 
