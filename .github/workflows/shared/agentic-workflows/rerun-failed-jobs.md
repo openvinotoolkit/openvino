@@ -11,6 +11,7 @@ safe-outputs:
       output: "Failed jobs re-run requested for the analysed workflow run."
       permissions:
         actions: write
+        contents: read
       inputs:
         run_id:
           description: "Numeric ID of the GitHub Actions workflow run whose failed jobs should be re-run. This is the run that was investigated (github.event.workflow_run.id for merge-queue triggers, or the run_id input for workflow_dispatch). Report as a numeric string."
@@ -26,6 +27,11 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Checkout agentic-workflow scripts
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+          with:
+            sparse-checkout: .github/scripts/agentic-workflows
+            persist-credentials: false
         - name: Set up Python
           uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
           with:
@@ -33,66 +39,9 @@ safe-outputs:
         - name: Install PyGithub
           run: python -m pip install --quiet PyGithub
         - name: Re-run failed jobs
-          shell: python
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            import json
-            import os
-            import re
-            import sys
-
-            from github import Auth, Github
-
-            agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
-            if not agent_output or not os.path.isfile(agent_output):
-                sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
-
-            with open(agent_output, encoding="utf-8") as handle:
-                payload_items = json.load(handle).get("items", [])
-
-            items = [it for it in payload_items if it.get("type") == "rerun_failed_jobs"]
-            if not items:
-                sys.exit("No rerun_failed_jobs item present in agent output")
-            item = items[-1]
-
-            run_id = item.get("run_id") or ""
-            repository = item.get("repository") or ""
-            reason = item.get("reason") or ""
-
-            # Validate run_id is purely numeric to avoid API path injection.
-            if not re.fullmatch(r"[0-9]+", run_id):
-                sys.exit(f"run_id must be a numeric string, got: '{run_id}'")
-
-            # Fall back to the current repository when none was supplied.
-            if not repository or repository == "not_found":
-                repository = os.environ.get("GITHUB_REPOSITORY", "")
-
-            # Validate repository is in owner/repo form to avoid API path injection.
-            if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
-                sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
-
-            print(f"Requested re-run of failed jobs for {repository} run {run_id} (reason: {reason})")
-
-            token = os.environ.get("GH_TOKEN", "")
-            if not token:
-                sys.exit("GITHUB_TOKEN is not configured; cannot re-run failed jobs.")
-
-            github = Github(auth=Auth.Token(token))
-            run = github.get_repo(repository).get_workflow_run(int(run_id))
-
-            # Guard against restart loops: if the run has already been attempted
-            # more than once, do not re-run it again (mirrors rerunner.py).
-            attempt = run.run_attempt or 1
-            if attempt > 1:
-                print(f"Run {run_id} already has {attempt} attempts; not re-running to avoid loops.")
-                sys.exit(0)
-
-            # Re-run ONLY the failed jobs of the analysed run.
-            if not run.rerun_failed_jobs():
-                sys.exit(f"GitHub API rejected the re-run request for {repository} run {run_id}.")
-
-            print(f"Successfully requested re-run of failed jobs for {repository} run {run_id}.")
+          run: python .github/scripts/agentic-workflows/rerun_failed_jobs.py
 ---
 
 # CI Doctor MQ — Re-run Failed Jobs
