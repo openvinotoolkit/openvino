@@ -11,7 +11,7 @@ class SoftmaxKernel_bf : public SoftmaxKernelBaseBF {
 public:
     using Parent = SoftmaxKernelBaseBF;
     SoftmaxKernel_bf() : Parent("softmax_gpu_bf") {}
-    virtual ~SoftmaxKernel_bf() {}
+    ~SoftmaxKernel_bf() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

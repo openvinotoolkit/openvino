@@ -224,7 +224,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Weights normalization
         bool is_small_matmul = true;
-        if (shape_a.is_static() && shape_b.is_static()) {
+        if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
              if (matmul->get_transpose_a())
@@ -243,7 +243,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
              // the non-transposed path to XMX-capable GPUs (supports_immad) with
              // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
-             if (supports_immad && k >= 8192 && (m <= 512 || n <= 4096) &&
+             if (k >= 8192 && (m <= 512 || n <= 4096) &&
                  matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
                  is_small_matmul = false;
              }
