@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-23-21-24-12-000-30043161341",
+  "timestamp": "2026-07-23T21:24:12Z",
+  "run_id": "30043161341",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30043161341",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37027",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37027",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
+  "signature": "cpu functional tests job failed arm64 logs unavailable 403 forbidden|Infrastructure",
+  "signature_hash": "724272b6bb94e4b5",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Job concluded with failure; logs return HTTP 403 Forbidden"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Status rollup job failed due to CPU functional tests failure"
+    }
+  ],
+  "key_errors": [
+    "CPU functional tests / CPU functional tests: concluded=failure (job logs: HTTP 403 Forbidden)",
+    "ci/gha_overall_status_linux_arm64: concluded=failure (status rollup)"
+  ],
+  "root_cause": "The CPU functional tests job on the Linux ARM64 pipeline concluded with 'failure', causing the status rollup job to also fail. Job logs are inaccessible (HTTP 403 Forbidden), preventing direct root-cause confirmation. However, based on a strong historical pattern from this repository (11 prior ARM64 investigations, all pointing to smoke_ConvertCPULayerTest flaky failures \u2014 unknown_f32/i32/i8 vs acl_f32/i32/i8 prim-type assertions), the most likely cause is a flaky smoke_ConvertCPULayerTest test asserting unexpected primType on ARM64. The overall run subsequently succeeded (likely via GitHub's automatic re-run), consistent with transient/flaky behavior.",
+  "reproduction_steps": "N/A \u2014 logs inaccessible. Likely not reproducible on demand; historically these ARM64 prim-type failures are intermittent.",
+  "recommended_actions": [
+    "No immediate action required \u2014 the run has likely re-run and succeeded based on overall run conclusion=success.",
+    "If the PR is dropped from the merge queue, re-add it; the failure appears transient.",
+    "Investigate why job logs return 403 Forbidden for this run to improve future diagnostics.",
+    "Review the recurring smoke_ConvertCPULayerTest ARM64 failures: consider suppressing flaky tests or fixing prim-type selection logic."
+  ],
+  "prevention_strategies": "The recurrent ARM64 smoke_ConvertCPULayerTest flakiness needs a root fix in ACL prim-type selection. In the interim, consider marking known flaky tests with retry logic or quarantine mechanism.",
+  "historical_context": "11 prior ARM64 investigations recorded (2026-07-03 through 2026-07-20), all identifying smoke_ConvertCPULayerTest prim-type assertion failures (unknown_f32/i32/i8 vs acl or ref expected). The pattern is highly consistent and suggests a systemic issue with ACL prim-type selection on ARM64."
+}
