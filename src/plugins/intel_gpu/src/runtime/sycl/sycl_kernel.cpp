@@ -106,9 +106,11 @@ bool is_ignored_kernel_name(const std::string& name) {
 } // namespace
 
 std::vector<uint8_t> sycl_kernel::get_binary() const {
-    // Return stored SPIR-V binary as a vector of uint8_t
-    return std::vector<uint8_t>(reinterpret_cast<const uint8_t*>(_spirv_binary.data()),
-                                reinterpret_cast<const uint8_t*>(_spirv_binary.data()) + _spirv_binary.size());
+    OPENVINO_ASSERT(!_spirv_binary.empty(),
+                    "[GPU] sycl_kernel::get_binary: SPIR-V binary is empty");
+
+    const auto* p = reinterpret_cast<const uint8_t*>(_spirv_binary.data());
+    return std::vector<uint8_t>(p, p + _spirv_binary.size());
 }
 
 std::string sycl_kernel::get_build_log() const {
