@@ -196,7 +196,7 @@ private:
     instrumentation::pipeline_stage _stage;
     bool _per_iter_mode = false;
     bool cache_hit = false;
-    std::string memalloc_info = "";
+    std::string memalloc_info;
 };
 
 class mem_usage_logger {

@@ -223,7 +223,7 @@ protected:
     }
 
     std::string generate_block_write(ov::element::Type_t dtype, std::string dst, std::string src) const {
-        std::string res = "";
+        std::string res;
         if (dtype == ov::element::f16) {
             res = "intel_sub_group_block_write_us((__global ushort*)(" + dst + "), as_short(" + src + "));";
         } else {
@@ -240,7 +240,7 @@ protected:
     }
 
     std::string generate_matmul_code(size_t M, size_t N, ov::element::Type_t dtype, size_t lora_count, bool is_a_kernel) const {
-        std::string res = "";
+        std::string res;
         std::string int_type = dtype == ov::element::f16 ? "ushort" : "uint";
         std::string input_type = is_a_kernel ? "INPUT1_TYPE" : "ACCUMULATOR_TYPE";
 
@@ -285,7 +285,7 @@ protected:
     }
 
     std::string generate_store_result_code(size_t M, size_t N, ov::element::Type_t dtype, bool is_a_kernel) const {
-        std::string res = "";
+        std::string res;
 
         if (is_a_kernel) {
             for (size_t n = 0; n < N; ++n) {

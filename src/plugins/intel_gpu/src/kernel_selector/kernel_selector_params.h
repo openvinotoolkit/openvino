@@ -407,8 +407,8 @@ struct EngineInfo {
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
-    std::string deviceId = "";
-    std::string driverVersion = "";
+    std::string deviceId;
+    std::string driverVersion;
     std::vector<size_t> supportedSimdSizes = {};
 
     DeviceFeaturesKey get_supported_device_features_key() const;
