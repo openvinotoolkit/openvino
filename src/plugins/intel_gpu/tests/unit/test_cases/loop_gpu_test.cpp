@@ -438,6 +438,89 @@ TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
 
+TEST(loop_gpu, zero_iterations_dynamic_merged_output) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape dynamic_shape{ov::Dimension(0, 1), ov::Dimension::dynamic(), ov::Dimension(0, 4)};
+    const ov::PartialShape input_shape{1, 2, 4};
+    const layout dynamic_layout{dynamic_shape, data_types::f32, format::bfyx};
+    const layout input_layout{input_shape, data_types::f32, format::bfyx};
+    const layout scalar_layout{ov::PartialShape{}, data_types::i64, format::bfyx};
+
+    auto input_mem = engine.allocate_memory(input_layout);
+    auto initial_condition_mem = engine.allocate_memory(scalar_layout);
+    auto num_iteration_mem = engine.allocate_memory(scalar_layout);
+    std::vector<float> input_data{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    set_values(input_mem, input_data);
+    set_values(initial_condition_mem, {0});
+
+    topology body(
+        cldnn::input_layout("body_input", dynamic_layout),
+        eltwise("body_output", input_info("body_input"), input_info("body_input"), eltwise_mode::sum));
+
+    std::vector<loop::io_primitive_map> input_primitive_maps{
+        loop::io_primitive_map("input", "body_input")};
+    std::vector<loop::io_primitive_map> output_primitive_maps{
+        loop::io_primitive_map("loop", "body_output")};
+    std::vector<loop::backedge_mapping> back_edges{
+        loop::backedge_mapping("body_output", "body_input")};
+
+    auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges, true);
+
+    topology outer_topology(
+        cldnn::input_layout("input", dynamic_layout),
+        cldnn::input_layout("initial_condition", scalar_layout),
+        mutable_data("num_iteration", num_iteration_mem),
+        loop("loop",
+             {input_info("num_iteration"), input_info("initial_condition"), input_info("input")},
+             body_program,
+             "",
+             "initial_condition",
+             "num_iteration",
+             input_primitive_maps,
+             output_primitive_maps,
+             back_edges,
+             8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, outer_topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+    network->set_input_data("initial_condition", initial_condition_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), 1);
+
+    {
+        mem_lock<int64_t, mem_lock_type::read> num_iteration_ptr{num_iteration_mem, get_test_stream()};
+        ASSERT_EQ(num_iteration_ptr[0], 0);
+    }
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), input_shape);
+    {
+        mem_lock<float, mem_lock_type::read> output_ptr{output_mem, get_test_stream()};
+        for (size_t index = 0; index < input_data.size(); ++index) {
+            ASSERT_FLOAT_EQ(output_ptr[index], input_data[index]);
+        }
+    }
+
+    auto preset_output_mem = engine.allocate_memory(input_layout);
+    network->set_output_memory("loop", preset_output_mem);
+    outputs = network->execute();
+    ASSERT_EQ(outputs.size(), 1);
+
+    output_mem = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), input_shape);
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *preset_output_mem));
+    {
+        mem_lock<float, mem_lock_type::read> output_ptr{output_mem, get_test_stream()};
+        for (size_t index = 0; index < input_data.size(); ++index) {
+            ASSERT_FLOAT_EQ(output_ptr[index], input_data[index]);
+        }
+    }
+}
+
 static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout,
                                         ov::PartialShape whole_layout,
                                         std::vector<float> input_data,
