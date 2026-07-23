@@ -317,9 +317,15 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
         if (!is_batch_drop_select(gather.get())) {
             return false;
         }
-        // The flattened position_ids no longer has a batch dimension to drop, so remove the Gather and
-        // reconnect its consumers to its data input.
-        ov::replace_output_update_name(gather->output(0), gather->input_value(0));
+
+        auto reshape = std::make_shared<v1::Reshape>(gather->input_value(0),
+                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     false);
+
+        reshape->set_friendly_name(gather->get_friendly_name());
+        reshape->output(0).set_names(gather->output(0).get_names());
+        ov::copy_runtime_info(gather, reshape);
+        ov::replace_node(gather, reshape);
         return true;
     };
 
@@ -343,6 +349,15 @@ std::shared_ptr<v0::Parameter> ov::pass::paged_attention::prepare_position_ids(P
                            position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
         }
         position_ids->validate_and_infer_types();
+    }
+
+    // Restore the rank of the flattened position_ids at its consumers with a single shared Unsqueeze(-1)
+    // ([tokens, 1]). The batch-drop select branch is re-oriented to [1, tokens] later by EliminateDropBatch.
+    const auto consumers = position_ids->output(0).get_target_inputs();
+
+    auto column = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+    for (const auto& consumer : consumers) {
+        consumer.replace_source_output(column);
     }
 
     return position_ids;
