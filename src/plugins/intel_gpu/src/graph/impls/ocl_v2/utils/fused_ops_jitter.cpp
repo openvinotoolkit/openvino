@@ -703,8 +703,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     //    we can gather the data to vector
     if (conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ) {
         if (input_tensor.is_dynamic()) {
-            const auto has_multiple_elements =
-                kernel_selector::GetTensorHasMultipleElementsCondition(get_input_tensor_name(input_id).str());
+            const auto has_multiple_elements = kernel_selector::GetTensorHasMultipleElementsCondition(get_input_tensor_name(input_id).str());
             auto block_load = make_block_read(input_dt, vec_size, in_ptr + index_func_call);
             auto scalar_load = broadcast(in_ptr[index_func_call], input_dt, vec_size);
             return ternary(JitTerm{"(" + has_multiple_elements + ")"}, block_load, scalar_load);
