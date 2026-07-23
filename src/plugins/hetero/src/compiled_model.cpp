@@ -5,9 +5,9 @@
 #include "compiled_model.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <limits>
-#include <chrono>
 #include <memory>
 #include <sstream>
 #include <string>
