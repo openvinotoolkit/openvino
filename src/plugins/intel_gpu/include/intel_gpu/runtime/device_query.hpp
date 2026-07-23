@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 namespace cldnn {
 
@@ -41,4 +42,15 @@ public:
 private:
     std::map<std::string, device::ptr> _available_devices;
 };
+
+// One device seen by the lightweight enumeration below.
+struct lightweight_device {
+    std::string map_id;    ///< Detector's own id for the device (this library's ".N").
+    device_info info;      ///< Device info populated without engine/context construction.
+};
+
+// Cheap device enumeration for pre-construction dispatch: lists the devices this build's
+// runtime can serve with device_info populated, WITHOUT building an engine/context.
+std::vector<lightweight_device> lightweight_enumerate() noexcept;
+
 }  // namespace cldnn
