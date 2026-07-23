@@ -81,8 +81,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     std::vector<int64_t> input_v_transpose_order;
     std::vector<int64_t> output_transpose_order;
 
-    std::optional<float> attn_mask_val{};
-    std::optional<float> scale_val{};
+    std::optional<float> attn_mask_val;
+    std::optional<float> scale_val;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

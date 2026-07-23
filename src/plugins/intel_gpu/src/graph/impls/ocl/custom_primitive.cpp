@@ -80,7 +80,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     custom_gpu_primitive_impl()
-    : _kernels() {}
+ {}
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : parent(other.get_kernel_name())
@@ -95,15 +95,13 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
     : parent(cl_kernel->code.kernelString->entry_point)
-    , cl_kernel(cl_kernel)
-    , _kernels() { }
+    , cl_kernel(cl_kernel) { }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                               std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
                               const std::map<uint32_t, std::string>& size_expr_map)
     : parent(cl_kernel->code.kernelString->entry_point)
     , cl_kernel(cl_kernel)
-    , _kernels()
     , size_expr_map(size_expr_map) { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {

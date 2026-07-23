@@ -3094,8 +3094,7 @@ std::string primitive_inst::get_implementation_name() const {
 ImplementationsFactory::ImplementationsFactory(const program_node* node)
     : m_node(node)
     , m_available_impls(node->type()->get_supported_implementations(*node))
-    , m_static_impls_cache(node->get_program().get_implementations_cache())
-    , m_dynamic_impls_cache() {
+    , m_static_impls_cache(node->get_program().get_implementations_cache()) {
     if (node->get_selected_impl() && node->get_selected_impl()->is_dynamic()) {
         m_dynamic_impls_cache.emplace_back(node->get_selected_impl()->clone());
     }

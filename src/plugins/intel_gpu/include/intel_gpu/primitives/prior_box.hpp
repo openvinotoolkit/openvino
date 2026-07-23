@@ -151,21 +151,21 @@ struct prior_box : public primitive_base<prior_box> {
     }
 
     /// @brief Spatial size of generated grid with boxes.
-    tensor output_size{};
+    tensor output_size;
     /// @brief Image width and height.
-    tensor img_size{};
+    tensor img_size;
     /// @brief  Minimum box sizes in pixels.
-    std::vector<float> min_sizes{};
+    std::vector<float> min_sizes;
     /// @brief Maximum box sizes in pixels.
-    std::vector<float> max_sizes{};
+    std::vector<float> max_sizes;
     /// @brief Various of aspect ratios. Duplicate ratios will be ignored.
-    std::vector<float> aspect_ratios{};
+    std::vector<float> aspect_ratios;
     /// @brief If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio "1.0/r" we will generated as well.
     bool flip{false};
     /// @brief If true, will clip the prior so that it is within [0, 1].
     bool clip{false};
     /// @brief Variance for adjusting the prior boxes.
-    std::vector<float> variance{};
+    std::vector<float> variance;
     /// @brief Step width for clustered version.
     float step_width{0.0f};
     /// @brief Step height for clustered version.
@@ -177,18 +177,18 @@ struct prior_box : public primitive_base<prior_box> {
     /// @brief If false, only first min_size is scaled by aspect_ratios
     bool scale_all_sizes{true};
 
-    std::vector<float> fixed_ratio{};
-    std::vector<float> fixed_size{};
-    std::vector<float> density{};
+    std::vector<float> fixed_ratio;
+    std::vector<float> fixed_size;
+    std::vector<float> density;
 
     // required for v8
     bool support_opset8{false};
     bool min_max_aspect_ratios_order{true};
 
     /// @brief Required for clustered version.
-    std::vector<float> widths{};
+    std::vector<float> widths;
     /// @brief Required for clustered version.
-    std::vector<float> heights{};
+    std::vector<float> heights;
 
     bool is_clustered() const { return clustered; }
     bool is_v8_support() const { return support_opset8;}

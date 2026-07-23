@@ -128,7 +128,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
 } // namespace
 
-ExecutionConfig::ExecutionConfig() : ov::PluginConfig() { }
+ExecutionConfig::ExecutionConfig() { }
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;

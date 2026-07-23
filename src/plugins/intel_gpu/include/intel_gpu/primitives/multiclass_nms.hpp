@@ -37,8 +37,8 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
         }
     }
 
-    input_info output_selected_indices{};
-    input_info output_selected_num{};
+    input_info output_selected_indices;
+    input_info output_selected_num;
     ov::op::util::MulticlassNmsBase::Attributes attrs;
     bool has_roisnum{false};
 

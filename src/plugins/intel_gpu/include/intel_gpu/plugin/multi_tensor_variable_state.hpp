@@ -13,7 +13,7 @@ public:
     MultiTensorState(const std::vector<VariableStateInfo>& infos, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
 
 protected:
-    std::vector<std::shared_ptr<VariableState>> m_hidden_states = {};
+    std::vector<std::shared_ptr<VariableState>> m_hidden_states;
 };
 
 // This is multi-tensor state for Indirect KV-Cache + Gemm pattern

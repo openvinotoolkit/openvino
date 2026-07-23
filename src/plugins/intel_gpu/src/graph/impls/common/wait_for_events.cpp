@@ -21,7 +21,7 @@ public:
     explicit wait_for_events_impl(const program_node& /*node*/)
         : primitive_impl("wait_for_events") { }
 
-    wait_for_events_impl() : primitive_impl() {}
+    wait_for_events_impl() {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 

@@ -44,6 +44,6 @@ private:
     };
 
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    std::vector<AutoTuneOption> autoTuneOptions = {};
+    std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector
