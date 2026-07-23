@@ -111,7 +111,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
+#ifdef KV_COMPRESSED
+    // Hoist dynamic compression-layout batch/head pitches out of the hot loops.
+    const uint k_comp_base = KEY_COMP_OFF(b1, b0_kv, 0, 0);
+    #if USE_2D_BLOCK_IO_V_I8
+    const uint v_comp_base = VAL_COMP_OFF(b1, b0_kv, 0, 0);
+    #endif
+#endif
 
+    const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = QRY_S2 * (int)sizeof(QRY_DATA_T);
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = KEY_S2 * (int)sizeof(KEY_DATA_T);
     const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = VAL_S2 * (int)sizeof(VAL_DATA_T);
     const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = DST_S2 * (int)sizeof(half);
@@ -131,22 +139,33 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     for (int tile = sg_ij; tile < q_blocks * DKS; tile += sg_per_wg) {
         const int q_block = tile / DKS;   // 0..q_blocks-1
         const int db      = tile % DKS;   // 0..DKS-1
-        const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
+        const int query_base = wg_j0 + q_block * SUBGROUP_SIZE;
         const int head_base = db * DPAS_K;
-        ushort16 qv = (ushort16)0;
-        if (query < q) {
-            if (head_base + DPAS_K <= d) {
-                qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + head_base));
-            } else {
-                #pragma unroll
-                for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
-                    if (head_base + head_offset < d) {
-                        qv[head_offset] = as_ushort(Q[(size_t)query * QRY_S2 + head_base + head_offset]);
+        uint8 q_pack;
+#if USE_2D_BLOCK_IO_Q
+        if (query_base + SUBGROUP_SIZE <= q && head_base + DPAS_K <= d) {
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
+                (global void *)Q, QD_w, QD_h, QD_p,
+                (int2)(head_base / 2, query_base), (private uint *)&q_pack);
+        } else
+#endif
+        {
+            const int query = query_base + lane;
+            ushort16 qv = (ushort16)0;
+            if (query < q) {
+                if (head_base + DPAS_K <= d) {
+                    qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + head_base));
+                } else {
+                    #pragma unroll
+                    for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
+                        if (head_base + head_offset < d) {
+                            qv[head_offset] = as_ushort(Q[(size_t)query * QRY_S2 + head_base + head_offset]);
+                        }
                     }
                 }
             }
+            q_pack = as_uint8(as_short16(qv));
         }
-        uint8 q_pack = as_uint8(as_short16(qv));
         intel_sub_group_block_write8(
             (local uint *)&Q_slm[((db * q_blocks + q_block) * Q_DWORDS) * SUBGROUP_SIZE], q_pack);
     }
@@ -200,7 +219,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
             const int sc_key = key_base + ii * SUBGROUP_SIZE + lane;
-            const uint sc_off = KEY_COMP_OFF(b1, b0_kv, sc_key, 0);
+            const uint sc_off = k_comp_base + KEY_COMP_OFF(0, 0, sc_key, 0);
             k_scale_lane[ii] = (sc_key < k) ? convert_half(K_scales[sc_off]) : (half)0.0f;
             #if KEY_ZERO_POINTS
             k_zpb_lane[ii] = (sc_key < k) ? (convert_half(K_zp[sc_off]) + (half)1152.0h) : (half)1152.0h;
@@ -479,6 +498,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
+            #if USE_2D_BLOCK_IO_V_I8
+                #if sv_value_blocks == 1
+                    uint vt[8];
+                    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                        (global void *)V, VD_w, VD_h, VD_p,
+                        (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
+                // #elif sv_value_blocks == 2
+                //     uint vt[16];
+                //     intel_sub_group_2d_block_read_transform_8b_32r16x2c(
+                //         (global void *)V, VD_w, VD_h, VD_p,
+                //         (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
+                #endif
+            #endif
+
             short8 pA[sv_score_blocks];
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r) {
@@ -496,7 +529,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // zp is a subtraction, not a scalar factor, so it stays on the V side (still needs
                 // its per-key value broadcast into the value/head-dim lanes there).
                 const int vs_key = k0 + cp * SUBGROUP_SIZE + lane;
-                const uint vs_co = VAL_COMP_OFF(b1, b0_kv, vs_key, 0);
+                const uint vs_co = v_comp_base + VAL_COMP_OFF(0, 0, vs_key, 0);
                 // Keep scale/zp in half: V_scales/V_zp are already half, and the dequant is
                 // stored as half — half arithmetic is bit-identical to the float path over the
                 // int8 range (verified), so this avoids the half->float->half round trips.
@@ -515,56 +548,55 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #endif
 
             int8 vb[sv_value_blocks];
-            #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                #if USE_2D_BLOCK_IO_V_I8
-                    // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
-                    // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
-                    // need this cp-block's 16 keys, which are uints 0..3 (keys cp*16 .. +15 when read
-                    // at row k0+cp*16). Dequant each byte (per-key scale via the cached vs_c
-                    // broadcast) and repack into the f16 VNNI operand (2 half-keys per int), matching
-                    // the scalar vb layout with no subgroup shuffle.
-                    {
-                        uint vt[8];
-                        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                            (global void *)V, VD_w, VD_h, VD_p,
-                            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
-                        // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
-                        // Bias-trick dequant (microbench-validated, mov -66% vs convert_half4):
-                        // extract each key byte with shift+mask (NO as_char4 -> no <4;1,0> :b
-                        // deinterleave), widen via the denormal-bias reinterpret (0x6480 ^ byte)
-                        // == signed_byte+1152 as half. scale is folded into pA above (score side),
-                        // so only the bias-folded zp subtraction (vzb=zp+1152) remains here.
-                        #pragma unroll
-                        for (int u = 0; u < 4; ++u) {
-                            const uint w = vt[u];
-                            const int k0r = u * 4;
-                            const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
-                            #if VAL_ZERO_POINTS
-                                const half4 zpb4 = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
-                                                           sub_group_broadcast(vzb_c, k0r + 1),
-                                                           sub_group_broadcast(vzb_c, k0r + 2),
-                                                           sub_group_broadcast(vzb_c, k0r + 3));
-                                const half4 deq4 = wide4 - zpb4;
-                            #else
-                                const half4 deq4 = wide4 - (half4)((half)1152.0h);
-                            #endif
-                            // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
-                            // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
-                            // are exactly the two key_pairs (u*2, u*2+1) for this u — store
-                            // straight into vb instead of round-tripping through an array.
-                            vb[cd][u * 2 + 0] = as_int(deq4.lo);
-                            vb[cd][u * 2 + 1] = as_int(deq4.hi);
-                        }
+            #if USE_2D_BLOCK_IO_V_I8
+                // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
+                // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
+                // need this cp-block's 16 keys, which are uints 0..3 (keys cp*16 .. +15 when read
+                // at row k0+cp*16). Dequant each byte (per-key scale via the cached vs_c
+                // broadcast) and repack into the f16 VNNI operand (2 half-keys per int), matching
+                // the scalar vb layout with no subgroup shuffle.
+                {
+                    // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
+                    // Bias-trick dequant (microbench-validated, mov -66% vs convert_half4):
+                    // extract each key byte with shift+mask (NO as_char4 -> no <4;1,0> :b
+                    // deinterleave), widen via the denormal-bias reinterpret (0x6480 ^ byte)
+                    // == signed_byte+1152 as half. scale is folded into pA above (score side),
+                    // so only the bias-folded zp subtraction (vzb=zp+1152) remains here.
+                    #pragma unroll
+                    for (int u = 0; u < 4; ++u) {
+                        const uint w = vt[u];
+                        const int k0r = u * 4;
+                        const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
+                                                    as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
+                                                    as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
+                                                    as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
+                        #if VAL_ZERO_POINTS
+                            const half4 zpb4 = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
+                                                        sub_group_broadcast(vzb_c, k0r + 1),
+                                                        sub_group_broadcast(vzb_c, k0r + 2),
+                                                        sub_group_broadcast(vzb_c, k0r + 3));
+                            const half4 deq4 = wide4 - zpb4;
+                        #else
+                            const half4 deq4 = wide4 - (half4)((half)1152.0h);
+                        #endif
+                        // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
+                        // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
+                        // are exactly the two key_pairs (u*2, u*2+1) for this u — store
+                        // straight into vb instead of round-tripping through an array.
+                        vb[0][u * 2 + 0] = as_int(deq4.lo);
+                        vb[0][u * 2 + 1] = as_int(deq4.hi);
                     }
-                #elif USE_2D_BLOCK_IO
+                }
+            #elif USE_2D_BLOCK_IO
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     intel_sub_group_2d_block_read_transform_16b_16r16x1c(
                         (global void *)V, VD_w, VD_h, VD_p,
                         (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
-                #else
+                }
+            #else
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     vb[cd] = (int8)0;
                     const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
                     if (value < d) {
@@ -603,8 +635,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             vb[cd][key_pair] = as_int(vv);
                         }
                     }
-                #endif
-            }
+                }
+            #endif
 
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r)
