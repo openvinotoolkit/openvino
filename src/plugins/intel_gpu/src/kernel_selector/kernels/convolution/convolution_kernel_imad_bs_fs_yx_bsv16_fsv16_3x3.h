@@ -13,7 +13,7 @@ class Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3 : public ConvolutionKerne
 public:
     using Parent = ConvolutionKernelBase;
     Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3() : ConvolutionKernelBase("convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_3x3") {}
-    virtual ~Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3() {}
+    ~Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

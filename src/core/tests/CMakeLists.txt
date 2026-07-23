@@ -22,31 +22,120 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
-                          ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+set(OV_CORE_TESTS_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/aligned_buffer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/all_close_f.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/any.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bfloat16.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bound_evaluate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build_graph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/check.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/constant.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/control_dependencies.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convert_u1_to_string.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/coordinate_range.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/copy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/copy_runtime_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptor_tensor_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dimension.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/element_iterator_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/element_type.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/element_visitor_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eval.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float16.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float4_e2m1.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float8_e4m3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float8_e5m2.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float8_e8m0.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/framework_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/graph_rewrite.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/input_output_assign.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/int4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/intervals.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lazy_buffer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matcher_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/memory_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mmap_object.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/model_util_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multi_matcher_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nf4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/node_input_output.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/node_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/node_util_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/opset.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/opset1.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_default_allocator_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_tensor_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_version.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/partial_shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pass_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pass_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pattern.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pattern_block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/preprocess.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/replace_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reshape_opt_kernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rtti.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_utils_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_buffer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/span.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_align_buffer_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tensor_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_prop_layers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_relaxed_copy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/uint4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/validation_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/weight_sharing_util_test.cpp
+)
+
+include(conditional_compilation/sources.cmake)
+include(pass/sources.cmake)
+include(reference/sources.cmake)
+include(type_prop/sources.cmake)
+include(visitors/sources.cmake)
+include(xml_util/sources.cmake)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        EXCLUDED_SOURCE_PATHS
-            ${EXCLUDE_TESTS}
-        DEPENDENCIES
-            ${UNIT_TESTS_DEPENDENCIES}
-            # process models
-            test_model_zoo
-        LINK_LIBRARIES
-            common_test_utils
-            openvino::reference
-            openvino::util
-            openvino::shape_inference
-            ${CMAKE_DL_LIBS}
-            Threads::Threads
-            openvino::conditional_compilation
-            openvino::runtime::dev
-            openvino::xml_util
-        ADD_CLANG_FORMAT
-        LABELS
-            OV UNIT CORE
+    SOURCES
+        ${OV_CORE_TESTS_SRCS}
+        ${OV_CORE_TESTS_CC_SRCS}
+        ${OV_CORE_TESTS_PASS_SRCS}
+        ${OV_CORE_TESTS_REFERENCE_SRCS}
+        ${OV_CORE_TESTS_TYPE_PROP_SRCS}
+        ${OV_CORE_TESTS_VISITORS_SRCS}
+        ${OV_CORE_TESTS_XML_UTIL_SRCS}
+    INCLUDES
+        $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDENCIES
+        ${UNIT_TESTS_DEPENDENCIES}
+
+        # process models
+        test_model_zoo
+    LINK_LIBRARIES
+       common_test_utils
+        openvino::reference
+        openvino::util
+        openvino::shape_inference
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+        openvino::conditional_compilation
+        openvino::runtime::dev
+        openvino::xml_util
+    ADD_CLANG_FORMAT
+    TESTS_PER_SOURCE
+    LABELS
+        OV UNIT CORE
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
