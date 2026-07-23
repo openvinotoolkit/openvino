@@ -90,3 +90,4 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_EMBED, bool, false, ov::intel_npu::npuw::tex
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO, bool, false, ov::intel_npu::npuw::kokoro, enabled, "NPUW_KOKORO", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_BLOCK_SIZE, uint64_t, 200, ov::intel_npu::npuw::kokoro, block_size, "NPUW_KOKORO_BLOCK_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_OVERLAP_SIZE, uint64_t, 20, ov::intel_npu::npuw::kokoro, overlap_size, "NPUW_KOKORO_OVERLAP_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_VOCAB_AS_INPUT, bool, false, ov::intel_npu::npuw::llm, vocab_as_input, "NPUW_LLM_VOCAB_AS_INPUT", LLM, EXPOSED, UNCACHED, ALL)

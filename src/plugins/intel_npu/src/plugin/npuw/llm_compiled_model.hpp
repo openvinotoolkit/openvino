@@ -155,6 +155,8 @@ private:
                                          const ov::AnyMap& generate_config);
 
     bool m_is_eagle = false;
+
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_separate_vocab_tensors;
 };
 
 }  // namespace npuw

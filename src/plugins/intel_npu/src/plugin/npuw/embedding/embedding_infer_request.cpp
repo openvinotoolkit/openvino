@@ -19,7 +19,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::create_prefill_output_te
 
 ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
-    init_ports();
+    init_ports({});
 
     m_prefill_base_request = m_npuw_llm_compiled_model->m_prefill_compiled->create_base_infer_request();
     m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);

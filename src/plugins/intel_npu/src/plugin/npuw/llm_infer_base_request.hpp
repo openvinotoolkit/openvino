@@ -54,8 +54,9 @@ protected:
                                     const PortsMap& out_ports,
                                     uint32_t num_tokens,
                                     bool v_transposed);
-    void init_tensor(const ov::Output<const ov::Node>& port);
-    void init_ports();
+    void init_tensor(const ov::Output<const ov::Node>& port,
+                     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> const_tensors);
+    void init_ports(std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> const_tensors);
 
 protected:
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
