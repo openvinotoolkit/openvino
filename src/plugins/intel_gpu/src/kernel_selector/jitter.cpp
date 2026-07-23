@@ -2350,7 +2350,10 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 // broadcasting while using a subgroup block read for non-scalar tensors.
                 const auto has_multiple_elements = GetTensorHasMultipleElementsCondition(GetInputTensorName(input_id));
                 auto scalar_load = Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
-                return "((" + has_multiple_elements + ") ? " + Broadcast(block_read, input_dt, vec_size) + " : " + scalar_load + ")";
+                return ternary(JitTerm{"(" + has_multiple_elements + ")"},
+                               JitTerm{Broadcast(block_read, input_dt, vec_size)},
+                               JitTerm{scalar_load})
+                    .str();
             }
 
             if (input_tensor.LogicalSize() > 1) {
