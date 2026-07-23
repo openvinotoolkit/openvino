@@ -37,7 +37,16 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
+    for (auto& user : node.get_users()) {
+        auto& fc_user = user->as<fully_connected>();
+        if (!can_skip_for_fully_connected(node, fc_user, act_layout, input_batch)) {
+            GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
+            return false;
+        }
+    }
+
+    const auto dynamic_quantization_threshold = node.get_program().get_config().get_dynamic_quantization_threshold();
+    if (dynamic_quantization_threshold != 0 && dynamic_quantization_threshold >= input_batch) {
         GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
                         << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
         return true;

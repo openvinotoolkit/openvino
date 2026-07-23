@@ -1782,11 +1782,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     use_gs128_for_linear_attention);
+                // Deduplicate identical DynamicQuantize nodes sharing same input
+                manager.register_pass<ov::pass::SharedOpOptimization>();
             }
         }
-
-        // Deduplicate identical DynamicQuantize nodes sharing same input
-        manager.register_pass<ov::pass::SharedOpOptimization>();
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();

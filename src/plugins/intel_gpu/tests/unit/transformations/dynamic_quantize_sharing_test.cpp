@@ -6,6 +6,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
