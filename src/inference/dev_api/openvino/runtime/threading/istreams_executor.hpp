@@ -10,9 +10,9 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -39,13 +39,9 @@ public:
      */
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
-    enum MsgType{
-        TP,
-        START_INFER,
-        CALL_BACK
-    };
+    enum MsgType { TP, START_INFER, CALL_BACK };
 
-    struct MessageInfo{
+    struct MessageInfo {
         MsgType msg_type;
         std::vector<int> rank;
         void* buf;
@@ -93,7 +89,7 @@ public:
         bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin or
                                         //!< compiled model. If it is true, cpu_pinning defaults to true.
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
-        bool _cores_limit = true;       //!< Whether to limit the number of streams and threads by the number of cpu cores
+        bool _cores_limit = true;  //!< Whether to limit the number of streams and threads by the number of cpu cores
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
@@ -107,7 +103,7 @@ public:
          */
         void reserve_cpu_threads();
 
-         /**
+        /**
          * @brief Modify _streams_info_table and related configuration according to configuration
          */
         void update_executor_config();
@@ -229,8 +225,7 @@ public:
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
-                _thread_preferred_core_type == config._thread_preferred_core_type &&
-                _rank == config._rank) {
+                _thread_preferred_core_type == config._thread_preferred_core_type && _rank == config._rank) {
                 return true;
             } else {
                 return false;

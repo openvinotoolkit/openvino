@@ -4,7 +4,46 @@
 
 #[[
 function to create CMake target and setup its options in a declarative style.
-Example:
+
+SOURCE LISTING — preferred vs. legacy
+--------------------------------------
+SOURCES (preferred)
+  Pass an explicit list of source and header files.  CMake sees the exact file set at configure time, incremental
+  builds are reliable, and there are no hidden glob-related staleness issues.
+  See src/common/util/CMakeLists.txt for the canonical example.
+
+ROOT (legacy / deprecated)
+  Pass a directory root; the function will GLOB_RECURSE for *.cpp / *.h / *.hpp under that directory (and any
+  ADDITIONAL_SOURCE_DIRS).  New targets should NOT use ROOT.  Existing targets should be migrated to explicit
+  SOURCES lists when the opportunity arises.
+
+Migration pattern — converting ROOT to SOURCES:
+  1. Replace ROOT ${CMAKE_CURRENT_SOURCE_DIR} with an explicit SOURCES list.
+  2. Remove ADDITIONAL_SOURCE_DIRS and EXCLUDED_SOURCE_PATHS (handle in SOURCES).
+  3. Use target_sources() for platform-specific files (WIN32/UNIX conditionals).
+  See src/common/util/CMakeLists.txt for a worked example.
+
+Preferred example (SOURCES):
+ov_add_target(
+   NAME core_lib
+   ADD_CLANG_FORMAT
+   TYPE <SHARED / STATIC / EXECUTABLE>
+   SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/foo.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/foo.hpp
+   INCLUDES
+        ${SDL_INCLUDES}
+        /some/specific/path
+   LINK_LIBRARIES
+        link_dependencies
+   DEPENDENCIES
+        dependencies
+        openvino::important_plugin
+   DEFINES
+        DEF1 DEF2
+)
+
+Legacy example (ROOT — avoid for new targets):
 ov_add_target(
    NAME core_lib
    ADD_CLANG_FORMAT
@@ -41,10 +80,10 @@ function(ov_add_target)
         NAME # name of target
         )
     set(oneValueOptionalArgs
-        ROOT # root directory to be used for recursive search of source files (optional when SOURCES is provided)
-        )
+        ROOT # [LEGACY] root directory for GLOB_RECURSE source discovery; prefer SOURCES for new targets
+    )
     set(multiValueArgs
-        SOURCES                       # Explicit source file list; when provided ROOT glob is skipped
+        SOURCES                       # [PREFERRED] Explicit source file list; when provided ROOT glob is skipped
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
         DEPENDENCIES                  # compile order dependencies (no link implied)
@@ -170,6 +209,9 @@ function(ov_add_test_target_per_source)
         SOURCES
         LINK_LIBRARIES
         LABELS
+        INCLUDES
+        # accept but ignore
+        DEPENDENCIES
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -194,13 +236,28 @@ function(ov_add_test_target_per_source)
     endif()
 
     foreach(_src IN LISTS ARG_SOURCES)
-        get_filename_component(_stem "${_src}" NAME_WE)
+        # Use the subdirectory-qualified stem to avoid collisions when two source files have the same basename 
+        # but live in different subdirectories.
+        file(RELATIVE_PATH _rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_src}")
+        get_filename_component(_stem_dir "${_rel}" DIRECTORY)
+        get_filename_component(_stem_base "${_rel}" NAME_WE)
+
+        if(_stem_dir)
+            string(REPLACE "/" "_" _stem_dir "${_stem_dir}")
+            set(_stem "${_stem_dir}_${_stem_base}")
+        else()
+            set(_stem "${_stem_base}")
+        endif()
         set(_target "${ARG_NAME}_${_stem}")
 
         add_executable(${_target} EXCLUDE_FROM_ALL ${_src})
 
         if(ARG_LINK_LIBRARIES)
             target_link_libraries(${_target} PRIVATE ${ARG_LINK_LIBRARIES})
+        endif()
+
+        if (ARG_INCLUDES)
+            target_include_directories(${_target} PRIVATE ${ARG_INCLUDES})
         endif()
 
         add_test(NAME ${_target} COMMAND ${_target})
