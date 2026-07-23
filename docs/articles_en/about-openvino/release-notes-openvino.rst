@@ -42,7 +42,7 @@ Broader LLM model support and more model compression techniques
 
 * OpenVINO™ GenAI extends the EAGLE3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding TopK sampling to deliver additional tokengeneration speedups on CPUs, GPUs, and NPUs.
 
-* MoE offloading to disk enabled, allowing 30B MoE models like Gemma 4 26B and Qwen330B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokenspersecond (TPS) generation rates.
+* Enabled MoE weight offloading to disk, reducing memory requirements when running large MoE models.
 
 * Added GroupedMatMul to accelerate native execution of MixtureofExperts (MoE) models, enabling faster support for new MoE architectures and improving their outofthebox performance.
 
@@ -53,7 +53,7 @@ Broader LLM model support and more model compression techniques
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
-* Introducing support for Intel® Xeon® 6+ processors (formerly codenamed Clearwater Forest)
+* Added support for Intel® Xeon® 6+ processors.
 
 * OpenVINO GenAI and tokenizers are now available as a native Windows package via WinGet, allowing developers to install and get started with a single command on Windows.
 
@@ -77,11 +77,6 @@ Common
 
 * Resolved an XML parsing issue to safely detect and report malformed XML plugin confugration files, improving robustness and providing clearer diagnostics during plugin initialization and registration.
 
-AUTO Inference Mode
--------------------
-
-* N/A
-
 CPU Device Plugin
 -----------------
 
@@ -98,8 +93,6 @@ CPU Device Plugin
 GPU Device Plugin
 -----------------
 
-* Initial support of mxfp8 for Intel Xe3p platforms.
-
 * Extended remote tensor support to include NT handles and CPU pointers, broadening interoperability options for GPU memory management.
 
 * Optimized memory usage during model loading and inference phases, reducing overall memory footprint to enable deployment on more constrained systems.
@@ -108,14 +101,12 @@ GPU Device Plugin
 
 * Improved inference performance for Gemma-4 and Qwen3-ASR models on GPU.
 
-* Introduced Mixture of Experts (MoE) weight offloading to disk, enabling execution of models up to 30B parameters on 16GB AI PCs and 30B–60B parameter models on 32GB AI PCs using INT4 weights with partial MoE weight offloading.
+* Introduced Mixture of Experts (MoE) weight offloading to disk, reducing memory requirements for INT4 models through partial weight offloading.
 
 * Optimized MoE decoding throughput in batched inference scenarios.
 
 NPU Device Plugin
 -----------------
-
-* Preview: Introduced experimental dynamic shape model support on NPU, currently limited to vision models and validated on super resolution models such as ESPCN. Only bounded dynamic shapes are supported at this time. Full dynamic shape support, including unbounded shapes and broader model coverage, is planned for future releases.
 
 * Added support for LFM2 in both FP16 and INT4 quantized modes on NPU. To convert an LFM2 model to an NPU-friendly INT4 quantized form, pass the additional ``--backup-precision int8_sym`` parameter to optimum-intel to ensure symmetric quantization of the linear part of the attention mechanism.
 
@@ -132,7 +123,7 @@ OpenVINO C API
 OpenVINO Node.js API
 --------------------
 
-* Added GenAI API  support for: ``Image2ImagePipeline``, ``InpaintingPipeline``.
+* Added GenAI API support for ``Image2ImagePipeline`` and ``InpaintingPipeline``.
 
 * Added image decoding support for image generation pipeline.
 
@@ -151,12 +142,6 @@ PyTorch Framework Support
 
 ONNX Framework Support
 ----------------------
-
-* Added support for the Attention operation (opset 24) and corrected Attention (opset 23) behavior to match an updated ONNX specification, including proper handling of fully-masked rows.
-
-* Added support for the com.microsoft operations MultiHeadAttention, DynamicQuantizeLSTM, and BifurcationDetector.
-
-* Added support for RMSNormalization and RotaryEmbedding (opset 23), Col2Im (opset 18), and GridSample (opset 20 and 22, with the renamed linear/cubic interpolation modes; 4D inputs only).
 
 * Extended GroupQueryAttention with quantized INT8/INT4 and FP8 (float8e4m3fn) KV cache support and QK-norm.
 
@@ -297,10 +282,6 @@ Jupyter Notebooks
 
 Known Issues
 ------------
-
-| Component: TBD
-| ID: N/A
-| Description: TBD
 
 
 Previous 2026 releases
@@ -959,7 +940,7 @@ Discontinued in 2026
 
 * OpenVINO™ migrated builds based on RHEL 8 to RHEL 9.
 
-* Dropped support for the TensorFlow Serving (TFS) API in OpenVINO 2026.3. KServe API is recommended for classic model deployments.
+* Dropped support for the TensorFlow Serving (TFS) API in OpenVINO Model Server 2026.3. KServe API is recommended for classic model deployments.
 
 Deprecated and to be removed in the future
 ------------------------------------------
