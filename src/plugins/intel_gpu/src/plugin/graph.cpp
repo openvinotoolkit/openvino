@@ -38,8 +38,43 @@
 #include <fstream>
 #include <iostream>
 #include <utility>
+#include <optional>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+namespace {
+
+std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
+    const std::vector<cldnn::instrumentation::profiling_interval>& intervals) {
+    std::optional<std::chrono::microseconds> earliest_timestamp;
+    std::optional<std::chrono::microseconds> executing_timestamp;
+
+    for (const auto& interval : intervals) {
+        if (!interval.is_valid_start) {
+            continue;
+        }
+
+        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
+        if (!earliest_timestamp.has_value() || interval_start < earliest_timestamp.value()) {
+            earliest_timestamp = interval_start;
+        }
+
+        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+            if (!executing_timestamp.has_value() || interval_start < executing_timestamp.value()) {
+                executing_timestamp = interval_start;
+            }
+        }
+    }
+
+    auto start_time = executing_timestamp.value_or(earliest_timestamp.value_or(std::chrono::microseconds::zero()));
+    if (start_time == std::chrono::microseconds::zero()) {
+        return std::nullopt;
+    }
+
+    return start_time;
+}
+
+}  // namespace
 
 namespace ov::intel_gpu {
 
@@ -699,6 +734,13 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
+        std::optional<std::chrono::microseconds> start_time;
+
+        auto execIter = executedPrimitives.find(primId);
+        if (execIter != executedPrimitives.end() && execIter->second) {
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, execIter->second->get_profiling_info()};
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
+        }
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
             return false;
@@ -724,6 +766,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.status = perfCounter.status;
         extPerfEntry.cpu_time = std::chrono::microseconds(perfCounter.cpu_avg());
         extPerfEntry.real_time = std::chrono::microseconds(perfCounter.realTime_avg());
+        extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
         extPerfEntry.node_name = layerName;
 
         if (combinePrimByIRLayers) {
@@ -775,6 +818,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             // Collect timings
             long long cpuTime = 0;
             long long deviceTime = 0;
+            std::optional<std::chrono::microseconds> start_time;
 
             for (auto &interval : cldnnInfo.intervals) {
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
@@ -788,6 +832,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     cpuTime += count;
                 }
             }
+
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
 
             std::string layerName = getClearName(primId);
 
@@ -812,6 +858,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     extPerfEntry.status = ov::ProfilingInfo::Status::EXECUTED;
                     extPerfEntry.cpu_time = std::chrono::microseconds(cpuTime);
                     extPerfEntry.real_time = std::chrono::microseconds(deviceTime);
+                    extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
 
                     if (pi.type_id == "input_layout") {
                         extPerfEntry.node_type = "Input";
@@ -838,9 +885,10 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
 
         if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
             std::swap(first_res->second.cpu_time,        second_res->second.cpu_time);
-            std::swap(first_res->second.real_time,   second_res->second.real_time);
+            std::swap(first_res->second.real_time,       second_res->second.real_time);
             std::swap(first_res->second.status,          second_res->second.status);
             std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+            std::swap(first_res->second.start_time,      second_res->second.start_time);
         }
     }
 

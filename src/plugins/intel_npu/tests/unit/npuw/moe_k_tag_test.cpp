@@ -105,7 +105,8 @@ std::shared_ptr<Model> build_two_gptoss_router_model(int64_t k0,
 std::shared_ptr<Node> build_qwen3_router_layer(const std::shared_ptr<op::v0::Parameter>& router_input,
                                                int64_t k_value,
                                                int layer_idx,
-                                               size_t num_experts) {
+                                               size_t num_experts,
+                                               bool with_convert_and_slice = false) {
     const size_t hidden_dim = router_input->get_shape()[1];
     const std::string prefix = "__module.model.layer" + std::to_string(layer_idx) + ".mlp.router/";
 
@@ -131,9 +132,24 @@ std::shared_ptr<Node> build_qwen3_router_layer(const std::shared_ptr<op::v0::Par
     auto reduce_sum = std::make_shared<op::v1::ReduceSum>(topk->output(0), reduce_axes, true);
     auto divide = std::make_shared<op::v1::Divide>(topk->output(0), reduce_sum);
 
+    Output<Node> scatter_indices = topk->output(1);
+    Output<Node> scatter_scores = divide->output(0);
+    if (with_convert_and_slice) {
+        // Convert on TopK indices (i64 -> i32)
+        scatter_indices = std::make_shared<op::v0::Convert>(topk->output(1), element::i32)->output(0);
+        // Slice on renormalized scores (no-op [0:1] along axis 0)
+        auto slice_begin = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
+        auto slice_end = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+        auto slice_step = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+        auto slice_axes = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
+        scatter_scores =
+            std::make_shared<op::v8::Slice>(divide, slice_begin, slice_end, slice_step, slice_axes)->output(0);
+    }
+
     auto base = op::v0::Constant::create(element::f32, Shape{1, num_experts}, std::vector<float>(num_experts, 0.0f));
     auto scatter_axis = op::v0::Constant::create(element::i64, Shape{}, {1LL});
-    auto scatter = std::make_shared<op::v12::ScatterElementsUpdate>(base, topk->output(1), divide, scatter_axis);
+    auto scatter =
+        std::make_shared<op::v12::ScatterElementsUpdate>(base, scatter_indices, scatter_scores, scatter_axis);
 
     auto t_order = op::v0::Constant::create(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
     auto transpose = std::make_shared<op::v1::Transpose>(scatter, t_order);
@@ -150,6 +166,15 @@ std::shared_ptr<Model> build_qwen3_router_graph(int64_t k_value, size_t hidden_d
     auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
     router_input->set_friendly_name("router_input");
     auto out = build_qwen3_router_layer(router_input, k_value, 0, num_experts);
+    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
+}
+
+std::shared_ptr<Model> build_qwen3_router_graph_with_convert_and_slice(int64_t k_value,
+                                                                       size_t hidden_dim = 16,
+                                                                       size_t num_experts = 8) {
+    auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
+    router_input->set_friendly_name("router_input");
+    auto out = build_qwen3_router_layer(router_input, k_value, 0, num_experts, /*with_convert_and_slice=*/true);
     return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
 }
 
@@ -328,6 +353,37 @@ TEST_F(Qwen3RouterTest, ConsistentKAcrossLayersTagsBothNodes) {
 TEST_F(Qwen3RouterTest, InconsistentKAcrossLayersThrows) {
     auto model = build_two_qwen3_router_model(/*k0=*/2, /*k1=*/3);
     EXPECT_THROW(run_pass(model), ov::Exception) << "Inconsistent K values across MoE layers must throw";
+}
+
+TEST_F(Qwen3RouterTest, TagsTopKWithCorrectK_WithConvertAndSlice) {
+    // Verifies that the optional Convert(indices) + Slice(scores) path still tags K correctly.
+    constexpr int64_t K = 2;
+    auto model = build_qwen3_router_graph_with_convert_and_slice(K);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    const auto& rt = topks[0]->get_rt_info();
+    ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end())
+        << "K must be tagged in the prefill variant (Convert+Slice between TopK/Divide and Scatter)";
+    EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+}
+
+TEST_F(Qwen3RouterTest, RouterNodesNotIsolated_WithConvertAndSlice) {
+    // Verifies that the callback returns false (no isolation) for the with_convert_and_slice variant too.
+    constexpr int64_t K = 2;
+    auto model = build_qwen3_router_graph_with_convert_and_slice(K);
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Qwen3Router>(snapshot, "router");
+    rewr.run_on_model(model);
+
+    for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
+        EXPECT_NE(group->isolatedTag(), "router") << "Node \"" << node->get_friendly_name()
+                                                  << "\" was unexpectedly isolated in with_convert_and_slice variant";
+    }
 }
 
 }  // namespace

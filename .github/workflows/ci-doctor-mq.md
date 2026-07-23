@@ -39,16 +39,17 @@ if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.c
 
 permissions: read-all
 
+model: claude-sonnet-4.6
 engine:
   id: copilot
-  model: claude-sonnet-4.6
-
 network: defaults
 
 imports:
-  - shared/ci-doctor-mq/notify-teams.md
-  - shared/ci-doctor-mq/notify-teams-recurring.md
-  - shared/ci-doctor-mq/rerun-failed-jobs.md
+  - shared/agentic-workflows/download-failure-logs.md
+  - shared/agentic-workflows/notify-teams.md
+  - shared/agentic-workflows/notify-teams-recurring.md
+  - shared/agentic-workflows/rerun-failed-jobs.md
+  - shared/agentic-workflows/readd-to-merge-queue.md
 
 safe-outputs:
   add-comment:
@@ -64,83 +65,6 @@ tools:
     max-file-size: 1048576 # 1MB max
     max-patch-size: 1048576 # 1MB max
     max-file-count: 500
-
-steps:
-  - name: Download CI failure logs
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
-      REPO: ${{ github.repository }}
-    run: |
-      set -e
-      LOG_DIR="/tmp/gh-aw/agent/ci-doctor/logs"
-      FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
-      mkdir -p "$LOG_DIR" "$FILTERED_DIR"
-
-      echo "=== CI Doctor: Pre-downloading logs for run $RUN_ID ==="
-
-      # Get failed jobs and their failed steps
-      gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
-        --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion=="failure") | .name]}]' \
-        > "$LOG_DIR/failed-jobs.json"
-
-      FAILED_COUNT=$(jq 'length' "$LOG_DIR/failed-jobs.json")
-      echo "Found $FAILED_COUNT failed job(s)"
-
-      if [ "$FAILED_COUNT" -eq 0 ]; then
-        echo "No failed jobs found, skipping log download"
-        exit 0
-      fi
-
-      echo "Failed jobs:"
-      cat "$LOG_DIR/failed-jobs.json"
-
-      # Download logs for each failed job and apply generic error heuristics
-      jq -r '.[].id' "$LOG_DIR/failed-jobs.json" | while read -r JOB_ID; do
-        LOG_FILE="$LOG_DIR/job-${JOB_ID}.log"
-        echo "Downloading log for job $JOB_ID..."
-        gh api "repos/$REPO/actions/jobs/$JOB_ID/logs" > "$LOG_FILE" 2>/dev/null \
-          || echo "(log download failed)" > "$LOG_FILE"
-        echo "  -> Saved $(wc -l < "$LOG_FILE") lines to $LOG_FILE"
-
-        # Apply generic heuristics: find lines with common error indicators
-        HINTS_FILE="$FILTERED_DIR/job-${JOB_ID}-hints.txt"
-        grep -n -m 30 -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
-          "$LOG_FILE" > "$HINTS_FILE" 2>/dev/null || true
-
-        if [ -s "$HINTS_FILE" ]; then
-          echo "  -> Pre-located $(wc -l < "$HINTS_FILE") hint line(s) in $HINTS_FILE"
-        else
-          echo "  -> No error hints found in $LOG_FILE"
-        fi
-      done
-
-      # Write summary for the agent
-      SUMMARY_FILE="/tmp/gh-aw/agent/ci-doctor/summary.txt"
-      {
-        echo "=== CI Doctor Pre-Analysis ==="
-        echo "Run ID: $RUN_ID"
-        echo ""
-        echo "Failed jobs (details in $LOG_DIR/failed-jobs.json):"
-        jq -r '.[] | "  Job \(.id): \(.name)\n    Failed steps: \(.failed_steps | join(", "))"' \
-          "$LOG_DIR/failed-jobs.json"
-        echo ""
-        echo "Downloaded log files ($LOG_DIR):"
-        for LOG_FILE in "$LOG_DIR"/job-*.log; do
-          [ -f "$LOG_FILE" ] || continue
-          echo "  $LOG_FILE ($(wc -l < "$LOG_FILE") lines)"
-        done
-        echo ""
-        echo "Filtered hint files ($FILTERED_DIR):"
-        for HINTS_FILE in "$FILTERED_DIR"/*-hints.txt; do
-          [ -s "$HINTS_FILE" ] || continue
-          echo "  $HINTS_FILE ($(wc -l < "$HINTS_FILE") matches)"
-          head -3 "$HINTS_FILE" | sed 's/^/    /'
-        done
-      } | tee "$SUMMARY_FILE"
-
-      echo ""
-      echo "✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
@@ -294,15 +218,17 @@ Logs have been pre-downloaded before this session started:
 Every JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:
 
 - **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/investigation.schema.json`
-  Applies to every file under `investigations/` **except** `index.json`.
+  Applies to every `<timestamp>-<run-id>.json` file under `investigations/` **except** the aggregate `index.json`.
 - **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`
   Applies to every `<signature-hash>.json` file under `patterns/`.
+- **Investigations index** → `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/index.schema.json`
+  Applies to the single aggregate `investigations/index.json` file.
 
-Rules that apply to both artefact types:
+Rules that apply to all artefact types:
 
 - Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout — the previous lack of a schema is the reason older investigation/pattern files had inconsistent structures.
 - Set `"schema_version": "1.0"` on every artefact you write.
-- Both schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
+- These schemas declare `"additionalProperties": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.
 - Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.
 - Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.
 
@@ -322,7 +248,42 @@ Rules that apply to both artefact types:
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
    - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
-   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
+   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` following the **MANDATORY append-only read-modify-write procedure** in step 1a below. Never recreate this file from scratch.
+
+1a. **Update Investigations Index — MANDATORY append-only read-modify-write procedure**:
+
+   The index at `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json` is a single **append-only** aggregate that references every investigation ever recorded. It MUST conform to the **index schema** (`index.schema.json`). Losing or overwriting previously recorded entries is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly.
+
+   **Step A — Read the existing index (never skip):**
+   - Attempt to read `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`.
+   - If it exists, parse it as JSON into `existing`. If it exists but fails to parse (corrupted/truncated), **do NOT overwrite it**: copy it aside to `index.corrupt-<timestamp>.json`, then reconstruct `existing.entries` by scanning every `*.json` investigation record already present under `investigations/` (excluding `index.json` itself) so no prior investigation is dropped.
+   - If the file does NOT exist, set `existing = { "schema_version": "1.0", "total": 0, "entries": [] }`.
+   - Normalize legacy shapes: if `existing` has a deprecated `investigations` array, merge its elements into `existing.entries` (deduplicating by `investigation_id`+`run_id`) and drop the `investigations` key. Map any legacy `id` field to `investigation_id`.
+   - Record `PREV_COUNT = length(existing.entries)`.
+
+   **Step B — Append the current investigation (never remove or replace prior entries):**
+   - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `pr_number` (string or null).
+   - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.
+   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries`. The only allowed mutations are: appending a new entry, or updating a single matching existing entry in place.
+
+   **Step C — Recompute and write:**
+   - Set `total = length(entries)`.
+   - Assert the **never-shrink invariant**: `total >= PREV_COUNT`. If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index.
+   - Write the object `{ schema_version: "1.0", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.
+
+   **Step D — MANDATORY verification (read-back check):**
+   - Read `index.json` back, parse it, and validate against `index.schema.json` (see the validation procedure in the "Artefact schemas" block).
+   - Verify `total == length(entries)` and `total >= PREV_COUNT`.
+   - Verify the current investigation's `investigation_id` is present in `entries` exactly once.
+   - Verify every entry that was in the pre-write `existing.entries` is still present (no prior entry was dropped).
+   - If any check fails, **do not leave the shrunken/invalid index on disk** — restore from the pre-write copy and redo from Step A.
+
+   **Common failure modes to avoid:**
+   - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.
+   - Skipping Step A and overwriting instead of appending.
+   - Writing a `total` smaller than the previous run's `total`.
+   - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.
+
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -367,6 +328,7 @@ Rules that apply to both artefact types:
            → deduplicate by URL, then truncate to first 10 entries
        record.recent_timestamps = [NOW] + existing.recent_timestamps
            → keep only entries where timestamp >= (NOW - 24 hours)
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← recompute per Step C.1 (refresh always)
    ELSE:
        record.schema_version = "1.0"
        record.signature   = the <normalized-error>|<category> signature string from Step A
@@ -379,7 +341,16 @@ Rules that apply to both artefact types:
        record.recent_run_urls = [CURRENT_RUN_URL]
        record.affected_prs = (if CURRENT_PR_URL: [CURRENT_PR_URL] else [])
        record.recent_timestamps = [NOW]
+       record.rerun_search_string = RERUN_SEARCH_STRING   ← compute per Step C.1
    ~~~
+
+   **Step C.1 — Compute and verify `RERUN_SEARCH_STRING` (the workflow_rerunner hook):**
+   This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), which greps the failed run's logs for this string and, on a match, re-runs the failed jobs — exactly like the static entries in `.github/scripts/workflow_rerun/errors_to_look_for.json`. A rerun only helps for **transient** failures, and a string that never matches is useless:
+   - IF `category` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service` (i.e. a deterministic `Code Issue`/`Dependencies`/`Configuration` failure a restart cannot fix): set `RERUN_SEARCH_STRING = null`. A search string here would make the rerunner loop on an unfixable failure.
+   - ELSE: set `RERUN_SEARCH_STRING` to a **short, stable substring taken verbatim from a single raw log line** that uniquely identifies this failure (e.g., `Could not resolve host`, `Connection reset by peer`, `runner has received a shutdown signal`). Strip everything volatile that changes between runs or across jobs: absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and embedded job/runner/OS/shard names.
+   - Always recompute on update so a category change (e.g. `Flaky Test` → `Code Issue`) correctly clears or sets the string.
+
+   **Verify a non-null value against the rerunner's exact matcher** ([`log_analyzer.py`](../scripts/workflow_rerun/log_analyzer.py)): it normalizes a string by replacing each run of non-alphanumeric chars (`[^A-Za-z0-9]+`) with one space, lower-casing, and stripping (so `Could not resolve host: github.com` → `could not resolve host github com`), then checks whether the normalized string is a plain substring of a **single** normalized log line (matches never span line breaks). Confirm the normalized `RERUN_SEARCH_STRING` is a substring of a normalized real log line from the pre-downloaded logs, is non-empty after normalization, and is specific enough to avoid matching benign lines (no bare `error`/`failed`/`warning`). If you cannot satisfy this, set `RERUN_SEARCH_STRING = null` rather than store an unverified guess.
 
    **Step D — Write the file:**
    Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
@@ -392,6 +363,8 @@ Rules that apply to both artefact types:
    - `recent_timestamps` contains the current timestamp `NOW` as the first entry
    - `last_seen` equals `NOW`
    - `first_seen` has NOT changed from `existing.first_seen` (if file existed before)
+   - `rerun_search_string` is present and is either a non-empty string (only for the transient categories `Flaky Test`/`Infrastructure`/`Network`/`External Service`) or `null` (for every other category)
+   - if `rerun_search_string` is non-null, it still satisfies the Step C.1 verification (normalized substring of a single actual failure-log line, non-empty after normalization); otherwise set it to `null`
 
    If any check fails, you have a bug in your write logic. Fix it before proceeding.
 
@@ -412,6 +385,22 @@ Rules that apply to both artefact types:
    **Validation before calling notify_teams:** Read back the current pattern file one more time. The `count` field in the file MUST equal the `occurrence_count` value you are about to pass to `notify_teams`. If they differ, go back to Step B and redo the update.
 
 4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.
+
+5. **Backfill Missing `rerun_search_string` Fields — MANDATORY sweep, every run:**
+
+   Some pattern files were written before `rerun_search_string` existed and are missing the field entirely (as opposed to having it explicitly set to `null`). Every time you run Phase 5, after step 2 has written/updated the current failure's pattern file, sweep **all** other files in `/tmp/gh-aw/repo-memory/default/mq/patterns/` and backfill any that lack the key:
+
+   - For each `<signature-hash>.json` file in the patterns directory (including ones untouched by this run):
+     1. Read and parse the file.
+     2. If the `rerun_search_string` key is **already present** (even if its value is `null`), skip it — do not touch a file that already conforms to the schema.
+     3. If the key is **missing**, derive it from the file's own `signature` field (`<normalized-error>|<category>`) using the same rules as Step C.1, without needing the original failure logs:
+        - Split `signature` on the last `|` to recover `<normalized-error>` and `<category>`.
+        - IF `<category>` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service`: set `rerun_search_string = null`.
+        - ELSE: set `rerun_search_string = <normalized-error>` verbatim (the signature's error component was already stripped of volatile tokens per Step A, so no further normalization is needed). Since the original raw logs are unlikely to still be available for a backfill, you do NOT need to re-verify it against a live log line as Step C.1 otherwise requires — only confirm it is non-empty and not just generic noise (e.g., not solely `error`, `failed`, or `warning`). If it fails that minimal check, set it to `null` instead of guessing.
+     4. Write the updated object back to the same file, changing only the `rerun_search_string` key — do not alter `count`, timestamps, `signature`, `signature_hash`, or any other field.
+     5. Validate the rewritten file against `pattern.schema.json` (see the validation procedure in the "Artefact schemas" block) and confirm `rerun_search_string` is now present as either a non-empty string or `null`.
+
+   This step must never modify a file's `count`, `first_seen`, `last_seen`, or timestamp arrays — its only job is adding the missing key.
 
 ### Phase 5.5: Recurring Failure Escalation Check
 
@@ -459,7 +448,7 @@ ELSE:
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
    - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
-   - When the investigation concludes the failure is transient and a plain restart is likely to clear it, request a re-run of only the failed jobs of the analysed run (see `rerun_failed_jobs` decision guidance below)
+   - When the investigation concludes the failure is transient, decide between two mutually exclusive remedies based on whether the PR is still in the merge queue: if the PR is **still in the queue** (or there is no associated PR), request a re-run of only the failed jobs (see `rerun_failed_jobs` decision guidance below); if the PR has been **dropped from the queue**, a re-run would not help it merge, so request that the PR be re-added to the merge queue instead (see `readd_to_merge_queue` decision guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -534,6 +523,7 @@ Post a concise, actionable remediation comment on the affected merge-queue PR so
 **Pipeline**: [<failed_workflow name>](<pipeline_url>)
 **Failure**: <one-line summary, same as notify_teams.title>
 **Automatic restart**: <one of: `✅ Re-run of failed jobs requested (reason: <reason>)` when you called `rerun_failed_jobs`; `❌ Not triggered — <short reason, e.g. deterministic code failure>` otherwise>
+**Merge queue re-add**: <one of: `✅ Re-added PR to the merge queue (reason: <reason>)` when you called `readd_to_merge_queue`; `❌ Not triggered — <short reason, e.g. PR still in queue / deterministic failure>` otherwise>
 
 #### Possible remedy
 
@@ -611,7 +601,13 @@ Provide all required fields and include the optional PR-related fields whenever 
 
 State whether an automatic re-run of the failed jobs was triggered:
 - If you called `rerun_failed_jobs`: `✅ Re-run of failed jobs requested` followed by the one-line `reason` you passed.
-- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix, or the PR was no longer in the merge queue).
+
+### Automatic Merge Queue Re-add
+
+State whether the affected PR was automatically re-added to the merge queue:
+- If you called `readd_to_merge_queue`: `✅ PR re-added to the merge queue` followed by the one-line `reason` you passed.
+- Otherwise: `❌ Not triggered` followed by a short justification (e.g. the PR was still in the queue and `rerun_failed_jobs` was used instead, no PR was identified, or the failure was deterministic).
 
 ### Root Cause Analysis
 
@@ -684,6 +680,12 @@ Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Anal
 
 **Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
 
+**Merge-queue branch (mutually exclusive with `readd_to_merge_queue`):** A re-run only helps the PR merge if the PR is **still in the merge queue**. Before calling `rerun_failed_jobs`, determine the PR's current queue membership (query the associated PR and check whether it is still in the merge queue). Then:
+- **PR still in the queue**, or **no PR is associated** with the run → call `rerun_failed_jobs`.
+- **PR no longer in the queue** (GitHub dropped it on the failure) → do **NOT** call `rerun_failed_jobs`; a re-run would not re-enter it into the queue. Call `readd_to_merge_queue` instead (see its guidance below).
+
+Never call both `rerun_failed_jobs` and `readd_to_merge_queue` in the same investigation.
+
 Only the **failed** jobs of the analysed run are restarted; passing jobs are untouched. The job also refuses to re-run a run that already has more than one attempt, to avoid restart loops.
 
 Provide:
@@ -695,6 +697,28 @@ Provide:
 This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. A re-run request does not replace the investigation report.
 
 Whenever you decide about a restart (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Restart` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic restart**` line of the `add_comment` body. Keep both consistent with the actual `rerun_failed_jobs` call.
+
+### `readd_to_merge_queue` decision guidance
+
+When a merge-queue pipeline fails, GitHub drops the affected pull request from the merge queue. Call the `readd_to_merge_queue` safe-output tool **only** when all of the following hold:
+
+1. The failure is **associated with a PR** (you have its number), and
+2. The PR is **no longer in the merge queue** (it was dropped as a result of the failure) — if it is still in the queue, use `rerun_failed_jobs` instead, and
+3. Your Root Cause Analysis concludes the failure is **transient** and a plain re-queue is likely to let the PR merge — the same `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories that justify `rerun_failed_jobs`.
+
+**Do NOT** re-add the PR for deterministic failures a re-queue cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-add.
+
+The job is idempotent and loop-safe: it skips the PR when it is already merged, closed, a draft, or when a previous CI Doctor re-add marker comment is present. It re-adds via the `gh pr merge` command using the `MERGE_QUEUE_TOKEN` secret (a PAT or GitHub App token with `contents: write` + `pull_requests: write`).
+
+Provide:
+
+- **`pr_number`** (required) — Number of the dropped PR (the same value reported as `notify_teams.pr_number`). Pass as a numeric string.
+- **`repository`** (optional) — `owner/repo` of the PR. Omit to default to the current repository.
+- **`reason`** (required) — One-line justification for the re-queue, matching the transient cause identified in the investigation.
+
+This tool is independent of the notifications: still call `notify_teams` (and `add_comment` / `notify_teams_recurring` when applicable) as usual. It is **mutually exclusive** with `rerun_failed_jobs` — call at most one of the two per investigation (re-run when the PR is still queued, re-add when it was dropped). A re-add request does not replace the investigation report.
+
+Whenever you decide about a re-add (whether or not you trigger one), you MUST record the outcome in both the Teams message (the `### Automatic Merge Queue Re-add` section of `notify_teams.description`) and, when a PR comment is posted, the `**Merge queue re-add**` line of the `add_comment` body. Keep both consistent with the actual `readd_to_merge_queue` call.
 
 ## Important Guidelines
 
@@ -719,7 +743,8 @@ You **MUST** always call at least one safe output tool before finishing:
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
-- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient and a restart is likely to remedy it (see `rerun_failed_jobs` decision guidance). Call at most once per run.
+- **`rerun_failed_jobs`**: Re-run only the failed jobs of the analysed run. Call this **only** when the failure is transient AND the PR is still in the merge queue (or no PR is associated). Mutually exclusive with `readd_to_merge_queue` (see `rerun_failed_jobs` decision guidance). Call at most once per run.
+- **`readd_to_merge_queue`**: Re-add the affected PR to the merge queue. Call this **only** when the failure is transient AND the PR was dropped from the queue. Mutually exclusive with `rerun_failed_jobs` (see `readd_to_merge_queue` decision guidance). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
@@ -727,7 +752,8 @@ You **MUST** always call at least one safe output tool before finishing:
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
 - `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
-- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — when the investigation also concludes a plain restart is likely to remedy a transient failure.
+- Any of the `notify_teams` combinations above **+ `rerun_failed_jobs`** — transient failure where the PR is still in the merge queue (or no PR is associated).
+- Any of the `notify_teams` combinations above **+ `readd_to_merge_queue`** — transient failure that dropped an identifiable PR from the merge queue. Do not combine with `rerun_failed_jobs`; the two are mutually exclusive.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 
