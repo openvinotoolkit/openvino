@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// OV_CONFIG_RELEASE_OPTION:
+//      Options exposed via the public API in all build types.
+//      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
+// OV_CONFIG_RELEASE_INTERNAL_OPTION:
+//      Available in all build types, but not settable via the public API.
+//      Not intended as production options for customers, as API stability is not guaranteed.
+//      If a customer requires one of these options in a production scenario,
+//      it should be promoted to RELEASE_OPTION. May be used for development or troubleshooting purposes.
+// OV_CONFIG_DEBUG_OPTION:
+//      Options available only in builds with `ENABLE_DEBUG_CAPS` enabled.
+//      Intended for OpenVINO development and troubleshooting features.
+// OV_CONFIG_DEBUG_GLOBAL_OPTION:
+//      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
@@ -43,6 +57,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum u
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_zero_copy_cache_load, false, "Enable/Disable zero-copy mode for model cache blob load")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/Disable data flow optimizations for cldnn::program")

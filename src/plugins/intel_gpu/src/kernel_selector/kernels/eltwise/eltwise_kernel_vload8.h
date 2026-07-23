@@ -10,7 +10,7 @@ namespace kernel_selector {
 class EltwiseKernel_vload8 : public EltwiseKernelBase {
 public:
     EltwiseKernel_vload8() : EltwiseKernelBase("eltwise_simple_vload8") {}
-    virtual ~EltwiseKernel_vload8() {}
+    ~EltwiseKernel_vload8() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

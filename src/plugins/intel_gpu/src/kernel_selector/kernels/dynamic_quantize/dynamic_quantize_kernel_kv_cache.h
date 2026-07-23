@@ -14,7 +14,7 @@ namespace kernel_selector {
 class DynamicQuantizeKernelKVCache : public KernelBaseOpenCL {
 public:
     DynamicQuantizeKernelKVCache() : KernelBaseOpenCL("dynamic_quantize_gpu_kv_cache") {}
-    virtual ~DynamicQuantizeKernelKVCache() {}
+    ~DynamicQuantizeKernelKVCache() override {}
 
     virtual JitConstants GetJitConstants(const dynamic_quantize_params& params) const;
     virtual CommonDispatchData SetDefault(const dynamic_quantize_params& params) const;

@@ -13,7 +13,7 @@ class MVNKernelRef : public MVNKernelBase {
 public:
     using Parent = MVNKernelBase;
     MVNKernelRef() : MVNKernelBase("mvn_gpu_ref") {}
-    virtual ~MVNKernelRef() {}
+    ~MVNKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
