@@ -84,7 +84,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
 
-/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 99].
+/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 70].
 /// Computes offloadable MoE routed-expert and fixed weight sizes from @p model,
 /// estimates available memory budget (device memory for dGPU, min(device, free
 /// system RAM) for iGPU), and returns the percentage of routed-expert weights
