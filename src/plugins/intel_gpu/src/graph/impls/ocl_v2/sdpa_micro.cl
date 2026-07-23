@@ -732,7 +732,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             col_offset += k - q;
             causal_q_begin += k - q;
         #endif
-    #elif !IS_PAGED_ATTENTION && !SLIDING_WINDOW_SIZE
+    #elif !IS_PAGED_ATTENTION && !IS_PREFILL
         col_offset += k - q;
         causal_q_begin += k - q;
     #endif
