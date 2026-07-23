@@ -46,16 +46,18 @@ def check_python_requirements(requirements_path: str) -> None:
         for line in raw_requirements:
             if line.startswith(("#", "-c")):
                 continue
-            line = line.replace("\n", "")
-            if re.search("\W", line):
-                requirements.append(line)
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            req = Requirement(line)
+            # If the requirement pins no version of its own, apply the version
+            # bound(s) from constraints.txt, preserving any environment marker.
+            if not req.specifier:
+                marker = f"; {req.marker}" if req.marker is not None else ""
+                for constraint in constraints.get(req.name) or [""]:
+                    requirements.append(req.name + constraint + marker)
             else:
-                constraint = constraints.get(line)
-                if constraint:
-                    for marker in constraint:
-                        requirements.append(line+marker)
-                else:
-                    requirements.append(line)
+                requirements.append(line)
     else:
         requirements = raw_requirements
 
