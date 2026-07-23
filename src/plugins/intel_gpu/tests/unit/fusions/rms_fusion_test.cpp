@@ -72,6 +72,11 @@ public:
 #define CASE_RMS_F16_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f16, data_types::f32, format::bfyx
 #define CASE_RMS_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
 #define CASE_RMS_3D_F16_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
+// Last-dim >= SUB_GROUP_SIZE (16) so RMSKernelBfyxOpt::Validate() picks the opt kernel
+// instead of falling back to rms_gpu_ref. Size 2048 also triggers the block-write path
+// (workers_per_data > SUB_GROUP_SIZE) that carries the HAS_FUSED_OPS branch.
+#define CASE_RMS_F32_LARGE  { 1, 4, 1, 2048 },  { 1, 1, 1, 2048 },  { 1, 4, 1, 2048 },  data_types::f32, data_types::f16, format::bfyx
+#define CASE_RMS_F16_LARGE  { 1, 4, 1, 2048 },  { 1, 1, 1, 2048 },  { 1, 4, 1, 2048 },  data_types::f16, data_types::f32, format::bfyx
 
 class rms_activation : public RMSFusingTest {};
 TEST_P(rms_activation, basic) {
@@ -97,6 +102,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_activation, ::testing::ValuesIn(std::v
     rms_test_params{ CASE_RMS_F16_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F32_LARGE, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F16_LARGE, 3, 3, 4 },
 }));
 
 class rms_eltwise : public RMSFusingTest {};
@@ -124,6 +131,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_eltwise, ::testing::ValuesIn(std::vect
     rms_test_params{ CASE_RMS_F16_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F32_LARGE, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F16_LARGE, 3, 3, 4 },
 }));
 
 class rms_reorder : public RMSFusingTest {};
@@ -145,5 +154,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_reorder, ::testing::ValuesIn(std::vect
     rms_test_params{ CASE_RMS_F32_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_F32_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F32_1, 3, 3, 4 },
-    rms_test_params{ CASE_RMS_3D_F32_2, 3, 3, 4 }
+    rms_test_params{ CASE_RMS_3D_F32_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F32_LARGE, 3, 3, 4 }
 }));
