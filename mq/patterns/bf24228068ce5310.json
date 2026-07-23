@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "tensorflow layer tests fail cpu fp16 precision test failures matrixbandpart rank pooling ragged tensor|Flaky Test",
+  "signature_hash": "bf24228068ce5310",
+  "title": "TensorFlow layer tests fail on CPU FP16 - Rank, MatrixBandPart, Pooling 5D, RaggedTensorToTensor",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-23T21:57:05Z",
+  "last_seen": "2026-07-23T21:57:05Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30043161228"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37027"],
+  "recent_timestamps": ["2026-07-23T21:57:05Z"],
+  "rerun_search_string": "TestMatrixBandPart test matrix band part basic"
+}

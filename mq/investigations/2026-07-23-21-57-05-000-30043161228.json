@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-23-21-57-05-000-30043161228",
+  "timestamp": "2026-07-23T21:57:05Z",
+  "run_id": "30043161228",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30043161228",
+  "workflow_name": "TensorFlow Layer Tests",
+  "pr_number": "37027",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37027",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "TensorFlow layer tests fail on CPU FP16 - Rank, MatrixBandPart, Pooling 5D, RaggedTensorToTensor",
+  "signature": "tensorflow layer tests fail cpu fp16 precision test failures matrixbandpart rank pooling ragged tensor|Flaky Test",
+  "signature_hash": "bf24228068ce5310",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "4 TF layer tests FAILED on CPU/FP16; 20 additional ERRORs from worker crashes; log ends at 66% progress"
+    }
+  ],
+  "key_errors": [
+    "[gw1] [ 61%] FAILED .../test_tf_Rank.py::TestRank::test_rank_basic[ ie_device:CPU - precision:FP16 - params:{'input_shape': [2, 6], 'input_type': tf.int32} ]",
+    "[gw2] [ 61%] FAILED .../test_tf_MatrixBandPart.py::TestMatrixBandPart::test_matrix_band_part_basic[ ie_device:CPU - precision:FP16 - num_upper:1 - num_lower:-4 - input_type:<class 'numpy.float32'> - input_shape:[3, 4, 4] ]",
+    "[gw3] [ 61%] FAILED .../test_tf_Pooling.py::TestPooling::test_pool_5D[ ie_device:CPU - precision:FP16 - params:{'kernel_size': [2, 2, 2], 'strides': [2, 2, 2], 'pads': [[0, 0, 0], [0, 0, 0], 'VALID'], 'in_shape': [1, 3, 224, 224, 224], 'out_shape': [1, 3, 112, 112, 112], 'method': 'avg'} ]",
+    "[gw0] [ 61%] FAILED .../test_tf_RaggedTensorToTensor.py::TestRaggedTensorToTensorRowIds::test_ragged_tensor_to_tensor[ ie_device:CPU - precision:FP16 - row_partition_types:['FIRST_DIM_SIZE', 'VALUE_ROWIDS'] ... ]"
+  ],
+  "root_cause": "All 4 pytest-xdist workers (gw0-gw3) reported a test FAILED simultaneously at the 61% mark. Each worker was running a different TF layer test (Rank, MatrixBandPart, Pooling 5D, RaggedTensorToTensor), all using CPU device with FP16 precision. After the FAILED reports, each worker generated repeated ERROR status for subsequent tests, indicating worker process crashes after the initial failures. The test failures appear to be pre-existing numerical accuracy or precision issues in CPU FP16 path, unrelated to PR #37027 which only modifies GPU plugin clang-tidy configuration. avg-pool VALID padding on a large 5D tensor [1,3,224,224,224] passed with SAME padding but failed with VALID, suggesting a numerical precision regression in the CPU FP16 pooling path.",
+  "reproduction_steps": "Run: python3 -m pytest /path/to/layer_tests/tensorflow_tests/test_tf_Pooling.py::TestPooling::test_pool_5D -v -k 'FP16 and VALID and avg' --ie_device CPU",
+  "recommended_actions": [
+    "Re-run the failed TF layer tests to determine if this is truly flaky or a persistent regression",
+    "Investigate if any recent changes to the CPU FP16 path could affect Pooling/MatrixBandPart/Rank/RaggedTensor operations",
+    "If confirmed persistent, file a bug for CPU FP16 numerical failures in these ops",
+    "Re-add PR #37027 to the merge queue since it is a GPU-only clang-tidy change unrelated to these failures"
+  ],
+  "prevention_strategies": "Add explicit FP16 tolerance markers to tests known to be numerically sensitive on CPU; consider separate CI stages for GPU vs CPU changes to avoid false blockers from unrelated test suites.",
+  "historical_context": "First occurrence of this specific TF FP16 test failure pattern in the CI Doctor MQ database."
+}
