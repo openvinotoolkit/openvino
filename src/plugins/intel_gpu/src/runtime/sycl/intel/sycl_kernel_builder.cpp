@@ -50,14 +50,29 @@ const OclocApi& get_ocloc_api() {
 }
 
 uint32_t query_device_ip_version(::sycl::device device) {
+#if SYCL_EXT_ONEAPI_DEVICE_ARCHITECTURE
     namespace syclex = ::sycl::ext::oneapi::experimental;
 
-    // arch = 0xAABBBBCCCCCCCCDD
-    // for Intel GPU, AA=0x00, BBBB=reserved, CCCCCCCC=GMDID, DD=reserved
-    const auto arch = device.get_info<syclex::info::device::architecture>();
+    // The experimental `architecture` info query relies on backend support
+    // (e.g. `cl_intel_device_attribute_query` on the OpenCL backend). It may
+    // throw on drivers that do not implement it. In that case, fall back to 0
+    // so that ocloc is invoked without `-device` and still produces target
+    // independent SPIR-V.
+    try {
+        // arch = 0xAABBBBCCCCCCCCDD
+        // for Intel GPU, AA=0x00, BBBB=reserved, CCCCCCCC=GMDID, DD=reserved
+        const auto arch = device.get_info<syclex::info::device::architecture>();
 
-    // extract GMDID from arch
-    return static_cast<uint32_t>(static_cast<uint64_t>(arch) >> 8);
+        // extract GMDID from arch
+        return static_cast<uint32_t>(static_cast<uint64_t>(arch) >> 8);
+    } catch (const ::sycl::exception&) {
+        return 0;
+    }
+#else
+    // If the device architecture extension is not available, fall back to 0.
+    (void)device;
+    return 0;
+#endif
 }
 
 std::vector<std::byte> opencl_c_to_spirv(const std::string& source,
