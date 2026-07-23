@@ -747,7 +747,7 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         auto [k_concat, k_assign] = Opt125mSDPA::gen_KV(k_cache, k_proj);
         auto [v_concat, v_assign] = Opt125mSDPA::gen_KV(v_cache, v_proj);
 
-        // Wrap Q, K, V with FakeConvert to test optional_fake_convert pattern matching
+        // Wrap Q, K, V with FakeConvert to test optional_quantization pattern matching
         auto Q_fc = wrap_fake_convert(Q);
         auto K_fc = wrap_fake_convert(k_concat);
         auto V_fc = wrap_fake_convert(v_concat);
