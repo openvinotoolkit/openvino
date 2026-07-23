@@ -19,16 +19,18 @@ bool mvn::is_aligned_layout_supported(const layout& input_layout) const {
     if (format::is_default_format(fmt))
         return true;
 
-    //defer to dyn_formats
-    if (input_pshape.is_dynamic())
-        return true;
-
-    // Across-channels normalization has no optimized blocked-layout kernel: the bfyx opt
-    // kernel is planar-only and the fsv16/fsv32 kernels implement WITHIN_CHANNELS only.
-    // Reject non-planar layouts here so a reorder to planar bfyx is inserted and the fast
-    // bfyx opt kernel runs instead of falling back to the slow reference (mvn_gpu_ref) kernel.
+    // Across-channels normalization has no optimized blocked-layout kernel (for static OR dynamic
+    // shapes): the bfyx opt kernel is planar-only and the fsv16/fsv32 kernels implement
+    // WITHIN_CHANNELS only. Reject non-planar layouts here - for any shape - so a reorder to planar
+    // bfyx is inserted and the fast bfyx opt kernel runs instead of falling back to the slow
+    // reference (mvn_gpu_ref) kernel. This must precede the dynamic early-return below so dynamic
+    // across-channels MVN is guarded too (within-channels dynamic still defers to dyn_formats).
     if (across_channels())
         return false;
+
+    // defer to dyn_formats (within-channels only reaches here)
+    if (input_pshape.is_dynamic())
+        return true;
 
     if (!requires_alignment(input_pshape))
         return true;
