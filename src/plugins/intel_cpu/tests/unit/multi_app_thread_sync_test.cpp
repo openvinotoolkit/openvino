@@ -12,28 +12,19 @@ using namespace ov::intel_cpu;
 
 namespace {
 
-// ---------------------------------------------------------------------------
-// A1: Default value
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_DefaultMultiAppThreadSyncIsFalse) {
+TEST(MultiAppThreadSyncTest, DefaultMultiAppThreadSyncIsFalse) {
     Config config;
     ASSERT_FALSE(config.multiAppThreadSyncExecution);
 }
 
-// ---------------------------------------------------------------------------
-// A2: readProperties — set true
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_ReadProperties_SetTrue) {
+TEST(MultiAppThreadSyncTest, ReadPropertiesSetTrue) {
     Config config;
     OV_ASSERT_NO_THROW(config.readProperties(
         {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}}));
     ASSERT_TRUE(config.multiAppThreadSyncExecution);
 }
 
-// ---------------------------------------------------------------------------
-// A3: readProperties — toggle true → false
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_ReadProperties_SetFalse) {
+TEST(MultiAppThreadSyncTest, ReadPropertiesSetFalse) {
     Config config;
     config.readProperties({{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
     ASSERT_TRUE(config.multiAppThreadSyncExecution);
@@ -43,10 +34,7 @@ TEST(MultiAppThreadSyncTest, Config_ReadProperties_SetFalse) {
     ASSERT_FALSE(config.multiAppThreadSyncExecution);
 }
 
-// ---------------------------------------------------------------------------
-// A4: readProperties — invalid value throws
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_ReadProperties_InvalidValueThrows) {
+TEST(MultiAppThreadSyncTest, ReadPropertiesInvalidValueThrows) {
     Config config;
     ASSERT_THROW(
         config.readProperties({{ov::intel_cpu::multi_app_thread_sync_execution.name(),
@@ -54,10 +42,7 @@ TEST(MultiAppThreadSyncTest, Config_ReadProperties_InvalidValueThrows) {
         ov::Exception);
 }
 
-// ---------------------------------------------------------------------------
-// A5: updateProperties — true writes "YES" to _config map
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_UpdateProperties_TrueWritesYES) {
+TEST(MultiAppThreadSyncTest, UpdatePropertiesTrueWritesYes) {
     Config config;
     config.readProperties({{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
     config.updateProperties();
@@ -67,10 +52,7 @@ TEST(MultiAppThreadSyncTest, Config_UpdateProperties_TrueWritesYES) {
     ASSERT_EQ(it->second, "YES");
 }
 
-// ---------------------------------------------------------------------------
-// A6: updateProperties — default (false) writes "NO" to _config map
-// ---------------------------------------------------------------------------
-TEST(MultiAppThreadSyncTest, Config_UpdateProperties_FalseWritesNO) {
+TEST(MultiAppThreadSyncTest, UpdatePropertiesFalseWritesNo) {
     Config config;
     config.updateProperties();
 
