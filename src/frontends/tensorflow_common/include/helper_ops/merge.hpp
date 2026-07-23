@@ -99,12 +99,16 @@ public:
         FRONT_END_GENERAL_CHECK(
             cf_marker.merge_eliminated_markers.count(switch_marker) > 0,
             "[TensorFlow Frontend] internal error: no Switch node with requested conditional flow marker");
-        // lock weak_ptr markers into shared_ptr; all Switch nodes are alive during resolution
+        // lock weak_ptr markers into shared_ptr; all Switch nodes are alive during resolution, so an
+        // expired entry is an internal-invariant violation - fail fast rather than silently dropping
+        // it (which would mis-cluster Switch/Merge groups).
         std::unordered_set<std::shared_ptr<Switch>> switch_nodes;
-        for (const auto& weak_switch : cf_marker.merge_eliminated_markers[switch_marker]) {
-            if (auto switch_node = weak_switch.lock()) {
-                switch_nodes.insert(switch_node);
-            }
+        for (const auto& weak_switch : cf_marker.merge_eliminated_markers.at(switch_marker)) {
+            auto switch_node = weak_switch.lock();
+            FRONT_END_GENERAL_CHECK(
+                switch_node,
+                "[TensorFlow Frontend] internal error: expired Switch weak_ptr for conditional flow marker");
+            switch_nodes.insert(std::move(switch_node));
         }
         return switch_nodes;
     }
