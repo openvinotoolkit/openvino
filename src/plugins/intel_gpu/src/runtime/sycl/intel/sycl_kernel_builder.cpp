@@ -175,7 +175,11 @@ sycl_kernel_builder::sycl_kernel_builder(const sycl_device& device)
         OPENVINO_THROW("[GPU] sycl::intel::sycl_kernel_builder: unsupported kernel format");
     }
 
-    cldnn::sycl::sycl_kernel::create_kernels(_device.get_context(), spirv, build_log, out);
+    cldnn::sycl::sycl_kernel::create_kernels(
+        _device.get_context(),
+        std::make_shared<const std::vector<std::byte>>(std::move(spirv)),
+        std::make_shared<const std::string>(std::move(build_log)),
+        out);
 }
 
 }  // namespace intel

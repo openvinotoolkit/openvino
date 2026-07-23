@@ -22,11 +22,12 @@ namespace sycl {
 class sycl_kernel : public sycl_base_kernel {
 public:
     sycl_kernel(sycl_kernel_type compiled_kernel, const std::string& kernel_id,
-                std::vector<std::byte> spirv_binary, const std::string& build_log = {})
+                std::shared_ptr<const std::vector<std::byte>> spirv_binary,
+                std::shared_ptr<const std::string> build_log = {})
         : _compiled_kernel(std::move(compiled_kernel))
         , _kernel_id(kernel_id)
         , _spirv_binary(std::move(spirv_binary))
-        , _build_log(build_log) { }
+        , _build_log(std::move(build_log)) { }
 
     std::string get_id() const override { return _kernel_id; }
     std::shared_ptr<kernel> clone(bool /*reuse_kernel_handle*/ = false) const override {
@@ -46,15 +47,15 @@ public:
     void launch(::sycl::handler& cgh, const kernel_arguments_desc& args_desc) override;
 
     static void create_kernels(const ::sycl::context& ctx,
-                               const std::vector<std::byte>& spirv_binary,
-                               const std::string& build_log,
+                               std::shared_ptr<const std::vector<std::byte>> spirv_binary,
+                               std::shared_ptr<const std::string> build_log,
                                std::vector<kernel::ptr>& out);
 
 private:
     sycl_kernel_type _compiled_kernel;
     std::string _kernel_id;
-    std::vector<std::byte> _spirv_binary;
-    std::string _build_log;
+    std::shared_ptr<const std::vector<std::byte>> _spirv_binary;
+    std::shared_ptr<const std::string> _build_log;
 };
 
 }  // namespace sycl

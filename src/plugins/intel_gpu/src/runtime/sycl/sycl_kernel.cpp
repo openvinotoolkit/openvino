@@ -106,15 +106,15 @@ bool is_ignored_kernel_name(const std::string& name) {
 } // namespace
 
 std::vector<uint8_t> sycl_kernel::get_binary() const {
-    OPENVINO_ASSERT(!_spirv_binary.empty(),
+    OPENVINO_ASSERT(_spirv_binary && !_spirv_binary->empty(),
                     "[GPU] sycl_kernel::get_binary: SPIR-V binary is empty");
 
-    const auto* p = reinterpret_cast<const uint8_t*>(_spirv_binary.data());
-    return std::vector<uint8_t>(p, p + _spirv_binary.size());
+    const auto* p = reinterpret_cast<const uint8_t*>(_spirv_binary->data());
+    return std::vector<uint8_t>(p, p + _spirv_binary->size());
 }
 
 std::string sycl_kernel::get_build_log() const {
-    return _build_log;
+    return _build_log ? *_build_log : std::string{};
 }
 
 void sycl_kernel::launch(::sycl::handler& cgh,
@@ -205,13 +205,16 @@ void sycl_kernel::launch(::sycl::handler& cgh,
 }
 
 void sycl_kernel::create_kernels(const ::sycl::context& ctx,
-                                 const std::vector<std::byte>& spirv_binary,
-                                 const std::string& build_log,
+                                 std::shared_ptr<const std::vector<std::byte>> spirv_binary,
+                                 std::shared_ptr<const std::string> build_log,
                                  std::vector<kernel::ptr>& out) {
     namespace syclex = ::sycl::ext::oneapi::experimental;
 
+    OPENVINO_ASSERT(spirv_binary && !spirv_binary->empty(),
+                    "[GPU] sycl_kernel::create_kernels: empty SPIR-V binary");
+
     // extract_spirv_kernel_names throws if the binary is not a valid SPIR-V module.
-    auto kernel_names = extract_spirv_kernel_names(spirv_binary.data(), spirv_binary.size());
+    auto kernel_names = extract_spirv_kernel_names(spirv_binary->data(), spirv_binary->size());
 
     // Drop kernel names that are not executable
     kernel_names.erase(std::remove_if(kernel_names.begin(), kernel_names.end(),
@@ -225,7 +228,7 @@ void sycl_kernel::create_kernels(const ::sycl::context& ctx,
     try {
         auto src_bundle = syclex::create_kernel_bundle_from_source(ctx,
                                                                    syclex::source_language::spirv,
-                                                                   spirv_binary);
+                                                                   *spirv_binary);
         auto exec_bundle = syclex::build(src_bundle);
 
         for (const auto& kernel_name : kernel_names) {
