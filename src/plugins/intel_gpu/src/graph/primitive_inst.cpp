@@ -1045,7 +1045,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        bool reclaim = 0;
+        bool reclaim = false;
         size_t required_buffer_size = 0;
         if (get_node().is_type<kv_cache>() && i != 1) {
             // Relax reclaiming condition for kv cache

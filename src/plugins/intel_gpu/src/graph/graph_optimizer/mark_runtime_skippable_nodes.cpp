@@ -299,7 +299,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // for dynamic case, postpone the judgement to runtime
             // for static case, judge if input/output are same here.
             if (!node.is_dynamic()) {
-                can_be_optimized = node.get_input_layout(0) == node.get_output_layout(0);
+                can_be_optimized = node.get_input_layout(0) == node.get_output_layout(false);
             }
             if (!node.has_fused_primitives() && can_be_optimized) {
                 node.can_be_optimized(true);
