@@ -16,7 +16,7 @@ public:
 
     scatter_elements_update_kernel_selector();
 
-    virtual ~scatter_elements_update_kernel_selector() {}
+    ~scatter_elements_update_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -13,7 +13,7 @@ class GRNKernelRef : public GRNKernelBase {
 public:
     using Parent = GRNKernelBase;
     GRNKernelRef() : GRNKernelBase("grn_ref") {}
-    virtual ~GRNKernelRef() {}
+    ~GRNKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

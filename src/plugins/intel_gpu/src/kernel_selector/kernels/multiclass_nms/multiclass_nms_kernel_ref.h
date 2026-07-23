@@ -28,7 +28,7 @@ class MulticlassNmsKernelRef : public KernelBaseOpenCL {
 public:
     MulticlassNmsKernelRef() : KernelBaseOpenCL("multiclass_nms_ref") {}
 
-    ~MulticlassNmsKernelRef() = default;
+    ~MulticlassNmsKernelRef() override = default;
 
     using DispatchData = CommonDispatchData;
 

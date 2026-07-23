@@ -94,6 +94,8 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         set(protoc_extra_flags "-fno-sanitize=thread")
     endif()
 
+    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
+
     ov_native_compile_external_project(
         TARGET_NAME host_protoc
         NATIVE_INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
@@ -102,9 +104,13 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                    "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
                    "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
         NATIVE_SOURCE_SUBDIR "${protobuf_dir}"
-        NATIVE_TARGETS protoc libprotobuf-lite)
+        NATIVE_TARGETS protoc libprotobuf-lite
+        # Declare the produced protoc binary as a byproduct so that Ninja knows
+        # the rule that generates it. Newer ONNX (>=1.22) adds the imported
+        # protobuf::protoc target to the DEPENDS of its proto-generation custom
+        # commands, which CMake lowers to a file-level dependency on this path.
+        BUILD_BYPRODUCTS "${PROTOC_EXECUTABLE}")
 
-    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
     add_executable(protobuf::protoc IMPORTED GLOBAL)
     set_property(TARGET protobuf::protoc APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
     set_target_properties(protobuf::protoc PROPERTIES
