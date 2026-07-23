@@ -620,13 +620,15 @@ bool primitive_inst::need_reset_output_memory() const {
             continue;
         }
 
-        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
+        if (user_inst->need_reset_input_memory(dependency_idx))
             return true;
 
         // OneDNN requires zero-filled input for padded area
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
-        if (is_user_conv && is_user_onednn_impl) {
+        if (dependency_idx == 0 && is_user_conv && is_user_onednn_impl) {
             auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
@@ -2224,8 +2226,9 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    const bool static_pool_reuse = !is_dynamic() && can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool();
-    if ((is_dynamic() || static_pool_reuse) && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    const bool may_reuse_output_memory = is_dynamic() ||
+                                         (can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool());
+    if (may_reuse_output_memory && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
