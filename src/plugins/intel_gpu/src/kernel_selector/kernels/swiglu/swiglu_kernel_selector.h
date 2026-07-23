@@ -16,7 +16,7 @@ public:
 
     swiglu_kernel_selector();
 
-    virtual ~swiglu_kernel_selector() {}
+    ~swiglu_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
