@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <atomic>
 #include <chrono>
-#include <common_test_utils/test_constants.hpp>
+#include <list>
+#include <sstream>
 #include <thread>
-
+#include <tuple>
 #include "include/auto_unit_test.hpp"
 
 using namespace ov::mock_auto_plugin;
@@ -93,7 +95,7 @@ TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled)
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
 
-    // Give the background warm-up task time to finish compiling and releasing.
+    // Give the background pre-compile task time to finish compiling and releasing.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     if (cacheEnabled && compileForAll) {

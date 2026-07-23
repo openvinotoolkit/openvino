@@ -297,13 +297,12 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
     }
-    std::string cache_dir;
-    try {
-        cache_dir = m_context->m_ov_core->get_property("", ov::cache_dir);
-    } catch (const ov::Exception&) {
-    }
+    const std::string cache_dir =
+        m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
+            ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
+            : m_context->m_ov_core->get_property("", ov::cache_dir);
     if (cache_dir.empty()) {
-        LOG_INFO_TAG("Skill cache pre-compilation when cache dir is not set");
+        LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
         return;
     }
     // Keep the source model alive for the background tasks. The actual-device path may reset
