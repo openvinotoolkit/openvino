@@ -105,7 +105,8 @@ std::string sycl_kernel::get_build_log() const {
 
 void sycl_kernel::launch(::sycl::handler& cgh,
                          const kernel_arguments_desc& args_desc) {
-    const auto& args = stored_args();
+    // get stored_args by value to avoid data race
+    const auto args = stored_args();
 
     const auto& gws = args_desc.workGroups.global;
     const auto& lws = args_desc.workGroups.local;

@@ -36,14 +36,8 @@ public:
                         const kernel_arguments_desc& args_desc) = 0;
 
 protected:
-    // Access stored arguments by reference.  Safe when the caller runs on the
-    // same thread that produced them.
-    const std::vector<arg_t>& stored_args() const { return _stored_args; }
-
-    // Snapshot of the stored arguments as a value copy.  Required when the
-    // arguments are consumed asynchronously (e.g. captured by a host_task
-    // lambda that runs after set_arguments/launch have returned).
-    std::vector<arg_t> stored_args_snapshot() const;
+    // Return a snapshot of the stored arguments taken under _args_mutex.
+    std::vector<arg_t> stored_args() const;
 
     mutable std::mutex _args_mutex;
     std::vector<arg_t> _stored_args;

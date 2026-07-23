@@ -79,7 +79,7 @@ void sycl_base_kernel::set_arguments(const kernel_arguments_desc& args_desc,
     _stored_args = std::move(next);
 }
 
-std::vector<sycl_base_kernel::arg_t> sycl_base_kernel::stored_args_snapshot() const {
+std::vector<sycl_base_kernel::arg_t> sycl_base_kernel::stored_args() const {
     std::lock_guard<std::mutex> lock(_args_mutex);
     return _stored_args;
 }
