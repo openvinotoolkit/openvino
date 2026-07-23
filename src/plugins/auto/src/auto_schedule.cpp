@@ -3,6 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <chrono>
+
 #include "auto_schedule.hpp"
 
 #include "async_infer_request.hpp"
@@ -200,7 +202,7 @@ void AutoSchedule::init() {
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         // Warm up the cache blobs for the remaining candidate devices.
-        warmup_compile_other_devices_for_cache();
+        compile_for_all_other_devices_for_cache();
         auto recycleTask = [this]() mutable {
             wait_actual_compiled_model_ready();
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
@@ -291,7 +293,7 @@ void AutoSchedule::init() {
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
 
-void AutoSchedule::warmup_compile_other_devices_for_cache() {
+void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
     }
@@ -301,7 +303,7 @@ void AutoSchedule::warmup_compile_other_devices_for_cache() {
     } catch (const ov::Exception&) {
     }
     if (cache_dir.empty()) {
-        LOG_INFO_TAG("Skill cache warm-up compilation when cache dir is not set");
+        LOG_INFO_TAG("Skill cache pre-compilation when cache dir is not set");
         return;
     }
     // Keep the source model alive for the background tasks. The actual-device path may reset
@@ -318,20 +320,30 @@ void AutoSchedule::warmup_compile_other_devices_for_cache() {
             continue;
         }
         m_executor->run([this, device, model, model_path] {
+            const auto compile_begin = std::chrono::steady_clock::now();
             try {
                 // Follow the same model-source priority as the blob existence check: model first, then path.
-                SoCompiledModel warmup_model = model
+                SoCompiledModel precompile_model = model
                     ? m_context->m_ov_core->compile_model(model->clone(), device.device_name, device.config)
                     : m_context->m_ov_core->compile_model(model_path, device.device_name, device.config);
                 // The cache blob is generated during compilation; release the compiled model right away
                 // so we do not keep holding device resources.
-                warmup_model._ptr.reset();
-                warmup_model._so.reset();
-                LOG_INFO_TAG("cache warm-up compilation finished for device: %s", device.device_name.c_str());
+                precompile_model._ptr.reset();
+                precompile_model._so.reset();
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
+                             device.device_name.c_str(),
+                             compile_ms);
             } catch (const ov::Exception& e) {
-                LOG_DEBUG_TAG("cache warm-up compilation failed for device: %s, %s",
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_DEBUG_TAG("cache pre-compilation failed for device: %s, %s",
                               device.device_name.c_str(),
                               e.what());
+                LOG_DEBUG_TAG("cache pre-compilation time for device: %s: %lf ms",
+                              device.device_name.c_str(),
+                              compile_ms);
             }
         });
     }

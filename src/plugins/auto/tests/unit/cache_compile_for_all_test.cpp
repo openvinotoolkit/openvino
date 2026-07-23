@@ -10,16 +10,16 @@
 
 using namespace ov::mock_auto_plugin;
 
-// Verify the cache warm-up logic in AutoSchedule::init():
+// Verify the cache pre-compilation logic in AutoSchedule::init():
 // while CPU_HELP + ACTUALDEVICE are compiled in parallel, the remaining candidate devices
 // (excluding CPU and the actual device) are also compiled in the background to populate the
 // cache blobs, and their compiled models are released right after compilation.
-// The warm-up only happens when ov::intel_auto::compile_for_all is enabled and a cache
+// The pre-compilation only happens when ov::intel_auto::compile_for_all is enabled and a cache
 // directory is configured.
 using CacheWarmupParams = std::tuple<bool,   // whether cache_dir is enabled
                                      bool>;  // whether ov::intel_auto::compile_for_all is enabled
 
-class AutoCacheWarmupTest : public tests::AutoTest, public ::testing::TestWithParam<CacheWarmupParams> {
+class AutoCacheCompileForAllTest : public tests::AutoTest, public ::testing::TestWithParam<CacheWarmupParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CacheWarmupParams>& obj) {
         const auto& [cacheEnabled, compileForAll] = obj.param;
@@ -30,7 +30,7 @@ public:
     }
 };
 
-TEST_P(AutoCacheWarmupTest, warmupCompilesOtherDevicesWhenEnabled) {
+TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled) {
     const auto& [cacheEnabled, compileForAll] = this->GetParam();
     plugin->set_device_name("AUTO");
 
@@ -49,7 +49,7 @@ TEST_P(AutoCacheWarmupTest, warmupCompilesOtherDevicesWhenEnabled) {
     ON_CALL(*core, get_property(StrEq(""), StrEq(ov::cache_dir.name()), _))
         .WillByDefault(Return(ov::Any(cacheDir)));
 
-    std::atomic<int> warmupCount{0};
+    std::atomic<int> compileCount{0};
     // ACTUALDEVICE (GPU.1)
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -70,8 +70,8 @@ TEST_P(AutoCacheWarmupTest, warmupCompilesOtherDevicesWhenEnabled) {
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(otherDevice)),
                           _))
-        .WillByDefault(InvokeWithoutArgs([&warmupCount, mockExeNetworkOther]() {
-            warmupCount++;
+        .WillByDefault(InvokeWithoutArgs([&compileCount, mockExeNetworkOther]() {
+            compileCount++;
             return mockExeNetworkOther;
         }));
 
@@ -97,11 +97,11 @@ TEST_P(AutoCacheWarmupTest, warmupCompilesOtherDevicesWhenEnabled) {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     if (cacheEnabled && compileForAll) {
-        EXPECT_GE(warmupCount.load(), 1);
+        EXPECT_GE(compileCount.load(), 1);
         // The warm-up compiled model must be released, so no extra reference is kept.
         EXPECT_EQ(mockIExeNetOther.use_count(), otherBaselineCount);
     } else {
-        EXPECT_EQ(warmupCount.load(), 0);
+        EXPECT_EQ(compileCount.load(), 0);
     }
 }
 
@@ -111,6 +111,6 @@ const std::vector<CacheWarmupParams> testConfigs = {CacheWarmupParams{true, true
                                                     CacheWarmupParams{false, false}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         AutoCacheWarmupTest,
+                         AutoCacheCompileForAllTest,
                          ::testing::ValuesIn(testConfigs),
-                         AutoCacheWarmupTest::getTestCaseName);
+                         AutoCacheCompileForAllTest::getTestCaseName);

@@ -33,7 +33,7 @@ private:
     bool select_other_device(const std::string& cur_dev_name) override;
     // Compile the model to the remaining candidate devices (excluding CPU and the actual
     // device) purely to populate the cache blobs, then release the compiled models.
-    void warmup_compile_other_devices_for_cache();
+    void compile_for_all_other_devices_for_cache();
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
