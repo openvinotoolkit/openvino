@@ -50,6 +50,95 @@ TEST(CoreTests, Throw_on_register_plugins_twice) {
     }
 }
 
+namespace {
+// Writes `content` to a uniquely-named plugins.xml and returns its path.
+std::filesystem::path write_plugins_xml(const std::string& file_name, const std::string& content) {
+    std::filesystem::path plugins_xml = file_name;
+    std::ofstream file(plugins_xml);
+    file << content;
+    file.flush();
+    file.close();
+    return plugins_xml;
+}
+}  // namespace
+
+// Legacy single "location" attribute -> exactly one candidate (byte-for-byte the old path).
+TEST(CoreTests_dispatch_group, Legacy_location_attribute_is_single_candidate) {
+    ov::CoreImpl core;
+    const auto xml = write_plugins_xml(
+        "test_single_candidate.xml",
+        "<ie><plugins><plugin location=\"libtest_plugin.so\" name=\"TEST_DEVICE\"></plugin></plugins></ie>");
+
+    core.register_plugins_in_registry(xml, false);
+    EXPECT_EQ(core.get_registered_candidate_count("TEST_DEVICE"), 1u);
+
+    if (ov::util::file_exists(xml)) {
+        std::ignore = std::filesystem::remove(xml);
+    }
+}
+
+// Two ordered <location> children -> a 2-candidate dispatch group (order preserved).
+TEST(CoreTests_dispatch_group, Two_location_children_is_dispatch_group) {
+    ov::CoreImpl core;
+    const auto xml = write_plugins_xml("test_dispatch_group.xml",
+                                       "<ie><plugins>"
+                                       "<plugin name=\"TEST_DEVICE\">"
+                                       "<location>libtest_plugin_a.so</location>"
+                                       "<location>libtest_plugin_b.so</location>"
+                                       "</plugin>"
+                                       "</plugins></ie>");
+
+    core.register_plugins_in_registry(xml, false);
+    EXPECT_EQ(core.get_registered_candidate_count("TEST_DEVICE"), 2u);
+
+    if (ov::util::file_exists(xml)) {
+        std::ignore = std::filesystem::remove(xml);
+    }
+}
+
+// A single <location> child is equivalent to the legacy attribute: one candidate.
+TEST(CoreTests_dispatch_group, Single_location_child_is_single_candidate) {
+    ov::CoreImpl core;
+    const auto xml = write_plugins_xml("test_single_location_child.xml",
+                                       "<ie><plugins>"
+                                       "<plugin name=\"TEST_DEVICE\">"
+                                       "<location>libtest_plugin.so</location>"
+                                       "</plugin>"
+                                       "</plugins></ie>");
+
+    core.register_plugins_in_registry(xml, false);
+    EXPECT_EQ(core.get_registered_candidate_count("TEST_DEVICE"), 1u);
+
+    if (ov::util::file_exists(xml)) {
+        std::ignore = std::filesystem::remove(xml);
+    }
+}
+
+// Mixing the "location" attribute and <location> children is rejected.
+TEST(CoreTests_dispatch_group, Mixed_location_forms_throw) {
+    ov::CoreImpl core;
+    const auto xml = write_plugins_xml("test_mixed_location.xml",
+                                       "<ie><plugins>"
+                                       "<plugin location=\"libtest_plugin.so\" name=\"TEST_DEVICE\">"
+                                       "<location>libtest_plugin_b.so</location>"
+                                       "</plugin>"
+                                       "</plugins></ie>");
+
+    OV_EXPECT_THROW(core.register_plugins_in_registry(xml, false),
+                    ov::Exception,
+                    ::testing::HasSubstr("both a \"location\" attribute and <location> child elements"));
+
+    if (ov::util::file_exists(xml)) {
+        std::ignore = std::filesystem::remove(xml);
+    }
+}
+
+// An unregistered device name reports zero candidates.
+TEST(CoreTests_dispatch_group, Unregistered_device_has_zero_candidates) {
+    ov::CoreImpl core;
+    EXPECT_EQ(core.get_registered_candidate_count("NOT_REGISTERED"), 0u);
+}
+
 TEST(CoreTests_get_plugin_path_from_xml, Use_abs_path_as_is) {
     auto xml_path = std::filesystem::path("path_to_plugins.xml");
     auto lib_path = std::filesystem::absolute("test_name.ext");  // CWD/test_name.ext

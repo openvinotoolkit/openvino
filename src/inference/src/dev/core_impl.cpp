@@ -474,7 +474,7 @@ bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::string real_name = ov::parse_device_name_into_config(dev_name).m_device_name;
     return m_plugin_registry.find(real_name) != m_plugin_registry.end() &&
-           m_plugin_registry.at(real_name).m_plugin_create_func == ov::proxy::create_plugin;
+           m_plugin_registry.at(real_name).primary().m_plugin_create_func == ov::proxy::create_plugin;
 #else
     return false;
 #endif
@@ -541,7 +541,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     std::string dev_name = device_name;
 #ifdef PROXY_PLUGIN_ENABLED
-    auto&& config = desc.m_default_config;
+    auto&& config = desc.primary().m_default_config;
     // Register proxy plugin
     if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
         // Create proxy plugin for alias
@@ -554,30 +554,30 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
             // Add internal name for proxy in order to modify fallback order before the initialization
             if (alias == device_name)
-                desc.m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
+                desc.primary().m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
 
-            fill_config(desc.m_default_config, config, dev_name);
+            fill_config(desc.primary().m_default_config, config, dev_name);
             m_plugin_registry[alias] = std::move(desc);
             add_mutex(alias);
         } else {
             // Update registered plugin
             auto& plugin = m_plugin_registry.at(alias);
             // Error if we have an alias for HW plugin
-            OPENVINO_ASSERT(plugin.m_plugin_create_func == ov::proxy::create_plugin,
+            OPENVINO_ASSERT(plugin.primary().m_plugin_create_func == ov::proxy::create_plugin,
                             "Cannot register plugin for ",
                             dev_name,
                             " plugin with the same name already registered!");
             // Add internal name for proxy in order to modify fallback order before the initialization
             if (alias == device_name)
-                plugin.m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
-            fill_config(plugin.m_default_config, config, dev_name);
+                plugin.primary().m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
+            fill_config(plugin.primary().m_default_config, config, dev_name);
         }
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
         // Fallback without alias means that we need to replace original plugin to proxy
         dev_name = get_internal_plugin_name(dev_name, config);
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
-        desc.m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
-        fill_config(desc.m_default_config, config, dev_name);
+        desc.primary().m_default_config[ov::proxy::configuration::internal_name.name()] = dev_name;
+        fill_config(desc.primary().m_default_config, config, dev_name);
         m_plugin_registry[device_name] = std::move(desc);
         add_mutex(device_name);
     }
@@ -589,9 +589,9 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     // Register real plugin
     for (const auto& proxy_prop : proxy_conf_properties) {
-        auto it = desc.m_default_config.find(proxy_prop);
-        if (it != desc.m_default_config.end()) {
-            desc.m_default_config.erase(it);
+        auto it = desc.primary().m_default_config.find(proxy_prop);
+        if (it != desc.primary().m_default_config.end()) {
+            desc.primary().m_default_config.erase(it);
         }
     }
 #endif
@@ -655,15 +655,44 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
             OPENVINO_THROW("Device name must not contain dot '.' symbol");
         }
 
-        PluginDescriptor plugin_desc{
-            get_plugin_path(make_path(pugixml::get_str_attr(plugin_node, "location")), xml_config_file, by_abs_path)};
+        // Library path(s): either the legacy single "location" attribute, or ordered
+        // <location> children (a dispatch group; first = default). Order is preserved.
+        std::vector<std::filesystem::path> locations;
+        for (const auto& location_node : plugin_node.children("location")) {
+            const auto child_location = std::string{location_node.child_value()};
+            OPENVINO_ASSERT(!child_location.empty(),
+                            "Empty <location> element for device \"",
+                            device_name,
+                            "\" in the plugins registry");
+            locations.push_back(get_plugin_path(make_path(child_location), xml_config_file, by_abs_path));
+        }
+        if (const auto attr_location = pugixml::get_str_attr(plugin_node, "location", ""); !attr_location.empty()) {
+            OPENVINO_ASSERT(locations.empty(),
+                            "Device \"",
+                            device_name,
+                            "\" declares both a \"location\" attribute and <location> child elements; use one form");
+            locations.push_back(get_plugin_path(make_path(attr_location), xml_config_file, by_abs_path));
+        }
+        OPENVINO_ASSERT(!locations.empty(),
+                        "Device \"",
+                        device_name,
+                        "\" has no library location in the plugins registry");
+
+        PluginDescriptor plugin_desc{locations.front()};
+        for (size_t i = 1; i < locations.size(); ++i) {
+            plugin_desc.m_candidates.push_back({locations[i], {}, nullptr});
+        }
 
         // check properties
         const auto properties_node = plugin_node.child("properties");
         if (properties_node) {
             FOREACH_CHILD (property_node, properties_node, "property") {
                 const auto key = pugixml::get_str_attr(property_node, "key");
-                plugin_desc.m_default_config[key] = pugixml::get_str_attr(property_node, "value");
+                // Default config from <properties> applies to every candidate library.
+                const auto value = pugixml::get_str_attr(property_node, "value");
+                for (auto& candidate : plugin_desc.m_candidates) {
+                    candidate.m_default_config[key] = value;
+                }
             }
         }
 
@@ -724,12 +753,12 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
     try {
         ov::Plugin plugin;
 
-        if (desc.m_plugin_create_func) {  // static OpenVINO case or proxy plugin
+        if (desc.primary().m_plugin_create_func) {  // static OpenVINO case or proxy plugin
             std::shared_ptr<ov::IPlugin> plugin_impl;
-            desc.m_plugin_create_func(plugin_impl);
+            desc.primary().m_plugin_create_func(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
         } else {
-            so = ov::util::load_shared_object(desc.m_lib_location);
+            so = ov::util::load_shared_object(desc.primary().m_lib_location);
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             const auto& plugin_name = plugin_impl->get_device_name();
@@ -737,7 +766,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(device_name.find(plugin_name) != std::string::npos,
-                                desc.m_lib_location,
+                                desc.primary().m_lib_location,
                                 " is used for ",
                                 device_name,
                                 " , while it contains implementation for ",
@@ -760,24 +789,25 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
             // Initial setup for proxy plugin.
             // It is needed for future initialization to initialize low level plugin
-            if (desc.m_plugin_create_func == ov::proxy::create_plugin) {
+            if (desc.primary().m_plugin_create_func == ov::proxy::create_plugin) {
                 ov::AnyMap initial_config;
-                auto it = desc.m_default_config.find(ov::proxy::alias_for.name());
-                if (it != desc.m_default_config.end()) {
+                auto it = desc.primary().m_default_config.find(ov::proxy::alias_for.name());
+                if (it != desc.primary().m_default_config.end()) {
                     initial_config[it->first] = it->second;
                 }
-                it = desc.m_default_config.find(ov::proxy::device_priorities.name());
-                if (it != desc.m_default_config.end()) {
+                it = desc.primary().m_default_config.find(ov::proxy::device_priorities.name());
+                if (it != desc.primary().m_default_config.end()) {
                     initial_config[it->first] = it->second;
                 }
-                it = desc.m_default_config.find(ov::device::priorities.name());
-                if (it != desc.m_default_config.end()) {
+                it = desc.primary().m_default_config.find(ov::device::priorities.name());
+                if (it != desc.primary().m_default_config.end()) {
                     // Fix fallback names in case if proxy plugin got a conflict in the process of plugins registration
                     auto priorities = it->second.as<std::vector<std::string>>();
-                    auto internal_name = desc.m_default_config.find(ov::proxy::configuration::internal_name.name());
+                    auto internal_name =
+                        desc.primary().m_default_config.find(ov::proxy::configuration::internal_name.name());
                     for (auto&& priority : priorities) {
                         if (priority == device_name) {
-                            OPENVINO_ASSERT(internal_name != desc.m_default_config.end(),
+                            OPENVINO_ASSERT(internal_name != desc.primary().m_default_config.end(),
                                             "Cannot create proxy device ",
                                             device_name,
                                             ". Device has incorrect configuration.");
@@ -815,15 +845,15 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
                             if (pluginDesc.first.find(device_name) != std::string::npos &&
                                 !parser.get_device_id().empty()) {
                                 g_lock.unlock();
-                                pluginDesc.second.m_default_config[deviceKey] = parser.get_device_id();
-                                plugin.set_property(pluginDesc.second.m_default_config);
+                                pluginDesc.second.primary().m_default_config[deviceKey] = parser.get_device_id();
+                                plugin.set_property(pluginDesc.second.primary().m_default_config);
                             }
                         }
                     }
                 }
 
                 // set global device-id independent settings to plugin
-                plugin.set_property(desc.m_default_config);
+                plugin.set_property(desc.primary().m_default_config);
             });
         }
 
@@ -845,7 +875,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
         return m_plugins.emplace(device_name, plugin).first->second;
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
-                       desc.m_lib_location,
+                       desc.primary().m_lib_location,
                        " for device ",
                        device_name,
                        "\n",
@@ -1048,8 +1078,8 @@ bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
     std::lock_guard<std::mutex> lock(get_mutex());
     // Alias hides the device
     for (auto&& it : m_plugin_registry) {
-        auto it_priority = it.second.m_default_config.find(ov::proxy::alias_for.name());
-        if (it.first == device_name || it_priority == it.second.m_default_config.end())
+        auto it_priority = it.second.primary().m_default_config.find(ov::proxy::alias_for.name());
+        if (it.first == device_name || it_priority == it.second.primary().m_default_config.end())
             continue;
         auto devices = it_priority->second.as<std::vector<std::string>>();
         for (const auto& dev : devices) {
@@ -1375,6 +1405,13 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
     return listOfDevices;
 }
 
+size_t ov::CoreImpl::get_registered_candidate_count(const std::string& device_name) const {
+    std::lock_guard<std::mutex> lock(get_mutex());
+
+    const auto it = m_plugin_registry.find(device_name);
+    return it == m_plugin_registry.end() ? 0 : it->second.candidate_count();
+}
+
 /**
  * @brief Sets property values for a plugin or set of plugins
  * @param device_name A device name to set config to
@@ -1401,7 +1438,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
             auto base_desc = m_plugin_registry.find(clear_device_name);
             if (m_plugin_registry.find(device_name) == m_plugin_registry.end() &&
                 base_desc != m_plugin_registry.end()) {
-                PluginDescriptor desc{base_desc->second.m_lib_location,
+                PluginDescriptor desc{base_desc->second.primary().m_lib_location,
                                       cfg_copy,
                                       base_desc->second.m_list_of_extensions};
                 m_plugin_registry[device_name] = std::move(desc);
@@ -1412,7 +1449,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
             for (auto& desc : m_plugin_registry) {
                 if (device_name.empty() || device_name == desc.first) {
                     for (auto&& conf : cfg_copy) {
-                        desc.second.m_default_config[conf.first] = conf.second;
+                        for (auto& candidate : desc.second.m_candidates) {
+                            candidate.m_default_config[conf.first] = conf.second;
+                        }
                     }
                     configIsSet = true;
                 }
