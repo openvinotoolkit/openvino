@@ -4,6 +4,7 @@
 
 #include "mvn_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
+#include "../mvn_rms_scheduling_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,66 +13,7 @@
 #include <string>
 
 namespace kernel_selector {
-namespace {
-static constexpr size_t target_items_per_wi = 8;
-static constexpr size_t max_register_stack = 16;
 
-size_t get_generalized_lws(size_t data_set_size, size_t max_lws) {
-    size_t lws = 1;
-    const size_t limit = std::max<size_t>(1, std::min(max_lws, data_set_size / target_items_per_wi));
-    while (2 * lws <= limit) {
-        lws *= 2;
-    }
-    return lws;
-}
-
-size_t get_stack_size(size_t data_set_size, size_t lws) {
-    return (data_set_size + lws - 1) / lws;
-}
-
-bool is_decimal_number(const std::string& value) {
-    return !value.empty() && std::all_of(value.begin(), value.end(), [](char c) {
-        return std::isdigit(static_cast<unsigned char>(c));
-    });
-}
-
-bool try_fold_mul_expression(const std::string& expression, size_t& folded_value) {
-    if (expression.size() < 3 || expression.front() != '(' || expression.back() != ')')
-        return false;
-
-    const size_t max_size_t = std::numeric_limits<size_t>::max();
-    const size_t end = expression.size() - 1;
-    size_t pos = 1;
-    size_t result = 1;
-
-    while (pos < end) {
-        if (!std::isdigit(static_cast<unsigned char>(expression[pos])))
-            return false;
-
-        size_t factor = 0;
-        while (pos < end && std::isdigit(static_cast<unsigned char>(expression[pos]))) {
-            const size_t digit = static_cast<size_t>(expression[pos] - '0');
-            if (factor > (max_size_t - digit) / 10)
-                return false;
-            factor = factor * 10 + digit;
-            ++pos;
-        }
-
-        if (factor != 0 && result > max_size_t / factor)
-            return false;
-        result *= factor;
-
-        if (pos == end)
-            break;
-        if (expression[pos] != '*')
-            return false;
-        ++pos;
-    }
-
-    folded_value = result;
-    return true;
-}
-}  // namespace
 
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -119,10 +61,8 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
         dispatchData.gws[1] = dispatchData.dataSetsCount;
         dispatchData.gws[2] = 1;
 
-        // Generalized aboutSHW rule: choose the largest power-of-two LWS that leaves at
-        // least 8 normalized elements per work-item. This hit the physical DRAM roofline
-        // for Omni C6 vit/merger without shape-specific buckets.
-        dispatchData.lws[0] = get_generalized_lws(dispatchData.dataSetSize, max_lws);
+        const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSetSize);
+        dispatchData.lws[0] = MvnSchedulingPolicy::GetGeneralizedLws(dispatchData.dataSetSize, max_lws, policy.target_items);
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
         dispatchData.itemsNum = dispatchData.dataSetSize / dispatchData.lws[0];
@@ -149,32 +89,28 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             data_set_count = dims.b();
         }
         std::string lws_0 = "get_local_size(0)";
-        size_t stack_size = max_register_stack;
+        size_t stack_size = MvnSchedulingPolicy::kMaxRegisterStack;
         bool reread_input = true;
         bool is_static_lws = false;
         size_t static_data_set_size = 0;
         bool has_static_data_set_size = false;
-        if (is_decimal_number(data_set_size)) {
+        if (StaticDimExpressionParser::IsDecimalNumber(data_set_size)) {
             static_data_set_size = std::stoul(data_set_size);
             has_static_data_set_size = true;
         } else {
-            has_static_data_set_size = try_fold_mul_expression(data_set_size, static_data_set_size);
+            has_static_data_set_size = StaticDimExpressionParser::TryFoldMulExpression(data_set_size, static_data_set_size);
         }
 
         if (has_static_data_set_size) {
-            const size_t lws = get_generalized_lws(static_data_set_size, dispatchData.maxSlmSize);
-            const size_t required_stack = get_stack_size(static_data_set_size, lws);
+            const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(static_data_set_size);
+            const size_t lws = MvnSchedulingPolicy::GetGeneralizedLws(static_data_set_size,
+                                                                       dispatchData.maxSlmSize,
+                                                                       policy.target_items);
+            const size_t required_stack = MvnSchedulingPolicy::GetStackSize(static_data_set_size, lws);
             lws_0 = std::to_string(lws);
-            stack_size = std::min(required_stack, max_register_stack);
-            reread_input = required_stack > max_register_stack;
+            stack_size = std::min(required_stack, policy.stack_cap);
+            reread_input = required_stack > policy.stack_cap;
             is_static_lws = true;
-
-            // Temporary debug log to confirm dynamic JIT specialization is taken.
-            GPU_DEBUG_LOG << params.layerID << ": MVN dynamic specialization enabled, data_set_size=" << data_set_size
-                          << ", folded=" << static_data_set_size
-                          << ", lws=" << lws
-                          << ", stack=" << stack_size
-                          << ", reread=" << reread_input << std::endl;
         }
         jit.AddConstants({
             MakeJitConstant("LWS_IS_STATIC", is_static_lws),
@@ -185,14 +121,15 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             MakeJitConstant("MVN_REREAD_INPUT", reread_input),
         });
     } else {
-        const size_t stack_size = get_stack_size(dispatchData.dataSetSize, dispatchData.lws[0]);
+        const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSetSize);
+        const size_t stack_size = MvnSchedulingPolicy::GetStackSize(dispatchData.dataSetSize, dispatchData.lws[0]);
         jit.AddConstants({
             MakeJitConstant("LWS_IS_STATIC", true),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-            MakeJitConstant("MVN_STACK_SIZE", std::min(stack_size, max_register_stack)),
-            MakeJitConstant("MVN_REREAD_INPUT", stack_size > max_register_stack),
+            MakeJitConstant("MVN_STACK_SIZE", std::min(stack_size, policy.stack_cap)),
+            MakeJitConstant("MVN_REREAD_INPUT", stack_size > policy.stack_cap),
         });
     }
     auto activation_dt = GetActivationType(params);

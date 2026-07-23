@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "include/fetch_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
@@ -22,6 +21,7 @@
 // - `STACK_SIZE` is `ceil(DATA_SIZE / LWS)`. The fast path caches input in registers and
 //   reads it once; `RMS_REREAD_INPUT=1` skips that register array for larger stacks and
 //   rereads input during the output pass to avoid excessive register pressure.
+
 #ifndef ONE_SUBGROUP_ROW
 #define ONE_SUBGROUP_ROW 0
 #endif
@@ -257,7 +257,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) o;
             unroll_for (int j = 0; j < 4; j++) {
 #if RMS_REREAD_INPUT
-                ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + (i + j) * sgs]);
+            ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + (i + j) * sgs]);
 #else
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
@@ -276,7 +276,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) o;
             unroll_for (int j = 0; j < 2; j++) {
 #if RMS_REREAD_INPUT
-                ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + (i + j) * sgs]);
+            ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + (i + j) * sgs]);
 #else
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
@@ -292,32 +292,26 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     for (; i < items_num; i++)
     {
-#if RMS_REREAD_INPUT
+    #if RMS_REREAD_INPUT
         ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * sgs]);
-#else
+    #else
         ACCUMULATOR_TYPE data_value = data[i];
-#endif
+    #endif
 #if ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * sgs]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * temp);
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
 #endif
-        #if HAS_FUSED_OPS
-            LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * sgs;
-            FUSED_OPS;
-            normalized = FUSED_OPS_RESULT;
-        #endif
         output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * sgs] = normalized;
     }
-
     if (leftovers != 0 && local_data_idx < leftovers)
     {
-#if RMS_REREAD_INPUT
+    #if RMS_REREAD_INPUT
         ACCUMULATOR_TYPE data_value = TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + local_data_idx]);
-#else
+    #else
         ACCUMULATOR_TYPE data_value = data[items_num];
-#endif
+    #endif
 #if ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + local_data_idx]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * temp);
@@ -333,8 +327,3 @@ KERNEL(rms_gpu_bfyx_opt)(
     }
 }
 #undef USE_BLOCK_WRITE
-#undef BLOCK_READ
-#undef BLOCK_WRITE
-#undef ACC_TYPE
-#undef TO_ACC_TYPE
-#undef OUTPUT_VEC_TYPE
