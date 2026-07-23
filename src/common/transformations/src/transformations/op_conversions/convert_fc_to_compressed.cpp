@@ -100,11 +100,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     // does not upcast them (e.g. u4 -> u8).
     // combine_groups() and align_and_transpose() further below propagate the mark onto any
     // fresh Constants they synthesize.
-    ov::enable_keep_const_precision(
-        weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
+    ov::enable_keep_const_precision(weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
     if (with_zero_point) {
-        ov::enable_keep_const_precision(
-            weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr());
+        ov::enable_keep_const_precision(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr());
     }
 
     if (with_zero_point) {
