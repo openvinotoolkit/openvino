@@ -48,6 +48,53 @@ ov::ICore::~ICore() = default;
 
 namespace {
 
+// Probe each present candidate library and merge the devices they report into one canonical
+// device list, deduped by opaque fingerprint. Probe only (no plugin engine constructed).
+std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::filesystem::path>& candidate_libs) {
+    std::vector<ov::DispatchEntry> entries;
+    for (size_t idx = 0; idx < candidate_libs.size(); ++idx) {
+        const auto& lib = candidate_libs[idx];
+        // Skip a candidate whose library is absent (missing-plugin fallback).
+        if (lib.empty() || !ov::util::file_exists(lib))
+            continue;
+
+        std::vector<ov::EnumeratedDevice> enumerated;
+        try {
+            auto probe_so = ov::util::load_shared_object(lib);
+            auto* probe = reinterpret_cast<ov::EnumerateDevicesFunc*>(
+                ov::util::get_symbol(probe_so, ov::enumerate_devices_function));
+            probe(enumerated);
+            // probe_so is released here; the winner is re-opened lazily on construction.
+        } catch (const std::exception&) {
+            // Legacy candidate lacking the probe symbol, or a probe failure: contributes no
+            // devices to the merge (it can still be the sole fallback via candidate 0).
+            continue;
+        }
+
+        for (auto& dev : enumerated) {
+            if (dev.score == ov::PROBE_SCORE_INCOMPATIBLE)
+                continue;
+            // Merge by fingerprint equality: a device several candidates see is listed once.
+            auto it = std::find_if(entries.begin(), entries.end(), [&](const ov::DispatchEntry& e) {
+                return e.fingerprint == dev.fingerprint;
+            });
+            if (it == entries.end()) {
+                ov::DispatchEntry entry;
+                entry.fingerprint = dev.fingerprint;
+                entry.per_lib[idx] = {dev.internal_id, dev.score};
+                entries.push_back(std::move(entry));
+            } else {
+                it->per_lib[idx] = {dev.internal_id, dev.score};
+            }
+        }
+    }
+
+    // Assign canonical GPU.N ids in stable enumeration order.
+    for (size_t n = 0; n < entries.size(); ++n)
+        entries[n].canonical_id = std::to_string(n);
+    return entries;
+}
+
 #ifdef PROXY_PLUGIN_ENABLED
 std::string get_internal_plugin_name(const std::string& device_name, const ov::AnyMap& properties) {
     static constexpr const char* internal_plugin_suffix = "_ov_internal";
@@ -710,6 +757,49 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
     }
 }
 
+
+std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::string& device_name,
+                                                                   const PluginDescriptor& desc,
+                                                                   const std::string& device_id) const {
+    // Lazily build the merged device list for this dispatch group on first use.
+    auto map_it = m_dispatch_map.find(device_name);
+    if (map_it == m_dispatch_map.end()) {
+        std::vector<std::filesystem::path> candidate_libs;
+        for (size_t idx = 0; idx < desc.candidate_count(); ++idx)
+            candidate_libs.push_back(desc.candidate_lib(idx));
+        map_it = m_dispatch_map.emplace(device_name, build_dispatch_entries(candidate_libs)).first;
+    }
+    auto& entries = map_it->second;
+    if (entries.empty())
+        return std::nullopt;
+
+    // No id given -> the default device ("0"), mirroring the plugin's m_default_device_id rule.
+    const std::string target_id = device_id.empty() ? std::string("0") : device_id;
+    DispatchEntry* entry = &entries.front();  // fall back to the first canonical device
+    for (auto& e : entries) {
+        if (e.canonical_id == target_id) {
+            entry = &e;
+            break;
+        }
+    }
+
+    if (entry->winner_idx)
+        return entry->winner_idx;
+
+    // Highest score wins; ties resolve to registry order (lowest candidate index, i.e. ZE first).
+    // Any runtime override is already baked into the scores by the plugin, so core stays generic.
+    std::optional<size_t> winner;
+    ov::DeviceCompatibilityScore best = ov::PROBE_SCORE_INCOMPATIBLE;
+    for (const auto& [idx, view] : entry->per_lib) {
+        if (view.score > best) {
+            best = view.score;
+            winner = idx;
+        }
+    }
+    entry->winner_idx = winner;
+    return winner;
+}
+
 ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
 
@@ -747,6 +837,18 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             return it_plugin->second;
 
         desc = it->second;
+
+        // Dispatch group: make the default-device winner the primary candidate so the
+        // construction below loads the right library (bare-name resolution, design 3.7).
+        if (desc.is_dispatch_group()) {
+            const auto winner = resolve_dispatch_winner_unsafe(device_name, desc, /*device_id=*/"");
+            OPENVINO_ASSERT(winner.has_value(),
+                            "No registered candidate library can serve device \"",
+                            device_name,
+                            "\". Please check the plugins registry and device drivers.");
+            if (*winner != 0)
+                std::swap(desc.m_candidates[0], desc.m_candidates[*winner]);
+        }
     }
     // Plugin is in registry, but not created, let's create
     std::shared_ptr<void> so;

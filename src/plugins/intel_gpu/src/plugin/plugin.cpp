@@ -41,6 +41,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -1063,6 +1064,12 @@ std::vector<uint8_t> make_fingerprint(const cldnn::device_info& info) {
 
 void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
     try {
+        // Debug override OV_GPU_RUNTIME=OCL|ZE|SYCL, applied here via score manipulation (core
+        // stays runtime agnostic); an unrecognized value is ignored. See the per-device block.
+        static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
+        const bool has_override = forced == "OCL" || forced == "ZE" || forced == "SYCL";
+        const bool is_this_runtime = forced == cldnn::get_runtime_cache_tag();
+
         for (const auto& d : cldnn::lightweight_enumerate()) {
             const auto& info = d.info;
             ov::EnumeratedDevice e;
@@ -1090,6 +1097,11 @@ void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
 #else
             e.score = ov::PROBE_SCORE_SERVABLE;
 #endif
+            // Override affects only Intel devices (the runtimes' shared, contended set); a
+            // non-Intel GPU keeps its OCL score so it stays served regardless of the override.
+            if (has_override && intel && e.score != ov::PROBE_SCORE_INCOMPATIBLE) {
+                e.score = is_this_runtime ? ov::PROBE_SCORE_PREFERRED : ov::PROBE_SCORE_INCOMPATIBLE;
+            }
             out.push_back(std::move(e));
         }
     } catch (...) {

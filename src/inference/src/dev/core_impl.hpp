@@ -137,6 +137,20 @@ bool is_config_applicable(const std::string& device_name, const std::string& dev
  */
 bool is_virtual_device(const std::string& device_name);
 
+// One physical device of a dispatch group (a device name with >1 candidate library).
+// Generic: holds only opaque tokens/ids/indices and integer scores, no vendor logic.
+struct DispatchEntry {
+    // How one candidate library sees this device: its own internal id and its score.
+    struct CandidateView {
+        std::string internal_id;              // the id THIS library uses (may differ across libs)
+        DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
+    };
+    std::string canonical_id;                 // ".N" shown to the user (core assigns)
+    std::vector<uint8_t> fingerprint;         // opaque cross-candidate identity (merge key)
+    std::map<size_t, CandidateView> per_lib;  // candidate idx -> how that candidate sees this device
+    std::optional<size_t> winner_idx;         // resolved candidate (lazy)
+};
+
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> m_plugins;
@@ -218,16 +232,12 @@ private:
         bool is_dispatch_group() const {
             return m_candidates.size() > 1;
         }
+        const std::filesystem::path& candidate_lib(size_t i) const {
+            return m_candidates[i].m_lib_location;
+        }
     };
 
-    // Canonical dispatch table per dispatch-group device name (registry entry with >1
-    // candidate). Generic (no vendor logic); lazily built; holds only tokens/ids/indices.
-    struct DispatchEntry {
-        std::string canonical_id;                       // ".N" shown to the user (core assigns)
-        std::vector<uint8_t> fingerprint;               // opaque cross-candidate identity (merge key)
-        std::map<size_t, std::string> per_lib_id;       // candidate idx -> that library's own internal id
-        std::optional<size_t> winner_idx;               // resolved candidate (lazy)
-    };
+    // Canonical dispatch table per dispatch-group device name, lazily built on first use.
     mutable std::map<std::string, std::vector<DispatchEntry>> m_dispatch_map;
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
@@ -259,6 +269,12 @@ private:
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
+
+    // Candidate index serving device_id (empty = default): argmax(score), ties -> registry order.
+    // Builds m_dispatch_map[device_name] on first use. nullopt if none serves it; caller holds mutex.
+    std::optional<size_t> resolve_dispatch_winner_unsafe(const std::string& device_name,
+                                                         const PluginDescriptor& desc,
+                                                         const std::string& device_id) const;
 
 
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
