@@ -84,6 +84,28 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
                                       bool is_output) {
     auto& sycl_kern = downcast<sycl_base_kernel>(kernel);
 
+    // Skip launching the kernel if any of the global work-group dimensions is zero.
+    // Fall back to enqueue_marker() so downstream dependencies still see a valid
+    // completion event.
+    {
+        const auto& gws = args_desc.workGroups.global;
+        bool has_zero_gws = false;
+        for (size_t i = 0; i < gws.size(); ++i) {
+            if (gws[i] == 0) {
+                has_zero_gws = true;
+                break;
+            }
+        }
+        if (has_zero_gws) {
+            GPU_DEBUG_TRACE_DETAIL << "Skip empty kernel launch: " << args_desc.layerID
+                                   << " (" << kernel.get_id() << ") gws=["
+                                   << (gws.size() > 0 ? gws[0] : 0) << ", "
+                                   << (gws.size() > 1 ? gws[1] : 0) << ", "
+                                   << (gws.size() > 2 ? gws[2] : 0) << "]" << std::endl;
+            return enqueue_marker(deps, is_output);
+        }
+    }
+
     // Collect dependency events
     std::vector<::sycl::event> dep_events;
     if (m_sync_method == SyncMethods::events) {
