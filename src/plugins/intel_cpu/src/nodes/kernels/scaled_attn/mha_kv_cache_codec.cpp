@@ -582,6 +582,8 @@ void mha_kv_cache(PlainTensor& q_input,
                   const PlainTensor& oscar_v_residual,
                   const PlainTensor& oscar_k_residual_norms,
                   const PlainTensor& oscar_v_residual_norms,
+                  const PlainTensor& oscar_k_params,
+                  const PlainTensor& oscar_v_params,
                   size_t oscar_k_residual_count,
                   size_t oscar_v_residual_count) {
     // ---------------------------------------------------------------------------
@@ -677,9 +679,7 @@ void mha_kv_cache(PlainTensor& q_input,
         if (k_oscar) {
             const size_t k_committed = oscar_committed(oscar_k_residual_count);
             const size_t S_sz = S;
-            const size_t payload_bytes = OSCAR_R_sz * S_sz / 4;
-            const size_t param_bytes =
-                static_cast<size_t>(OSCAR_SUBGROUPS) * S_sz * sizeof(ov::float16);
+            const size_t row_bytes_k = S_sz / 4;
             cpu_parallel->parallel_for3d(B, num_kv_heads, kv_len,
                 [&, m](size_t b, size_t h_group, size_t t) {
                     const size_t h_start = h_group * heads_per_kv_group;
@@ -689,16 +689,12 @@ void mha_kv_cache(PlainTensor& q_input,
                         const size_t block_idx = t / OSCAR_R_sz;
                         const size_t in_block = t % OSCAR_R_sz;
                         const size_t sub_g = in_block / OSCAR_G;
-                        const auto* block_base =
-                            static_cast<const uint8_t*>(key_cache.ptr_v(b, h_group, block_idx * OSCAR_R_sz));
-                        const uint8_t* payload = block_base;
-                        const auto* deltas = reinterpret_cast<const ov::float16*>(block_base + payload_bytes);
-                        const auto* zps = reinterpret_cast<const ov::float16*>(block_base + payload_bytes + param_bytes);
-                        const auto* norms_q = reinterpret_cast<const ov::float16*>(
-                            block_base + payload_bytes + 2 * param_bytes);
-                        const int row_bytes = static_cast<int>(S) / 4;
-                        const uint8_t* row = payload + in_block * row_bytes;
-                        const float norm = static_cast<float>(norms_q[in_block]);
+                        const auto* slot = static_cast<const uint8_t*>(key_cache.ptr_v(b, h_group, t));
+                        const auto* deltas = oscar_k_params.ptr<ov::float16>(b, h_group, block_idx, 0);
+                        const auto* zps = deltas + OSCAR_SUBGROUPS * S_sz;
+                        const uint8_t* row = slot;
+                        const float norm = static_cast<float>(
+                            *reinterpret_cast<const ov::float16*>(slot + row_bytes_k));
                         for (int hh = 0; hh < static_cast<int>(heads_per_kv_group); ++hh) {
                             const float* q = q_rot_base + hh * q_stride;
                             float acc = 0.0F;
@@ -810,12 +806,8 @@ void mha_kv_cache(PlainTensor& q_input,
     for (size_t m = 0; m < q_len; m++) {
         if (v_oscar) {
             const size_t v_committed = oscar_committed(oscar_v_residual_count);
-            const size_t per_token_bytes_v = packed_value.stride_bytes(2);
             const size_t SV_sz = SV;
-            const size_t payload_bytes_v = OSCAR_R_sz * SV_sz / 4;
-            const size_t param_bytes_v =
-                static_cast<size_t>(OSCAR_SUBGROUPS) * SV_sz * sizeof(ov::float16);
-            (void)per_token_bytes_v;
+            const size_t row_bytes_v = SV_sz / 4;
             // Zero ithr=0 slot; mha_reduce reads it. Zero other ithrs too so reduce sums correctly.
             for (int t = 0; t < nthr; ++t) {
                 for (size_t b = 0; b < B; ++b) {
@@ -833,18 +825,13 @@ void mha_kv_cache(PlainTensor& q_input,
                         const size_t block_idx = t / OSCAR_R_sz;
                         const size_t in_block = t % OSCAR_R_sz;
                         const size_t sub_g = in_block / OSCAR_G;
-                        const auto* block_base = static_cast<const uint8_t*>(
-                            packed_value.ptr_v(b, h_group, block_idx * OSCAR_R_sz));
-                        const uint8_t* payload = block_base;
-                        const auto* deltas =
-                            reinterpret_cast<const ov::float16*>(block_base + payload_bytes_v);
-                        const auto* zps = reinterpret_cast<const ov::float16*>(
-                            block_base + payload_bytes_v + param_bytes_v);
-                        const auto* norms_q = reinterpret_cast<const ov::float16*>(
-                            block_base + payload_bytes_v + 2 * param_bytes_v);
-                        const int row_bytes = static_cast<int>(SV_sz) / 4;
-                        const uint8_t* row = payload + in_block * row_bytes;
-                        const float norm = static_cast<float>(norms_q[in_block]);
+                        const auto* slot =
+                            static_cast<const uint8_t*>(packed_value.ptr_v(b, h_group, t));
+                        const auto* deltas = oscar_v_params.ptr<ov::float16>(b, h_group, block_idx, 0);
+                        const auto* zps = deltas + OSCAR_SUBGROUPS * SV_sz;
+                        const uint8_t* row = slot;
+                        const float norm = static_cast<float>(
+                            *reinterpret_cast<const ov::float16*>(slot + row_bytes_v));
                         const float scale = wt * norm;
                         for (size_t j = 0; j < SV_sz; ++j) {
                             const int code = (row[j >> 2] >> ((j & 0x3) * 2)) & 0x3;

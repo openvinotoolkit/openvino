@@ -1450,6 +1450,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                  const PlainTensor& oscar_v_residual,
                  const PlainTensor& oscar_k_residual_norms,
                  const PlainTensor& oscar_v_residual_norms,
+                 const PlainTensor& oscar_k_params,
+                 const PlainTensor& oscar_v_params,
                  size_t oscar_k_residual_count,
                  size_t oscar_v_residual_count) override {
         bool has_in_reshape = config.config.input_BLHxS;
@@ -1652,6 +1654,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                              oscar_v_residual,
                              oscar_k_residual_norms,
                              oscar_v_residual_norms,
+                             oscar_k_params,
+                             oscar_v_params,
                              oscar_k_residual_count,
                              oscar_v_residual_count);
             } else {
@@ -2320,6 +2324,8 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
                         m_oscar_V_residual,
                         m_oscar_K_residual_norms,
                         m_oscar_V_residual_norms,
+                        m_oscar_K_params,
+                        m_oscar_V_params,
                         m_oscar_K_residual_count,
                         m_oscar_V_residual_count);
 }
@@ -2505,8 +2511,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     // OSCAR S_cache = block_bytes / R (per-token bytes amortized over R-token block).
     // Cache-grow rounds total token count up to R-multiple (task #4).
     auto oscar_per_token_bytes = [](size_t head_dim, bool with_norms) {
-        return ov::Extensions::Cpu::XARCH::oscar_block_bytes(static_cast<int>(head_dim), with_norms) /
-               static_cast<size_t>(ov::Extensions::Cpu::XARCH::OSCAR_R);
+        return ov::Extensions::Cpu::XARCH::oscar_per_token_bytes(static_cast<int>(head_dim), with_norms);
     };
     const size_t S_cache = is_k_turboq      ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits)
                            : is_k_oscar_alg ? oscar_per_token_bytes(S, /*with_norms=*/true)
@@ -2901,6 +2906,7 @@ void ScaledDotProductAttention::oscar_stage_cache(const PlainTensor& cur,
                                                   const ov::Extensions::Cpu::CacheSpec& spec,
                                                   PlainTensor& residual,
                                                   PlainTensor& residual_norms,
+                                                  PlainTensor& params,
                                                   size_t residual_count_in,
                                                   size_t& residual_count_out,
                                                   const PlainTensor& wht_signs,
@@ -2973,19 +2979,18 @@ void ScaledDotProductAttention::oscar_stage_cache(const PlainTensor& cur,
                     for (size_t t = 0; t < R; ++t) norms_f32[t] = static_cast<float>(res_norms[t]);
                 }
                 const size_t block_idx = committed_blocks_in + blocks_done;
-                auto* block_base = past.ptr<uint8_t>(b, h, block_idx * R);
-                const size_t payload_bytes = R * static_cast<size_t>(S) / 4;
-                const size_t param_bytes =
-                    static_cast<size_t>(ov::Extensions::Cpu::XARCH::OSCAR_SUBGROUPS) * S * sizeof(ov::float16);
-                uint8_t* payload = block_base;
-                auto* deltas = reinterpret_cast<ov::float16*>(block_base + payload_bytes);
-                auto* zps = reinterpret_cast<ov::float16*>(block_base + payload_bytes + param_bytes);
-                ov::float16* norms_q = with_norms
-                    ? reinterpret_cast<ov::float16*>(block_base + payload_bytes + 2 * param_bytes)
+                auto* payload_slot0 = past.ptr<uint8_t>(b, h, block_idx * R);
+                const size_t slot_stride_bytes = past.stride_bytes(2);
+                const size_t row_bytes = static_cast<size_t>(S) / 4;
+                auto* deltas = params.ptr<ov::float16>(b, h, block_idx, 0);
+                auto* zps = deltas + ov::Extensions::Cpu::XARCH::OSCAR_SUBGROUPS * S;
+                ov::float16* norms_q_slot0 = with_norms
+                    ? reinterpret_cast<ov::float16*>(payload_slot0 + row_bytes)
                     : nullptr;
                 ov::Extensions::Cpu::XARCH::oscar_encode_block(
                     tws, with_norms ? norms_f32 : nullptr,
-                    static_cast<int>(S), payload, deltas, zps, norms_q);
+                    static_cast<int>(S), payload_slot0, slot_stride_bytes,
+                    deltas, zps, norms_q_slot0);
                 ++blocks_done;
                 cnt = 0;
             }
@@ -3056,8 +3061,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     // OSCAR S_cache = block_bytes / R (per-token bytes amortized over R-token block).
     // Cache-grow rounds total token count up to R-multiple (task #4).
     auto oscar_per_token_bytes = [](size_t head_dim, bool with_norms) {
-        return ov::Extensions::Cpu::XARCH::oscar_block_bytes(static_cast<int>(head_dim), with_norms) /
-               static_cast<size_t>(ov::Extensions::Cpu::XARCH::OSCAR_R);
+        return ov::Extensions::Cpu::XARCH::oscar_per_token_bytes(static_cast<int>(head_dim), with_norms);
     };
     const size_t S_cache = is_k_turboq      ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits)
                            : is_k_oscar_alg ? oscar_per_token_bytes(S, /*with_norms=*/true)
@@ -3112,6 +3116,32 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         // V mirrors K for v1 — store norms even though V is not L2-normalized (paper §V-fold deferred).
         ensure_oscar_residual(m_oscar_V_residual, m_oscar_V_residual_norms, SV, /*with_norms=*/true);
     }
+    // OSCAR params sidecar: shared (delta, zp) per block. Grown alongside the packed cache.
+    auto ensure_oscar_params = [&](PlainTensor& params, size_t head_dim, size_t num_blocks) {
+        const size_t per_block =
+            ov::Extensions::Cpu::XARCH::oscar_params_per_block(static_cast<int>(head_dim));
+        if (params && params.size(0) == B && params.size(1) == H && params.size(2) >= num_blocks &&
+            params.size(3) == per_block) {
+            return;
+        }
+        PlainTensor old = params;
+        const size_t old_blocks = old ? old.size(2) : 0;
+        params = PlainTensor{};
+        params.resize<ov::float16>({B, H, std::max(num_blocks, size_t{1}), per_block});
+        std::memset(params.ptr<ov::float16>(),
+                    0,
+                    B * H * std::max(num_blocks, size_t{1}) * per_block * sizeof(ov::float16));
+        if (old && old_blocks > 0 && !is_reset) {
+            const size_t copy_blocks = std::min(old_blocks, num_blocks);
+            for (size_t b = 0; b < B; ++b) {
+                for (size_t h = 0; h < H; ++h) {
+                    std::memcpy(params.ptr<ov::float16>(b, h, 0, 0),
+                                old.ptr<ov::float16>(b, h, 0, 0),
+                                copy_blocks * per_block * sizeof(ov::float16));
+                }
+            }
+        }
+    };
     bool need_redefine = true;
     // OSCAR packed region must hold integer multiples of R tokens (one block per multiple).
     // Round capacity up to R when either side uses OSCAR; otherwise keep doubling.
@@ -3123,6 +3153,12 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         return base;
     };
     const size_t grown_capacity = grow_tokens((L0 + L1) * 2);
+    if (is_k_oscar_alg || is_v_oscar_alg) {
+        const auto R = static_cast<size_t>(ov::Extensions::Cpu::XARCH::OSCAR_R);
+        const size_t num_blocks = grown_capacity / R;
+        if (is_k_oscar_alg) ensure_oscar_params(m_oscar_K_params, S, num_blocks);
+        if (is_v_oscar_alg) ensure_oscar_params(m_oscar_V_params, SV, num_blocks);
+    }
     if (B * H * (L0 + L1) * S_cache > m_k_state->internal_state_max_size()) {
         auto new_internal_mem_k = std::make_shared<Memory>(
             getEngine(),
@@ -3284,7 +3320,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             if (is_k_oscar_alg) {
                 m_oscar_K_residual_count = 0;
                 oscar_stage_cache(init_k, past_k, 0, m_key_spec,
-                                  m_oscar_K_residual, m_oscar_K_residual_norms,
+                                  m_oscar_K_residual, m_oscar_K_residual_norms, m_oscar_K_params,
                                   m_oscar_K_residual_count, m_oscar_K_residual_count,
                                   m_wht_signs, ws0, cpu_parallel);
             } else {
@@ -3294,7 +3330,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             if (is_v_oscar_alg) {
                 m_oscar_V_residual_count = 0;
                 oscar_stage_cache(init_v, past_v, 0, m_value_spec,
-                                  m_oscar_V_residual, m_oscar_V_residual_norms,
+                                  m_oscar_V_residual, m_oscar_V_residual_norms, m_oscar_V_params,
                                   m_oscar_V_residual_count, m_oscar_V_residual_count,
                                   m_wht_signs, ws0, cpu_parallel);
             } else {
@@ -3309,7 +3345,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     auto ws = get_per_thread_scratch();
     if (is_k_oscar_alg) {
         oscar_stage_cache(cur_k, past_k, L0, m_key_spec,
-                          m_oscar_K_residual, m_oscar_K_residual_norms,
+                          m_oscar_K_residual, m_oscar_K_residual_norms, m_oscar_K_params,
                           m_oscar_K_residual_count, m_oscar_K_residual_count,
                           m_wht_signs, ws, cpu_parallel);
     } else {
@@ -3317,7 +3353,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     }
     if (is_v_oscar_alg) {
         oscar_stage_cache(cur_v, past_v, L0, m_value_spec,
-                          m_oscar_V_residual, m_oscar_V_residual_norms,
+                          m_oscar_V_residual, m_oscar_V_residual_norms, m_oscar_V_params,
                           m_oscar_V_residual_count, m_oscar_V_residual_count,
                           m_wht_signs, ws, cpu_parallel);
     } else {

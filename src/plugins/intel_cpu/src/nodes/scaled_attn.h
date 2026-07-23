@@ -95,6 +95,7 @@ private:
                            const ov::Extensions::Cpu::CacheSpec& spec,
                            PlainTensor& residual,
                            PlainTensor& residual_norms,
+                           PlainTensor& params,
                            size_t residual_count_in,
                            size_t& residual_count_out,
                            const PlainTensor& wht_signs,
@@ -129,6 +130,8 @@ private:
                              const PlainTensor& oscar_v_residual,
                              const PlainTensor& oscar_k_residual_norms,
                              const PlainTensor& oscar_v_residual_norms,
+                             const PlainTensor& oscar_k_params,
+                             const PlainTensor& oscar_v_params,
                              size_t oscar_k_residual_count,
                              size_t oscar_v_residual_count) = 0;
         [[nodiscard]] virtual impl_desc_type implType() const = 0;
@@ -172,6 +175,11 @@ private:
     PlainTensor m_oscar_V_residual;        // [B, H_kv, R, SV] fp16
     PlainTensor m_oscar_K_residual_norms;  // [B, H_kv, R] fp16
     PlainTensor m_oscar_V_residual_norms;  // [B, H_kv, R] fp16 (mirrors K for v1)
+    // Per-block shared (delta, zp) sidecar. LBHS cache holds only per-token payload
+    // + norm; block-level params live here. Shape: [B, H_kv, num_blocks, 2*SUBGROUPS*S]
+    // fp16 (deltas contiguous, then zps).
+    PlainTensor m_oscar_K_params;
+    PlainTensor m_oscar_V_params;
     // Separate K/V counters even though they currently advance identically — V-fold (paper)
     // would decouple them later by removing V-side staging entirely.
     size_t m_oscar_K_residual_count = 0;

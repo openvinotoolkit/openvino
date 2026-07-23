@@ -36,38 +36,48 @@ inline constexpr int OSCAR_BITS = 2;
 inline constexpr int OSCAR_LEVELS = 4;       // 1 << OSCAR_BITS
 inline constexpr int OSCAR_SUBGROUPS = OSCAR_R / OSCAR_G;  // = 4
 
-// Total bytes per block, per (batch, head). `with_norms` adds R*sizeof(fp16) for K side.
-inline size_t oscar_block_bytes(int head_dim, bool with_norms) {
+// Per-token in-cache bytes: payload row (head_dim/4) + optional norm (fp16).
+// Shared (delta, zp) params live in a sidecar sized by oscar_params_per_block.
+inline size_t oscar_per_token_bytes(int head_dim, bool with_norms) {
     assert(head_dim > 0 && (head_dim & (head_dim - 1)) == 0 && "head_dim must be power of 2");
-    const size_t payload = static_cast<size_t>(OSCAR_R) * head_dim / 4;       // 2 bits per value
-    const size_t params = static_cast<size_t>(OSCAR_SUBGROUPS) * head_dim * 2 * sizeof(ov::float16);
-    const size_t norms = with_norms ? static_cast<size_t>(OSCAR_R) * sizeof(ov::float16) : 0;
-    return payload + params + norms;
+    const size_t payload = static_cast<size_t>(head_dim) / 4;
+    const size_t norm = with_norms ? sizeof(ov::float16) : 0;
+    return payload + norm;
+}
+
+// fp16 count per block in the params sidecar: [SUBGROUPS][head_dim] deltas + [SUBGROUPS][head_dim] zps.
+inline size_t oscar_params_per_block(int head_dim) {
+    return static_cast<size_t>(OSCAR_SUBGROUPS) * static_cast<size_t>(head_dim) * 2;
 }
 
 // Encode one R-token block for one (batch, head).
-//   unit_vectors : [R][head_dim] f32, post-Hadamard unit-normalized rows
-//   norms        : [R]           f32, per-token L2 norm of the pre-norm vector
-//                  (may be nullptr for V side)
-//   payload      : output, oscar_block_bytes - param/norm bytes — token-major INT2
-//   deltas       : output, [SUBGROUPS][head_dim] fp16
-//   zps          : output, [SUBGROUPS][head_dim] fp16
-//   norms_q      : output, [R] fp16 (or nullptr if norms == nullptr)
+// Payload rows and per-token norms live in cache slots that are strided by
+// `slot_stride_bytes` (LBHS: B*H*S_cache). Params sit contiguous in the sidecar.
+//   unit_vectors     : [R][head_dim] f32, post-Hadamard unit-normalized rows
+//   norms            : [R]           f32, per-token L2 norm (nullptr for V side)
+//   head_dim         : inner dim
+//   payload_slot0    : cache slot pointer for token 0 of this block; row payload
+//                      lives at slot[0 .. head_dim/4)
+//   slot_stride_bytes: bytes between consecutive token slots (per-token S_cache)
+//   deltas           : output sidecar, [SUBGROUPS][head_dim] fp16
+//   zps              : output sidecar, [SUBGROUPS][head_dim] fp16
+//   norms_q_slot0    : cache slot pointer for token 0's norm (nullptr if no norms).
+//                      Written at slot[head_dim/4] as fp16.
 inline void oscar_encode_block(const float* unit_vectors,
                                const float* norms,
                                int head_dim,
-                               uint8_t* payload,
+                               uint8_t* payload_slot0,
+                               size_t slot_stride_bytes,
                                ov::float16* deltas,
                                ov::float16* zps,
-                               ov::float16* norms_q) {
+                               ov::float16* norms_q_slot0) {
     assert(unit_vectors != nullptr);
-    assert(payload != nullptr && deltas != nullptr && zps != nullptr);
+    assert(payload_slot0 != nullptr && deltas != nullptr && zps != nullptr);
     assert(head_dim > 0 && (head_dim & (head_dim - 1)) == 0);
 
-    const int row_bytes = head_dim / 4;  // payload bytes per token
+    const int row_bytes = head_dim / 4;
 
     for (int g = 0; g < OSCAR_SUBGROUPS; ++g) {
-        // Per-channel (delta, zp) over the G tokens of this sub-group.
         for (int j = 0; j < head_dim; ++j) {
             float vmin = std::numeric_limits<float>::infinity();
             float vmax = -std::numeric_limits<float>::infinity();
@@ -77,18 +87,17 @@ inline void oscar_encode_block(const float* unit_vectors,
                 vmax = std::max(vmax, v);
             }
             const float range = vmax - vmin;
-            // INT2 levels: 0..3 → represent vmin..vmax. Δ = range / (levels-1).
             const float delta = (range > 0.0F) ? (range / static_cast<float>(OSCAR_LEVELS - 1)) : 1.0F;
             deltas[g * head_dim + j] = ov::float16(delta);
             zps[g * head_dim + j] = ov::float16(vmin);
         }
 
-        // Pack codes token-major. j%4 → bit position (0,2,4,6) inside one byte.
         for (int t = 0; t < OSCAR_G; ++t) {
-            uint8_t* row = payload + (g * OSCAR_G + t) * row_bytes;
+            const int token_idx = g * OSCAR_G + t;
+            uint8_t* row = payload_slot0 + static_cast<size_t>(token_idx) * slot_stride_bytes;
             std::memset(row, 0, row_bytes);
             for (int j = 0; j < head_dim; ++j) {
-                const float v = unit_vectors[(g * OSCAR_G + t) * head_dim + j];
+                const float v = unit_vectors[token_idx * head_dim + j];
                 const float delta = static_cast<float>(deltas[g * head_dim + j]);
                 const float zp = static_cast<float>(zps[g * head_dim + j]);
                 const float q_f = (v - zp) / delta;
@@ -99,9 +108,11 @@ inline void oscar_encode_block(const float* unit_vectors,
         }
     }
 
-    if (norms != nullptr && norms_q != nullptr) {
+    if (norms != nullptr && norms_q_slot0 != nullptr) {
         for (int t = 0; t < OSCAR_R; ++t) {
-            norms_q[t] = ov::float16(norms[t]);
+            auto* dst = reinterpret_cast<ov::float16*>(
+                reinterpret_cast<uint8_t*>(norms_q_slot0) + static_cast<size_t>(t) * slot_stride_bytes);
+            *dst = ov::float16(norms[t]);
         }
     }
 }
