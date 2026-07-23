@@ -15,7 +15,7 @@ public:
     using Parent::Parent;
 
     ActivationKernelRef() : ActivationKernelBase("activation_ref") {}
-    virtual ~ActivationKernelRef() {}
+    ~ActivationKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

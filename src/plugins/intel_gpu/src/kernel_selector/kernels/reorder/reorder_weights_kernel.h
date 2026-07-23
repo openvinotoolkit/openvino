@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ReorderWeightsKernel : public ReorderKernelBase {
 public:
     ReorderWeightsKernel() : ReorderKernelBase("reorder_weights") {}
-    virtual ~ReorderWeightsKernel() {}
+    ~ReorderWeightsKernel() override {}
     JitConstants GetJitConstants(const reorder_weights_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
