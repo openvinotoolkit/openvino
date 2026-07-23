@@ -133,4 +133,4 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     }
 };
 
-}
+}  // namespace cldnn

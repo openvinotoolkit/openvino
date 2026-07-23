@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -95,6 +99,6 @@ namespace cldnn {
                 _out_desc = std::make_shared<dnnl::memory::desc>(out);
             }
         };
-    }
+    }  // namespace onednn
 #endif
-}
+}  // namespace cldnn
