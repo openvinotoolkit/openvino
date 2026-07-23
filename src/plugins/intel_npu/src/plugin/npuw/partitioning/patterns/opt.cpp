@@ -1073,10 +1073,11 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
 
 // Identify a Gather+DQ Asym CW MatMul pattern, lift Gather up
 // Note: this pattern is applied on the full model before any partitioning
-DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
-    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
-    auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+template <typename WType>
+DQLiftGatherAsymCW<WType>::DQLiftGatherAsymCW() {
+    auto qweight = opp::wrap_type<WType>();
+    auto qzerop = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
@@ -1121,9 +1122,10 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
 
 // Identify a Gather+DQ Sym CW MatMul pattern, lift Gather up
 // Note: this pattern is applied on the full model before any partitioning
-DQLiftGatherSymCW::DQLiftGatherSymCW() {
-    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+template <typename WType>
+DQLiftGatherSymCW<WType>::DQLiftGatherSymCW() {
+    auto qweight = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
@@ -1180,8 +1182,9 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
 }
 
 // FIXME: this is mostly a workaround pattern for the partitioning
-DQLiftGatherCW::DQLiftGatherCW() {
-    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+template <typename WType>
+DQLiftGatherCW<WType>::DQLiftGatherCW() {
+    auto qweight = opp::wrap_type<WType>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
 
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -1215,9 +1218,10 @@ DQLiftGatherCW::DQLiftGatherCW() {
 // Identify a Gather+DQ Sym GQ MatMul pattern, lift Gather up
 // Note(1): this pattern is applied on the full model before any partitioning
 // Note(2): here's a difference, the new lifted Gathers stay behind Convert(W) & Convert(S)
-DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
-    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+template <typename WType>
+DQLiftGatherSymGQ<WType>::DQLiftGatherSymGQ() {
+    auto qweight = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
@@ -1263,6 +1267,15 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     };
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymGQ"), std::move(callback));
 }
+
+template class DQLiftGatherAsymCW<ov::op::v0::Constant>;
+template class DQLiftGatherAsymCW<ov::op::v0::Parameter>;
+template class DQLiftGatherSymCW<ov::op::v0::Constant>;
+template class DQLiftGatherSymCW<ov::op::v0::Parameter>;
+template class DQLiftGatherSymGQ<ov::op::v0::Constant>;
+template class DQLiftGatherSymGQ<ov::op::v0::Parameter>;
+template class DQLiftGatherCW<ov::op::v0::Constant>;
+template class DQLiftGatherCW<ov::op::v0::Parameter>;
 
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function

@@ -210,6 +210,7 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, 
         for (auto i = 0; i < vocab_consts.size(); ++i) {
             vocab_tensors[vocab_params[i]->get_friendly_name()] =
                 ov::get_tensor_impl(ov::npuw::util::copy_tensor_from_const(vocab_consts[i]));
+            vocab_consts[i].reset();
         }
     }
     model->validate_nodes_and_infer_types();
@@ -1276,11 +1277,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
-        // When vocab_as_input mode is enabled, vocabulary weights are base Parameters,
-        // not closure Constants. HOST_GATHER optimization would crash on them.
-        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>()) {
-            lm_head_config["NPUW_HOST_GATHER"] = "NO";
-        }
+        // Disable HOST_GATHER for LM head: DQUnpackDictMatMulCWu would crash
+        // when vocab is provided as Parameter (vocab_as_input mode)
+        lm_head_config["NPUW_HOST_GATHER"] = "NO";
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
