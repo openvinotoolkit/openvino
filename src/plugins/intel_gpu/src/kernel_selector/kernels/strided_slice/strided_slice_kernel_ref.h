@@ -50,7 +50,7 @@ struct strided_slice_params : public base_params {
 class StridedSliceKernelRef : public KernelBaseOpenCL {
 public:
     StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
-    virtual ~StridedSliceKernelRef() {}
+    ~StridedSliceKernelRef() override {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
     virtual CommonDispatchData SetDefault(const strided_slice_params& params) const;
     KernelsData GetKernelsData(const Params& params) const override;

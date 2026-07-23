@@ -12,7 +12,7 @@ class LRNKernelWithinChannelOpt : public LRNKernelBase {
 public:
     using Parent = LRNKernelBase;
     LRNKernelWithinChannelOpt() : Parent("lrn_gpu_within_channel_opt") {}
-    virtual ~LRNKernelWithinChannelOpt() {}
+    ~LRNKernelWithinChannelOpt() override {}
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
