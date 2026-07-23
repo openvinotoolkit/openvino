@@ -14,8 +14,7 @@
 
 #include "../convert_common.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertGather {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -72,6 +71,5 @@ struct ConvertGather {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir
 

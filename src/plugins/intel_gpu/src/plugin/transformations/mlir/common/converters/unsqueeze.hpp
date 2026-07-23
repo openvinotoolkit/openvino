@@ -15,8 +15,7 @@
 #include "../convert_common.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertUnsqueeze {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -60,6 +59,5 @@ struct ConvertUnsqueeze {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir
 

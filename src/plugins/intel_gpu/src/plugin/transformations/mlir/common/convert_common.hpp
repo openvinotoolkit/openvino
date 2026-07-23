@@ -18,15 +18,14 @@
 #include "typedefs.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
 bool is_debug();
 
-#define OPENVINO_MLIR_DEBUG(X) do if(::ov::mlir::is_debug()) { X; } while(false)
-#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::mlir::is_debug()) { ::std::cerr << X; } while(false)
+#define OPENVINO_MLIR_DEBUG(X) do if(::ov::intel_gpu::mlir::is_debug()) { X; } while(false)
+#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::intel_gpu::mlir::is_debug()) { ::std::cerr << X; } while(false)
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType);
 
@@ -96,5 +95,4 @@ bool has_broadcast(Dimension from, Dimension to);
 
 bool statically_broadcastable(const PartialShape& from, const PartialShape& to);
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

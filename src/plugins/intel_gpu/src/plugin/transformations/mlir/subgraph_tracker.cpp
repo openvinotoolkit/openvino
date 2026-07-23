@@ -9,8 +9,7 @@
 #include "subgraph_tracker.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 
 void Subgraph::merge (Subgraph& other) {
@@ -191,5 +190,4 @@ void SubgraphTracker::try_terminate_subgraphs(const Dependencies& subgraphs, Nod
 }
 
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

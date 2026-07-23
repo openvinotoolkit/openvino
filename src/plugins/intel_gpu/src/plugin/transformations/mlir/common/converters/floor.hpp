@@ -13,8 +13,7 @@
 #include "../convert_common.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertFloor {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -31,5 +30,4 @@ struct ConvertFloor {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

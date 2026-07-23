@@ -10,8 +10,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertReshape {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -61,5 +60,4 @@ struct ConvertReshape {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

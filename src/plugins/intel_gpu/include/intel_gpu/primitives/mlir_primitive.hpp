@@ -12,12 +12,12 @@
 #include "primitive.hpp"
 
 namespace ov {
-class Node;  // forward-decl — the underlying op is ov::mlir::MLIROp
+class Node;  // forward-decl — the underlying op is ov::intel_gpu::op::MLIROp
 }
 
 namespace cldnn {
 
-/// @brief Primitive that wraps an ov::mlir::MLIROp node. Its execute_impl
+/// @brief Primitive that wraps an ov::intel_gpu::op::MLIROp node. Its execute_impl
 /// (see impls/common/mlir_primitive.cpp) forwards to MLIROp::evaluate().
 struct mlir_primitive : public primitive_base<mlir_primitive> {
     CLDNN_DECLARE_PRIMITIVE(mlir_primitive)

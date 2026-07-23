@@ -14,8 +14,7 @@
 #include "common/convert_common.hpp"
 #include "common/conversion_context.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using ::mlir::MLIRContext;
 using ::mlir::OpBuilder;
@@ -67,5 +66,4 @@ public:
     MarkPattern(NodePtr pattern, Callback callback);
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

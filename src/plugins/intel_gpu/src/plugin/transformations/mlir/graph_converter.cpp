@@ -9,8 +9,7 @@
 #include "graph_converter.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
@@ -106,5 +105,4 @@ MarkPattern::MarkPattern(NodePtr pattern, MarkPattern::Callback callback) {
 }
 
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

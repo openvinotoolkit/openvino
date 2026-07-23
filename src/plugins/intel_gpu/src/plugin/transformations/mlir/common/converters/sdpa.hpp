@@ -21,8 +21,7 @@
 
 #include "../convert_common.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertSDPA {
     static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext *ctx,
@@ -159,6 +158,5 @@ struct ConvertSDPA {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir
 

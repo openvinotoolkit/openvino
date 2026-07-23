@@ -12,8 +12,7 @@
 
 #include "../convert_common.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertSlice {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -39,5 +38,4 @@ struct ConvertSlice {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

@@ -22,8 +22,7 @@
 #include "mlir/IR/Value.h"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using Value = ::mlir::Value;
 using ValueRange = ::mlir::ValueRange;
@@ -173,5 +172,4 @@ private:
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

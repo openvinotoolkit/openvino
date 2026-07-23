@@ -10,8 +10,7 @@
 // #include <openvino/op/multiply.hpp>
 // #include <openvino/op/subtract.hpp>
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 class ReluPattern : public MarkPattern {
 public:
@@ -114,5 +113,4 @@ public:
     UnaryEltwisePattern();
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

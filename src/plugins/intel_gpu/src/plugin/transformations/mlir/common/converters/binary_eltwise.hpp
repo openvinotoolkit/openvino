@@ -13,11 +13,10 @@
 #include <openvino/op/relu.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using namespace ov;
-using namespace ov::mlir;
+using namespace ov::intel_gpu::mlir;
 using ::mlir::ValueRange;
 
 template<typename MlirBinOpBuilder>
@@ -55,5 +54,4 @@ struct ConvertBinaryEltwise {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

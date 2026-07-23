@@ -1,22 +1,16 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #ifdef GRAPH_COMPILER
 
+#include "intel_gpu/op/mlir_op.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/mlir_primitive.hpp"
-#include "transformations/mlir/convert.hpp"       // ov::mlir::mlir_op_shape_infer
-#include "transformations/mlir/mlir_op.hpp"
 
-// REGISTER_FACTORY_IMPL(internal, MLIR) expands to:
-//   * RegisterFactory<ov::op::internal::MLIR> (requires the alias below)
-//   * a call to Create##MLIR##Op == CreateMLIROp
-// We use op_name = "MLIR" (not "MLIROp") to keep the "Op" suffix that the
-// macro concatenates and match the Gemm/KVCache/etc. naming convention.
 namespace ov::op::internal {
-using MLIR = ov::mlir::MLIROp;
+using MLIR = ov::intel_gpu::op::MLIROp;
 }  // namespace ov::op::internal
 
 namespace ov::intel_gpu {
@@ -28,7 +22,7 @@ static void CreateMLIROp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
 
     cldnn::mlir_primitive::shape_infer_function shape_infer_f =
         [op](const std::vector<ov::PartialShape>& input_shapes) {
-            return ov::mlir::mlir_op_shape_infer(op, input_shapes);
+            return op->shape_infer(input_shapes);
         };
 
     cldnn::mlir_primitive primitive(layer_name,

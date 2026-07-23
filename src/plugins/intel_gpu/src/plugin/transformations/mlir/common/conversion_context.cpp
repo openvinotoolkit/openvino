@@ -8,8 +8,7 @@
 #include "conversion_context.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
@@ -34,5 +33,4 @@ SmallVector<Value> ConversionContext::get_dynamic_dimension_values (const Partia
 }
 
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

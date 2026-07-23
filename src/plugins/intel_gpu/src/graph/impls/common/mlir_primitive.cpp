@@ -14,7 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "plugin/transformations/mlir/properties.hpp"
+#include "plugin/transformations/mlir/interface/properties.hpp"
 #include "register.hpp"
 #include "registry/implementation_map.hpp"
 

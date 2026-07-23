@@ -9,8 +9,7 @@
 #include "common/typedefs.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct Subgraph {
     ov::NodeVector nodes;
@@ -64,5 +63,4 @@ private:
 };
 
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

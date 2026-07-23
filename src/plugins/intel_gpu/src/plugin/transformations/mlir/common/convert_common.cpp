@@ -6,8 +6,7 @@
 
 #include <openvino/util/env_util.hpp>
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
     const auto layerNameAttr = StringAttr::get(ctx, layerName);
@@ -203,5 +202,4 @@ bool is_debug() {
     return util::getenv_bool("OV_MLIR_DEBUG", false);
 }
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

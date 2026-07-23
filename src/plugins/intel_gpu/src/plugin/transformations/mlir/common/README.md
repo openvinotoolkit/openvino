@@ -9,12 +9,12 @@ This folder contains converters and helper classes to convert certain OV operati
 Contains `.hpp` files, each representing a converter for a specific OV operation or a class of operations (matmul, reduction, binary-elementwise). A converter must implement the following interface — it takes a conversion context and an OV node, produces a sequence of MLIR operations, and returns the final op:
 
 ```c++
-mlir::Operation* operator()(ov::mlir::ConversionContext& context, std::shared_ptr<ov::Node> node)
+mlir::Operation* operator()(ov::intel_gpu::mlir::ConversionContext& context, std::shared_ptr<ov::Node> node)
 ```
 
 ### `conversion_context`
 
-`ov::mlir::ConversionContext` is a class that provides converters with:
+`ov::intel_gpu::mlir::ConversionContext` is a class that provides converters with:
 - `mlir::Context`
 - `mlir::OpBuilder`
 - Mapping between `ov::Node` inputs and MLIR tensors
@@ -42,7 +42,7 @@ Example:
 
 ```c++
 class OvGraphImporter {
-  ov::mlir::ConversionContext _ctx;
+  ov::intel_gpu::mlir::ConversionContext _ctx;
   ov::Model _model;
   mlir::ModuleOp _module;
   ...

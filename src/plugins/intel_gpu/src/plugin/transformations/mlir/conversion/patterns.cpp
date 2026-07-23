@@ -51,8 +51,7 @@
 #include "../common/converters/unsqueeze.hpp"
 #include "../common/converters/binary_eltwise.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using namespace ov::pass::pattern;
 using namespace ov::op;
@@ -154,5 +153,4 @@ template class UnaryEltwisePattern<v0::Negative, linalg::NegFOp>;
 template class UnaryEltwisePattern<v0::Sqrt, linalg::SqrtOp>;
 template class UnaryEltwisePattern<v0::Tanh, linalg::TanhOp>;
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

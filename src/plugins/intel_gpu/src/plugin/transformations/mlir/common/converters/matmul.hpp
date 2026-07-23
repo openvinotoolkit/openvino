@@ -13,8 +13,7 @@
 #include "../convert_common.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertMatMul {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -111,5 +110,4 @@ struct ConvertMatMul {
     }
 };
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

@@ -15,8 +15,7 @@
 #include "../convert_common.hpp"
 
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 struct ConvertShapeOf {
     Operation* operator()(ConversionContext& context, NodePtr node) {
@@ -32,5 +31,4 @@ struct ConvertShapeOf {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir

@@ -13,8 +13,7 @@
 #include "typedefs.hpp"
 #include "convert_common.hpp"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 using ::mlir::Value;
 using ::mlir::MLIRContext;
@@ -46,5 +45,4 @@ public:
     SmallVector<Value> get_dynamic_dimension_values(const PartialShape& shape);
 };
 
-} // namespace mlir
-} // namespace ov
+}  // namespace ov::intel_gpu::mlir

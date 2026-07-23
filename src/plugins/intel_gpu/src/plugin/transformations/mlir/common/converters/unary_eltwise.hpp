@@ -8,8 +8,7 @@
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
-namespace ov {
-namespace mlir {
+namespace ov::intel_gpu::mlir {
 
 template <typename MlirUnaryOp>
 struct ConvertUnaryEltwise {
@@ -26,5 +25,4 @@ struct ConvertUnaryEltwise {
     }
 };
 
-}  // namespace mlir
-}  // namespace ov
+}  // namespace ov::intel_gpu::mlir
