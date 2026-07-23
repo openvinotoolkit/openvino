@@ -98,7 +98,7 @@ public:
         auto cf_marker = get_cf_marker(this_node);
         FRONT_END_GENERAL_CHECK(
             cf_marker.merge_eliminated_markers.count(switch_marker) > 0,
-            "[TensorFlow Frontend] internal error: no Switch node with requiested conditional flow marker");
+            "[TensorFlow Frontend] internal error: no Switch node with requested conditional flow marker");
         // lock weak_ptr markers into shared_ptr; all Switch nodes are alive during resolution
         std::unordered_set<std::shared_ptr<Switch>> switch_nodes;
         for (const auto& weak_switch : cf_marker.merge_eliminated_markers[switch_marker]) {
