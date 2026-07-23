@@ -11,7 +11,7 @@ namespace kernel_selector {
 class DeconvolutionKernelRef : public DeconvolutionKernelBase {
 public:
     DeconvolutionKernelRef() : DeconvolutionKernelBase("deconvolution_gpu_ref") {}
-    virtual ~DeconvolutionKernelRef() {}
+    ~DeconvolutionKernelRef() override {}
 
     ParamsKey GetSupportedKey() const override;
 

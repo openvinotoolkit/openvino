@@ -16,7 +16,7 @@ public:
 
     tile_kernel_selector();
 
-    virtual ~tile_kernel_selector() {}
+    ~tile_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

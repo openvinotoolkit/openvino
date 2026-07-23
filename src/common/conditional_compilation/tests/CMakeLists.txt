@@ -6,8 +6,9 @@ set(TARGET_NAME ov_conditional_compilation_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
+        SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/selective_build.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/selective_build_analyzer.cpp
         LINK_LIBRARIES
             gtest
             gtest_main
@@ -16,6 +17,7 @@ ov_add_test_target(
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT
+        TESTS_PER_SOURCE
         LABELS
             OV UNIT
 )

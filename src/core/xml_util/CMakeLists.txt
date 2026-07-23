@@ -6,8 +6,12 @@ set(TARGET_NAME "openvino_xml_util")
 
 set(TARGET_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${TARGET_INCLUDE_DIR}/*.hpp)
+set(LIBRARY_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_deserialize_util.cpp
+)
+set(PUBLIC_HEADERS
+    ${TARGET_INCLUDE_DIR}/openvino/xml_util/xml_deserialize_util.hpp
+)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
