@@ -738,7 +738,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.node_name = layerName;
 
         if (combinePrimByIRLayers) {
-            std::string kernelId = "";
+            std::string kernelId;
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
             for (auto &id : profilingIDs) {
                 auto iter = perfMap.find(id);

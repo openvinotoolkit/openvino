@@ -64,7 +64,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 }
 
 static inline std::string GetTiledOutputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, y, x, f + lw";
@@ -80,7 +80,7 @@ static inline std::string GetTiledOutputOrder(size_t size) {
 static inline std::string GetReorderedTiledOutputOrder(const permute_params& params) {
     std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
-    std::string order_str = "";
+    std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
     if (dim_diff == 0) {
         switch (params.outputs[0].GetDims().size()) {
@@ -119,7 +119,7 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, f, y + lh, x";

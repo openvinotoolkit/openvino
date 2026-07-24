@@ -122,7 +122,7 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
-                std::string stage_suffix = "";
+                std::string stage_suffix;
                 if (key.cache_hit)
                     stage_suffix += " (cache_hit) ";
                 if (key.memalloc_info != "")

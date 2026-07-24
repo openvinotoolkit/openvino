@@ -84,7 +84,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;

@@ -105,7 +105,7 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
         const auto weights_pid = inputs[1].pid;
         const auto scale_pid = inputs[2].pid;
 
-        cldnn::primitive_id zp_pid = "";
+        cldnn::primitive_id zp_pid;
         float zp_scalar_value = 0.0f;
         bool has_scalar_zp = false;
         if (op->get_input_size() > 3) {

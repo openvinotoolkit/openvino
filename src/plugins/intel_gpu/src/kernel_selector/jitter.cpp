@@ -205,7 +205,7 @@ std::string toCodeString(size_t val) {
 }
 
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, bool pad_is_dynamic, size_t pad_offset) {
-    std::string pad_str = "";
+    std::string pad_str;
     if (padded) {
         if (pad_is_dynamic) {
             pad_str = " + (shape_info[" + std::to_string(pad_offset) + "] + shape_info[" +
@@ -911,7 +911,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         }
 
         static const std::string FuncCall(std::string name, std::initializer_list<std::string> args) {
-            std::string args_str = "";
+            std::string args_str;
             size_t counter = 0;
             for (auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
@@ -919,7 +919,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         }
 
         static const std::string MacroName(std::string tensor_name, std::string layout_name, std::initializer_list<std::string> args) {
-            std::string args_str = "";
+            std::string args_str;
             size_t counter = 0;
             for (auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
@@ -927,7 +927,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         }
 
         static const std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
-            std::string args_str = "";
+            std::string args_str;
             size_t counter = 0;
             for (auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
@@ -1699,7 +1699,7 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
 
 JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
     OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
-    std::string type_string = "";
+    std::string type_string;
     switch (wt) {
         case WeightsType::UINT4: type_string = "uint4x"; break;
         case WeightsType::INT4: type_string = "int4x"; break;
@@ -1731,8 +1731,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
                                           suffix, use_type_parameter, disable_type_conversion);
     }
-    std::string res_activation = "";
-    std::string activation_params = "";
+    std::string res_activation;
+    std::string activation_params;
     for (size_t i = 0; i < params.size(); i++) {
         std::string activation_suffix = suffix + "_" + toCodeString(i);
         std::string nl_m = toCodeString(params[i].m);
@@ -1859,8 +1859,8 @@ JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsCo
 JitConstants FusedOpsCodeGenerator::MakeInputDeclsJitConstants(const FusedOpsConfiguration& /*conf*/) const {
     JitConstants jit = {};
 
-    std::string input_decls = "";
-    std::string input_args = "";
+    std::string input_decls;
+    std::string input_args;
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string ptr_name = GetInputPtrName(op_input_id);
         input_decls += "\\\n\tconst __global " + toCLType(desc.tensors[op_input_id].GetDType()) +
@@ -1880,7 +1880,7 @@ JitConstants FusedOpsCodeGenerator::MakeLoadJitConstants(const FusedOpsConfigura
     auto idx = conf.bfzyx_idx_order;
     auto fused_op_config = conf;
 
-    std::string load_decls = "";
+    std::string load_decls;
     static thread_local int i = 0;
     // TODO: check if there is a use case for index reuse or it can be removed
     bool reuse_index = false;
@@ -1912,7 +1912,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                                                        std::string& out_var) const {
     JitConstants jit = {};
 
-    std::string op_decls = "";
+    std::string op_decls;
     auto vec_size = conf.vec_size;
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
@@ -2011,7 +2011,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     switch (desc.GetType()) {
         case KernelType::ELTWISE: {
             auto p = desc.GetOpParams<eltwise_fuse_params>();
-            std::string op = "";
+            std::string op;
             switch (p->mode) {
             case kernel_selector::EltwiseMode::ADD:
                 op = "+";
@@ -2213,7 +2213,7 @@ std::string FusedOpsCodeGenerator::GetInputTypeName(size_t input_id, size_t vec_
 }
 
 std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const {
-    std::string idx_order = "";
+    std::string idx_order;
 
     if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) <= 4) {
         idx_order = idx.b + "," + idx.f + "," + idx.y + "," + idx.x;
