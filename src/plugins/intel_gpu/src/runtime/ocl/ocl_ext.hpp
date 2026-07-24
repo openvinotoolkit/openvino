@@ -486,27 +486,27 @@ public:
 
     SharedSurfLock(cl_command_queue queue,
         std::vector<cl_mem>& surfaces,
-        cl_int * err = NULL)
+        cl_int * err = nullptr)
         : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
-        if (pfn_acquire != NULL && m_surfaces.size()) {
+        if (pfn_acquire != nullptr && m_surfaces.size()) {
             cl_int error = pfn_acquire(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),
-                0, NULL, NULL);
+                0, nullptr, nullptr);
 
-            if (error != CL_SUCCESS && m_errPtr != NULL) {
+            if (error != CL_SUCCESS && m_errPtr != nullptr) {
                 *m_errPtr = error;
             }
         }
     }
 
     ~SharedSurfLock() {
-        if (pfn_release != NULL && m_surfaces.size()) {
+        if (pfn_release != nullptr && m_surfaces.size()) {
             cl_int error = pfn_release(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),
-                0, NULL, NULL);
-            if (error != CL_SUCCESS && m_errPtr != NULL) {
+                0, nullptr, nullptr);
+            if (error != CL_SUCCESS && m_errPtr != nullptr) {
                 *m_errPtr = error;
             }
         }
@@ -542,7 +542,7 @@ public:
         uint32_t surface,
 #endif
         uint32_t plane,
-        cl_int * err = NULL) {
+        cl_int * err = nullptr) {
         cl_int error;
         object_ = pfn_clCreateFromMediaSurfaceINTEL(
             context(),
@@ -556,7 +556,7 @@ public:
             &error);
 
         detail::errHandler(error);
-        if (err != NULL) {
+        if (err != nullptr) {
             *err = error;
         }
     }
@@ -769,14 +769,14 @@ public:
 #else
         const char* fname = "clGetDeviceIDsFromVA_APIMediaAdapterINTEL";
 #endif
-        if (devices == NULL) {
+        if (devices == nullptr) {
             return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
         }
 
         PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL =
             try_load_entrypoint<PFN_clGetDeviceIDsFromMediaAdapterINTEL>(object_, fname);
 
-        if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
+        if (nullptr == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
             return CL_INVALID_PLATFORM;
         }
 
@@ -787,7 +787,7 @@ public:
             media_adapter,
             media_adapter_set,
             0,
-            NULL,
+            nullptr,
             &n);
         if (err != CL_SUCCESS && err != CL_DEVICE_NOT_FOUND) {
             return detail::errHandler(err, fname);
@@ -802,7 +802,7 @@ public:
                 media_adapter_set,
                 n,
                 ids.data(),
-                NULL);
+                nullptr);
             if (err != CL_SUCCESS) {
                 return detail::errHandler(err, fname);
             }

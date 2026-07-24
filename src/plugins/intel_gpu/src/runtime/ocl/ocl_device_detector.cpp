@@ -177,7 +177,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     cl_uint num_platforms = 0;
     // Get number of platforms available
-    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int error_code = clGetPlatformIDs(0, nullptr, &num_platforms);
     if (num_platforms == 0 || error_code == CL_PLATFORM_NOT_FOUND_KHR) {
         return {};
     }
@@ -185,7 +185,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
     // Get platform list
     std::vector<cl_platform_id> platform_ids(num_platforms);
-    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
@@ -233,12 +233,12 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
 std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(void* user_device) const {
     cl_uint num_platforms = 0;
     // Get number of platforms availible
-    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int error_code = clGetPlatformIDs(0, nullptr, &num_platforms);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     // Get platform list
     std::vector<cl_platform_id> platform_ids(num_platforms);
-    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
