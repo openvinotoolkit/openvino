@@ -97,10 +97,12 @@ public:
     };
     using ClassifiedPortsMap = std::unordered_map<std::string, ClassifiedPort>;
 
-    // Dummy tensors shared across all numbered block input ports (key + value).
-    struct DummyTensors {
-        ov::SoPtr<ov::ITensor> key_tensor;
-        ov::SoPtr<ov::ITensor> value_tensor;
+    // One dummy tensor entry: (shape, element_type) + pre-allocated tensor.
+    // Kept as a small vector (usually LLM with 1~2 entries) for simple and fast linear lookup.
+    struct DummyTensorEntry {
+        ov::Shape shape;
+        ov::element::Type elem_type;
+        ov::SoPtr<ov::ITensor> tensor;
     };
 
     explicit LLMBlockKVCacheStrategy(LLMInferRequest& req) : LLMKVCacheStrategy(req) {}
@@ -187,10 +189,11 @@ private:
     // Snapshotted original prefill output tensors for restore_prefill_output_buffers()
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_prefill_original_output_tensors;
 
-    // Dummy tensors shared across all numbered block input ports.
-    // Stored here so on_reset() can restore all ports to dummy tensors before clear_all(),
+    // Dummy tensors, one per distinct (shape, element_type) pair found across all block
+    // input ports. Keying on both dimensions is required.
+    // Stored here so on_reset() can restore all ports to dummies before clear_all(),
     // releasing any live shared_ptr references held by inference requests.
-    DummyTensors m_dummy_tensors;
+    std::vector<DummyTensorEntry> m_dummy_tensors;
 
     // Pre-classified input port maps built once in on_initialize().
     // Avoids re-running classify_block_param() on every scan across the port map.
