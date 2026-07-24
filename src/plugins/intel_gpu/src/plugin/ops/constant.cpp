@@ -229,14 +229,74 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
         return false;
     };
-    // WA to inconsistency between input and const 1d tensors
-    // For Concat along batch we go with batch interpretation
-    // For Gather input we go with batch interpretation
-    // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
-    for (auto& node : constUsers) {
-        auto outOp = node.get_node();
-        bool apply_rank2_matmul_wa = false;
+
+    auto apply_common_consumer_adaptation = [&](const ov::Input<ov::Node>& node, ov::Node* outOp) -> bool {
+        if (auto castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
+            if (castedOp->get_axis() == 0) {
+                consts[op].needsBatchInterpretation = constDims.size() == 1;
+            }
+            return true;
+        }
+
+        if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
+            is_convert_into_binary_eltwise(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+            return true;
+        }
+
+        if (ov::is_type<ov::op::v1::Gather>(outOp) ||
+            ov::is_type<ov::op::v7::Gather>(outOp) ||
+            ov::is_type<ov::op::v8::Gather>(outOp) ||
+            ov::is_type<ov::op::v5::GatherND>(outOp) ||
+            ov::is_type<ov::op::v8::GatherND>(outOp) ||
+            ov::is_type<ov::op::v1::Split>(outOp) ||
+            ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+            return true;
+        }
+
+        if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
+            // PReLU slope tensor reshape policy
+            //
+            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of input).
+            //   ex) [1] --> [1, 1, 1, 1]
+            //       [N] --> [1, N, 1, 1]
+            //
+            // 2. Multi-dims slope tensor is handled by the numpy broadcasting rule that is defined at
+            //    'https://docs.openvino.ai/2023.0/openvino_docs_ops_broadcast_rules.html'.
+            //   ex) [N, 1, 1] --> [1, N, 1, 1]
+            //       [N, M, 1] --> [1, N, M, 1]
+            auto input_shape = outOp->get_input_partial_shape(0);
+            if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
+                (constDims.size() == 1 && input_shape.is_static() && input_shape.size() > 1 &&
+                 static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
+                ov::Shape slope_shape(input_shape.size(), 1);
+                for (size_t j = 1; j <= constDims.size(); j++)
+                    slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
+                constDims = slope_shape;
+            }
+            return true;
+        }
+
+        if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp) ||
+            ov::is_type<ov::op::v15::ROIAlignRotated>(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+            return true;
+        }
+
+        if (ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp)) {
+            // When inner network has 1d parameter connected to outer constant 1d data,
+            // the bytes count is the same but legacy batch/feature interpretation differs.
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+            return true;
+        }
+
+        return false;
+    };
+
+    auto apply_legacy_shape_layout_wa = [&](const ov::Input<ov::Node>& node, ov::Node* outOp) -> bool {
         size_t user_index = node.get_index();
+        bool apply_rank2_matmul_wa = false;
         auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
             if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
                 auto convert_consumers = convert_node->get_output_target_inputs(0);
@@ -253,89 +313,54 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             }
             return false;
         };
-        if (auto castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
-            if (castedOp->get_axis() == 0) {
-                consts[op].needsBatchInterpretation = constDims.size() == 1;
-            }
-        } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
-                     is_convert_into_binary_eltwise(outOp)) {
-            consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::Gather>(outOp) ||
-                   ov::is_type<ov::op::v7::Gather>(outOp) ||
-                   ov::is_type<ov::op::v8::Gather>(outOp) ||
-                   ov::is_type<ov::op::v5::GatherND>(outOp) ||
-                   ov::is_type<ov::op::v8::GatherND>(outOp) ||
-                   ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
-            consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
-            // PReLU slope tensor reshape policy
-            //
-            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of input).
-            //   ex) [1] --> [1, 1, 1, 1]
-            //       [N] --> [1, N, 1, 1]
-            //
-            // 2. Multi-dims slope tensor is handled by the numpy broadcasting rule that is defined at
-            //    'https://docs.openvino.ai/2023.0/openvino_docs_ops_broadcast_rules.html'.
-            //   ex) [N, 1, 1] --> [1, N, 1, 1]
-            //       [N, M, 1] --> [1, N, M, 1]
+
+        if (is_grouped_conv(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
-            if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
-                (constDims.size() == 1 && input_shape.is_static() && input_shape.size() > 1 &&
-                static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
-                // Reshape 'constDims' according to the numpy broadcasting rule.
-                ov::Shape slope_shape(input_shape.size(), 1);
-                for (size_t j = 1; j <= constDims.size(); j++)
-                    slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
-                constDims = slope_shape;
+            if (constDims.size() == 4 && input_shape.size() == 3) {
+                constDims.push_back(1);
             }
-        } else if (is_grouped_conv(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
-            auto input_shape = outOp->get_input_partial_shape(0);
-            if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
-                constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
-            }
-        } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp) ||
-                   ov::is_type<ov::op::v15::ROIAlignRotated>(outOp)) { //< Hacks...
+            return true;
+        }
+
+        if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer() && p.is_inner_program()) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if ((ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp))) {
-            // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
-            // outer constant 1d data and inner 1d parameter has same bytes_count but layout is different
-            // (outer constant is [1, N, 1, 1] but inner parameter is [N, 1, 1, 1]).
-            // To pass check_memory_to_set in input_layout::set_data for this case, Set constDims to [N, 1, 1, 1]
-            // when constDims is one dim and user op is Loop or TensorIterator.
-            consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer() && p.is_inner_program()) {
-            // When IF-operation generates branch-true and branch-false,
-            // simple nodes for both can be created such as Parameter->Result, Constant->Result
-            // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
-            // For that case, Constant->Result needs to be [N, 1, 1, 1]
-            consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (is_convert_matmul_pattern(outOp, user_index)) {
+            return true;
+        }
+
+        if (is_convert_matmul_pattern(outOp, user_index)) {
             const size_t const_static_max_dims = 4;
-            // MatMul constant reshape WA (legacy shape infer path):
-            // Only reshape 1D and 2D constants to fix getConstTensor batch/feature
-            // mis-mapping. For rank >= 3, getConstTensor already produces layouts
-            // compatible with gemm_inst::transform_input_layouts (trailing 1s align
-            // with weight_rank extraction). Reshaping rank >= 3 would prepend 1s,
-            // breaking the first-N-dims extraction in transform_input_layouts.
             if (constDims.size() == 1) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
-                const size_t const_idx = (user_index == 0)?
+                const size_t const_idx = (user_index == 0) ?
                     (const_static_max_dims - 1)
                     : (const_static_max_dims - 2);
                 reshaped_const_dims[const_idx] = constDims[0];
                 constDims = std::move(reshaped_const_dims);
             } else if (constDims.size() == 2 && user_index == 0 && apply_rank2_matmul_wa) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
-                // For MatMul input0, gemm::transform_input_layouts takes the first input_rank dims.
-                // Keep [M, K] in leading positions and append trailing 1s.
                 const size_t offset = 0;
                 for (size_t i = 0; i < constDims.size(); ++i) {
                     reshaped_const_dims[offset + i] = constDims[i];
                 }
                 constDims = std::move(reshaped_const_dims);
             }
+            return true;
         }
+
+        return false;
+    };
+
+    // WA to inconsistency between input and const 1d tensors
+    // For Concat along batch we go with batch interpretation
+    // For Gather input we go with batch interpretation
+    // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
+    for (auto& node : constUsers) {
+        auto outOp = node.get_node();
+        if (apply_common_consumer_adaptation(node, outOp)) {
+            continue;
+        }
+
+        apply_legacy_shape_layout_wa(node, outOp);
     }
 
     for (auto& it : consts) {
