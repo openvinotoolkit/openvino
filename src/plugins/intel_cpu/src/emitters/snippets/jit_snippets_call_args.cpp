@@ -4,7 +4,6 @@
 
 #include "jit_snippets_call_args.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -17,7 +16,6 @@
 namespace ov::intel_cpu {
 
 jit_snippets_call_args::~jit_snippets_call_args() {
-    delete[] loop_args;
     delete[] external_ptrs;
 }
 
@@ -25,11 +23,8 @@ void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loop
     if (loops.empty()) {
         return;
     }
-    const auto num_loops = loops.size();
-    OPENVINO_ASSERT(num_loops <= PTRDIFF_MAX, "Requested allocation size { ", num_loops, " } exceeds PTRDIFF_MAX.");
     OPENVINO_ASSERT(loop_args == nullptr, "Loop args are already initialized");
-    loop_args = new loop_args_t[static_cast<ptrdiff_t>(num_loops)];
-    std::copy(loops.begin(), loops.end(), loop_args);
+    loop_args = loops.data();
 }
 
 void jit_snippets_call_args::init_external_ptrs(const size_t size) {
