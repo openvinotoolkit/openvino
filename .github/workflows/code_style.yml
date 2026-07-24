@@ -96,7 +96,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        uses: reviewdog/action-suggester@2558ba17e65a9039e73764a73009fc05fef28a46 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
@@ -128,7 +128,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        uses: reviewdog/action-suggester@2558ba17e65a9039e73764a73009fc05fef28a46 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
@@ -157,7 +157,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        uses: reviewdog/action-suggester@2558ba17e65a9039e73764a73009fc05fef28a46 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
