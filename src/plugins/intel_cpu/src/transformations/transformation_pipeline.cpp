@@ -79,6 +79,7 @@
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/fp16_compression/clamp_fp16_fc_output.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
@@ -1197,6 +1198,8 @@ void Transformations::PostLpt() {
             return node::RMSNorm::isSupportedOperation(node, errorMsg);
         },
         ov::intel_cpu::DecomposeRMSNorm);
+
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ClampFP16FCOutput);
 
     // markup Rope Input when BF16/F16 inference.
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
