@@ -51,6 +51,11 @@ JitConstants GridSampleKernelBase::GetJitConstants(const grid_sample_params& ker
         jit_constants.AddConstant(MakeJitConstant("ALIGN_CORNERS", true));
     }
 
+    // Volumetric (5D) sampling: data [N, C, D, H, W], grid [N, D_out, H_out, W_out, 3].
+    if (kernel_params.inputs[0].GetDims().size() == 5) {
+        jit_constants.AddConstant(MakeJitConstant("VOLUMETRIC", 1));
+    }
+
     return jit_constants;
 }
 
