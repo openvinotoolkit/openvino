@@ -746,12 +746,15 @@ void program::transfer_memory_to_device() {
                 continue;
 
             allocation_type target_alloc_type = alloc_type;
-            // usm_device memory does not provide performance benefits on the LNL platform
-            if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
-                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
-                // Convert to usm_device for performance optimization
-                target_alloc_type = allocation_type::usm_device;
+            if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                const auto& device_info = get_engine().get_device_info();
+                // Keep the Xe2 platform behavior. For arch > Xe2 iGPU platforms, imported compiled blobs must own
+                // restored constants in device memory.
+                const bool keep_host_accessible_memory = device_info.dev_type == device_type::integrated_gpu &&
+                    (device_info.arch == gpu_arch::xe2 || (!_loaded_from_cache && device_info.arch > gpu_arch::xe2));
+                if (!keep_host_accessible_memory) {
+                    target_alloc_type = allocation_type::usm_device;
+                }
             }
 
             if (!mem_layout.compatible(data_node_layout)) {

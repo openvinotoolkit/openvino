@@ -1210,9 +1210,11 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-        // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
-        if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-            get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+        const auto& device_info = get_engine().get_device_info();
+        // Keep the Xe2 platform behavior. For arch > Xe2 iGPU platforms, imported compiled blobs must own
+        // restored constants in device memory.
+        if (device_info.dev_type == device_type::integrated_gpu &&
+            (device_info.arch == gpu_arch::xe2 || (!_program->is_loaded_from_cache() && device_info.arch > gpu_arch::xe2))) {
             return;
         }
 
