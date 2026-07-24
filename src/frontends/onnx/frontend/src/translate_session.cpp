@@ -5,6 +5,7 @@
 #include "translate_session.hpp"
 
 #include "core/null_node.hpp"
+#include "core/tensor.hpp"
 #include "input_model.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
@@ -42,21 +43,47 @@ ov::Output<ov::Node> TranslateSession::lookup_tensor(const std::string& name) {
     }
     if (m_parent_session != nullptr) {
         auto node_from_parent = m_parent_session->lookup_tensor(name);
-        if (node_from_parent.get_node() == nullptr) {
-            return {};
+        if (node_from_parent.get_node() != nullptr) {
+            if (ov::op::util::is_constant(node_from_parent.get_node_shared_ptr())) {
+                return node_from_parent;
+            }
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(node_from_parent.get_element_type(),
+                                                                     node_from_parent.get_partial_shape());
+            new_param->set_friendly_name(node_from_parent.get_node()->get_friendly_name());
+            new_param->output(0).set_names({name});
+            m_parameters.push_back(new_param);
+            m_tensor_values[name] = new_param;
+            return new_param;
         }
-        if (ov::op::util::is_constant(node_from_parent.get_node_shared_ptr())) {
-            return node_from_parent;
-        }
-        auto new_param = std::make_shared<ov::op::v0::Parameter>(node_from_parent.get_element_type(),
-                                                                 node_from_parent.get_partial_shape());
-        new_param->set_friendly_name(node_from_parent.get_node()->get_friendly_name());
-        new_param->output(0).set_names({name});
-        m_parameters.push_back(new_param);
-        m_tensor_values[name] = new_param;
-        return new_param;
     }
-    return {};
+
+    const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(m_input_model);
+    if (!model_onnx) {
+        return {};
+    }
+    auto& all_tensor_places = model_onnx->get_tensor_places();
+    const auto place_it = all_tensor_places.find(name);
+    if (place_it == all_tensor_places.end()) {
+        return {};
+    }
+
+    const auto& input_tensor = place_it->second;
+    std::shared_ptr<ov::Node> node;
+    if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr) {
+        Tensor tensor = Tensor(input_tensor);
+        node = tensor.get_ov_constant();
+    } else if (input_tensor->get_partial_shape() == PartialShape{0}) {
+        node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
+                                            input_tensor->get_partial_shape().to_shape(),
+                                            {});
+    } else {
+        node = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(), input_tensor->get_partial_shape());
+        m_parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(node));
+    }
+    node->set_friendly_name(name);
+    m_tensor_values[name] = node->get_default_output();
+    input_tensor->translate(m_tensor_values[name]);
+    return m_tensor_values[name];
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {

@@ -698,7 +698,12 @@ void InputModel::InputModelONNXImpl::load_model() {
             if (!tensor_place_registered)
                 continue;
 
-            if (!has_data && tensor_place_registered->is_input())
+            // Use tensor_place->is_input() (not tensor_place_registered->is_input()) to avoid
+            // duplicate m_inputs entries when a tensor name appears in both graph.input() and
+            // graph.output() (e.g., pass-through Loop state variables in PaddlePaddle models).
+            // register_tensor_place() returns the pre-existing entry on name collision, which
+            // may have is_input()=true even when the current decoder is an output decoder.
+            if (!has_data && tensor_place->is_input())
                 m_inputs.push_back(tensor_place_registered);
             if (output_idx >= 0) {
                 m_outputs.push_back(tensor_place_registered);
