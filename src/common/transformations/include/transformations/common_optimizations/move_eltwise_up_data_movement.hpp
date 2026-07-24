@@ -48,10 +48,27 @@ public:
 ///            ┌───────┴────────┐    ┌────────────────────┐                   ┌─────┴─────┐    ┌─────────────┐
 ///            │  Element-Wise  ├────┤  Per-Channel Const │                   │  Reshape  ├────┤ TargetShape │
 ///            └────────────────┘    └────────────────────┘                   └───────────┘    └─────────────┘
+///
+/// Additionally, when @p fusable_producer_types is non-empty, also handles the non-constant
+/// case where the data-flow input producer is a "fusable" op (e.g. FullyConnected, MatMul,
+/// Transpose) that can absorb the eltwise as a post-op. Instead of reshaping the other input
+/// (which is not a constant), it squeezes the other input's unit dimension, performs the
+/// eltwise in the lower rank, and unsqueezes the result:
+///     Eltwise(R, Unsqueeze(P, axis))
+///       => Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovPerChannel : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovPerChannel");
-    MoveEltwiseUpThroughDataMovPerChannel();
+    /// @param fusable_producer_types Optional list of op types that can fuse an eltwise
+    ///        as a post-op. When non-empty, also matches non-constant second inputs.
+    /// @param check_bias_add If true, also considers Add(fusable_op, bias) as a fusable
+    ///        producer (for cases where a bias add is fused into the preceding op's kernel).
+    /// @param enable_constant_matcher If true (default), registers the original per-channel
+    ///        constant matcher. Set to false to only register the fusable-producer matcher.
+    MoveEltwiseUpThroughDataMovPerChannel(
+        std::vector<DiscreteTypeInfo> fusable_producer_types = {},
+        bool check_bias_add = false,
+        bool enable_constant_matcher = true);
 };
 
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMov : public ov::pass::GraphRewrite {

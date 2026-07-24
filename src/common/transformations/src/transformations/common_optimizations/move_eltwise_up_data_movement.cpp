@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
@@ -41,6 +42,33 @@ bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
     return std::any_of(allowed_data_movement_ops.begin(), allowed_data_movement_ops.end(), [&](const auto& type) {
         return node->get_type_info().is_castable(type);
     });
+}
+
+// If `out` is `in` with a single unit dimension inserted, return that axis,
+// otherwise return -1. Dynamic dimensions are treated as compatible.
+int64_t unsqueeze_axis(const ov::PartialShape& in, const ov::PartialShape& out) {
+    if (in.rank().is_dynamic() || out.rank().is_dynamic())
+        return -1;
+    const int64_t n = in.rank().get_length();
+    if (out.rank().get_length() != n + 1)
+        return -1;
+    for (int64_t a = 0; a <= n; a++) {
+        if (out[a].is_dynamic() || out[a].get_length() != 1)
+            continue;  // inserted axis must be a static unit dimension
+        bool match = true;
+        for (int64_t i = 0, j = 0; i <= n; i++) {
+            if (i == a)
+                continue;
+            if (!out[i].same_scheme(in[j])) {
+                match = false;
+                break;
+            }
+            j++;
+        }
+        if (match)
+            return a;
+    }
+    return -1;
 }
 }  // namespace
 
@@ -139,99 +167,199 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
     register_matcher(m, callback);
 }
 
-ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerChannel() {
+ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerChannel(
+    std::vector<DiscreteTypeInfo> fusable_producer_types,
+    bool check_bias_add,
+    bool enable_constant_matcher) {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovPerChannel);
 
-    auto const_predicate = [](const ov::Output<ov::Node>& output) {
-        auto constant_op = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-        if (!constant_op)
-            return false;
+    // ---- Matcher 1: per-channel constant case (original) ----
+    if (enable_constant_matcher) {
+        auto const_predicate = [](const ov::Output<ov::Node>& output) {
+            auto constant_op = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+            if (!constant_op)
+                return false;
 
-        if (output.get_target_inputs().size() != 1)
-            return false;
+            if (output.get_target_inputs().size() != 1)
+                return false;
 
-        const auto& shape = constant_op->get_shape();
-        return std::count_if(shape.begin(), shape.end(), [](size_t v) {
-                   return v > 1;
-               }) == 1;
-    };
+            const auto& shape = constant_op->get_shape();
+            return std::count_if(shape.begin(), shape.end(), [](size_t v) {
+                       return v > 1;
+                   }) == 1;
+        };
 
-    auto eltw_predicate = [](const ov::Output<ov::Node>& output) {
-        if (output.get_target_inputs().size() != 1)
-            return false;
+        auto eltw_predicate = [](const ov::Output<ov::Node>& output) {
+            if (output.get_target_inputs().size() != 1)
+                return false;
 
-        auto node = output.get_node();
+            auto node = output.get_node();
 
-        if (node->get_output_partial_shape(0).rank().is_dynamic())
-            return false;
+            if (node->get_output_partial_shape(0).rank().is_dynamic())
+                return false;
 
-        const size_t const_idx = ov::is_type<v0::Constant>(node->get_input_node_ptr(0)) ? 0 : 1;
-        const size_t data_flow_idx = (const_idx + 1) % 2;
+            const size_t const_idx = ov::is_type<v0::Constant>(node->get_input_node_ptr(0)) ? 0 : 1;
+            const size_t data_flow_idx = (const_idx + 1) % 2;
 
-        if (node->get_input_partial_shape(data_flow_idx).size() < node->get_input_partial_shape(const_idx).size())
-            return false;
+            if (node->get_input_partial_shape(data_flow_idx).size() < node->get_input_partial_shape(const_idx).size())
+                return false;
 
-        return true;
-    };
+            return true;
+        };
 
-    auto eltw_data_flow_in = wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(ov::pass::pattern::consumers_count(1));
-    auto eltw_const_in = wrap_type<v0::Constant>(const_predicate);
-    auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in}, eltw_predicate);
+        auto eltw_data_flow_in = wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(ov::pass::pattern::consumers_count(1));
+        auto eltw_const_in = wrap_type<v0::Constant>(const_predicate);
+        auto eltwise_pattern =
+            wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in}, eltw_predicate);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
+        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
 
-        auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
-        if (transformation_callback(eltwise)) {
-            return false;
-        }
-
-        const size_t const_idx = ov::is_type<v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
-        const size_t data_flow_idx = (const_idx + 1) % 2;
-
-        auto const_shape = eltwise->get_input_shape(const_idx);
-        size_t channel_idx = 0;
-        size_t channel_val = 0;
-        for (size_t i = 0; i < const_shape.size(); i++) {
-            if (const_shape[i] > 1) {
-                channel_idx = i;
-                channel_val = const_shape[i];
+            auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
+            if (transformation_callback(eltwise)) {
+                return false;
             }
-        }
 
-        auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
-        const auto& parent_in_pshape = parent->get_input_partial_shape(0);
-        auto parent_in_channel_dim =
-            parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
-        auto parent_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
-        if (parent_in_channel_dim.is_dynamic() || parent_in_channel_dim != channel_val ||
-            parent_out_channel_dim.is_dynamic() || parent_out_channel_dim != channel_val)
+            const size_t const_idx = ov::is_type<v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
+            const size_t data_flow_idx = (const_idx + 1) % 2;
+
+            auto const_shape = eltwise->get_input_shape(const_idx);
+            size_t channel_idx = 0;
+            size_t channel_val = 0;
+            for (size_t i = 0; i < const_shape.size(); i++) {
+                if (const_shape[i] > 1) {
+                    channel_idx = i;
+                    channel_val = const_shape[i];
+                }
+            }
+
+            auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
+            const auto& parent_in_pshape = parent->get_input_partial_shape(0);
+            auto parent_in_channel_dim =
+                parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
+            auto parent_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
+            if (parent_in_channel_dim.is_dynamic() || parent_in_channel_dim != channel_val ||
+                parent_out_channel_dim.is_dynamic() || parent_out_channel_dim != channel_val)
+                return false;
+
+            auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
+
+            new_shape[channel_idx] = const_shape[channel_idx];
+            auto old_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
+            auto new_const = std::make_shared<v0::Constant>(*old_const, new_shape);
+            ov::replace_node_update_name(old_const, new_const);
+            ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));
+
+            ov::OutputVector eltwise_inputs = eltwise->input_values();
+            eltwise_inputs[data_flow_idx] = parent->input_value(0);
+            auto new_eltwise = eltwise->clone_with_new_inputs(eltwise_inputs);
+            ov::copy_runtime_info(eltwise, new_eltwise);
+
+            ov::OutputVector parent_inputs = parent->input_values();
+            parent_inputs[0] = new_eltwise;
+            auto new_parent = parent->clone_with_new_inputs(parent_inputs);
+            ov::copy_runtime_info(parent, new_parent);
+            new_parent->set_friendly_name(parent->get_friendly_name());
+
+            ov::replace_node(parent, new_parent);
+            return true;
+        };
+
+        auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
+        register_matcher(m, callback);
+    }  // if (enable_constant_matcher)
+
+    // ---- Matcher 2: non-constant fusable-producer case ----
+    if (!fusable_producer_types.empty()) {
+        auto is_fusable = [fusable_producer_types, check_bias_add](const std::shared_ptr<ov::Node>& node) -> bool {
+            for (const auto& t : fusable_producer_types) {
+                if (node->get_type_info().is_castable(t))
+                    return true;
+            }
+            if (check_bias_add) {
+                auto add = ov::as_type_ptr<v1::Add>(node);
+                if (add && add->get_input_size() == 2) {
+                    for (const auto& t : fusable_producer_types) {
+                        if (add->get_input_node_ptr(0)->get_type_info().is_castable(t) ||
+                            add->get_input_node_ptr(1)->get_type_info().is_castable(t))
+                            return true;
+                    }
+                }
+            }
             return false;
+        };
 
-        auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
+        auto eltw_predicate_fusable = [](const ov::Output<ov::Node>& output) {
+            return !output.get_node()->get_output_partial_shape(0).rank().is_dynamic();
+        };
 
-        new_shape[channel_idx] = const_shape[channel_idx];
-        auto old_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
-        auto new_const = std::make_shared<v0::Constant>(*old_const, new_shape);
-        ov::replace_node_update_name(old_const, new_const);
-        ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));
+        auto is_data_mov_op = [](const std::shared_ptr<ov::Node>& node) -> bool {
+            return ov::as_type_ptr<v1::Reshape>(node) ||
+                   ov::as_type_ptr<v0::Unsqueeze>(node) ||
+                   ov::as_type_ptr<v0::Squeeze>(node);
+        };
 
-        ov::OutputVector eltwise_inputs = eltwise->input_values();
-        eltwise_inputs[data_flow_idx] = parent->input_value(0);
-        auto new_eltwise = eltwise->clone_with_new_inputs(eltwise_inputs);
-        ov::copy_runtime_info(eltwise, new_eltwise);
+        auto eltwise_pattern =
+            wrap_type<op_util::BinaryElementwiseArithmetic>(
+                ov::OutputVector{ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
+                eltw_predicate_fusable);
 
-        ov::OutputVector parent_inputs = parent->input_values();
-        parent_inputs[0] = new_eltwise;
-        auto new_parent = parent->clone_with_new_inputs(parent_inputs);
-        ov::copy_runtime_info(parent, new_parent);
-        new_parent->set_friendly_name(parent->get_friendly_name());
+        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+            auto& pm = m.get_pattern_value_map();
+            auto eltwise = pm.at(eltwise_pattern).get_node_shared_ptr();
+            if (transformation_callback(eltwise))
+                return false;
 
-        ov::replace_node(parent, new_parent);
-        return true;
-    };
+            // Check both inputs for a Reshape/Unsqueeze/Squeeze data-movement op
+            for (size_t s = 0; s < 2; s++) {
+                auto rn = eltwise->get_input_source_output(s).get_node_shared_ptr();
+                if (!is_data_mov_op(rn))
+                    continue;
 
-    auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
-    register_matcher(m, callback);
+                // Check that data_mov is a unit-dimension insertion (rank increases by exactly 1)
+                auto in_ps = rn->get_input_partial_shape(0);
+                auto out_ps = rn->get_output_partial_shape(0);
+                int64_t axis = unsqueeze_axis(in_ps, out_ps);
+                if (axis < 0)
+                    continue;
+
+                size_t other_idx = 1 - s;
+                auto other = eltwise->get_input_source_output(other_idx);
+                auto out_rank = eltwise->get_output_partial_shape(0).rank();
+                if (other.get_partial_shape().rank() != out_rank)
+                    continue;
+
+                // The other operand must have a unit dimension at the inserted axis
+                auto other_ps = other.get_partial_shape();
+                if (other_ps[axis].is_dynamic() || other_ps[axis].get_length() != 1)
+                    continue;
+
+                // Check that producer is fusable
+                auto producer = rn->get_input_node_shared_ptr(0);
+                if (!is_fusable(producer))
+                    continue;
+
+                // Transform: Eltwise(R, Unsqueeze(P, axis)) -> Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
+                auto sq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+                auto squeezed = std::make_shared<v0::Squeeze>(other, sq_axis);
+
+                ov::OutputVector eltwise_inputs(2);
+                eltwise_inputs[s] = rn->input_value(0);  // producer P (lower rank)
+                eltwise_inputs[other_idx] = squeezed;
+                auto eltwise_low = eltwise->clone_with_new_inputs(eltwise_inputs);
+
+                auto un_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+                auto unsqueezed = std::make_shared<v0::Unsqueeze>(eltwise_low, un_axis);
+
+                unsqueezed->set_friendly_name(eltwise->get_friendly_name());
+                ov::copy_runtime_info(eltwise, {squeezed, eltwise_low, unsqueezed});
+                ov::replace_node(eltwise, unsqueezed);
+                return true;
+            }
+            return false;
+        };
+
+        auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
+        register_matcher(m, callback);
+    }
 }

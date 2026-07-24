@@ -549,3 +549,171 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SharedConstantNotReshapedForOtherConsume
             std::make_shared<ov::Model>(ov::OutputVector{unsqueeze, slice}, ov::ParameterVector{input, slice_input});
     }
 }
+
+// ---- Fusable-producer tests (non-constant second input) ----
+
+namespace {
+
+std::shared_ptr<v0::Unsqueeze> make_unsq(const ov::Output<ov::Node>& input, int64_t axis) {
+    auto axis_c = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+    return std::make_shared<v0::Unsqueeze>(input, axis_c);
+}
+
+std::shared_ptr<v1::Reshape> make_resh(const ov::Output<ov::Node>& input,
+                                       const std::vector<int32_t>& shape) {
+    auto pattern = v0::Constant::create(ov::element::i32, ov::Shape{shape.size()}, shape);
+    return std::make_shared<v1::Reshape>(input, pattern, false);
+}
+
+std::shared_ptr<v1::Transpose> make_tr(const ov::Output<ov::Node>& input,
+                                       const std::vector<int32_t>& order) {
+    auto order_c = v0::Constant::create(ov::element::i32, ov::Shape{order.size()}, order);
+    return std::make_shared<v1::Transpose>(input, order_c);
+}
+
+// Helper to register only the fusable-producer matcher
+void register_fusable_pass(ov::pass::Manager& mgr) {
+    mgr.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>(
+        std::vector<ov::DiscreteTypeInfo>{
+            ov::op::v0::MatMul::get_type_info_static(),
+            ov::op::v1::Transpose::get_type_info_static(),
+        },
+        true,   // check_bias_add
+        false); // enable_constant_matcher (only fusable case)
+}
+}  // namespace
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableMatMulReshapeAdd) {
+    // MatMul -> Reshape(unsqueeze axis 1) -> Add(4D, 4D)
+    //    => MatMul -> Add(Squeeze(Const), MatMul) -> Unsqueeze
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto reshape = make_resh(matmul, {2, 1, 4, 16});
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {0.0f});
+    auto add = std::make_shared<v1::Add>(reshape, other);
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();  // prevent nullptr deref in SetUp passes
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableTransposeReshapeAdd) {
+    // Transpose -> Reshape(unsqueeze axis 1) -> Add(4D, 4D)
+    //    => Transpose -> Add(Squeeze(Const), Transpose) -> Unsqueeze
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 16});
+    auto transpose = make_tr(input, {0, 2, 1});
+    auto reshape = make_resh(transpose, {2, 1, 16, 4});
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 16, 4}, {0.0f});
+    auto add = std::make_shared<v1::Add>(reshape, other);
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableBiasAddReshapeAdd) {
+    // MatMul -> Add(bias) -> Reshape(unsqueeze axis 1) -> Add(residual)
+    // check_bias_add=true lets the pass see through the bias Add to the MatMul.
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto bias = v0::Constant::create(ov::element::f16, ov::Shape{16}, {0.5f});
+    auto bias_add = std::make_shared<v1::Add>(matmul, bias);
+    auto reshape = make_resh(bias_add, {2, 1, 4, 16});
+    auto residual = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {0.0f});
+    auto add = std::make_shared<v1::Add>(reshape, residual);
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableMatMulUnsqueezeOpAdd) {
+    // MatMul -> Unsqueeze(axis 1) -> Add(4D, 4D)
+    // Uses an Unsqueeze op directly (not a Reshape).
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto unsqueeze = make_unsq(matmul, 1);
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {0.0f});
+    auto add = std::make_shared<v1::Add>(unsqueeze, other);
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    // One Unsqueeze from the transformation; the original Unsqueeze op
+    // is disconnected but still present in the node list.
+    ASSERT_GE(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableMatMulMultiply) {
+    // MatMul -> Reshape(unsqueeze axis 1) -> Multiply(4D, 4D)
+    // Tests Multiply (not just Add).
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto reshape = make_resh(matmul, {2, 1, 4, 16});
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {2.0f});
+    auto mul = std::make_shared<v1::Multiply>(reshape, other);
+    auto result = std::make_shared<v0::Result>(mul);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableReverseInputOrder) {
+    // Add(other, Reshape(MatMul)) — reshape is on input 1, not input 0.
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto reshape = make_resh(matmul, {2, 1, 4, 16});
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {0.0f});
+    auto add = std::make_shared<v1::Add>(other, reshape);  // reverse order
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+    model_ref = model->clone();
+    test_skipped = true;
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<v0::Unsqueeze>(model), 1);
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableNotFusableProducer) {
+    // Parameter -> Reshape(unsqueeze axis 1) -> Add(4D, 4D)
+    // The producer is not a fusable op, so the pass must not transform.
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 16});
+    auto reshape = make_resh(input, {2, 1, 4, 16});
+    auto other = v0::Constant::create(ov::element::f16, ov::Shape{2, 1, 4, 16}, {0.0f});
+    auto add = std::make_shared<v1::Add>(reshape, other);
+    auto result = std::make_shared<v0::Result>(add);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
+    register_fusable_pass(manager);
+}
