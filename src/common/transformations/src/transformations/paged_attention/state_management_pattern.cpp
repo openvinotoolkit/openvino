@@ -599,27 +599,30 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         // Re-apply the activation-quantization op matched by optional_quantization (per-tensor
         // v0::FakeQuantize on the KV concat, or v13::FakeConvert on a Q/K/V input) onto the rebuilt PA
         // feed. The same helper is applied at both the KV concat and the SDPA inputs, so in non-GQA
-        // graphs one quant op is reachable through both wraps; the dedup set re-clones it once. The
-        // concat sites run first so a KV FakeQuantize nests inside the SDPA-input FakeConvert, matching
-        // the original graph order when both are present.
-        std::unordered_set<const Node*> reapplied;
-        auto reapply_quant = [&](const std::shared_ptr<Node>& pattern_node, Output<Node>& target) {
-            if (!pattern_map.count(pattern_node))
-                return;
-            auto node = pattern_map.at(pattern_node).get_node_shared_ptr();
-            if (!ov::as_type_ptr<v0::FakeQuantize>(node) && !ov::as_type_ptr<v13::FakeConvert>(node))
-                return;  // bypass branch matched: no quant op to re-apply
-            if (!reapplied.insert(node.get()).second)
-                return;  // same op reachable via both wraps: clone once
-            auto new_inputs = node->input_values();
-            new_inputs[0] = target;
-            target = node->clone_with_new_inputs(new_inputs);
-        };
-        reapply_quant(k_concat, k_to_pa);
-        reapply_quant(v_concat, v_to_pa);
-        reapply_quant(q, q_to_pa);
-        reapply_quant(k_to_sdpa, k_to_pa);
-        reapply_quant(v_to_sdpa, v_to_pa);
+        // graphs the SAME quant op is matched by both wraps of one path (e.g. k_concat and k_to_sdpa);
+        // the per-path dedup set re-clones it once for that path. A quant op that feeds two different
+        // PA inputs is still re-applied onto each of them, so the sets are kept per target (k/v/q)
+        // rather than shared across Q/K/V. The concat sites run first so a KV FakeQuantize nests inside
+        // the SDPA-input FakeConvert, matching the original graph order when both are present.
+        auto reapply_quant =
+            [&](const std::shared_ptr<Node>& pattern_node, Output<Node>& target, std::unordered_set<const Node*>& seen) {
+                if (!pattern_map.count(pattern_node))
+                    return;
+                auto node = pattern_map.at(pattern_node).get_node_shared_ptr();
+                if (!ov::as_type_ptr<v0::FakeQuantize>(node) && !ov::as_type_ptr<v13::FakeConvert>(node))
+                    return;  // bypass branch matched: no quant op to re-apply
+                if (!seen.insert(node.get()).second)
+                    return;  // same op matched by both wraps of this path: clone once
+                auto new_inputs = node->input_values();
+                new_inputs[0] = target;
+                target = node->clone_with_new_inputs(new_inputs);
+            };
+        std::unordered_set<const Node*> k_seen, v_seen, q_seen;
+        reapply_quant(k_concat, k_to_pa, k_seen);
+        reapply_quant(v_concat, v_to_pa, v_seen);
+        reapply_quant(q, q_to_pa, q_seen);
+        reapply_quant(k_to_sdpa, k_to_pa, k_seen);
+        reapply_quant(v_to_sdpa, v_to_pa, v_seen);
 
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
