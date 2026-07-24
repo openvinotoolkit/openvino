@@ -11,8 +11,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
    Note that the npm distribution:
 
    * offers the JavaScript API only
-   * is dedicated to users of all major OSes: Windows, Linux, and macOS
-     (all x86_64 / arm64 architectures)
+   * is dedicated to users of Windows and Linux on x86_64 and arm64,
+     and macOS on arm64
    * macOS offers support only for CPU inference
 
    Before installing OpenVINO, see the
