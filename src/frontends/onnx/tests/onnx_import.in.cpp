@@ -3460,6 +3460,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_zero_norm) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p2_below_epsilon) {
+    // Regression test for the BiasMode::MAX guard in l2_norm: sqrt(max(sum_of_squares, eps)).
+    // Exercises the boundary where a NONZERO vector has sum(x^2) < FLT_EPSILON, which is the
+    // only range where MAX differs measurably from the old ADD behavior (sqrt(sum + eps)).
+    // The [*, 0, 0] pair (reduced over axis 0) has sum_of_squares = 5e-8 < FLT_EPSILON (~1.19e-7),
+    // so MAX floors the denominator at sqrt(eps) instead of inflating it via +eps.
+    // Expected (MAX): out[0,0,0]=0.5792619, out[1,0,0]=0.28963095
+    // (Old ADD would have produced 0.48620328 and 0.24310164 respectively.)
+    const auto model = convert_model("lp_norm_p2.onnx");
+
+    const Shape data_shape{2, 3, 4};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(data_shape, {2e-4f, 2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                                            1e-4f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f});
+    test_case.add_expected_output<float>(
+        data_shape,
+        {0.5792619f,  0.14142136f, 0.19611613f, 0.24253564f, 0.28216633f, 0.31622776f, 0.34570536f, 0.37139067f,
+         0.39391932f, 0.41380295f, 0.43145549f, 0.44721359f, 0.28963095f, 0.98994946f, 0.98058069f, 0.97014254f,
+         0.95936549f, 0.94868332f, 0.93834311f, 0.92847669f, 0.91914505f, 0.91036648f, 0.90213418f, 0.89442718f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization) {
     const auto model = convert_model("instance_norm.onnx");
 
