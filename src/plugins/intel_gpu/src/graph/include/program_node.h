@@ -210,7 +210,7 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
+    const std::vector<uint32_t>& get_memory_dependencies() const;
 
     void add_memory_dependency(std::vector<size_t>);
     void add_memory_dependency(const program_node& node);
@@ -506,7 +506,8 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::unordered_set<uint32_t> memory_dependencies;
+    std::vector<uint32_t> memory_dependencies;
+    mutable bool memory_dependencies_need_repack = false;
 
     impl_types impl_type = impl_types::any;
     impl_types forced_impl_type = impl_types::any;
@@ -534,6 +535,8 @@ protected:
     void invalidate_users() const;
 
 private:
+    void repack_memory_dependencies() const;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<fused_primitive_desc_onednn> fused_prims_onednn;
     std::shared_ptr<dnnl::primitive_attr> onednn_attrs;

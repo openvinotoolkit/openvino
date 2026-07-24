@@ -25,6 +25,7 @@
 #include "to_string_utils.h"
 #include "json_object.h"
 #include <vector>
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <string>
@@ -195,17 +196,35 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
+void program_node::repack_memory_dependencies() const {
+    if (!memory_dependencies_need_repack)
+        return;
+
+    auto& deps = const_cast<std::vector<uint32_t>&>(memory_dependencies);
+    std::sort(deps.begin(), deps.end());
+    deps.erase(std::unique(deps.begin(), deps.end()), deps.end());
+    memory_dependencies_need_repack = false;
+}
+
+const std::vector<uint32_t>& program_node::get_memory_dependencies() const {
+    repack_memory_dependencies();
+    return memory_dependencies;
+}
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.insert(static_cast<uint32_t>(val));
+        OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(),
+            "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
+        memory_dependencies.push_back(static_cast<uint32_t>(val));
+        memory_dependencies_need_repack = true;
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
+    if (dep.may_use_mempool() && may_use_mempool()) {
+        memory_dependencies.push_back(static_cast<uint32_t>(dep.get_unique_id()));
+        memory_dependencies_need_repack = true;
+    }
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
