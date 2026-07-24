@@ -74,6 +74,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
@@ -747,7 +748,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        auto rms_backward = manager.register_pass<ov::pass::BackwardGraphRewrite>();
+        rms_backward->add_matcher<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
