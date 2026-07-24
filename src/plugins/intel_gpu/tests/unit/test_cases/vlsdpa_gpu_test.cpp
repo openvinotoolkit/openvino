@@ -12,6 +12,8 @@
 #include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
 #include <intel_gpu/primitives/vl_sdpa.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/data.hpp>
 #include "scaled_dot_product_attention_inst.h"
 #include "vl_sdpa_inst.h"
 
@@ -101,6 +103,69 @@ struct vlsdpa_gpu_test : public ::testing::TestWithParam<vlsdpa_test_params> {
         return topo;
     }
 
+    // Build a Split(axis=1, num_splits=3) crop chain fanning a fused [L, 3*H, S]
+    // parent into named "q"/"k"/"v" slices. Enabling optimize_data on the resulting
+    // topology causes prepare_buffer_fusing to keep the crops in-place, so each
+    // slice's runtime layout carries a non-zero linear_offset and the parent's row
+    // pitch (3 * num_heads * head_size). This is exactly the discontinuous-token-axis
+    // input shape that the CM vl_sdpa kernel's token_offset_{q,k,v} / {q,k,v}_token_pitch
+    // scalars are designed to handle (see cm_sdpa_vlen.cm memory-layout contract).
+    void add_qkv_split(topology& topo,
+                       const primitive_id& fused_id,
+                       const primitive_id& axis_data_id,
+                       int32_t num_heads,
+                       int32_t head_size) {
+        const auto slice_shape = tensor(batch(1), feature(num_heads), spatial(head_size, 1));
+        topo.add(crop("q", { input_info(fused_id), input_info(axis_data_id) },
+                      slice_shape, tensor(feature(0 * num_heads)),
+                      crop_ngraph_op_mode::split, 0, /*axis*/1, /*num_splits*/3));
+        topo.add(crop("k", { input_info(fused_id), input_info(axis_data_id) },
+                      slice_shape, tensor(feature(1 * num_heads)),
+                      crop_ngraph_op_mode::split, 1, /*axis*/1, /*num_splits*/3));
+        topo.add(crop("v", { input_info(fused_id), input_info(axis_data_id) },
+                      slice_shape, tensor(feature(2 * num_heads)),
+                      crop_ngraph_op_mode::split, 2, /*axis*/1, /*num_splits*/3));
+    }
+
+    topology create_ref_topology_fused(layout fused_layout,
+                                       layout attn_mask_layout,
+                                       memory::ptr axis_data_mem,
+                                       int32_t num_heads,
+                                       int32_t head_size) {
+        topology topo;
+        topo.add(input_layout("fused", fused_layout));
+        topo.add(data("split_axis_ref", axis_data_mem));
+        add_qkv_split(topo, "fused", "split_axis_ref", num_heads, head_size);
+
+        topo.add(input_layout("attn", attn_mask_layout));  // "attention_mask"
+
+        auto sdpa_prim = scaled_dot_product_attention("sdpa", {input_info("q"), input_info("k"), input_info("v"), input_info("attn")},
+            false, -1, order_q, order_k, order_v, {0, 1, 2}, {}, false);
+        topo.add(sdpa_prim);
+        topo.add(permute("permute_o", input_info("sdpa"), order_o2));
+        topo.add(reorder("result", input_info("permute_o"), format::bfyx, data_types::f16));
+        return topo;
+    }
+
+    topology create_topology_fused(layout fused_layout,
+                                   layout cu_seqlen_layout,
+                                   memory::ptr axis_data_mem,
+                                   int32_t num_heads,
+                                   int32_t head_size) {
+        topology topo;
+        topo.add(input_layout("fused", fused_layout));
+        topo.add(data("split_axis_opt", axis_data_mem));
+        add_qkv_split(topo, "fused", "split_axis_opt", num_heads, head_size);
+
+        topo.add(input_layout("attn", cu_seqlen_layout));  // "cu_seqlens"
+
+        auto vlsdpa_prim = vl_sdpa("vlsdpa", {input_info("q"), input_info("k"), input_info("v"), input_info("attn")},
+            order_q, order_k, order_v, order_o);
+        topo.add(vlsdpa_prim);
+        topo.add(reorder("result", input_info("vlsdpa"), format::bfyx, data_types::f16));
+        return topo;
+    }
+
     std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(topology &topo,
             cldnn::memory::ptr q_mem,
             cldnn::memory::ptr k_mem,
@@ -185,6 +250,78 @@ struct vlsdpa_gpu_test : public ::testing::TestWithParam<vlsdpa_test_params> {
         }
     }
 
+    void execute_fused_qkv(vlsdpa_test_params& p, const bool is_caching_test = false) {
+        const auto head_size = p.head_size;
+        const auto num_heads = p.num_heads;
+        const auto cu_seqlens = p.cu_seqlens;
+        const auto cumsum = cu_seqlens.back();
+        const auto seq_length_q = cumsum;
+        const auto seq_length_kv = cumsum;
+
+        assert(cu_seqlens.front() == 0);
+
+        auto& engine = get_test_engine();
+
+        // Parent-layout dims: {L, 3*H, S}. After optimize_data-driven buffer fusing,
+        // the three Split(axis=1, num_splits=3) crops become in-place views of this
+        // parent, producing the discontinuous token-axis layout the CM kernel expects.
+        const int32_t fused_feature = 3 * num_heads;
+        cldnn::layout fused_dyn_layout({-1, fused_feature, head_size}, data_types::f16, format::bfyx);
+        cldnn::layout attn_mask_dyn_layout({1, -1, -1}, data_types::f16, format::bfyx);
+        cldnn::layout cu_seqlens_dyn_layout({-1}, data_types::i32, format::bfyx);
+
+        // Split-axis constant shared by both topologies (Split expects axis as i64 scalar).
+        auto axis_data_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+        set_values<int64_t>(axis_data_mem, {1});
+
+        topology ref_topo = create_ref_topology_fused(fused_dyn_layout, attn_mask_dyn_layout,
+                                                     axis_data_mem, num_heads, head_size);
+        topology opt_topo = create_topology_fused(fused_dyn_layout, cu_seqlens_dyn_layout,
+                                                  axis_data_mem, num_heads, head_size);
+
+        // Concrete input allocations. The fused parent is filled once and reused by both
+        // networks, so any output divergence isolates the vl_sdpa kernel's handling of
+        // the non-zero token_offset_{q,k,v} / {q,k,v}_token_pitch scalar path.
+        cldnn::layout fused_static_layout({seq_length_q, fused_feature, head_size}, data_types::f16, format::bfyx);
+        cldnn::layout attn_mask_static_layout({1, seq_length_q, seq_length_kv}, data_types::f16, format::bfyx);
+        cldnn::layout cu_seqlens_static_layout({static_cast<ov::Dimension::value_type>(cu_seqlens.size())}, data_types::i32, format::bfyx);
+
+        auto fused_mem = engine.allocate_memory(fused_static_layout);
+        auto attn_mask_mem = engine.allocate_memory(attn_mask_static_layout);
+        auto cu_seqlens_mem = engine.allocate_memory(cu_seqlens_static_layout);
+
+        load_input(fused_mem, 0);
+        get_attention_mask(attn_mask_mem, cu_seqlens);
+        get_cu_seqlens(cu_seqlens_mem, cu_seqlens);
+
+        auto run = [&](topology& topo, cldnn::memory::ptr attn_mem, bool optimize) {
+            ExecutionConfig config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            // optimize=false keeps the reference crops materialized (contiguous Q/K/V).
+            // optimize=true lets prepare_buffer_fusing fold the vl_sdpa crops in-place,
+            // which is the whole point of this test.
+            config.set_property(ov::intel_gpu::optimize_data(optimize));
+
+            cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+            net->set_input_data("fused", fused_mem);
+            net->set_input_data("attn", attn_mem);
+
+            auto outputs = net->execute();
+            return outputs.at("result").get_memory();
+        };
+
+        auto mem_ref_ptr = run(ref_topo, attn_mask_mem, /*optimize=*/false);
+        auto mem_opt_ptr = run(opt_topo, cu_seqlens_mem, /*optimize=*/true);
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
+        for (size_t idx = 0; idx < ref_data.size(); idx++) {
+            ASSERT_FALSE(std::isnan(opt_data[idx]) || std::isnan(ref_data[idx])) << "NaN found at index " << idx;
+        }
+        auto ret = cosineSimilarity(ref_data, opt_data);
+        ASSERT_GE(ret, 0.95f);
+    }
+
     static std::string
     PrintToStringParamName(const testing::TestParamInfo<vlsdpa_test_params>& info) {
         std::string result = "vlsdpa_gpu_test_" + std::to_string(info.param.head_size) + "_" +
@@ -225,6 +362,25 @@ TEST_P(vlsdpa_gpu_test, basic_caching) {
 
     auto p = GetParam();
     execute(p, true);
+}
+
+// Exercises the token_offset_{q,k,v} / {q,k,v}_token_pitch runtime scalars that
+// the CM vl_sdpa kernel gained to handle discontinuous Q/K/V slices of a fused
+// [L, 3*H, S] parent buffer (Split(axis=1, num_splits=3) with in-place buffer fusing).
+TEST_P(vlsdpa_gpu_test, discontinuous_qkv_fused) {
+    if (!check_vlsdpa_available())
+        GTEST_SKIP();
+
+    auto p = GetParam();
+    execute_fused_qkv(p);
+}
+
+TEST_P(vlsdpa_gpu_test, discontinuous_qkv_fused_caching) {
+    if (!check_vlsdpa_available())
+        GTEST_SKIP();
+
+    auto p = GetParam();
+    execute_fused_qkv(p, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_vlsdpa_gpu_test,
