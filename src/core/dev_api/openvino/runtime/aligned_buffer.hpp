@@ -51,6 +51,9 @@ public:
         hint_prefetch();
         return m_aligned_buffer;
     }
+    bool has_external_buffer() const {
+        return m_allocated_buffer == nullptr;
+    }
     template <typename T>
     T* get_ptr() {
         hint_prefetch();
