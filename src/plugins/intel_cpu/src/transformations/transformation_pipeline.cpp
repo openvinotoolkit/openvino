@@ -60,6 +60,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/normalize_vllm_mlp.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -1134,6 +1135,10 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
+    // vLLM MLP normalization runs postLPT because LPT re-inserts precision
+    // Converts around MatMul that only postLPT can canonicalize away.
+    // RoPE and generic Convert cleanup are handled in CommonOptimizations.
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMMLP);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
@@ -1215,6 +1220,18 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
+
+    // Run identity-Convert + round-trip elimination once more right before
+    // snippets tokenization. Earlier ConvertPrecision / common-optimization
+    // passes can introduce new identity Converts (T -> T) around precision
+    // alignment boundaries; if those reach snippets they get tokenized into
+    // per-step jit Subgraphs that scan the activation tensor for nothing.
+    // Catch them here, after all the precision-rebalancing work is done.
+    {
+        ov::pass::Manager pre_snippets_cleanup("CPU:PreSnippetsConvertCleanup");
+        pre_snippets_cleanup.set_per_pass_validation(false);
+        pre_snippets_cleanup.run_passes(model);
+    }
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)

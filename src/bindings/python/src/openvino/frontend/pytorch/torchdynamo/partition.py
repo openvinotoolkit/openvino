@@ -18,6 +18,7 @@ from openvino.frontend.pytorch.torchdynamo.op_support import OperatorSupport
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 import typing as t
+import os as _os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class PatternNode:
 
 class Partitioner:
     def __init__(self, options):
+        self._ov_options = options
         self.supported_ops = OperatorSupport(options)
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
@@ -138,9 +140,33 @@ class Partitioner:
         allow_single_node_partition = _is_testing(options)
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
+
+        # Optional vLLM-specific FX rewrite: convert
+        # auto_functionalized_v2(unified_attention_with_output, ...) HOP nodes
+        # into torch.ops.openvino.paged_attention.default. No-op on non-vLLM
+        # graphs.
+        try:
+            from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
+            n_rewrites = _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
+            if n_rewrites and _os.environ.get("OV_DUMP_UNSUPPORTED"):
+                print(f"[OV_VLLM_PA_REWRITES] {n_rewrites}", flush=True)
+        except Exception as _e:
+            logger.debug("vllm.maybe_rewrite_paged_attention skipped: %s", _e)
+
+        if _os.environ.get("OV_DUMP_UNSUPPORTED"):
+            unsupp = {}
+            for n in graph_module.graph.nodes:
+                if n.op in ("call_function", "call_method"):
+                    if not self.supported_ops.is_node_supported({}, n):
+                        key = str(n.target)
+                        unsupp[key] = unsupp.get(key, 0) + 1
+            print(f"[OV_UNSUPPORTED] {sorted(unsupp.items(), key=lambda x:-x[1])}", flush=True)
+
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()
+        if _os.environ.get("OV_DUMP_UNSUPPORTED"):
+            print(f"[OV_PARTITIONS] count={len(partitions)}", flush=True)
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
         logger.debug(f"Graph module after partitioning {fused_graph_module}")

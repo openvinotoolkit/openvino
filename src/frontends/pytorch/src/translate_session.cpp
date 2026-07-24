@@ -311,6 +311,20 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
         for (const auto& param : *parameters) {
+            // Skip externally-added parameters that don't carry a numeric
+            // tensor id (e.g. side-channel inputs for PagedAttentionExtension,
+            // tagged with "__pa__" friendly name).
+            const auto& names = param->output(0).get_names();
+            bool has_numeric = false;
+            for (const auto& n : names) {
+                if (!n.empty() && std::isdigit(static_cast<unsigned char>(n[0]))) {
+                    has_numeric = true;
+                    break;
+                }
+            }
+            if (!has_numeric) {
+                continue;
+            }
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
         }
