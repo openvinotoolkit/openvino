@@ -158,7 +158,7 @@ public:
                 auto tmp_result = std::make_shared<ov::op::v0::Result>(matched_node_matmul->input(1).get_source_output());
                 auto dequant_subraph_copy =
                     std::make_shared<ov::Model>(ov::OutputVector{tmp_result->output(0)},
-                    ov::ParameterVector{vocab_params.begin(), vocab_params.end()})->clone();
+                    ov::ParameterVector(vocab_params.begin(), vocab_params.end()))->clone();
 
                 auto vocab_params_copy = dequant_subraph_copy->get_parameters(); 
                 auto matmul_input_1_copy = dequant_subraph_copy->get_results()[0]->input(0).get_source_output();
@@ -181,7 +181,8 @@ public:
 
 namespace {
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, bool vocab_as_input,
-                                       std::unordered_map<std::string,  ov::SoPtr<ov::ITensor>>& vocab_tensors) {
+                                       std::unordered_map<std::string,  ov::SoPtr<ov::ITensor>>& vocab_tensors,
+                                       std::vector<std::shared_ptr<ov::op::v0::Constant>>& vocab_const_owners) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     std::vector<std::shared_ptr<ov::op::v0::Parameter>> vocab_params;
@@ -208,9 +209,13 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, 
     if (!vocab_params.empty()) {
         model->add_parameters(ov::ParameterVector{vocab_params.begin(), vocab_params.end()});
         for (auto i = 0; i < vocab_consts.size(); ++i) {
-            vocab_tensors[vocab_params[i]->get_friendly_name()] =
-                ov::get_tensor_impl(ov::npuw::util::copy_tensor_from_const(vocab_consts[i]));
-            vocab_consts[i].reset();
+            auto cnst = vocab_consts[i];
+            LOG_INFO("Vocab constant '" << cnst->get_friendly_name()
+                     << "' size: " << cnst->get_byte_size() << " bytes (zero-copy wrap)");
+            auto tensor = ov::Tensor(cnst->get_element_type(), cnst->get_shape(),
+                                     const_cast<void*>(cnst->get_data_ptr()));
+            vocab_tensors[vocab_params[i]->get_friendly_name()] = ov::get_tensor_impl(tensor);
+            vocab_const_owners.push_back(std::move(cnst));
         }
     }
     model->validate_nodes_and_infer_types();
@@ -605,7 +610,8 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
 }
 
 std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg,
-                                                 std::unordered_map<std::string, ov::SoPtr<ov::ITensor>>& vocab_tensors) {
+                                                 std::unordered_map<std::string, ov::SoPtr<ov::ITensor>>& vocab_tensors,
+                                                 std::vector<std::shared_ptr<ov::op::v0::Constant>>& vocab_const_owners) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     bool vocab_as_input = cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
@@ -615,7 +621,7 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
             LOG_WARN("Trying to separate Vocabulary matrix multiplication op into additional model, "
                      "vocabulary will be provided as input, not as constant.");
         }
-        lm_head_model = cut_lm_head(m, vocab_as_input, vocab_tensors);
+        lm_head_model = cut_lm_head(m, vocab_as_input, vocab_tensors, vocab_const_owners);
         if (lm_head_model) {
             LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
         } else {
@@ -899,7 +905,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg, m_separate_vocab_tensors);
+    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg, m_separate_vocab_tensors, m_vocab_const_owners);
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");

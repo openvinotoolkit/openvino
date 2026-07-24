@@ -262,14 +262,14 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         // If there's folding enabled AND non-repeating graphs are forced to be
         // functions, do extra lifting for gather (if any)
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW<>>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW<>>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ<>>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW<ov::op::v0::Parameter>>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW<ov::op::v0::Parameter>>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ<ov::op::v0::Parameter>>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW<>>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW<ov::op::v0::Parameter>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW<>>();
         rewr.run_on_model(model);
     }
 
