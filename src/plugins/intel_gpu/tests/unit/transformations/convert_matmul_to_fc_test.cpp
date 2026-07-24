@@ -1081,3 +1081,30 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NoXMX_Transp
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
     }
 }
+
+// Verify that Parameter INT4 compressed weights skip the Transpose and produce FC with transpose_b=false
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ParameterCompressedWeights_NoTranspose) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{128, 2048});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::u4, ov::Shape{2048, 8192});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+        auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 8192}, {0.1f});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, scale);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, mul, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input, weights});
+        manager.register_pass<ConvertMatMulToFullyConnected>();
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{128, 2048});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::u4, ov::Shape{2048, 8192});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+        auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 8192}, {0.1f});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, scale);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        // transpose_b=false: weights stay in [K, N] layout, no Transpose inserted
+        auto fc = std::make_shared<op::FullyConnected>(input, mul, no_bias, ov::element::f32, /*transpose_b=*/false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights});
+    }
+}
