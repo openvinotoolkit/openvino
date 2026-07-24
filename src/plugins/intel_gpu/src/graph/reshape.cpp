@@ -185,7 +185,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
             case reshape::reshape_mode::base: {
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
                 // If the reshape is base mode, it is currently not set as can_be_optimized at prepare_buffer_fusing.
                 // So we can just run the reshape kernel
@@ -195,14 +195,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
             }
             case reshape::reshape_mode::squeeze: {
                 ov::op::v0::Squeeze op;
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = shape_infer(&op, input_shapes, ta);
                 out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
                 break;
             }
             case reshape::reshape_mode::unsqueeze: {
                 ov::op::v0::Unsqueeze op;
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = shape_infer(&op, input_shapes, ta);
                 out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
                 break;
