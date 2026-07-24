@@ -1377,7 +1377,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
-        ov::wsh::Extension::hint_evict(*constant);
+        //ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;
