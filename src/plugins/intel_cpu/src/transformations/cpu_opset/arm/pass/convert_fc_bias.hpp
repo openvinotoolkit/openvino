@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "convert_gemm_bias.hpp"
+#include "fc_mul_add_fq_block.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 /*
@@ -25,10 +27,10 @@
 
 namespace ov::intel_cpu {
 
-class ConvertFullyConnectedBias : public ov::pass::MatcherPass {
+class ConvertFullyConnectedBias : public ConvertGemmBias<FCMulAddFQBlock> {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertFullyConnectedBias");
-    ConvertFullyConnectedBias();
+    ConvertFullyConnectedBias() : ConvertGemmBias("ConvertFullyConnectedBias") {}
 };
 
 }  // namespace ov::intel_cpu

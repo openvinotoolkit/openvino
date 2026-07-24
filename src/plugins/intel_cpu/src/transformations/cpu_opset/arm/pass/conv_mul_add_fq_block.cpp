@@ -58,7 +58,7 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};
 
-    register_anchor("convolution", conv);
+    register_anchor("gemm", conv);
     register_anchor("multiply", multiply);
     register_anchor("add", add);
     register_anchor("fake_quantize", fake_quantize);

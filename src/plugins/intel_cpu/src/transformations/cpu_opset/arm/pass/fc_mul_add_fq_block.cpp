@@ -41,7 +41,7 @@ ov::intel_cpu::FCMulAddFQBlock::FCMulAddFQBlock(const bool require_int_fq_output
     m_inputs = ov::OutputVector{matmul};
     m_outputs = ov::OutputVector{fake_quantize};
 
-    register_anchor("matmul", matmul);
+    register_anchor("gemm", matmul);
     register_anchor("multiply", multiply);
     register_anchor("add", add);
     register_anchor("fake_quantize", fake_quantize);
