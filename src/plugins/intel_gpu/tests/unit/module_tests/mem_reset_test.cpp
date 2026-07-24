@@ -1,4 +1,4 @@
-// Copyright (C) 2025-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
 #include <algorithm>
@@ -15,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <thread>
 #include <type_traits>
 #include <fstream>
@@ -104,6 +106,74 @@ TEST_P(mem_reset_test, need_reset_output_memory_test) {
     auto target_primitive_id = p.is_dynamic ? "reorder1_0_reorder_2" : "reorder1";
     auto reorder_inst = network_test_blocked.get_primitive(target_primitive_id);
     ASSERT_TRUE(PrimitiveInstTestHelper::need_reset_output_memory(reorder_inst) == p.need_reset);
+}
+
+TEST(mem_reset_test, static_crop_shared_by_onednn_convs_resets_dirty_padding) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const ov::PartialShape input_shape = {1, 170, 4, 4};
+    const ov::PartialShape weights_shape = {16, 85, 1, 1};
+    const layout input_layout{input_shape, data_types::f16, format::b_fs_yx_fsv16};
+    const layout weights_layout{weights_shape, data_types::f16, format::bfyx};
+
+    auto input_mem = engine.allocate_memory(input_layout);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(input_mem, std::vector<ov::float16>(input_layout.get_linear_size(), ov::float16(1.0f)));
+    set_values(weights_mem, std::vector<ov::float16>(weights_layout.count(), ov::float16(1.0f)));
+
+    topology topology(cldnn::input_layout("input", input_layout),
+                      data("weights", weights_mem),
+                      crop("split_out1", input_info("input"), tensor(1, 85, 4, 4), tensor(0, 85, 0, 0)),
+                      convolution("conv0",
+                                  input_info("split_out1"),
+                                  "weights",
+                                  no_bias,
+                                  1,
+                                  ov::Strides{1, 1},
+                                  ov::Strides{1, 1},
+                                  ov::CoordinateDiff{0, 0},
+                                  ov::CoordinateDiff{0, 0},
+                                  false),
+                      convolution("conv1",
+                                  input_info("split_out1"),
+                                  "weights",
+                                  no_bias,
+                                  1,
+                                  ov::Strides{1, 1},
+                                  ov::Strides{1, 1},
+                                  ov::CoordinateDiff{0, 0},
+                                  ov::CoordinateDiff{0, 0},
+                                  false),
+                      reorder("output0", input_info("conv0"), format::bfyx, data_types::f32),
+                      reorder("output1", input_info("conv1"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"split_out1", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+        {"conv0", {format::b_fs_yx_fsv16, "", impl_types::onednn}},
+        {"conv1", {format::b_fs_yx_fsv16, "", impl_types::onednn}},
+    }));
+    config.set_property(ov::intel_gpu::enable_memory_pool(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto crop_output = network.get_primitive("split_out1")->output_memory_ptr();
+    ASSERT_NE(crop_output, nullptr);
+    const auto nan = ov::float16(std::numeric_limits<float>::quiet_NaN());
+    set_values(crop_output, std::vector<ov::float16>(crop_output->get_layout().get_linear_size(), nan));
+
+    auto outputs = network.execute();
+    for (const auto& output_id : {"output0", "output1"}) {
+        auto output_mem = outputs.at(output_id).get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        for (const auto value : output_ptr)
+            ASSERT_EQ(value, 85.0f);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, mem_reset_test,
