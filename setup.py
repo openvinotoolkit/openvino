@@ -130,13 +130,6 @@ LIB_INSTALL_CFG = {
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
-    "gc_libs": {
-        "name": "GcCpuRuntime",
-        "prefix": f"{BUILD_BASE}/libs.gc",
-        "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BINARY_DIR,
-    },
     "pugixml_libs": {
         "name": "pugixml",
         "prefix": f"{BUILD_BASE}/libs.pugixml",
@@ -188,6 +181,13 @@ LIB_INSTALL_CFG = {
     "tensorflow_lite_libs": {
         "name": "tensorflow_lite",
         "prefix": f"{BUILD_BASE}/libs.tensorflow_lite",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "gguf_libs": {
+        "name": "gguf",
+        "prefix": f"{BUILD_BASE}/libs.gguf",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -444,8 +444,6 @@ class PrepareLibs(build_clib):
         for real_name, symlink in file_dict.items():
             os.unlink(symlink)
             os.rename(real_name, symlink)
-            if "libs.gc" not in str(local_base_dir):
-                os.rename(real_name, symlink) 
             self.announce(f"Resolved symlink {symlink} as {real_name}", level=log.INFO)
 
     def copy_package_libs(self, src_dirs):

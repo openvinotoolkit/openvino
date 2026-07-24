@@ -49,11 +49,6 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
     auto pattern_node = ov::pass::pattern::wrap_type<v13::ScaledDotProductAttention>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        // FIXME: unconditionally disabling the decomposition for now
-        // so we can always lower SDPA to linalgx.attention. We have to disable
-        // it harsh since the 'enable_sdpa_optimization=false' parameter that should
-        // disable this transformation doesn't work for in 'common_optimizations' pass.
-        return false;
         auto& pattern_to_output = m.get_pattern_value_map();
         auto node =
             ov::as_type_ptr<v13::ScaledDotProductAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());

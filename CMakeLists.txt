@@ -141,7 +141,6 @@ function(ov_developer_package_export_targets)
         "A list of OpenVINO Developer Package exported targets" FORCE)
 endfunction()
 
-
 #
 # Build
 #
