@@ -63,6 +63,8 @@ public:
 
     virtual uint64_t get_blob_size() const;
 
+    virtual uint64_t get_main_schedule_size() const;
+
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */
@@ -85,7 +87,7 @@ public:
 
     virtual ~MetadataBase() = default;
 
-    static std::streampos getFileSize(std::istream& stream);
+    static size_t getFileSize(std::istream& stream);
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.

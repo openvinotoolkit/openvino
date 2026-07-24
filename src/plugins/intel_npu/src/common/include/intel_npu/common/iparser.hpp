@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include <variant>
+
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
+
+namespace ov {
+class ICore;
+}
 
 namespace intel_npu {
 
@@ -19,16 +25,21 @@ public:
      * @param config Used to influence the downstream flow of the implementation based on preferences.
      * @param initBlobs Optional. If provided, the "weights separation" flow is enabled and the binary objects
      * corresponding to the init schedules will be parsed as well.
-     * @param model Optional, but required if "initBlobs" is provided. The "ov::Model" object is leveraged in the
-     * "weights separation" implementation in order to extract the buffers of the weights.
+     * @param weightsSource The source of weights that should be used if the weights separation feature is enabled.
+     * "monostate" indicates the absence of weights. The "string" & "core" pair corresponds to the "weights path"
+     * config option.
+     * @param compatibilityDescriptor A string that describes the compatibility requirements of the blob from compiler's
+     * pov.
      * @return A wrapper over the corresponding L0 graph handles (multiple only if "initBlobs" has been provided). This
      * wrapper further details the compiled model and brings it in a state closer to execution.
      */
     virtual std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
+        std::variant<std::monostate,
+                     std::shared_ptr<const ov::Model>,
+                     std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt,
         const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const = 0;
 
     virtual ~IParser() = default;

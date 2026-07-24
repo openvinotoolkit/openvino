@@ -16,9 +16,13 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #define USE_SINGLE_THREADED_RUN_INIT 1
 
@@ -27,6 +31,118 @@ namespace intel_npu {
 namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
+constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
+
+std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
+    const std::shared_ptr<const ov::Model>& model) {
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
+
+    OPENVINO_ASSERT(model != nullptr, "Model is required to extract constants in topological order.");
+    bool at_least_one_wca_found = false;
+
+    // Match the inputs of the "init" model with the Constant nodes of the original model
+    for (auto&& node : model->get_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+        const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+            at_least_one_wca_found = true;
+            auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+
+            auto& constant = constants[weightlessCacheAttr.bin_offset];
+            if (constant != nullptr) {
+                // if multiple constants point to the same buffer, ensure that
+                // their binary sizes are the same
+                OPENVINO_ASSERT(constant->get_byte_size() == constantNode->get_byte_size(),
+                                "Found ov::Constant that points to the common buffer but has mismatching byte size. "
+                                "This may indicate a bug in OV model compression.");
+                continue;
+            }
+            constant = std::move(constantNode);
+        }
+    }
+
+    OPENVINO_ASSERT(at_least_one_wca_found,
+                    "No \"WeightlessCacheAttribute\" has been found in any of the model's Constant nodes. This "
+                    "attribute is required for running the \"weights separation\" flow.");
+
+    return constants;
+}
+
+std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_memory_mapped(
+    std::string_view weightsPath,
+    const std::vector<NetworkMetadata>& initNetworkMetadata) {
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
+
+    auto mapped_memory = ov::load_mmap_object(weightsPath);
+    for (const auto& initMetadata : initNetworkMetadata) {
+        for (const IODescriptor& descriptor : initMetadata.inputs) {
+            const auto& opt = ov::util::view_to_number<size_t>(descriptor.nameFromCompiler);
+            OPENVINO_ASSERT(opt.has_value(), "Failed to parse id for constant: ", descriptor.nameFromCompiler);
+
+            const size_t id = opt.value();
+            const size_t byte_size =
+                ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            OPENVINO_ASSERT(id <= mapped_memory->size() && byte_size <= mapped_memory->size() - id,
+                            "Constant offset/size is out of bounds for mapped weights file: offset=",
+                            id,
+                            ", size=",
+                            byte_size,
+                            ", file_size=",
+                            mapped_memory->size(),
+                            ", name=",
+                            descriptor.nameFromCompiler);
+            auto weight_buffer =
+                std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + id,
+                                                                                      byte_size,
+                                                                                      mapped_memory);
+
+            auto [it, inserted] =
+                constants.emplace(id,
+                                  std::make_shared<ov::op::v0::Constant>(descriptor.precision,
+                                                                         descriptor.shapeFromCompiler.to_shape(),
+                                                                         weight_buffer));
+            if (!inserted) {
+                OPENVINO_ASSERT(it->second->get_byte_size() == byte_size,
+                                "Duplicate constant offset found with mismatching byte size: offset=",
+                                id);
+            }
+        }
+    }
+
+    return constants;
+}
+
+std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_constants_map(
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
+        weightsSource,
+    const std::vector<NetworkMetadata>& initNetworkMetadata) {
+    if (const std::shared_ptr<const ov::Model>* model = std::get_if<std::shared_ptr<const ov::Model>>(&weightsSource)) {
+        return get_all_constants_in_topological_order(*model);
+    } else if (const std::pair<std::string, std::shared_ptr<ov::ICore>>* weightsPathAndCore =
+                   std::get_if<std::pair<std::string, std::shared_ptr<ov::ICore>>>(&weightsSource)) {
+        auto [weightsPath, core] = *weightsPathAndCore;
+
+        auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
+        if (ext == ONNX_EXTENSION) {
+            const auto model = core->read_model(weightsPath, weightsPath, {});
+            return get_all_constants_in_topological_order(model);
+        } else if (ext == WEIGHTS_IR_EXTENSION) {
+            return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
+        } else {
+            OPENVINO_THROW("Invalid path to the weights: ",
+                           weightsPath,
+                           ". A \".bin\" or \".onnx\" extension was expected.");
+        }
+    }
+
+    OPENVINO_THROW("No source of weights has been provided to the \"WeightlessGraph\" ctor");
+}
 
 struct QueueData {
     int64_t initIndex = -1;
@@ -129,17 +245,19 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 }  // namespace
 
-WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                 const GraphDescriptor& mainGraphDesc,
-                                 NetworkMetadata mainMetadata,
-                                 std::optional<ov::Tensor> mainBlob,
-                                 const std::vector<GraphDescriptor>& initGraphDesc,
-                                 std::vector<NetworkMetadata> initMetadata,
-                                 std::optional<std::vector<ov::Tensor>> initBlobs,
-                                 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
-                                 const FilteredConfig& config,
-                                 const bool blobIsPersistent)
+WeightlessGraph::WeightlessGraph(
+    const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    const GraphDescriptor& mainGraphDesc,
+    NetworkMetadata mainMetadata,
+    std::optional<ov::Tensor> mainBlob,
+    const std::vector<GraphDescriptor>& initGraphDesc,
+    std::vector<NetworkMetadata> initMetadata,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
+        weightsSource,
+    const FilteredConfig& config,
+    const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -152,7 +270,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _constants(std::move(constants)),
+      _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
