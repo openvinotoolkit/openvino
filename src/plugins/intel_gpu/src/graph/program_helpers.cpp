@@ -115,7 +115,7 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     for (int i = 0; i < 5; i++) {
         if (iter == &target)
             return true;
-        if (iter->get_dependencies().size() == 0)
+        if (iter->get_dependencies().empty())
             break;
         iter = &iter->get_dependency(0);
     }

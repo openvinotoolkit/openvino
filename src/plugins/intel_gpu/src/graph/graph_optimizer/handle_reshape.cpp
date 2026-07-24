@@ -172,7 +172,7 @@ void handle_reshape::run(program& p) {
                     }
                 }
 
-                if (reorder_reshape_nodes.size() == 0)
+                if (reorder_reshape_nodes.empty())
                     continue;
 
                 // add new reorder nodes to proper reshape node

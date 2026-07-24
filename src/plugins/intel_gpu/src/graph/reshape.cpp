@@ -316,7 +316,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             update_output_memory();
         }
     } else {
-        if (_exec_deps.size() > 0 && input_memory_ptr())
+        if (!_exec_deps.empty() && input_memory_ptr())
             update_output_memory();
     }
 }

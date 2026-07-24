@@ -48,7 +48,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params) const {
     size_t gws2 = 1;
     const auto& in_dims = in.GetDims();
 
-    if (in_dims.size() >= 1)
+    if (!in_dims.empty())
         gws0 = in_dims[0].v;
     if (in_dims.size() >= 2)
         gws1 = in_dims[1].v;

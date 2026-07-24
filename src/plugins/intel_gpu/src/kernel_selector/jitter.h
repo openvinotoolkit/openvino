@@ -134,7 +134,7 @@ inline std::string toVectorString(const VecT& vec,
                                   ValT padFillingVal,
                                   Func fetchFunc) {
     std::stringstream ss;
-    if (vectorType.length())
+    if (!vectorType.empty())
         ss << "(" << vectorType << " [])";
     ss << toVectorInitString(vec, vectorType, maxDim, padFillingVal, fetchFunc);
     return ss.str();
