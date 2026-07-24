@@ -37,6 +37,7 @@ ov_add_test_target(
             OV GPU
 )
 
+
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)

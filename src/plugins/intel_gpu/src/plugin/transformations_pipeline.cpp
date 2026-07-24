@@ -158,10 +158,15 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#ifdef GRAPH_COMPILER
+#include "transformations/mlir/interface/convert.hpp"
+#endif // GRAPH_COMPILER
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
@@ -775,6 +780,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        if (config.get_enable_mlir()) {
+            pass_config->disable<ov::pass::ConvertSubtract>();
+            pass_config->disable<ov::pass::ConvertDivide>();
+            pass_config->disable<ov::pass::RMSFusion>();
+        }
+
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
@@ -910,6 +921,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            // Never decompose if mlir-path is enabled
+            if (config.get_enable_mlir())
+                return true;
+
             if (!config.get_enable_sdpa_optimization())
                 return false;
 
@@ -1789,6 +1804,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
+
+        if (config.get_enable_mlir()) {
+#ifdef GRAPH_COMPILER
+            auto loweringContext = std::make_shared<ov::EvaluationContext>();
+            auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
+            if (it != m_context->get_property().end()) {
+                // We assume here that there's only one device per context and that an
+                // actual device will be extracted later by the 'mlir_op'.
+                loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
+            }
+            ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
+#else
+            OPENVINO_THROW(
+                "[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
+                "but the plugin was built without Graph Compiler support. "
+                "Rebuild OpenVINO with -DENABLE_GRAPH_COMPILER=ON to enable MLIR execution.");
+#endif
+        }
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
