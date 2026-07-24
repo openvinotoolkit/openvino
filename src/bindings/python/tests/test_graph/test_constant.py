@@ -834,3 +834,9 @@ def test_constant_from_tuple_no_dtype():
     assert isinstance(ov_const, Constant)
     assert list(ov_const.shape) == [3]
     assert np.array_equal(ov_const.data, np.array(value))
+
+
+@pytest.mark.parametrize("value", [(), []])
+def test_constant_from_empty_sequence_raises(value):
+    with pytest.raises(ValueError, match="Cannot create an empty Constant"):
+        ops.constant(value)

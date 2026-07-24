@@ -290,7 +290,7 @@ def scaled_dot_product_attention(
 )  # type: ignore
 @nameable_op
 def constant(
-    value: Union[NumericData, np.number, bool, np.bool_, list, tuple],
+    value: Union[NumericData, np.number, bool, np.bool_, list],
     dtype: Union[NumericType, Type] = None,
     name: Optional[str] = None,
     *,
@@ -316,6 +316,12 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+    if (
+        value is None
+        or (isinstance(value, np.ndarray) and value.size == 0)
+        or (isinstance(value, (list, tuple)) and len(value) == 0)
+    ):
+        raise ValueError("Cannot create an empty Constant. Please provide valid data.")
 
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:

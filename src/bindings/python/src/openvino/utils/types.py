@@ -16,9 +16,9 @@ from openvino.op import Constant
 log = logging.getLogger(__name__)
 
 TensorShape = list[int]
-NumericData = Union[int, float, np.ndarray, tuple]
-NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
+NumericData = Union[int, float, np.ndarray, tuple[ScalarData, ...], tuple[tuple[ScalarData, ...], ...]]
+NumericType = Union[type, np.dtype]
 NodeInput = Union[Node, NumericData]
 
 openvino_to_numpy_types_map = [
