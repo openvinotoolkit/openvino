@@ -25,6 +25,7 @@ namespace cldnn {
 
 struct topology;
 struct program_node;
+struct WeightsMemory;
 class layout_optimizer;
 class pass_manager;
 class base_pass;
@@ -292,7 +293,12 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
-              std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
+              std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr,
+              std::shared_ptr<WeightsMemory> weights_memory = nullptr,
+              memory_ptr host_buffer_base_ptr = nullptr);
+
+    static std::shared_ptr<WeightsMemory> get_loading_weights_memory();
+    static memory_ptr get_loading_host_buffer_base_ptr();
 
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 

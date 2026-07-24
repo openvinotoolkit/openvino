@@ -260,7 +260,11 @@ struct loop : public primitive_base<loop> {
     void load(BinaryInputBuffer& ib) override {
         primitive_base<loop>::load(ib);
         body_program = std::make_shared<cldnn::program>(ib.get_engine());
-        body_program->load(ib);
+        body_program->load(ib,
+                           nullptr,
+                           nullptr,
+                           cldnn::program::get_loading_weights_memory(),
+                           cldnn::program::get_loading_host_buffer_base_ptr());
         ib >> trip_count_id;
         ib >> first_execution_condition_id;
         ib >> num_iteration_id;

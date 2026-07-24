@@ -117,6 +117,19 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
+namespace {
+thread_local std::shared_ptr<WeightsMemory> loading_weights_memory = nullptr;
+thread_local memory_ptr loading_host_buffer_base_ptr = nullptr;
+}  // namespace
+
+std::shared_ptr<WeightsMemory> cldnn::program::get_loading_weights_memory() {
+    return loading_weights_memory;
+}
+
+memory_ptr cldnn::program::get_loading_host_buffer_base_ptr() {
+    return loading_host_buffer_base_ptr;
+}
+
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     int streams = (num_streams > 0) ? num_streams : config.get_compilation_num_threads();
     auto priority = config.get_host_task_priority();
@@ -1999,16 +2012,18 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
-                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
+                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map,
+                   std::shared_ptr<WeightsMemory> parent_weights_memory,
+                   memory_ptr parent_host_buffer_base_ptr) {
     if (_engine.runtime_type() == runtime_types::sycl) {
         OPENVINO_THROW("[GPU] program::load is not supported for SYCL runtime");
     }
 
     init_program();
 
-    std::shared_ptr<WeightsMemory> weights_memory = nullptr;
+    std::shared_ptr<WeightsMemory> weights_memory = parent_weights_memory;
     std::string weights_path = _config.get_weights_path();
-    if (_config.get_enable_weightless()) {
+    if (_config.get_enable_weightless() && weights_memory == nullptr) {
         if (model_ptr) {
             if (cache_attr_map) {
                 weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr_map);
@@ -2022,16 +2037,30 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    memory_ptr host_buffer_base_ptr = nullptr;
+    memory_ptr host_buffer_base_ptr = parent_host_buffer_base_ptr;
 
     if (_config.get_enable_zero_copy_cache_load() && ib.get_engine().can_use_host_usm_zero_copy() && !_config.get_enable_weightless() &&
-        ib.is_tensor_aligned(ov::util::min_page_alignment)) {
+        ib.is_tensor_aligned(ov::util::min_page_alignment) && host_buffer_base_ptr == nullptr) {
         host_buffer_base_ptr =
             ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
                                               allocation_type::cl_mem,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
+
+    const auto previous_loading_weights_memory = loading_weights_memory;
+    const auto previous_loading_host_buffer_base_ptr = loading_host_buffer_base_ptr;
+    loading_weights_memory = weights_memory;
+    loading_host_buffer_base_ptr = host_buffer_base_ptr;
+    struct LoadContextGuard {
+        std::shared_ptr<WeightsMemory> weights_memory;
+        memory_ptr host_buffer_base_ptr;
+
+        ~LoadContextGuard() {
+            loading_weights_memory = weights_memory;
+            loading_host_buffer_base_ptr = host_buffer_base_ptr;
+        }
+    } load_context_guard{previous_loading_weights_memory, previous_loading_host_buffer_base_ptr};
 
     size_t num_nodes;
     ib >> num_nodes;
