@@ -90,6 +90,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
 
     OutputVector ov_op_inputs;
+    std::vector<int64_t> null_input_positions;
+
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
         auto total_num_heads_node =
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
@@ -133,8 +135,16 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
+    // Process optional inputs: only add non-NullNode inputs and record omitted positions.
+    FRONT_END_OP_CONVERSION_CHECK(
+        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
     for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
-        ov_op_inputs.push_back(onnx_op_inputs[i]);
+        if (!ov::op::util::is_null(onnx_op_inputs[i])) {
+            ov_op_inputs.push_back(onnx_op_inputs[i]);
+        } else {
+            null_input_positions.push_back(static_cast<int64_t>(i));
+        }
     }
 
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
@@ -145,7 +155,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            rotary_interleaved,
                                                            kv_cache_bit_width,
                                                            k_quant_type,
-                                                           v_quant_type)
+                                                           v_quant_type,
+                                                           null_input_positions)
         ->outputs();
 }
 

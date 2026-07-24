@@ -3,11 +3,33 @@
 //
 #pragma once
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "openvino/op/op.hpp"
 
 namespace ov::op::internal {
+
+// ONNX GroupQueryAttention input position enumeration
+// Matches com.microsoft.GroupQueryAttention spec
+enum class GroupQueryAttentionInputs : int64_t {
+    QUERY = 0,                  // Q or packed QKV
+    KEY = 1,                    // K (optional if Q is packed QKV)
+    VALUE = 2,                  // V (optional if Q is packed QKV)
+    PAST_KEY = 3,               // KV cache key (optional)
+    PAST_VALUE = 4,             // KV cache value (optional)
+    SEQLENS_K = 5,              // Sequence lengths (mandatory)
+    TOTAL_SEQUENCE_LENGTH = 6,  // Total sequence length (mandatory)
+    COS_CACHE = 7,              // RoPE cos cache (optional, required if do_rotary=1)
+    SIN_CACHE = 8,              // RoPE sin cache (optional, required if do_rotary=1)
+    POSITION_IDS = 9,           // Position IDs (optional)
+    ATTENTION_MASK = 10,        // Attention mask (optional)
+    // Position 11 is reserved (head_sink, not supported)
+    K_SCALE = 12,  // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
+    V_SCALE = 13,  // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
+    // Positions 14-15 are reserved (QK-Norm, not supported)
+};
 
 // This is an experimental operation that is implemented in the plugins.
 class OPENVINO_API GroupQueryAttention : public Op {
@@ -23,7 +45,8 @@ public:
                         bool rotary_interleaved,
                         int64_t kv_cache_bit_width = 0,
                         const std::string& k_quant_type = "NONE",
-                        const std::string& v_quant_type = "NONE");
+                        const std::string& v_quant_type = "NONE",
+                        const std::vector<int64_t>& null_input_positions = {});
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -57,6 +80,35 @@ public:
         return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
     }
 
+    const std::vector<int64_t>& get_null_input_positions() const {
+        return m_null_input_positions;
+    }
+
+    int64_t get_original_input_count() const {
+        return static_cast<int64_t>(get_input_size() + m_null_input_positions.size());
+    }
+
+    bool has_input(int64_t input_position) const {
+        if (input_position < 0 || input_position >= get_original_input_count()) {
+            return false;
+        }
+        return std::find(m_null_input_positions.begin(), m_null_input_positions.end(), input_position) ==
+               m_null_input_positions.end();
+    }
+
+    // Calculate the actual input index in the OV graph for a given original input position.
+    // Accounts for optional inputs that were filtered out (NullNode).
+    // For example, if original inputs 3,4 are null and we want position 12,
+    // we count null inputs < 12, and return 12 - 2 = 10.
+    int64_t get_input_index(int64_t input_position) const {
+        int64_t null_before_count = std::count_if(m_null_input_positions.begin(),
+                                                  m_null_input_positions.end(),
+                                                  [input_position](int64_t null_pos) {
+                                                      return null_pos < input_position;
+                                                  });
+        return input_position - null_before_count;
+    }
+
 private:
     int64_t m_num_heads = 0;
     int64_t m_kv_num_heads = 0;
@@ -66,6 +118,7 @@ private:
     int64_t m_kv_cache_bit_width = 0;
     std::string m_k_quant_type = "NONE";
     std::string m_v_quant_type = "NONE";
+    std::vector<int64_t> m_null_input_positions = {};
 };
 
 }  // namespace ov::op::internal

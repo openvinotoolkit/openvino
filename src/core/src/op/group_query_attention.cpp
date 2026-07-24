@@ -16,7 +16,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          bool rotary_interleaved,
                                          int64_t kv_cache_bit_width,
                                          const std::string& k_quant_type,
-                                         const std::string& v_quant_type)
+                                         const std::string& v_quant_type,
+                                         const std::vector<int64_t>& null_input_positions)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -25,7 +26,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_rotary_interleaved(rotary_interleaved),
       m_kv_cache_bit_width(kv_cache_bit_width),
       m_k_quant_type(k_quant_type),
-      m_v_quant_type(v_quant_type) {
+      m_v_quant_type(v_quant_type),
+      m_null_input_positions(null_input_positions) {
     constructor_validate_and_infer_types();
 }
 
@@ -56,15 +58,30 @@ void GroupQueryAttention::validate_and_infer_types() {
         output_kv_len += sequence_len;
     }
 
+    const auto original_input_count = get_original_input_count();
+    std::vector<uint8_t> seen_positions(static_cast<size_t>(original_input_count), 0);
+    for (const auto pos : m_null_input_positions) {
+        OPENVINO_ASSERT(pos >= 0 && pos < original_input_count,
+                        "GroupQueryAttention null_input_positions contains out-of-range position: ",
+                        pos,
+                        ", expected in [0, ",
+                        original_input_count,
+                        ")");
+        OPENVINO_ASSERT(seen_positions[static_cast<size_t>(pos)] == 0,
+                        "GroupQueryAttention null_input_positions contains duplicate position: ",
+                        pos);
+        seen_positions[static_cast<size_t>(pos)] = 1;
+    }
+
     // Query/activation (input 0) is always float; attention itself is computed in float precision.
-    const auto& q_type = get_input_element_type(0);
+    const auto& q_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
     NODE_VALIDATION_CHECK(this,
                           q_type == element::f32 || q_type == element::f16,
                           "GroupQueryAttention supports following query element types: {f32, f16}");
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
-    const auto& kv_cache_type = get_input_element_type(3);
+    const auto& kv_cache_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
     NODE_VALIDATION_CHECK(this,
                           kv_cache_type == element::f32 || kv_cache_type == element::f16 ||
                               kv_cache_type == element::i8 || kv_cache_type == element::u8 ||
@@ -89,13 +106,27 @@ void GroupQueryAttention::validate_and_infer_types() {
                               m_k_quant_type,
                               " and ",
                               m_v_quant_type);
+        // Check that ONNX positions 12 (k_scale) and 13 (v_scale) are present (not filtered out as NullNode)
         NODE_VALIDATION_CHECK(this,
-                              get_input_size() > 13,
-                              "GroupQueryAttention with quantized KV cache requires k_scale (input 12) and "
-                              "v_scale (input 13)");
+                              has_input(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE)) &&
+                                  has_input(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE)),
+                              "GroupQueryAttention with quantized KV cache requires k_scale (ONNX input 12) and "
+                              "v_scale (ONNX input 13) to be present");
+        // Verify that the computed input indices for k_scale and v_scale are valid
+        auto k_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE));
+        auto v_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE));
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(12) == element::f32 && get_input_element_type(13) == element::f32,
+                              get_input_element_type(static_cast<size_t>(k_scale_idx)) == element::f32 &&
+                                  get_input_element_type(static_cast<size_t>(v_scale_idx)) == element::f32,
                               "GroupQueryAttention k_scale/v_scale must be f32");
+    }
+
+    if (m_do_rotary) {
+        NODE_VALIDATION_CHECK(this,
+                              has_input(static_cast<int64_t>(GroupQueryAttentionInputs::COS_CACHE)) &&
+                                  has_input(static_cast<int64_t>(GroupQueryAttentionInputs::SIN_CACHE)),
+                              "GroupQueryAttention with do_rotary enabled requires cos_cache (ONNX input 7) and "
+                              "sin_cache (ONNX input 8) to be present");
     }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
@@ -114,6 +145,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
+    visitor.on_attribute("null_input_positions", m_null_input_positions);
     return true;
 }
 
@@ -128,7 +160,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_rotary_interleaved,
                                                  m_kv_cache_bit_width,
                                                  m_k_quant_type,
-                                                 m_v_quant_type);
+                                                 m_v_quant_type,
+                                                 m_null_input_positions);
 }
 
 }  // namespace ov::op::internal
