@@ -14,6 +14,7 @@
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "common/convert_common.hpp"
 #include "interface/properties.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -41,6 +42,12 @@ static cl_device_id extract_device_from_context(cl_context context) {
 
 MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module,
                                      std::shared_ptr<ov::EvaluationContext> loweringContext) {
+    if (::ov::intel_gpu::mlir::is_debug()) {
+        OPENVINO_MLIR_DEBUG_PRINT("-------------- Source MLIR --------------");
+        _module->dump();
+        OPENVINO_MLIR_DEBUG_PRINT("-----------------------------------------");
+    }
+
     gc::gpu::OclModuleBuilderOpts opts;
     gc::gpu::OclModuleBuilder builder(std::move(_module), opts);
 

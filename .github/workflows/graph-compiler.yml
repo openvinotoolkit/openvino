@@ -174,3 +174,7 @@ jobs:
           start=$SECONDS
           echo "$tests" | xargs -P 32 -I{} "$func_tests" --gtest_filter='{}'
           echo "Run $(echo "$tests" | wc -l) tests in $((SECONDS - start))s"
+
+          OV_MLIR_PATTERNS='mart=MatMul,Add,Reshape,Transpose;rms=Power,ReduceMean,Add,Sqrt,Divide' \
+            OV_MLIR_DEBUG=1 "$func_tests" --gtest_filter=mlir_MatMulRmsnormConcatTest* 2>&1 \
+            | grep -E 'func.func @(mart|rms)' | wc -l | xargs test 4 -eq || { echo "MLIR patterns test failed" && exit 1; }

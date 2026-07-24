@@ -19,14 +19,21 @@ void Subgraph::merge (Subgraph& other) {
 
 SubgraphTracker::SubgraphTracker(Finalizer finalizer): m_finalizer(finalizer) {}
 
-void SubgraphTracker::add_node (NodePtr node, bool belongs) {
+void SubgraphTracker::add_node (NodePtr node, const std::string& name) {
+    const bool belongs = !name.empty();
     // collect all subgraph ids that input nodes belong to and all dependencies
     Dependencies input_subgraphs;
     Dependencies input_dependencies;
     for(auto input_value: node->input_values()) {
         auto node = input_value.get_node_shared_ptr();
         if(auto id = get_subgraph_id(node)) {
-            input_subgraphs.insert(ov::symbol::ancestor_of(id));
+            id = ov::symbol::ancestor_of(id);
+            // Only merge with input subgraphs of the same name; a differently named input subgraph
+            // becomes a boundary (its output feeds this node's subgraph as an external input).
+            if(belongs && get_subgraph(id)->function_name == name)
+                input_subgraphs.insert(id);
+            else
+                input_dependencies.insert(id);
         }
         const auto& deps = get_dependencies(node);
         for(auto dep: deps) {
@@ -50,6 +57,7 @@ void SubgraphTracker::add_node (NodePtr node, bool belongs) {
 
             // start a new subgraph
             auto subgraph_id = new_subgraph();
+            get_subgraph(subgraph_id)->function_name = name;
             add_node_to_subgraph(node, subgraph_id);
             set_subgraph_id(node, subgraph_id);
             input_dependencies.insert(input_subgraphs.begin(), input_subgraphs.end());

@@ -199,7 +199,8 @@ bool statically_broadcastable(const PartialShape& from, const PartialShape& to) 
 }
 
 bool is_debug() {
-    return util::getenv_bool("OV_MLIR_DEBUG", false);
+    static bool debug = util::getenv_bool("OV_MLIR_DEBUG", false);
+    return debug;
 }
 
 }  // namespace ov::intel_gpu::mlir

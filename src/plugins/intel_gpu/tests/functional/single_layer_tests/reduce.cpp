@@ -10,18 +10,14 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/util/env_util.hpp"
 
 namespace {
 
 using ov::test::InputShape;
 
 static bool is_mlir_enabled() {
-    return ov::test::utils::PluginCache::get()
-        .core()->get_property(ov::test::utils::DEVICE_GPU,
-                              ov::intel_gpu::enable_mlir);
+    return ov::util::getenv_bool("OV_GPU_ENABLE_MLIR");
 }
 using ReduceInputParams = std::tuple<
                             ov::Shape,                // Input shapes

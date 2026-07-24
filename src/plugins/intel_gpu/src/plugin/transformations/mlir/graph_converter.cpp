@@ -47,7 +47,10 @@ void GraphConverter::addOutputs(NodePtr node, mlir::Operation* op) {
 }
 
 void GraphConverter::convert(NodePtr node) {
-    auto convertor = node->get_rt_info()[rt_info_convertor()].as<Convertor>();
+    const auto& rt_info = node->get_rt_info();
+    auto it = rt_info.find(rt_info_convertor());
+    OPENVINO_ASSERT(it != rt_info.end(), "No MLIR converter registered for node ", node->get_type_name());
+    auto convertor = it->second.as<Convertor>();
     auto mlirOp = convertor(_ctx, node);
     addOutputs(node, mlirOp);
 }
