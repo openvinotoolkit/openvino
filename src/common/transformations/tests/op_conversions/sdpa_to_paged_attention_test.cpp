@@ -21,6 +21,7 @@
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -746,7 +747,7 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         auto [k_concat, k_assign] = Opt125mSDPA::gen_KV(k_cache, k_proj);
         auto [v_concat, v_assign] = Opt125mSDPA::gen_KV(v_cache, v_proj);
 
-        // Wrap Q, K, V with FakeConvert to test optional_fake_convert pattern matching
+        // Wrap Q, K, V with FakeConvert to test optional_quantization pattern matching
         auto Q_fc = wrap_fake_convert(Q);
         auto K_fc = wrap_fake_convert(k_concat);
         auto V_fc = wrap_fake_convert(v_concat);
@@ -6709,6 +6710,223 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
 
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
     }
+}
+
+// Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
+// inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
+// (non-GQA) or the repeat_kv Unsqueeze-Broadcast-Reshape expansion (gqa == true). With per_channel,
+// the FakeQuantize limits are per-channel (not scalar) instead of the a8w8 per-tensor limits.
+static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k,
+                                                               bool fq_on_v,
+                                                               bool gqa,
+                                                               bool per_channel = false) {
+    const int num_q_heads = 4;
+    const int num_kv_heads = gqa ? 2 : 4;
+    const int head_dim = 128;
+    const int hidden_size = num_q_heads * head_dim;  // 512
+
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto params = nodes_to_params({input_ids, attention_mask, position_ids, beam_idx});
+
+    // Embedding
+    auto embed_weight = makeConst(element::f32, ov::Shape{32000, (size_t)hidden_size}, MOCK_VALUE);
+    auto embeddings = makeOP<v8::Gather>({embed_weight, input_ids, 0}, {{"batch_dims", 0}});
+
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+    // Linear projection: MatMul(transpose_b) -> Reshape -> Transpose(0,2,1,3) => [batch, heads, seq, head_dim].
+    auto make_projection = [&](const std::shared_ptr<ov::Node>& input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {special_zero_true});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // KV-cache path: Variable-backed ReadValue -> Gather(beam_idx) -> Concat(past, current) + Assign.
+    struct KVCache {
+        std::shared_ptr<ov::Node> concat;
+        std::shared_ptr<ov::Node> past;
+        std::shared_ptr<v6::Assign> assign;
+    };
+    auto make_kv_cache = [&](const std::shared_ptr<ov::Node>& cur, const std::string& var_id) -> KVCache {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_kv_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_dim, {(int64_t)num_kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return {concat, past, assign};
+    };
+
+    // Minimal mask subgraph consuming attention_mask + position_ids so the pass has something to rewire.
+    auto make_attn_mask = [&](const std::shared_ptr<ov::Node>& attn_mask, const std::shared_ptr<ov::Node>& kv_past) {
+        auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+        auto cur_len_1d = makeOP<v1::Reshape>({cur_len, {1}}, {{"special_zero", false}});
+        auto cur_len_scalar = makeOP<v0::Squeeze>({cur_len_1d, 0});
+        auto shape_past = makeOP<v3::ShapeOf>({kv_past}, {{"output_type", "i64"}});
+        auto past_len = makeOP<v8::Gather>({shape_past, 2, 0}, {{"batch_dims", 0}});
+        auto total_len = makeOP<v1::Add>({cur_len_scalar, past_len}, {numpy_broadcast});
+        auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_1d, total_len_unsq}, {{"axis", 0}});
+        // Lift the rank-2 [batch, seq] mask to rank-4 [batch, 1, 1, seq] before broadcasting to
+        // [batch, 1, cur_len, total_len], matching the other mask builders in this file.
+        auto mask_f32 = makeOP<v0::Convert>({attn_mask}, {dest_type_f32});
+        auto mask_unsq = makeOP<v0::Unsqueeze>({mask_f32, 1});
+        mask_unsq = makeOP<v0::Unsqueeze>({mask_unsq, 2});
+        return makeOP<v3::Broadcast>({mask_unsq, bcast_shape}, {{"mode", "bidirectional"}});
+    };
+
+    // GQA "repeat_kv" expansion (Unsqueeze -> Broadcast -> Reshape), matching kv_shaping in the pass.
+    auto make_repeat_kv = [&](const std::shared_ptr<ov::Node>& kv) {
+        const int repeat = num_q_heads / num_kv_heads;
+        auto sh = makeOP<v3::ShapeOf>({kv}, {{"output_type", "i64"}});
+        auto b_dim = makeOP<v8::Gather>({sh, {0}, 0}, {{"batch_dims", 0}});
+        auto s_dim = makeOP<v8::Gather>({sh, {2}, 0}, {{"batch_dims", 0}});
+        auto unsq = makeOP<v0::Unsqueeze>({kv, 2});
+        auto bcast_target =
+            makeOP<v0::Concat>({b_dim, {(int64_t)num_kv_heads}, {(int64_t)repeat}, s_dim, {(int64_t)head_dim}},
+                               {{"axis", 0}});
+        auto bcast = makeOP<v3::Broadcast>({unsq, bcast_target}, {{"mode", "bidirectional"}});
+        auto reshape_target =
+            makeOP<v0::Concat>({b_dim, {(int64_t)num_q_heads}, s_dim, {(int64_t)head_dim}}, {{"axis", 0}});
+        return makeOP<v1::Reshape>({bcast, reshape_target}, {{"special_zero", false}});
+    };
+
+    // a8w8 activation FakeQuantize: 5 inputs. Per-tensor scalar limits by default; per-channel limits
+    // (shape [1, num_kv_heads, 1, 1]) when per_channel is set - such an FQ is not tolerated by the pass.
+    auto make_fq = [&](const std::shared_ptr<ov::Node>& data) -> std::shared_ptr<ov::Node> {
+        if (per_channel) {
+            const ov::Shape limit_shape{1, (size_t)num_kv_heads, 1, 1};
+            auto in_low = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, -8.0f));
+            auto in_high = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, 8.0f));
+            auto out_low = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, -8.0f));
+            auto out_high = makeConst(element::f32, limit_shape, std::vector<float>(num_kv_heads, 8.0f));
+            return std::make_shared<v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 256);
+        }
+        auto in_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
+        auto in_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
+        auto out_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
+        auto out_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
+        return std::make_shared<v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 256);
+    };
+
+    auto Q_0 = make_projection(embeddings, num_q_heads * head_dim, num_q_heads);
+    auto K_0 = make_projection(embeddings, num_kv_heads * head_dim, num_kv_heads);
+    auto V_0 = make_projection(embeddings, num_kv_heads * head_dim, num_kv_heads);
+
+    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key");
+    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value");
+
+    // Optionally insert a FakeQuantize right after the KV-cache Concat (the NNCF a8w8 location).
+    std::shared_ptr<ov::Node> k_post = fq_on_k ? make_fq(kv_0.concat) : kv_0.concat;
+    std::shared_ptr<ov::Node> v_post = fq_on_v ? make_fq(vv_0.concat) : vv_0.concat;
+
+    // For GQA the FakeQuantize sits before the repeat_kv head expansion; otherwise it feeds SDPA.
+    std::shared_ptr<ov::Node> k_to_sdpa = gqa ? make_repeat_kv(k_post) : k_post;
+    std::shared_ptr<ov::Node> v_to_sdpa = gqa ? make_repeat_kv(v_post) : v_post;
+
+    auto mask = make_attn_mask(attention_mask, kv_0.past);
+
+    auto sdpa_0 = makeOP<v13::ScaledDotProductAttention>({Q_0, k_to_sdpa, v_to_sdpa, mask, 1.0f}, {{"causal", false}});
+    auto res = std::make_shared<v0::Result>(sdpa_0);
+
+    return std::make_shared<ov::Model>(OutputVector{res}, SinkVector{kv_0.assign, vv_0.assign}, params);
+}
+
+// a8w8 (SmoothQuant) inserts a FakeQuantize after the KV-cache Concat. Without tolerating it, SDPA is
+// not converted and beam_idx / attention_mask survive -> "Model references undeclared parameters".
+// The FakeQuantize is preserved: re-applied on the PagedAttention K/V feed (input 1 = K, input 2 = V).
+// Params {fq_on_k, fq_on_v, gqa}: {false,false,*} is the negative control; gqa == true is the
+// meta-llama / TinyLlama case (FQ before repeat_kv).
+class SDPAToPA_ActivationFakeQuantizeOnKV : public TransformationTestsF,
+                                            public ::testing::WithParamInterface<std::tuple<bool, bool, bool>> {};
+
+TEST_P(SDPAToPA_ActivationFakeQuantizeOnKV, KVFakeQuantizePreserved) {
+    const bool fq_on_k = std::get<0>(GetParam());
+    const bool fq_on_v = std::get<1>(GetParam());
+    const bool gqa = std::get<2>(GetParam());
+
+    {
+        model = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    }
+
+    {
+        // Reference: an independent conversion of the same model (comparator checks it is deterministic).
+        auto ref_input = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
+        ov::pass::Manager ref_manager;
+        ref_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ref_manager.run_passes(ref_input);
+        model_ref = ref_input;
+
+        // Exactly one PagedAttention, with beam_idx / attention_mask removed.
+        EXPECT_EQ(count_ops_of_type<ov::op::PagedAttentionExtension>(model_ref), 1u);
+        for (const auto& param : model_ref->get_parameters()) {
+            const auto& name = param->get_friendly_name();
+            EXPECT_NE(name, "beam_idx") << "beam_idx parameter should have been removed";
+            EXPECT_NE(name, "attention_mask") << "attention_mask parameter should have been removed";
+        }
+
+        // One surviving FakeQuantize per quantized input, re-applied on the PA K/V feed.
+        const size_t expected_fq = (fq_on_k ? 1u : 0u) + (fq_on_v ? 1u : 0u);
+        EXPECT_EQ(count_ops_of_type<ov::op::v0::FakeQuantize>(model_ref), expected_fq);
+
+        std::shared_ptr<ov::Node> pa;
+        for (const auto& op : model_ref->get_ops()) {
+            if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                pa = op;
+                break;
+            }
+        }
+        ASSERT_NE(pa, nullptr);
+        auto producer = [&](size_t input_index) {
+            return pa->get_input_node_shared_ptr(input_index);
+        };
+        if (fq_on_k) {
+            EXPECT_TRUE(ov::is_type<ov::op::v0::FakeQuantize>(producer(1)))
+                << "K FakeQuantize should be re-applied on PagedAttention input 1";
+        }
+        if (fq_on_v) {
+            EXPECT_TRUE(ov::is_type<ov::op::v0::FakeQuantize>(producer(2)))
+                << "V FakeQuantize should be re-applied on PagedAttention input 2";
+        }
+    }
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPATest_ActivationFakeQuantize,
+                         SDPAToPA_ActivationFakeQuantizeOnKV,
+                         ::testing::Values(std::make_tuple(false, false, false),  // non-GQA control
+                                           std::make_tuple(true, false, false),   // non-GQA, FQ on K
+                                           std::make_tuple(false, true, false),   // non-GQA, FQ on V
+                                           std::make_tuple(true, true, false),    // non-GQA a8w8
+                                           std::make_tuple(false, false, true),   // GQA control
+                                           std::make_tuple(true, false, true),    // GQA, FQ on K
+                                           std::make_tuple(false, true, true),    // GQA, FQ on V
+                                           std::make_tuple(true, true, true)));   // GQA a8w8
+
+// A per-channel FakeQuantize on the KV-cache concat cannot be re-applied equivalently onto the
+// flattened PagedAttention feed, so it is deliberately not tolerated: the pattern does not bind, SDPA
+// is not converted, and beam_idx / attention_mask survive -> "Model references undeclared parameters"
+// (the same behavior as before FakeQuantize support was added). This guards against silently dropping
+// a quantization the pass cannot preserve.
+TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/true,
+                                              /*fq_on_v=*/false,
+                                              /*gqa=*/false,
+                                              /*per_channel=*/true);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model), ov::Exception, ::testing::HasSubstr("undeclared parameters"));
 }
 
 /*
