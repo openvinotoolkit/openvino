@@ -28,7 +28,7 @@ class TestMoFreezePlaceholderTFFE():
         values = list(results.values())[0]
         if dtype is not None:
             assert values.dtype == dtype
-        assert np.allclose(values, expected)
+        assert np.allclose(values, expected), f"Expected {expected}, got {values}"
 
     @pytest.mark.parametrize("input_freezing_value, inputs, expected, dtype, only_conversion", [
         # TODO: Return this test when new 'cut' helper is introduced
@@ -67,14 +67,41 @@ class TestMoFreezePlaceholderTFFE():
         #         np.int32,
         #         None
         # ),
-        (
-                "x:0",
-                {"x:0": np.array([[-3, 20, 1]], dtype=np.int32)},
-                np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
-                np.int32,
-                None
-        ),
-    ])
+  (
+        "x:0",
+        {"x:0": np.array([[-3, 20, 1]], dtype=np.int32)},
+        np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
+        np.int32,
+        None
+    ),
+
+    # New test case: all negative values
+    # Edge case to verify correct handling of negative inputs
+    (
+        "x:0",
+        {"x:0": np.array([[-5, -10, -15]], dtype=np.int32)},
+        np.array([[-4, -8, -12], [-1, -5, -9]], dtype=np.int32),
+        np.int32,
+        None
+    ),
+
+    # New test case: zero values
+    # Edge case to ensure model handles zeros correctly
+    (
+        "x:0",
+        {"x:0": np.array([[0, 0, 0]], dtype=np.int32)},
+        np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32),
+        np.int32,
+        None
+    ),
+    (
+    "x:0",
+    {"x:0": np.array([[1000, 2000, 3000]], dtype=np.int32)},
+    np.array([[1001, 2002, 3003], [1004, 2005, 3006]], dtype=np.int32),
+    np.int32,
+    None
+),
+])
     def test_placeholder_with_default(self, inputs, inputs_data, expected, dtype, only_conversion):
         self.basic("placeholder_with_default.pbtxt", inputs, inputs_data, dtype, expected,
                    only_conversion)
@@ -142,3 +169,28 @@ class TestMoFreezePlaceholderTFFE():
     ])
     def test_conversion_model_with_undefined_constant(self, model_name, argv_input, inputs, expected, dtype):
         self.basic(model_name, argv_input, inputs, dtype, expected, only_conversion=False)
+
+    def test_invalid_dtype(self):
+        path = os.path.dirname(__file__)
+        input_model = os.path.join(path, "test_models", "placeholder_with_default.pbtxt")
+
+        # Convert and compile the model successfully.
+        model = convert_model(input_model, input="x:0")
+        core = Core()
+        compiled_model = core.compile_model(model)
+
+        # Inference with an input tensor of mismatched dtype should fail with a type mismatch error.
+        with pytest.raises(Exception, match="type mismatch"):
+            compiled_model.infer(
+                {"x:0": np.array([[1.5, 2.5]], dtype=np.float64)}
+            )
+def test_missing_input(self):
+    with pytest.raises(RuntimeError, match="missing|input"):
+        self.basic(
+            "placeholder_with_default.pbtxt",
+            "x:0",
+            {},
+            None,
+            None,
+            False
+        )
