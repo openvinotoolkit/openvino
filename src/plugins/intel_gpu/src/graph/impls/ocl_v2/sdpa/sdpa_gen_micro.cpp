@@ -1238,16 +1238,6 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("BLOCK_2D_A", 1);
     }
 
-    if (device_info.arch >= gpu_arch::xe_hpc) {
-        jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        bool no_rem = d_full && v_full && k_full;
-        jit.make("PREFETCH_REMAINDER", !no_rem);
-        jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
-    }
-
     auto convert_strides = [](std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order) {
         JitConstants definitions({});
 
