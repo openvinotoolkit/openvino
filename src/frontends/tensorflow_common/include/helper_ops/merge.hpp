@@ -98,8 +98,18 @@ public:
         auto cf_marker = get_cf_marker(this_node);
         FRONT_END_GENERAL_CHECK(
             cf_marker.merge_eliminated_markers.count(switch_marker) > 0,
-            "[TensorFlow Frontend] internal error: no Switch node with requiested conditional flow marker");
-        return cf_marker.merge_eliminated_markers[switch_marker];
+            "[TensorFlow Frontend] internal error: no Switch node with requested conditional flow marker");
+        // Markers store Switch nodes as weak_ptr (see SetOfSwitchNodes). A Switch that only fed
+        // control dependencies can be pruned and freed before this pass runs, so its weak_ptr is
+        // legitimately expired; skip such entries - a freed Switch is not part of any surviving
+        // Switch/Merge cluster to fuse.
+        std::unordered_set<std::shared_ptr<Switch>> switch_nodes;
+        for (const auto& weak_switch : cf_marker.merge_eliminated_markers.at(switch_marker)) {
+            if (auto switch_node = weak_switch.lock()) {
+                switch_nodes.insert(std::move(switch_node));
+            }
+        }
+        return switch_nodes;
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
