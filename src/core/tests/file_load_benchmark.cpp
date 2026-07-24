@@ -22,17 +22,21 @@
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/io.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 #ifdef __linux__
 #    include <fcntl.h>
 #    include <sys/mman.h>
+#    include <sys/stat.h>
+#    include <sys/sysmacros.h>
 #    include <unistd.h>
 #elif defined(_WIN32)
 #    define WIN32_LEAN_AND_MEAN
 #    define NOMINMAX
 #    include <windows.h>
+#    include <winioctl.h>
 #endif
 
 #include "common_test_utils/common_utils.hpp"
@@ -452,5 +456,254 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
         printf("\n");
     }
 }
+
+#if defined ENABLE_IO_URING
+
+namespace {
+/**
+ * @brief Benchmarks provided function that takes reference to preset MappedMemory.
+ */
+long long bench_with_preset(const std::function<void(ov::MappedMemory&)>& fn,
+                            const std::filesystem::path& path,
+                            size_t file_size,
+                            int warmup_runs = 1,
+                            int measured_runs = 5) {
+    for (int i = 0; i < warmup_runs; ++i) {
+        evict_cache(path, file_size);
+        auto mapped = load_mmap_object(path);
+        fn(*mapped);
+    }
+    long long total = 0;
+    for (int i = 0; i < measured_runs; ++i) {
+        evict_cache(path, file_size);
+        auto mapped = load_mmap_object(path);
+        total += measure_ms([&]() {
+            fn(*mapped);
+        });
+    }
+    return total / measured_runs;
+}
+
+void page_touch(ov::MappedMemory& mapped, size_t num_threads) {
+    util::vm_prefetch(mapped.data(), mapped.size(), num_threads);
+}
+
+void io_uring(ov::MappedMemory& mapped, size_t depth) {
+    util::io_populate_mmap(mapped.data(), mapped.size(), 0, depth);
+}
+
+void print_disk_info(const std::filesystem::path& path) {
+#    ifdef __linux__
+    struct ::stat st {};
+    if (::stat(path.c_str(), &st) != 0) {
+        printf("  [disk] stat(%s) failed (errno=%d)\n", path.c_str(), errno);
+        return;
+    }
+    const unsigned int dev_maj = major(st.st_dev);
+    const unsigned int dev_min = minor(st.st_dev);
+
+    auto read_line = [](const std::string& p) -> std::string {
+        std::ifstream f(p);
+        std::string line;
+        std::getline(f, line);
+        return line;
+    };
+
+    // Walk /sys/block/ to find the block device (or parent partition) matching major:minor.
+    std::string disk_name, disk_sys;
+    std::error_code ec;
+    for (const auto& blk : std::filesystem::directory_iterator("/sys/block/", ec)) {
+        if (ec)
+            break;
+        const auto& dir = blk.path();
+        auto match_dev = [&](const std::filesystem::path& dev_file) {
+            unsigned int m = 0, n = 0;
+            const auto s = read_line(dev_file.string());
+            return std::sscanf(s.c_str(), "%u:%u", &m, &n) == 2 && m == dev_maj && n == dev_min;
+        };
+        if (match_dev(dir / "dev")) {
+            disk_name = dir.filename().string();
+            disk_sys = dir.string();
+            break;
+        }
+        for (const auto& part : std::filesystem::directory_iterator(dir, ec)) {
+            if (ec)
+                break;
+            if (match_dev(part.path() / "dev")) {
+                disk_name = dir.filename().string();
+                disk_sys = dir.string();
+                break;
+            }
+        }
+        if (!disk_name.empty())
+            break;
+    }
+
+    if (disk_name.empty()) {
+        printf("  [disk] dev=%u:%u  (block device lookup failed)\n", dev_maj, dev_min);
+        return;
+    }
+
+    const std::string rot = read_line(disk_sys + "/queue/rotational");
+    std::string model = read_line(disk_sys + "/device/model");
+    while (!model.empty() && std::isspace(static_cast<unsigned char>(model.back())))
+        model.pop_back();
+
+    printf("  [disk] /dev/%-8s  %-8s  model: %s\n",
+           disk_name.c_str(),
+           (rot == "1") ? "HDD" : "SSD/NVMe",
+           model.empty() ? "(unknown)" : model.c_str());
+#    elif defined(_WIN32)
+    wchar_t vol_root[MAX_PATH]{};
+    if (!GetVolumePathNameW(path.wstring().c_str(), vol_root, MAX_PATH)) {
+        printf("  [disk] GetVolumePathNameW failed (error=%lu)\n", GetLastError());
+        return;
+    }
+    wchar_t fs_name[32]{};
+    GetVolumeInformationW(vol_root, nullptr, 0, nullptr, nullptr, nullptr, fs_name, 32);
+
+    std::wstring dev_path(vol_root);
+    if (!dev_path.empty() && dev_path.back() == L'\\')
+        dev_path.pop_back();
+    HANDLE h = CreateFileW(dev_path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+    std::string bus_type_str = "unknown", model;
+    if (h != INVALID_HANDLE_VALUE) {
+        STORAGE_PROPERTY_QUERY q{};
+        q.PropertyId = StorageDeviceProperty;
+        q.QueryType = PropertyStandardQuery;
+        alignas(STORAGE_DEVICE_DESCRIPTOR) char buf[512]{};
+        DWORD returned = 0;
+        if (DeviceIoControl(h, IOCTL_STORAGE_QUERY_PROPERTY, &q, sizeof(q), buf, sizeof(buf), &returned, nullptr)) {
+            const auto* d = reinterpret_cast<const STORAGE_DEVICE_DESCRIPTOR*>(buf);
+            switch (static_cast<int>(d->BusType)) {
+            case 17:
+                bus_type_str = "NVMe";
+                break;  // BusTypeNvme
+            case 11:
+                bus_type_str = "SATA";
+                break;  // BusTypeSata
+            case 7:
+                bus_type_str = "USB";
+                break;  // BusTypeUsb
+            case 8:
+                bus_type_str = "SAS";
+                break;  // BusTypeSas
+            default:
+                bus_type_str = "other";
+                break;
+            }
+            if (d->ProductIdOffset && d->ProductIdOffset < returned)
+                model = buf + d->ProductIdOffset;
+            while (!model.empty() && (model.back() == ' ' || model.back() == '\0'))
+                model.pop_back();
+        }
+        CloseHandle(h);
+    }
+    char vol_narrow[MAX_PATH]{};
+    WideCharToMultiByte(CP_UTF8, 0, vol_root, -1, vol_narrow, MAX_PATH, nullptr, nullptr);
+    printf("  [disk] volume=%-4s  fs=%-5S  bus=%-6s  model=%s\n",
+           vol_narrow,
+           fs_name,
+           bus_type_str.c_str(),
+           model.empty() ? "(unknown)" : model.c_str());
+#    else
+    (void)path;
+#    endif
+}
+}  // namespace
+
+TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
+    std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
+
+    std::vector<TestFile> files;
+    for (const auto sz : sizes_mib) {
+        TestFile tf{sz, {}};
+        tf.path = generate_test_file(tf);
+        evict_cache(tf.path, tf.size_bytes());
+        files.push_back(std::move(tf));
+    }
+
+    using BenchFn = void (*)(ov::MappedMemory&, size_t);
+    const std::vector<std::tuple<BenchFn, size_t, std::string>> bench_configs = {
+        {page_touch, 5, "pg touch"},
+        {page_touch, 10, "pg touch"},
+        {page_touch, 15, "pg touch"},
+        {io_uring, 8, "io uring"},
+        {io_uring, 16, "io uring"},
+        {io_uring, 32, "io uring"},
+        {io_uring, 64, "io uring"},
+        {io_uring, 128, "io uring"},
+        {io_uring, 256, "io uring"},
+    };
+
+    struct Row {
+        size_t mib;
+        std::vector<long long> timings;
+    };
+    std::vector<Row> results;
+    for (const auto& tf : files) {
+        Row r{};
+        r.mib = tf.size_bytes() / 0x100000u;
+        for (const auto& [fn, dep, label] : bench_configs) {
+            r.timings.push_back(bench_with_preset(
+                [&](ov::MappedMemory& mapped) {
+                    fn(mapped, dep);
+                },
+                tf.path,
+                tf.size_bytes(),
+                warmup,
+                runs));
+        }
+        results.push_back(std::move(r));
+    }
+
+    std::vector<std::pair<std::string, int>> col_headers;
+    const auto make_col = [](std::string s) {
+        return std::pair<std::string, int>{s, static_cast<int>(s.size())};
+    };
+    col_headers.push_back(make_col("Size (MB)"));
+    for (const auto& cfg : bench_configs)
+        col_headers.push_back(make_col(std::get<2>(cfg) + " " + std::to_string(std::get<1>(cfg))));
+
+    const auto print_header = [&]() {
+        printf("%-*s", col_headers[0].second, col_headers[0].first.c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf(" | %*s", col_headers[i].second, col_headers[i].first.c_str());
+        printf("\n");
+    };
+
+    const auto print_separator = [&]() {
+        printf("%-*s", col_headers[0].second, std::string(col_headers[0].second, '-').c_str());
+        for (size_t i = 1; i < col_headers.size(); ++i)
+            printf("-|-%*s", col_headers[i].second, std::string(col_headers[i].second, '-').c_str());
+        printf("\n");
+    };
+
+    printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
+    print_header();
+    print_separator();
+    for (const auto& r : results) {
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*lld", col_headers[i + 1].second, r.timings[i]);
+        printf("\n");
+    }
+
+    printf("\n--- Throughput (MB/s) ---\n");
+    print_header();
+    print_separator();
+    for (const auto& r : results) {
+        printf("%-*zu", col_headers[0].second, r.mib);
+        for (size_t i = 0; i < r.timings.size(); ++i)
+            printf(" | %*.0f", col_headers[i + 1].second, throughput_mibs(r.mib, r.timings[i]));
+        printf("\n");
+    }
+
+    print_disk_info(files.front().path);
+    printf("\n");
+}
+#endif
 
 }  // namespace ov::test
