@@ -6,7 +6,9 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
+#include "openvino/util/env_util.hpp"
 
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -188,9 +190,28 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
+    const std::string wanted_platform = ov::util::getenv_string("OV_GPU_OPENCL_PLATFORM_NAME");
     std::vector<device::ptr> supported_devices;
+    std::vector<std::string> available_platform_names;
+    bool wanted_platform_found = false;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
+        if (!wanted_platform.empty()) {
+            std::string platform_name;
+            try {
+                platform_name = platform.getInfo<CL_PLATFORM_NAME>();
+            } catch (const std::exception& ex) {
+                GPU_DEBUG_LOG << "Skipping platform: failed to query CL_PLATFORM_NAME: " << ex.what() << std::endl;
+                continue;
+            }
+            available_platform_names.push_back(platform_name);
+            if (platform_name != wanted_platform) {
+                GPU_DEBUG_LOG << "Skipping platform '" << platform_name << "' (OV_GPU_OPENCL_PLATFORM_NAME='"
+                              << wanted_platform << "')" << std::endl;
+                continue;
+            }
+            wanted_platform_found = true;
+        }
 
         try {
             std::vector<cl::Device> devices;
@@ -211,6 +232,23 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             continue;
         }
     }
+
+    if (!wanted_platform.empty() && !wanted_platform_found) {
+        std::stringstream available;
+        available << "[";
+        for (size_t i = 0; i < available_platform_names.size(); i++) {
+            available << "'" << available_platform_names[i] << "'";
+            if (i + 1 < available_platform_names.size())
+                available << ", ";
+        }
+        available << "]";
+        OPENVINO_THROW("[GPU] OV_GPU_OPENCL_PLATFORM_NAME='",
+                       wanted_platform,
+                       "' did not match any available OpenCL platform.\n",
+                       "[GPU] Available platforms: ",
+                       available.str());
+    }
+
     return supported_devices;
 }
 
