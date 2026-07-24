@@ -22,36 +22,6 @@ namespace ov {
 namespace npuw {
 namespace function {
 
-// Helper function to extract K value from TopK node in router model
-static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Model>& router_model) {
-    if (!router_model) {
-        LOG_ERROR("Router model is null, cannot extract K from TopK");
-        return std::nullopt;
-    }
-
-    LOG_DEBUG("Searching for TopK node in router model: " << router_model->get_friendly_name());
-
-    for (const auto& node : router_model->get_ordered_ops()) {
-        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(node)) {
-            LOG_DEBUG("Found TopK node: " << topk->get_friendly_name());
-
-            // K is the second input to TopK
-            auto k_input = topk->input_value(1);
-            if (auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr())) {
-                auto k_data = k_const->cast_vector<int64_t>();
-                if (!k_data.empty()) {
-                    size_t k_value = static_cast<size_t>(k_data[0]);
-                    LOG_INFO("Extracted K=" << k_value << " from TopK node in router model");
-                    return k_value;
-                }
-            }
-        }
-    }
-
-    LOG_DEBUG("TopK node not found in router model");
-    return std::nullopt;
-}
-
 // Scan the transformed model for a parameter bearing `tag` and return its new index.
 // Falls back to `original_idx` when the tag is absent (e.g. router_scores is replaced
 // by K closures in EXPERT_BATCH mode and its parameter no longer exists).
@@ -415,38 +385,32 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     LOG_DEBUG("Detecting MoE downstream pattern...");
     LOG_BLOCK();
 
-    // Pattern to match: Parameter -> [Convert] -> ReduceSum
-    // Looking for a parameter with shape [N, ..., W] where:
-    //   dim 0  = N (total experts, > 1)
-    //   dim n-1 = W (hidden_dim)
-    //   at least one of dims 1..n-2 equals 1 (singleton "batch" dimension)
-    // Both [N, 1, H, W] (GPT-OSS) and [N, H, 1, W] (Qwen) are accepted.
+    // Pattern: Parameter -> [Convert] -> ReduceSum, shape [N, ..., W] where:
+    //   rank 3: [N, token, W]
+    //   rank 4: [N, 1, H, W] or [N, H, 1, W]
+    //   shape[0] = N > 1 (num_experts).
     const auto& params = model->get_parameters();
 
     for (size_t param_idx = 0; param_idx < params.size(); ++param_idx) {
         const auto& param = params[param_idx];
 
-        // Validate shape: must be 4-D with dim 0 > 1
-        auto param_shape = param->get_partial_shape();
-        if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
+        auto shape_opt = [&]() -> std::optional<ov::Shape> {
+            const auto ps = param->get_partial_shape();
+            if (!ps.rank().is_static())
+                return std::nullopt;
+            const auto rank = ps.rank().get_length();
+            if (rank < 3 || rank > 4)
+                return std::nullopt;
+            const auto s = ps.to_shape();
+            if (s[0] <= 1)
+                return std::nullopt;
+            if (rank == 4 && s[1] != 1 && s[2] != 1)
+                return std::nullopt;
+            return s;
+        }();
+        if (!shape_opt || !check_downstream_pattern(param))
             continue;
-        }
-
-        auto shape = param_shape.to_shape();
-        if (shape[0] <= 1) {
-            continue;
-        }
-
-        // At least one of dims 1..2 must be 1 (singleton expansion dim)
-        bool has_singleton_dim = (shape[1] == 1 || shape[2] == 1);
-        if (!has_singleton_dim) {
-            continue;
-        }
-
-        // Check pattern: Parameter -> Convert -> ReduceSum
-        if (!check_downstream_pattern(param)) {
-            continue;
-        }
+        const auto& shape = *shape_opt;
 
         LOG_DEBUG("  Found downstream pattern for Parameter: " << param->get_friendly_name());
         LOG_DEBUG("  Pattern matched: Parameter -> Convert -> ReduceSum");
@@ -493,25 +457,11 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     return std::nullopt;
 }
 
-std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model,
-                                                   const std::shared_ptr<ov::Model>& router_model) {
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num) {
     LOG_DEBUG("Creating MoEDownstream from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
-    // Extract K from router model (required)
-    if (!router_model) {
-        LOG_ERROR("Router model is required to extract K from TopK node");
-        return std::nullopt;
-    }
-
-    auto k_from_router = extract_k_from_router(router_model);
-    if (!k_from_router.has_value()) {
-        LOG_ERROR("Failed to extract K from router model for downstream");
-        return std::nullopt;
-    }
-
-    size_t active_experts_num = k_from_router.value();
-    LOG_INFO("Extracted K=" << active_experts_num << " from router model for downstream");
+    LOG_INFO("Using K=" << active_experts_num << " active experts for downstream");
 
     auto downstream_info = detect_and_transform_moe_downstream(model, active_experts_num);
     if (downstream_info && downstream_info->is_valid()) {
@@ -909,34 +859,21 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
 }
 
 std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
-                                           const std::shared_ptr<ov::Model>& router_model,
+                                           size_t k_value,
                                            size_t iterative_chunk_size) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
-    // Step 1: Extract K from router model
-    if (!router_model) {
-        LOG_ERROR("Router model is required to extract K from TopK node");
-        return std::nullopt;
-    }
+    LOG_INFO("Using K=" << k_value << " active experts");
 
-    auto k_from_router = extract_k_from_router(router_model);
-    if (!k_from_router.has_value()) {
-        LOG_ERROR("Failed to extract K from router model");
-        return std::nullopt;
-    }
-
-    size_t k_value = k_from_router.value();
-    LOG_INFO("Extracted K=" << k_value << " from router model");
-
-    // Step 2: Analyze model structure
+    // Step 1: Analyze model structure
     auto structure_info = analyze_moe_structure(model);
     if (!structure_info || !structure_info->is_valid()) {
         LOG_WARN("Model structure analysis failed for MoE expert pattern");
         return std::nullopt;
     }
 
-    // Step 3: Determine chunk sizes based on processing mode and configuration
+    // Step 2: Determine chunk sizes based on processing mode and configuration
     std::vector<size_t> chunk_sizes;
     if (structure_info->is_expert_batch_mode()) {
         // EXPERT_BATCH mode: single model with K active experts, no chunking
@@ -952,7 +889,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         }
     }
 
-    // Tag activation parameters before transformation so we can re-locate them afterwards
+    // Step 3: Tag activation parameters before transformation so we can re-locate them afterwards
     // (transformations may shift parameter indices).
     constexpr const char* expert_input_tag = "npuw_moe_expert_input";
     constexpr const char* router_scores_tag = "npuw_moe_router_scores";
@@ -1003,7 +940,44 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
     auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
-    // Step 6: Populate and validate MoEExperts structure
+    // Step 6: EXPERT_BATCH guard — every param with shape[0]==num_experts must appear in
+    // param_mapping with exactly K entries; a missing entry means UnrollMoEMatMul did not
+    // recognise the weight chain and inference would produce silently wrong results.
+    if (structure_info->is_expert_batch_mode()) {
+        const auto& orig_params = model->get_parameters();
+        for (size_t pi = 0; pi < orig_params.size(); ++pi) {
+            const auto& pshape = orig_params[pi]->get_partial_shape();
+            if (!pshape.rank().is_static() || !pshape[0].is_static())
+                continue;
+            if (static_cast<size_t>(pshape[0].get_length()) != structure_info->num_experts)
+                continue;
+            // This parameter is batched over the expert dimension and must be unrolled.
+            auto it = param_mapping.find(pi);
+            if (it == param_mapping.end()) {
+                OPENVINO_THROW("MoE EXPERT_BATCH: parameter '",
+                               orig_params[pi]->get_friendly_name(),
+                               "' (index=",
+                               pi,
+                               ", shape=",
+                               pshape,
+                               ") has shape[0]==num_experts but was not unrolled. "
+                               "UnrollMoEMatMul did not recognise its weight chain. "
+                               "Inspect the weight graph topology and add the missing chain variant.");
+            }
+            if (it->second.size() != static_cast<size_t>(k_value)) {
+                OPENVINO_THROW("MoE EXPERT_BATCH: parameter '",
+                               orig_params[pi]->get_friendly_name(),
+                               "' was unrolled into ",
+                               it->second.size(),
+                               " entries but expected K=",
+                               k_value);
+            }
+        }
+        LOG_DEBUG("Compile-time unroll validation passed: all "
+                  << param_mapping.size() << " batched parameters are correctly mapped (K=" << k_value << ")");
+    }
+
+    // Step 7: Populate and validate MoEExperts structure
     MoEExperts moe_experts;
     moe_experts._num_experts = structure_info->num_experts;
     moe_experts._expert_hidden_dim = structure_info->expert_hidden_dim;

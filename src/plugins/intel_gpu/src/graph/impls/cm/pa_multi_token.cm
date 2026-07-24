@@ -117,15 +117,43 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# k_cache [kv_len, num_heads, S]
     //# v_cache [kv_len, num_heads, S]
 #if KV_CACHE_COMPRESSION
-    constexpr uint K_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
-    constexpr uint V_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
+    constexpr uint ring_depth = (head_size == 256) ? 3 : 4;
+    constexpr uint K_SLM_SIZE = (ring_depth * kv_step * head_size * sizeof(half));
+    constexpr uint V_SLM_SIZE = (ring_depth * kv_step * head_size * sizeof(half));
     constexpr uint Q_SLM_SIZE = 0;
-
+#ifdef CM_HAS_LSC_UNTYPED_2D
+    uint slm_St = 0;
+    if constexpr (head_size == 256) {
+        constexpr int wg_size_u8 = 16;
+        constexpr uint St_SLM_SIZE = wg_size_u8 * kv_step * q_step * sizeof(float);
+        cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE + St_SLM_SIZE);
+    } else {
+        cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
+    }
+#else
     cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
+#endif
 
     auto slm_K = cm_slm_alloc(K_SLM_SIZE);
     auto slm_V = cm_slm_alloc(V_SLM_SIZE);
+#ifdef CM_HAS_LSC_UNTYPED_2D
+    if constexpr (head_size == 256) {
+        constexpr int wg_size_u8 = 16;
+        constexpr uint St_SLM_SIZE = wg_size_u8 * kv_step * q_step * sizeof(float);
+        slm_St = cm_slm_alloc(St_SLM_SIZE);
+    }
+#endif
 
+#else
+#ifdef CM_HAS_LSC_UNTYPED_2D
+    uint slm_St_f16 = 0;
+    if constexpr (head_size == 256) {
+        constexpr int wg_size_f16 = 16;
+        constexpr uint St_SLM_SIZE_F16 = wg_size_f16 * kv_step * q_step * sizeof(float);
+        cm_slm_init(St_SLM_SIZE_F16);
+        slm_St_f16 = cm_slm_alloc(St_SLM_SIZE_F16);
+    }
+#endif
 #endif
     auto batch = cm_group_id(0);
     auto h = cm_group_id(1);
@@ -167,7 +195,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     kv_start = 0;
     kv_seq_len = subseq_q_len + past_q_lens;
 
-    int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
+    int q_start_local;
+    if constexpr (head_size == 256) {
+        constexpr int num_worker = 2;
+        int team_id = wg_local_id / num_worker;
+        q_start_local = (block_start_pos - subseq_q_begin) + team_id * q_step;
+    } else {
+        q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
+    }
 #if KV_CACHE_COMPRESSION
     // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
     // the workgroup must participate. For out-of-range lanes, pass q_tokens_in_tile_sg=0
@@ -184,13 +219,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         q_tokens_in_tile_sg = 0;
     }
 #else
-    if (q_start_local >= subseq_q_len) {
-        return;
+    // Threads with zero valid query tokens can early exit if there is no barrier.
+    bool thread_active_f16 = (q_start_local < subseq_q_len);
+    if constexpr (head_size != 256) {
+        if (!thread_active_f16) {
+            return;
+        }
     }
-    q_start_sg = subseq_q_begin + q_start_local;
-    q_tokens_in_tile_sg = q_step;
-    if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
-        q_tokens_in_tile_sg = subseq_q_len - q_start_local;
+    if (thread_active_f16) {
+        q_start_sg = subseq_q_begin + q_start_local;
+        q_tokens_in_tile_sg = q_step;
+        if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
+            q_tokens_in_tile_sg = subseq_q_len - q_start_local;
+        }
+    } else {
+        q_start_sg = subseq_q_begin + subseq_q_len;
+        q_tokens_in_tile_sg = 0;
     }
 #endif
 
@@ -266,6 +310,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     pa_lsc_u8<is_causal, num_heads, num_kv_heads, head_size, 0>(
                             slm_K,
                             slm_V,
+#ifdef CM_HAS_LSC_UNTYPED_2D
+                            slm_St,
+#endif
                             wg_local_id,
                             local_size,
                             q_start_local, //q_start within current subsequence,
@@ -298,6 +345,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     uint v_offset_bytes = kv_offset * sizeof(half);
 #endif
     pa_kernel_lsc_prefetch_f16<is_causal, num_heads, num_kv_heads, head_size, 0, 16>(
+#ifdef CM_HAS_LSC_UNTYPED_2D
+                            slm_St_f16,
+#endif
                             wg_local_id,
                             q_start_local, //q_start within current subsequence,
                             kv_stop,

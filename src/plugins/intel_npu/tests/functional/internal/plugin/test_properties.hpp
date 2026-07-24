@@ -30,7 +30,7 @@
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "properties.hpp"
+#include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
 
@@ -49,7 +49,7 @@ protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::Properties> propertiesManager;
+    std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
     std::string configuration;
     std::string targetDevice;
@@ -181,7 +181,8 @@ public:
             }
         }
 
-        propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, npu_config, metrics, backend);
+        propertiesManager =
+            std::make_unique<PluginPropertyManager>(npu_config, metrics, backend, ::intel_npu::Logger::global());
     }
 
     void TearDown() override {
@@ -214,7 +215,9 @@ TEST_P(PropertiesManagerTests, ExpectRunTimeSpecialBothPropertyIsSupported) {
     ASSERT_TRUE(isSupported);
 }
 
-TEST_P(PropertiesManagerTests, ExpectArgumentIsNotSupported) {
+using CompatibilityCheckTests = PropertiesManagerTests;
+
+TEST_P(CompatibilityCheckTests, ExpectArgumentIsNotSupported) {
     std::string logs;
     std::mutex logs_mutex;
     bool isSupported = true;
@@ -244,6 +247,81 @@ TEST_P(PropertiesManagerTests, ExpectArgumentIsNotSupported) {
     ASSERT_FALSE(isSupported);
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyWhenDriverVersionIsInsufficient) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    // Determine at runtime whether the driver version is sufficient to handle the
+    // compatibility check without falling back to PluginCompilerAdapter.
+    const auto initStructs = backend ? backend->getInitStructs() : nullptr;
+    const bool driverHandlesCompatibilityCheck =
+        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+
+    bool isSupported = false;
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        isSupported = propertiesManager->isPropertySupported(ov::compatibility_check.name());
+    }
+
+    if (driverHandlesCompatibilityCheck) {
+        // Driver version >= 1.16: Property must be reported as supported.
+        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter complete"), std::string::npos);
+        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_TRUE(isSupported);
+    } else {
+        if (logs.find("initialize PluginCompilerAdapter complete") == std::string::npos) {
+            // Driver version < 1.16: Because CiP can not be loaded on this path in CI, the property must be reported as
+            // unsupported.
+            ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+            ASSERT_FALSE(isSupported);
+        } else {
+            // Driver version < 1.16: Because CiP can be loaded on this path in CI, the property must be reported as
+            // supported.
+            ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+            ASSERT_TRUE(isSupported);
+        }
+    }
+}
+
+TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSupported) {
+    std::string logs;
+    std::mutex logs_mutex;
+    bool turboSupported = false;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    const bool turboSupportedByDevice = backend && backend->isCommandQueueExtSupported();
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
+        turboSupported = propertiesManager->isPropertySupported(ov::intel_npu::turbo.name());
+    }
+
+    if (turboSupportedByDevice) {
+        // Turbo is supported by device, so checking support must not trigger compiler adapters.
+        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_TRUE(turboSupported);
+    } else {
+        ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_FALSE(turboSupported);
+    }
 }
 
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;

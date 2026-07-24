@@ -8,6 +8,7 @@
 #include "ze_engine.hpp"
 #include "ze_stream.hpp"
 #include "ze_event.hpp"
+#include "ze_resource_interop.hpp"
 #include "runtime_common.hpp"
 
 #include <stdexcept>
@@ -29,6 +30,17 @@ static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count)
     return stream.create_base_event();
 }
 
+bool check_allocation_range(ze_context_handle_t ctx, void *ptr, size_t expected_size) {
+    void *base = nullptr;
+    size_t allocation_size = 0;
+    OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx, ptr, &base, &allocation_size));
+    const auto base_u = reinterpret_cast<std::uintptr_t>(base);
+    const auto ptr_u = reinterpret_cast<std::uintptr_t>(ptr);
+    const auto alloc_end_u = base_u + allocation_size;
+    const auto ptr_end_u = ptr_u + expected_size;
+    return (ptr_u >= base_u) && (ptr_end_u >= ptr_u) && (ptr_end_u <= alloc_end_u);
+}
+
 std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& events) {
     std::vector<ze_event_handle_t> ze_events;
     ze_events.reserve(events.size());
@@ -39,6 +51,45 @@ std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& even
         }
     }
     return ze_events;
+}
+
+ze_usm_resource allocate_usm_host(ze_context_resource context, size_t size) {
+    ze_host_mem_alloc_desc_t host_desc = {};
+    host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
+    host_desc.flags = 0;
+    host_desc.pNext = nullptr;
+    ov_ze_usm_handle usm_handle;
+    usm_handle.context = context.handle();
+    OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, size, 0, &usm_handle.ptr));
+    return ze_usm_resource(usm_handle);
+}
+
+ze_usm_resource allocate_usm_shared(ze_context_resource context, ze_device_resource device, size_t size, uint32_t ordinal) {
+    ze_device_mem_alloc_desc_t device_desc = {};
+    device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
+    device_desc.flags = 0;
+    device_desc.ordinal = ordinal;
+    device_desc.pNext = nullptr;
+    ze_host_mem_alloc_desc_t host_desc = {};
+    host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
+    host_desc.flags = 0;
+    host_desc.pNext = nullptr;
+    ov_ze_usm_handle usm_handle;
+    usm_handle.context = context.handle();
+    OV_ZE_EXPECT(ze::zeMemAllocShared(usm_handle.context, &device_desc, &host_desc, size, 0, device.handle(), &usm_handle.ptr));
+    return ze_usm_resource(usm_handle);
+}
+
+ze_usm_resource allocate_usm_device(ze_context_resource context, ze_device_resource device, size_t size, uint32_t ordinal) {
+    ze_device_mem_alloc_desc_t device_desc = {};
+    device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
+    device_desc.flags = 0;
+    device_desc.ordinal = ordinal;
+    device_desc.pNext = nullptr;
+    ov_ze_usm_handle usm_handle;
+    usm_handle.context = context.handle();
+    OV_ZE_EXPECT(ze::zeMemAllocDevice(usm_handle.context, &device_desc, size, 0, device.handle(), &usm_handle.ptr));
+    return ze_usm_resource(usm_handle);
 }
 
 size_t get_element_size(const ze_image_format_layout_t& ze_layout) {
@@ -95,54 +146,134 @@ std::pair<std::size_t, std::size_t> get_width_height(const layout& layout) {
             break;
         }
         default:
-            OPENVINO_THROW("[GPU] 2D image allocation", "unsupported image type!");
+            OPENVINO_THROW("[GPU] Unsupported image type!");
     }
     return {width, height};
 }
+
+cl_image_format get_cl_image_format(const layout &layout) {
+    cl_image_format image_format{};
+    cl_channel_type &type = image_format.image_channel_data_type;
+    cl_channel_order &order = image_format.image_channel_order;
+    type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
+    order = CL_R;
+    switch (layout.format) {
+        case format::image_2d_weights_c4_fyx_b:
+            order = CL_RGBA;
+            break;
+        case format::image_2d_rgba:
+            order = CL_RGBA;
+            if (layout.feature() != 3 && layout.feature() != 4) {
+                OPENVINO_THROW("[GPU] Invalid number of channels in image_2d_rgba input image (should be 3 or 4)!");
+            }
+            type = CL_UNORM_INT8;
+            break;
+        case format::nv12:
+        {
+            // [NHWC] dimensions order
+            auto shape = layout.get_shape();
+            if (shape[3] == 2) {
+                order = CL_RG;
+            } else if (shape[3] > 2) {
+                OPENVINO_THROW("[GPU] Invalid number of channels in NV12 input image!");
+            }
+            type = CL_UNORM_INT8;
+            break;
+        }
+        default:
+            OPENVINO_THROW("[GPU] Unexpected layout format");
+    }
+    return image_format;
+}
+
+cl_image_desc get_cl_image_desc(const layout &layout) {
+    cl_image_desc image_desc{CL_MEM_OBJECT_IMAGE2D, 0, 0, 0, 0, 0, 0, 0, 0, nullptr};
+    auto &width = image_desc.image_width;
+    auto &height = image_desc.image_height;
+    switch (layout.format) {
+        case format::image_2d_weights_c1_b_fyx:
+            width = layout.batch();
+            height = layout.spatial(0) * layout.feature() * layout.spatial(1);
+            break;
+        case format::image_2d_weights_winograd_6x3_s1_fbxyb:
+            height = layout.feature();
+            width = layout.spatial(0) * layout.batch() * layout.spatial(1) * 8 / 3;
+            break;
+        case format::image_2d_weights_winograd_6x3_s1_xfbyb:
+            height = layout.feature() * layout.spatial(0) * 8 / 3;
+            width = layout.batch() * layout.spatial(1);
+            break;
+        case format::image_2d_weights_c4_fyx_b:
+            width = layout.batch();
+            height = layout.spatial(0) * layout.feature() * layout.spatial(1);
+            break;
+        case format::image_2d_rgba:
+            width = layout.spatial(0);
+            height = layout.spatial(1);
+            break;
+        case format::nv12:
+        {
+            // [NHWC] dimensions order
+            auto shape = layout.get_shape();
+            width = shape[2];
+            height = shape[1];
+            break;
+        }
+        default:
+            OPENVINO_THROW("[GPU] Unexpected layout format");
+    }
+    return image_desc;
+}
+
 }  // namespace
 
 allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const void* mem_ptr) {
     ze_memory_allocation_properties_t props{ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES};
     ze_device_handle_t device = nullptr;
-    OV_ZE_EXPECT(ze::zeMemGetAllocProperties(engine->get_context(), mem_ptr, &props, &device));
+    OV_ZE_EXPECT(ze::zeMemGetAllocProperties(engine->get_context().handle(), mem_ptr, &props, &device));
+    allocation_type alloc_type = allocation_type::unknown;
 
     switch (props.type) {
-        case ZE_MEMORY_TYPE_DEVICE: return allocation_type::usm_device;
-        case ZE_MEMORY_TYPE_HOST: return allocation_type::usm_host;
-        case ZE_MEMORY_TYPE_SHARED: return allocation_type::usm_shared;
-        default: return allocation_type::unknown;
+        case ZE_MEMORY_TYPE_DEVICE:
+            alloc_type = allocation_type::usm_device;
+            break;
+        case ZE_MEMORY_TYPE_HOST:
+            alloc_type = allocation_type::usm_host;
+            break;
+        case ZE_MEMORY_TYPE_SHARED:
+            alloc_type = allocation_type::usm_shared;
+            break;
+        default:
+            alloc_type = allocation_type::unknown;
+            break;
     }
-
-    return allocation_type::unknown;
-}
-
-allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const ze::UsmMemory& buffer) {
-    auto alloc_type = detect_allocation_type(engine, buffer.get());
-    OPENVINO_ASSERT(alloc_type == allocation_type::usm_device ||
-                    alloc_type == allocation_type::usm_host ||
-                    alloc_type == allocation_type::usm_shared, "[GPU] Unsupported USM alloc type: " + to_string(alloc_type));
     return alloc_type;
 }
 
-gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, type, mem_tracker)
-    , _buffer(buffer)
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, ze_usm_resource buffer) {
+    if (buffer.has_ocl_handle<ocl_resource_type::mem_object>()) {
+        return allocation_type::cl_mem;
+    }
+    return detect_allocation_type(engine, buffer.handle().ptr);
 }
 
-gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
+gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
-    , _buffer(buffer)
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , memory(engine, new_layout, type, mem_tracker)
+    , _buffer(std::move(buffer)) {
+    auto ctx_handle = engine->get_context().handle();
+    auto ptr = _buffer.handle().ptr;
+    auto expected_size = new_layout.bytes_count();
+    OPENVINO_ASSERT(check_allocation_range(ctx_handle, ptr, expected_size),
+                    "[GPU] Allocation is smaller than the size required by the layout");
 }
+
+gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, std::shared_ptr<MemoryTracker> mem_tracker)
+    : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
-    , memory(engine, layout, type, nullptr)
-    , _buffer(engine->get_context(), engine->get_device())
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , memory(engine, layout, type, nullptr) {
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
@@ -150,48 +281,49 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     auto mem_ordinal = engine->get_device_info().device_memory_ordinal;
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer.allocateHost(actual_bytes_count);
+        _buffer = allocate_usm_host(engine->get_context(), actual_bytes_count);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(actual_bytes_count, mem_ordinal);
+        _buffer = allocate_usm_shared(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal);
         break;
+    case allocation_type::cl_mem:
     case allocation_type::usm_device:
-        _buffer.allocateDevice(actual_bytes_count, mem_ordinal);
+        _buffer = allocate_usm_device(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal);
         break;
     default:
-        OPENVINO_THROW("[GPU] Unknown unified shared memory type!");
+        OPENVINO_THROW("[GPU] Requested unknown unified shared memory type!");
     }
 
-    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.handle().ptr, actual_bytes_count, type);
 }
 
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
-        if (get_allocation_type() == allocation_type::usm_device) {
+        auto alloc_type = get_allocation_type();
+        if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
-            _host_buffer.allocateHost(_bytes_count);
+            auto *zero_engine = downcast<ze_engine>(_engine);
+            _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
             // Always copy device data to host buffer (treat write as read_write internally).
             // This ensures the host buffer always has valid data, making nested locks safe.
             OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
-                                    _host_buffer.get(),
-                                    _buffer.get(),
+                                    _host_buffer.handle().ptr,
+                                    _buffer.handle().ptr,
                                     _bytes_count,
                                     nullptr,
                                     0,
                                     nullptr));
-            OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
-            _host_buffer_has_device_data = true;
-            _copy_back_to_device = (type != mem_lock_type::read);
-            _mapped_ptr = _host_buffer.get();
+            OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
+            _mapped_ptr = _host_buffer.handle().ptr;
         } else {
-            _mapped_ptr = _buffer.get();
+            _mapped_ptr = _buffer.handle().ptr;
         }
-    } else if (get_allocation_type() == allocation_type::usm_device) {
-        if (type != mem_lock_type::read) {
-            _copy_back_to_device = true;
-        }
+    }
+    if (!_host_buffer.is_empty()) {
+        // Update write back flag on every lock call
+        _copy_back_to_device = _copy_back_to_device || (type != mem_lock_type::read);
     }
     _lock_count++;
     return _mapped_ptr;
@@ -202,24 +334,28 @@ void gpu_usm::unlock(const stream& stream) {
     OPENVINO_ASSERT(_lock_count != 0, "[GPU] Trying to unlock an already unlocked buffer");
     _lock_count--;
     if (0 == _lock_count) {
-        if (get_allocation_type() == allocation_type::usm_device) {
-            if (_copy_back_to_device) {
+        if (_copy_back_to_device) {
                 auto& _ze_stream = downcast<const ze_stream>(stream);
                 OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
-                                        _buffer.get(),
-                                        _host_buffer.get(),
+                                        _buffer.handle().ptr,
+                                        _host_buffer.handle().ptr,
                                         _bytes_count,
                                         nullptr,
                                         0,
                                         nullptr));
                 OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
-            }
-            _host_buffer.freeMem();
-            _copy_back_to_device = false;
-            _host_buffer_has_device_data = false;
         }
+        _copy_back_to_device = false;
+        _host_buffer.drop();
         _mapped_ptr = nullptr;
     }
+}
+
+void* gpu_usm::buffer_ptr() const {
+    if (_buffer.is_empty()) {
+        return nullptr;
+    }
+    return _buffer.handle().ptr;
 }
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
@@ -229,7 +365,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto ze_dep_events = get_ze_events(dep_events);
     const auto num_ze_dep_events = static_cast<uint32_t>(ze_dep_events.size());
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
-        _buffer.get(),
+        _buffer.handle().ptr,
         &pattern,
         sizeof(unsigned char),
         _bytes_count,
@@ -255,7 +391,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+    auto dst_ptr = reinterpret_cast<char*>(_buffer.handle().ptr) + dst_offset;
 
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
@@ -280,11 +416,12 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
-    OPENVINO_ASSERT(memory_capabilities::is_usm_type(src_mem.get_allocation_type()));
+    auto alloc_type = src_mem.get_allocation_type();
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type) || alloc_type == allocation_type::cl_mem, "[GPU] Source memory for gpu_usm::copy_from(memory&) should be USM or OpenCL buffer");
 
     auto usm_mem = downcast<const gpu_usm>(&src_mem);
     auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+    auto dst_ptr = reinterpret_cast<char*>(_buffer.handle().ptr) + dst_offset;
 
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
@@ -329,7 +466,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem = dnnl::ze_interop::make_memory(desc, onednn_engine,
-        reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
+        reinterpret_cast<uint8_t*>(_buffer.handle().ptr) + offset);
     return dnnl_mem;
 }
 
@@ -338,31 +475,53 @@ dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const m
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
     OPENVINO_ASSERT(offsets.get_engine() == this->_engine);
     dnnl::memory dnnl_mem = dnnl::ze_interop::make_memory(desc, onednn_engine,
-        {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
+        {reinterpret_cast<uint8_t*>(_buffer.handle().ptr), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
     return dnnl_mem;
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
-    auto casted = downcast<ze_engine>(_engine);
-    return {
-        shared_mem_type::shared_mem_usm,  // shared_mem_type
-        static_cast<shared_handle>(casted->get_context()),  // context handle
-        static_cast<shared_handle>(casted->get_device()),  // user_device handle
-        static_cast<shared_handle>(_buffer.get()),  // mem handle
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    auto params = shared_mem_params {
+        shared_mem_type::shared_mem_usm,
+        nullptr,
+        nullptr,
+        nullptr,
 #ifdef _WIN32
-        nullptr,  // surface handle
+        nullptr,
 #else
-        0,  // surface handle
+        0,
 #endif
-        0  // plane
+        0
     };
+    auto zero_engine = downcast<const ze_engine>(_engine);
+    auto ctx_res = zero_engine->get_context();
+    if (rt_type == runtime_types::ze) {
+        params.context = ctx_res.handle();
+        params.mem = _buffer.handle().ptr;
+        return params;
+    } else if (rt_type == runtime_types::ocl) {
+        auto device_res = zero_engine->get_device();
+        ze_export_ocl_context(ctx_res, device_res);
+        params.context = ctx_res.ocl_handle<ocl_resource_type::context>();
+        if (get_allocation_type() == allocation_type::cl_mem) {
+            cl_mem_flags flags = 0;
+            size_t buffer_size = _bytes_count;
+            ze_export_ocl_mem(_buffer, ctx_res, device_res, flags, buffer_size);
+            params.mem_type = shared_mem_type::shared_mem_buffer;
+            params.mem = _buffer.ocl_handle<ocl_resource_type::mem_object>();
+        } else {
+            // No need to convert when exporting USM pointer
+            params.mem = _buffer.handle().ptr;
+        }
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported runtime type for gpu_usm internal params");
+    }
+    return params;
 }
 
 gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     : lockable_gpu_mem()
     , memory(engine, layout, allocation_type::ze_image, nullptr)
-    , _host_buffer(engine->get_context(), engine->get_device())
     , _width(0)
     , _height(0) {
     ze_image_desc_t image_desc = {};
@@ -450,19 +609,20 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     image_desc.depth = 1;
     image_desc.arraylevels = 1;
     image_desc.miplevels = 0;
+    auto ctx_handle = engine->get_context().handle();
+    auto device_handle = engine->get_device().handle();
     ze_image_handle_t image_handle;
-    OV_ZE_EXPECT(ze::zeImageCreate(engine->get_context(), engine->get_device(), &image_desc, &image_handle));
-    _image = std::make_shared<image_holder>(image_handle, false);
+    OV_ZE_EXPECT(ze::zeImageCreate(ctx_handle, device_handle, &image_desc, &image_handle));
+    _image_holder = ze_image_resource(image_handle);
     size_t elem_size = get_element_size(image_desc.format.layout);
-    _bytes_count = elem_size * _width * _height;
+    OPENVINO_ASSERT(elem_size * _width * _height == layout.bytes_count(), "[GPU] Image size does not match layout bytes count");
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, image_handle, layout.bytes_count(), allocation_type::ze_image);
 }
 
-gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_handle_t image, std::shared_ptr<MemoryTracker> mem_tracker)
+gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, allocation_type::ze_image, mem_tracker)
-    , _image(std::make_shared<image_holder>(image, true))
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , _image_holder(std::move(image)) {
     // No way to get width and height from Level Zero so we have to assume layout is correct
     std::tie(_width, _height) = get_width_height(new_layout);
 }
@@ -476,12 +636,12 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
         } else {
             _needs_write_back = false;
         }
-
-        _host_buffer.allocateHost(_bytes_count);
+        auto *zero_engine = downcast<ze_engine>(_engine);
+        _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
         if (type != mem_lock_type::write) {
             OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyToMemory(zero_stream.get_queue(),
-                _host_buffer.get(),
-                _image->get_handle(),
+                _host_buffer.handle().ptr,
+                _image_holder.handle(),
                 nullptr,
                 nullptr,
                 0,
@@ -489,7 +649,7 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
             // Block thread and wait for copy and previous operations to finish
             OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(zero_stream.get_queue(), endless_wait));
         }
-        _mapped_ptr = _host_buffer.get();
+        _mapped_ptr = _host_buffer.handle().ptr;
     }
     _lock_count++;
     return _mapped_ptr;
@@ -504,8 +664,8 @@ void gpu_image2d::unlock(const stream& stream) {
         if (_needs_write_back) {
             auto& zero_stream = downcast<const ze_stream>(stream);
             OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyFromMemory(zero_stream.get_queue(),
-                _image->get_handle(),
-                _host_buffer.get(),
+                _image_holder.handle(),
+                _host_buffer.handle().ptr,
                 nullptr,
                 nullptr,
                 0,
@@ -513,7 +673,7 @@ void gpu_image2d::unlock(const stream& stream) {
             // Insert barrier to ensure that following commands have correct image data
             OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(zero_stream.get_queue(), nullptr, 0, nullptr));
         }
-        _host_buffer.freeMem();
+        _host_buffer.drop();
         _mapped_ptr = nullptr;
     }
 }
@@ -530,13 +690,13 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     ze_dep_events.push_back(ev_fill_handle);
     // Level Zero does not have API to fill image directly
     // Workaround is to fill usm buffer and then copy it to image
-    auto context = zero_stream.get_engine().get_context();
     auto device = zero_stream.get_engine().get_device();
-    ze::UsmMemory fill_buffer(context, device);
-    fill_buffer.allocateDevice(_bytes_count, zero_stream.get_engine().get_device_info().device_memory_ordinal);
+    auto context = zero_stream.get_engine().get_context();
+    auto mem_ordinal = zero_stream.get_engine().get_device_info().device_memory_ordinal;
+    ze_usm_resource fill_buffer = allocate_usm_device(context, device, _bytes_count, mem_ordinal);
 
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryFill(zero_stream.get_queue(),
-        fill_buffer.get(),
+        fill_buffer.handle().ptr,
         &pattern,
         sizeof(unsigned char),
         _bytes_count,
@@ -545,8 +705,8 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
         nullptr));
     auto ev_result_handle = downcast<ze::ze_base_event>(result_event.get())->get_handle();
     OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyFromMemory(zero_stream.get_queue(),
-                _image->get_handle(),
-                fill_buffer.get(),
+                _image_holder.handle(),
+                fill_buffer.handle().ptr,
                 nullptr,
                 ev_result_handle,
                 static_cast<uint32_t>(ze_dep_events.size()),
@@ -563,18 +723,38 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     return result_event;
 }
 
-shared_mem_params gpu_image2d::get_internal_params() const {
-    auto zero_engine = downcast<const ze_engine>(_engine);
-    return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(zero_engine->get_context()), nullptr,
-            static_cast<shared_handle>(_image->get_handle()),
+shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const {
+    auto params = shared_mem_params {
+        shared_mem_type::shared_mem_image,
+        nullptr,
+        nullptr,
+        nullptr,
 #ifdef _WIN32
         nullptr,
 #else
         0,
 #endif
-        0};
+        0
+    };
+    auto zero_engine = downcast<const ze_engine>(_engine);
+    auto ctx_res = zero_engine->get_context();
+    if (rt_type == runtime_types::ze) {
+        params.context = ctx_res.handle();
+        params.mem = _image_holder.handle();
+        return params;
+    } else if (rt_type == runtime_types::ocl) {
+        auto device_res = zero_engine->get_device();
+        cl_mem_flags flags = 0;
+        cl_image_format img_fmt =  get_cl_image_format(get_layout());
+        cl_image_desc img_desc = get_cl_image_desc(get_layout());
+        ze_export_ocl_image(_image_holder, ctx_res, device_res, flags, img_fmt, img_desc);
+        params.context = ctx_res.ocl_handle<ocl_resource_type::context>();
+        params.mem = _image_holder.ocl_handle<ocl_resource_type::mem_object>();
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported runtime type for gpu_image2d internal params");
+    }
+    return params;
 }
-
 
 event::ptr gpu_image2d::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
     auto result_event = create_event(stream, size);
@@ -589,7 +769,7 @@ event::ptr gpu_image2d::copy_from(stream& stream, const void* data_ptr, size_t s
     auto ev_result_handle = downcast<ze::ze_base_event>(result_event.get())->get_handle();
 
     OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyFromMemory(zero_stream->get_queue(),
-        _image->get_handle(),
+        _image_holder.handle(),
         src_ptr,
         nullptr,
         ev_result_handle,
@@ -614,8 +794,8 @@ event::ptr gpu_image2d::copy_from(stream& stream, const memory& src_mem, size_t 
     auto src_image = downcast<const gpu_image2d>(&src_mem);
     auto ev_result_handle = downcast<ze::ze_base_event>(result_event.get())->get_handle();
     OV_ZE_EXPECT(ze::zeCommandListAppendImageCopy(zero_stream->get_queue(),
-        _image->get_handle(),
-        src_image->_image->get_handle(),
+        _image_holder.handle(),
+        src_image->_image_holder.handle(),
         ev_result_handle,
         0,
         nullptr));
@@ -637,7 +817,7 @@ event::ptr gpu_image2d::copy_to(stream& stream, void* data_ptr, size_t src_offse
     auto ev_result_handle = downcast<ze::ze_base_event>(result_event.get())->get_handle();
     OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyToMemory(zero_stream->get_queue(),
         dst_ptr,
-        _image->get_handle(),
+        _image_holder.handle(),
         nullptr,
         ev_result_handle,
         0,

@@ -14,7 +14,7 @@ public:
     using Parent = DeconvolutionKernelBase;
 
     DeconvolutionKernel_b_fs_zyx_fsv16_dw() : DeconvolutionKernelBase("deconvolution_gpu_b_fs_zyx_fsv16_dw") {}
-    virtual ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() {}
+    ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() override {}
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 

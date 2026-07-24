@@ -164,7 +164,10 @@ ov_add_plugin(NAME ${TARGET_NAME}
               OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
               ${GPU_PLUGIN_OPTIONS}
               DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
-              VERSION_DEFINES_FOR src/plugin/plugin.cpp)
+              VERSION_DEFINES_FOR src/plugin/plugin.cpp
+              # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
+              # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
+              ADD_CLANG_TIDY)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)

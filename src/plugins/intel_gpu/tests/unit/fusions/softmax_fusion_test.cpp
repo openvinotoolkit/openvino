@@ -129,6 +129,9 @@ TEST_P(softmax_activation, basic) {
     );
 
     tolerance = default_tolerance(p.data_type);
+    if (p.default_type == data_types::f16)
+        tolerance *= 2; // Issue: 185375
+
     execute(p);
 }
 

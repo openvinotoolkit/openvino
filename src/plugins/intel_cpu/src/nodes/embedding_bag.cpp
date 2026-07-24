@@ -72,7 +72,7 @@ void EmbeddingBag::processData(const T* srcData,
 
         size_t indicesSize = 0LU;
         const int* indices = nullptr;
-        int weightsIdx = 0LU;
+        size_t weightsIdx = 0LU;
         bool withWeights = _withWeights;
 
         for (size_t obi = start; obi < end; obi++) {
@@ -116,7 +116,7 @@ void EmbeddingBag::processData(const T* srcData,
                 }
                 if (_reduction == Reduction::MEAN) {
                     for (size_t i = 0LU; i < _embDepth; i++) {
-                        dstData[dstIndex + i] /= indicesSize;
+                        dstData[dstIndex + i] /= static_cast<T>(indicesSize);
                     }
                 }
             } else {
