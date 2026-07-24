@@ -8,38 +8,24 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "utils/general_utils.h"
+#include "transformations/snippets/common/pass/lowered/adjust_copy_b_loop_ports.hpp"
 
 namespace ov::intel_cpu {
 
 namespace {
-void assign_new_ptr_increment(int64_t new_ptr_increment,
-                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
-    const auto old_ptr_incr = loop_desc.ptr_increment;
-    const auto old_final_offset = loop_desc.finalization_offset;
-
-    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
-        loop_desc.ptr_increment = new_ptr_increment;
-        if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
-            OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");
-            loop_desc.finalization_offset =
-                ov::snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (old_final_offset / old_ptr_incr));
-        }
-    }
-}
-
 int64_t get_rhs_packed_ptr_increment(const ov::element::Type& precision, size_t n_increment, size_t K) {
     if (snippets::utils::is_dynamic_value(n_increment) || snippets::utils::is_dynamic_value(K)) {
         return snippets::utils::get_dynamic_value<int64_t>();
@@ -83,7 +69,7 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
                         const auto& precision = expr->get_node()->get_input_element_type(1);
                         const auto new_ptr_increment =
                             get_rhs_packed_ptr_increment(precision, loop_info->get_increment(), K);
-                        assign_new_ptr_increment(new_ptr_increment, loop_desc);
+                        pass::copy_b_loop_ports::assign_new_ptr_increment(new_ptr_increment, loop_desc);
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustGemmCopyBLoopPorts");
                     }
@@ -101,27 +87,24 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::Linea
 
     bool modified = false;
 
-    for (const auto& expr : linear_ir) {
+    auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& gemm_expr) {
+        return pass::copy_b_loop_ports::get_repacking_loop_idces(
+            gemm_expr,
+            ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr,
+            "GemmCopyB expression is not found");
+    };
+
+    auto is_target_expr = [](const snippets::lowered::ExpressionPtr& expr) {
         const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node());
-        if (!gemm) {
-            continue;
-        }
-        const auto& gemm_loop_ids = expr->get_loop_ids();
-        if (gemm_loop_ids.empty()) {
-            continue;
-        }
-        const auto& loop_manager = linear_ir.get_loop_manager();
-        // only adjust inner most loop(N loop)
-        const auto& loop = loop_manager->get_loop_info(gemm_loop_ids.back());
-        auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-        if (!uni_loop) {
-            uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-        }
-        if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-            m_affected_loops.insert(uni_loop);
-            modified = true;
-        }
-    }
+        return static_cast<bool>(gemm);
+    };
+
+    modified = pass::copy_b_loop_ports::run(linear_ir,
+                                            m_affected_loops,
+                                            is_target_expr,
+                                            get_repacking_loop_idces,
+                                            pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info,
+                                            "Invalid GemmCopyB loop configuration");
 
     return modified;
 }
