@@ -51,6 +51,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/linux_perf.hpp"
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
@@ -428,7 +429,10 @@ void FullyConnected::execTensorParallelSync() {
 void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
-    executor->execute(memory);
+    {
+        auto prof = LinuxPerf::Profile("", "FullyConnected::execute");
+        executor->execute(memory);
+    }
 
     execTensorParallelSync();
 }
@@ -574,7 +578,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
-    attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
+    attrs.dynamicQuantizationGroupSize = getEnvBool("OV_CPU_ENABLE_SRC_DYNAMIC_QUANT_FC")
+                                             ? context->getConfig().fcDynamicQuantizationGroupSize
+                                             : 0;
     attrs.modelType = context->getConfig().modelType;
 
     attrs.dqScales = getDQScales();

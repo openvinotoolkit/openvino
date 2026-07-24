@@ -8,9 +8,30 @@
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <vector>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "nodes/executors/memory_arguments.hpp"
+
 namespace ov::intel_cpu {
+
+struct BrgemmKernelPostOpsConfig {
+    dnnl::primitive_attr attr;
+    MemoryArgs cpuArgs;
+    ov::element::Type dstType = ov::element::dynamic;
+    ov::element::Type biasType = ov::element::dynamic;
+    bool enabled = false;
+};
+
+struct BrgemmKernelPostOpsCallArgs {
+    const void* bias = nullptr;
+    const char* dstDataAnchor = nullptr;
+    size_t dstRowLogicalOffset = 0;
+    const float* weiScales = nullptr;
+};
+
+using BrgemmKernelBinaryArgs = std::vector<const void*>;
 
 class BrgemmKernel {
 public:
@@ -33,6 +54,28 @@ public:
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false);
 
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 bool b_transposed,
+                 ov::element::Type srcType,
+                 ov::element::Type weiType,
+                 bool b_accumulate);
+
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 bool b_transposed,
+                 ov::element::Type inType,
+                 const BrgemmKernelPostOpsConfig& postOps,
+                 bool b_accumulate = false);
+
     virtual ~BrgemmKernel() = default;
 
     // execute by m_blk
@@ -46,6 +89,18 @@ public:
     // scratch_a, pointer to store temp a
     virtual void
     executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
+
+    void executeGemmWithPostOps(bool is_M_tail,
+                                void* a,
+                                void* b,
+                                void* c,
+                                void* d,
+                                float* scale_b,
+                                void* wsp,
+                                void* scratch_a,
+                                const BrgemmKernelPostOpsCallArgs& postOps);
+
+    void setPostOpBinaryArgs(BrgemmKernelBinaryArgs binaryArgs);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -83,7 +138,23 @@ protected:
                  ov::element::Type inType,
                  ov::element::Type DType,
                  ScaleType bScaleType,
-                 bool b_accumulate);
+                 bool b_accumulate,
+                 const BrgemmKernelPostOpsConfig& postOps = {});
+
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 size_t ldd,
+                 bool b_transposed,
+                 ov::element::Type srcType,
+                 ov::element::Type weiType,
+                 ov::element::Type DType,
+                 ScaleType bScaleType,
+                 bool b_accumulate,
+                 const BrgemmKernelPostOpsConfig& postOps = {});
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
@@ -93,6 +164,7 @@ protected:
     size_t packedASize = 0;
     ov::element::Type inType;
     ov::element::Type DType;
+    ov::element::Type origWeiType;
     ov::element::Type weiType;
     ov::element::Type srcType;
     ScaleType bScaleType = ScaleType::NONE;
@@ -100,6 +172,8 @@ protected:
     bool b_accumulate = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
+    BrgemmKernelPostOpsConfig m_postOpsConfig;
+    std::vector<const void*> m_postOpsBinaryRhsArgs;
     struct brgemmCtx {
         size_t M = 0, N = 0, K = 0, LDA = 0, LDB = 0, LDC = 0;
         dnnl_data_type_t dt_in0 = dnnl_data_type_undef;
@@ -118,7 +192,14 @@ protected:
     static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
-    void execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    void execute_without_scale(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               void* d,
+                               void* wsp,
+                               void* scratch_a,
+                               const BrgemmKernelPostOpsCallArgs* postOps = nullptr);
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
@@ -148,9 +229,8 @@ protected:
                            const void* pin1,
                            void* Cout,
                            void* Dout,
-                           const float* bScale,
                            void* wsp,
-                           bool doPostops);
+                           const dnnl::impl::cpu::x64::brgemm_post_ops_data_t* postOpsData);
 };
 
 class BrgemmKernelQuantized : public BrgemmKernel {

@@ -682,6 +682,8 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
     auto* srcPtr = static_cast<uint8_t*>(src->getData());
     if (any_of(prec, ov::element::u4, ov::element::i4)) {
         stride /= 2;
+    } else if (prec == ov::element::u2) {
+        stride /= 4;
     }
 
     MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc, srcPtr + w_rank * stride);
@@ -747,6 +749,9 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     if (any_of(prec, ov::element::u4, ov::element::i4)) {
         strideSize /= 2;
         copySize /= 2;
+    } else if (prec == ov::element::u2) {
+        strideSize /= 4;
+        copySize /= 4;
     }
     cpu_parallel->parallel_for(step, [&](size_t i) {
         size_t dst_offset = i * copySize;

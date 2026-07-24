@@ -536,10 +536,11 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     auto weiDesc = memory.at(ARG_WEI)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
-    const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
+    auto biasDesc = memory.at(ARG_BIAS)->getDescPtr();
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
-    const auto postOpData =
+
+    auto postOpData =
         createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
