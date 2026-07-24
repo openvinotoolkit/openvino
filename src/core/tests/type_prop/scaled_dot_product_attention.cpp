@@ -537,3 +537,14 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_last_dim) {
                     AssertFailure,
                     testing::HasSubstr("Sink input has not compatible shape."));
 }
+
+TEST(type_prop, scaled_dot_product_attention_static_gqa_q_heads_greater_than_kv_heads) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 40, 128, 128});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 10, 128, 128});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 10, 128, 128});
+    auto causal = false;
+
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 40, 128, 128}));
+}
