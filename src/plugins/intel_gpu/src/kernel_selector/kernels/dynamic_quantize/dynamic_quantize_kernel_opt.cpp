@@ -4,7 +4,7 @@
 
 #include "dynamic_quantize_kernel_opt.h"
 #include "kernel_selector_utils.h"
-#include <cstdlib>
+#include <algorithm>
 #include <string>
 
 
@@ -15,8 +15,7 @@ namespace kernel_selector {
 enum class DynQuanMode {
     SMALL_GS = 1,
     LARGE_GS = 2,
-    PER_TOKEN = 3,
-    SMALL_GS_SG = 4
+    PER_TOKEN = 3
 };
 
 static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
@@ -38,14 +37,13 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 }
 
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
-    if (params.group_sizes.back() <= 64 && params.group_sizes.back() >= simd) {
-        return DynQuanMode::SMALL_GS_SG;
-    } else if (params.group_sizes.back() <= 64) {
-        return DynQuanMode::SMALL_GS;
-    } else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max()) {
+    auto gs = params.group_sizes.back();
+    if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    } else {
+    } else if (gs >= simd * 2) {
         return DynQuanMode::LARGE_GS;
+    } else {
+        return DynQuanMode::SMALL_GS;
     }
 }
 
@@ -53,9 +51,11 @@ static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
+    auto gs = params.group_sizes.back();
+    size_t max_vec_size = (gs != std::numeric_limits<uint64_t>::max()) ? gs / simd : 8;
 
     for (auto block_size : block_sizes) {
-        if ((f / simd) % block_size == 0) {
+        if (static_cast<size_t>(block_size) <= max_vec_size && (f / simd) % block_size == 0) {
             return block_size;
         }
     }
@@ -100,7 +100,6 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
-    jit.AddConstant(MakeJitConstant("MODE_SMALL_GS_SG", static_cast<int>(DynQuanMode::SMALL_GS_SG)));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
@@ -121,12 +120,7 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     CommonDispatchData dispatchData;
     auto mode = get_dynamic_quantize_mode(params);
 
-    if (mode == DynQuanMode::SMALL_GS_SG) {
-        auto bf_size = get_input_bf_size(params);
-        size_t num_groups = bf_size.second / params.group_sizes.back();
-        dispatchData.gws = {simd, bf_size.first, num_groups};
-        dispatchData.lws = {simd, 1, 1};
-    } else if (mode == DynQuanMode::SMALL_GS) {
+    if (mode == DynQuanMode::SMALL_GS) {
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
