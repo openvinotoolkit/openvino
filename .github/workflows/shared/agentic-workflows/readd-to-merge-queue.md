@@ -12,6 +12,7 @@ safe-outputs:
       output: "Re-add to merge queue requested for the affected pull request."
       permissions:
         pull-requests: read
+        contents: read
       inputs:
         pr_number:
           description: "Number of the pull request that was dropped from the merge queue and should be re-added. Report as a numeric string."
@@ -27,6 +28,17 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Checkout agentic-workflow scripts
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+          with:
+            sparse-checkout: .github/scripts/agentic-workflows
+            persist-credentials: false
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
+        - name: Install PyGithub
+          run: python -m pip install --quiet PyGithub
         - name: Re-add pull request to merge queue
           env:
             # A PAT or GitHub App token with `contents: write` and
@@ -34,106 +46,7 @@ safe-outputs:
             # cannot re-trigger merge_group check runs (events it creates do not
             # start new workflow runs), so the re-queued PR would stall.
             GH_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
-          run: |
-            set -euo pipefail
-            set +H  # disable bash history expansion so literal "!" in MARKER/comments is safe to paste/test interactively
-
-            MARKER="<!-- ci-doctor-mq-readd -->"
-
-            if [ -z "${GH_TOKEN:-}" ]; then
-              echo "MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue." >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "readd_to_merge_queue")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No readd_to_merge_queue item present in agent output" >&2
-              exit 1
-            fi
-
-            PR_NUMBER=$(echo "$ITEM"  | jq -r '.pr_number // ""')
-            REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-            REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
-
-            # Validate pr_number is purely numeric to avoid API path/query injection.
-            if ! printf '%s' "$PR_NUMBER" | grep -Eq '^[0-9]+$'; then
-              echo "pr_number must be a numeric string, got: '$PR_NUMBER'" >&2
-              exit 1
-            fi
-
-            # Fall back to the current repository when none was supplied.
-            if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-              REPOSITORY="${GITHUB_REPOSITORY}"
-            fi
-
-            # Validate repository is in owner/repo form to avoid API path injection.
-            if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-              echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-              exit 1
-            fi
-
-            echo "Requested re-add of PR #$PR_NUMBER in $REPOSITORY to merge queue (reason: $REASON)"
-
-            # Loop guard: if CI Doctor already re-added this PR (marker comment
-            # present), do not re-add again to avoid queue thrash.
-            if gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json comments \
-                 --jq '.comments[].body' | grep -qF "$MARKER"; then
-              echo "PR #$PR_NUMBER already re-added by CI Doctor (marker comment found); skipping."
-              exit 0
-            fi
-
-            # Fetch PR state. Note: `gh pr view --json` does not expose merge-queue
-            # membership, so this job does not re-check whether the PR is still in
-            # the queue — that decision is made upstream by the agent (which only
-            # calls this tool when the PR was dropped), and re-running `gh pr merge`
-            # on an already-queued PR is safe.
-            PR_INFO=$(gh pr view "$PR_NUMBER" --repo "$REPOSITORY" \
-              --json state,isDraft,headRefOid)
-
-            PR_STATE=$(echo "$PR_INFO" | jq -r '.state // ""')
-            PR_DRAFT=$(echo "$PR_INFO" | jq -r '.isDraft // false')
-            PR_HEAD=$(echo "$PR_INFO"  | jq -r '.headRefOid // ""')
-
-            # Only re-add an open, non-draft, unmerged PR.
-            if [ "$PR_STATE" = "MERGED" ]; then
-              echo "PR #$PR_NUMBER is already merged; nothing to re-add."
-              exit 0
-            fi
-            if [ "$PR_STATE" != "OPEN" ]; then
-              echo "PR #$PR_NUMBER is not open (state=$PR_STATE); not re-adding."
-              exit 0
-            fi
-            if [ "$PR_DRAFT" = "true" ]; then
-              echo "PR #$PR_NUMBER is a draft; not re-adding."
-              exit 0
-            fi
-
-            # Re-add the PR to the merge queue. On a branch that requires a merge
-            # queue, `gh pr merge` adds the PR to the queue (or enables auto-merge
-            # if required checks are still pending) instead of merging directly,
-            # using the queue's own configured merge method. A merge-method flag
-            # (`--squash`) is still required so the CLI runs non-interactively
-            # (otherwise it prompts / errors asking which method to use).
-            # `--match-head-commit` guards against the head moving under us.
-            if [ -n "$PR_HEAD" ]; then
-              gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash --match-head-commit "$PR_HEAD"
-            else
-              gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash
-            fi
-
-            echo "Successfully requested re-add of PR #$PR_NUMBER to the merge queue."
-
-            # Record a marker comment so subsequent CI Doctor runs do not re-add again.
-            COMMENT_BODY=$(printf '%s\n\n_CI Doctor re-added this pull request to the merge queue after a transient failure (reason: %s)._' \
-              "$MARKER" "$REASON")
-            gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body "$COMMENT_BODY"
-
-            echo "Recorded re-add marker comment on PR #$PR_NUMBER."
+          run: python .github/scripts/agentic-workflows/readd_to_merge_queue.py
 ---
 
 # CI Doctor MQ — Re-add Pull Request to Merge Queue

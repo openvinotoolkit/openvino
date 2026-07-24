@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"b9d2d3ec536c0c28b3f6c7b61d0c34cc24bfaf587148b93c2529182eb7f8c8ae","body_hash":"5453aae8ea48a65fa83acd89b195dc9b2a39c963a88c3fd299c096fe39116194","compiler_version":"v0.82.14","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.71"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","MERGE_QUEUE_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"b6d1443e05b8716267fa19425b99aa4f12006b4a","version":"v0.82.14"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.37","digest":"sha256:0d35e8682845f183c1c634699a8e8a6cbe2c271b867031410df74533243c5f67","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.37@sha256:0d35e8682845f183c1c634699a8e8a6cbe2c271b867031410df74533243c5f67"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.37","digest":"sha256:fc2970aadaeae05993e76697d29f03dc8bfb9248ff87a8f3d8b0975485a4b317","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.37@sha256:fc2970aadaeae05993e76697d29f03dc8bfb9248ff87a8f3d8b0975485a4b317"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.37","digest":"sha256:5abc51995e5901c5d1daeefc957301ee409980e2e607391ec22c06cb2513327b","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.37@sha256:5abc51995e5901c5d1daeefc957301ee409980e2e607391ec22c06cb2513327b"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.6.0","digest":"sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3","pinned_image":"ghcr.io/github/github-mcp-server:v1.6.0@sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"41775ae762894817f4fcaea059ecf656d91ad60f1081265f8c776be7528c4954","body_hash":"5453aae8ea48a65fa83acd89b195dc9b2a39c963a88c3fd299c096fe39116194","compiler_version":"v0.82.14","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.71"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","MERGE_QUEUE_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"a309ff8b426b58ec0e2a45f0f869d46889d02405"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"b6d1443e05b8716267fa19425b99aa4f12006b4a","version":"v0.82.14"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.37","digest":"sha256:0d35e8682845f183c1c634699a8e8a6cbe2c271b867031410df74533243c5f67","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.37@sha256:0d35e8682845f183c1c634699a8e8a6cbe2c271b867031410df74533243c5f67"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.37","digest":"sha256:fc2970aadaeae05993e76697d29f03dc8bfb9248ff87a8f3d8b0975485a4b317","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.37@sha256:fc2970aadaeae05993e76697d29f03dc8bfb9248ff87a8f3d8b0975485a4b317"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.37","digest":"sha256:5abc51995e5901c5d1daeefc957301ee409980e2e607391ec22c06cb2513327b","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.37@sha256:5abc51995e5901c5d1daeefc957301ee409980e2e607391ec22c06cb2513327b"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.6.0","digest":"sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3","pinned_image":"ghcr.io/github/github-mcp-server:v1.6.0@sha256:2b0c48b070f61e9d3969269ead600f62d00fb237b60ac849ef3d166ee7de9ad3"}]}
 # This file was automatically generated by gh-aw (v0.82.14). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -52,6 +52,7 @@
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
 #   - actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+#   - actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #   - github/gh-aw-actions/setup@b6d1443e05b8716267fa19425b99aa4f12006b4a # v0.82.14
 #
@@ -552,13 +553,19 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
         name: Download CI failure logs
-        run: "set -e\nLOG_DIR=\"/tmp/gh-aw/agent/ci-doctor/logs\"\nFILTERED_DIR=\"/tmp/gh-aw/agent/ci-doctor/filtered\"\nSUMMARY_FILE=\"/tmp/gh-aw/agent/ci-doctor/summary.txt\"\nmkdir -p \"$LOG_DIR\" \"$FILTERED_DIR\"\n\n# Download the log for a single failed job and pre-locate error hints.\ndownload_job_log() {\n  JOB_ID=\"$1\"\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -m 30 -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  fi\n}\n\n# Append the shared \"downloaded files\" + \"hint files\" footer to the summary.\nwrite_summary_footer() {\n  echo \"\"\n  echo \"Downloaded job log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n}\n\nif [ -n \"$RUN_ID\" ]; then\n  # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----\n  echo \"=== CI Doctor: Pre-downloading logs for run $RUN_ID ===\"\n\n  gh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n    --jq '[.jobs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failure\") | .name]}]' \\\n    > \"$LOG_DIR/failed-jobs.json\"\n\n  FAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\n  echo \"Found $FAILED_COUNT failed job(s)\"\n\n  {\n    echo \"=== CI Doctor Pre-Analysis ===\"\n    echo \"Run ID: $RUN_ID\"\n    echo \"\"\n    echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n    jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n      \"$LOG_DIR/failed-jobs.json\"\n  } > \"$SUMMARY_FILE\"\n\n  if [ \"$FAILED_COUNT\" -eq 0 ]; then\n    echo \"No failed jobs found, skipping log download\"\n  else\n    cat \"$LOG_DIR/failed-jobs.json\"\n    jq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n      download_job_log \"$JOB_ID\"\n    done\n  fi\n\n  write_summary_footer >> \"$SUMMARY_FILE\"\n\nelif [ -n \"$PR_NUMBER\" ]; then\n  # ---- pr mode: every failed run on a pull request head commit ----\n  echo \"=== CI Doctor: Pre-downloading logs for PR #$PR_NUMBER ===\"\n\n  HEAD_SHA=$(gh api \"repos/$REPO/pulls/$PR_NUMBER\" --jq '.head.sha' 2>/dev/null || echo \"\")\n  if [ -z \"$HEAD_SHA\" ]; then\n    echo \"Could not resolve a pull request head SHA (is this a PR comment?), skipping log download\"\n    echo \"No pull request context available.\" > \"$SUMMARY_FILE\"\n    exit 0\n  fi\n  echo \"PR head SHA: $HEAD_SHA\"\n\n  # Find all workflow runs for the PR head SHA that failed or were cancelled\n  gh api --paginate \"repos/$REPO/actions/runs?head_sha=$HEAD_SHA\" \\\n    --jq '[.workflow_runs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, url:.html_url, conclusion:.conclusion}]' \\\n    > \"$LOG_DIR/failed-runs.json\" 2>/dev/null || echo '[]' > \"$LOG_DIR/failed-runs.json\"\n\n  # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow\n  jq 'group_by(.name) | map(max_by(.id))' \"$LOG_DIR/failed-runs.json\" > \"$LOG_DIR/failed-runs.dedup.json\"\n  mv \"$LOG_DIR/failed-runs.dedup.json\" \"$LOG_DIR/failed-runs.json\"\n\n  FAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-runs.json\")\n  echo \"Found $FAILED_COUNT failed pipeline(s) on PR #$PR_NUMBER\"\n\n  {\n    echo \"=== CI Doctor Pre-Analysis (PR #$PR_NUMBER, head $HEAD_SHA) ===\"\n    echo \"\"\n    echo \"Failed pipelines (details in $LOG_DIR/failed-runs.json):\"\n    jq -r '.[] | \"  Run \\(.id): \\(.name) [\\(.conclusion)] \\(.url)\"' \"$LOG_DIR/failed-runs.json\"\n  } > \"$SUMMARY_FILE\"\n\n  if [ \"$FAILED_COUNT\" -eq 0 ]; then\n    echo \"No failed pipelines found, skipping log download\"\n  else\n    cat \"$LOG_DIR/failed-runs.json\"\n    jq -r '.[].id' \"$LOG_DIR/failed-runs.json\" | while read -r RUN_ID; do\n      gh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n        --jq '[.jobs[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failure\") | .name]}]' \\\n        > \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\" 2>/dev/null || echo '[]' > \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\"\n\n      jq -r '.[].id' \"$LOG_DIR/run-${RUN_ID}-failed-jobs.json\" | while read -r JOB_ID; do\n        download_job_log \"$JOB_ID\"\n      done\n    done\n  fi\n\n  write_summary_footer >> \"$SUMMARY_FILE\"\n\nelse\n  echo \"Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.\"\n  echo \"No CI Doctor context (no RUN_ID or PR_NUMBER).\" > \"$SUMMARY_FILE\"\nfi\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+        run: python .github/scripts/agentic-workflows/download_failure_logs.py
 
       - name: Configure Git credentials
         env:
@@ -1791,102 +1798,21 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Checkout agentic-workflow scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts/agentic-workflows
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
       - name: Send Teams notification
-        run: |
-          set -euo pipefail
-
-          if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-            echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-            exit 1
-          fi
-
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
-
-          ITEM=$(jq -c '[.items[] | select(.type == "notify_teams")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No notify_teams item present in agent output" >&2
-            exit 1
-          fi
-
-          TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-          FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-          PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-          DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-          PR_NUMBER=$(echo "$ITEM"        | jq -r '.pr_number // ""')
-          PR_URL=$(echo "$ITEM"           | jq -r '.pr_url // ""')
-          AUTHOR=$(echo "$ITEM"           | jq -r '.author // ""')
-          DB_ENTRIES=$(echo "$ITEM"       | jq -r '.db_entries // ""')
-          OCCURRENCES=$(echo "$ITEM"      | jq -r '.occurrence_count // ""')
-          STATISTICS=$(echo "$ITEM"       | jq -r '.statistics // ""')
-          STATISTICS_JSON=$(echo "$ITEM"  | jq -r '.statistics_json // ""')
-
-          # Persist the full statistics database as a workflow artifact for offline review.
-          STATS_DIR="${RUNNER_TEMP:-/tmp}/ci-doctor-mq-stats"
-          mkdir -p "$STATS_DIR"
-          if [ -n "$STATISTICS_JSON" ]; then
-            # Validate and pretty-print; fall back to raw on parse error.
-            if echo "$STATISTICS_JSON" | jq '.' > "$STATS_DIR/ci-doctor-mq-statistics.json" 2>/dev/null; then
-              echo "Wrote validated statistics JSON ($(wc -c < "$STATS_DIR/ci-doctor-mq-statistics.json") bytes)"
-            else
-              echo "Warning: statistics_json failed jq parse; storing raw payload" >&2
-              printf '%s' "$STATISTICS_JSON" > "$STATS_DIR/ci-doctor-mq-statistics.json"
-            fi
-          fi
-          if [ -n "$STATISTICS" ]; then
-            printf '%s\n' "$STATISTICS" > "$STATS_DIR/ci-doctor-mq-statistics.md"
-          fi
-          echo "stats_dir=$STATS_DIR" >> "$GITHUB_OUTPUT"
-
-          # Build Adaptive Card facts conditionally (only include PR/author when present).
-          FACTS=$(jq -nc \
-            --arg pipeline_url    "$PIPELINE_URL" \
-            --arg pr_number       "$PR_NUMBER" \
-            --arg pr_url          "$PR_URL" \
-            --arg author          "$AUTHOR" \
-            --arg failed_workflow "$FAILED_WORKFLOW" \
-            --arg db_entries      "$DB_ENTRIES" \
-            --arg occurrences     "$OCCURRENCES" '
-              [
-                ( $failed_workflow | select(length > 0) | { title: "Workflow",    value: . } ),
-                ( $pipeline_url    | select(length > 0) | { title: "Pipeline",    value: ("[Open run](" + . + ")") } ),
-                ( $pr_number       | select(length > 0) | { title: "PR",          value: (if ($pr_url | length) > 0 then ("[#" + . + "](" + $pr_url + ")") else ("#" + .) end) } ),
-                ( $author          | select(length > 0) | { title: "Author",      value: ("@" + .) } ),
-                ( $occurrences     | select(length > 0) | { title: "Occurrences", value: (. + "×") } ),
-                ( $db_entries      | select(length > 0) | { title: "DB entries",  value: . } )
-              ] | map(select(. != null))')
-
-          PAYLOAD=$(jq -nc \
-            --arg title "$TITLE" \
-            --arg description "$DESCRIPTION" \
-            --arg statistics "$STATISTICS" \
-            --argjson facts "$FACTS" '
-              {
-                type: "message",
-                attachments: [{
-                  contentType: "application/vnd.microsoft.card.adaptive",
-                  content: {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    type: "AdaptiveCard",
-                    version: "1.4",
-                    body: ([
-                      { type: "TextBlock", text: ("\ud83d\udd34 [MQ] " + $title), weight: "Bolder", size: "Medium", color: "Attention", wrap: true },
-                      { type: "FactSet", facts: $facts },
-                      { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" }
-                    ] + (if ($statistics | length) > 0 then [
-                      { type: "TextBlock", text: "Pattern Database Statistics", weight: "Bolder", size: "Medium", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $statistics, wrap: true, spacing: "Small" }
-                    ] else [] end))
-                  }
-                }]
-              }')
-
-          curl -sS --fail-with-body \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$TEAMS_WEBHOOK_URL"
+        run: python .github/scripts/agentic-workflows/notify_teams.py
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
@@ -1918,75 +1844,21 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Checkout agentic-workflow scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts/agentic-workflows
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
       - name: Send recurring failure escalation to Teams
-        run: |
-          set -euo pipefail
-
-          if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-            echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-            exit 1
-          fi
-
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
-
-          ITEM=$(jq -c '[.items[] | select(.type == "notify_teams_recurring")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No notify_teams_recurring item present in agent output" >&2
-            exit 1
-          fi
-
-          TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-          FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-          PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-          RECENT_COUNT=$(echo "$ITEM"     | jq -r '.recent_count // ""')
-          DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-          AFFECTED_PRS=$(echo "$ITEM"     | jq -r '.affected_prs // ""')
-          RECENT_RUNS=$(echo "$ITEM"      | jq -r '.recent_run_urls // ""')
-
-          FACTS=$(jq -nc \
-            --arg failed_workflow "$FAILED_WORKFLOW" \
-            --arg pipeline_url    "$PIPELINE_URL" \
-            --arg recent_count    "$RECENT_COUNT" '
-              [
-                { title: "Workflow",           value: $failed_workflow },
-                { title: "Pipeline",           value: ("[Latest run](" + $pipeline_url + ")") },
-                { title: "Hits (last 12 hrs)", value: ($recent_count + " occurrences") }
-              ]')
-
-          PAYLOAD=$(jq -nc \
-            --arg title "$TITLE" \
-            --arg description "$DESCRIPTION" \
-            --arg affected_prs "$AFFECTED_PRS" \
-            --arg recent_runs "$RECENT_RUNS" \
-            --argjson facts "$FACTS" '
-              {
-                type: "message",
-                attachments: [{
-                  contentType: "application/vnd.microsoft.card.adaptive",
-                  content: {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    type: "AdaptiveCard",
-                    version: "1.4",
-                    body: [
-                      { type: "TextBlock", text: ("\ud83d\udd01 [MQ] Recurring Failure: " + $title), weight: "Bolder", size: "Medium", color: "Warning", wrap: true },
-                      { type: "FactSet", facts: $facts },
-                      { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" },
-                      { type: "TextBlock", text: "### Affected PRs", weight: "Bolder", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $affected_prs, wrap: true, spacing: "Small" },
-                      { type: "TextBlock", text: "### Recent Failure Runs", weight: "Bolder", spacing: "Large", separator: true },
-                      { type: "TextBlock", text: $recent_runs, wrap: true, spacing: "Small" }
-                    ]
-                  }
-                }]
-              }')
-
-          curl -sS --fail-with-body \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$TEAMS_WEBHOOK_URL"
+        run: python .github/scripts/agentic-workflows/notify_teams_recurring.py
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
@@ -2111,6 +1983,7 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'readd_to_merge_queue')
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     steps:
       - name: Download agent output artifact
@@ -2119,107 +1992,25 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Checkout agentic-workflow scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts/agentic-workflows
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
       - name: Re-add pull request to merge queue
-        run: |
-          set -euo pipefail
-          set +H  # disable bash history expansion so literal "!" in MARKER/comments is safe to paste/test interactively
-
-          MARKER="<!-- ci-doctor-mq-readd -->"
-
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue." >&2
-            exit 1
-          fi
-
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
-
-          ITEM=$(jq -c '[.items[] | select(.type == "readd_to_merge_queue")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No readd_to_merge_queue item present in agent output" >&2
-            exit 1
-          fi
-
-          PR_NUMBER=$(echo "$ITEM"  | jq -r '.pr_number // ""')
-          REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-          REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
-
-          # Validate pr_number is purely numeric to avoid API path/query injection.
-          if ! printf '%s' "$PR_NUMBER" | grep -Eq '^[0-9]+$'; then
-            echo "pr_number must be a numeric string, got: '$PR_NUMBER'" >&2
-            exit 1
-          fi
-
-          # Fall back to the current repository when none was supplied.
-          if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-            REPOSITORY="${GITHUB_REPOSITORY}"
-          fi
-
-          # Validate repository is in owner/repo form to avoid API path injection.
-          if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-            echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-            exit 1
-          fi
-
-          echo "Requested re-add of PR #$PR_NUMBER in $REPOSITORY to merge queue (reason: $REASON)"
-
-          # Loop guard: if CI Doctor already re-added this PR (marker comment
-          # present), do not re-add again to avoid queue thrash.
-          if gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json comments \
-               --jq '.comments[].body' | grep -qF "$MARKER"; then
-            echo "PR #$PR_NUMBER already re-added by CI Doctor (marker comment found); skipping."
-            exit 0
-          fi
-
-          # Fetch PR state. Note: `gh pr view --json` does not expose merge-queue
-          # membership, so this job does not re-check whether the PR is still in
-          # the queue — that decision is made upstream by the agent (which only
-          # calls this tool when the PR was dropped), and re-running `gh pr merge`
-          # on an already-queued PR is safe.
-          PR_INFO=$(gh pr view "$PR_NUMBER" --repo "$REPOSITORY" \
-            --json state,isDraft,headRefOid)
-
-          PR_STATE=$(echo "$PR_INFO" | jq -r '.state // ""')
-          PR_DRAFT=$(echo "$PR_INFO" | jq -r '.isDraft // false')
-          PR_HEAD=$(echo "$PR_INFO"  | jq -r '.headRefOid // ""')
-
-          # Only re-add an open, non-draft, unmerged PR.
-          if [ "$PR_STATE" = "MERGED" ]; then
-            echo "PR #$PR_NUMBER is already merged; nothing to re-add."
-            exit 0
-          fi
-          if [ "$PR_STATE" != "OPEN" ]; then
-            echo "PR #$PR_NUMBER is not open (state=$PR_STATE); not re-adding."
-            exit 0
-          fi
-          if [ "$PR_DRAFT" = "true" ]; then
-            echo "PR #$PR_NUMBER is a draft; not re-adding."
-            exit 0
-          fi
-
-          # Re-add the PR to the merge queue. On a branch that requires a merge
-          # queue, `gh pr merge` adds the PR to the queue (or enables auto-merge
-          # if required checks are still pending) instead of merging directly,
-          # using the queue's own configured merge method. A merge-method flag
-          # (`--squash`) is still required so the CLI runs non-interactively
-          # (otherwise it prompts / errors asking which method to use).
-          # `--match-head-commit` guards against the head moving under us.
-          if [ -n "$PR_HEAD" ]; then
-            gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash --match-head-commit "$PR_HEAD"
-          else
-            gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash
-          fi
-
-          echo "Successfully requested re-add of PR #$PR_NUMBER to the merge queue."
-
-          # Record a marker comment so subsequent CI Doctor runs do not re-add again.
-          COMMENT_BODY=$(printf '%s\n\n_CI Doctor re-added this pull request to the merge queue after a transient failure (reason: %s)._' \
-            "$MARKER" "$REASON")
-          gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body "$COMMENT_BODY"
-
-          echo "Recorded re-add marker comment on PR #$PR_NUMBER."
+        run: python .github/scripts/agentic-workflows/readd_to_merge_queue.py
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           GH_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
@@ -2232,6 +2023,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
+      contents: read
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -2239,59 +2031,25 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
+      - name: Checkout agentic-workflow scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts/agentic-workflows
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # a309ff8b426b58ec0e2a45f0f869d46889d02405
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+        with:
+          python-version: "3.11"
+      - name: Install PyGithub
+        run: python -m pip install --quiet PyGithub
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
       - name: Re-run failed jobs
-        run: |
-          set -euo pipefail
-
-          if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-            echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-            exit 1
-          fi
-
-          ITEM=$(jq -c '[.items[] | select(.type == "rerun_failed_jobs")] | last' "$GH_AW_AGENT_OUTPUT")
-          if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-            echo "No rerun_failed_jobs item present in agent output" >&2
-            exit 1
-          fi
-
-          RUN_ID=$(echo "$ITEM"     | jq -r '.run_id // ""')
-          REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-          REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
-
-          # Validate run_id is purely numeric to avoid API path injection.
-          if ! printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$'; then
-            echo "run_id must be a numeric string, got: '$RUN_ID'" >&2
-            exit 1
-          fi
-
-          # Fall back to the current repository when none was supplied.
-          if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-            REPOSITORY="${GITHUB_REPOSITORY}"
-          fi
-
-          # Validate repository is in owner/repo form to avoid API path injection.
-          if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-            echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-            exit 1
-          fi
-
-          echo "Requested re-run of failed jobs for $REPOSITORY run $RUN_ID (reason: $REASON)"
-
-          # Guard against restart loops: if the run has already been attempted
-          # more than once, do not re-run it again (mirrors rerunner.py).
-          ATTEMPT=$(gh api "repos/${REPOSITORY}/actions/runs/${RUN_ID}" --jq '.run_attempt')
-          if [ "${ATTEMPT:-1}" -gt 1 ]; then
-            echo "Run $RUN_ID already has $ATTEMPT attempts; not re-running to avoid loops."
-            exit 0
-          fi
-
-          # Re-run ONLY the failed jobs of the analysed run.
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"
-
-          echo "Successfully requested re-run of failed jobs for $REPOSITORY run $RUN_ID."
+        run: python .github/scripts/agentic-workflows/rerun_failed_jobs.py
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

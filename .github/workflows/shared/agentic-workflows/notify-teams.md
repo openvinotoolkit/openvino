@@ -59,105 +59,20 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Checkout agentic-workflow scripts
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+          with:
+            sparse-checkout: .github/scripts/agentic-workflows
+            persist-credentials: false
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
         - name: Send Teams notification
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
             RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            PR_NUMBER=$(echo "$ITEM"        | jq -r '.pr_number // ""')
-            PR_URL=$(echo "$ITEM"           | jq -r '.pr_url // ""')
-            AUTHOR=$(echo "$ITEM"           | jq -r '.author // ""')
-            DB_ENTRIES=$(echo "$ITEM"       | jq -r '.db_entries // ""')
-            OCCURRENCES=$(echo "$ITEM"      | jq -r '.occurrence_count // ""')
-            STATISTICS=$(echo "$ITEM"       | jq -r '.statistics // ""')
-            STATISTICS_JSON=$(echo "$ITEM"  | jq -r '.statistics_json // ""')
-
-            # Persist the full statistics database as a workflow artifact for offline review.
-            STATS_DIR="${RUNNER_TEMP:-/tmp}/ci-doctor-mq-stats"
-            mkdir -p "$STATS_DIR"
-            if [ -n "$STATISTICS_JSON" ]; then
-              # Validate and pretty-print; fall back to raw on parse error.
-              if echo "$STATISTICS_JSON" | jq '.' > "$STATS_DIR/ci-doctor-mq-statistics.json" 2>/dev/null; then
-                echo "Wrote validated statistics JSON ($(wc -c < "$STATS_DIR/ci-doctor-mq-statistics.json") bytes)"
-              else
-                echo "Warning: statistics_json failed jq parse; storing raw payload" >&2
-                printf '%s' "$STATISTICS_JSON" > "$STATS_DIR/ci-doctor-mq-statistics.json"
-              fi
-            fi
-            if [ -n "$STATISTICS" ]; then
-              printf '%s\n' "$STATISTICS" > "$STATS_DIR/ci-doctor-mq-statistics.md"
-            fi
-            echo "stats_dir=$STATS_DIR" >> "$GITHUB_OUTPUT"
-
-            # Build Adaptive Card facts conditionally (only include PR/author when present).
-            FACTS=$(jq -nc \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg pr_number       "$PR_NUMBER" \
-              --arg pr_url          "$PR_URL" \
-              --arg author          "$AUTHOR" \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg db_entries      "$DB_ENTRIES" \
-              --arg occurrences     "$OCCURRENCES" '
-                [
-                  ( $failed_workflow | select(length > 0) | { title: "Workflow",    value: . } ),
-                  ( $pipeline_url    | select(length > 0) | { title: "Pipeline",    value: ("[Open run](" + . + ")") } ),
-                  ( $pr_number       | select(length > 0) | { title: "PR",          value: (if ($pr_url | length) > 0 then ("[#" + . + "](" + $pr_url + ")") else ("#" + .) end) } ),
-                  ( $author          | select(length > 0) | { title: "Author",      value: ("@" + .) } ),
-                  ( $occurrences     | select(length > 0) | { title: "Occurrences", value: (. + "×") } ),
-                  ( $db_entries      | select(length > 0) | { title: "DB entries",  value: . } )
-                ] | map(select(. != null))')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg statistics "$STATISTICS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: ([
-                        { type: "TextBlock", text: ("\ud83d\udd34 [MQ] " + $title), weight: "Bolder", size: "Medium", color: "Attention", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" }
-                      ] + (if ($statistics | length) > 0 then [
-                        { type: "TextBlock", text: "Pattern Database Statistics", weight: "Bolder", size: "Medium", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $statistics, wrap: true, spacing: "Small" }
-                      ] else [] end))
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
+          run: python .github/scripts/agentic-workflows/notify_teams.py
 
         - name: Upload statistics artifact
           if: always()

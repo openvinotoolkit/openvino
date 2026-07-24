@@ -40,77 +40,19 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Checkout agentic-workflow scripts
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+          with:
+            sparse-checkout: .github/scripts/agentic-workflows
+            persist-credentials: false
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
         - name: Send recurring failure escalation to Teams
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          run: |
-            set -euo pipefail
-
-            if [ -z "${TEAMS_WEBHOOK_URL:-}" ]; then
-              echo "TEAMS_WEBHOOK_URL secret is not configured" >&2
-              exit 1
-            fi
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "notify_teams_recurring")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No notify_teams_recurring item present in agent output" >&2
-              exit 1
-            fi
-
-            TITLE=$(echo "$ITEM"            | jq -r '.title // ""')
-            FAILED_WORKFLOW=$(echo "$ITEM"  | jq -r '.failed_workflow // ""')
-            PIPELINE_URL=$(echo "$ITEM"     | jq -r '.pipeline_url // ""')
-            RECENT_COUNT=$(echo "$ITEM"     | jq -r '.recent_count // ""')
-            DESCRIPTION=$(echo "$ITEM"      | jq -r '.description // ""')
-            AFFECTED_PRS=$(echo "$ITEM"     | jq -r '.affected_prs // ""')
-            RECENT_RUNS=$(echo "$ITEM"      | jq -r '.recent_run_urls // ""')
-
-            FACTS=$(jq -nc \
-              --arg failed_workflow "$FAILED_WORKFLOW" \
-              --arg pipeline_url    "$PIPELINE_URL" \
-              --arg recent_count    "$RECENT_COUNT" '
-                [
-                  { title: "Workflow",           value: $failed_workflow },
-                  { title: "Pipeline",           value: ("[Latest run](" + $pipeline_url + ")") },
-                  { title: "Hits (last 12 hrs)", value: ($recent_count + " occurrences") }
-                ]')
-
-            PAYLOAD=$(jq -nc \
-              --arg title "$TITLE" \
-              --arg description "$DESCRIPTION" \
-              --arg affected_prs "$AFFECTED_PRS" \
-              --arg recent_runs "$RECENT_RUNS" \
-              --argjson facts "$FACTS" '
-                {
-                  type: "message",
-                  attachments: [{
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      type: "AdaptiveCard",
-                      version: "1.4",
-                      body: [
-                        { type: "TextBlock", text: ("\ud83d\udd01 [MQ] Recurring Failure: " + $title), weight: "Bolder", size: "Medium", color: "Warning", wrap: true },
-                        { type: "FactSet", facts: $facts },
-                        { type: "TextBlock", text: $description, wrap: true, spacing: "Medium" },
-                        { type: "TextBlock", text: "### Affected PRs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $affected_prs, wrap: true, spacing: "Small" },
-                        { type: "TextBlock", text: "### Recent Failure Runs", weight: "Bolder", spacing: "Large", separator: true },
-                        { type: "TextBlock", text: $recent_runs, wrap: true, spacing: "Small" }
-                      ]
-                    }
-                  }]
-                }')
-
-            curl -sS --fail-with-body \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$TEAMS_WEBHOOK_URL"
+          run: python .github/scripts/agentic-workflows/notify_teams_recurring.py
 ---
 
 # CI Doctor MQ — Recurring Teams Notification Job

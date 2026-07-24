@@ -11,6 +11,7 @@ safe-outputs:
       output: "Failed jobs re-run requested for the analysed workflow run."
       permissions:
         actions: write
+        contents: read
       inputs:
         run_id:
           description: "Numeric ID of the GitHub Actions workflow run whose failed jobs should be re-run. This is the run that was investigated (github.event.workflow_run.id for merge-queue triggers, or the run_id input for workflow_dispatch). Report as a numeric string."
@@ -26,61 +27,21 @@ safe-outputs:
           required: true
           type: string
       steps:
+        - name: Checkout agentic-workflow scripts
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+          with:
+            sparse-checkout: .github/scripts/agentic-workflows
+            persist-credentials: false
+        - name: Set up Python
+          uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+          with:
+            python-version: '3.11'
+        - name: Install PyGithub
+          run: python -m pip install --quiet PyGithub
         - name: Re-run failed jobs
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            set -euo pipefail
-
-            if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
-              echo "No agent output found at GH_AW_AGENT_OUTPUT" >&2
-              exit 1
-            fi
-
-            ITEM=$(jq -c '[.items[] | select(.type == "rerun_failed_jobs")] | last' "$GH_AW_AGENT_OUTPUT")
-            if [ -z "$ITEM" ] || [ "$ITEM" = "null" ]; then
-              echo "No rerun_failed_jobs item present in agent output" >&2
-              exit 1
-            fi
-
-            RUN_ID=$(echo "$ITEM"     | jq -r '.run_id // ""')
-            REPOSITORY=$(echo "$ITEM" | jq -r '.repository // ""')
-            REASON=$(echo "$ITEM"     | jq -r '.reason // ""')
-
-            # Validate run_id is purely numeric to avoid API path injection.
-            if ! printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$'; then
-              echo "run_id must be a numeric string, got: '$RUN_ID'" >&2
-              exit 1
-            fi
-
-            # Fall back to the current repository when none was supplied.
-            if [ -z "$REPOSITORY" ] || [ "$REPOSITORY" = "not_found" ]; then
-              REPOSITORY="${GITHUB_REPOSITORY}"
-            fi
-
-            # Validate repository is in owner/repo form to avoid API path injection.
-            if ! printf '%s' "$REPOSITORY" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-              echo "repository must be in owner/repo format, got: '$REPOSITORY'" >&2
-              exit 1
-            fi
-
-            echo "Requested re-run of failed jobs for $REPOSITORY run $RUN_ID (reason: $REASON)"
-
-            # Guard against restart loops: if the run has already been attempted
-            # more than once, do not re-run it again (mirrors rerunner.py).
-            ATTEMPT=$(gh api "repos/${REPOSITORY}/actions/runs/${RUN_ID}" --jq '.run_attempt')
-            if [ "${ATTEMPT:-1}" -gt 1 ]; then
-              echo "Run $RUN_ID already has $ATTEMPT attempts; not re-running to avoid loops."
-              exit 0
-            fi
-
-            # Re-run ONLY the failed jobs of the analysed run.
-            gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              "repos/${REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"
-
-            echo "Successfully requested re-run of failed jobs for $REPOSITORY run $RUN_ID."
+          run: python .github/scripts/agentic-workflows/rerun_failed_jobs.py
 ---
 
 # CI Doctor MQ — Re-run Failed Jobs
