@@ -190,15 +190,15 @@ KERNEL (reorder_data_fast_b1)(
 #endif
 
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
-    float res = TO_MEAN_TYPE(input[input_idx]);
+    float res = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     res -= VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE];
 #elif defined MEAN_SUBTRACT_IN_BUFFER
-    MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
+    MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
+    res -= DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)]);
 #else
-    CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
+    CALC_TYPE res = TO_CALC_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
 #endif
 
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+    output[output_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_COMPUTE_TYPE(res), ACTIVATION_PARAMS_TYPED));
 }

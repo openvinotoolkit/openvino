@@ -700,7 +700,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
-            if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
+            if ((out_layout.data_type == data_types::f16 || out_layout.data_type == data_types::bf16) && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
                   !lo.has_all_enabled_onednn_impls_optimization_attribute() && !has_reorder_behind_mvn()) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {

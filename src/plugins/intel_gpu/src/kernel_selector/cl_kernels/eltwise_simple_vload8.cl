@@ -11,12 +11,12 @@ KERNEL(eltwise_gpu_vload8)(INPUTS_DECLS
 
     VLOAD_DECLS
 
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) res;
+    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8) res;
 
     DO_ELTWISE
 
-    res = ACTIVATION(res, ACTIVATION_PARAMS);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out = TO_OUTPUT_VECTOR_TYPE(ACTIVATION(res, ACTIVATION_PARAMS),8);
 
-    vstore8(res, global_id, output);
+    vstore8(out, global_id, output);
 
 }

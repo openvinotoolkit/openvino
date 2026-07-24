@@ -1019,6 +1019,9 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
+            break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
             break;
@@ -1117,6 +1120,8 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             fill_typed<float>(input, input_opt);
         } else if (params.input_type == data_types::f16) {
             fill_typed<ov::float16>(input, input_opt);
+        } else if (params.input_type == data_types::bf16) {
+            fill_typed<ov::bfloat16>(input, input_opt);
         } else if (params.input_type == data_types::i8) {
             fill_typed<int8_t>(input, input_opt);
         } else if (params.input_type == data_types::u8) {
@@ -1153,6 +1158,8 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
                 compare_outputs<float>(output, output_opt);
             } else if (params.output_type == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
+            } else if (params.output_type == data_types::bf16) {
+                compare_outputs<ov::bfloat16>(output, output_opt);
             } else if (params.output_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.output_type == data_types::u8) {
@@ -1190,6 +1197,7 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
                             .simple_params(data_types::f32, data_types::u8, format::bfyx, format::bfyx, 5)
                             .simple_params(data_types::f16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
+                            .simple_params(data_types::bf16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
                         ));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

@@ -13,7 +13,7 @@
 #define OUTPUTVTYPE CAT(OUTPUT_TYPE, TILE_SIZE)
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
-#define TO_OUTPUTVTYPE CAT(convert_, OUTPUTVTYPE)
+#define TO_OUTPUTVTYPE(v) TO_OUTPUT_VECTOR_TYPE(v, TILE_SIZE)
 
 #define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))

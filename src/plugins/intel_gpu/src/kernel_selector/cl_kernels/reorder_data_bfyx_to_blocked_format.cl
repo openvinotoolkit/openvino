@@ -7,11 +7,12 @@
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 
 #define INPUTVTYPE CAT(INPUT0_TYPE, TILE_SIZE)
+#define INPUTVCOMPUTETYPE CAT(INPUT0_COMPUTE_TYPE, TILE_SIZE)
 #define OUTPUTVTYPE CAT(OUTPUT_TYPE, TILE_SIZE)
 #define VLOAD CAT(vload, TILE_SIZE)
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
-#define TO_OUTPUTVTYPE CAT(convert_, OUTPUTVTYPE)
+#define TO_OUTPUTVTYPE(v) TO_OUTPUT_VECTOR_TYPE(v, TILE_SIZE)
 
 #define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
@@ -22,7 +23,7 @@
                                         INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx)); \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
@@ -34,19 +35,19 @@
                                         } \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
 #define FUNC_VSTORE(loop)           unroll_for (uint lw = 0; lw < loop; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
-                                        VSTORE(TO_OUTPUTVTYPE(transpose_buf[local_buf_offset + lw]), 0, output + output_idx); \
+                                        VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx); \
                                     }
 
 #define FUNC_WRITE(inner, outer)    unroll_for (uint lw = 0; lw < outer; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
                                         unroll_for (uint i = 0; i < inner; ++i) { \
-                                            output[output_idx + i] = ACTIVATION(TO_OUTPUT_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS); \
+                                            output[output_idx + i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS)); \
                                         } \
                                     }
 

@@ -25,11 +25,11 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
     for (int i = 0; i < X_BLOCK_SIZE; i++) {
 #if defined(LEFTOVERS_OX)
         if (x + i < INPUT0_SIZE_X)
-            in_data[sglid * X_BLOCK_SIZE + i] = input[in_idx + (i * FSV) + sglid];
+            in_data[sglid * X_BLOCK_SIZE + i] = DECODE_INPUT_REORDER_COMPUTE_TYPE(input[in_idx + (i * FSV) + sglid]);
         else
             in_data[sglid * X_BLOCK_SIZE + i] = 0;
 #else
-        in_data[sglid * X_BLOCK_SIZE + i] = input[in_idx + (i * FSV) + sglid];
+        in_data[sglid * X_BLOCK_SIZE + i] = DECODE_INPUT_REORDER_COMPUTE_TYPE(input[in_idx + (i * FSV) + sglid]);
 #endif
     }
 
@@ -48,10 +48,10 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
         const bool skip = x_idx >= OUTPUT_SIZE_X;
 #endif
         if (!skip) {
-            output[out_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED);
+            output[out_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED));
         }
 #else
-        output[out_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED);
+        output[out_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED));
 #endif
     }
 }

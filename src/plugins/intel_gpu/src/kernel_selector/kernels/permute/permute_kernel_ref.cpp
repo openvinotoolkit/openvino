@@ -108,6 +108,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
