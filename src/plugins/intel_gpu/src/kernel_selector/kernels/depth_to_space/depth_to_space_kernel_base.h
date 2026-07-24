@@ -30,7 +30,7 @@ struct depth_to_space_fuse_params : fuse_params {
 class DepthToSpaceKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~DepthToSpaceKernelBase() {}
+    ~DepthToSpaceKernelBase() override {}
 
     struct DispatchData : public CommonDispatchData {
     };
