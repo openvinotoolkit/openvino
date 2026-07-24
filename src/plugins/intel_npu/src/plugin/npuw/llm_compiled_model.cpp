@@ -10,6 +10,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "shared_context_buffer.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
@@ -23,6 +24,8 @@
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -37,8 +40,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_context_buffer_descriptor.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -676,6 +682,78 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     m_kvcache_compiled = m_generate_compiled_variants.back();
 }
 
+std::string dump_shared_ctx(const ov::weight_sharing::Context& shared_ctx) {
+    std::ostringstream oss;
+    oss << "TODO print me" << std::endl;
+    (void)shared_ctx;
+    return oss.str();
+}
+
+void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
+const ov::AnyMap& properties) {
+    NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
+    NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
+    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
+    if (shared_weight_property_it == properties.end()) {
+        return;
+    }
+    std::vector<ov::SoPtr<ov::IRemoteContext>> remote_ctxs;
+    auto shared_device_contexts = ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
+    LOG_DEBUG("Create shared context over devices: " << shared_device_contexts.size());
+    for (const auto& ctx_name : shared_device_contexts) {
+        try {
+            LOG_DEBUG("trying to get context '" << ctx_name << "'");
+            remote_ctxs.push_back(plugin->get_core()->get_default_context(ctx_name));
+        } catch (const std::exception& e) {
+            LOG_WARN("SHARED_WEIGHTS: context '" << ctx_name << "' unavailable (" << e.what()
+                                                 << "); weights will NOT be shared for this context.");
+        }
+    }
+    LOG_INFO("Created shared contexts: " << remote_ctxs.size() << " out of " << shared_device_contexts.size());
+    if (remote_ctxs.empty() || remote_ctxs.size() == 1) {
+        LOG_INFO("Not enough shared contexts available, skipping shared weights assignment.");
+        return;
+    }
+    // TODO 
+    // think about allocating a one large buffer with individual weights located sequentially
+    // and distinguished by a pair of offset and size.
+    // It may reduce fragmentation and improve locality.
+    // On the other hand, allocation of individual weights can be done in parallel and may be faster.
+    const size_t kMinRelocateBytes = ov::util::get_system_page_size();  // page-sized+; skip tiny scalar constants
+    NPUW_ASSERT(!m_shared_ctx_ptr && "NPU shared context must be empty before shared weight assignment.");
+    m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>();
+    for (const auto& op : model->get_ops()) {
+        auto not_shared_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
+        // TODO devise better conditions to determine whether shared weights applicable or not
+        if (!not_shared_constant || not_shared_constant->get_byte_size() < kMinRelocateBytes) {
+            continue;
+        }
+        const size_t bytes = not_shared_constant->get_byte_size();
+        LOG_DEBUG("Allocating shared buffer for weight" << not_shared_constant->get_friendly_name() << ", size: " << bytes);
+        auto buffer = std::make_shared<ov::npuw::SharedContextBuffer>(bytes, remote_ctxs, kMinRelocateBytes);
+        ov::weight_sharing::set_weight_source(*m_shared_ctx_ptr, buffer);
+        auto shared_constant =
+            std::make_shared<ov::op::v0::Constant>(not_shared_constant->get_element_type(),
+                                                   not_shared_constant->get_shape(), buffer);
+        ov::weight_sharing::set_constant(*m_shared_ctx_ptr, *shared_constant);
+        shared_constant->set_friendly_name(not_shared_constant->get_friendly_name());
+        ov::copy_runtime_info(not_shared_constant, shared_constant);
+        std::memcpy(buffer->get_ptr(), not_shared_constant->get_data_ptr(), bytes);
+
+        // Preserve the weightless-cache attribute: copy_runtime_info drops it (is_copyable()==false),
+        // and without it NPUW's Const wrapper treats every relocated weight as a brand-new Constant
+        // and eagerly copies it to host (a full second ~2 GB copy at partition time).
+        // CAVEAT (under investigation): keeping the weightless attr may make NPUW reconstruct the GPU
+        // prefill submodel's constants from the original .bin mmap (off our malloc) -> GPU share_usm
+        // sees in_range=0. Toggle via NO_WEIGHTLESS_ATTR=1 to test the GPU-share path.
+        if (!std::getenv("NO_WEIGHTLESS_ATTR")) {
+            ov::copy_weightless_cache_attr(not_shared_constant, shared_constant);
+        }
+        ov::replace_node(not_shared_constant, shared_constant);
+        LOG_INFO("[NPUW] SHARED_WEIGHTS: " << dump_shared_ctx(*m_shared_ctx_ptr));
+    }
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -808,6 +886,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
+
+    // Assign shared buffers
+    assign_shared_weight_to_model_if_possible(model, plugin, properties);
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();

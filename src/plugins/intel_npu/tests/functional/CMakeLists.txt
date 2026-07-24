@@ -20,6 +20,7 @@ set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_C
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include"
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
+      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw"
 )
 
 list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
@@ -52,6 +53,7 @@ ov_add_test_target(
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metrics.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/shared_context_buffer.cpp"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
   openvino::func_test_utils
