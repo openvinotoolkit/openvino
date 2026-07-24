@@ -19,6 +19,6 @@ struct lstm_cell : public RNNParams<lstm_cell> {
     using vec_activation_param = std::vector<activation_additional_params>;
     using RNNParams::RNNParams;
     lstm_cell(const lstm_cell&) = default;
-    lstm_cell() : RNNParams() {}
+    lstm_cell() {}
 };
 }  // namespace cldnn

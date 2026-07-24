@@ -76,7 +76,7 @@ private:
 
     ov::element::Type m_element_type;
     ov::Shape m_shape;
-    ov::Strides m_strides{};
+    ov::Strides m_strides;
     ov::AnyMap m_properties;
 
     cldnn::memory::ptr m_memory_object = nullptr;
