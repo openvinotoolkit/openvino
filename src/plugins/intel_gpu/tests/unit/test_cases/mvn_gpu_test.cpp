@@ -576,6 +576,59 @@ TEST(mvn_gpu_test, dynamic_within_channels_inside_sqrt_bfyx_normalize_variance_f
     mvn_compute_mean_within_channels<ov::float16>(output, true);
 }
 
+
+// Catastrophic cancellation: epsilon impact with different magnitudes
+TEST(mvn_gpu_test, mvn_test_variance_epsilon_scaling_large_values_bfyx_opt) {
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+    const tensor input_size{1, 1, 2048, 1};
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, input_size});
+
+    std::vector<float> input_data(input->count());
+    const float base_value = 1e8f;
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = base_value + (i % 10) * 0.01f;
+    }
+    set_values(input, input_data);
+
+    // Test with different epsilon values to show cancellation effects
+    const std::vector<float> epsilons = {1e-10f, 1e-5f, 1e-1f};
+    
+    for (float eps : epsilons) {
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(mvn("mvn", input_info("input"), true, eps, false, {3}));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"mvn", {format::bfyx, "mvn_gpu_bfyx_opt"}}}));
+
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+
+        auto outputs = network.execute();
+        auto output = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> out_ptr(output, get_test_stream());
+        int nan_count = 0, inf_count = 0, valid_count = 0;
+        for (size_t i = 0; i < output->count(); ++i) {
+            if (std::isnan(out_ptr[i])) {
+                nan_count++;
+            } else if (std::isinf(out_ptr[i])) {
+                inf_count++;
+            } else {
+                valid_count++;
+            }
+        }
+        std::cout << "Epsilon " << eps << ": NaN=" << nan_count << ", Inf=" << inf_count << ", valid=" << valid_count << std::endl;
+        ASSERT_EQ(nan_count, 0) << "eps=" << eps << ": Found " << nan_count << " NaN";
+        ASSERT_EQ(inf_count, 0) << "eps=" << eps << ": Found " << inf_count << " Inf";
+        ASSERT_GT(valid_count, output->count() * 0.99) << "eps=" << eps << ": Less than 99% valid";
+    }
+}
+
 struct mvn_basic_test_params {
     format::type input_format;
     data_types input_type;
