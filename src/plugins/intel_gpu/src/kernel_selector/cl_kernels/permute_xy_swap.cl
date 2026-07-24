@@ -24,8 +24,11 @@
 //   ELEMS_PER_DIM  - TILE_SIZE / WG_DIM
 //
 // Required WG size: (WG_DIM, WG_DIM, 1).
-// GWS: (INPUT0_SIZE_X / ELEMS_PER_DIM, INPUT0_SIZE_Y / ELEMS_PER_DIM, B*F).
-// Input X and Y must both be multiples of TILE_SIZE (enforced by Validate).
+// GWS: (ceil(INPUT0_SIZE_X, TILE_SIZE) / ELEMS_PER_DIM,
+//       ceil(INPUT0_SIZE_Y, TILE_SIZE) / ELEMS_PER_DIM, B*F).
+// When REMAINDER is set, X/Y need not be multiples of TILE_SIZE and out-of-range
+// reads/writes are guarded. When REMAINDER is 0, TILE_SIZE is chosen so it
+// divides both X and Y (host-side tile selection).
 
 __attribute__((reqd_work_group_size(WG_DIM, WG_DIM, 1)))
 KERNEL(permute_xy_swap)(
@@ -58,7 +61,12 @@ KERNEL(permute_xy_swap)(
         for (uint dx = 0; dx < ELEMS_PER_DIM; ++dx) {
             const uint sub_x = lx + dx * WG_DIM;   // 0 .. TILE_SIZE-1
             const uint in_x  = tx * TILE_SIZE + sub_x;
+#if REMAINDER
+            if (in_y < INPUT0_SIZE_Y && in_x < INPUT0_SIZE_X)
+                tile[sub_y][sub_x] = input[INPUT0_GET_INDEX(b, f, in_y, in_x)];
+#else
             tile[sub_y][sub_x] = input[INPUT0_GET_INDEX(b, f, in_y, in_x)];
+#endif
         }
     }
 
@@ -75,6 +83,10 @@ KERNEL(permute_xy_swap)(
         for (uint dx = 0; dx < ELEMS_PER_DIM; ++dx) {
             const uint sub_x = lx + dx * WG_DIM;   // local col in output tile
             const uint out_x = ty * TILE_SIZE + sub_x;
+#if REMAINDER
+            if (out_y >= OUTPUT_SIZE_Y || out_x >= OUTPUT_SIZE_X)
+                continue;
+#endif
             const INPUT0_TYPE val = tile[sub_x][sub_y];  // transposed SLM read
 
 #if HAS_FUSED_OPS
