@@ -10,7 +10,7 @@ namespace kernel_selector {
 class SelectKernelRef : public SelectKernelBase {
 public:
     SelectKernelRef() : SelectKernelBase("select_gpu_ref") {}
-    virtual ~SelectKernelRef() {}
+    ~SelectKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

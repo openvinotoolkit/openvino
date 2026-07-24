@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <climits>
 #include <variant>
-
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -19,6 +18,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "primitive.hpp"
@@ -28,7 +29,6 @@ using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::
 using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant>>;
 using shared_mapped_memory_ptr = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::op::v0::Constant>>;
-
 namespace {
 
 bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
@@ -173,8 +173,8 @@ struct weightless_cache_manager {
         return true;
     }
 
-    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory) {
-        ib >> do_weightless_caching;
+    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory, bool weightless_caching) {
+        do_weightless_caching = weightless_caching;
         if (!do_weightless_caching) {
             return false;
         }
@@ -193,7 +193,6 @@ struct weightless_cache_manager {
         } else {
             original_size = dst_mem->size();
         }
-
         bool do_reorder = false;
         ib >> do_reorder;
         if (do_reorder) {
@@ -350,7 +349,8 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem) : primitive_base(id, {}), mem(std::move(mem)) {
+    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false)
+        : primitive_base(id, {}), mem(std::move(mem)), _skip_device_transfer(skip_device_transfer) {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
@@ -366,6 +366,14 @@ struct data : public primitive_base<data> {
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
+
+    /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
+    bool skip_device_transfer() const { return _skip_device_transfer; }
+
+private:
+    bool _skip_device_transfer = false;
+
+public:
 
     std::shared_ptr<weightless_cache_manager> cache_info;
 
@@ -387,7 +395,15 @@ struct data : public primitive_base<data> {
         ob << make_data(&data_size, sizeof(size_t));
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
+        const auto& engine = mem->get_engine();
+        const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
+            if (engine->can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
+                if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ob.get_offset()); pad > 0) {
+                    std::vector<uint8_t> zeros(pad, 0);
+                    ob << make_data(zeros.data(), zeros.size());
+                }
+            }
             if (is_alloc_host_accessible(_allocation_type)) {
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
@@ -404,7 +420,7 @@ struct data : public primitive_base<data> {
         primitive_base<data>::load(ib);
     }
 
-    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory) {
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, memory_ptr host_buffer_base_ptr) {
         layout output_layout = layout();
         ib >> output_layout;
 
@@ -414,13 +430,34 @@ struct data : public primitive_base<data> {
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
 
-        mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        OPENVINO_ASSERT(data_size == output_layout.bytes_count(),
+               "[GPU] Corrupt cache blob: data_size=", data_size,
+               ", expected=", output_layout.bytes_count());
 
-        bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
+        bool weightless_caching = false;
+        ib >> weightless_caching;
+        const auto& dev_info = ib.get_engine().get_device_info();
+        const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
+                                            host_buffer_base_ptr != nullptr && !weightless_caching;
+        if (!can_use_zero_copy_mode) {
+            mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        }
+
+        bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
-            if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+            if (ib.get_engine().can_use_host_usm_zero_copy() && !ib.is_encrypted()) {
+                // Advance input stream past padding so subbuffer base offset meets use_host_ptr() alignment requirements.
+                if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ib.get_offset()); pad > 0) {
+                    ib.seek_current_ptr(pad);
+                }
+            }
+            // Zero-copy: create subbuffer referencing mmap'd cache without host-to-device transfer.
+            if (can_use_zero_copy_mode) {
+                mem = ib.get_engine().create_subbuffer(*host_buffer_base_ptr, output_layout, ib.get_offset());
+                ib.seek_current_ptr(data_size);
+            } else if (is_alloc_host_accessible(_allocation_type)) {
+                ib >> make_data(std::move(mem->buffer_ptr()), data_size);
             } else {
                 const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
@@ -490,8 +527,7 @@ struct data : public primitive_base<data> {
                     while (dst_offset < data_size) {
                         const bool is_blocking = false;
                         const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                         if (buf_flag) {
                             ib >> make_data(_buf1.data(), copy_size);
                             if (ev2 != nullptr) {

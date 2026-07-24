@@ -368,6 +368,38 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
     }
 }
 
+TEST_P(ZeroMemPoolTests, ImportMemoryAdjacentToAlreadyImportedAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (!init_struct->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "Test requires support for importing standard allocated memory as external memory, which is "
+                        "not available on this platform.";
+    }
+
+    // Allocate a single, contiguous two-page block so the two halves are guaranteed to be page-adjacent.
+    constexpr size_t page = 4096;
+    void* block = ::operator new(2 * page, std::align_val_t(page));
+    auto* lower = static_cast<uint8_t*>(block);
+    auto* upper = lower + page;
+
+    // Import the upper page first so that it is a registered allocation in the L0 context.
+    std::shared_ptr<::intel_npu::ZeroMem> upper_mem;
+    OV_ASSERT_NO_THROW(upper_mem = ::intel_npu::zero_mem::import_standard_allocation_memory(init_struct, upper, page));
+
+    // The lower page's exclusive end pointer (lower + page) aliases the base of the already-imported upper page.
+    // This must NOT be treated as an overlap: the regions merely abut, they do not overlap. Importing the lower
+    // page must succeed.
+    std::shared_ptr<::intel_npu::ZeroMem> lower_mem;
+    OV_ASSERT_NO_THROW(lower_mem = ::intel_npu::zero_mem::import_standard_allocation_memory(init_struct, lower, page));
+
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), lower));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), upper));
+
+    lower_mem = {};
+    upper_mem = {};
+    ::operator delete(block, std::align_val_t(page));
+}
+
 TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 

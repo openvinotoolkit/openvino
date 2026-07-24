@@ -1154,6 +1154,19 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
         int found_block_range_end = default_block_range_end;
         int found_block_range_begin = default_block_range_begin;
 
+        // Full-range fallback for lanes that do not correspond to a real target row.
+        // Do not return on lane-local conditions before the cooperative searches below,
+        // because the helpers use work-group barriers.
+        SEQ_RANGE fallback_range;
+        fallback_range.min = 0;
+        fallback_range.max = seq_len > 0 ? seq_len - 1 : 0;
+        fallback_range.subgroup_max = min(default_block_range_end, seq_len);
+
+        // These conditions are block-uniform and protect the barrier-free reads below.
+        if (default_block_range_end <= 0 || default_block_range_end > seq_len || default_block_range_begin >= seq_len) {
+            return fallback_range;
+        }
+
         // block cooperative search for token group end
         if (token_type_ids[default_block_range_end - 1] == 1) {
             found_block_range_end = FUNC_CALL(find_first_zero_to_the_right_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
@@ -1166,6 +1179,11 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
+
+        // Lane-local fallback is only safe after all cooperative searches complete.
+        if (token_group_end >= seq_len) {
+            return fallback_range;
+        }
 
         // Special case: image group is less than subgroup size.
         if (token_type_ids[token_group_end] == 1) {
@@ -1220,6 +1238,9 @@ KERNEL(sdpa_opt)(
 #endif
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
     const __global int* token_type_ids,
+#endif
+#if HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
 #endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
@@ -2545,6 +2566,25 @@ KERNEL(sdpa_opt)(
 #endif /*!IS_FLASHATTEN_V2*/
         } /* end of QK*V calculation */
     } /* end of iter over source sequence length */
+
+#if HAS_SINK_INPUT
+    // Apply attention sink after all KV partitions are processed.
+    // Sink adds a virtual logit to the softmax denominator with zero V contribution.
+    {
+        SOFTMAX_ACCUMULATOR_TYPE sink_val = TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx]);
+        for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+            SOFTMAX_ACCUMULATOR_TYPE max_prev = slm_max_val_prev[seq_idx];
+            SOFTMAX_ACCUMULATOR_TYPE max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(max_prev, sink_val);
+            SOFTMAX_ACCUMULATOR_TYPE correction = native_exp(max_prev - max_new);
+            // Rescale output_acc (all work items do this for their own register)
+            output_acc[seq_idx] = TO_OUTPUT_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
+            // Update exp_sum (only one thread per seq_idx)
+            if (sgid == 0 && sglid == 0) {
+                slm_exp_sum_prev[seq_idx] = slm_exp_sum_prev[seq_idx] * correction + native_exp(sink_val - max_new);
+            }
+        }
+    }
+#endif
 
     // Combine results from multiple SGs and store to output buffer
 

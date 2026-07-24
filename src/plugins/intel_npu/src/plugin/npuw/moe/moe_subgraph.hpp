@@ -53,6 +53,11 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
                               const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx);
 
+void attach_runtime_behavior(v1::subgraphs::CompiledPipeline& pipeline,
+                             v1::subgraphs::Context& context,
+                             BehaviorRole role,
+                             bool handles_function_prologue);
+
 std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     std::size_t moe_chunk_size);

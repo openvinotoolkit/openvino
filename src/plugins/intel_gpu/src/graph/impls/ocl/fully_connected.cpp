@@ -137,8 +137,9 @@ public:
 
             auto input0_pshape = input_layouts[0].get_partial_shape();
             auto input1_pshape = input_layouts[1].get_partial_shape();
-            ov::PartialShape updated_out_pshape {input0_pshape[0], input1_pshape[0]};
-            const auto output_feature_size = swiglu_fused ? input1_pshape[0] / 2 : input1_pshape[0];
+            const auto out_features_dim = primitive->weights_transposed ? input1_pshape[0] : input1_pshape[1];
+            ov::PartialShape updated_out_pshape {input0_pshape[0], out_features_dim};
+            const auto output_feature_size = swiglu_fused ? out_features_dim / 2 : out_features_dim;
 
             if (primitive->input_size == 3) {
                 updated_out_pshape = { input0_pshape[0], input0_pshape[1], output_feature_size};

@@ -55,8 +55,6 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
                 OPENVINO_ASSERT(copy_b_expr->get_output_count() == 1, "gemm copyb must have only one output");
                 insert_copy_b_buffer(copy_b_expr, insertion_it);
                 modified = true;
-            } else {
-                OPENVINO_THROW("GemmCopyB must connect to gemmCPU in subgraph, and not be extracted from the body");
             }
         }
     }

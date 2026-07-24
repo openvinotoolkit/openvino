@@ -62,6 +62,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     kq_max_wg += buf_off_kq_max + hq * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(SOFTMAX_TYPE);
     kq_exp_partial_sum += buf_off_exp_sum + hq * q_stride_pad * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
     block_mask += buf_off_mask + hq * q_block_pad * k_block_pad;
+#if DEBUG_ACC == 1
+    kq_sum += (buf_off_mask + hq * q_block_pad * k_block_pad) * (uint)sizeof(SOFTMAX_TYPE);
+#endif
 
     const uint slm_size = NUM_THREADS * 16 * sizeof(ushort);
     cm_slm_init(slm_size);

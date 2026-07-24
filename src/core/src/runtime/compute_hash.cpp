@@ -834,15 +834,27 @@ size_t compute_hash(const void* src, size_t size) {
             constexpr uint64_t min_wa_per_thread = 131072lu;  // 2^17
             const uint64_t size_u64 = static_cast<uint64_t>(size);
             if (size_u64 >= min_wa_per_thread * 2lu) {
-                static auto first_thr_kernel = Generator::mayiuse(avx512_core)
-                                                   ? jit::ComputeHash<avx512_core>::create({jit::FIRST_THREAD})
-                                                   : jit::ComputeHash<avx2>::create({jit::FIRST_THREAD});
-                static auto n_thr_kernel = Generator::mayiuse(avx512_core)
-                                               ? jit::ComputeHash<avx512_core>::create({jit::N_THREAD})
-                                               : jit::ComputeHash<avx2>::create({jit::N_THREAD});
-                static auto final_fold_kernel = Generator::mayiuse(avx512_core)
-                                                    ? jit::ComputeHash<avx512_core>::create({jit::FINAL_FOLD})
-                                                    : jit::ComputeHash<avx2>::create({jit::FINAL_FOLD});
+                // MSVC>=19.51 miscompiles static local initialization with ternary + non-trivial return type.
+                // Using IIFE with if/else as a workaround. Remove when MSVC fixes the bug.
+                // https://developercommunity.visualstudio.com/t/11105892
+                static auto first_thr_kernel = [] {
+                    if (Generator::mayiuse(avx512_core))
+                        return jit::ComputeHash<avx512_core>::create({jit::FIRST_THREAD});
+                    else
+                        return jit::ComputeHash<avx2>::create({jit::FIRST_THREAD});
+                }();
+                static auto n_thr_kernel = [] {
+                    if (Generator::mayiuse(avx512_core))
+                        return jit::ComputeHash<avx512_core>::create({jit::N_THREAD});
+                    else
+                        return jit::ComputeHash<avx2>::create({jit::N_THREAD});
+                }();
+                static auto final_fold_kernel = [] {
+                    if (Generator::mayiuse(avx512_core))
+                        return jit::ComputeHash<avx512_core>::create({jit::FINAL_FOLD});
+                    else
+                        return jit::ComputeHash<avx2>::create({jit::FINAL_FOLD});
+                }();
 
                 static const uint64_t max_thr_num = 2lu;
                 uint64_t thr_num = std::min(size_u64 / min_wa_per_thread, max_thr_num);
@@ -883,9 +895,12 @@ size_t compute_hash(const void* src, size_t size) {
 
                 (*final_fold_kernel)(&args);
             } else {
-                static auto single_thr_kernel = Generator::mayiuse(avx512_core)
-                                                    ? jit::ComputeHash<avx512_core>::create({jit::SINGLE_THREAD})
-                                                    : jit::ComputeHash<avx2>::create({jit::SINGLE_THREAD});
+                static auto single_thr_kernel = [] {
+                    if (Generator::mayiuse(avx512_core))
+                        return jit::ComputeHash<avx512_core>::create({jit::SINGLE_THREAD});
+                    else
+                        return jit::ComputeHash<avx2>::create({jit::SINGLE_THREAD});
+                }();
 
                 jit::ComputeHashCallArgs args;
                 args.src_ptr = src;

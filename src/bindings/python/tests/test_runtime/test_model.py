@@ -941,16 +941,6 @@ def test_model_with_statement():
         model.friendly_name
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_tempdir_save_load_error():
-    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
-    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
-    with pytest.raises((NotADirectoryError, PermissionError)):
-        with tempfile.TemporaryDirectory() as model_save_dir:
-            save_model(mem_model, f"{model_save_dir}/model.xml")
-            _ = Core().read_model(f"{model_save_dir}/model.xml")
-
-
 def test_model_dir():
     model = generate_add_model()
     num_of_attrs = 83

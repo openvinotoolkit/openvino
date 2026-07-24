@@ -109,8 +109,10 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
                 return torch.split_with_sizes_copy(x, [y.shape[0]], dim=0)
 
 
-        return aten_split_with_sizes_copy(), ["aten::split_with_sizes", "prim::ListConstruct"]
+        return aten_split_with_sizes_copy(), ["aten::split_with_sizes_copy", "prim::ListConstruct"]
 
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes_copy(self, ie_device, precision, ir_version):

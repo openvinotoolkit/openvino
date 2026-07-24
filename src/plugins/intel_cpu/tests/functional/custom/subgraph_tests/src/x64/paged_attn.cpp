@@ -1030,5 +1030,284 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
+// Regression test: executor cache collision with mixed head_size.
+// Two PA nodes with head_size=256 and head_size=512 in ONE compiled model.
+// Without the fix, PA2 reuses BRGEMM kernels configured for PA1's head_size,
+// producing garbage. Requires f16 KV cache to trigger the BRGEMM code path.
+class PagedAttnCacheCollisionTest : public PagedAttnTestBase {
+public:
+    static constexpr int64_t hs2_val = 512;
+
+    void SetUp() override {
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput,
+                     slidingWindow, additional_config, addSharedReader] = this->GetParam();
+        (void)enableXattn; (void)addSharedReader; (void)sinkInput; (void)slidingWindow;
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        rel_threshold = 0.1f;
+        abs_threshold = 0.05f;
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        configuration.insert(additional_config.begin(), additional_config.end());
+        init_input_shapes(inputShapes);
+        this->sliding_window = 0;
+
+        auto hs1 = static_cast<int64_t>(targetStaticShapes[0][0][3]);
+        auto head_num = static_cast<int64_t>(targetStaticShapes[0][0][2]);
+
+        function = get_mixed_head_model(inType, hs1, head_num);
+        functionRefs = get_ref_model(inType, hs2_val, head_num, false, false);
+
+        targetStaticShapes2_.reserve(targetStaticShapes.size());
+        for (const auto& step : targetStaticShapes) {
+            auto shape2 = step;
+            shape2[0][3] = static_cast<size_t>(hs2_val);
+            shape2[1][3] = static_cast<size_t>(hs2_val);
+            targetStaticShapes2_.push_back(shape2);
+        }
+    }
+
+    std::shared_ptr<ov::Model> get_mixed_head_model(ov::element::Type data_type, int64_t hs1, int64_t hn) {
+        auto q1 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q1");
+        auto k1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "k1");
+        auto v1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "v1");
+        auto kc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "key_cache.0");
+        auto vc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "value_cache.0");
+        enable_keep_const_precision(kc1);
+        enable_keep_const_precision(vc1);
+
+        auto q2 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q2");
+        auto k2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "k2");
+        auto v2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "v2");
+        auto kc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "key_cache.1");
+        auto vc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
+                              element::dynamic, "value_cache.1");
+        enable_keep_const_precision(kc2);
+        enable_keep_const_precision(vc2);
+
+        auto past_lens = make_param(PartialShape{Dimension::dynamic()}, element::i32, "past_lens");
+        auto subseq = make_param(PartialShape{Dimension::dynamic()}, element::i32, "subsequence_begins");
+        auto blk_idx = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices");
+        auto blk_begins = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices_begins");
+
+        auto make_consts = [](int64_t hs) {
+            float sv = 1.0f / std::sqrt(static_cast<float>(hs));
+            OutputVector c;
+            c.push_back(v0::Constant::create(element::f32, Shape{}, {sv}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {1024}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {64}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {8}));
+            c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{}, {0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{}));
+            c.push_back(v0::Constant::create(element::u8, Shape{0}, std::vector<uint8_t>{0}));
+            c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+            return c;
+        };
+
+        auto consts1 = make_consts(hs1);
+        OutputVector pa1_inputs = {q1, k1, v1, kc1, vc1, past_lens, subseq, blk_idx, blk_begins};
+        pa1_inputs.insert(pa1_inputs.end(), consts1.begin(), consts1.end());
+        auto pa1 = std::make_shared<PagedAttentionExtension>(pa1_inputs);
+        pa1->get_rt_info()["num_k_heads"] = static_cast<size_t>(hn);
+        pa1->get_rt_info()["k_head_size"] = static_cast<size_t>(hs1);
+        pa1->get_rt_info()["num_v_heads"] = static_cast<size_t>(hn);
+        pa1->get_rt_info()["v_head_size"] = static_cast<size_t>(hs1);
+
+        auto residual = std::make_shared<v1::Add>(q1, pa1->output(0));
+
+        auto consts2 = make_consts(hs2_val);
+        OutputVector pa2_inputs = {q2, k2, v2, kc2, vc2, past_lens, subseq, blk_idx, blk_begins};
+        pa2_inputs.insert(pa2_inputs.end(), consts2.begin(), consts2.end());
+        auto pa2 = std::make_shared<PagedAttentionExtension>(pa2_inputs);
+        pa2->get_rt_info()["num_k_heads"] = static_cast<size_t>(hn);
+        pa2->get_rt_info()["k_head_size"] = static_cast<size_t>(hs2_val);
+        pa2->get_rt_info()["num_v_heads"] = static_cast<size_t>(hn);
+        pa2->get_rt_info()["v_head_size"] = static_cast<size_t>(hs2_val);
+
+        ParameterVector params = {q1, k1, v1, kc1, vc1, q2, k2, v2, kc2, vc2,
+                                  past_lens, subseq, blk_idx, blk_begins};
+        return std::make_shared<Model>(OutputVector{residual, pa2->output(0)}, params);
+    }
+
+    void generate(int idx,
+                  const bool isPagedAttn,
+                  const std::vector<ov::Shape>& targetInputStaticShapes,
+                  bool extendBlockIndices,
+                  bool use_sink_input = true) override {
+        if (!isPagedAttn) {
+            PagedAttnTestBase::generate(idx, false, targetInputStaticShapes, extendBlockIndices, use_sink_input);
+            return;
+        }
+
+        inputs.clear();
+        auto fill_tensor = [](ov::Tensor& t, float val) {
+            auto* p = t.data<float>();
+            for (size_t i = 0; i < t.get_size(); i++)
+                p[i] = val + 0.1f * static_cast<float>(t.get_size() - 1 - i);
+        };
+
+        auto params = function->get_parameters();
+        auto seq_len = targetInputStaticShapes[0][0];
+        size_t batch = targetInputStaticShapes[0][1];
+        size_t tokens = seq_len * batch;
+        size_t hs1 = static_cast<size_t>(targetStaticShapes[0][0][3]);
+        size_t hn = targetStaticShapes[0][0][2];
+
+        // PA1: q1, k1, v1
+        ov::Tensor tq1(element::f32, {tokens, hn * hs1}); fill_tensor(tq1, idx + 10.0f);
+        ov::Tensor tk1(element::f32, {tokens, hn * hs1}); fill_tensor(tk1, idx + 11.0f);
+        ov::Tensor tv1(element::f32, {tokens, hn * hs1}); fill_tensor(tv1, idx + 12.0f);
+        inputs.insert({params[0], tq1});
+        inputs.insert({params[1], tk1});
+        inputs.insert({params[2], tv1});
+        inputs.insert({params[3], key_cache});
+        inputs.insert({params[4], value_cache});
+
+        // PA2: q2, k2, v2 — same offsets as SDPA reference
+        size_t hs2 = static_cast<size_t>(hs2_val);
+        ov::Tensor tq2(element::f32, {tokens, hn * hs2}); fill_tensor(tq2, idx + 1.0f);
+        ov::Tensor tk2(element::f32, {tokens, hn * hs2}); fill_tensor(tk2, idx + 2.0f);
+        ov::Tensor tv2(element::f32, {tokens, hn * hs2}); fill_tensor(tv2, idx + 3.0f);
+        inputs.insert({params[5], tq2});
+        inputs.insert({params[6], tk2});
+        inputs.insert({params[7], tv2});
+        inputs.insert({params[8], key_cache_1});
+        inputs.insert({params[9], value_cache_1});
+
+        // Shared block management
+        int32_t total_blocks = intel_cpu::div_up(static_cast<int32_t>(tokens) + past_len_count, 32);
+        ov::Tensor t_past(element::i32, {1});
+        ov::Tensor t_sub(element::i32, {2});
+        ov::Tensor t_bi(element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
+        ov::Tensor t_bib(element::i32, {2});
+
+        t_past.data<int32_t>()[0] = (idx == 0) ? 0 : past_len_count;
+        t_sub.data<int32_t>()[0] = 0;
+        t_sub.data<int32_t>()[1] = static_cast<int32_t>(tokens);
+        t_bib.data<int32_t>()[0] = 0;
+        t_bib.data<int32_t>()[1] = total_blocks;
+        for (int32_t i = 0; i < total_blocks; i++)
+            t_bi.data<int32_t>()[i] = i;
+
+        inputs.insert({params[10], t_past});
+        inputs.insert({params[11], t_sub});
+        inputs.insert({params[12], t_bi});
+        inputs.insert({params[13], t_bib});
+
+        past_len_count += static_cast<int32_t>(tokens);
+    }
+
+    void init_all_kv_caches(size_t block_nums) {
+        for (const auto& input : compiledModel.inputs()) {
+            for (const auto& name : input.get_names()) {
+                auto prec = input.get_element_type();
+                auto ps = input.get_partial_shape();
+                if (name == "key_cache.0") {
+                    ps[0] = block_nums;
+                    key_cache = ov::Tensor(prec, ps.get_shape());
+                    std::memset(key_cache.data(), 0, key_cache.get_byte_size());
+                } else if (name == "value_cache.0") {
+                    ps[0] = block_nums;
+                    value_cache = ov::Tensor(prec, ps.get_shape());
+                    std::memset(value_cache.data(), 0, value_cache.get_byte_size());
+                } else if (name == "key_cache.1") {
+                    ps[0] = block_nums;
+                    key_cache_1 = ov::Tensor(prec, ps.get_shape());
+                    std::memset(key_cache_1.data(), 0, key_cache_1.get_byte_size());
+                } else if (name == "value_cache.1") {
+                    ps[0] = block_nums;
+                    value_cache_1 = ov::Tensor(prec, ps.get_shape());
+                    std::memset(value_cache_1.data(), 0, value_cache_1.get_byte_size());
+                }
+            }
+        }
+    }
+
+    ov::Tensor key_cache_1;
+    ov::Tensor value_cache_1;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes2_;
+};
+
+TEST_P(PagedAttnCacheCollisionTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    // Run PA model (single compilation — both PA nodes share executor cache)
+    past_len_count = 0;
+    prepare();
+    init_all_kv_caches(1024 / 32);
+    std::vector<ov::Tensor> actualOutputs;
+    int idx = 0;
+    for (auto&& shapes : targetStaticShapes) {
+        generate(idx++, true, shapes, false, false);
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+        }
+        inferRequest.infer();
+        auto tensor = inferRequest.get_output_tensor(1);
+        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+        tensor.copy_to(copy);
+        actualOutputs.push_back(copy);
+    }
+
+    // Run SDPA reference for PA2 (head_size=hs2)
+    past_len_count = 0;
+    auto saved_function = function;
+    function = functionRefs;
+    prepare();
+    std::vector<ov::Tensor> expectedOutputs;
+    idx = 0;
+    for (auto&& shapes : targetStaticShapes2_) {
+        generate(idx++, false, shapes, false, false);
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+        }
+        inferRequest.infer();
+        auto tensor = inferRequest.get_output_tensor(0);
+        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+        tensor.copy_to(copy);
+        expectedOutputs.push_back(copy);
+    }
+    reset();
+    function = saved_function;
+
+    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size());
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+namespace {
+const std::vector<InputShapes> inputShapesCacheCollision = {{
+    // [L, B=1, H=4, S=256] — PA1 head_size; PA2 uses S=512
+    {{-1, 1, 4, 256}, {{10, 1, 4, 256}, {1, 1, 4, 256}}},
+    {{-1, 1, 4, 256}, {{0, 1, 4, 256}, {10, 1, 4, 256}}},
+}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnExecutorCacheCollision,
+                         PagedAttnCacheCollisionTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(inputShapesCacheCollision),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(false)),
+                         PagedAttnTestBase::getTestCaseName);
+}  // namespace
+
 }  // namespace test
 }  // namespace ov

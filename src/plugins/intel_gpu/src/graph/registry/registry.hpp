@@ -25,7 +25,11 @@
 #endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
-#define OV_GPU_WITH_CM 1
+#ifdef ENABLE_CM_FOR_GPU
+    #define OV_GPU_WITH_CM 1
+#else
+    #define OV_GPU_WITH_CM 0
+#endif
 
 #ifdef EXPAND
 #undef EXPAND
@@ -181,12 +185,14 @@ REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
+REGISTER_IMPLS(moe_router_fused);
 REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
 REGISTER_IMPLS(gather_matmul);
+REGISTER_IMPLS(grouped_matmul);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);

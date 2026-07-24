@@ -12,6 +12,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
@@ -148,10 +149,10 @@ void run_test(const std::shared_ptr<ov::Model>& model,
         if (it == expected_fp16_disabled_status.end())
             continue;
         if (it->second) {
-            ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
+            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "FP16 compression is not disabled for node: " << op->get_friendly_name();
         } else {
-            ASSERT_FALSE(ov::fp16_compression_is_disabled(op))
+            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "FP16 compression is unexpectedly disabled for node: " << op->get_friendly_name();
         }
     }

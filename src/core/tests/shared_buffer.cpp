@@ -539,6 +539,8 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
+    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (override));
+
 private:
     std::vector<char> m_data;
     uint64_t m_id;

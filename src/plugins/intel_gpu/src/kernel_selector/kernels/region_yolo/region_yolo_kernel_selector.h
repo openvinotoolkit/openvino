@@ -16,7 +16,7 @@ public:
 
     region_yolo_kernel_selector();
 
-    virtual ~region_yolo_kernel_selector() {}
+    ~region_yolo_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

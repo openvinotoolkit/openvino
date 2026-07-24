@@ -765,7 +765,6 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     for (size_t i = 0; i < out1.size();i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
-    std::cout << std::endl;
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 

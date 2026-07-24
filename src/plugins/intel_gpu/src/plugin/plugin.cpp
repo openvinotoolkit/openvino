@@ -54,6 +54,7 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
+thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
@@ -189,7 +190,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
-
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
@@ -427,10 +427,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
-                                                                                 context_impl->get_engine(),
-                                                                                 encryption_callbacks.decrypt)
-                           : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+        encryption_callbacks.decrypt
+            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
+            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
     auto& ib = *ib_ptr;
 
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
@@ -474,9 +473,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
+    // Store tensor base in thread-local storage
+    g_current_tensor_base = static_cast<const size_t*>(model.data());
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
-    return import_model(stream, context, config);
+    auto compiled_model = import_model(stream, context, config);
+
+    // Clear thread-local storage
+    g_current_tensor_base = nullptr;
+
+    // Ensure the tensor stays alive as long as the compiled model
+    auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
+    if (gpu_model) {
+        gpu_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
+    }
+
+    return compiled_model;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -612,6 +624,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         gops[element::f16] = device->get_gops(cldnn::data_types::f16);
         gops[element::f32] = device->get_gops(cldnn::data_types::f32);
         return decltype(ov::device::gops)::value_type {gops};
+    } else if (name == ov::intel_gpu::cacheline_size) {
+        return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size.value_or(0));
     } else if (name == ov::intel_gpu::execution_units_count) {
         return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
     } else if (name == ov::intel_gpu::uarch_version) {
@@ -686,6 +700,19 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
         return decltype(ov::device::pci_info)::value_type {info};
+    } else if (name == ov::internal::cache_header_alignment) {
+        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
+    } else if (name == ov::compatibility_check) {
+        if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                // Same compatibility policy as the import_model() guard (single source of truth).
+                return CompiledModel::is_runtime_requirements_compatible(requirements, device_info)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -726,8 +753,10 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::cacheline_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::compatibility_check.name(), PropertyMutability::RO},
 
         // Configs
         ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
@@ -757,6 +786,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::WO},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
+        ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
     };
 
@@ -771,7 +801,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
 
