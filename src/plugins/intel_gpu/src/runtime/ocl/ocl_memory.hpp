@@ -47,7 +47,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     void* buffer_ptr() const override {
         return get_buffer().get();
     }
-    void* get_handle() const override { return static_cast<void*>(get_buffer().get()); }
+    void* get_native_handle() const override { return static_cast<void*>(get_buffer().get()); }
 
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;

@@ -52,7 +52,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         auto process_buffer = [&is_usm_ptr](memory::ptr mem, ov::TensorVector& tensors) {
             switch (mem->get_allocation_type()) {
                 case allocation_type::cl_mem: {
-                    if (void* cl_buff = mem->get_handle()) {
+                    if (void* cl_buff = mem->get_native_handle()) {
                         tensors.push_back(make_tensor(mem->get_layout(), cl_buff));
                         is_usm_ptr.push_back(false);
                     } else {
@@ -91,7 +91,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         }
 
         ov::EvaluationContext meta;
-        if (void* queue = stream.get_handle()) {
+        if (void* queue = stream.get_native_handle()) {
             meta.insert(ov::intel_gpu::ocl_queue(queue));
         } else {
             OPENVINO_THROW("Unsupported queue type");
@@ -113,7 +113,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
                 if (!ev) {
                     continue;
                 }
-                if (void* cl_ev = ev->get_handle()) {
+                if (void* cl_ev = ev->get_native_handle()) {
                     events_list.push_back(cl_ev);
                 } else {
                     depends.push_back(ev);
@@ -121,7 +121,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
             }
             if (!depends.empty()) {
                 marker = stream.enqueue_marker(depends, true);
-                if (void* cl_ev = marker->get_handle()) {
+                if (void* cl_ev = marker->get_native_handle()) {
                     events_list.push_back(cl_ev);
                 }
             }

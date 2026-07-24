@@ -94,7 +94,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # LLVM/MLIR nightly from apt.llvm.org
     for arg in "$@"; do
         if [ "$arg" = "-llvm" ]; then
-            : ${LLVM_VERSION:=$(grep -Po '(?<=set\(SUPPORTED_LLVM_VERSION ")[^"]*' "$(dirname "$0")/cmake/llvm.cmake")}
+            : "${LLVM_VERSION:=$(grep -Po '(?<=set\(SUPPORTED_LLVM_VERSION ")[^"]*' "$(dirname "$0")/cmake/llvm.cmake")}"
             if ! dpkg -l "libmlir-${LLVM_VERSION}-dev" &>/dev/null; then
                 wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- "${LLVM_VERSION}" all
                 apt-get install -y --no-install-recommends \

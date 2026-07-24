@@ -372,11 +372,14 @@ event::ptr ocl_stream::create_user_event(bool set) {
     return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set, _profiling_device);
 }
 
+event::ptr ocl_stream::create_base_event() {
+    cl::Event ret_ev;
+    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
+}
+
 event::ptr ocl_stream::create_base_event(void* handle) {
     cl::Event ret_ev;
-    if (handle) {
-        ret_ev = reinterpret_cast<cl_event>(handle);
-    }
+    ret_ev = reinterpret_cast<cl_event>(handle);
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
