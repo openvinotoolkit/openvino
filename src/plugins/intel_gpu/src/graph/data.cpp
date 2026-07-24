@@ -55,6 +55,7 @@ data_node::typed_program_node(const std::shared_ptr<data> dprim, program& prog)
 
 void data_node::attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
     mem = new_mem;
+    typed_desc()->mem = new_mem;
     recalc_output_layout(invalidate_users_if_changed);
 }
 

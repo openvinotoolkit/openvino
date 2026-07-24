@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "data_inst.h"
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "program_wrapper.h"
@@ -60,6 +61,28 @@ TEST(data_gpu, attach_host_buffer) {
     for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
         ASSERT_EQ(expected_output[i], output_ptr[i]);
     }
+}
+
+TEST(data_gpu, attach_memory_updates_primitive_memory) {
+    auto& engine = get_test_engine();
+
+    auto original_layout = layout{ov::PartialShape{1, 4, 1, 1}, data_types::u8, format::bfyx};
+    auto updated_layout = layout{ov::PartialShape{1, 4, 1, 1}, data_types::i32, format::bfyx};
+    auto original_memory = engine.allocate_memory(original_layout);
+    auto updated_memory = engine.allocate_memory(updated_layout);
+
+    set_values<uint8_t>(original_memory, {1, 2, 3, 4});
+    set_values<int32_t>(updated_memory, {1, 2, 3, 4});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    program prog(engine, config);
+    auto data_prim = std::make_shared<data>("const", original_memory);
+    auto& data_node = prog.get_or_create(data_prim).as<data>();
+    data_node.attach_memory(updated_memory, false);
+
+    ASSERT_EQ(data_node.get_output_layout(), updated_layout);
+    ASSERT_EQ(data_node.get_attached_memory_ptr(), updated_memory);
+    ASSERT_EQ(data_node.get_primitive()->mem, updated_memory);
 }
 
 TEST(data_gpu, usm_device_buffer) {
