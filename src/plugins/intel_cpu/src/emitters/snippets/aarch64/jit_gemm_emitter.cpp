@@ -23,6 +23,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
@@ -53,6 +54,8 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, kernel_config);
     } else if (input_prc == element::f32) {
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, kernel_config);
+    } else if (input_prc == element::i8 || input_prc == element::u8) {
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmI8KaiKernelExecutor>(expr, kernel_config);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unexpected precision for GemmKai executor: ", input_prc);
     }
@@ -71,6 +74,10 @@ std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
     std::set<std::vector<element::Type>> result{{element::f32, element::f32}};
     if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         result.insert({element::f16, element::f16});
+    }
+    if (ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()) {
+        result.insert({element::i8, element::i8});
+        result.insert({element::u8, element::i8});
     }
     return result;
 }

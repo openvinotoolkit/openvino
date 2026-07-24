@@ -11,11 +11,14 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "graph_context.h"
+#include "kai/kai_common.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi8cxp_qsi8cx_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -73,6 +76,43 @@ void repack_matrix(size_t N,
     }
 }
 
+void repack_matrix_i8(size_t N, size_t K, const uint8_t* src, uint8_t* dst) {
+    const auto uk = ov::intel_cpu::aarch64::GemmCopyBCompiledKernelI8::get_selected_ukernel();
+    const auto n_blk_size = ov::intel_cpu::aarch64::GemmCopyBKernelKaiConfig::get_N_blk();
+    const size_t nr = uk.get_nr();
+    const size_t kr = uk.get_kr();
+    const size_t sr = uk.get_sr();
+    const size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
+    const kai_rhs_pack_qsi8cx_params params{1, 1.0F};
+    for (size_t n_block = 0; n_block < n_blocks; n_block++) {
+        const size_t n_start = n_block * n_blk_size;
+        const size_t n_end = std::min(n_start + n_blk_size, N);
+        const size_t n_step = n_end - n_start;
+        std::vector<int8_t> dense(K * n_step);
+        const auto* src_i8 = reinterpret_cast<const int8_t*>(src);
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t n = 0; n < n_step; ++n) {
+                dense[k * n_step + n] = src_i8[k * N + n_start + n];
+            }
+        }
+        const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
+        auto* dst_ptr = dst + packed_off;
+        const std::vector<float> scales(n_step, 1.0F);
+        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
+                                                 n_step,
+                                                 K,
+                                                 nr,
+                                                 kr,
+                                                 sr,
+                                                 dense.data(),
+                                                 nullptr,
+                                                 scales.data(),
+                                                 dst_ptr,
+                                                 0,
+                                                 &params);
+    }
+}
+
 void repack_matrix(size_t N, size_t K, ov::element::Type precision, const uint8_t* src, uint8_t* dst) {
     const auto row_stride_bytes = N * precision.size();
     const auto col_stride_bytes = precision.size();
@@ -94,6 +134,8 @@ void repack_matrix(size_t N, size_t K, ov::element::Type precision, const uint8_
             ov::intel_cpu::aarch64::GemmCopyBCompiledKernelF32::ukernel,
             src,
             dst);
+    } else if (precision == ov::element::i8) {
+        repack_matrix_i8(N, K, src, dst);
     } else {
         OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
     }
