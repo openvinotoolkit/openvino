@@ -10,7 +10,7 @@
 #include "sycl_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "sycl_kernel.hpp"
+#include "sycl_base_kernel.hpp"
 #include "sycl_common.hpp"
 
 #include <cassert>
@@ -72,15 +72,63 @@ QueueTypes sycl_stream::detect_queue_type(void *queue_handle) {
 }
 
 void sycl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
-    OPENVINO_THROW("[GPU] sycl_stream::set_arguments is not implemented");
+    auto& sycl_kern = downcast<sycl_base_kernel>(kernel);
+    GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << ")\n";
+    sycl_kern.set_arguments(args_desc, args);
 }
 
 event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
                                       const kernel_arguments_desc& args_desc,
-                                      const kernel_arguments_data& args,
+                                      const kernel_arguments_data& /* args */,
                                       std::vector<event::ptr> const& deps,
                                       bool is_output) {
-    OPENVINO_THROW("[GPU] sycl_stream::enqueue_kernel is not implemented");
+    auto& sycl_kern = downcast<sycl_base_kernel>(kernel);
+
+    // Skip launching the kernel if any of the global work-group dimensions is zero.
+    // Fall back to enqueue_marker() so downstream dependencies still see a valid
+    // completion event.
+    {
+        const auto& gws = args_desc.workGroups.global;
+        bool has_zero_gws = false;
+        for (size_t i = 0; i < gws.size(); ++i) {
+            if (gws[i] == 0) {
+                has_zero_gws = true;
+                break;
+            }
+        }
+        if (has_zero_gws) {
+            GPU_DEBUG_TRACE_DETAIL << "Skip empty kernel launch: " << args_desc.layerID
+                                   << " (" << kernel.get_id() << ") gws=["
+                                   << (gws.size() > 0 ? gws[0] : 0) << ", "
+                                   << (gws.size() > 1 ? gws[1] : 0) << ", "
+                                   << (gws.size() > 2 ? gws[2] : 0) << "]" << std::endl;
+            return enqueue_marker(deps, is_output);
+        }
+    }
+
+    // Collect dependency events
+    std::vector<::sycl::event> dep_events;
+    if (m_sync_method == SyncMethods::events) {
+        for (auto& dep : deps) {
+            if (auto* sycl_base_ev = dynamic_cast<sycl_base_event*>(dep.get()))
+                dep_events.push_back(sycl_base_ev->get());
+        }
+    } else if (m_sync_method == SyncMethods::barriers) {
+        sync_events(deps, is_output);
+    }
+
+    ::sycl::event ret_ev;
+    try {
+        ret_ev = _command_queue.submit([&](::sycl::handler& cgh) {
+            if (!dep_events.empty())
+                cgh.depends_on(dep_events);
+            sycl_kern.launch(cgh, args_desc);
+        });
+    } catch (::sycl::exception const& err) {
+        OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+    }
+
+    return std::make_shared<sycl_event>(ret_ev, _command_queue, ++_queue_counter);
 }
 
 void sycl_stream::enqueue_barrier() {
