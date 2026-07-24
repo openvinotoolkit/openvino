@@ -13,6 +13,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -238,6 +239,49 @@ void inline fill_data_random(T* pointer,
     }
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<double>(random.Generate(k_range)) / k);
+    }
+}
+
+/**
+ * Generates random data that is exactly representable in FP16.
+ * This is useful for NPU tests where FP32 inputs are converted to FP16 internally.
+ * The function generates values, casts them to FP16 and back to ensure exact representation.
+ *
+ * @param pointer Pointer to the output data buffer
+ * @param size Number of elements to generate
+ * @param range Range of values to generate
+ * @param start_from Starting value for generation
+ * @param k Resolution factor
+ * @param seed Random seed
+ */
+template <class T>
+void inline fill_data_random_fp16_representable(T* pointer,
+                                                std::size_t size,
+                                                const uint32_t range = 10,
+                                                double_t start_from = 0,
+                                                const int32_t k = 1,
+                                                const int seed = 1) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            // Cast through FP16 to ensure exact representation
+            ov::float16 fp16_val(static_cast<float>(start_from));
+            pointer[i] = static_cast<T>(static_cast<float>(fp16_val));
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
+        start_from = 0;
+    }
+    for (std::size_t i = 0; i < size; i++) {
+        double val = start_from + static_cast<double>(random.Generate(k_range)) / k;
+        // Cast through FP16 to quantize to FP16-representable values
+        ov::float16 fp16_val(static_cast<float>(val));
+        pointer[i] = static_cast<T>(static_cast<float>(fp16_val));
     }
 }
 
