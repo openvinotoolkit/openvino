@@ -5691,6 +5691,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_neg_axi
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_bf16) {
+    // Same int4 data/scales as the base case, but scales (and output) are bfloat16.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // Expected values (2.0, 0.75, 1.0, -4.0) are all exactly representable in bfloat16, so compare bit-exact.
+    const auto expected_f32 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);
+    test_case.add_expected_output<ov::bfloat16>(Shape{2, 32},
+                                                std::vector<ov::bfloat16>(expected_f32.begin(), expected_f32.end()));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_indices_2d) {
+    // Rank-2 indices [2,2] -> output rank q + (r-1) = 2 + 1 = 3, shape [2,2,32]. int64 indices.
+    // indices = [[1,0],[0,1]]; row1 = [2.0 x16, 0.75 x16], row0 = [1.0 x16, -4.0 x16].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_indices_2d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int64_t>(Shape{2, 2}, {1, 0, 0, 1});
+    const auto r1 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);  // one gathered row pair, reused per index
+    std::vector<float> expected;
+    const std::vector<float> row1(r1.begin(), r1.begin() + 32);
+    const std::vector<float> row0(r1.begin() + 32, r1.end());
+    for (const auto* row : {&row1, &row0, &row0, &row1}) {  // [1,0,0,1] -> row1,row0,row0,row1
+        expected.insert(expected.end(), row->begin(), row->end());
+    }
+    test_case.add_expected_output<float>(Shape{2, 2, 32}, expected);
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_quantize_axis_not_last) {
     // quantize_axis is not the last dimension (quantize_axis=0, gather_axis=1). This must be rejected:
     // the compressed-gather fusion reconstructs the table by merging the trailing dims, which is only
