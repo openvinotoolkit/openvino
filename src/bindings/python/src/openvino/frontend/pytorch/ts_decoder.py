@@ -376,6 +376,18 @@ class TorchScriptPythonDecoder(Decoder):
                 # temporary name to custom graph. But providing conversion code
                 # as a callable `target` is more convenient.
                 return target
+        # lietorch group ops surface as opaque prim::PythonOp autograd functions
+        # report a dedicated op type so the frontend routes them to native SE3
+        # decompositions instead of an input-invariant constant fold
+        if self.graph_element.kind() == "prim::PythonOp":
+            try:
+                fn_cls = getattr(self.graph_element.pyobj(), "__self__", None)
+                module = getattr(fn_cls, "__module__", "") or ""
+                op_name = getattr(fn_cls, "__name__", "") or ""
+                if module.startswith("lietorch") and op_name in ("Exp", "Act3"):
+                    return "lietorch::" + op_name
+            except Exception:
+                pass
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
