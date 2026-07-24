@@ -962,7 +962,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto max_context_len_i64 = makeOP<v0::Convert>({max_context_len}, {dest_type_i64});
         auto max_context_len_aligned = makeOP<v1::Reshape>({max_context_len_i64, {1}}, {special_zero_true});
         auto input_ids_aligned = makeOP<v0::Unsqueeze>({input_ids, 1});
-        auto position_ids_aligned = makeOP<v0::Unsqueeze>({position_ids, 1});
 
         // Embeddings processing:
         auto embeddings = Qwen7bChatPA::gen_embeddings(input_ids_aligned);
@@ -971,9 +970,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         // RoPE emb sin/cos init:
         auto head_size = shared_ptr<Node>();
         auto rope_emb_sin =
-            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids_aligned, head_size, model_precision);
-        auto rope_emb_cos =
-            Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids_aligned, model_precision);
+            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids, model_precision);
 
         // rope Q, K:
         auto rope_Q = Qwen7bChatPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
@@ -1459,6 +1457,131 @@ TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank4
 
         model_ref = std::make_shared<Model>(OutputVector{add},
                                             ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_Convert) {
+    // onyx-style rotary_emb: position_ids -> Convert -> Gather(select dim=0, index=0). After flattening the
+    // batch-drop select collapses to a Reshape to [-1].
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto select = std::make_shared<v8::Gather>(convert,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto reshape =
+            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
+                                            nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_UnsqueezeConvert) {
+    // The wired Unsqueeze in front of the batch-drop select is collapsed by a Reshape to [-1] once the
+    // redundant Gather(select 0, 0) is removed.
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueeze =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
+        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
+        auto select = std::make_shared<v8::Gather>(convert,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueeze =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
+        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
+        auto reshape =
+            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
+                                            nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_DirectGather) {
+    // The optional Unsqueeze/Convert wrappers are not required for the batch-drop select pattern; the
+    // Gather collapses to a Reshape to [-1].
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto select = std::make_shared<v8::Gather>(position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        auto add = std::make_shared<v1::Add>(select, v0::Constant::create(element::i64, Shape{}, {1}));
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto reshape =
+            std::make_shared<v1::Reshape>(position_ids, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto add = std::make_shared<v1::Add>(reshape, v0::Constant::create(element::i64, Shape{}, {1}));
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_NonBatchDropGather) {
+    // A Gather on position_ids that does not drop the batch dimension must remain unchanged.
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto select = std::make_shared<v8::Gather>(position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {1}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_FullFlow) {
+    // Full position_ids handling for the onyx batch-drop select: prepare_position_ids wires a rank-restoring
+    // Unsqueeze(-1) onto position_ids, then EliminateDropBatch removes the redundant Gather(select 0, 0) and
+    // collapses the wired Unsqueeze with a Reshape to [-1].
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto select = std::make_shared<v8::Gather>(convert,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+
+        ov::pass::paged_attention::PaParams params{model->get_parameters()};
+        ov::pass::paged_attention::prepare_position_ids(params);
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueeze =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
+        auto reshape =
+            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
+                                            nodes_to_params({position_ids}));
     }
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);

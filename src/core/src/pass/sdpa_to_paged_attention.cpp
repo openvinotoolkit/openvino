@@ -115,36 +115,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::unordered_set<std::string> var_ids_to_remove;
 
-    std::shared_ptr<v0::Parameter> position_ids = m_params.get("position_ids");
-    if (!position_ids) {
-        position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
-    } else {
-        const auto& position_ids_shape = position_ids->get_partial_shape();
-
-        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
-            position_ids->set_partial_shape(PartialShape{-1});
-        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
-            // Qwen2.5 VL M-RoPE: set position_ids to [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num,
-            // 1]
-            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
-        } else {
-            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
-                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
-        }
-
-        position_ids->validate_and_infer_types();
-    }
-    auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
-
-    std::shared_ptr<ov::Node> unsqueezed_position_ids =
-        std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-
-    for (const auto& target : position_ids_target_inputs) {
-        target.replace_source_output(unsqueezed_position_ids);
-    }
+    // Get-or-create the flattened position_ids and restore its rank at each existing consumer. The
+    // PositionIDsReplacer* passes below consume the raw parameter and add their own rank-restoring nodes.
+    auto position_ids = paged_attention::prepare_position_ids(m_params);
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
+    manager.register_pass<EliminateDropBatch>();
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
@@ -157,8 +134,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternCodeGen2>(max_context_len);
-    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
-    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacer>(position_ids);
+    manager.register_pass<PositionIDsReplacerQwen>(position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.run_passes(model);
