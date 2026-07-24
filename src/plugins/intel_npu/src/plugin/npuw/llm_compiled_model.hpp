@@ -157,6 +157,7 @@ private:
     bool m_is_eagle = false;
 
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_separate_vocab_tensors;
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> m_vocab_const_owners;
 };
 
 }  // namespace npuw
