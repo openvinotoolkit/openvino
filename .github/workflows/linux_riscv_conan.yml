@@ -157,6 +157,9 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
+            # ONNX is no longer consumed from Conan (Conan Center Index lacks onnx 1.22),
+            # so the bundled submodule is built instead and must be checked out here.
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/onnx/onnx
           popd
 
       #
@@ -252,7 +255,7 @@ jobs:
         run: ccache --cleanup
 
       - name: Upload compile_commands
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
           name: compile_commands_linux_riscv_conan
