@@ -72,10 +72,8 @@ public:
             _availableDevices.push_back(getDeviceNameID(standardizedEnvironmentDevice));
         }
 
-        auto driverVersionPropetry =
-            corePtr->get_property(DEVICE_NPU, ov::intel_npu::driver_version.name());
+        auto driverVersionPropetry = corePtr->get_property(DEVICE_NPU, ov::intel_npu::driver_version.name());
         _driverVersion = driverVersionPropetry.as<std::string>();
-
     }
 
     const auto& getAvailableDevices() const {
@@ -273,6 +271,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
                     ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
                     ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
                     ruleFlag &= categoryRuleEnabler("driver_version", {devices.getDriverVersion()}, enableRules);
+                    ruleFlag &= categoryRuleEnabler("driver_type",
+                                                    {driverTypeToString(NpuTestEnvConfig::getInstance().driver_type)},
+                                                    enableRules);
                     ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
                 }
 
