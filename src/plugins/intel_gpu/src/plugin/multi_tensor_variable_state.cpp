@@ -146,6 +146,51 @@ size_t VariableStateIndirectKVCache::get_actual_mem_size() const {
     return m_hidden_states[0]->get_actual_mem_size();
 }
 
+ov::Shape VariableStateIndirectKVCache::get_shape() const {
+    return m_hidden_states[0]->get_layout().get_shape();
+}
+
+void VariableStateIndirectKVCache::set_shape(const ov::Shape& shape) {
+    // Zero-copy KV cache trim: adjust padding on the concat (sequence) axis so that
+    // padded_dims stay constant.  This preserves per-head strides in the GPU buffer,
+    // meaning no data movement is needed — only metadata is updated.
+    auto& kv_state  = m_hidden_states[0];
+    auto  kv_layout = kv_state->get_layout();
+    auto  kv_shape  = kv_layout.get_shape();
+
+    if (ov::Shape(shape) == kv_shape)
+        return;
+
+    // --- KV cache state ---
+    auto new_kv_layout = kv_layout;
+    new_kv_layout.set_partial_shape(shape);
+
+    const auto old_seq = static_cast<int64_t>(kv_shape[m_concat_axis]);
+    const auto new_seq = static_cast<int64_t>(shape[m_concat_axis]);
+    const auto old_pad = kv_layout.data_padding._upper_size[m_concat_axis];
+    new_kv_layout.data_padding._upper_size[m_concat_axis] =
+        static_cast<int32_t>(old_pad + (old_seq - new_seq));
+
+    kv_state->set_layout(new_kv_layout);
+
+    // --- Beam table state ---
+    auto& bt_state  = m_hidden_states[1];
+    auto  bt_layout = bt_state->get_layout();
+    auto  bt_shape  = bt_layout.get_shape();
+    auto  bt_new_shape = get_beam_table_shape(shape).to_shape();
+
+    auto new_bt_layout = bt_layout;
+    new_bt_layout.set_partial_shape(bt_new_shape);
+
+    const auto bt_old_seq = static_cast<int64_t>(bt_shape[m_concat_axis]);
+    const auto bt_new_seq = static_cast<int64_t>(bt_new_shape[m_concat_axis]);
+    const auto bt_old_pad = bt_layout.data_padding._upper_size[m_concat_axis];
+    new_bt_layout.data_padding._upper_size[m_concat_axis] =
+        static_cast<int32_t>(bt_old_pad + (bt_old_seq - bt_new_seq));
+
+    bt_state->set_layout(new_bt_layout);
+}
+
 ov::PartialShape VariableStateIndirectKVCache::get_beam_table_shape(const ov::PartialShape& kv_cache_shape) {
     auto rank = kv_cache_shape.size();
     ov::PartialShape beam_table_shape(std::vector<size_t>(rank, 1));
@@ -215,6 +260,59 @@ void VariableStateIndirectKVCacheCompressed::set_state(const ov::SoPtr<ov::ITens
 
 ov::SoPtr<ov::ITensor> VariableStateIndirectKVCacheCompressed::get_state() const {
     OPENVINO_THROW("[GPU] get_state API is supported only when KV-cache compression is disabled");
+}
+
+void VariableStateIndirectKVCacheCompressed::set_shape(const ov::Shape& shape) {
+    // Get KV cache old shape to compute the trim delta.
+    auto kv_old_shape = m_hidden_states[0]->get_layout().get_shape();
+
+    // Handle KV cache + beam table via base class.
+    VariableStateIndirectKVCache::set_shape(shape);
+
+    // Compute trim delta on the KV cache concat axis.
+    const auto delta = static_cast<int64_t>(kv_old_shape[m_concat_axis])
+                     - static_cast<int64_t>(shape[m_concat_axis]);
+    if (delta == 0)
+        return;
+
+    // Compression scale/zp use a fixed sequence axis (always 2).
+    constexpr size_t scale_seq_axis = 2;
+
+    // --- Compression scale state (m_hidden_states[2]) ---
+    {
+        auto& scale_state  = m_hidden_states[2];
+        auto  scale_layout = scale_state->get_layout();
+        auto  scale_shape  = scale_layout.get_shape();
+
+        auto new_scale_shape = scale_shape;
+        new_scale_shape[scale_seq_axis] = static_cast<size_t>(
+            static_cast<int64_t>(scale_shape[scale_seq_axis]) - delta);
+
+        auto new_scale_layout = scale_layout;
+        new_scale_layout.set_partial_shape(new_scale_shape);
+        new_scale_layout.data_padding._upper_size[scale_seq_axis] =
+            static_cast<int32_t>(scale_layout.data_padding._upper_size[scale_seq_axis] + delta);
+
+        scale_state->set_layout(new_scale_layout);
+    }
+
+    // --- Compression zero-points state (m_hidden_states[3], optional) ---
+    if (m_has_zp_state) {
+        auto& zp_state  = m_hidden_states[3];
+        auto  zp_layout = zp_state->get_layout();
+        auto  zp_shape  = zp_layout.get_shape();
+
+        auto new_zp_shape = zp_shape;
+        new_zp_shape[scale_seq_axis] = static_cast<size_t>(
+            static_cast<int64_t>(zp_shape[scale_seq_axis]) - delta);
+
+        auto new_zp_layout = zp_layout;
+        new_zp_layout.set_partial_shape(new_zp_shape);
+        new_zp_layout.data_padding._upper_size[scale_seq_axis] =
+            static_cast<int32_t>(zp_layout.data_padding._upper_size[scale_seq_axis] + delta);
+
+        zp_state->set_layout(new_zp_layout);
+    }
 }
 
 }  // namespace ov::intel_gpu
