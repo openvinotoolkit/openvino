@@ -72,7 +72,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         !(config.has<DYNAMIC_SHAPE_TO_STATIC>() && config.get<DYNAMIC_SHAPE_TO_STATIC>())) {
         const auto isDynamic = [](const auto& port) {
             auto& shape = port.get_partial_shape();
-            return shape.is_dynamic() && (shape.rank().get_length() == 4) && shape[0].is_static();
+            return shape.rank().is_static() && (shape.rank().get_length() == 4) &&
+                   (shape[1].is_dynamic() || shape[2].is_dynamic() || shape[3].is_dynamic());
         };
 
         if (model) {
