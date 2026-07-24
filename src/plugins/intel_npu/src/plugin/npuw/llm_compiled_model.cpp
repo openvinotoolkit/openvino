@@ -28,6 +28,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -41,6 +42,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
@@ -66,7 +68,9 @@ bool is_aligned_to(T value, T alignment) {
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
-    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
+    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model,
+                       std::vector<std::shared_ptr<ov::op::v0::Constant>> vocab_consts,
+                       std::vector<std::shared_ptr<ov::op::v0::Parameter>>& vocab_params) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -90,7 +94,7 @@ public:
                                                                       matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
-        auto callback = [=, &lm_head_model](opp::Matcher& m) {
+        auto callback = [=, &lm_head_model, &vocab_params](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
@@ -133,14 +137,42 @@ public:
             matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
-                                                                     matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_matmul->input(0).replace_source_output(new_param);
-            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model =
-                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
+            auto embedd_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
+                                                                        matmul_first_source.get_partial_shape());
+            embedd_param->set_friendly_name(ov::npuw::LLMCompiledModel::output_embeds);
+            embedd_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matched_matmul->input(0).replace_source_output(embedd_param);
+            if (!vocab_consts.empty()) {
+                LOG_INFO("Vocab as input mode: replacing vocab constants with parameters and cloning dequantization subgraph to LM head");
+                for (const auto& vocab_const : vocab_consts) {
+                    auto vocab_param = std::make_shared<ov::op::v0::Parameter>(vocab_const->get_element_type(),
+                                                                               vocab_const->get_shape());
+                    vocab_param->set_friendly_name(vocab_const->get_friendly_name() + "_vocab_as_input");
+                    vocab_param->output(0).add_names({vocab_const->get_friendly_name() + "_vocab_as_input"});
+                    auto target_inputs = vocab_const->output(0).get_target_inputs();
+                    for (const auto& target_input : target_inputs) {
+                        target_input.get_source_output().replace(vocab_param);
+                    }
+                    vocab_params.push_back(vocab_param);
+                }
+                auto tmp_result = std::make_shared<ov::op::v0::Result>(matched_node_matmul->input(1).get_source_output());
+                auto dequant_subraph_copy =
+                    std::make_shared<ov::Model>(ov::OutputVector{tmp_result->output(0)},
+                    ov::ParameterVector(vocab_params.begin(), vocab_params.end()))->clone();
 
+                auto vocab_params_copy = dequant_subraph_copy->get_parameters(); 
+                auto matmul_input_1_copy = dequant_subraph_copy->get_results()[0]->input(0).get_source_output();
+                matched_matmul->input(1).replace_source_output(matmul_input_1_copy);
+                auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
+                vocab_params_copy.insert(vocab_params_copy.begin(), embedd_param);
+                lm_head_model =
+                    std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{vocab_params_copy.begin(), vocab_params_copy.end()});
+            } else {
+                auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
+                lm_head_model =
+                    std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{embedd_param});
+            }
+            LOG_INFO("LM head model created.");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
@@ -148,16 +180,40 @@ public:
 };
 
 namespace {
-std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
+std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, bool vocab_as_input,
+                                       std::unordered_map<std::string,  ov::SoPtr<ov::ITensor>>& vocab_tensors) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    rewr.add_matcher<CutLMHead>(lm_head_model);
+    std::vector<std::shared_ptr<ov::op::v0::Parameter>> vocab_params;
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> vocab_consts;
+    if (vocab_as_input) {
+        LOG_INFO("Vocab as input mode is enabled. Searching for vocab constants...");
+        ov::npuw::patterns::opt::Context ctx;
+        ov::pass::GraphRewrite verifier;
+        verifier.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(ctx, vocab_consts);
+        verifier.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(ctx, vocab_consts);
+        verifier.run_on_model(model);
+        if (!vocab_consts.empty()) {
+            LOG_INFO("Found " << vocab_consts.size() << " constant weights for vocab-as-input");
+        }
+    }
+    rewr.add_matcher<CutLMHead>(lm_head_model, vocab_consts, vocab_params);
     rewr.run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     }
+    if (vocab_as_input && vocab_params.empty()) {
+        OPENVINO_THROW("Failed to find vocab constant for vocab-as-input mode");
+    }
+    if (!vocab_params.empty()) {
+        model->add_parameters(ov::ParameterVector{vocab_params.begin(), vocab_params.end()});
+        for (auto i = 0; i < vocab_consts.size(); ++i) {
+            auto tensor = ov::npuw::util::copy_tensor_from_const(vocab_consts[i]);
+            vocab_tensors[vocab_params[i]->get_friendly_name()] = ov::get_tensor_impl(tensor);
+            vocab_consts[i].reset();
+        }
+    }
     model->validate_nodes_and_infer_types();
-
     return lm_head_model;
 }
 
@@ -548,12 +604,18 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
-std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg) {
+std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg,
+                                                 std::unordered_map<std::string, ov::SoPtr<ov::ITensor>>& vocab_tensors) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
+    bool vocab_as_input = cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
         LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(m);
+        if (vocab_as_input) {
+            LOG_WARN("Trying to separate Vocabulary matrix multiplication op into additional model, "
+                     "vocabulary will be provided as input, not as constant.");
+        }
+        lm_head_model = cut_lm_head(m, vocab_as_input, vocab_tensors);
         if (lm_head_model) {
             LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
         } else {
@@ -837,7 +899,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg, m_separate_vocab_tensors);
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
@@ -1214,6 +1276,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
+
+        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>()) {
+            LOG_INFO("Vocab is provided as input to LM head, disabling HOST_GATHER for LM head.");
+        
+            // Disable HOST_GATHER for LM head: DQUnpackDictMatMulCWu would crash
+            // when vocab is provided as Parameter (vocab_as_input mode)
+            lm_head_config["NPUW_HOST_GATHER"] = "NO";
+        }
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 

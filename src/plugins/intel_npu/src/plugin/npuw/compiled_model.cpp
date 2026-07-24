@@ -262,10 +262,14 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         // If there's folding enabled AND non-repeating graphs are forced to be
         // functions, do extra lifting for gather (if any)
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW<ov::op::v0::Parameter>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW<ov::op::v0::Parameter>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ<ov::op::v0::Parameter>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW<ov::op::v0::Parameter>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ<>>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW<>>();
         rewr.run_on_model(model);
     }
 
@@ -431,6 +435,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    LOG_INFO("use_host_gather_quant = " << ctx.use_host_gather_quant);
     ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
@@ -804,6 +809,8 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Parameter>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Parameter>>(std::ref(ctx), true);
     rewr.run_on_model(model);
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;

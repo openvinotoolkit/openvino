@@ -138,7 +138,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& shape_batch_dim = partial_shape[kv_axes_position.batch];
             NPUW_ASSERT(shape_batch_dim.is_dynamic() || shape_batch_dim.get_length() <= 1);
             new_shape[kv_axes_position.batch] = 1;  // batch_dim
-        } else {
+        } else if (input_name.find("vocab_as_input") != std::string::npos) {
+            // NB: Vocab as input mode, used for LM head inference. The vocab tensor is
+            // static and does not depend on the input size, so we can leave its shape
+            // unchanged.
+            new_shape = input.get_partial_shape();
+        }
+        else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;

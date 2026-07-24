@@ -125,25 +125,28 @@ public:
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
 
 // Gather-related passes
-
+template<typename WType = ov::op::v0::Constant>
 class DQLiftGatherAsymCW : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherAsymCW");
     DQLiftGatherAsymCW();
 };
 
+template<typename WType = ov::op::v0::Constant>
 class DQLiftGatherSymCW : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherSymCW");
     DQLiftGatherSymCW();
 };
 
+template<typename WType = ov::op::v0::Constant>
 class DQLiftGatherSymGQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherSymGQ");
     DQLiftGatherSymGQ();
 };
 
+template <typename WType = ov::op::v0::Constant>
 class DQLiftGatherCW : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherCW");

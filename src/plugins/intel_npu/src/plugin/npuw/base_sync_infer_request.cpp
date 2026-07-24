@@ -559,6 +559,12 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
     auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
 
     if (quant_unpack_gather.dst_idx != -1) {
+        LOG_INFO("HOST_GATHER_QUANT: running for subgraph[" << idx << "]"
+                 << " dst=" << quant_unpack_gather.dst_idx
+                 << " w=" << quant_unpack_gather.src_w_idx
+                 << " z=" << quant_unpack_gather.src_z_idx
+                 << " s=" << quant_unpack_gather.src_s_idx
+                 << " ids=" << quant_unpack_gather.idx_idx);
         NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
 
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
