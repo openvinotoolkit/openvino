@@ -20,8 +20,7 @@
 /*
  * Description:
  *     Shared tail of the ARM int8 requantization pattern blocks ConvMulAddFQBlock and FCMulAddFQBlock.
- *     Both blocks share the identical
- *         GEMM -> Multiply -> Add(non-i32 constant bias) -> FakeQuantize
+ *     Both blocks share the identical GEMM -> Multiply -> Add(non-i32 constant bias) -> FakeQuantize
  */
 
 namespace ov::intel_cpu {
