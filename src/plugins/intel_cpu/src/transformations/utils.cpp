@@ -25,7 +25,6 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -52,40 +51,11 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
 }  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
-    auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
-    auto convMulAdd_mul = wrap_type<ov::op::v1::Multiply>({convMulAdd_conv, any_input()});
-    auto convMulAdd_add = wrap_type<ov::op::v1::Add>({convMulAdd_mul, any_input()});
-    auto convMulAdd_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convMulAdd_add, any_input(), any_input(), any_input(), any_input()});
-    Matcher convMulAdd_matcher(convMulAdd_fq);
-    auto convAddMul_conv = wrap_type<ov::op::v1::Convolution>();
-    auto convAddMul_add = wrap_type<ov::op::v1::Add>({convAddMul_conv, any_input()});
-    auto convAddMul_mul = wrap_type<ov::op::v1::Multiply>({convAddMul_add, any_input()});
-    auto convAddMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul, any_input(), any_input(), any_input(), any_input()});
-    Matcher convAddMul_matcher(convAddMul_fq);
-    auto matcher = (pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_matcher : convAddMul_matcher;
-    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-    const auto& pattern_map = matcher.get_pattern_value_map();
-    auto conv = pattern_map.at((pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_conv : convAddMul_conv);
-
-    return conv.get_node_shared_ptr()->get_input_element_type(0) == node->get_output_element_type(0);
+    return match_gemm_bias_fq_same_types<ov::op::v1::Convolution>(node, pattern);
 }
 
 bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
-    auto conv = wrap_type<ov::op::v1::Convolution>();
-    auto fq = wrap_type<ov::op::v0::FakeQuantize>({conv, any_input(), any_input(), any_input(), any_input()});
-    Matcher matcher(fq);
-    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
-
-    return conv_node->get_input_element_type(0) == node->get_output_element_type(0);
+    return match_gemm_fq_same_types<ov::op::v1::Convolution>(node);
 }
 
 bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node) {
@@ -126,27 +96,20 @@ bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node)
         return false;
     }
 
-    auto matmul_m =
-        wrap_type<ov::op::v0::MatMul>({any_input(type_matches_any({ov::element::i8, ov::element::u8})), any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({matmul_m, any_input()});
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({add_m, any_input()});
-    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({mul_m, any_input(), any_input(), any_input(), any_input()});
-    Matcher matcher(fq_m);
-    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
-    if (matmul->get_input_element_type(0) != node->get_output_element_type(0)) {
-        return false;
-    }
-
-    const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
-        const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
-        return constant != nullptr && shape_size(constant->get_shape()) == 1;
+    // returns true if MatMul-Add-Mul-FQ chain will be fused into int8 matmul and handled by ACL executor.
+    // Unlike the conv path, matmul pins the activation input to i8/u8 inside the pattern and additionally
+    // requires the FQ dequantization scales to be per-tensor scalar constants.
+    const auto is_per_tensor_scale = [](const std::shared_ptr<const ov::Node>& fq) {
+        const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
+            const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
+            return constant != nullptr && shape_size(constant->get_shape()) == 1;
+        };
+        return is_per_tensor_input(fq->input_value(1)) && is_per_tensor_input(fq->input_value(2));
     };
-    return is_per_tensor_input(node->input_value(1)) && is_per_tensor_input(node->input_value(2));
+    return match_gemm_bias_fq_same_types<ov::op::v0::MatMul>(node,
+                                                             FQMulAddPattern::ConvAddMul,
+                                                             type_matches_any({ov::element::i8, ov::element::u8}),
+                                                             is_per_tensor_scale);
 }
 
 bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& node,
