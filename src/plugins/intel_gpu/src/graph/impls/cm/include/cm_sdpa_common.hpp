@@ -275,14 +275,15 @@ void sdpa_kernel_lsc(
     int kv_stop,
     int q_len,
     int kv_len,
+    uint q_pitch_bytes,
+    uint k_pitch_bytes,
+    uint v_pitch_bytes,
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_base [[type("svmptr_t")]],
     svmptr_t v_base [[type("svmptr_t")]],
     svmptr_t o_base [[type("svmptr_t")]]) {
 
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
-    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
-    constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
     // round up head_size to multiple of 16
     // block_2d_desc will automatically handle the tailing block
     constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
@@ -303,7 +304,7 @@ void sdpa_kernel_lsc(
     if (q_tokens_left > q_step) q_tokens_left = q_step;
 
     if (q_tokens_left > 0) {
-        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch_bytes - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
@@ -311,8 +312,8 @@ void sdpa_kernel_lsc(
         }
     }
 
-    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
-    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, kv_stop - 1, head_size*sizeof(half) - 1, k_pitch_bytes - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, kv_stop - 1, head_size*sizeof(half) - 1, v_pitch_bytes - 1, 0, 0);
 
     int causal_left = q_start;
 
@@ -348,8 +349,8 @@ void sdpa_kernel_lsc(
     cm_sbarrier(1);
 
     for(int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step,
-            k_base += kv_step * kv_pitch,
-            v_base += kv_step * kv_pitch,
+            k_base += kv_step * k_pitch_bytes,
+            v_base += kv_step * v_pitch_bytes,
             slm_buff_id_read ++) {
 
         //  load0, load1, signal1,
@@ -434,14 +435,15 @@ void sdpa_kernel_lsc_prefetch(
     int kv_stop,
     int q_len,
     int kv_len,
+    uint q_pitch_bytes,
+    uint k_pitch_bytes,
+    uint v_pitch_bytes,
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_base [[type("svmptr_t")]],
     svmptr_t v_base [[type("svmptr_t")]],
     svmptr_t o_base [[type("svmptr_t")]]) {
 
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
-    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
-    constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
     // round up head_size to multiple of 16
     // block_2d_desc will automatically handle the tailing block
     constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
@@ -463,7 +465,7 @@ void sdpa_kernel_lsc_prefetch(
     if (q_tokens_left > q_step) q_tokens_left = q_step;
 
     if (q_tokens_left > 0) {
-        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch_bytes - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
@@ -471,18 +473,18 @@ void sdpa_kernel_lsc_prefetch(
         }
     }
 
-    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
-    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, kv_stop - 1, head_size*sizeof(half) - 1, k_pitch_bytes - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, kv_stop - 1, head_size*sizeof(half) - 1, v_pitch_bytes - 1, 0, 0);
 
     static_assert(wg_local_size == 16);
-    lsc::block_2d_desc<half, 1, kv_step/wg_local_size, REG_K> prefetch_K(k_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
-    lsc::block_2d_desc<half, 1, REG_K/wg_local_size, REG_N> prefetch_V(v_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, kv_step/wg_local_size, REG_K> prefetch_K(k_base, kv_stop - 1, head_size*sizeof(half) - 1, k_pitch_bytes - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K/wg_local_size, REG_N> prefetch_V(v_base, kv_stop - 1, head_size*sizeof(half) - 1, v_pitch_bytes - 1, 0, 0);
 
     int causal_left = q_start;
 
     for(int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step,
-            k_base += kv_step * kv_pitch,
-            v_base += kv_step * kv_pitch) {
+            k_base += kv_step * k_pitch_bytes,
+            v_base += kv_step * v_pitch_bytes) {
         //# St = k @ Qt
         matrix<float, kv_step, q_step> St; // = ugemm_KQ(slm_K, rQ, slm_offset);
         {
@@ -626,14 +628,15 @@ void sdpa_kernel(
     SurfaceIndex key [[type("buffer_t")]],
     SurfaceIndex value [[type("buffer_t")]],
     SurfaceIndex output [[type("buffer_t")]],
+    uint q_pitch_bytes,
+    uint k_pitch_bytes,
+    uint v_pitch_bytes,
     uint q_off,
     uint k_off,
     uint v_off,
     uint o_off) {
     constexpr int padded_head_size = (head_size + 16 - 1) / 16 *16;
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
-    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
-    constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
@@ -654,7 +657,7 @@ void sdpa_kernel(
         // load as many as possible given one address
         if constexpr (head_size == 128 || head_size == 64) {
             matrix<uint, q_step, head_size/2> QmatI32;
-            cm_load_2d(QmatI32, query, q_off, q_pitch);
+            cm_load_2d(QmatI32, query, q_off, q_pitch_bytes);
             #pragma unroll
             for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
                 Transpose2DMatrix(QmatI32.select<q_step, 1, REG_K/2, 1>(0, k), rQ[ri].format<uint, REG_K/2, q_step>());
@@ -667,7 +670,7 @@ void sdpa_kernel(
             for(; i < num_full_blocks; i++) {
                 matrix<uint, q_step, REG_K/2> QmatI32;
                 int k = i * REG_K;
-                cm_load_2d(QmatI32, query, q_off + k * sizeof(uint) / 2, q_pitch);
+                cm_load_2d(QmatI32, query, q_off + k * sizeof(uint) / 2, q_pitch_bytes);
                 Transpose2DMatrix(QmatI32, rQ[i].format<uint, REG_K/2, q_step>());
                 rQ[i].format<half>() = cm_mul<half>(rQ[i].format<half>(), (half)scale_factor);
             }
@@ -677,7 +680,7 @@ void sdpa_kernel(
             if constexpr (head_size % REG_K > 0) {
                 int k = num_full_blocks * REG_K;
                 matrix<uint, q_step, REG_K/2> QmatI32;
-                cm_load_2d_with_tail<q_step, REG_K/2, (head_size % REG_K) / 2>(QmatI32, query, q_off + k * sizeof(half), q_pitch);
+                cm_load_2d_with_tail<q_step, REG_K/2, (head_size % REG_K) / 2>(QmatI32, query, q_off + k * sizeof(half), q_pitch_bytes);
                 Transpose2DMatrix(QmatI32, rQ[num_full_blocks].format<uint, REG_K/2, q_step>());
                 rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)scale_factor);
             }
@@ -710,7 +713,7 @@ void sdpa_kernel(
             int i = wg_local_id;
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * REG_K;
-                cm_load_2d(temp, key, k_off + k * sizeof(half), kv_pitch);
+                cm_load_2d(temp, key, k_off + k * sizeof(half), k_pitch_bytes);
                 // Zero out unused K rows to prevent NaN from garbage data in KV cache
                 // (Similar approach as PA kernel: cm_pa_common.hpp)
                 for (int r = kv_valid_rows; r < kv_step; r++)
@@ -723,7 +726,7 @@ void sdpa_kernel(
             // following code will be optimized out when head_size_tail = 0
             if constexpr (head_size % REG_K > 0) {
                 int k = num_full_blocks * REG_K;
-                cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), kv_pitch);
+                cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), k_pitch_bytes);
                 // Zero out unused K rows
                 for (int r = kv_valid_rows; r < kv_step; r++)
                     temp.row(r) = 0;
@@ -745,7 +748,7 @@ void sdpa_kernel(
             int i = wg_local_id - local_size / 2;
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * VK_STEP;
-                cm_load_2d(temp2, value, v_off + k * sizeof(half), kv_pitch);
+                cm_load_2d(temp2, value, v_off + k * sizeof(half), v_pitch_bytes);
                 // Zero out unused V rows to prevent NaN from garbage data in KV cache
                 // (Similar approach as PA kernel: cm_pa_common.hpp)
                 for (int r = kv_valid_rows; r < kv_step; r++)
@@ -762,7 +765,7 @@ void sdpa_kernel(
             // following code will be optimized out when head_size_tail = 0
             if constexpr (head_size % VK_STEP > 0) {
                 int k = num_full_blocks * VK_STEP;
-                cm_load_2d_with_tail<REG_K, VK_STEP, head_size % VK_STEP>(temp2, value, v_off + k * sizeof(half), kv_pitch);
+                cm_load_2d_with_tail<REG_K, VK_STEP, head_size % VK_STEP>(temp2, value, v_off + k * sizeof(half), v_pitch_bytes);
                 // Zero out unused V rows
                 for (int r = kv_valid_rows; r < kv_step; r++)
                     temp2.row(r) = 0;
@@ -775,8 +778,8 @@ void sdpa_kernel(
                 }
             }
         }
-        k_off += kv_step * kv_pitch;
-        v_off += kv_step * kv_pitch;
+        k_off += kv_step * k_pitch_bytes;
+        v_off += kv_step * v_pitch_bytes;
         // printf(" diff= %lu\n", get_clock() - clk0);
     };
 

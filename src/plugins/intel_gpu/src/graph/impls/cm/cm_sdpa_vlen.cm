@@ -36,10 +36,32 @@ _GENX_MAIN_ void KERNEL_NAME(
     SurfaceIndex query [[type("buffer_t")]],
     SurfaceIndex key [[type("buffer_t")]],
     SurfaceIndex value [[type("buffer_t")]],
-    SurfaceIndex output [[type("buffer_t")]],    
+    SurfaceIndex output [[type("buffer_t")]],
 #endif
     int* cu_seqlens [[type("svmptr_t")]],
-    int  need_wg_mapping
+    int  need_wg_mapping,
+    // Memory-layout contract for Q/K/V inputs (must be preserved by upstream passes):
+    //   Only the token (outer) axis is allowed to be discontinuous. The kernel treats
+    //   each input as a 3-D tensor [tokens, heads, head_size] and hardcodes the two
+    //   inner strides:
+    //     - per-head stride  == head_size (heads contiguous within a token)
+    //     - per-element stride == 1        (head_size dim is contiguous)
+    //   Only the outer per-token stride is layout-driven via {q,k,v}_token_pitch below.
+    //   If prepare_buffer_fusing ever propagates padding onto the head or head_size axis
+    //   of a vl_sdpa input layout, this kernel will silently address the wrong memory.
+    //
+    // Element-count offsets from the SVM base to the slice start of each input, taken
+    // from input_layout.get_linear_offset(). Non-zero when an in-place crop (e.g. the
+    // TransposeSplitMatcher axis=1 pattern) leaves the SVM base pointing at the packed
+    // parent buffer and shifts the logical view via layout padding on the token axis.
+    int  token_offset_q,
+    int  token_offset_k,
+    int  token_offset_v,
+    // Per-input token strides in elements, from input_layout.get_pitches()[0]. Allows
+    // mixed layouts (e.g. Q/K contiguous post-RoPE, V still viewing the padded parent).
+    int  q_token_pitch,
+    int  k_token_pitch,
+    int  v_token_pitch
     ) {
     constexpr int num_heads = CMFLA_NUM_HEADS;
     constexpr int head_size = CMFLA_HEAD_SIZE;
@@ -107,8 +129,12 @@ _GENX_MAIN_ void KERNEL_NAME(
         kv_start = cu_seqlens[wg_id];
         kv_seq_len = cu_seqlens[wg_id + 1] - kv_start;
     }
-    uint qo_offset = (q_start*num_heads + h)*head_size;
-    uint kv_offset = (kv_start*num_kv_heads + hkv)*head_size;
+    // Input offsets are computed with per-input runtime token pitches.
+    // Output is always contiguous [q_len, num_heads, head_size].
+    uint q_in_offset = q_start * q_token_pitch + h * head_size;
+    uint k_in_offset = kv_start * k_token_pitch + hkv * head_size;
+    uint v_in_offset = kv_start * v_token_pitch + hkv * head_size;
+    uint o_offset = (q_start * num_heads + h) * head_size;
 
 #if USE_LSC == 1
 #if USE_LSC_PREFETCH
@@ -118,10 +144,13 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 kv_seq_len,
                                 q_len,
                                 kv_seq_len, //kv_len,
-                                reinterpret_cast<svmptr_t>(query + qo_offset),
-                                reinterpret_cast<svmptr_t>(key + kv_offset),
-                                reinterpret_cast<svmptr_t>(value + kv_offset),
-                                reinterpret_cast<svmptr_t>(output + qo_offset));
+                                q_token_pitch * sizeof(half),
+                                k_token_pitch * sizeof(half),
+                                v_token_pitch * sizeof(half),
+                                reinterpret_cast<svmptr_t>((query + token_offset_q) + q_in_offset),
+                                reinterpret_cast<svmptr_t>((key + token_offset_k) + k_in_offset),
+                                reinterpret_cast<svmptr_t>((value + token_offset_v) + v_in_offset),
+                                reinterpret_cast<svmptr_t>(output + o_offset));
 #else
     sdpa_kernel_lsc<false, num_heads, num_kv_heads, head_size>(
                                 slm_K,
@@ -132,10 +161,13 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 kv_seq_len, //kv_stop,
                                 q_len, //q_len,
                                 kv_seq_len, //kv_len,
-                                reinterpret_cast<svmptr_t>(query + qo_offset),
-                                reinterpret_cast<svmptr_t>(key + kv_offset),
-                                reinterpret_cast<svmptr_t>(value + kv_offset),
-                                reinterpret_cast<svmptr_t>(output + qo_offset));
+                                q_token_pitch * sizeof(half),
+                                k_token_pitch * sizeof(half),
+                                v_token_pitch * sizeof(half),
+                                reinterpret_cast<svmptr_t>((query + token_offset_q) + q_in_offset),
+                                reinterpret_cast<svmptr_t>((key + token_offset_k) + k_in_offset),
+                                reinterpret_cast<svmptr_t>((value + token_offset_v) + v_in_offset),
+                                reinterpret_cast<svmptr_t>(output + o_offset));
 #endif
 #else
     sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
@@ -151,10 +183,13 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 key,
                                 value,
                                 output,
-                                qo_offset * sizeof(half),
-                                kv_offset * sizeof(half),
-                                kv_offset * sizeof(half),
-                                qo_offset * sizeof(half)
+                                q_token_pitch * sizeof(half),
+                                k_token_pitch * sizeof(half),
+                                v_token_pitch * sizeof(half),
+                                (token_offset_q + q_in_offset) * sizeof(half),
+                                (token_offset_k + k_in_offset) * sizeof(half),
+                                (token_offset_v + v_in_offset) * sizeof(half),
+                                o_offset * sizeof(half)
                                 );
 #endif
 }

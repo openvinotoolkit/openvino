@@ -7,6 +7,10 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#include <intel_gpu/primitives/vl_sdpa.hpp>
+#include "vl_sdpa_inst.h"
+#include "graph/impls/ocl/kernel_selector_helper.h"
+
 #include "intel_gpu/runtime/engine.hpp"
 
 #include "intel_gpu/graph/program.hpp"
@@ -972,6 +976,42 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(prepare_buffer_fusing, do_runtime_in_place_crop_skips_non_propagatable_reshape_when_reshape_was_preupdated) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 1, 4}, data_types::f32, format::bfyx};
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {2});
+    set_values<int64_t>(splits_length_mem, {2, 2});
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        crop("crop", {input_info("input"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), cldnn::tensor(0), cldnn::crop_ngraph_op_mode::variadic_split, 0, 2),
+        reshape("reshape", input_info("crop"), false, {}, ov::PartialShape{-1, -1, 4}, cldnn::reshape::reshape_mode::base),
+        reorder("output", input_info("reshape"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto input_inst = network.get_primitive("input");
+    auto crop_inst = network.get_primitive("crop");
+    auto reshape_inst = network.get_primitive("reshape");
+
+    crop_inst->set_can_be_optimized(true);
+    const_cast<cldnn::program_node&>(crop_inst->get_node()).can_be_optimized(true);
+    PrimitiveInstTestHelper::set_update_shape_done_by_other(reshape_inst, true);
+
+    PrimitiveInstTestHelper::do_runtime_in_place_crop(input_inst);
+
+    ASSERT_FALSE(crop_inst->can_be_optimized());
 }
 
 TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
@@ -2383,6 +2423,776 @@ TEST(prepare_buffer_fusing, in_place_crop_static_output_with_dynamic_predecessor
     ASSERT_EQ(out.size(), host_gemm_output.size());
     for (size_t i = 0; i < host_gemm_output.size(); i++) {
         ASSERT_NEAR(out[i], host_gemm_output[i], 1e-3f) << "mismatch at i=" << i;
+    }
+}
+
+// Runtime along-feature contract for the TransposeSplitMatcher pattern is covered
+// by `in_place_crop_along_feature_runtime_updates_reshape_padding` below. That
+// test uses the same shape family (input `[-1, 3, H, S]`, variadic_split axis=1,
+// splits `{1,1,1}`) but drives it end-to-end through `network::execute()` and
+// asserts the physically-correct padding contract on all three reshape outputs:
+//   _lower_size[1] == k*H, _upper_size[1] == (F-1-k)*H,
+//   get_pitches()[0] == F*H*S, get_linear_offset() == k*H*S.
+// A former build-time-only variant of this test asserted arbitrary
+// `_lower_size[1] == 1` / `_upper_size[1] == 1` values that the build-time
+// `simple_data_format` dynamic branch never actually writes (that branch sets
+// only the dynamic pad mask, not concrete sizes), so it has been dropped in
+// favor of the runtime test.
+
+// =============================================================================
+// UNIT TEST: runtime along-feature path must propagate the crop's feature-axis
+//            padding into the reshape output layout.
+// -----------------------------------------------------------------------------
+// Contract under test:
+//   When do_runtime_in_place_crop picks the along-feature branch (because the
+//   crop preserves batch/spatial dims and only cuts on the feature axis) and
+//   the crop's user is a rank-reducing reshape flagged as
+//   is_runtime_propagatable_padding(), the reshape output layout MUST end up
+//   with a non-empty data_padding at runtime. Otherwise downstream consumers
+//   (eltwise, RoPE, vl_sdpa, ...) read the wrong region of the parent buffer.
+//
+// Failure mode under current code (before fix):
+//   The along-feature helper only updates crop_layout.data_padding, and the
+//   caller relies on reshape_inst->update_shape() to re-derive the reshape
+//   output padding. But reshape_inst::calc_output_layouts explicitly resets
+//   the padding to padding() for reshape_mode::base (see reshape.cpp), so the
+//   reshape observes no padding at all -> optimization is silently broken
+//   for the TransposeSplitMatcher pattern.
+//
+// Setup (TransposeSplitMatcher pattern):
+//   Build a topology with a dynamic input [-1, 3, H, S] so the build-time
+//   crop optimization goes through simple_data_format (build-time dynamic
+//   branch, which stamps a dyn pad mask on the reshape output). Then run
+//   with a concrete static [L, 3, H, S] so that do_runtime_in_place_crop's
+//   along-feature branch fires (can_crop_be_optimized_along_feature is true
+//   because batch/H/S are preserved). Three crops on axis=1 of size 1
+//   feed rank-reducing reshapes (base mode, [-1, 1, H, S] -> [-1, H, S]),
+//   each followed by an eltwise producer so the network can execute.
+//
+// Expectations after execute():
+//   1) All three crops are optimized in-place (can_be_optimized() == true).
+//   2) Each reshape*'s runtime output layout carries a dynamic pad mask on
+//      at least one axis.
+//   3) The total padding (sum of lower + upper across all axes) on each
+//      reshape output equals 2 — the crop takes 1 slot out of 3, so 2 slots
+//      of padding remain regardless of which slice we're looking at
+//      (slice 0: 0 + 2, slice 1: 1 + 1, slice 2: 2 + 0).
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_runtime_updates_reshape_padding) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t L = 32, H = 4, S = 8;
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+    auto scale_mem      = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    // Use an explicit output_pattern so reshape's shape inference can resolve
+    // the dynamic batch dim at runtime; special_zero=false with -1 tells
+    // ov::op::v1::Reshape to infer this dim from the total element count.
+    // Without a resolvable output shape, downstream nodes would trip
+    // "[GPU] Count is called for dynamic shape" during execute().
+    const std::vector<int64_t> rs_pattern    = {-1, H, S};
+    const auto                 rs_shape_dyn  = ov::PartialShape{-1, H, S};
+
+    topology topo(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("scale",      scale_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out2", {input_info("reshape2"), input_info("scale")}, eltwise_mode::prod)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    net.execute();
+
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized()) << "crop0 must be in-place at runtime";
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized()) << "crop1 must be in-place at runtime";
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized()) << "crop2 must be in-place at runtime";
+
+    // Physically-correct reshape padding contract:
+    // The reshape output layout must view the parent QKV buffer with:
+    //   get_pitches()[0]    == F * H * S          (per-token stride in parent)
+    //   get_linear_offset() == k * H * S          (slice-k start offset)
+    // The helper achieves this by placing scaled padding on the reshape's
+    // dim 1 (bfyx feature position = pshape H):
+    //   _lower_size[1] = k       * H
+    //   _upper_size[1] = (F-1-k) * H
+    // Both values are asserted precisely so any regression that reintroduces
+    // the empty / raw-`k` padding will fail the test immediately.
+    constexpr int64_t F = 3;
+    const int64_t expected_pitch  = F * H * S;
+    auto assert_reshape_padded = [&](const std::string& id, int64_t k) {
+        const auto inst = net.get_primitive(id);
+        ASSERT_NE(inst, nullptr) << id << " instance not found";
+        const auto& lo  = inst->get_output_layout();
+        const auto& pad = lo.data_padding;
+
+        const int64_t expected_lower  = k * H;
+        const int64_t expected_upper  = (F - 1 - k) * H;
+        const int64_t expected_offset = k * H * S;
+
+        ASSERT_TRUE(pad._dynamic_dims_mask[1])
+            << id << ": dynamic pad mask must be attached to the H axis (dim 1)";
+        ASSERT_EQ(pad._lower_size[1], expected_lower)
+            << id << ": _lower_size[1] must equal k * H = " << expected_lower;
+        ASSERT_EQ(pad._upper_size[1], expected_upper)
+            << id << ": _upper_size[1] must equal (F-1-k) * H = " << expected_upper;
+        ASSERT_EQ(static_cast<int64_t>(lo.get_pitches()[0]), expected_pitch)
+            << id << ": get_pitches()[0] must equal F * H * S = " << expected_pitch;
+        ASSERT_EQ(static_cast<int64_t>(lo.get_linear_offset()), expected_offset)
+            << id << ": get_linear_offset() must equal k * H * S = " << expected_offset;
+    };
+
+    assert_reshape_padded("reshape0", 0);
+    assert_reshape_padded("reshape1", 1);
+    assert_reshape_padded("reshape2", 2);
+}
+
+// =============================================================================
+// UNIT TEST: build-time and runtime must agree on which axis carries the
+//            dyn-pad mask for the TransposeSplitMatcher pattern.
+// -----------------------------------------------------------------------------
+// Contract under test:
+//   OCL consumers (RoPE, eltwise, MVN, ...) JIT-compile against the layout
+//   snapshot produced by prepare_buffer_fusing at build time. The JIT bakes in
+//   which shape_info slot to read pad_before / pad_after from — that slot is
+//   fixed for the lifetime of the compiled kernel. fill_shape_info_data then
+//   writes the runtime _lower_size / _upper_size into that fixed slot.
+//
+//   If the along-feature runtime helper places the mask on a DIFFERENT axis
+//   than the build-time simple_data_format algorithm, three things break:
+//     1. The JIT'd kernel reads pad_before from the wrong shape_info slot.
+//     2. fill_shape_info_data pulls _lower_size / _upper_size from an axis
+//        that carries 0 at runtime (because the actual padding migrated).
+//     3. The consumer walks memory as if the input had no padding, silently
+//        addressing the wrong slice.
+//
+// Setup: same TransposeSplitMatcher pattern as
+//   in_place_crop_along_feature_runtime_updates_reshape_padding — dynamic
+//   input [-1, 3, H, S], variadic_split axis=1 with 3 unit slices, each crop
+//   followed by a rank-reducing reshape to [-1, H, S] (base mode).
+//
+// Expectations:
+//   For every reshape output, the dyn-pad mask axis chosen by the build-time
+//   simple_data_format branch MUST match the axis on which the runtime
+//   along-feature helper writes the concrete _lower/_upper values (bfyx dim
+//   1, i.e. the H axis). Otherwise the runtime fix is invisible to any
+//   consumer that reads shape_info instead of taking the layout directly.
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_reshape_pad_axis_matches_between_build_and_runtime) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t L = 32, H = 4, S = 8;
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+    auto scale_mem      = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    const std::vector<int64_t> rs_pattern   = {-1, H, S};
+    const auto                 rs_shape_dyn = ov::PartialShape{-1, H, S};
+
+    topology topo(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("scale",      scale_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out2", {input_info("reshape2"), input_info("scale")}, eltwise_mode::prod)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto prog = program::build_program(engine, topo, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    // Runtime along-feature helper writes concrete padding on the H axis
+    // (bfyx dim 1). Build-time simple_data_format MUST place the dyn-pad mask
+    // on the same axis so downstream OCL consumers JIT'd from the build-time
+    // layout read the right shape_info slot at runtime.
+    auto assert_build_time_mask_on_h_axis = [&](const std::string& id) {
+        const auto& lo   = prog->get_node(id).get_output_layout();
+        const auto& mask = lo.data_padding._dynamic_dims_mask;
+        ASSERT_TRUE(mask[1])
+            << id << ": build-time dyn-pad mask must be attached to the H axis (dim 1) "
+            << "to match the runtime along-feature helper";
+        ASSERT_FALSE(mask[2])
+            << id << ": build-time dyn-pad mask must NOT sit on dim 2 (S axis); "
+            << "otherwise consumers JIT'd against dim 2 will read 0 padding at runtime "
+            << "while the actual padding migrates to dim 1";
+    };
+    assert_build_time_mask_on_h_axis("reshape0");
+    assert_build_time_mask_on_h_axis("reshape1");
+    assert_build_time_mask_on_h_axis("reshape2");
+
+    // Execute and verify that the runtime mask location is IDENTICAL to the
+    // build-time one — no silent migration between axes.
+    network net(prog, 0);
+    net.set_input_data("input", input_mem);
+    net.execute();
+
+    auto assert_masks_agree = [&](const std::string& id) {
+        const auto& build_mask   = prog->get_node(id).get_output_layout().data_padding._dynamic_dims_mask;
+        const auto& runtime_mask = net.get_primitive(id)->get_output_layout().data_padding._dynamic_dims_mask;
+        ASSERT_EQ(build_mask, runtime_mask)
+            << id << ": build-time and runtime dyn-pad masks must sit on the same axis; "
+            << "otherwise fill_shape_info_data writes 0 into the JIT-baked slot";
+    };
+    assert_masks_agree("reshape0");
+    assert_masks_agree("reshape1");
+    assert_masks_agree("reshape2");
+}
+
+// =============================================================================
+// UNIT TEST: end-to-end addressing regression through an OCL consumer that
+//            reads the reshape's shape_info.
+// -----------------------------------------------------------------------------
+// Contract under test:
+//   The full build → JIT → runtime-fill → kernel-arithmetic pipeline for the
+//   TransposeSplitMatcher pattern must produce numerically-correct outputs.
+//   Downstream consumers walk the padded reshape output using shape_info's
+//   pad_before / pad_after slots; if any link in the chain is wrong (build
+//   picks a different mask axis than runtime, fill_shape_info_data writes 0
+//   into the JIT-baked slot, kernel template picks the wrong slot, etc.),
+//   the consumer walks wrong memory and produces wrong data.
+//
+// The other tests in this family assert layout properties in isolation
+// (masks, sizes, pitches, offsets). This one is a *behavior* test: it checks
+// that an eltwise OCL consumer — which is exactly the class of kernel
+// affected by the shape_info axis mismatch documented in the verbose log —
+// reads the correct slice of the parent QKV buffer.
+//
+// The consumer here is `eltwise(reshape, bias, mode=sum)` where `bias` has
+// shape `[L, 1, 1]` with a distinct value per token index. That construction
+// makes any wrong token pitch, wrong linear offset, or shape_info-slot
+// mismatch fail immediately in the numerical comparison against a
+// host-computed golden reference for the correct slice (as opposed to the
+// `scale=1.0f` variant used by sibling tests, which multiplies garbage by
+// 1.0 and silently masks address-walking bugs).
+//
+// Failure mode this catches (pre-fix history):
+//   Build-time simple_data_format placed the mask on the S axis (dim 2)
+//   while runtime along-feature helper wrote _lower_size / _upper_size on
+//   the H axis (dim 1). fill_shape_info_data pulled 0 from the S slot the
+//   JIT'd eltwise kernel expected, so the kernel walked the input as if
+//   there were no padding: q_start * H * S instead of q_start * F * H * S,
+//   plus no k * H * S slice offset. Slice 0 accidentally worked (offset 0),
+//   slices 1 and 2 read wrong tokens.
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_end_to_end_addressing_through_ocl_consumer) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t L = 32, H = 4, S = 8;
+    constexpr int64_t F = 3;
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, F, H, S}, data_types::f32, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, F, H, S}, data_types::f32, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{F}, data_types::i64, format::bfyx});
+    // Per-token bias broadcast over [H, S]. Distinct value per token so any
+    // wrong token stride / slice offset shows up in the numerical output.
+    auto bias_mem       = engine.allocate_memory({{L, 1, 1}, data_types::f32, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<float>(L * F * H * S, -1.f, 1.f);
+    std::vector<float> bias_data(L);
+    for (int64_t t = 0; t < L; t++)
+        bias_data[t] = static_cast<float>(t + 1);
+
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values(bias_mem, bias_data);
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    const std::vector<int64_t> rs_pattern   = {-1, H, S};
+    const auto                 rs_shape_dyn = ov::PartialShape{-1, H, S};
+
+    topology topo(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("bias",       bias_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out0", {input_info("reshape0"), input_info("bias")}, eltwise_mode::sum),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out1", {input_info("reshape1"), input_info("bias")}, eltwise_mode::sum),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        eltwise("out2", {input_info("reshape2"), input_info("bias")}, eltwise_mode::sum)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    // Sanity: all three crops must be in-place, otherwise the test would
+    // not exercise the shape_info addressing path we care about.
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+
+    // Per-slice golden reference computed on the CORRECT slice of the parent
+    // buffer: out_k[t, h, s] = input[t, k, h, s] + bias[t].
+    // Any wrong token stride, wrong linear offset, or shape_info-slot
+    // mismatch will fail one of these comparisons with a diagnostic that
+    // points directly at the offending (k, t, h, s) coordinates.
+    auto check_slice = [&](const std::string& id, int64_t k) {
+        auto out_mem = outputs.at(id).get_memory();
+        cldnn::mem_lock<float> out(out_mem, get_test_stream());
+        ASSERT_EQ(out.size(), static_cast<size_t>(L * H * S)) << id;
+        for (int64_t t = 0; t < L; t++) {
+            for (int64_t h = 0; h < H; h++) {
+                for (int64_t s = 0; s < S; s++) {
+                    const size_t in_idx  = static_cast<size_t>(((t * F + k) * H + h) * S + s);
+                    const size_t out_idx = static_cast<size_t>((t * H + h) * S + s);
+                    const float expected = input_data[in_idx] + bias_data[t];
+                    ASSERT_FLOAT_EQ(out[out_idx], expected)
+                        << id << " mismatch: k=" << k
+                        << " t=" << t << " h=" << h << " s=" << s;
+                }
+            }
+        }
+    };
+    check_slice("out0", 0);
+    check_slice("out1", 1);
+    check_slice("out2", 2);
+}
+
+// =============================================================================
+// UNIT TEST: runtime along-feature path with no reshape user (regression guard).
+// -----------------------------------------------------------------------------
+// Contract under test:
+//   After the along-feature helper is extended to take a user_info parameter,
+//   the crop-only path (no reshape user) must still work: user_info.first
+//   stays null, the helper must not dereference it, and the crop must still
+//   be optimized in-place.
+//
+// Setup:
+//   Dynamic input [-1, 3, H, S]; a single crop on axis=1 slice 1 feeds
+//   directly into a reorder (no reshape between crop and consumer). At
+//   runtime, do_runtime_in_place_crop sees crop_users.size() == 1 but the
+//   user is not a reshape, so user_info.first stays null through the helper.
+//
+// Expectations after execute():
+//   1) crop is optimized in-place (can_be_optimized() == true).
+//   2) The extended helper signature does not crash with a null user_info.
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_no_reshape_user) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t L = 8, H = 4, S = 8;
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+
+    topology topo(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        crop("crop", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), cldnn::crop_ngraph_op_mode::variadic_split, 1, 1),
+        reorder("out", input_info("crop"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    net.execute();
+
+    ASSERT_TRUE(net.get_primitive("crop")->can_be_optimized())
+        << "crop with no reshape user must still be optimized in-place along the feature axis";
+}
+
+// =============================================================================
+// TransposeSplitMatcher: Split(axis=1) with 3 crops -> Reshape -> eltwise
+//
+// Pattern: Input[-1, 3, H, S]
+//   crop0(axis=1, slice=0) [-1,1,H,S] -> reshape[-1,H,S] -> eltwise(scale) -> out0
+//   crop1(axis=1, slice=1) [-1,1,H,S] -> reshape[-1,H,S] -> eltwise(scale) -> out1
+//   crop2(axis=1, slice=2) [-1,1,H,S] -> reshape[-1,H,S] -> eltwise(scale) -> out2
+//
+// All 3 crops must have can_be_optimized=1 at runtime:
+//   axis=1, input[1]==1 (static), output rank = input rank - 1
+//   reshape.is_runtime_propagatable_padding() == true for all three
+//   downstream consumer is eltwise (no further block)
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consumer) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t H = 4, S = 8;
+    const int64_t L = 16;  // batch (sequence length)
+
+    // Use a STATIC input layout so that the GPU runtime can allocate output buffers.
+    // The dynamic propagation (is_runtime_propagatable_padding) is verified at
+    // program-build level below; runtime can_be_optimized is verified after execute().
+    auto in_layout      = layout{{L, 3, H, S}, data_types::f16, format::bfyx};
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory(in_layout);
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    // Reshape output shape: static for proper buffer allocation
+    auto rs_shape     = ov::PartialShape{L, H, S};
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
+
+    // Build topology with the DYNAMIC layout for the is_runtime_propagatable_padding check
+    topology topo_dyn(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, {}, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        reorder("out0", input_info("reshape0"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, {}, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        reorder("out1", input_info("reshape1"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, {}, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        reorder("out2", input_info("reshape2"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+    ExecutionConfig config_dyn = get_test_default_config(engine);
+    config_dyn.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_dyn.set_property(ov::intel_gpu::optimize_data(true));
+
+    // Check static optimization decision: all 3 reshapes must be is_runtime_propagatable_padding
+    auto prog = program::build_program(engine, topo_dyn, config_dyn, false, true);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->get_node("reshape0").as<reshape>().is_runtime_propagatable_padding())
+        << "reshape0 must be runtime-propagatable";
+    ASSERT_TRUE(prog->get_node("reshape1").as<reshape>().is_runtime_propagatable_padding())
+        << "reshape1 must be runtime-propagatable";
+    ASSERT_TRUE(prog->get_node("reshape2").as<reshape>().is_runtime_propagatable_padding())
+        << "reshape2 must be runtime-propagatable";
+
+    // For runtime check, use the dynamic topology. The reorder output marker nodes
+    // allow observing can_be_optimized at runtime without triggering count() errors.
+    network net(engine, topo_dyn, config_dyn);
+    net.set_input_data("input", input_mem);
+
+    // Verify can_be_optimized BEFORE execute so we check the compile-time decision
+    // (prepare_buffer_fusing sets can_be_optimized statically for dynamic crops too
+    // when is_runtime_propagatable_padding() returns true and the simple_data_format
+    // path fires at build time)
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized()) << "crop0 should be in-place";
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized()) << "crop1 should be in-place";
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized()) << "crop2 should be in-place";
+}
+
+// =============================================================================
+// TransposeSplitMatcher: Split(axis=1) with 3 crops -> vl_sdpa consumer.
+// -----------------------------------------------------------------------------
+// vl_sdpa-specific coverage. General "3 crops in-place" for the
+// TransposeSplitMatcher axis=1 pattern is covered by the sibling test
+// `in_place_crop_split_axis1_three_crops_eltwise_consumer`; the reshape
+// padding contract (mask axis / _lower / _upper / pitches / offset) is
+// covered by `in_place_crop_along_feature_runtime_updates_reshape_padding`.
+// This test focuses on what only the vl_sdpa consumer path can verify:
+//
+//   1. `is_runtime_propagatable_padding()` returns true for a reshape whose
+//      downstream is `vl_sdpa` (the vl_sdpa branch of the predicate in
+//      reshape_inst.h). Every other test in the family exercises the
+//      eltwise/reorder branches; if someone tightens or reverts the vl_sdpa
+//      branch, no other test would notice.
+//
+//   2. Layout asymmetry — V retains the crop-derived padded parent view
+//      (F*H*S token pitch) while Q/K went through eltwise and got fresh
+//      contiguous buffers (H*S token pitch). Q_pitch == K_pitch != V_pitch.
+//      Regresses if reshape2 loses its padded view for the direct-to-vl_sdpa
+//      path.
+//
+//   3. End-to-end numerical correctness of the CM kernel's
+//      `token_offset_v` / `v_token_pitch` scalar-based addressing. The V
+//      input has non-zero linear_offset and non-standard pitch; the CM
+//      kernel dispatch reads `params.input_layouts[2].get_linear_offset()`
+//      and `.get_pitches()[0]` to compute those scalars, and then the
+//      kernel body walks V using them. If any link in that chain is wrong,
+//      the numerical comparison against a host-side SDPA reference fails.
+//
+// Pattern: Input[-1, 3, H, S]
+//   crop0(axis=1, slice=0) → reshape → eltwise (Q proxy) ────────►
+//   crop1(axis=1, slice=1) → reshape → eltwise (K proxy) ────────► vl_sdpa
+//   crop2(axis=1, slice=2) → reshape (V, direct)   ──────────────►
+//
+// NOTE: vl_sdpa is a CM kernel available only on XMX (systolic) GPU devices.
+// Skipped on non-XMX or non-CM-capable devices.
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consumer) {
+    auto& engine = get_test_engine();
+
+    ExecutionConfig check_config = get_test_default_config(engine);
+    if (!engine.get_device_info().supports_immad ||
+        !cldnn::check_cm_jit_support(engine, check_config))
+        GTEST_SKIP() << "vl_sdpa CM kernel not available on this device";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int32_t H = 2, S = 64;
+    const std::vector<int32_t> cu_seqlens = {0, 16};
+    const int32_t L = cu_seqlens.back();
+    constexpr int32_t F = 3;
+
+    auto in_layout = layout{ov::PartialShape{-1, F, H, S}, data_types::f16, format::bfyx};
+    auto input_mem        = engine.allocate_memory({{L, F, H, S}, data_types::f16, format::bfyx});
+    auto cu_seqlens_mem   = engine.allocate_memory({{static_cast<ov::Dimension::value_type>(cu_seqlens.size())}, data_types::i32, format::bfyx});
+    auto axis_mem         = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem   = engine.allocate_memory({{F}, data_types::i64, format::bfyx});
+    auto scale_mem        = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * F * H * S, -0.5f, 0.5f);
+    set_values(input_mem, input_data);
+    set_values(cu_seqlens_mem, cu_seqlens);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    const std::vector<int64_t> rs_pattern = {-1, H, S};
+    const auto rs_shape = ov::PartialShape{-1, H, S};
+
+    // vl_sdpa transpose order: raw memory is [L, H, S] but the kernel extracts
+    // num_heads / head_size from dim 1 / dim 2 of the logical view. Order
+    // {1, 0, 2} maps raw dims [L, H, S] to logical [H, L, S] so that
+    // num_heads = raw[1] = H and head_size = raw[2] = S. This matches the
+    // functional test in transpose_split_vlsdpa.cpp. Using identity order
+    // here silently mis-computes num_heads as L.
+    const std::vector<int64_t> order{1, 0, 2};
+
+    topology topo(
+        input_layout("input",     in_layout),
+        input_layout("cu_seqlens", layout{ov::PartialShape{-1}, data_types::i32, format::bfyx}),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("scale",      scale_mem),
+        // Q path: crop0 → reshape → eltwise*1.0 (contiguous fresh buffer).
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape, cldnn::reshape::reshape_mode::base),
+        eltwise("eltwise0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
+        // K path: crop1 → reshape → eltwise*1.0 (contiguous fresh buffer).
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape, cldnn::reshape::reshape_mode::base),
+        eltwise("eltwise1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
+        // V path: crop2 → reshape (padded view straight into vl_sdpa).
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape, cldnn::reshape::reshape_mode::base),
+        vl_sdpa("vlsdpa",
+                {input_info("eltwise0"), input_info("eltwise1"),
+                 input_info("reshape2"), input_info("cu_seqlens")},
+                order, order, order, order),
+        reorder("output", input_info("vlsdpa"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    // (1) Build-time predicate: all 3 reshapes must be runtime-propagatable,
+    //     including reshape2 whose downstream is vl_sdpa (the branch unique
+    //     to this test).
+    {
+        auto prog = program::build_program(engine, topo, config, false, true);
+        ASSERT_NE(prog, nullptr);
+        ASSERT_TRUE(prog->get_node("reshape0").as<reshape>().is_runtime_propagatable_padding())
+            << "reshape0 (Q→eltwise) must be runtime-propagatable";
+        ASSERT_TRUE(prog->get_node("reshape1").as<reshape>().is_runtime_propagatable_padding())
+            << "reshape1 (K→eltwise) must be runtime-propagatable";
+        ASSERT_TRUE(prog->get_node("reshape2").as<reshape>().is_runtime_propagatable_padding())
+            << "reshape2 (V→vl_sdpa) must be runtime-propagatable (vl_sdpa-specific guard)";
+    }
+
+    // Execute with optimizations enabled.
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    net.set_input_data("cu_seqlens", cu_seqlens_mem);
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("output").get_memory();
+    ASSERT_NE(out_mem, nullptr);
+
+    // (2) Layout asymmetry: V still carries crop-derived padding (F*H*S
+    //     token pitch); Q/K went through eltwise and are contiguous (H*S).
+    //     If reshape2 loses its padded view for the vl_sdpa path, v_pitch
+    //     collapses to q_pitch.
+    const auto q_pitch = net.get_primitive("eltwise0")->get_output_layout().get_pitches()[0];
+    const auto k_pitch = net.get_primitive("eltwise1")->get_output_layout().get_pitches()[0];
+    const auto v_pitch = net.get_primitive("reshape2")->get_output_layout().get_pitches()[0];
+    ASSERT_EQ(q_pitch, k_pitch)
+        << "Q and K flow through eltwise, so their pitches must match";
+    ASSERT_NE(v_pitch, q_pitch)
+        << "V must keep the crop-derived padded pitch (F*H*S) — regression if it collapses to H*S";
+
+    // (3) End-to-end numerical: host-side SDPA reference against vl_sdpa
+    //     output. This is the only automated check that the CM kernel's
+    //     token_offset_v / v_token_pitch scalar dispatch actually addresses
+    //     the correct V slice of the parent QKV buffer.
+    //
+    //     Reference: for each sequence [seq_start, seq_end) and each query
+    //     token q in that range, each head h computes
+    //         scores[k] = (Q[q, h] · K[seq_start+k, hkv]) * scale
+    //         P[k]      = softmax(scores)
+    //         out[q, h] = sum_k P[k] * V[seq_start+k, hkv]
+    //     with scale = 1 / sqrt(head_size). No causal mask (vl_sdpa
+    //     wrapper passes use_causal_mask=false). Q, K, V come from the
+    //     three F-slices of the parent input: Q = input[:, 0, :, :],
+    //     K = input[:, 1, :, :], V = input[:, 2, :, :].
+    const size_t num_heads = static_cast<size_t>(H);
+    const size_t num_kv_heads = static_cast<size_t>(H);
+    const size_t head_ratio = num_heads / num_kv_heads;
+    const float scale = 1.0f / std::sqrt(static_cast<float>(S));
+
+    auto qkv_at = [&](size_t token, int32_t f, size_t head, size_t d) -> float {
+        const size_t off = ((token * static_cast<size_t>(F) + static_cast<size_t>(f)) * num_heads + head) * static_cast<size_t>(S) + d;
+        return static_cast<float>(input_data[off]);
+    };
+
+    std::vector<float> ref_output(static_cast<size_t>(L) * num_heads * static_cast<size_t>(S), 0.f);
+    for (size_t s = 0; s + 1 < cu_seqlens.size(); s++) {
+        const int32_t seq_start = cu_seqlens[s];
+        const int32_t seq_end   = cu_seqlens[s + 1];
+        const int32_t seq_len   = seq_end - seq_start;
+        ASSERT_GT(seq_len, 0);
+
+        std::vector<float> scores(static_cast<size_t>(seq_len));
+        for (int32_t q = 0; q < seq_len; q++) {
+            const size_t q_idx = static_cast<size_t>(seq_start + q);
+            for (size_t h = 0; h < num_heads; h++) {
+                const size_t hkv = h / head_ratio;
+                // dot-products Q·K, scaled.
+                for (int32_t k = 0; k < seq_len; k++) {
+                    const size_t k_idx = static_cast<size_t>(seq_start + k);
+                    float acc = 0.f;
+                    for (size_t d = 0; d < static_cast<size_t>(S); d++) {
+                        acc += qkv_at(q_idx, 0, h, d) * qkv_at(k_idx, 1, hkv, d);
+                    }
+                    scores[static_cast<size_t>(k)] = acc * scale;
+                }
+                // softmax
+                float max_s = scores[0];
+                for (int32_t k = 1; k < seq_len; k++)
+                    max_s = std::max(max_s, scores[static_cast<size_t>(k)]);
+                float denom = 0.f;
+                for (int32_t k = 0; k < seq_len; k++) {
+                    scores[static_cast<size_t>(k)] = std::exp(scores[static_cast<size_t>(k)] - max_s);
+                    denom += scores[static_cast<size_t>(k)];
+                }
+                const float inv_denom = 1.f / denom;
+                for (int32_t k = 0; k < seq_len; k++)
+                    scores[static_cast<size_t>(k)] *= inv_denom;
+                // weighted sum with V.
+                for (size_t d = 0; d < static_cast<size_t>(S); d++) {
+                    float acc = 0.f;
+                    for (int32_t k = 0; k < seq_len; k++) {
+                        const size_t k_idx = static_cast<size_t>(seq_start + k);
+                        acc += scores[static_cast<size_t>(k)] * qkv_at(k_idx, 2, hkv, d);
+                    }
+                    ref_output[(q_idx * num_heads + h) * static_cast<size_t>(S) + d] = acc;
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<ov::float16> observed(out_mem, get_test_stream());
+    ASSERT_EQ(observed.size(), ref_output.size());
+    // f16 + softmax tolerance. Values stay in a well-behaved range because
+    // the inputs are in [-0.5, 0.5] and the head_size normalization keeps
+    // pre-softmax scores modest.
+    const float tol = 5e-2f;
+    for (size_t i = 0; i < ref_output.size(); i++) {
+        const float got = static_cast<float>(observed[i]);
+        ASSERT_NEAR(got, ref_output[i], tol)
+            << "vl_sdpa output mismatch at flat index " << i
+            << " (token=" << (i / (num_heads * S))
+            << " head=" << ((i / S) % num_heads)
+            << " dim=" << (i % S) << ")"
+            << " — CM kernel likely addressed wrong V slice via token_offset_v / v_token_pitch";
     }
 }
 
