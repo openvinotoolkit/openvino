@@ -1,0 +1,57 @@
+ir_version: 8
+graph {
+  node {
+    input: "params"
+    input: "indices"
+    output: "Y"
+    name: "gather"
+    op_type: "Gather"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+  }
+  name: "gather_oob_constant_index"
+  initializer {
+    dims: 6
+    data_type: 7
+    int64_data: 0
+    int64_data: 3
+    int64_data: 6
+    int64_data: 9
+    int64_data: 12
+    int64_data: 1
+    name: "indices"
+  }
+  input {
+    name: "params"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 12
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 13
+}
