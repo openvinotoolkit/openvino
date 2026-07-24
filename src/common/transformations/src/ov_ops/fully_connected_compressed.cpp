@@ -49,11 +49,31 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                       m_output_type);
 }
 
-// @todo finalize validate_and_infer_types
 void FullyConnectedCompressed::validate_and_infer_types() {
     const auto input_size = get_input_size();
 
-    NODE_VALIDATION_CHECK(this, input_size == 5, "Number of inputs is incorrect. Current value is: ", input_size);
+    NODE_VALIDATION_CHECK(this,
+                          input_size == 5,
+                          "FullyConnectedCompressed expects 5 inputs (X, W, bias, weight_scales, "
+                          "weight_zero_points). Got: ",
+                          input_size);
+
+    // weight_scales is a mandatory input, so it must carry a concrete floating-point element type.
+    // Weight zero-points are usually integral quantization offsets, but compression schemes may also
+    // carry a real (e.g. f32) zero-point that is subtracted before scaling, so any numeric type is
+    // accepted; an absent zero-points input is passed as an empty (element::dynamic) constant, which
+    // is why a dynamic element type is accepted there.
+    const auto& scales_et = get_input_element_type(3);
+    NODE_VALIDATION_CHECK(this,
+                          scales_et.is_real(),
+                          "weight_scales (input 3) must have a floating-point element type. Got: ",
+                          scales_et);
+
+    const auto& zp_et = get_input_element_type(4);
+    NODE_VALIDATION_CHECK(this,
+                          zp_et.is_real() || zp_et.is_integral_number() || zp_et.is_dynamic(),
+                          "weight_zero_points (input 4) must have a numeric element type. Got: ",
+                          zp_et);
 
     FullyConnected::validate_and_infer_types();
 }
