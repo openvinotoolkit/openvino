@@ -4,6 +4,7 @@
 
 #include "dynamic_quantize_kernel_opt.h"
 #include "kernel_selector_utils.h"
+#include <algorithm>
 #include <string>
 
 
@@ -36,21 +37,25 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 }
 
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
-    if (params.group_sizes.back() <= 64)
-        return DynQuanMode::SMALL_GS;
-    else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
+    auto gs = params.group_sizes.back();
+    if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    else
+    } else if (gs >= simd * 2) {
         return DynQuanMode::LARGE_GS;
+    } else {
+        return DynQuanMode::SMALL_GS;
+    }
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
+    auto gs = params.group_sizes.back();
+    size_t max_vec_size = (gs != std::numeric_limits<uint64_t>::max()) ? gs / simd : 8;
 
     for (auto block_size : block_sizes) {
-        if ((f / simd) % block_size == 0) {
+        if (static_cast<size_t>(block_size) <= max_vec_size && (f / simd) % block_size == 0) {
             return block_size;
         }
     }
