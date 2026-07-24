@@ -26,44 +26,49 @@ class engine;
 using primitive_id = std::string;
 using memory_ptr = std::shared_ptr<memory>;
 
-template<typename Key, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
+template<typename Key>
 class memory_restricter {
     private:
-        const std::unordered_set<Key, Hash, KeyEqual>* set1;  // Const reference to immutable set
-        std::unordered_set<Key, Hash, KeyEqual> set2;         // Internal mutable set
+        const std::set<Key>* set1;  // Const reference to immutable set
+        std::set<Key> set2;         // Internal mutable set
 
     public:
         memory_restricter() : set1(nullptr) {};
 
         // Constructor to initialize with a const reference for set1
-        explicit memory_restricter(const std::unordered_set<Key, Hash, KeyEqual>* externalSet)
+        explicit memory_restricter(const std::set<Key>* externalSet)
             : set1(externalSet) {}
 
         // Insert into set2 (set1 is read-only)
         void insert(const Key& key) {
-            if (set1->find(key) == set1->end())
+            if (!set1 || set1->find(key) == set1->end())
                 set2.insert(key);
         }
 
         // Check existence in either set
         bool contains(const Key& key) const {
-            return set1->find(key) != set1->end() || set2.find(key) != set2.end();
+            const bool in_set1 = set1 ? (set1->find(key) != set1->end()) : false;
+            return in_set1 || set2.find(key) != set2.end();
         }
 
         // Total size of both sets
         size_t size() const {
-            return set1->size() + set2.size();
+            return (set1 ? set1->size() : 0) + set2.size();
         }
 
         // Check if both sets are empty
         bool empty() const {
-            return set1->empty() && set2.empty();
+            return (!set1 || set1->empty()) && set2.empty();
         }
 
         // Iterate over both sets
         void for_each(void(*func)(const Key&)) const {
-            for (const auto& key : set1) func(key);
-            for (const auto& key : set2) func(key);
+            if (set1) {
+                for (const auto& key : *set1)
+                    func(key);
+            }
+            for (const auto& key : set2)
+                func(key);
         }
 }; // end of memory_restricter
 
