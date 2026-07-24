@@ -8,6 +8,7 @@
 Checks: >
   -*,
   modernize-use-override,
+  google-readability-namespace-comments
   readability-redundant-string-cstr
 # Treat every enabled check as an error so they are enforced during the build.
 # Scope is controlled via 'Checks' above; matches the CPU plugin configuration.
@@ -18,4 +19,8 @@ HeaderFilterRegex: "src/plugins/intel_gpu/(include|src)/.*\\.(h|hpp)$"
 CheckOptions:
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  - key: google-readability-namespace-comments.ShortNamespaceLines
+    value: 10
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: 2
 ---

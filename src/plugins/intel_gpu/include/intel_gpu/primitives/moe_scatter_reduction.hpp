@@ -77,5 +77,5 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
         ib >> onednn_grouped_gemm_used;
     }
 };
-}
+}  // namespace cldnn
 
