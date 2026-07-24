@@ -3,17 +3,29 @@
 //
 
 #define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+#define IS_F8_F4 (IS_F8 || F4E2M1_OUTPUT)
 
 #include "include/batch_headers/fetch_data.cl"
-#if IS_F8
+#if IS_F8_F4
+#include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
+#endif
+
+#if F4E2M1_OUTPUT
+#include "include/f4_utils.cl"
+#endif
+
+#if F4E2M1_OUTPUT
+#define ELEMENTS_PER_BYTE 2
+#else
+#define ELEMENTS_PER_BYTE 1
 #endif
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 
-#if IS_F8
+#if IS_F8_F4
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
@@ -37,6 +49,18 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
+
+#if VEC_SIZE == 2
+#define VSTORE_F4(vec, off, ptr)  (*((ptr) + (off)) = (vec))
+#elif VEC_SIZE == 4
+#define VSTORE_F4(vec, off, ptr) vstore2(vec, off, ptr)
+#elif VEC_SIZE == 8
+#define VSTORE_F4(vec, off, ptr) vstore4(vec, off, ptr)
+#elif VEC_SIZE == 16
+#define VSTORE_F4(vec, off, ptr) vstore8(vec, off, ptr)
+#else
+#error "Unsupported VEC_SIZE for F4 packing"
+#endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
@@ -68,14 +92,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint b = get_global_id(0);
     const uint f_grp = get_global_id(1);
     const uint input_offset = INPUT0_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0)) / ELEMENTS_PER_BYTE;
 #else
     const uint bf = get_global_id(0);
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
     const uint y_grp = get_global_id(1);
     const uint input_offset = INPUT0_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0)) / ELEMENTS_PER_BYTE;
 
 #endif
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
@@ -101,7 +125,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif // MXFP
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-#if IS_F8
+#if F4E2M1_OUTPUT
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
+        vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
+#elif IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
         vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
 #else
@@ -116,7 +143,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else
     const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
 #endif
-    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
+    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0f / quan_scale);
 
 #if !(IS_MXFP)
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
@@ -151,10 +178,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint blockid = (uint)get_global_id(1) % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0)) / ELEMENTS_PER_BYTE;
 #else
     const uint input_offset = INPUT0_GET_INDEX (0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0)) / ELEMENTS_PER_BYTE;
 #endif
 
     const uint block_size = SIMD * VEC_SIZE;
@@ -233,8 +260,13 @@ KERNEL(dynamic_quantize_gpu_opt)(
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
-#if IS_F8
-    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
+    MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
+#if F4E2M1_OUTPUT
+    val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
+    VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
+#elif IS_F8
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
     VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
@@ -322,6 +354,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint b_offset = bf * INPUT0_FEATURE_PITCH;
 #endif
     const uint offset = b_offset + VEC_SIZE * sglid;
+    const uint output_byte_offset = offset / ELEMENTS_PER_BYTE;
 
     const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
 
@@ -390,14 +423,21 @@ KERNEL(dynamic_quantize_gpu_opt)(
         if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
             continue;
 
-        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
-#if IS_F8
+        MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
+#if F4E2M1_OUTPUT
+        val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
+        VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_byte_offset + ((local_id * iteration + i) * block_size) / ELEMENTS_PER_BYTE]));
+#elif IS_F8
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
         VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         val[i] += zp;
         VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #else // i8 symmetric
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #endif
     }

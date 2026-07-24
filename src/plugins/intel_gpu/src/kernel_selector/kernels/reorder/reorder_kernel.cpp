@@ -20,6 +20,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F4E2M1);
     k.EnableInputDataType(Datatype::F8E4M3);
     k.EnableInputDataType(Datatype::F8E5M2);
     k.EnableInputDataType(Datatype::F8E8M0);
@@ -35,6 +36,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT4);
     k.EnableOutputDataType(Datatype::INT4);
     k.EnableOutputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -90,18 +92,33 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
          jit.AddConstant(MakeJitConstant("INT4_OUTPUT", true));
     }
 
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.inputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.inputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.inputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.inputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
+
+    if (params.outputs[0].GetDType() == Datatype::F4E2M1 && !params.outputs[0].is_dynamic()) {
+        jit.AddConstant(MakeJitConstant("F4E2M1_PACKED_ELEMENTS", params.outputs[0].PhysicalSize()));
+    }
 
     return jit;
 }
 
 KernelsData ReorderKernelRef::GetKernelsData(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
+
+    const auto& out0 = orgParams.outputs[0];
+    if (out0.GetDType() == Datatype::F4E2M1 && !out0.is_dynamic()) {
+        OPENVINO_ASSERT(out0.PhysicalSize() % 8 == 0,
+                        "[GPU] reorder: F4E2M1 packed output must contain a multiple of 8 elements "
+                        "(32-bit atomic write granularity) to avoid out-of-bounds memory access, but got: ",
+                        out0.PhysicalSize());
+    }
+
     return GetCommonKernelsData(orgParams);
 }
 

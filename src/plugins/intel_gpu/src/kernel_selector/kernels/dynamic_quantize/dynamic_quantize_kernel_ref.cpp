@@ -12,6 +12,7 @@ ParamsKey DynamicQuantizeKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -59,9 +60,14 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
     jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
+
+    if (params.outputs[0].GetDType() == Datatype::F4E2M1 && !params.outputs[0].is_dynamic()) {
+        jit.AddConstant(MakeJitConstant("F4E2M1_PACKED_ELEMENTS", params.outputs[0].PhysicalSize()));
+    }
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
@@ -163,8 +169,16 @@ bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
-    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F4E2M1, Datatype::F8E4M3, Datatype::F8E5M2})) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
+    const auto& out0 = dq_params.outputs[0];
+    if (out0.GetDType() == Datatype::F4E2M1 && !out0.is_dynamic()) {
+        OPENVINO_ASSERT(out0.PhysicalSize() % 8 == 0,
+                        "[GPU] dynamic_quantize: F4E2M1 packed output must contain a multiple of 8 elements "
+                        "(32-bit atomic write granularity) to avoid out-of-bounds memory access, but got: ",
+                        out0.PhysicalSize());
     }
 
     return true;
