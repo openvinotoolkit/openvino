@@ -1,0 +1,136 @@
+name: Clang-tidy build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the clang-tidy build runs'
+        type: string
+        required: true
+      image:
+        description: 'Docker image in which the build runs'
+        type: string
+        required: false
+        default: null
+      cmake-generator:
+        description: 'CMake generator, e.g. "Ninja Multi-Config" or "Unix Makefiles"'
+        type: string
+        required: true
+      sccache-prefix:
+        description: 'SCCACHE_AZURE_KEY_PREFIX value for this build'
+        type: string
+        required: true
+      build-target:
+        description: 'CMake target to build under clang-tidy (e.g. openvino_intel_gpu_plugin)'
+        type: string
+        required: true
+      compile-commands-artifact:
+        description: 'Name of the uploaded compile_commands.json artifact'
+        type: string
+        required: true
+      cmake-extra-args:
+        description: 'Extra -D flags appended to the CMake configure command (single line)'
+        type: string
+        required: false
+        default: ''
+      build-extra-args:
+        description: 'Arguments passed to the native build tool after the -- separator'
+        type: string
+        required: false
+        default: '-k'
+      show-sccache-stats:
+        description: 'Whether to print sccache statistics after the build'
+        type: boolean
+        required: false
+        default: true
+
+permissions: read-all
+
+jobs:
+  Build:
+    name: Build
+    timeout-minutes: 60
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
+
+    steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'recursive'
+
+      - name: CMake configure
+        env:
+          CMAKE_EXTRA_ARGS: ${{ inputs.cmake-extra-args }}
+        run: |
+          cmake \
+            -G "${CMAKE_GENERATOR}" \
+            -DENABLE_CLANG_TIDY=ON \
+            -DENABLE_PROFILING_ITT=FULL \
+            -DENABLE_DEBUG_CAPS=ON \
+            -DSELECTIVE_BUILD=COLLECT \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            ${CMAKE_EXTRA_ARGS} \
+            -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
+            -S "${OPENVINO_REPO}" \
+            -B "${BUILD_DIR}"
+
+      - name: Cmake build with clang-tidy enabled
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
+        run: |
+          cmake \
+            --build "${BUILD_DIR}" \
+            --parallel "$(($(nproc) - 1))" \
+            --config "${CMAKE_BUILD_TYPE}" \
+            --target "${BUILD_TARGET}" \
+            -- ${BUILD_EXTRA_ARGS}
+
+      - name: Upload compile_commands
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: ${{ inputs.compile-commands-artifact }}
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
+      - name: Show sccache stats
+        if: ${{ inputs.show-sccache-stats }}
+        run: ${SCCACHE_PATH} --show-stats

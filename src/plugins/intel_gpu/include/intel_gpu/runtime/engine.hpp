@@ -112,6 +112,9 @@ public:
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
 
+    /// Returns true if current engine supports zero copy via host buffer access
+    bool can_use_host_usm_zero_copy() const;
+
     /// Returns device structure which represents stores device capabilities
     const device_info& get_device_info() const;
 
