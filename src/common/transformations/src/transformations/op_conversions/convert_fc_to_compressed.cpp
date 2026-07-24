@@ -23,6 +23,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -74,6 +75,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         if (otd_it != constant->get_rt_info().end()) {
             new_constant->get_rt_info()["otd_bin_offset"] = otd_it->second;
         }
+        // Preserve `keep_const_precision` of original weight/ZP Constant.
+        if (ov::is_keep_const_precision(constant)) {
+            ov::enable_keep_const_precision(new_constant);
+        }
         return new_constant;
     };
 
@@ -90,6 +95,16 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
 
     const bool with_zero_point = weights_block->get_anchor("sub_no_convert", pattern_map) ||
                                  weights_block->get_anchor("sub_with_convert", pattern_map);
+
+    // Mark the low-precision weight / ZP leaves with `keep_const_precision` so ConvertPrecision
+    // does not upcast them (e.g. u4 -> u8).
+    // combine_groups() and align_and_transpose() further below propagate the mark onto any
+    // fresh Constants they synthesize.
+    ov::enable_keep_const_precision(weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
+    if (with_zero_point) {
+        ov::enable_keep_const_precision(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr());
+    }
+
     if (with_zero_point) {
         // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
         optional_zero_point = convert_u4const_to_u8(
@@ -131,6 +146,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                 auto inner = wrapping_convert ? wrapping_convert->get_input_node_shared_ptr(0) : node;
                 auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
                 auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(inner, axis);
+
+                if (ov::is_type<v0::Constant>(unsqueezed) && ov::is_keep_const_precision(inner)) {
+                    ov::enable_keep_const_precision(unsqueezed);
+                }
                 result_nodes.push_back(unsqueezed);
                 if (wrapping_convert) {
                     auto rewrapped =

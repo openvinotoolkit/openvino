@@ -13,6 +13,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
