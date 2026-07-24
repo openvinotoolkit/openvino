@@ -729,22 +729,22 @@ void InputModel::InputModelONNXImpl::load_model() {
     }
 
     auto sorting_places_by_idx = [](bool are_input_places) {
-        return
-            [are_input_places](const ov::frontend::Place::Ptr& lhs_place, const ov::frontend::Place::Ptr& rhs_place) {
-                auto onnx_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
-                auto onnx_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
-                FRONT_END_GENERAL_CHECK(onnx_lhs_place != nullptr && onnx_rhs_place != nullptr,
-                                        "ONNX Frontend works with TensorONNXPlaces only");
-                size_t rhs_idx, lhs_idx;
-                if (are_input_places) {
-                    lhs_idx = onnx_lhs_place->get_input_index();
-                    rhs_idx = onnx_rhs_place->get_input_index();
-                } else {
-                    lhs_idx = onnx_lhs_place->get_output_index();
-                    rhs_idx = onnx_rhs_place->get_output_index();
-                }
-                return lhs_idx < rhs_idx;
-            };
+        return [are_input_places](const ov::frontend::Place::Ptr& lhs_place,
+                                  const ov::frontend::Place::Ptr& rhs_place) {
+            auto onnx_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
+            auto onnx_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
+            FRONT_END_GENERAL_CHECK(onnx_lhs_place != nullptr && onnx_rhs_place != nullptr,
+                                    "ONNX Frontend works with TensorONNXPlaces only");
+            size_t rhs_idx, lhs_idx;
+            if (are_input_places) {
+                lhs_idx = onnx_lhs_place->get_input_index();
+                rhs_idx = onnx_rhs_place->get_input_index();
+            } else {
+                lhs_idx = onnx_lhs_place->get_output_index();
+                rhs_idx = onnx_rhs_place->get_output_index();
+            }
+            return lhs_idx < rhs_idx;
+        };
     };
     std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
 
