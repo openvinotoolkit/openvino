@@ -26,9 +26,9 @@
 // Required WG size: (WG_DIM, WG_DIM, 1).
 // GWS: (ceil(INPUT0_SIZE_X, TILE_SIZE) / ELEMS_PER_DIM,
 //       ceil(INPUT0_SIZE_Y, TILE_SIZE) / ELEMS_PER_DIM, B*F).
-// When REMAINDER is set, X and/or Y need not be multiples of TILE_SIZE and
-// out-of-range reads/writes are guarded; otherwise the fast (branch-free) path
-// is used and X and Y must both be multiples of TILE_SIZE (enforced by Validate).
+// When REMAINDER is set, X/Y need not be multiples of TILE_SIZE and out-of-range
+// reads/writes are guarded. When REMAINDER is 0, TILE_SIZE is chosen so it
+// divides both X and Y (host-side tile selection).
 
 __attribute__((reqd_work_group_size(WG_DIM, WG_DIM, 1)))
 KERNEL(permute_xy_swap)(
