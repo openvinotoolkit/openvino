@@ -280,9 +280,16 @@ bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
     if (!match_acl_int8_conv_fq_chain(node)) {
         return false;
     }
+    // Mark whole FQ -> [Swish] -> Mul -> Add chain as it is fused into the int8 ACL convolution
     snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
 
-    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));
+    auto mul_parent = node->get_input_node_shared_ptr(0);
+    if (const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(mul_parent)) {
+        snippets::pass::SetSnippetsNodeType(swish, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        mul_parent = swish->get_input_node_shared_ptr(0);
+    }
+
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_parent);
     if (!mul) {
         return true;
     }
