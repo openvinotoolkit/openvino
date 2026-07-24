@@ -134,6 +134,7 @@ Operation Specifications
    Loop-5 <operation-specs/infrastructure/loop-5>
    MVN-1 <operation-specs/normalization/mvn-1>
    MVN-6 <operation-specs/normalization/mvn-6>
+   Mamba2 <operation-specs/internal/mamba2>
    MatMul-1 <operation-specs/matrix/matmul-1>
    MatrixNms-8 <operation-specs/sort/matrix-non-max-suppression-8>
    MaxPool-1 <operation-specs/pooling/max-pool-1>
