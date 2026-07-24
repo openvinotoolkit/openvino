@@ -45,12 +45,21 @@ TEST_P(crop_si_test, shape_infer) {
     }
 
     for (size_t i = 1; i < p.input_layouts.size(); i++) {
-        auto prim_id = "const::data"+std::to_string(i);
-        auto prim_mem = engine.allocate_memory(p.input_layouts[i]);
-        set_values(prim_mem, p.const_values[i-1]);
-        auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
-        input_prims.push_back(const_data_prim);
-        input_prim_ids.push_back(input_info(prim_id));
+        const bool is_const_input = i - 1 < p.const_values.size() && !p.const_values[i - 1].empty();
+
+        if (is_const_input) {
+            auto prim_id = "const::data"+std::to_string(i);
+            auto prim_mem = engine.allocate_memory(p.input_layouts[i]);
+            set_values(prim_mem, p.const_values[i-1]);
+            auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
+            input_prims.push_back(const_data_prim);
+            input_prim_ids.push_back(input_info(prim_id));
+        } else {
+            auto prim_id = "input" + std::to_string(i);
+            auto input_layout_prim = std::make_shared<input_layout>(prim_id, p.input_layouts[i]);
+            input_prims.push_back(input_layout_prim);
+            input_prim_ids.push_back(input_info(prim_id));
+        }
     }
 
     crop_ngraph_op_mode op_mode = crop_ngraph_op_mode::none;
@@ -127,6 +136,14 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             1,
             {{{4819,4,1,1,4},data_types::f32,format::bfzyx}, {{},data_types::i64,format::bfzyx}, {{4},data_types::i64,format::bfzyx}},
             {{{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}}, 0
+        },
+        {
+            tensor({1,1,1,1,1,1,1}),
+            {tensor({0,0,0,0,1,1,1}), tensor({0,0,0,0,1,1,1})},
+            {{1}, {}},
+            1,
+            {{{7,4,1,1,4},data_types::f32,format::bfzyx}, {{},data_types::i64,format::bfzyx}, {{2},data_types::i64,format::bfzyx}},
+            {{{7,ov::Dimension::dynamic(),1,1,4},data_types::f32,format::bfzyx}, {{7,ov::Dimension::dynamic(),1,1,4},data_types::f32,format::bfzyx}}, 0
         },
         {
             tensor({4507,1,1,1,1,1,1}),
