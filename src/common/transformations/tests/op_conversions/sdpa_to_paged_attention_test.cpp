@@ -6926,7 +6926,7 @@ TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
                                               /*per_channel=*/true);
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
-    OV_EXPECT_THROW(manager.run_passes(model), ov::AssertFailure, ::testing::HasSubstr("undeclared parameters"));
+    OV_EXPECT_THROW(manager.run_passes(model), ov::Exception, ::testing::HasSubstr("undeclared parameters"));
 }
 
 /*
