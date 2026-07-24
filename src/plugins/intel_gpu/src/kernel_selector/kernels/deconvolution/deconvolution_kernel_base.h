@@ -45,7 +45,7 @@ struct deconvolution_params : public weight_bias_params {
 class DeconvolutionKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
-    virtual ~DeconvolutionKernelBase() {}
+    ~DeconvolutionKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 

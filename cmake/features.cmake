@@ -20,6 +20,7 @@ ov_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE
 ov_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ov_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
+ov_option (ENABLE_TESTS_PER_SOURCE "Create one test executable per source file" OFF)
 
 if(ENABLE_TESTS)
     include(CTest)
@@ -155,6 +156,7 @@ ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
+ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" OFF)
 
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory

@@ -181,14 +181,7 @@ private:
 namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32,
-        data_types::i64
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32, data_types::i64, data_types::f8e4m3};
 
     auto formats = {
         format::bfyx,

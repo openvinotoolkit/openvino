@@ -14,7 +14,7 @@ namespace kernel_selector {
 class DynamicQuantizeKernelOpt : public KernelBaseOpenCL {
 public:
     DynamicQuantizeKernelOpt() : KernelBaseOpenCL("dynamic_quantize_gpu_opt") {}
-    virtual ~DynamicQuantizeKernelOpt() {}
+    ~DynamicQuantizeKernelOpt() override {}
 
     virtual JitConstants GetJitConstants(const dynamic_quantize_params& params) const;
     virtual CommonDispatchData SetDefault(const dynamic_quantize_params& params) const;

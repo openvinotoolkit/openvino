@@ -9,14 +9,19 @@
 #include <malloc.h>
 #include <windows.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <thread>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov::util {
+
+void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept;
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment == 0) {
@@ -59,14 +64,17 @@ void vm_release(void* ptr, size_t) noexcept {
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
-    // CVS-186579
-    // assert if region is not mmap-baked.
-
     if (num_threads == 0) {
-        // Option 1: OS advisory hints
+        WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
+        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
     } else {
-        // Option 2: parallel synchronous prefault & touch
+        // blocks until every page has been faulted in.
+        populate_pages(ptr, size, num_threads);
     }
+}
+
+PrefetchToken vm_prefetch_async(void* /*ptr*/, size_t /*size*/, size_t /*num_threads*/) noexcept {
+    return {};
 }
 
 }  // namespace ov::util

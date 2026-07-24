@@ -38,6 +38,7 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
@@ -62,6 +63,7 @@
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
@@ -177,11 +179,13 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
                                   ov::op::v0::Erf,
                                   ov::op::v0::Exp,
                                   ov::op::v1::LogicalNot,
+                                  ov::op::v5::HSigmoid,
                                   ov::op::v4::Mish,
                                   ov::op::v0::Negative,
                                   ov::op::v0::Relu,
                                   ov::op::v5::Round,
                                   ov::op::v0::Sigmoid,
+                                  ov::op::v9::SoftSign,
                                   ov::op::v0::Sqrt,
                                   ov::op::v0::Tanh,
                                   ov::op::v0::Gelu,
