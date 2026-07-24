@@ -18,8 +18,8 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/multiclass_nms.hpp"
-#include "openvino/op/non_zero.hpp"
 #include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
@@ -28,9 +28,11 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_gpu {
@@ -73,6 +75,14 @@ std::shared_ptr<T> get_node_if(const ov::Output<ov::Node>& output) {
     return ov::as_type_ptr<T>(output.get_node_shared_ptr());
 }
 
+// The lowered graph inserts the per-class coordinate offset with an Unsqueeze, but
+// CommonOptimizations (which runs before this pass at its post-ConvertNMS9 position)
+// canonicalizes rank-changing Unsqueeze/Squeeze ops into Reshape, so both forms are
+// treated as the offset-broadcast node here.
+bool is_unsqueeze_like(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v1::Reshape>(node);
+}
+
 bool match_batched_nms_offsets(const std::shared_ptr<ov::Node>& boxes_offset_add,
                                std::shared_ptr<ov::Node>& boxes_source,
                                std::shared_ptr<ov::Node>& offsets_unsqueeze) {
@@ -84,13 +94,13 @@ bool match_batched_nms_offsets(const std::shared_ptr<ov::Node>& boxes_offset_add
     const auto first = add->input_value(0).get_node_shared_ptr();
     const auto second = add->input_value(1).get_node_shared_ptr();
 
-    if (ov::is_type<ov::op::v0::Unsqueeze>(first)) {
+    if (is_unsqueeze_like(first)) {
         offsets_unsqueeze = first;
         boxes_source = second;
         return true;
     }
 
-    if (ov::is_type<ov::op::v0::Unsqueeze>(second)) {
+    if (is_unsqueeze_like(second)) {
         offsets_unsqueeze = second;
         boxes_source = first;
         return true;
@@ -108,8 +118,7 @@ bool matches_batched_nms_chain(const std::shared_ptr<ov::Node>& boxes_offset_add
         return false;
     }
 
-    const auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(offsets_unsqueeze);
-    const auto multiply = unsqueeze ? get_node_if<ov::op::v1::Multiply>(unsqueeze->input_value(0)) : nullptr;
+    const auto multiply = get_node_if<ov::op::v1::Multiply>(offsets_unsqueeze->input_value(0));
     if (!multiply) {
         return false;
     }
@@ -163,6 +172,13 @@ bool get_scalar_from_const_source(const ov::Output<ov::Node>& output, T& value) 
     auto node = output.get_node_shared_ptr();
     if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
         return get_scalar_from_const_source(convert->input_value(0), value);
+    }
+
+    // NonMaxSuppressionIEInternal reshapes its scalar attributes to Shape{1},
+    // e.g. when ConvertNMS9ToNMSIEInternal recreates the max_output_boxes_per_class/
+    // iou_threshold/score_threshold inputs.
+    if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
+        return get_scalar_from_const_source(reshape->input_value(0), value);
     }
 
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -276,14 +292,23 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
 
     auto boxes_offset_add_m = wrap_type<ov::op::v1::Add>();
     auto boxes_reshape_m = wrap_type<ov::op::v1::Reshape>({boxes_offset_add_m, any_input()});
-    auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
-    auto nms_m = wrap_type<ov::op::v9::NonMaxSuppression>({boxes_reshape_m,
-                                                           scores_unsqueeze_m,
-                                                           any_input(),
-                                                           any_input(),
-                                                           any_input()});
-    auto gather_m = wrap_type<ov::op::v8::Gather>({nms_m, any_input(), any_input()});
-    auto squeeze_m = wrap_type<ov::op::v0::Squeeze>({gather_m, any_input()});
+    // Intervening CommonOptimizations passes may canonicalize the scores Unsqueeze
+    // into a Reshape by the time this pass runs, so match either op type.
+    auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({any_input(), any_input()});
+    // Runs after ConvertNMS9ToNMSIEInternal, so the NMS is usually the internal op.
+    // ConvertNMS9ToNMSIEInternal's own callback keeps dynamic-shaped inputs as
+    // ov::op::v9::NonMaxSuppression instead of converting them (see
+    // pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal> in
+    // transformations_pipeline.cpp), which is the common case for detection heads
+    // with a variable number of proposals, so both op types must be matched here.
+    // ConvertNMS9ToNMSIEInternal may also insert a Convert to restore the original
+    // indices output element type when it does convert the op.
+    auto nms_m = wrap_type<ov::op::v9::NonMaxSuppression, ov::op::internal::NonMaxSuppressionIEInternal>(
+        {boxes_reshape_m, scores_unsqueeze_m, any_input(), any_input(), any_input()});
+    auto nms_output_m = optional<ov::op::v0::Convert>(nms_m);
+    auto gather_m = wrap_type<ov::op::v8::Gather>({nms_output_m, any_input(), any_input()});
+    // Same canonicalization applies to the trailing Squeeze: match either form.
+    auto squeeze_m = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({gather_m, any_input()});
 
     ov::matcher_pass_callback callback = [this,
                                           boxes_offset_add_m,
@@ -294,20 +319,26 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
                                           squeeze_m](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(pattern_map.at(squeeze_m).get_node_shared_ptr());
+        auto squeeze = pattern_map.at(squeeze_m).get_node_shared_ptr();
         auto gather = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
-        auto nms = ov::as_type_ptr<ov::op::v9::NonMaxSuppression>(pattern_map.at(nms_m).get_node_shared_ptr());
+        auto nms = pattern_map.at(nms_m).get_node_shared_ptr();
         auto boxes_offset_add = pattern_map.at(boxes_offset_add_m).get_node_shared_ptr();
         auto boxes_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(boxes_reshape_m).get_node_shared_ptr());
-        auto scores_unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(pattern_map.at(scores_unsqueeze_m).get_node_shared_ptr());
+        auto scores_unsqueeze = pattern_map.at(scores_unsqueeze_m).get_node_shared_ptr();
 
         if (!squeeze || !gather || !nms || !boxes_reshape || !scores_unsqueeze || transformation_callback(squeeze)) {
             return false;
         }
 
         if (!is_scalar_constant_value(gather->input_value(1), 2) ||
-            !is_scalar_constant_value(gather->input_value(2), 1) ||
-            !is_scalar_constant_value(squeeze->input_value(1), 1)) {
+            !is_scalar_constant_value(gather->input_value(2), 1)) {
+            return false;
+        }
+        // For the pristine graph the terminal op is a Squeeze(axis=1); after
+        // canonicalization it may be an equivalent Reshape, whose second input is a
+        // target-shape tensor rather than a scalar axis, so only the Squeeze form is
+        // checked here.
+        if (ov::is_type<ov::op::v0::Squeeze>(squeeze) && !is_scalar_constant_value(squeeze->input_value(1), 1)) {
             return false;
         }
 
