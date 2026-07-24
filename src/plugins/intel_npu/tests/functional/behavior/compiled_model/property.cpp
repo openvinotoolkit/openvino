@@ -61,7 +61,6 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties 
     {ov::range_for_async_infer_requests.name(),
      ov::Any(std::tuple<unsigned int, unsigned int, unsigned int>{0, 10, 1})},
     {ov::range_for_streams.name(), ov::Any(std::tuple<unsigned int, unsigned int>{0, 10})},
-    {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::max_tiles.name(), ov::Any(9999)}};

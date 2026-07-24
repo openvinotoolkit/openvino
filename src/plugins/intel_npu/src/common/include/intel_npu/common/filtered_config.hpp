@@ -51,13 +51,6 @@ public:
     bool hasOpt(std::string_view key) const;
 
     /**
-     * @brief Checks if a specific option is public (publishable in supported_properties).
-     * @param key The key of the option to check.
-     * @return True if the option is public, false otherwise.
-     */
-    bool isOptPublic(std::string_view key) const;
-
-    /**
      * @brief Retrieves the OptionBase concept associated with a specific option. Used to check option details.
      * @param key The key of the option to retrieve.
      * @return The `OptionConcept` object representing the option's details.
@@ -76,17 +69,7 @@ public:
      * @param key The key of the option to enable/disable.
      * @param enable True to enable the option, false to disable it.
      */
-    void enable(std::string key, bool enable);
-
-    /**
-     * @brief Enables all available configuration options.
-     */
-    void enableAll();
-
-    /**
-     * @brief Enables only runtime configuration options.
-     */
-    void enableRuntimeOptions();
+    void enable(std::string_view key, bool enable);
 
     /**
      * @brief Iterates over all enabled options and applies a callback function to each enabled key.

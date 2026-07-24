@@ -42,7 +42,6 @@ private:
     Logger& _logger;
 
     std::map<std::string, PropertyDescriptor> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
 
     mutable std::mutex _mutex;
 };

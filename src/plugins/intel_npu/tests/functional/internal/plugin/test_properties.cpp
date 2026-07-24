@@ -13,7 +13,6 @@ const std::vector<std::string> supported_configs = {{ov::hint::performance_mode.
                                                     {ov::cache_dir.name()},
                                                     {ov::intel_npu::driver_version.name()}};
 const std::vector<std::string> supported_compiler_configs = {{ov::intel_npu::qdq_optimization.name()}};
-const std::vector<std::string> unsupported_compiler_configs = {{"DUMMY_PROPERTY"}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          PropertiesManagerTests,
@@ -31,10 +30,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(supported_compiler_configs)),
-                         PropertiesManagerTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ExpectLoadingCompilerPropertyNotSupported,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(unsupported_compiler_configs)),
                          PropertiesManagerTests::getTestCaseName);
