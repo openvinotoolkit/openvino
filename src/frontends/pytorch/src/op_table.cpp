@@ -267,6 +267,7 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
+OP_CONVERTER(translate_take);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
@@ -495,6 +496,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::constant_pad_nd", op::translate_constant_pad_nd},
         {"aten::copy", op::skip_node},
         {"aten::copy_", op::translate_copy_},
+        {"aten::Delete", op::skip_node},
         {"aten::cos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>, 1>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>, 1>},
@@ -755,6 +757,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::split_with_sizes_copy", op::translate_split_with_sizes},
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
         {"aten::sqrt_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>>},
+        {"aten::str", op::skip_node},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::quantizable_op<op::translate_squeeze>},
         {"aten::squeeze_copy", op::quantizable_op<op::translate_squeeze>},
@@ -767,6 +770,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sum", op::translate_sum},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
+        {"aten::take", op::translate_take},
         {"aten::take_along_dim", op::translate_take_along_dim},
         {"aten::tan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>, 1>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
@@ -1136,12 +1140,14 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.squeeze_copy.dims", op::translate_squeeze},
         {"aten.stack.default", op::translate_stack_fx},
         {"aten.std.correction", op::translate_std_fx},
+        {"aten.str.default", op::skip_node},
         {"aten.sub.default", op::translate_sub_fx},
         {"aten.sub.Tensor", op::translate_sub_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
         {"aten.sym_size.int", op::translate_size},
         {"aten.t.default", op::translate_t},
+        {"aten.take.default", op::translate_take},
         {"aten.take_along_dim.default", op::translate_take_along_dim},
         {"aten.tan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten.tanh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},
