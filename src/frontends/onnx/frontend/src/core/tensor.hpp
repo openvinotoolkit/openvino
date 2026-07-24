@@ -89,7 +89,8 @@ public:
                     const ov::Any& data_any,
                     std::shared_ptr<std::string> data_location,
                     const bool is_raw,
-                    const bool reuse_const_data = false)
+                    const bool reuse_const_data = false,
+                    std::shared_ptr<void> data_owner = nullptr)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
           m_data(data),
@@ -97,7 +98,8 @@ public:
           m_data_size(data_size),
           m_data_location(data_location),
           m_is_raw(is_raw),
-          m_reuse_const_data(reuse_const_data) {};
+          m_reuse_const_data(reuse_const_data),
+          m_data_owner(std::move(data_owner)) {};
 
     void translate(ov::Output<ov::Node>& output);
 
@@ -146,6 +148,10 @@ public:
         return m_reuse_const_data;
     }
 
+    const std::shared_ptr<void>& get_data_owner() const {
+        return m_data_owner;
+    }
+
     detail::MappedMemoryHandles get_mmap_cache();
     detail::LocalStreamHandles get_stream_cache();
     std::filesystem::path get_model_dir() const;
@@ -159,6 +165,7 @@ protected:
     std::shared_ptr<std::string> m_data_location;
     bool m_is_raw;
     bool m_reuse_const_data;
+    std::shared_ptr<void> m_data_owner;
 };
 
 class Tensor {

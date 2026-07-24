@@ -112,6 +112,12 @@ public:
         return m_graph;
     }
 
+    // Owning handle to the parsed model. Raw initializer bytes live inside it, so it can be used as
+    // a keep-alive owner to alias those bytes into Constants without copying (see extract_tensor_meta_info).
+    const std::shared_ptr<ModelProto>& get_model() const {
+        return m_model;
+    }
+
     std::int64_t get_opset_version(const std::string& domain) const override;
 
     std::map<std::string, std::string> get_metadata() const override;

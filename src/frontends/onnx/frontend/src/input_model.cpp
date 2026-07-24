@@ -666,7 +666,8 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
                                                               tensor_meta_info.m_tensor_data_any,
                                                               tensor_meta_info.m_external_location,
                                                               tensor_meta_info.m_is_raw,
-                                                              reuse_const_data);
+                                                              reuse_const_data,
+                                                              tensor_meta_info.m_data_owner);
     return tensor_place;
 }
 
