@@ -16,8 +16,6 @@
 #include "openvino/op/slice.hpp"
 #include "utils/common.hpp"
 
-using namespace ov::op;
-
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -36,6 +34,7 @@ namespace opset_1 {
 // uint8 data may pack 8/bits sub-byte values per byte along the last dimension (bits 2/4, low-bits-first);
 // it is reinterpreted to the matching native u2/u4 type, and its packed zero_points are unpacked the same way.
 ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
+    using namespace ov::op;
     common::default_op_checks(node, 3);
 
     const auto inputs = node.get_ov_inputs();
@@ -199,13 +198,17 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
     // packing is low-bits-first, byte-identical to ORT; splitting/unpacking an axis is a pure contiguous
     // reshape over the flat bitstream, so the raw byte buffer is reused verbatim (for uint8 sub-byte,
     // reinterp_et is u2/u4 and the split shape already carries the unpacked, components-expanded size).
-    auto data_split = std::make_shared<v0::Constant>(reinterp_et, data_split_shape, data_const->get_data_ptr());
+    // The buffer is wrapped (not copied) by passing the source constant as the shared owner, which keeps it
+    // alive; this avoids duplicating a potentially large embedding table in memory.
+    auto data_split =
+        std::make_shared<v0::Constant>(reinterp_et, data_split_shape, data_const->get_data_ptr(), data_const);
     // Preserve the original initializer name so downstream weight-sharing by name still works.
     data_split->set_friendly_name(data_const->get_friendly_name());
     data_split->get_output_tensor(0).set_names(data_const->get_output_tensor(0).get_names());
 
-    // Reinterpret 'scales' with an inserted size-1 block axis for per-block broadcast.
-    auto scales_split = std::make_shared<v0::Constant>(scales_et, param_split_shape, scales_const->get_data_ptr());
+    // Reinterpret 'scales' with an inserted size-1 block axis for per-block broadcast (buffer wrapped, not copied).
+    auto scales_split =
+        std::make_shared<v0::Constant>(scales_et, param_split_shape, scales_const->get_data_ptr(), scales_const);
 
     // ---- zero point ----
     ov::Output<ov::Node> zp_for_dequant;
@@ -245,7 +248,8 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
         const auto zp_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
         if (components == 1) {
             // int4/uint4/uint8(bits=8): one stored value per block, reinterpret directly to [.., nb, 1, ..].
-            zp_for_dequant = std::make_shared<v0::Constant>(reinterp_et, param_split_shape, zp_const->get_data_ptr());
+            zp_for_dequant =
+                std::make_shared<v0::Constant>(reinterp_et, param_split_shape, zp_const->get_data_ptr(), zp_const);
         } else {
             // uint8 sub-byte: reinterpret the packed zero_points to u2/u4 at the byte-aligned block count,
             // convert to the dequant precision, then slice off the alignment padding down to nb blocks
@@ -254,7 +258,7 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
             ov::Shape zp_aligned_shape = param_split_shape;
             zp_aligned_shape[static_cast<size_t>(quantize_axis)] = static_cast<size_t>(aligned);
             const auto zp_aligned =
-                std::make_shared<v0::Constant>(reinterp_et, zp_aligned_shape, zp_const->get_data_ptr());
+                std::make_shared<v0::Constant>(reinterp_et, zp_aligned_shape, zp_const->get_data_ptr(), zp_const);
             ov::Output<ov::Node> zp_converted = std::make_shared<v0::Convert>(zp_aligned, scales_et);
             if (aligned != nb) {
                 const auto start = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
