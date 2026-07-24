@@ -481,22 +481,43 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
-    // Gemma4 RoPE pattern:
-    // MatMul (f16) → Convert (f16→f32) → Transpose → Concat → Sin/Cos → Unsqueeze → RoPE
-    // The difference from base IncreasePositionIdsPrecisionForRoPE is that
-    // there is a Convert node between MatMul and Transpose.
-    auto matmul = wrap_type<ov::op::v0::MatMul>();
+    // Gemma4 RoPE pattern (two variants):
+    //
+    // Original :
+    //   MatMul → Convert → Transpose → Concat → Sin/Cos → Unsqueeze → RoPE
+    //
+    // Current (after upstream Unsqueeze→Reshape and Transpose→Reshape folding):
+    //   MatMul → Reshape(Transpose) → Concat → Sin/Cos → Reshape(Unsqueeze) → RoPE
+    //
+    // The MatMul multiplies a broadcast frequency matrix by the (converted) position_ids:
+    //   position_ids → Convert(i32) → Reshape/Unsqueeze → Convert(f16) ┐
+    //                                          Broadcast(freq) ─────────┴→ MatMul
+    // Anchoring the pattern on this Gemma4-specific front end (Broadcast freq input +
+    // Convert'ed position_ids input) keeps this pass from matching generic RoPE graphs
+    // (e.g. freq fed as a plain Constant), which are handled by IncreasePositionIdsPrecisionForRoPE.
+    auto pos_ids_convert_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
+    auto pos_ids_reshape = wrap_type<ov::op::v1::Reshape>({pos_ids_convert_i32, any_input()});
+    auto pos_ids_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({pos_ids_convert_i32, any_input()});
+    auto pos_ids_shaped = std::make_shared<Or>(OutputVector{pos_ids_reshape, pos_ids_unsqueeze});
+    auto pos_ids_convert_fp = wrap_type<ov::op::v0::Convert>({pos_ids_shaped});
+    auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
+    auto matmul = wrap_type<ov::op::v0::MatMul>({broadcast_freq, pos_ids_convert_fp});
     auto convert_after_matmul = wrap_type<ov::op::v0::Convert>({matmul});
-    auto transpose_m = wrap_type<ov::op::v1::Transpose>({convert_after_matmul, any_input()});
-    auto concat = wrap_type<ov::op::v0::Concat>({transpose_m, transpose_m});
+    auto transpose_with_convert = wrap_type<ov::op::v1::Transpose>({convert_after_matmul, any_input()});
+    auto transpose_direct = wrap_type<ov::op::v1::Transpose>({matmul, any_input()});
+    auto reshape_transpose = wrap_type<ov::op::v1::Reshape>({matmul, any_input()});
+    auto concat_input = std::make_shared<Or>(OutputVector{transpose_with_convert, transpose_direct, reshape_transpose});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});
 
     auto sin_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sin, wrap_type<ov::op::v0::Constant>()});
     auto cos_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({cos, wrap_type<ov::op::v0::Constant>()});
+    auto sin_reshape = wrap_type<ov::op::v1::Reshape>({sin, any_input()});
+    auto cos_reshape = wrap_type<ov::op::v1::Reshape>({cos, any_input()});
 
-    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_unsqueeze, sin});
-    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_unsqueeze, cos});
+    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_unsqueeze, sin_reshape, sin});
+    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_unsqueeze, cos_reshape, cos});
 
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
 
@@ -504,7 +525,6 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
-        auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_after_matmul).get_node_shared_ptr());
 
         if (!matmul_node || transformation_callback(matmul_node))
             return false;
@@ -515,8 +535,6 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
             return false;
 
         // Ensure both MatMul inputs are f32.
-        // - If input is a Convert node (e.g. Convert_3: i32→f16), replace it with i32→f32.
-        // - If input is not a Convert (e.g. Broadcast: f16), insert a new Convert(f16→f32) before it.
         for (auto& input : matmul_node->inputs()) {
             auto src_output = input.get_source_output();
             auto src_node = src_output.get_node_shared_ptr();
@@ -537,10 +555,13 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
             }
         }
 
-        // Remove the Convert after MatMul (f16→f32) since MatMul now outputs f32.
-        // Just replace it with MatMul's output directly.
-        if (convert_node) {
-            ov::replace_node(convert_node, matmul_node);
+        // Remove the Convert after MatMul if present (original pattern).
+        if (pattern_map.count(convert_after_matmul)) {
+            auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(
+                pattern_map.at(convert_after_matmul).get_node_shared_ptr());
+            if (convert_node) {
+                ov::replace_node(convert_node, matmul_node);
+            }
         }
 
         return true;
