@@ -1188,7 +1188,14 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
+    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+    const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    CPU_REGISTER_PASS_X64(postLPTPassManager,
+                          ov::pass::RMSFusion,
+                          false /* force_tail_convert */,
+                          false /* enable_div_x */,
+                          enable_without_gamma);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

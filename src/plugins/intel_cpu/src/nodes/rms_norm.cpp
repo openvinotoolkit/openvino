@@ -104,9 +104,10 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     void execute(const std::vector<MemoryPtr>& inputs,
                  const MemoryPtr output,
                  const CpuParallelPtr& cpu_parallel) override {
+        static constexpr float identity_scale = 1.0F;
         auto* src = inputs[0]->getDataAs<uint8_t>();
         auto* dst = output->getDataAs<uint8_t>();
-        auto* scale = inputs[1]->getDataAs<float>();
+        const auto* scale = inputs.size() > 1 ? inputs[1]->getDataAs<float>() : &identity_scale;
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -154,16 +155,20 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return impl_desc_type::ref;
     }();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::f32}},
-                         {{LayoutType::ncsp, precision}},
-                         impl_type);
+    std::vector<PortConfigurator> inPortConfigs{{LayoutType::ncsp, precision}};
+    if (getOriginalInputsNumber() > 1) {
+        inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
+    addSupportedPrimDesc(inPortConfigs, {{LayoutType::ncsp, precision}}, impl_type);
 }
 
 void RMSNorm::createPrimitive() {
     auto precision = getOriginalInputPrecisionAtPort(0);
     auto data_dims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     size_t data_size = data_dims[data_dims.size() - 1];
-    size_t scale_size = shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims());
+    size_t scale_size = getOriginalInputsNumber() > 1
+                            ? shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims())
+                            : 1;
 
     RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
@@ -217,16 +222,18 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             }
 
             // check scale
-            if (op->get_input_partial_shape(1).is_dynamic()) {
-                errorMessage = "RMSNorm scale shape is not static.";
-                return false;
-            }
-            auto scale_pshape = op->get_input_partial_shape(1);
-            if (scale_pshape.rank().get_length() > 1) {
-                for (int64_t i = 0; i < scale_pshape.rank().get_length() - 1; i++) {
-                    if (scale_pshape[i] != 1) {
-                        errorMessage = "RMSNorm scale shape must be [1,..., N].";
-                        return false;
+            if (op->get_input_size() > 1) {
+                if (op->get_input_partial_shape(1).is_dynamic()) {
+                    errorMessage = "RMSNorm scale shape is not static.";
+                    return false;
+                }
+                auto scale_pshape = op->get_input_partial_shape(1);
+                if (scale_pshape.rank().get_length() > 1) {
+                    for (int64_t i = 0; i < scale_pshape.rank().get_length() - 1; i++) {
+                        if (scale_pshape[i] != 1) {
+                            errorMessage = "RMSNorm scale shape must be [1,..., N].";
+                            return false;
+                        }
                     }
                 }
             }
