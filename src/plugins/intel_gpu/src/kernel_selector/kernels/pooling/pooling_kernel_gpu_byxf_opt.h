@@ -10,7 +10,7 @@ namespace kernel_selector {
 class PoolingKernelGPUByxfOpt : public PoolingKernelBase {
 public:
     PoolingKernelGPUByxfOpt() : PoolingKernelBase("pooling_gpu_byxf_opt") {}
-    virtual ~PoolingKernelGPUByxfOpt() {}
+    ~PoolingKernelGPUByxfOpt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

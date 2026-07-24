@@ -11,7 +11,7 @@ namespace kernel_selector {
 class SoftmaxItemsClassKernelBase : public SoftmaxKernelBase {
 public:
     using SoftmaxKernelBase::SoftmaxKernelBase;
-    virtual ~SoftmaxItemsClassKernelBase() {}
+    ~SoftmaxItemsClassKernelBase() override {}
 
 protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;

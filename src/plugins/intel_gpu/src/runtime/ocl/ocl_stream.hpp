@@ -30,7 +30,7 @@ public:
         , _last_barrier_ev(other._last_barrier_ev)
         , _profiling_device(other._profiling_device) {}
 
-    ~ocl_stream() = default;
+    ~ocl_stream() override = default;
 
     void flush() const override;
     void finish() const override;

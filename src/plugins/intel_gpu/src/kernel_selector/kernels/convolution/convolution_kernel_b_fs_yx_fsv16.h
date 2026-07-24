@@ -15,7 +15,7 @@ public:
     using Parent = ConvolutionKernelBase;
 
     ConvolutionKernel_b_fs_yx_fsv16();
-    virtual ~ConvolutionKernel_b_fs_yx_fsv16() {}
+    ~ConvolutionKernel_b_fs_yx_fsv16() override {}
 
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;
