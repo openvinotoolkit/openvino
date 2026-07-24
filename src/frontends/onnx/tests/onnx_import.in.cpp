@@ -4030,6 +4030,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_constant_negative_begin_end) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_axes_out_of_range) {
+    ASSERT_THROW(convert_model("pad_axes_out_of_range.onnx"), ov::AssertFailure);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
     const auto model = convert_model("pow_float32_float32.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
