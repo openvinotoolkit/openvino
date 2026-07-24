@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include "openvino/pass/pattern/multi_matcher.hpp"
@@ -20,6 +22,7 @@ public:
     std::shared_ptr<ov::Node> matched_sin;
     std::shared_ptr<ov::Node> matched_cos;
     std::shared_ptr<ov::Node> matched_concat;
+    bool duplicate_freqs = false;
 
     std::function<void()> transform_cb;
 
@@ -42,6 +45,7 @@ class LongRopev5PatternDesc : public RopePatternDesc {
 public:
     std::shared_ptr<ov::Node> matched_short_factor;
     std::shared_ptr<ov::Node> matched_long_factor;
+    std::shared_ptr<ov::Node> matched_context_limit;
     std::shared_ptr<ov::Node> matched_cond;
     std::shared_ptr<ov::Node> max_pos_id;
     std::shared_ptr<ov::Node> matched_multiply_const;
@@ -80,6 +84,11 @@ public:
         return matcher.run_on_model(m);
     }
 };
+
+// Runs LongRopePatternPhi_v5 on the model and, if matched, extracts the
+// original_max_position_embeddings context limit constant it captures.
+// Returns std::nullopt if the pattern doesn't match.
+std::optional<uint64_t> extract_phi_v5_longrope_context_limit(const std::shared_ptr<ov::Model>& model);
 
 class RopeCacheMatcher {
 public:

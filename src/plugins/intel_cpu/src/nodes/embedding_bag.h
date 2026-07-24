@@ -38,7 +38,7 @@ protected:
     virtual void getIndices(size_t embIndex,
                             const int*& indicesRef,
                             size_t& size,
-                            int& weightsIdx,
+                            size_t& weightsIdx,
                             bool& withWeights) = 0;
 
     void prepareParams(const VectorDims& indexStaticShape);

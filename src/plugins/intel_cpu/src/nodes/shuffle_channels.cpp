@@ -310,7 +310,7 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
 void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
-    int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
+    int MB = (attrs.axis != 0) ? static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]) : -1;
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);

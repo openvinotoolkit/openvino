@@ -208,9 +208,10 @@ void copyDataToOutputWithSignalSize(const float* input,
         std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     std::fill_n(output, totalOutput, 0.F);
     size_t lastChangedDim = 0;
-    for (size_t index = inputShape.size() - 1; index > 0; --index) {
-        if (inputShape[index] != outputShape[index]) {
-            lastChangedDim = index;
+    for (int64_t index = static_cast<int64_t>(inputShape.size()) - 1; index > 0; --index) {
+        const auto dim = static_cast<size_t>(index);
+        if (inputShape[dim] != outputShape[dim]) {
+            lastChangedDim = dim;
             break;
         }
     }
@@ -508,7 +509,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
 
 std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
-    const float inverseMultiplier = inverse ? 1 : -1;
+    const float inverseMultiplier = inverse ? 1.0F : -1.0F;
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
@@ -523,7 +524,7 @@ std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
 }
 
 void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
-    const float inverseMultiplier = inverse ? 1 : -1;
+    const float inverseMultiplier = inverse ? 1.0F : -1.0F;
     size_t numBlocks = 1;
 
     twiddlesFFT.reserve((n_complex - 1) * 2);

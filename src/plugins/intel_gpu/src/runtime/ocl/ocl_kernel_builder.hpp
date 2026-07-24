@@ -23,7 +23,7 @@ namespace ocl {
 class ocl_kernel_builder : public kernel_builder{
     public:
         ocl_kernel_builder(const ocl_device &device) : m_device(device) {}
-        virtual ~ocl_kernel_builder() = default;
+        ~ocl_kernel_builder() override = default;
 
         void build_kernels(const void *src,
             size_t src_bytes,
@@ -72,6 +72,20 @@ class ocl_kernel_builder : public kernel_builder{
                 GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (const cl::Error& err) {
+                // cl::Program::build only throws cl::BuildError for CL_BUILD_PROGRAM_FAILURE.
+                // Other build-time failures (e.g. CL_OUT_OF_RESOURCES when the generated
+                // kernel exceeds device limits) arrive here as a plain cl::Error, so the
+                // program build log is otherwise lost. Surface it for diagnostics.
+                GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
+                try {
+                    auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
+                    for (auto& e : log) {
+                        GPU_DEBUG_INFO << e.second;
+                    }
+                } catch (const cl::Error&) {
+                    GPU_DEBUG_INFO << "Failed to retrieve program build log" << std::endl;
+                }
+                GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (...) {
                 // We should never hit this catch block

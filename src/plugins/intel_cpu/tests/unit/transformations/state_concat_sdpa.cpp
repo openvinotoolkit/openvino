@@ -180,103 +180,66 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     return std::make_shared<Model>(results, sinks, ParameterVector{q, k, v, init, beam_idx}, "ConcatSDP");
 }
 
-TEST(TransformationTests, StateConcatSDPA) {
+TEST_F(TransformationTestsF, StateConcatSDPA) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPA test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 8, -1, 64};
-        {
-            f = makeSDPA(inputShape);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    model = makeSDPA(inputShape);
+    model_ref = makeSDPA(inputShape, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAWithConvert) {
+TEST_F(TransformationTestsF, StateConcatSDPAWithConvert) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPAWithConvert test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 8, -1, 64};
-        {
-            f = makeSDPA(inputShape, false, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    model = makeSDPA(inputShape, false, true);
+    model_ref = makeSDPA(inputShape, true, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAMixtral) {
+TEST_F(TransformationTestsF, StateConcatSDPAMixtral) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPAMixtral test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 32, -1, 64};
-        {
-            f = makeSDPA(inputShape, false, false, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, false, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 32, -1, 64};
+    model = makeSDPA(inputShape, false, false, true);
+    model_ref = makeSDPA(inputShape, true, false, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
+class StateConcatSDPAWithExtraNodeTests : public TransformationTestsF,
+                                         public WithParamInterface<InsertPoint> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
-    GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
+        test_skipped = true;
+        GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
 #endif
-    // when some unexpected extra nodes exist in SDPA, the fusion should fail
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
         auto inputShape = ov::PartialShape{-1, 32, -1, 64};
-        size_t i = static_cast<size_t>(InsertPoint::At_None) + 1;
-        size_t end = static_cast<size_t>(InsertPoint::At_End);
-        // check each position
-        for (; i < end; i++) {
-            InsertPoint at = static_cast<InsertPoint>(i);
-            f = makeSDPA(inputShape, false, true, true, at);
-            f_ref = makeSDPA(inputShape, false, true, true, at);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-            auto res = compare_functions(f, f_ref);
-            ASSERT_TRUE(res.first) << res.second;
-        }
+        InsertPoint at = GetParam();
+        model = makeSDPA(inputShape, false, true, true, at);
+        model_ref = makeSDPA(inputShape, false, true, true, at);
+        manager.register_pass<StatefulSDPAFusion>();
     }
-}
+};
+
+TEST_P(StateConcatSDPAWithExtraNodeTests, FusionShouldNotFire) {}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, StateConcatSDPAWithExtraNodeTests,
+    ::testing::Values(
+        InsertPoint::At_Convert,
+        InsertPoint::At_Gather,
+        InsertPoint::At_MQ_Unsqueeze,
+        InsertPoint::At_MQ_Broadcast,
+        InsertPoint::At_MQ_Multiply,
+        InsertPoint::At_MQ_Reshape));
 
 // Build a model with two SDPA blocks sharing the same KV-cache Variables.
 // One ReadValue per Variable fans out to two independent Gather -> Concat -> SDPA paths,

@@ -135,7 +135,11 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
+        // registered as CPU but do not actually access their inputs from the host
+        // (e.g. assign, which only enqueues USM memcpy).
+        // Those impls opt out of forcing their producer into lockable memory.
+        return impl->requires_lockable_input() && !user->is_type<shape_of>();
     return false;
 }
 
@@ -540,7 +544,7 @@ void primitive_inst::update_shape() {
 
     if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto &layout = _impl_params->get_output_layout(0);
-        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8}),
+        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2}),
             "[GPU] Unsupported data type of dynamic_quantize: ", layout.data_type);
         if (layout.data_type == data_types::f16)
             set_can_be_optimized(true);
@@ -616,13 +620,15 @@ bool primitive_inst::need_reset_output_memory() const {
             continue;
         }
 
-        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
+        if (user_inst->need_reset_input_memory(dependency_idx))
             return true;
 
         // OneDNN requires zero-filled input for padded area
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
-        if (is_user_conv && is_user_onednn_impl) {
+        if (dependency_idx == 0 && is_user_conv && is_user_onednn_impl) {
             auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
@@ -2220,7 +2226,9 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    const bool may_reuse_output_memory = is_dynamic() ||
+                                         (can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool());
+    if (may_reuse_output_memory && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
