@@ -521,10 +521,32 @@ inline std::shared_ptr<Model> cvt_color_bgr_to_rgb() {
     return function;
 }
 
+inline std::shared_ptr<Model> cvt_color_rgb_to_nv12_single_plane() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 20, 30, 3});
+    auto p = PrePostProcessor(function);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<Model> cvt_color_bgr_to_nv12_single_plane() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 20, 30, 3});
+    auto p = PrePostProcessor(function);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+    function = p.build();
+    return function;
+}
+
 inline std::vector<postprocess_func> generic_postprocess_functions() {
     return std::vector<postprocess_func>{
         postprocess_func(cvt_color_rgb_to_bgr, "convert_color_rgb_to_bgr", 1e-5f),
         postprocess_func(cvt_color_bgr_to_rgb, "convert_color_bgr_to_rgb", 1e-5f),
+        postprocess_func(cvt_color_rgb_to_nv12_single_plane, "convert_color_rgb_to_nv12_single_plane", 1.f),
+        postprocess_func(cvt_color_bgr_to_nv12_single_plane, "convert_color_bgr_to_nv12_single_plane", 1.f),
     };
 }
 

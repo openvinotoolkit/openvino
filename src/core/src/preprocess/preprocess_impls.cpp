@@ -6,6 +6,8 @@
 
 #include "layout_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/convert_color_to_nv12_base.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -324,7 +326,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     }
 }
 
-//----------- OutputInfoImpl ----------
+//----------- OutputInfoImpl -----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     auto node = m_output_node;
     const auto result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
@@ -352,6 +354,16 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         auto action_result = action.m_op({node}, context);
         node = std::get<0>(action_result);
         post_processing_applied = true;
+    }
+
+    // Capture NV12 two-plane convert node to apply implicit steps on UV plane
+    std::shared_ptr<op::util::ConvertColorToNV12Base> convert_nv12_node;
+    Layout pre_implicit_layout;
+    if (auto nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr())) {
+        if (!nv12->is_single_plane()) {
+            convert_nv12_node = nv12;
+            pre_implicit_layout = context.layout();
+        }
     }
     // Implicit: Convert element type + layout to user's tensor implicitly
     PostStepsList implicit_steps;
@@ -410,6 +422,46 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     // Update layout
     if (!context.layout().empty()) {
         result->set_layout(context.layout());
+    }
+
+    // Handle NV12_TWO_PLANES - use previously captured node (before implicit steps)
+    if (convert_nv12_node) {
+        // Re-apply the same implicit steps to the UV plane (output 1) using a
+        // new context initialized with the pre-implicit layout.
+        PostprocessingContext uv_context(pre_implicit_layout);
+
+        Output<Node> uv_node = convert_nv12_node->output(1);
+        for (const auto& action : implicit_steps.actions()) {
+            auto action_result = action.m_op(uv_node, uv_context);
+            uv_node = std::get<0>(action_result);
+        }
+
+        auto uv_result = std::make_shared<op::v0::Result>(uv_node);
+
+        // Setting subnames for Y and UV planes
+        auto original_names = result->get_output_tensor(0).get_names();
+        auto original_friendly_name = result->get_friendly_name();
+        std::unordered_set<std::string> y_names;
+        std::unordered_set<std::string> uv_names;
+        for (const auto& name : original_names) {
+            y_names.insert(name + "/Y");
+            uv_names.insert(name + "/UV");
+        }
+        result->get_output_tensor(0).set_names(y_names);
+        result->set_friendly_name(original_friendly_name + "/Y");
+
+        uv_result->get_output_tensor(0).set_names(uv_names);
+        uv_result->set_friendly_name(original_friendly_name + "/UV");
+
+        // Update UV result layout
+        if (!context.layout().empty()) {
+            uv_result->set_layout(context.layout());
+        }
+
+        auto it = std::find(results.begin(), results.end(), result);
+        if (it != results.end()) {
+            results.insert(std::next(it), uv_result);
+        }
     }
 }
 
