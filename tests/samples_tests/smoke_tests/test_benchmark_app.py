@@ -21,6 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
+from openvino.tools.benchmark.utils.utils import AppInputInfo, pre_post_processing
 import openvino as ov
 
 def get_executable(sample_language):
@@ -226,6 +227,47 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
             ).uniform(0, 256, data_shape).astype(np.int32)
         )
     verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+
+def test_pre_post_processing_returns_built_model():
+    param = opset.parameter([1, 3, 16, 16], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'model_with_preprocessing')
+
+    input_info = AppInputInfo()
+    input_info.name = model.inputs[0].any_name
+    input_info.node_name = model.inputs[0].node.friendly_name
+    input_info.element_type = model.inputs[0].element_type
+    input_info.layout = ov.Layout('NCHW')
+    input_info.partial_shape = model.inputs[0].partial_shape
+
+    processed_model = pre_post_processing(model, [input_info], 'i32', 'i64', '')
+
+    assert processed_model.inputs[0].element_type == ov.Type.i32
+    assert processed_model.outputs[0].element_type == ov.Type.i64
+
+
+@pytest.mark.skipif('CPU' not in get_devices(), reason='CPU is required to compile the test model')
+def test_python_benchmark_app_applies_preprocessing_model(tmp_path):
+    param = opset.parameter([1, 3, 16, 16], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'model_with_preprocessing')
+    model_path = tmp_path / 'model_with_preprocessing.xml'
+    ov.save_model(model, model_path)
+
+    output = get_cmd_output(
+        get_executable('Python'),
+        '-m', model_path,
+        '-d', 'CPU',
+        '-niter', '0',
+        '-ip', 'i32',
+        '-op', 'i64',
+    )
+
+    assert 'Model compiled successfully' in output
+    assert any(' : i32 /' in line for line in output.splitlines())
+    assert any(' : i64 /' in line for line in output.splitlines())
+
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
