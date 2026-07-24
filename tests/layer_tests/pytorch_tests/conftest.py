@@ -39,5 +39,10 @@ if os.environ.get("PYTORCH_TRACING_MODE", "").upper() == "EXPORT":
 
 def pytest_generate_tests(metafunc):
     test_gen_attrs_names = list(inspect.signature(get_params).parameters)
+    func = metafunc.function
+    if func is None:
+        return
+    if not all(name in inspect.signature(func).parameters for name in test_gen_attrs_names):
+        return
     params = get_params()
     metafunc.parametrize(test_gen_attrs_names, params, scope="function")
