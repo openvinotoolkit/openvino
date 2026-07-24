@@ -113,6 +113,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto T = Q.get_element_type();
     const auto q_shape = register_new_node<v3::ShapeOf>(Q);
     const auto current_seqlen = get_dimensions(q_shape, {2});
+    current_seqlen->set_friendly_name("current_seqlen");
     const auto head_size_node = get_dimensions(q_shape, {3});
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
@@ -121,11 +122,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
+    seqlens_elemi64->set_friendly_name("seqlens_k_i64");
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
+    real_seqlens->set_friendly_name("real_seqlens");
 
     // Only consider batch is 1
     const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
     const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
+    past_seqlen->set_friendly_name("past_seqlen");
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
     if (do_rotary) {
@@ -158,7 +162,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
 
-    if (is_static_input) {
+    // present_key/present_value are the assembled cache (quantized when kv_quantized), matching the op outputs.
+    ov::Output<ov::Node> present_k;
+    ov::Output<ov::Node> present_v;
+
+    if (past_key.get_partial_shape().is_static() && past_value.get_partial_shape().is_static()) {
+        // past/present being static, should be of max_seq_len shape and being inplace
         // static design for GQA (KV cache is static max length, valid KVs are left align)
         // inputs are:
         //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
@@ -173,10 +182,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
-        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
-        V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
+        auto updateK = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, two);
+        auto updateV = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, two);
+
+        const auto negone = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto kv_slices = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{seqlens_1d, negone}, 0);
+
+        K = std::make_shared<ov::op::v1::VariadicSplit>(updateK, two_scalar, kv_slices)->outputs()[0];
+        V = std::make_shared<ov::op::v1::VariadicSplit>(updateV, two_scalar, kv_slices)->outputs()[0];
+        
+        present_k = updateK;
+        present_v = updateV;
     } else {
+        // assume being dynamic, and present len = past+current
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
@@ -184,11 +202,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
+        present_k = K;
+        present_v = V;
     }
 
-    // present_key/present_value are the assembled cache (quantized when kv_quantized), matching the op outputs.
-    ov::Output<ov::Node> present_k = K;
-    ov::Output<ov::Node> present_v = V;
 
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
