@@ -319,7 +319,7 @@ def parse_value_per_device(devices, values_string, value_type):
             value = device_value_vec[0]
             for device in devices:
                 result[device] = value
-        elif not device_value_vec:
+        elif device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
 
