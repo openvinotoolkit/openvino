@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_fc_bias.hpp"
+#pragma once
 
 #include <memory>
 
-#include "fc_mul_add_fq_block.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -22,39 +21,47 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/block.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 
-using namespace ov::pass;
+/*
+ * Description:
+ *     Shared implementation for the ARM int8 bias-reorder passes ConvertConvolutionBias and
+ *     ConvertFullyConnectedBias. Both passes match a GEMM-like op (Convolution / MatMul) followed by
+ *         GEMM -> Multiply -> Add(bias) -> FakeQuantize
+ *     and rewrite the tail into
+ *         GEMM -> Add(Round(bias) -> Convert i32) -> Multiply -> FakeQuantize
+ */
 
-ov::intel_cpu::ConvertFullyConnectedBias::ConvertFullyConnectedBias() {
-    auto fc_mul_add_fq = std::make_shared<ov::intel_cpu::FCMulAddFQBlock>(true);
+namespace ov::intel_cpu {
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
+    const std::shared_ptr<ov::pass::pattern::op::Block>& block) {
+    return [block](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto matmul_out = fc_mul_add_fq->get_anchor("matmul", pattern_map);
-        const auto mul_out = fc_mul_add_fq->get_anchor("multiply", pattern_map);
-        const auto add_out = fc_mul_add_fq->get_anchor("add", pattern_map);
-        const auto fq_out = fc_mul_add_fq->get_anchor("fake_quantize", pattern_map);
-        if (!matmul_out || !mul_out || !add_out || !fq_out) {
+        const auto gemm_out = block->get_anchor("gemm", pattern_map);
+        const auto mul_out = block->get_anchor("multiply", pattern_map);
+        const auto add_out = block->get_anchor("add", pattern_map);
+        const auto fq_out = block->get_anchor("fake_quantize", pattern_map);
+        if (!gemm_out || !mul_out || !add_out || !fq_out) {
             return false;
         }
 
         auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out->get_node_shared_ptr());
         auto mul = mul_out->get_node_shared_ptr();
-        auto matmul = matmul_out->get_node_shared_ptr();
+        auto gemm = gemm_out->get_node_shared_ptr();
         auto add = add_out->get_node_shared_ptr();
-        if (!fakeQuantize || !mul || !matmul || !add) {
+        if (!fakeQuantize || !mul || !gemm || !add) {
             return false;
         }
 
-        // ACL int8 FullyConnected requantization requires the activation and FakeQuantize output types to match.
-        if (fakeQuantize->get_output_element_type(0) != matmul->get_input_element_type(0)) {
+        // ACL int8 requantization requires the activation and FakeQuantize output types to match.
+        if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
             return false;
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
-            low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
+            ov::pass::low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
         if (!new_mul) {
             return false;
         }
@@ -62,8 +69,11 @@ ov::intel_cpu::ConvertFullyConnectedBias::ConvertFullyConnectedBias() {
         ov::mark_as_dequantization_node(new_mul);
 
         add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
+        if (!add) {
+            return false;
+        }
         auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
-        if (!add || !bias_const) {
+        if (!bias_const) {
             return false;
         }
         auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
@@ -80,7 +90,18 @@ ov::intel_cpu::ConvertFullyConnectedBias::ConvertFullyConnectedBias() {
 
         return true;
     };
-
-    auto matcher = std::make_shared<pattern::Matcher>(fc_mul_add_fq, "ConvertFullyConnectedBias");
-    register_matcher(matcher, callback);
 }
+
+// Common base for the int8 bias-reorder passes. GemmBlock is the pattern block (ConvMulAddFQBlock /
+// FCMulAddFQBlock) which must register a "gemm" anchor plus "multiply"/"add"/"fake_quantize"
+template <class GemmBlock>
+class ConvertGemmBias : public ov::pass::MatcherPass {
+protected:
+    explicit ConvertGemmBias(const char* pass_name) {
+        auto block = std::make_shared<GemmBlock>(true);
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(block, pass_name),
+                         make_int8_bias_reorder_callback(block));
+    }
+};
+
+}  // namespace ov::intel_cpu

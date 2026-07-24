@@ -1,8 +1,11 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
+#include "conv_mul_add_fq_block.hpp"
+#include "convert_gemm_bias.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 /*
@@ -85,10 +88,10 @@
 
 namespace ov::intel_cpu {
 
-class ConvertConvolutionBias : public ov::pass::MatcherPass {
+class ConvertConvolutionBias : public ConvertGemmBias<ConvMulAddFQBlock> {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionBias");
-    ConvertConvolutionBias();
+    ConvertConvolutionBias() : ConvertGemmBias("ConvertConvolutionBias") {}
 };
 
 }  // namespace ov::intel_cpu
