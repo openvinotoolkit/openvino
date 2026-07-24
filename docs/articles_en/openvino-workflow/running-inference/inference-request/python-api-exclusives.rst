@@ -157,6 +157,26 @@ The callback of ``AsyncInferQueue`` is uniform for every job. When executed, GIL
    :fragment: [asyncinferqueue_set_callback]
 
 
+Working with Runtime Info (``set_rt_info``)
+++++++++++++++++++++++++++++++++++++++++++++
+
+You can attach custom metadata (runtime info) to models, nodes, inputs, and
+outputs. This is useful for annotating graphs with application-specific
+information that is preserved through serialization.
+
+The ``set_rt_info`` method is available on ``Model``, ``Node``, ``Output``,
+and ``Input`` objects:
+
+- On **Model**: accepts a value and either a string key or a list of strings
+  for nested paths.
+- On **Node**, **Output**, **Input**: accepts a value and a string key.
+
+
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
+   :language: python
+   :fragment: [set_rt_info]
+
+
 Working with u1, u4 and i4 Element Types
 ++++++++++++++++++++++++++++++++++++++++
 
