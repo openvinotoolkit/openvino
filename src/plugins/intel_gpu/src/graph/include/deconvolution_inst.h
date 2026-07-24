@@ -32,7 +32,12 @@ public:
 
     bool bias_term() const { return get_primitive()->bias.is_valid();}
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        auto prim = get_primitive();
+        if (!prim->output_shape_id.is_valid())
+            return {};
+        return {prim->input.size() + 1 + (prim->bias.is_valid() ? 1 : 0)};
+    }
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
