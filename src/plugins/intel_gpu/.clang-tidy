@@ -9,6 +9,7 @@ Checks: >
   -*,
   modernize-use-override,
   readability-redundant-member-init
+  readability-redundant-string-cstr
 # Treat every enabled check as an error so they are enforced during the build.
 # Scope is controlled via 'Checks' above; matches the CPU plugin configuration.
 WarningsAsErrors: '*'
