@@ -52,7 +52,7 @@ Regardless of the automated tests, you should ensure the quality of your changes
 * The final release each year is considered a Long Term Support version, 
   which means it remains active.
 * Contributions are accepted only by active branches, which a#re:
-  * the "master" branch for future releases,
+  * the "master" branch for future releases,#
   * the most recently published version for fixes,
   * LTS versions (for two years from their release dates).
 
