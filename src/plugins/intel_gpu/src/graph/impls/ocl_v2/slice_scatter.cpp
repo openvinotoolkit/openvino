@@ -90,7 +90,7 @@ ParamConfig getParamConfig(const program_node& node, const RuntimeParams& params
     } else if (deps.size() <= kStart) {
         config.compile_time_start.resize(config.input_rank, 0);
     } else {
-        config.start_data_type = deps[kStart].first->get_output_layout(0).data_type;
+        config.start_data_type = deps[kStart].first->get_output_layout(false).data_type;
     }
 
     // Step
@@ -99,7 +99,7 @@ ParamConfig getParamConfig(const program_node& node, const RuntimeParams& params
     } else if (deps.size() <= kStep) {
         config.compile_time_step.resize(config.input_rank, 1);
     } else {
-        config.step_data_type = deps[kStep].first->get_output_layout(0).data_type;
+        config.step_data_type = deps[kStep].first->get_output_layout(false).data_type;
     }
 
     // Axes
@@ -113,7 +113,7 @@ ParamConfig getParamConfig(const program_node& node, const RuntimeParams& params
         config.compile_time_axes.resize(config.input_rank);
         std::iota(config.compile_time_axes.begin(), config.compile_time_axes.end(), 0);
     } else {
-        config.axes_data_type = deps[kAxes].first->get_output_layout(0).data_type;
+        config.axes_data_type = deps[kAxes].first->get_output_layout(false).data_type;
     }
 
     return config;

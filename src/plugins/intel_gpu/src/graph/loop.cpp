@@ -318,7 +318,7 @@ void loop_inst::update_backedge_mapped_memory() {
                             // generally, shouldn't go this way, but...
                             auto output_prim = body_network->get_primitive(back_edge.from);
                             layout output_layout = output_prim->output_memory().get_layout();
-                            backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
+                            backedge_mem = body_network->get_engine().allocate_memory(output_layout, false);
                         }
                     } else {
                         auto external_id = output_mapping.front()->external_id;
