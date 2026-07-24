@@ -53,6 +53,7 @@ void ov::npuw::LLMInferBaseRequest::init_tensor(const ov::Output<const ov::Node>
                                                 std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> const_tensors) {
     auto port_name = *port.get_names().begin();
     if (const_tensors.find(port_name) != const_tensors.end()) {
+        LOG_INFO("Using provided tensor for port " << port_name);
         return;
     }
     ov::SoPtr<ITensor> tensor;
