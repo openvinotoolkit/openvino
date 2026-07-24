@@ -264,7 +264,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     quantize_inputs.push_back(out_scale_prim->id);
     quantize_inputs.push_back(out_shift_prim->id);
 
-    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
+    data_types out_dt = !primitive->output_data_types.empty() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
     auto new_quantize_prim = std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
     new_quantize_prim->origin_op_name = primitive->origin_op_name;
     new_quantize_prim->origin_op_type_name = primitive->origin_op_type_name;

@@ -58,7 +58,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     int target_tile_id = -1;
     m_type = get_default_context_type();
 
-    if (params.size()) {
+    if (!params.empty()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
 
         if (ctx_type == ov::intel_gpu::ContextType::OCL) {

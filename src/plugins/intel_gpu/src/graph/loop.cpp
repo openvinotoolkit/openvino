@@ -203,7 +203,7 @@ static void validate_mappings(loop_node const & node) {
         }
         const auto results = find_io_primitive_maps(node.get_input_primitive_maps(),
                                                     node.get_output_primitive_maps(), id, true);
-        OPENVINO_ASSERT(results.size() > 0, node.id(), " : outer input '", id, "' does not have primitive map");
+        OPENVINO_ASSERT(!results.empty(), node.id(), " : outer input '", id, "' does not have primitive map");
     }
 
     // check all io_primitive_maps have their corresponding external id
@@ -456,7 +456,7 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
         const primitive_id& input_external_id = dependencies().at(memory_num).first->id();
         auto input_map_ptrs = find_io_primitive_maps(_input_primitive_maps,
                                                     _output_primitive_maps, input_external_id, true);
-        if (input_map_ptrs.size() == 0) {
+        if (input_map_ptrs.empty()) {
             OPENVINO_ASSERT((input_external_id == _trip_count_id
                                 || input_external_id == _num_iterations_id
                                 || input_external_id == _initial_execution_id),

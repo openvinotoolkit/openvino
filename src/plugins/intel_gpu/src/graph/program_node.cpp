@@ -251,7 +251,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
-    if (onednn_post_ops.size()) {
+    if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
         for (auto& fused_prim_desc : onednn_post_ops) {
