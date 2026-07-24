@@ -766,8 +766,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ov::intel_gpu::MarkBatchedNmsStaticClassCount>();
-        manager.register_pass<ov::intel_gpu::ConvertBatchedNmsToMulticlassNms>();
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
         // Keep GroupQueryAttention quantized-KV scales fp32 through the ConvertPrecision below
@@ -1049,11 +1052,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
         manager.register_pass<ConvertShapeOf1To3>();
-        manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
-        manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
-        manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
-        manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+        // Runs after the NMS9->IEInternal conversion above and matches both
+        // ov::op::v9::NonMaxSuppression and NonMaxSuppressionIEInternal, since the
+        // conversion above skips dynamic-shaped inputs (see its callback below).
+        manager.register_pass<ov::intel_gpu::ConvertBatchedNmsToMulticlassNms>();
         manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
