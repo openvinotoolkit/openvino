@@ -15,8 +15,8 @@ import tensorflow_hub as hub
 #import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
 from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
-from openvino import Core
+from models_hub_common.utils import get_models_list, model_list_path
+from openvino import convert_model
 
 from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
     repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature, \
@@ -90,6 +90,7 @@ class TestTFHubConvertModel(TestConvertModel):
             # some Keras models have input_spec and inputs attributes instead of input_signature
             inputs_info = retrieve_inputs_info_from_input_spec(model_obj.input_spec, model_obj.inputs)
             self.output_signature = get_output_signature_from_keras_layer(model_obj)
+            self.inputs_info = inputs_info
             return inputs_info
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
@@ -97,12 +98,22 @@ class TestTFHubConvertModel(TestConvertModel):
 
         inputs_info = retrieve_inputs_info_for_signature(input_signature)
         self.output_signature = get_output_signature_from_keras_layer(model_obj)
+        self.inputs_info = inputs_info
         return inputs_info
 
+    def convert_model(self, model_obj):
+        # NPU has no dynamic shapes: bake the concrete input dims (from get_inputs_info) into Parameters
+        if 'NPU' in (self.ie_device or '') and getattr(self, 'inputs_info', None):
+            input_arg = [(name, shape) for name, shape, _ in self.inputs_info]
+            print("Converting with static input shapes for {}: {}".format(self.ie_device, input_arg))
+            return convert_model(model_obj, input=input_arg)
+        return convert_model(model_obj)
+
     def infer_ov_model(self, ov_model, inputs, ie_device):
-        core = Core()
-        compiled = core.compile_model(ov_model, ie_device)
-        ov_outputs = compiled(inputs)
+        ov_outputs = super().infer_ov_model(ov_model, inputs, ie_device)
+        # For NPU ov_outputs returns None (compile-only)
+        if ov_outputs is None:
+            return None
 
         # TF FE loses output structure in case when original model has output dictionary, where values are tuples.
         # OV generates in this case a list of tensors with inner tensor names.
@@ -155,8 +166,8 @@ class TestTFHubConvertModel(TestConvertModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__),
-                                                          "model_lists", "precommit_convert_model")))
+                             get_models_list(model_list_path(os.path.join(os.path.dirname(__file__),
+                                                                          "model_lists"), "precommit_convert_model")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \

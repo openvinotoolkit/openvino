@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino as ov
 import os
 import pytest
 import requests
@@ -60,9 +59,9 @@ class TestTransformersModel(TestJaxConvertModel):
             for _, value in inputs.items():
                 new_inputs.append(value)
             inputs = new_inputs
-        compiled = ov.compile_model(ov_model, ie_device, self.ov_config)
-        ov_outputs = compiled(inputs)
-        return ov_outputs
+        # NPU compile config + compile-only mode live in the base class and are shared
+        # across all frameworks. For NPU it returns None (compile-only).
+        return super().infer_ov_model(ov_model, inputs, ie_device)
 
     @pytest.mark.parametrize("type,name,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
