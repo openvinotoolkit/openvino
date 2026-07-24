@@ -6,6 +6,7 @@
 #include "node.h"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/batch_to_space.h"
+#include "nodes/bevpool_v2.h"
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
@@ -250,6 +251,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
     INTEL_CPU_NODE(PagedGatedDeltaNet, Type::PagedGatedDeltaNet);
     INTEL_CPU_NODE(PagedCausalConv1D, Type::PagedCausalConv1D);
+    INTEL_CPU_NODE(BevPoolV2, Type::BevPoolV2);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
