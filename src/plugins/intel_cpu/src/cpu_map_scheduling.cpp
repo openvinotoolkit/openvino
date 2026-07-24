@@ -76,13 +76,23 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 bool check_cpu_pinning(const bool cpu_pinning,
                        const bool cpu_pinning_changed,
                        const bool cpu_reservation,
+                       int num_sockets,
                        const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value = false;
 
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
+    if (num_sockets < 0) {
+        num_sockets = get_num_sockets();
+    }
+    if (num_sockets > 1) {
+        result_value = false;
+    } else if (cpu_pinning_changed) {
+        result_value = cpu_pinning;
+    } else {
+        result_value = false;
+    }
 #else
     // The following code disables pinning in case stream contains both Pcore and Ecore
     auto hyper_cores_in_stream = [&]() {

@@ -17,6 +17,7 @@ namespace {
 struct CpuPinningTestCase {
     bool input_cpu_pinning;
     bool input_changed;
+    int input_num_sockets;
     std::vector<std::vector<int>> input_cpu_map_table;
     std::vector<std::vector<int>> input_proc_type_table;
     std::vector<std::vector<int>> input_stream_info_table;
@@ -39,6 +40,7 @@ public:
         test_data.input_cpu_pinning = ov::intel_cpu::check_cpu_pinning(test_data.input_cpu_pinning,
                                                                        test_data.input_changed,
                                                                        cpu_reservation,
+                                                                       test_data.input_num_sockets,
                                                                        test_data.input_stream_info_table);
 
         ASSERT_EQ(test_data.output_cpu_pinning, test_data.input_cpu_pinning);
@@ -50,6 +52,7 @@ TEST_P(CpuPinningTests, CpuPinning) {}
 CpuPinningTestCase cpu_pinning_macos_mock_set_true = {
     true,                             // param[in]: simulated settting for cpu pinning property
     true,                             // param[in]: simulated settting for user changing cpu pinning property
+    1,                                // param[in]: number of CPU sockets
     {},                               // param[in]: simulated setting for current cpu_mapping_table
     {{40, 20, 0, 20, 0, 0}},          // param[in]: simulated setting for current proc_type_table
     {{1, MAIN_CORE_PROC, 20, 0, 0}},  // param[in]: simulated setting for current streams_info_table
@@ -58,6 +61,7 @@ CpuPinningTestCase cpu_pinning_macos_mock_set_true = {
 CpuPinningTestCase cpu_pinning_macos_mock_set_false = {
     false,
     true,
+    1,
     {},
     {{40, 20, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
@@ -66,6 +70,7 @@ CpuPinningTestCase cpu_pinning_macos_mock_set_false = {
 CpuPinningTestCase cpu_pinning_macos_mock_set_default = {
     true,
     false,
+    1,
     {},
     {{40, 20, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
@@ -74,6 +79,7 @@ CpuPinningTestCase cpu_pinning_macos_mock_set_default = {
 CpuPinningTestCase cpu_pinning_win_mock_set_true = {
     true,
     true,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -103,6 +109,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_true = {
 CpuPinningTestCase cpu_pinning_win_mock_set_true_2 = {
     true,
     true,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -131,11 +138,12 @@ CpuPinningTestCase cpu_pinning_win_mock_set_true_2 = {
     },
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
-    true,
+    false,
 };
 CpuPinningTestCase cpu_pinning_win_mock_set_false = {
     false,
     true,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -165,6 +173,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_false = {
 CpuPinningTestCase cpu_pinning_win_mock_set_false_2 = {
     false,
     true,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -198,6 +207,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_false_2 = {
 CpuPinningTestCase cpu_pinning_win_mock_set_default = {
     true,
     false,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -227,6 +237,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_default = {
 CpuPinningTestCase cpu_pinning_win_mock_set_default_2 = {
     true,
     false,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -260,6 +271,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_default_2 = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_true = {
     true,
     true,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -289,6 +301,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_true = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_true_2 = {
     true,
     true,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -322,6 +335,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_true_2 = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_false = {
     false,
     true,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -351,6 +365,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_false = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_false_2 = {
     false,
     true,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -384,6 +399,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_false_2 = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_default = {
     false,
     false,
+    1,
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -413,6 +429,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_default = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_default_2 = {
     true,
     false,
+    1,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},         {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
@@ -432,6 +449,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_default_2 = {
 CpuPinningTestCase cpu_pinning_linux_mock_set_default_3 = {
     false,
     false,
+    2,
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
