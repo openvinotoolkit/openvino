@@ -322,6 +322,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
+        LOG_INFO_TAG("Device: [%s]: Calling compile_model()", device.c_str());
         if (!(m_context->m_model_path.empty())) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path,
                                                                            device,
@@ -401,7 +402,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
 SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
     if (m_firstload_future.valid()) {
         // wait for the first compiling finished
+        LOG_INFO_TAG("Waiting for first compiled model to be ready");
         m_firstload_future.wait();
+        LOG_INFO_TAG("First compiled model wait returned");
     }
     // check if there is any device that have compiled model successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
@@ -438,7 +441,11 @@ void AutoSchedule::wait_actual_compiled_model_ready() const {
     // for every AutoSchedule instance
     std::call_once(m_oc, [this]() {
         if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
+            LOG_INFO_TAG("Waiting for actual device [%s] compilation to complete",
+                         m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
             m_compile_context[ACTUALDEVICE].m_future.wait();
+            LOG_INFO_TAG("Actual device [%s] compilation wait returned",
+                         m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
         }
     });
 }
@@ -494,11 +501,16 @@ AutoSchedule::~AutoSchedule() {
     // this is necessary to guarantee member destroyed after getting future
     if (m_compile_context[CPU].m_is_enabled) {
         m_exitflag = true;
+        LOG_INFO_TAG("AutoSchedule dtor: waiting for CPU helper compilation");
         m_compile_context[CPU].m_future.wait();
+        LOG_INFO_TAG("AutoSchedule dtor: CPU helper done; waiting for actual device");
         wait_actual_compiled_model_ready();
+        LOG_INFO_TAG("AutoSchedule dtor: actual device done; clearing executor");
         // it's necessary to wait the compile model threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
+        LOG_INFO_TAG("AutoSchedule dtor: executor cleared; resetting");
         m_executor.reset();
+        LOG_INFO_TAG("AutoSchedule dtor: executor reset done");
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,
@@ -514,6 +526,19 @@ AutoSchedule::~AutoSchedule() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
+    // Explicitly release compile context compiled models here, before the base-class
+    // Schedule::~Schedule() runs and before the implicit member destruction.
+    // This makes any blocking teardown (e.g. CPU-plugin thread-pool join) visible in logs
+    // and prevents it from happening silently after Schedule::~Schedule() completes.
+    LOG_INFO_TAG("AutoSchedule dtor: resetting compile context models");
+    for (int i = 0; i < CONTEXTNUM; ++i) {
+        if (m_compile_context[i].m_compiled_model) {
+            LOG_INFO_TAG("AutoSchedule dtor: resetting compile context[%d] compiled model", i);
+            m_compile_context[i].m_compiled_model = {};
+            LOG_INFO_TAG("AutoSchedule dtor: compile context[%d] compiled model reset", i);
+        }
+    }
+    LOG_INFO_TAG("AutoSchedule dtor: all compile context models reset");
 }
 }  // namespace auto_plugin
 }  // namespace ov
