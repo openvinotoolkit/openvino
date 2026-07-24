@@ -32,18 +32,10 @@
  *         GEMM -> Multiply -> Add(bias) -> FakeQuantize
  *     and rewrite the tail into
  *         GEMM -> Add(Round(bias) -> Convert i32) -> Multiply -> FakeQuantize
- *     inserting a Convert to i32 between the constant bias and the Add (ACL supports i32 bias only) and
- *     swapping the order of Add and Multiply to satisfy ACL requirements.
- *
- *     The per-op difference is reduced to the pattern block type (ConvMulAddFQBlock / FCMulAddFQBlock);
- *     both blocks register the GEMM anchor under the common name "gemm" plus "multiply"/"add"/"fake_quantize",
- *     so a single callback serves both passes.
  */
 
 namespace ov::intel_cpu {
 
-// Shared callback for the ARM int8 bias-reorder passes. Reads the anchors "gemm", "multiply", "add" and
-// "fake_quantize" from the given pattern block.
 inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
     const std::shared_ptr<ov::pass::pattern::op::Block>& block) {
     return [block](ov::pass::pattern::Matcher& m) {
@@ -101,9 +93,7 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
 }
 
 // Common base for the int8 bias-reorder passes. GemmBlock is the pattern block (ConvMulAddFQBlock /
-// FCMulAddFQBlock) which must register a "gemm" anchor plus "multiply"/"add"/"fake_quantize".
-// The public passes stay as distinct thin subclasses because OPENVINO_MATCHER_PASS_RTTI requires a string
-// literal, so each pass keeps its own stable RTTI name.
+// FCMulAddFQBlock) which must register a "gemm" anchor plus "multiply"/"add"/"fake_quantize"
 template <class GemmBlock>
 class ConvertGemmBias : public ov::pass::MatcherPass {
 protected:

@@ -265,13 +265,7 @@ bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
 }
 
 #if defined(OPENVINO_ARCH_ARM64)
-// Marks an ACL int8 FakeQuantize chain so that Snippets tokenization skips it.
-// The op-specific `match` predicate (conv / matmul / pooling) gates the marking; when it matches,
-// `node` (the FakeQuantize) is always marked as SkippedByPlugin. The way the producer chain is
-// handled then depends on `walk_mul_add`:
-//   - walk_mul_add == false (pooling): the direct input(0) producer (the pooling op) is marked.
-//   - walk_mul_add == true  (conv / matmul): the tail is followed through an optional Multiply and,
-//     if present, its parent Add.
+// Marks an ACL int8 FakeQuantize chain so that Snippets tokenization skips it
 bool mark_acl_int8_fq_chain(const std::shared_ptr<Node>& node,
                             bool (*match)(const std::shared_ptr<const Node>&),
                             bool walk_mul_add) {
@@ -309,14 +303,13 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
 #if defined(OPENVINO_ARCH_ARM64)
-        // Pooling marks its direct input(0) producer; conv / matmul walk the Multiply -> Add tail.
-        if (mark_acl_int8_fq_chain(node, match_acl_int8_pooling_fq_chain, /*walk_mul_add=*/false)) {
+        if (mark_acl_int8_fq_chain(node, match_acl_int8_pooling_fq_chain, false)) {
             continue;
         }
-        if (mark_acl_int8_fq_chain(node, match_acl_int8_conv_fq_chain, /*walk_mul_add=*/true)) {
+        if (mark_acl_int8_fq_chain(node, match_acl_int8_conv_fq_chain, true)) {
             continue;
         }
-        if (mark_acl_int8_fq_chain(node, match_acl_int8_matmul_fq_chain, /*walk_mul_add=*/true)) {
+        if (mark_acl_int8_fq_chain(node, match_acl_int8_matmul_fq_chain, true)) {
             continue;
         }
 #endif

@@ -55,9 +55,7 @@ bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
 
 enum class FQMulAddPattern : std::uint8_t { ConvMulAdd, ConvAddMul };
 
-// Shared skeleton for the ACL int8 "bare" chain: TGemm -> FakeQuantize.
-// Matches the pattern and requires the GEMM activation input type to equal the FakeQuantize output type
-// (the ACL int8 executors support only same activation and FQ output types).
+// Shared skeleton for the ACL int8 "bare" chain: TGemm -> FakeQuantize
 template <class TGemm>
 bool match_gemm_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     using namespace ov::pass::pattern;
@@ -78,14 +76,7 @@ bool match_gemm_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
 // Shared skeleton for the ACL int8 dequantization tail feeding a FakeQuantize:
 //   FQMulAddPattern::ConvMulAdd -> TGemm -> Multiply -> Add -> FakeQuantize
 //   FQMulAddPattern::ConvAddMul -> TGemm -> Add -> Multiply -> FakeQuantize
-// Requires the GEMM activation input type to equal the FakeQuantize output type.
-//
-// Per-op differences are expressed via parameters, keeping conv/matmul semantics intact:
-//   - `act_pred`: optional predicate pinning the GEMM activation input(0) inside the pattern
-//     (matmul pins it to i8/u8; conv leaves it unconstrained and relies on the same-type check + the
-//     u8/i8 output guard done by its caller).
-//   - `extra`: optional post-match constraint on the matched FakeQuantize node
-//     (matmul additionally requires per-tensor scalar FQ-scale constants; conv has no such constraint).
+// Requires the GEMM activation input type to equal the FakeQuantize output type
 template <class TGemm>
 bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
                                    FQMulAddPattern pattern,

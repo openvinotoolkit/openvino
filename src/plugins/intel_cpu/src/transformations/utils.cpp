@@ -96,9 +96,7 @@ bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node)
         return false;
     }
 
-    // returns true if MatMul-Add-Mul-FQ chain will be fused into int8 matmul and handled by ACL executor.
-    // Unlike the conv path, matmul pins the activation input to i8/u8 inside the pattern and additionally
-    // requires the FQ dequantization scales to be per-tensor scalar constants.
+    // returns true if MatMul-Add-Mul-FQ chain will be fused into int8 matmul and handled by ACL executor
     const auto is_per_tensor_scale = [](const std::shared_ptr<const ov::Node>& fq) {
         const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
             const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());

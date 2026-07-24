@@ -22,23 +22,10 @@
  *     Shared tail of the ARM int8 requantization pattern blocks ConvMulAddFQBlock and FCMulAddFQBlock.
  *     Both blocks share the identical
  *         GEMM -> Multiply -> Add(non-i32 constant bias) -> FakeQuantize
- *     tail; only their heads differ (Convolution with optional dequantization vs. bare MatMul).
- *
- *     append_mul_add_fq_tail() builds that tail on top of the given GEMM output, registers the
- *     "multiply", "add" and "fake_quantize" anchors on the block, and returns the FakeQuantize output
- *     so the caller can wire it into the block outputs. The "gemm" anchor and the block inputs/outputs
- *     stay head-side (set by each block constructor).
- *
- *     require_int_fq_output selects the FakeQuantize output-type predicate: when true, the FakeQuantize
- *     output must be i8/u8; when false, any output type matches. It must remain a parameter because
- *     ConvMulAddFQBlock is instantiated with both values (true by ConvertConvolutionBias, false by
- *     FallbackUnsupportedLPConvToFP16).
  */
 
 namespace ov::intel_cpu {
 
-// Builds the shared Multiply -> Add(non-i32 constant) -> FakeQuantize tail on top of gemm, registers the
-// "multiply", "add" and "fake_quantize" anchors on block, and returns the FakeQuantize output.
 inline ov::Output<ov::Node> append_mul_add_fq_tail(ov::pass::pattern::op::Block* block,
                                                    const ov::Output<ov::Node>& gemm,
                                                    bool require_int_fq_output) {
