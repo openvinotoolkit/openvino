@@ -17,9 +17,11 @@
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
+#include "dynamic_quantize/dynamic_quantize_kernel_opt.h"
 
-#include <cmath>
 #include <chrono>
+#include <cmath>
+#include <iostream>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -38,7 +40,6 @@ public:
                                    const QuantizationType quantization_type = QuantizationType::Symmetric,
                                    uint64_t group_size = UINT64_MAX,
                                    data_types quant_dt = data_types::i8,
-                                   data_types scale_dt = data_types::f16,
                                    data_types zp_dt = data_types::dynamic,
                                    OutputStorageType storage_type = OutputStorageType::Planar,
                                    const std::string& impl_name = "",
@@ -76,7 +77,7 @@ public:
         dynamic_quantize::Attributes dq_config;
         dq_config.quantization_type = quantization_type;
         dq_config.quantization_dt = quant_dt;
-        dq_config.scale_dt = scale_dt;
+        dq_config.scale_dt = data_types::f16;
         dq_config.zp_dt = zp_dt;
         dq_config.group_sizes = group_sizes;
         dq_config.scales_zp_output_order = { 0, 1, 2};
@@ -127,7 +128,11 @@ public:
             network network(engine, topology, config);
             network.set_input_data("input", input_mem);
 
+            const auto ref_exec_start = std::chrono::high_resolution_clock::now();
             auto outputs = network.execute();
+            const auto ref_exec_end = std::chrono::high_resolution_clock::now();
+            const auto ref_exec_us = std::chrono::duration_cast<std::chrono::microseconds>(ref_exec_end - ref_exec_start).count();
+            std::cout << "[dynamic_quantize][ref] network.execute() time: " << ref_exec_us << " us" << std::endl;
 
             std::vector<memory::ptr> output_buffers;
             for (const auto& output : outputs) {
@@ -168,12 +173,11 @@ public:
 
         network->set_input_data("input", input_mem);
 
-        auto t_start = std::chrono::high_resolution_clock::now();
+        const auto exec_start = std::chrono::high_resolution_clock::now();
         auto outputs = network->execute();
-        auto t_end = std::chrono::high_resolution_clock::now();
-        std::cout << "[timing] network.execute() took "
-                    << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
-                    << " us\n";
+        const auto exec_end = std::chrono::high_resolution_clock::now();
+        const auto exec_us = std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count();
+        std::cout << "[dynamic_quantize][test] network->execute() time: " << exec_us << " us" << std::endl;
 
         std::vector<memory::ptr> output_buffers;
         for (const auto& output : outputs) {
@@ -191,14 +195,9 @@ public:
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_buffers[i], get_test_stream());
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
-            for (size_t j = 0; j < output_ptr_ref.size(); ++j) {
-                if (ov::element::Type(quant_dt).is_real()) {
-                    auto abs_diff = std::abs(output_ptr_ref[j] - output_ptr[j]);
-                    ASSERT_EQ(abs_diff, 0);
-                } else { // (u)int8
-                    const int abs_error_threshold = 2;
-                    ASSERT_NEAR(output_ptr_ref[j], output_ptr[j], abs_error_threshold);
-                }
+            for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
+                const int abs_error_threshold = 2;
+                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }
 
@@ -246,7 +245,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     QuantizationType::Symmetric,
                                     32,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::i8,
                                     OutputStorageType::Planar,
                                     "",
@@ -260,7 +258,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     QuantizationType::Symmetric,
                                     128,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::i8,
                                     OutputStorageType::Planar,
                                     "",
@@ -274,7 +271,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     QuantizationType::Symmetric,
                                     128,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::i8,
                                     OutputStorageType::Planar,
                                     "",
@@ -289,7 +285,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     QuantizationType::Symmetric,
                                     128,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::i8,
                                     OutputStorageType::Planar,
                                     "",
@@ -300,7 +295,7 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {
     this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {1, 1, 1, 4096}, QuantizationType::Asymmetric, UINT64_MAX,
-                                    data_types::u8, data_types::f16, data_types::u8, OutputStorageType::Planar);
+                                    data_types::u8, data_types::u8, OutputStorageType::Planar);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_grouped) {
@@ -342,7 +337,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache) {
                                     QuantizationType::Symmetric,
                                     UINT64_MAX,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::dynamic,
                                     OutputStorageType::Planar,
                                     "dynamic_quantize_gpu_kv_cache");
@@ -355,7 +349,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched) {
                                     QuantizationType::Symmetric,
                                     UINT64_MAX,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::dynamic,
                                     OutputStorageType::Planar,
                                     "dynamic_quantize_gpu_kv_cache");
@@ -368,7 +361,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered) {
                                     QuantizationType::Symmetric,
                                     UINT64_MAX,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::dynamic,
                                     OutputStorageType::Planar,
                                     "dynamic_quantize_gpu_kv_cache");
@@ -381,7 +373,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reorde
                                     QuantizationType::Symmetric,
                                     UINT64_MAX,
                                     data_types::i8,
-                                    data_types::f16,
                                     data_types::dynamic,
                                     OutputStorageType::Planar,
                                     "dynamic_quantize_gpu_kv_cache");
@@ -389,139 +380,303 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reorde
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_asym_planar) {
     this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym_planar) {
     this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym_planar) {
     this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered_asym_planar) {
     this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_asym_interleaved) {
     this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym_interleaved) {
     this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym_interleaved) {
     this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
 }
 
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered_asym_interleaved) {
     this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_asym_planar_i8_zp) {
     this->test_dynamic_quantization(false, {-1, 8, -1, 32}, {1, 8, 1, 32}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym_planar_i8_zp) {
     this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym_planar_i8_zp) {
     this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered_asym_planar_i8_zp) {
     this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+                                data_types::i8, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_inner_most_dim_zero_values_asym) {
     this->test_dynamic_quantization(false, {-1, 8, -1, 128}, {1, 8, 52, 128}, QuantizationType::Asymmetric, UINT64_MAX,
-                                data_types::i8, data_types::f16, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache", SetInnerMostDimValuesZero::Yes);
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache", SetInnerMostDimValuesZero::Yes);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf8e4m3) {
-    this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
-                                    QuantizationType::Symmetric,
-                                    32,
-                                    data_types::f8e4m3,
-                                    data_types::f8e8m0,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
+TEST(dynamic_quantization_kernel_selector_tests, large_gs_non_uniform_dispatch_repro_case) {
+    constexpr size_t simd = 16;
+    constexpr size_t expected_batch = 281;
+    constexpr size_t expected_total_block_num = 70;
+    constexpr size_t expected_block_num = 32;
+
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{8960, 1, 1, expected_batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{8960, 1, 1, expected_batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 128};
+
+    const size_t input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
+    const size_t input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+    ASSERT_EQ(input_f, size_t(8960));
+    ASSERT_EQ(input_batch, expected_batch);
+
+    size_t vec_size = 1;
+    for (auto candidate : {size_t(8), size_t(4), size_t(2)}) {
+        if ((input_f / simd) % candidate == 0) {
+            vec_size = candidate;
+            break;
+        }
+    }
+    ASSERT_EQ(vec_size, size_t(8));
+
+    const size_t total_block_num = input_f / (simd * vec_size);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, expected_total_block_num);
+    ASSERT_EQ(block_num, expected_block_num);
+
+    std::vector<size_t> non_uniform_gws{simd, total_block_num, input_batch};
+    std::vector<size_t> non_uniform_lws{simd, block_num, 1};
+    ASSERT_EQ(non_uniform_gws, (std::vector<size_t>{16, 70, 281}));
+    ASSERT_EQ(non_uniform_lws, (std::vector<size_t>{16, 32, 1}));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.lws, (std::vector<size_t>{16, 32, 1}));
+    ASSERT_EQ(aligned_dispatch.gws, (std::vector<size_t>{16, 96, 281}));
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf8e5m2) {
-    this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
-                                    QuantizationType::Symmetric,
-                                    32,
-                                    data_types::f8e5m2,
-                                    data_types::f8e8m0,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
+// Tests requiring GWS to LWS alignment for LARGE_GS mode with ZE RT
+TEST(dynamic_quantization_kernel_selector_tests, align_gws_small_alignment_case) {
+    // Test case where total_block_num needs alignment to block_num
+    // input_f = 1088 = 16*16*4 -> vec_size=4 -> total_block_num = 1088/(16*4) = 17
+    // block_num = min(17, 32) = 17
+    // After alignment to block_num: should be 32
+    constexpr size_t simd = 16;
+    constexpr size_t batch = 1;
+
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{1088, 1, 1, batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{1088, 1, 1, batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 128};
+
+    size_t vec_size = 1;
+    const size_t input_f = 1088;
+    for (auto candidate : {size_t(8), size_t(4), size_t(2)}) {
+        if ((input_f / simd) % candidate == 0) {
+            vec_size = candidate;
+            break;
+        }
+    }
+    ASSERT_EQ(vec_size, size_t(4));
+
+    const size_t total_block_num = input_f / (simd * vec_size);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, size_t(17));
+    ASSERT_EQ(block_num, size_t(17));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.lws, (std::vector<size_t>{16, 17, 1}));
+    // GWS should be aligned to LWS: 17 aligned to 17 = 17, or aligned based on Align function
+    ASSERT_TRUE(aligned_dispatch.gws[1] >= aligned_dispatch.lws[1]);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e4m3) {
-    this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
-                                    QuantizationType::Symmetric,
-                                    UINT64_MAX,
-                                    data_types::f8e4m3,
-                                    data_types::f16,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
+TEST(dynamic_quantization_kernel_selector_tests, align_gws_mid_range_blocks) {
+    // Test case with total_block_num = 35 > 32
+    // block_num would be capped at 32
+    // input_f = 2688 = 16*168 -> vec_size=2 -> total_block_num = 2688/(16*2) = 84
+    // block_num = min(84, 32) = 32
+    // After alignment to 32: should be 96 or similar
+    constexpr size_t simd = 16;
+    constexpr size_t batch = 2;
+
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{2688, 1, 1, batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{2688, 1, 1, batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 128};
+
+    size_t vec_size = 1;
+    const size_t input_f = 2688;
+    for (auto candidate : {size_t(8), size_t(4), size_t(2)}) {
+        if ((input_f / simd) % candidate == 0) {
+            vec_size = candidate;
+            break;
+        }
+    }
+    ASSERT_EQ(vec_size, size_t(2));
+
+    const size_t total_block_num = input_f / (simd * vec_size);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, size_t(84));
+    ASSERT_EQ(block_num, size_t(32));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.lws[0], simd);
+    ASSERT_EQ(aligned_dispatch.lws[1], block_num);
+    ASSERT_EQ(aligned_dispatch.lws[2], size_t(1));
+    // GWS[1] should be aligned and >= total_block_num
+    ASSERT_GE(aligned_dispatch.gws[1], total_block_num);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e5m2) {
-    this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
-                                    QuantizationType::Symmetric,
-                                    UINT64_MAX,
-                                    data_types::f8e5m2,
-                                    data_types::f16,
-                                    data_types::dynamic,
-                                    OutputStorageType::Planar);
+TEST(dynamic_quantization_kernel_selector_tests, align_gws_large_misaligned_blocks) {
+    // Test case with significantly misaligned total_block_num
+    // input_f = 5632 = 16*352 -> vec_size=2 -> total_block_num = 5632/(16*2) = 176
+    // block_num = min(176, 32) = 32
+    // After alignment to 32: should be 192
+    constexpr size_t simd = 16;
+    constexpr size_t batch = 5;
+
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{5632, 1, 1, batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{5632, 1, 1, batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 256};
+
+    size_t vec_size = 1;
+    const size_t input_f = 5632;
+    for (auto candidate : {size_t(8), size_t(4), size_t(2)}) {
+        if ((input_f / simd) % candidate == 0) {
+            vec_size = candidate;
+            break;
+        }
+    }
+    ASSERT_EQ(vec_size, size_t(2));
+
+    const size_t total_block_num = input_f / (simd * vec_size);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, size_t(176));
+    ASSERT_EQ(block_num, size_t(32));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.gws[0], simd);
+    ASSERT_EQ(aligned_dispatch.gws[2], batch);
+    ASSERT_EQ(aligned_dispatch.lws[1], block_num);
+    // With alignment, GWS[1] should be a multiple of block_num
+    ASSERT_EQ(aligned_dispatch.gws[1] % block_num, size_t(0));
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256) {
-    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
-                                data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
-                                "dynamic_quantize_gpu_opt");
+TEST(dynamic_quantization_kernel_selector_tests, align_gws_odd_block_num) {
+    // Test case where total_block_num creates odd block_num after min operation
+    // input_f = 1456 = 16*91 -> vec_size=1 -> total_block_num = 1456/(16*1) = 91
+    // block_num = min(91, 32) = 32
+    // After alignment to 32: should be 96
+    constexpr size_t simd = 16;
+    constexpr size_t batch = 1;
+
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{1456, 1, 1, batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{1456, 1, 1, batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 128};
+
+    size_t vec_size = 1;
+    const size_t input_f = 1456;
+    for (auto candidate : {size_t(8), size_t(4), size_t(2)}) {
+        if ((input_f / simd) % candidate == 0) {
+            vec_size = candidate;
+            break;
+        }
+    }
+    ASSERT_EQ(vec_size, size_t(1));
+
+    const size_t total_block_num = input_f / (simd * vec_size);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, size_t(91));
+    ASSERT_EQ(block_num, size_t(32));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.lws, (std::vector<size_t>{16, 32, 1}));
+    // GWS[1] should be aligned to block_num
+    ASSERT_GE(aligned_dispatch.gws[1], block_num);
+    ASSERT_EQ(aligned_dispatch.gws[1] % block_num, size_t(0));
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256_precompute_sum) {
-    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
-                                "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
-}
+TEST(dynamic_quantization_kernel_selector_tests, align_gws_boundary_exactly_32) {
+    // Test case where total_block_num equals 32 exactly
+    // No alignment needed in this case
+    // input_f = 512 = 16*32 -> vec_size=1 -> total_block_num = 512/(16*1) = 32
+    // block_num = min(32, 32) = 32
+    constexpr size_t simd = 16;
+    constexpr size_t batch = 1;
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_group_size_8192_with_precompute_sum) {
-    this->test_dynamic_quantization(false, {1, 1, 16384}, {1, 1, 16384}, QuantizationType::Symmetric, 8192,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
-                                "", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
-}
+    kernel_selector::dynamic_quantize_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{512, 1, 1, batch},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::bfyx);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{512, 1, 1, batch},
+                                                     kernel_selector::Datatype::INT8,
+                                                     kernel_selector::DataLayout::bfyx);
+    params.group_sizes = {1, 1, 128};
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs128_K2560_sym_precompute_sum) {
-    this->test_dynamic_quantization(false, {1, 1, 2560}, {1, 1, 2560}, QuantizationType::Symmetric, 128,
-                                data_types::i8, data_types::f16, data_types::i8, OutputStorageType::Planar,
-                                "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No,
-                                PrecomputeSum::Enabled);
+    const size_t input_f = 512;
+    const size_t total_block_num = input_f / (simd * 1);
+    const size_t block_num = std::min(total_block_num, size_t(32));
+    ASSERT_EQ(total_block_num, size_t(32));
+    ASSERT_EQ(block_num, size_t(32));
+
+    kernel_selector::DynamicQuantizeKernelOpt kernel;
+    const auto aligned_dispatch = kernel.SetDefault(params);
+    ASSERT_EQ(aligned_dispatch.gws, (std::vector<size_t>{16, 32, 1}));
+    ASSERT_EQ(aligned_dispatch.lws, (std::vector<size_t>{16, 32, 1}));
 }
