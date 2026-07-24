@@ -103,7 +103,7 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>

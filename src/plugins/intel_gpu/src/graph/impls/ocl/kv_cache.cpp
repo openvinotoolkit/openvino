@@ -20,7 +20,7 @@
 #include "scatter_update/scatter_elements_update_kernel_ref.h"
 #include "openvino/core/dimension.hpp"
 
-#include <limits.h>
+#include <climits>
 
 namespace cldnn {
 namespace ocl {
