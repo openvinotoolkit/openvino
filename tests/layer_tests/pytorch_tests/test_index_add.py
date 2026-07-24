@@ -64,3 +64,32 @@ class TestIndexAdd(PytorchLayerTest):
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype, "out": mode == "out"},
         )
+
+    def create_model_no_alpha(self, dim, index, src):
+        class aten_index_add_default(torch.nn.Module):
+            def __init__(self, dim, index, src):
+                super().__init__()
+                self.dim = dim
+                self.index = index
+                self.src = src
+
+            def forward(self, x: torch.Tensor):
+                # No alpha -> torch.export elides the default alpha=1, so
+                # aten.index_add.default reaches the frontend with 4 inputs (#35628).
+                return torch.index_add(x, self.dim, self.index, self.src)
+
+        return aten_index_add_default(dim, index, src), "aten::index_add"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dim", [0, 1, -1])
+    @pytest.mark.parametrize("dtype", ["float32", "int32"])
+    def test_index_add_export_default_alpha(self, dim, dtype, ie_device, precision, ir_version):
+        index = torch.tensor([0, 2, 1])
+        src = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).to(getattr(torch, dtype))
+        self._test(
+            *self.create_model_no_alpha(dim, index, src),
+            ie_device, precision, ir_version,
+            trace_model=False, use_torch_export=True, fx_kind="aten.index_add",
+            kwargs_to_prepare_input={"dtype": dtype, "out": False},
+        )
