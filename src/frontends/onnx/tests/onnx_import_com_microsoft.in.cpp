@@ -5641,6 +5641,45 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8) 
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4) {
+    // uint8 data holding 2 int4 values per byte (bits=4), default zero_point=8. Logical H=32, block=16.
+    // Unpacked row0 = 16x(9), 16x(7); row1 = 16x(10), 16x(6). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-8)*1.0=2.0, (6-8)*4.0=-8.0 ; out[1]=row0: (9-8)*0.5=0.5, (7-8)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits2) {
+    // uint8 data holding 4 2-bit values per byte (bits=2), default zero_point=2. Logical H=32, block=16.
+    // Unpacked row0 = 16x(3), 16x(1); row1 = 16x(2), 16x(0). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits2.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (2-2)*1.0=0.0, (0-2)*4.0=-8.0 ; out[1]=row0: (3-2)*0.5=0.5, (1-2)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(0.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4_zp) {
+    // uint8 bits=4 with packed zero_points (2 per byte along the quantize axis). Same data/scales as bits4.
+    // zero_points row0=[1,2], row1=[3,0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-3)*1.0=7.0, (6-0)*4.0=24.0 ; out[1]=row0: (9-1)*0.5=4.0, (7-2)*2.0=10.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(7.0f, 24.0f, 4.0f, 10.0f));
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_neg_axis) {
     // Same as int4 case but quantize_axis=-1 (normalizes to 1); verifies negative-axis handling.
     const auto model = convert_model("com.microsoft/gather_block_quantized_neg_axis.onnx");
