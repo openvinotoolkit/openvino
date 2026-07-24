@@ -812,8 +812,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
+    // NPUW_TEXT_EMBED / NPUW_TEXT_RERANK tag the single-shot scoring pipelines and gate
+    // the batched wrapper the entry points put around this model. Pop them from
+    // other_props so they don't leak into the submodel configs, and record them in
+    // m_cfg, which is serialized into the blob wholesale - so the tag survives
+    // export/import and both entry points can decide by querying the model itself.
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
+    if (use_text_embed_key.has_value()) {
+        m_cfg.update({{"NPUW_TEXT_EMBED", m_is_embedding ? "YES" : "NO"}});
+    }
+
+    auto use_text_rerank_key = pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
+    if (use_text_rerank_key.has_value()) {
+        m_cfg.update({{"NPUW_TEXT_RERANK", use_text_rerank_key.value().as<bool>() ? "YES" : "NO"}});
+    }
 
     if (m_is_embedding) {
         LOG_DEBUG("Text-embedding model rebuild");
@@ -1593,6 +1606,16 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
+    // The scoring tags may also be supplied with the import properties (e.g. by a caller
+    // re-passing its compile config). Mirror the compile-side handling: an explicit
+    // caller value overrides the blob-recorded one.
+    for (const auto& key : {std::string("NPUW_TEXT_EMBED"), std::string("NPUW_TEXT_RERANK")}) {
+        const auto prop_iter = properties.find(key);
+        if (prop_iter != properties.end()) {
+            compiled->m_cfg.update({{key, prop_iter->second.as<bool>() ? "YES" : "NO"}});
+        }
+    }
+
     return compiled;
 }
 
@@ -1678,6 +1701,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
-                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get),
+                          BIND(npuw::text_rerank::enabled, NPUW_TEXT_RERANK, get)});
 #undef BIND
 }
