@@ -111,7 +111,7 @@ class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
                                                                  float,             // 8: abs_threshold
                                                                  float,             // 9: rel_threshold
                                                                  bool,              // 10: is_complex_gqa
-                                                                 float>>            // 11:kv_num_head_factor
+                                                                 float>>            // 11: kv_num_head_factor
                                                          {
 protected:
     void create_model() {
@@ -163,7 +163,50 @@ protected:
         std::shared_ptr<ov::Node> value_input = reshape ? std::static_pointer_cast<ov::Node>(value_reshaped) : std::static_pointer_cast<ov::Node>(value);
 
         ov::ParameterVector model_params = {query, key, value};
-        if (is_complex_gqa && kv_num_head_factor > 1) {
+
+        if (is_complex_gqa) {
+            auto q_shape = query_shape.to_shape();                  // [1, 8, 10, 256]
+            auto k_shape = key_shape.to_shape();                    // [1, 1, 10, 256]
+            auto mask_shape = attention_mask_shape.to_shape();      // [10, 842]
+
+            // Deduce past sequence length from the mask size
+            size_t total_seq_len = mask_shape[1];                   // 842
+            size_t current_seq_len = k_shape[2];                    // 10
+            size_t past_seq_len = total_seq_len - current_seq_len;  // 832
+
+            // Create past_key / past_value parameters dynamically
+            ov::Shape past_shape = { k_shape[0], k_shape[1], past_seq_len, k_shape[3] };
+            auto past_key = std::make_shared<ov::op::v0::Parameter>(inType, past_shape);
+            auto past_value = std::make_shared<ov::op::v0::Parameter>(inType, past_shape);
+            model_params.push_back(past_key);
+            model_params.push_back(past_value);
+
+            // 1. Concat
+            auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ past_key, key_input }, 2);
+            auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ past_value, value_input }, 2);
+
+            // 2. Reshape to 5D -> [1, 1, 1, 842, 256]
+            ov::Shape unsqueeze_shape = { q_shape[0], k_shape[1], 1, total_seq_len, k_shape[3] };
+            auto reshape1_k_const = ov::op::v0::Constant::create(ov::element::i64, { unsqueeze_shape.size() }, unsqueeze_shape);
+            auto reshape1_v_const = ov::op::v0::Constant::create(ov::element::i64, { unsqueeze_shape.size() }, unsqueeze_shape);
+            auto reshape1_k = std::make_shared<ov::op::v1::Reshape>(concat_k, reshape1_k_const, true);
+            auto reshape1_v = std::make_shared<ov::op::v1::Reshape>(concat_v, reshape1_v_const, true);
+
+            // 3. Broadcast to match Query heads -> [1, 1, 8, 842, 256]
+            ov::Shape broadcast_shape = { q_shape[0], k_shape[1], q_shape[1], total_seq_len, k_shape[3] };
+            auto broadcast_k_const = ov::op::v0::Constant::create(ov::element::i64, { broadcast_shape.size() }, broadcast_shape);
+            auto broadcast_v_const = ov::op::v0::Constant::create(ov::element::i64, { broadcast_shape.size() }, broadcast_shape);
+            auto broadcast_k = std::make_shared<ov::op::v3::Broadcast>(reshape1_k, broadcast_k_const, ov::op::BroadcastType::BIDIRECTIONAL);
+            auto broadcast_v = std::make_shared<ov::op::v3::Broadcast>(reshape1_v, broadcast_v_const, ov::op::BroadcastType::BIDIRECTIONAL);
+
+            // 4. Reshape back to 4D -> [1, 8, 842, 256]
+            ov::Shape reshape2_shape = { q_shape[0], q_shape[1], total_seq_len, k_shape[3] };
+            auto reshape2_k_const = ov::op::v0::Constant::create(ov::element::i64, { reshape2_shape.size() }, reshape2_shape);
+            auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, { reshape2_shape.size() }, reshape2_shape);
+            key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
+            value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
+        }
+        else if (!is_complex_gqa && (kv_num_head_factor > 1)) {
             auto q_shape = query_shape.to_shape();                  // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                    // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();      // [1, 1]
@@ -233,7 +276,6 @@ protected:
             key_input = std::make_shared<ov::op::v1::Reshape>(concat_k, reshape2_k_const, false);
             value_input = std::make_shared<ov::op::v1::Reshape>(concat_v, reshape2_v_const, false);
         }
-        
 
         const auto mask = std::make_shared<ov::op::v0::Parameter>(inType, attention_mask_shape);
         model_params.push_back(mask);
@@ -273,7 +315,6 @@ protected:
 
     void check_results() {
         auto exec_model = compiledModel.get_runtime_model();
-
         int fused_node_found = 0;
         for (const auto& n : exec_model->get_ordered_ops()) {
             auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
@@ -285,7 +326,6 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-
         auto itTargetShape = targetInputStaticShapes.begin();
         for (const auto& param : function->get_parameters()) {
             std::shared_ptr<ov::Node> inputNode = param;
@@ -323,29 +363,29 @@ TEST_P(SDPAFusion, Inference) {
 INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                          SDPAFusion,
                          ::testing::Values(std::make_tuple(ov::PartialShape{1, 40, 1, 128},
-                                                             ov::Shape{1, 40, 1, 128},
-                                                             ov::PartialShape{1, 10, 1, 128},
-                                                             ov::Shape{1, 10, 1, 128},
-                                                             ov::PartialShape{1, 10, 1, 128},
-                                                             ov::Shape{1, 10, 1, 128},
-                                                             ov::PartialShape{1, 1},
-                                                             1.0f,
-                                                             0.025f,
-                                                             0.025f,
-                                                             true,
-                                                             4),
+                                                            ov::Shape{1, 40, 1, 128},
+                                                            ov::PartialShape{1, 10, 1, 128},
+                                                            ov::Shape{1, 10, 1, 128},
+                                                            ov::PartialShape{1, 10, 1, 128},
+                                                            ov::Shape{1, 10, 1, 128},
+                                                            ov::PartialShape{1, 1},
+                                                            1.0f,
+                                                            0.025f,
+                                                            0.025f,
+                                                            false,
+                                                            4),
                                         std::make_tuple(ov::PartialShape{10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{1024, 77},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           false,
-                                                           1),
+                                                          ov::Shape{10, 1024, 64},
+                                                          ov::PartialShape{10, 77, 64},
+                                                          ov::Shape{10, 77, 64},
+                                                          ov::PartialShape{10, 77, 64},
+                                                          ov::Shape{10, 77, 64},
+                                                          ov::PartialShape{1024, 77},
+                                                          1.0f,
+                                                          0.025f,
+                                                          0.025f,
+                                                          false,
+                                                          1),
                                             std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{1, 10, 77, 64},
