@@ -247,6 +247,11 @@ void program::init_program() {
                                                                           kernel_selector::KernelBase::get_db().get_batch_headers()));
 
         _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+        // Emit HW-free ocloc placeholder kernels for export ONLY for the top-level offline compile-only
+        // program. Internal helper networks (e.g. propagate_constants' constant-folding network) always
+        // execute during their own build, so they must build runnable kernels via driver JIT even when
+        // the (env-polluted) offline flag is set in the inference process. See kernels_cache::_offline_export.
+        _kernels_cache->set_offline_export(_config.get_offline_compile() && !is_internal);
     }
 
     if (!_compilation_context)
@@ -621,10 +626,17 @@ void program::post_optimize_graph(bool is_internal) {
     apply_opt_pass<remove_redundant_reorders>(false, true);  // TODO: do we need it at this place also?
 
     auto partial_build = _config.get_partial_build_program();
+    // Offline compile-only (HW-free) skips constant folding here: propagate_constants folds constant
+    // sub-expressions / pre-reorders weights by building a temporary network and executing it on the
+    // GPU, which the compiling process must avoid. The folding is deferred to import time
+    // (Graph import ctor -> program::run_import_time_constant_folding), where a real GPU is present.
+    // The surviving unfolded constant nodes are serialized as-is and folded on import before the
+    // executable network is built.
+    auto offline_compile = _config.get_offline_compile();
 #ifdef GPU_DEBUG_CONFIG
-    if (!is_internal && (!partial_build || !_config.get_dry_run_path().empty())) {
+    if (!is_internal && !offline_compile && (!partial_build || !_config.get_dry_run_path().empty())) {
 #else
-    if (!is_internal && !partial_build) {
+    if (!is_internal && !offline_compile && !partial_build) {
 #endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
@@ -642,6 +654,14 @@ void program::post_optimize_graph(bool is_internal) {
         get_processing_order().calculate_BFS_processing_order();
 
     apply_opt_pass<mark_state_init_subgraphs>();
+}
+
+void program::run_import_time_constant_folding() {
+    // Deferred counterpart of the propagate_constants skip in post_optimize_graph for offline
+    // compile-only blobs. propagate_constants is self-contained (builds its own internal network to
+    // fold/execute the constant sub-graph) and safe to run on a deserialized program: it folds the
+    // surviving constant nodes into data nodes before the executable network is built.
+    apply_opt_pass<propagate_constants>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly

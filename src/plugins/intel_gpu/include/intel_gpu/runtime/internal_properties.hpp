@@ -137,6 +137,14 @@ static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONED
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 
+// HW-free offline compilation: when enabled, kernels are compiled ahead-of-time via ocloc
+// for the target device (offline_compile_device), the cldnn::network is NOT built (no GPU memory /
+// weight upload) and driver JIT is skipped for OCLC batches. The resulting program is exported as a
+// blob for later import on the target GPU.
+static constexpr Property<bool, PropertyMutability::RW> offline_compile{"GPU_OFFLINE_COMPILE"};
+// ocloc `-device` target: e.g. "0x4680" (device id) or "12.2.0" (ip version). Empty = unset.
+static constexpr Property<std::string, PropertyMutability::RW> offline_compile_device{"GPU_OFFLINE_COMPILE_DEVICE"};
+
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> verbose_color{"VERBOSE_COLOR"};

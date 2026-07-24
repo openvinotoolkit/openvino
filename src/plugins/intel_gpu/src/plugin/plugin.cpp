@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -26,6 +28,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
+#include "runtime/ocl/offline_engine.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -246,12 +249,30 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    cldnn::device_query device_query;
-    m_device_map = device_query.get_available_devices();
+    // HW-free offline: on a no-GPU sandbox the compiler process must still load the GPU plugin.
+    // device_query naturally returns an empty map when no GPU is present, and may throw if the ICD is
+    // present but restricted — tolerate both so plugin construction never aborts. The execute process on
+    // a real GPU box enumerates normally and is unaffected.
+    try {
+        cldnn::device_query device_query;
+        m_device_map = device_query.get_available_devices();
+    } catch (const std::exception& ex) {
+        std::cerr << "[GPU offline] device enumeration failed (" << ex.what()
+                  << "); continuing HW-free" << std::endl;
+    }
 
     // Set default configs for each device
     for (const auto& device : m_device_map) {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+    }
+
+    // HW-free fallback: no GPU enumerated (no-GPU sandbox) → install a default config keyed on the
+    // default device id so compile_model's offline branch (stub context) can proceed. Dead code when a
+    // GPU is present (m_configs_map already non-empty) → non-offline / execute path unaffected.
+    if (m_configs_map.empty()) {
+        m_configs_map.insert({m_default_device_id, ExecutionConfig(ov::device::id(m_default_device_id))});
+        std::cerr << "[GPU offline] no GPU enumerated; installed default config for device '"
+                  << m_default_device_id << "'" << std::endl;
     }
 
     // Set common info for compiled_model_runtime_properties
@@ -262,13 +283,42 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
-    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    // HW-free offline compile-only: use a stub context (fabricated device_info, no cl::Context / real
+    // GPU) instead of the real default context, so the whole compile touches no GPU. Only reached in the
+    // compiler process (compile_model); the inference process imports via import_model with a real
+    // context. NOTE: the offline flag/target usually arrive via the OV_GPU_OFFLINE_COMPILE[_DEVICE] env
+    // (chromium) which is only applied during config.finalize() below -- too late for this pre-context
+    // decision -- so we also peek the env directly here (the config path covers config-driven use).
+    // This env peek is a temporary transitional mechanism; it will be replaced by EP metadata.
+    bool offline = config.get_offline_compile();
+    std::string offline_target = config.get_offline_compile_device();
+    if (!offline) {
+        if (const char* env_off = std::getenv("OV_GPU_OFFLINE_COMPILE")) {
+            std::string v(env_off);
+            offline = (v == "1" || v == "true" || v == "TRUE" || v == "yes" || v == "YES");
+        }
+        if (offline && offline_target.empty()) {
+            if (const char* env_dev = std::getenv("OV_GPU_OFFLINE_COMPILE_DEVICE"))
+                offline_target = env_dev;
+        }
+    }
+
+    std::shared_ptr<RemoteContextImpl> context;
+    if (offline) {
+        auto dev = std::make_shared<cldnn::ocl::offline_device>(
+            cldnn::ocl::make_offline_device_info(offline_target));
+        context = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device_id,
+                                                      std::vector<cldnn::device::ptr>{dev});
+    } else {
+        context = get_default_context(device_id);
+    }
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -552,10 +602,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return res;
     }
 
-    OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
-                                           "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
-
+    // Metrics read hardware device_info from m_device_map, so they require an enumerated device. Config
+    // properties (mutable, e.g. PERFORMANCE_HINT) are served from m_configs_map, which the HW-free
+    // fallback (ctor) populates even with no GPU — so don't block those on an empty device map. This keeps
+    // the compiler process (no GPU / OV_GPU_FORCE_NO_DEVICE_QUERY) able to answer config queries that OV
+    // core issues during compile_model.
     if (is_metric(name)) {
+        OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
+                                               "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
         return get_metric(name, options);
     }
 

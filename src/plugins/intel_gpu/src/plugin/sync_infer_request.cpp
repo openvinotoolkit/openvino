@@ -127,7 +127,14 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     init_mappings();
     allocate_inputs();
     allocate_outputs();
-    allocate_states();
+    // Compile-only (offline) models build no cldnn::network, so there are no stateful variables to
+    // allocate and get_network() is null (allocate_states() would deref null at get_variables_info()).
+    // Such a request is only constructed by ORT's EP during CompileModel and never run (infer() throws
+    // when compile-only). init_mappings/allocate_inputs/allocate_outputs use only port metadata +
+    // engine, which are available without a network. Key on is_compile_only(), not the env-pollutable
+    // get_offline_compile().
+    if (!m_graph->is_compile_only())
+        allocate_states();
 }
 
 SyncInferRequest::~SyncInferRequest() {
@@ -143,6 +150,14 @@ SyncInferRequest::~SyncInferRequest() {
 }
 
 void SyncInferRequest::infer() {
+    // Compile-only (HW-free offline) models build no cldnn::network and cannot be executed in place.
+    // ORT's EP only constructs this request during CompileModel (to export the EPContext blob) and
+    // never runs it, so this guard fires only on genuine misuse. Import the exported blob to infer.
+    // Key on is_compile_only(), not the env-pollutable get_offline_compile() (which is also true on
+    // the import/execute path when OV_GPU_OFFLINE_COMPILE is set in the environment).
+    OPENVINO_ASSERT(!m_graph->is_compile_only(),
+                    "[GPU] This model was compiled with GPU_OFFLINE_COMPILE (compile-only); it can be "
+                    "exported but not executed. Import the exported blob on the target GPU to infer.");
     // String can be constructed once in the constructor
     OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference,  m_itt_infer_request_str.c_str());
     setup_stream_graph();
@@ -1103,10 +1118,16 @@ void SyncInferRequest::init_mappings() {
         m_input_ports_map[input_idx] = inputs[input_idx];
     }
 
+    // Offline (compile-only) models build no cldnn::network; out_port_index_to_internal() reads
+    // network->get_output_ids() and would deref null. m_output_names_map is only consumed during
+    // inference (prepare_output), and compile-only requests never run (infer() throws), so skip it.
+    // Key on is_compile_only() (construction-path), NOT the env-pollutable get_offline_compile().
+    const bool compile_only = m_graph->is_compile_only();
     const auto& outputs = get_outputs();
     for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx) {
         m_output_ports_map[output_idx] = outputs[output_idx];
-        m_output_names_map[output_idx] = m_graph->out_port_index_to_internal(output_idx);
+        if (!compile_only)
+            m_output_names_map[output_idx] = m_graph->out_port_index_to_internal(output_idx);
     }
 }
 

@@ -154,6 +154,13 @@ ExecutionConfig ExecutionConfig::clone() const {
 }
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
+    // Already finalized: PluginConfig::finalize would early-return without touching the context, so skip
+    // building it. This also avoids eagerly initializing a RemoteContextImpl (which calls engine::create)
+    // for an already-finalized config — required for the HW-free offline stub engine, whose device is not
+    // an ocl_device and would fail ocl_engine's device cast. The temporary context is otherwise unused
+    // whenever the config is already finalized.
+    if (m_is_finalized)
+        return;
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     PluginConfig::finalize(ctx.get(), nullptr);
 }
@@ -340,6 +347,14 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
+    }
+    // HW-free offline compile: onednn primitives compile their kernels via onednn's own
+    // JIT against the GPU driver (primitive_onednn_base.h init_kernels() is a no-op) and never go
+    // through kernels_cache/ocloc, so they cannot be HW-free compiled. Force every primitive onto the
+    // ocl (kernels_cache) path so offline_compile == 100% ocloc coverage. This overrides the
+    // supports_immad auto-enable above (matters on dGPU/Arc; iGPUs without XMX already keep it off).
+    if (get_offline_compile() && m_use_onednn) {
+        m_use_onednn = false;
     }
     if (get_use_onednn()) {
         m_queue_type = QueueTypes::in_order;
