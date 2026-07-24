@@ -115,6 +115,18 @@ private:
 };
 
 /**
+ * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
+ * splitting the range into up to @p num_threads chunks.
+ *
+ * @param ptr          Page-aligned base address of the range.
+ * @param size         Multiple of the system page size.
+ * @param num_threads  Number of population jobs to split the range into.
+ *
+ * Returns an empty vector if the work could not be scheduled (e.g. an allocation failure).
+ */
+std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
+
+/**
  * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result. Returns an
  * empty region (m_length == 0) for a null/empty mapping, an offset at or past the end, or a
  * sub-page request.
