@@ -152,6 +152,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
@@ -190,8 +191,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         K = std::make_shared<ov::op::v1::VariadicSplit>(updateK, two_scalar, kv_slices)->outputs()[0];
         V = std::make_shared<ov::op::v1::VariadicSplit>(updateV, two_scalar, kv_slices)->outputs()[0];
         
-        present_k = K;
-        present_v = V;
+        present_k = updateK;
+        present_v = updateV;
     } else {
         // assume being dynamic, and present len = past+current
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
