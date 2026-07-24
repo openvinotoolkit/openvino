@@ -580,6 +580,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         size_t kv_num_heads,
                                                         bool is_final_tile = false,
                                                         bool fused_flash_attention = false,
+                                                        bool enable_mask_skipping = false,
                                                         const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
@@ -602,9 +603,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
 
     // Convert all inputs to f32.
-    // For the fused operation only the final tile uses a mask (regular tiles skip mask for performance)
-    // For the non-fused operation all tiles require mask conversion
-    const bool use_mask = is_final_tile || !fused_flash_attention;
+    // For the fused operation only the final tile uses a mask, regular tiles skip mask for performance if
+    // enable_mask_skipping is true (depending on the model mask type).
+    // For the non-fused operation all tiles require mask
+    const bool use_mask = !(!is_final_tile && fused_flash_attention && !enable_mask_skipping);
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;
@@ -915,7 +917,8 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 }
 
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
-                                                           bool fused_flash_attention) {
+                                                           bool fused_flash_attention,
+                                                           bool enable_mask_skipping) {
     LOG_INFO("Attempting to create HostFlashAttention"
              << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
@@ -1028,7 +1031,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             query_size,
                                             kv_num_heads,
                                             false,
-                                            fused_flash_attention);
+                                            fused_flash_attention,
+                                            enable_mask_skipping);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
@@ -1041,6 +1045,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   kv_num_heads,
                                                   true,
                                                   fused_flash_attention,
+                                                  enable_mask_skipping,
                                                   output_dtype);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");

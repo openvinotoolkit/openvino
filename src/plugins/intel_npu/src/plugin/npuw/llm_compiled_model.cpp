@@ -14,6 +14,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -839,6 +840,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
+    // Detect attention mask type before the SDPA subgraph is isolated by partitioning.
+    // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
+    ov::npuw::DetectAttentionMask detect_mask;
+    detect_mask.run_on_model(kvcache_model);
+    const auto mask_info = detect_mask.get_mask_info();
+
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
@@ -1003,6 +1010,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+
+    if (prefill_attn_hfa) {
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
+            mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
+                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
+                     mask_info.window_size > max_prompt_len)
+                ? "YES"
+                : "NO";
+    }
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {

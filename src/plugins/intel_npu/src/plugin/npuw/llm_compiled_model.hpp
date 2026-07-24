@@ -25,6 +25,7 @@ class WhisperInferRequest;
 class LLMBlockKVCacheStrategy;
 class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
+struct MaskInfo;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -69,6 +70,7 @@ public:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
     LLMCompiledModel() = delete;
+    ~LLMCompiledModel() = default;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
