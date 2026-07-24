@@ -25,6 +25,13 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     },
 };
 
+const std::vector<std::vector<InputShape>> causalStatefulInputShapes = {
+    {
+        {{-1, 8, -1, 64}, {{2, 8, 3, 64}, {2, 8, 4, 64}}},
+        {{-1, 8, -1, 64}, {{2, 8, 0, 64}, {2, 8, 3, 64}}},
+    },
+};
+
 const ov::AnyMap cfg_none{};
 const ov::AnyMap cfg_u8_sym{
     {"KEY_CACHE_PRECISION", "u8"},
@@ -38,7 +45,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values(cfg_none, cfg_u8_sym),
                                             ::testing::Values(true, false),
                                             ::testing::Values<int64_t>(8),
-                                            ::testing::Values<int64_t>(8)),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values(false)),
+                         ConcatSDPTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPCausalStatefulDecode,
+                         ConcatSDPTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(causalStatefulInputShapes),
+                                            ::testing::Values(cfg_none),
+                                            ::testing::Values(false),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values(true)),
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace

@@ -31,10 +31,18 @@ static ov::AnyMap kv_cfg(KvCodec k, KvCodec v) {
     ov::AnyMap m;
     auto set = [&](KvCodec c, const char* prec_key, const char* alg_key) {
         switch (c) {
-            case KvCodec::NONE: break;
-            case KvCodec::U8:   m[prec_key] = "u8"; break;
-            case KvCodec::U4:   m[prec_key] = "u4"; break;
-            case KvCodec::TBQ4: m[prec_key] = "u4"; m[alg_key] = "TURBO"; break;
+        case KvCodec::NONE:
+            break;
+        case KvCodec::U8:
+            m[prec_key] = "u8";
+            break;
+        case KvCodec::U4:
+            m[prec_key] = "u4";
+            break;
+        case KvCodec::TBQ4:
+            m[prec_key] = "u4";
+            m[alg_key] = "TURBO";
+            break;
         }
     };
     set(k, "KEY_CACHE_PRECISION", "KEY_CACHE_QUANT_ALG");
@@ -58,7 +66,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::ValuesIn(all_kv_cfgs()),
                                             ::testing::Values(true, false),
                                             ::testing::Values<int64_t>(8),
-                                            ::testing::Values<int64_t>(8, 2, 1)),
+                                            ::testing::Values<int64_t>(8, 2, 1),
+                                            ::testing::Values(false)),
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace
