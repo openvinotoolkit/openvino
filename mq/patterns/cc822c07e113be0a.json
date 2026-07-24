@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-24T06:35:00Z",
+  "last_seen": "2026-07-24T06:35:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30068549392"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36866"
+  ],
+  "recent_timestamps": [
+    "2026-07-24T06:35:00Z"
+  ],
+  "rerun_search_string": null
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-24-06-35-00-000-30068549392",
+  "timestamp": "2026-07-24T06:35:00Z",
+  "run_id": "30068549392",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30068549392",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36866",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36866",
+  "author": "isanghao",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "Windows (VS 2022, Python 3.11, Release)",
+      "conclusion": "failure",
+      "symptom": "Run failed on attempt 1; attempt 2 was automatically queued. Job logs inaccessible due to secrecy policy."
+    }
+  ],
+  "key_errors": [
+    "No log data accessible: filtered by secrecy policy (resource:get_job_logs). Pre-downloaded logs contain no job entries."
+  ],
+  "root_cause": "The root cause cannot be determined because job logs are inaccessible via the secrecy policy filter. The workflow run shows run_attempt=2 and status=queued, indicating the system already re-queued the run after the attempt 1 failure. This pattern is consistent with a transient infrastructure issue (runner hiccup, resource exhaustion, or scheduling issue) that triggered an automatic retry.",
+  "reproduction_steps": "N/A - logs not available for reproduction analysis",
+  "recommended_actions": [
+    "Monitor attempt 2 outcome to determine if the failure was transient",
+    "If attempt 2 also fails, manually inspect job logs via the GitHub Actions UI for detailed error information",
+    "Check if other Windows VS2022 runs failed around the same time to identify a systemic issue"
+  ],
+  "prevention_strategies": "No specific prevention strategies can be recommended without log data. Ensure GitHub Actions runner capacity is sufficient for Windows builds.",
+  "historical_context": "No matching pattern found in the investigation database for this specific failure signature. The run was already re-queued automatically (attempt 2 is queued), suggesting the system or a prior CI Doctor run identified this as transient."
+}
