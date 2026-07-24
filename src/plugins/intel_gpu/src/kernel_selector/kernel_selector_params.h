@@ -424,10 +424,8 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
-        return;
     }
     virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
-        return;
     }
 
 protected:

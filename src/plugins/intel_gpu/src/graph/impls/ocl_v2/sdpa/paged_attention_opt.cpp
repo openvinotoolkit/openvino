@@ -1522,7 +1522,6 @@ public:
         } else {
             rt_params->use_gqa_kernel = false;
         }
-        return;
     }
 
     // update impl_parameter and rt_parameter

@@ -19,7 +19,6 @@ void program::nodes_ordering::calc_processing_order_visit(program_node* node) {
     node->mark();
     _processing_order.push_front(node);
     processing_order_iterators[node] = _processing_order.begin();
-    return;
 }
 
 // DFS to sort nodes topologically
@@ -32,7 +31,6 @@ void program::nodes_ordering::calc_processing_order(program& p) {
     for (auto& node : _processing_order) {
         node->unmark();
     }
-    return;
 }
 
 /*
@@ -77,7 +75,6 @@ void program::nodes_ordering::calculate_BFS_processing_order() {
             processing_order_iterators[node]--;
         }
     }
-    return;
 }
 
 // verifies if a given node will be processed before all its dependent nodes
