@@ -1089,3 +1089,65 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_sequence_length_runtime_gate) {
     test_case.add_expected_output<float>(Shape{1}, {30.f});
     test_case.run();
 }
+
+/// @brief Regression: SequenceAt's `position` input wired directly to the
+/// enclosing Loop's own iteration-counter special body port.
+///
+/// ONNX exporters commonly declare the Loop body's iteration-counter input
+/// with shape [1] (rank 1) rather than a true rank-0 scalar (as seen e.g. in
+/// models produced by some PyTorch/TorchScript ONNX export paths). SequenceAt
+/// used to reject any non-rank-0 `position` input outright, even though the
+/// downstream lowering already tolerates a rank-1 size-1 index. This guards
+/// against that overly strict entry-point assertion: a 3-element sequence is
+/// read back inside a Loop using the loop's iteration counter as the index
+/// directly (no extra Squeeze/Cast wrapping it), and the values must be
+/// summed correctly over all iterations.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_sequence_at_loop_iter_index) {
+    const auto model = convert_model("controlflow/sal_sequence_at_loop_iter_index.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});    // trip_count
+    test_case.add_input<bool>({true});    // cond_init
+    test_case.add_input<float>({10.f});   // s0
+    test_case.add_input<float>({20.f});   // s1
+    test_case.add_input<float>({30.f});   // s2
+    test_case.add_input<float>({0.f});    // acc_init
+
+    // slot i is read on iteration i (0, 1, 2), so acc_final = 10 + 20 + 30 = 60.
+    test_case.add_expected_output<float>(Shape{1}, {60.f});
+    test_case.run();
+}
+
+/// @brief Regression: `SplitToSequence` with a genuinely dynamic (runtime-only)
+/// split count, consumed exclusively via `SequenceAt` indexed by the enclosing
+/// Loop's own iteration variable.
+///
+/// The `split` input is built from `Shape(data)` via `ConstantOfShape(value=1)`,
+/// so the number of output slots is unknown at graph-construction time (the
+/// number of TTS frames, in the real-world model this pattern was found in),
+/// even though every chunk is provably length 1. `ov::op::v1::VariadicSplit`
+/// (the pre-existing 1-D-split lowering path) requires the number of output
+/// slots to be known statically, so building it here previously failed with a
+/// generic "Cannot get length of dynamic dimension" error. Because this
+/// resulting sequence is captured implicitly (outer-scope capture, not listed
+/// as an explicit Loop node input - matching real exporter behavior) and read
+/// back only via `SequenceAt(iteration_var)`, the whole
+/// `SplitToSequence`+`SequenceAt` pair is semantically just "pick the i-th
+/// unit-length slice of `data` inside the loop" and must lower directly to a
+/// `Gather` on the original (pre-split) tensor, without ever materializing a
+/// statically-sized `VariadicSplit`.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_dynamic_unit_split_loop_idiom) {
+    const auto model = convert_model("controlflow/sal_dynamic_unit_split_loop_idiom.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // `data`'s ONNX-declared shape is symbolic (dim_param), so its shape must be
+    // provided explicitly here.
+    test_case.add_input<float>(Shape{3}, {100.f, 200.f, 300.f});  // data
+    test_case.add_input<int64_t>({3});                            // trip_count
+    test_case.add_input<bool>({true});                  // cond_init
+    test_case.add_input<float>({0.f});                  // acc_init
+
+    // slot i is read on iteration i (0, 1, 2), so acc_final = 100 + 200 + 300 = 600.
+    test_case.add_expected_output<float>(Shape{1}, {600.f});
+    test_case.run();
+}
