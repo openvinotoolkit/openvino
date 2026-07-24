@@ -68,28 +68,36 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size_offset) {
     test_case.run();
 }
 
-// !!! Experimental feature, it may be changed or removed in the future !!!
-TEST_P(OnnxFeMmapFixture, onnx_external_data_enumerating) {
+TEST_P(OnnxFeMmapFixture, onnx_external_data_weightless_cache_attribute) {
     const auto path =
         test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    const auto& operations = model->get_ordered_ops();
-    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+
+    // "A" is an external initializer (offset 0); "B" is an inline Constant node.
+    // Only the external one must carry WeightlessCacheAttribute.
+    size_t external_constants = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
         if (const_node == nullptr)
             continue;
-        EXPECT_TRUE(const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                        .is<ov::WeightlessCacheAttribute>());
-        const auto& weightless_cache = const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                                           .as<ov::WeightlessCacheAttribute>();
-        EXPECT_EQ(weightless_cache.original_size, 0);
-        EXPECT_EQ(weightless_cache.bin_offset, idx);
-        EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+        const auto& rt_info = const_node->get_rt_info();
+        const auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (const_node->get_friendly_name() == "A") {
+            ASSERT_NE(it, rt_info.end()) << "External constant is expected to have WeightlessCacheAttribute";
+            const auto& weightless_cache = it->second.as<ov::WeightlessCacheAttribute>();
+            EXPECT_EQ(weightless_cache.bin_offset, 0);
+            EXPECT_EQ(weightless_cache.original_size, const_node->get_byte_size());
+            EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+            ++external_constants;
+        } else {
+            EXPECT_EQ(it, rt_info.end()) << "Inline constant '" << const_node->get_friendly_name()
+                                         << "' unexpectedly has WeightlessCacheAttribute";
+        }
     }
+    EXPECT_EQ(external_constants, 1);
 }
-// !!! End of Experimental feature
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_from_stream) {
     const auto path =
