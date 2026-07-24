@@ -16,7 +16,7 @@ public:
 
     activation_kernel_selector();
 
-    virtual ~activation_kernel_selector() {}
+    ~activation_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
