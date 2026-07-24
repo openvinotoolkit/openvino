@@ -17,9 +17,10 @@ namespace {
 
 // Metadata version + compiler payload size + magic bytes
 constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+
+constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
     "The blob received for parsing is too small to contain all mandatory information. Blob size: ";
-
 constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "The size of the compiler payload parsed from the blob is greater "
     "than the size of the blob. Compiler payload size: ";
@@ -582,6 +583,12 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
 
+    std::string blobMagicBytes;
+    blobMagicBytes.resize(MAGIC_BYTES.size());
+    stream.seekg(-std::streampos(MAGIC_BYTES.size()), std::ios::end);
+    stream.read(blobMagicBytes.data(), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
+
     uint64_t payloadSize;
     stream.seekg(-std::streampos(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
     stream.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
@@ -611,10 +618,13 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     const size_t blobSize = tensor.get_byte_size();
     OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, blobSize);
 
-    const size_t magicBytesSize = MAGIC_BYTES.size();
+    const std::string_view blobMagicBytes(tensor.data<const char>() + blobSize - MAGIC_BYTES.size(),
+                                          MAGIC_BYTES.size());
+    OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
+
     uint64_t payloadSize;
     payloadSize = *reinterpret_cast<const decltype(payloadSize)*>(tensor.data<const char>() + blobSize -
-                                                                  magicBytesSize - sizeof(payloadSize));
+                                                                  MAGIC_BYTES.size() - sizeof(payloadSize));
 
     OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 

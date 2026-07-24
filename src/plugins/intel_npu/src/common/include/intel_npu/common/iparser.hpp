@@ -26,7 +26,7 @@ public:
      * @param initBlobs Optional. If provided, the "weights separation" flow is enabled and the binary objects
      * corresponding to the init schedules will be parsed as well.
      * @param weightsSource The source of weights that should be used if the weights separation feature is enabled.
-     * "monostate" indicates the absence of weights. The "string_view" & "core" pair corresponds to the "weights path"
+     * "monostate" indicates the absence of weights. The "string" & "core" pair corresponds to the "weights path"
      * config option.
      * @param compatibilityDescriptor A string that describes the compatibility requirements of the blob from compiler's
      * pov.
