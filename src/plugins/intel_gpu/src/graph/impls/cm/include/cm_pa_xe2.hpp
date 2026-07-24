@@ -61,6 +61,11 @@ void pa_lsc_u8(
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
 #endif
+#if HAS_QQ_BIAS
+    svmptr_t qq_bias_base [[type("svmptr_t")]],
+    int32_t qq_bias_num,
+    int32_t qq_bias_spec_num,
+#endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
     int32_t* block_indices [[type("svmptr_t")]]) {
@@ -126,7 +131,7 @@ void pa_lsc_u8(
         #pragma unroll
         for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_K / 2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -398,10 +403,14 @@ void pa_lsc_u8(
                     }
                     int kv_tokens = kv_stop - kv_pos;
                     for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
-                    auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+#if HAS_QQ_BIAS
+                    apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                            kv_pos, q_start, (int)past_lens);
+#endif
+                    auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
                     matrix<half, REG_N, REG_K> P;
-                    Transpose2DMatrix(St, P);
+                    transpose_St_to_P_half(St, P);
 
                     // Each worker reads its chunk of V from SLM
                     uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
@@ -632,10 +641,14 @@ void pa_lsc_u8(
             }
             int kv_tokens = kv_stop - kv_pos;
             for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
-            auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+#if HAS_QQ_BIAS
+            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                    kv_pos, q_start, (int)past_lens);
+#endif
+            auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
-            Transpose2DMatrix(St, P);
+            transpose_St_to_P_half(St, P);
 
             // Each worker reads its chunk of V from SLM
             uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
@@ -770,6 +783,13 @@ void pa_kernel_lsc_prefetch_f16(
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
 #endif
+#if HAS_QQ_BIAS
+    // Speculative tree mask. Layout per subsequence: [spec_num, spec_num] row-major,
+    // i.e. qq_bias[query_spec * spec_num + key_spec]. Zero entries imply masked-out pairs.
+    svmptr_t qq_bias_base [[type("svmptr_t")]],
+    int32_t qq_bias_num,
+    int32_t qq_bias_spec_num,
+#endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
     int32_t* block_indices [[type("svmptr_t")]]) {
@@ -847,7 +867,7 @@ void pa_kernel_lsc_prefetch_f16(
         #pragma unroll
         for(int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -967,11 +987,15 @@ void pa_kernel_lsc_prefetch_f16(
         int kv_tokens = kv_stop - kv_pos;
         // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
-        //show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+#if HAS_QQ_BIAS
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                kv_pos, q_start, (int)past_lens);
+#endif
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
-        Transpose2DMatrix(St, P);
+        transpose_St_to_P_half(St, P);
 
         prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+prefetch_block_id*blk_stride));
         prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
@@ -1271,11 +1295,15 @@ void pa_kernel_lsc_prefetch_f16(
         int kv_tokens = kv_stop - kv_pos;
         // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
-        //show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+#if HAS_QQ_BIAS
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                kv_pos, q_start, (int)past_lens);
+#endif
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
-        Transpose2DMatrix(St, P);
+        transpose_St_to_P_half(St, P);
 
         prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+prefetch_block_id*blk_stride));
         prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);

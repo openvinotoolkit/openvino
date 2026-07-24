@@ -7,8 +7,6 @@
 
 //# CM-compiler is C++17
 static_assert(__cplusplus >= 201703L);
-//# static_assert(__cplusplus >= 202002L);
-//# static_assert(__cplusplus >= 202302L);
 
 #define SystolicDepth 8
 #define RepeatCount 8
@@ -23,13 +21,41 @@ static_assert(__cplusplus >= 201703L);
 #define kv_step  REG_K
 #define q_step   REG_N
 
+// Q pre-scale math constants:
+//   scale_factor = 1 / sqrt(head_size)  (provided by CMFLA_SCALE_FACTOR at JIT time)
+//   log2e        = log2(e)              (fixed)
 constexpr float scale_factor = CMFLA_SCALE_FACTOR;
+constexpr float log2e = 1.4426950408889634f;
+
+// JIT const: chooses the domain the softmax score St = K @ Q^T lives in.
+//   1 => Q is pre-multiplied by log2e so the online softmax can call cm_exp (== exp2)
+//        directly (Item 13 in OPTIMIZE_PLAN, drops one *log2e off the softmax critical path).
+//   0 => Q keeps the natural-log domain and the softmax multiplies by log2e internally.
+// Set at JIT time (typically via -DCMFLA_Q_SCALED_BY_LOG2=... from the host Python script);
+// defaults to 1. The value MUST match how the kernel actually pre-scales Q -- both the Q
+// load (via q_prescale) and the softmax templates read this macro, so keeping them in
+// sync is enough to prevent log2e from being applied zero or two times.
+#ifndef CMFLA_Q_SCALED_BY_LOG2
+#define CMFLA_Q_SCALED_BY_LOG2 1
+#endif
+
+// Single Q pre-scale constant used by every SDPA/PA kernel at Q load time.
+constexpr float q_prescale = CMFLA_Q_SCALED_BY_LOG2 ? (scale_factor * log2e) : scale_factor;
+
+// JIT const: 1 => use the balanced binary-tree reduction (depth log2(rows)) in the online
+//                 softmax; requires rows to be a power of two.
+//            0 => use the linear-chain reduction (default).
+// Applies uniformly to the SDPA (flashattn) and PA (pageatten) kernel families via the
+// `cm_online_softmax_update` dispatch macro defined below.
+#ifndef CMFLA_USE_TREE_SOFTMAX
+#define CMFLA_USE_TREE_SOFTMAX 0
+#endif
 
 static_assert(q_step == 16 || q_step == 8);
 static_assert(kv_step == 16);
 static_assert(CM_HAS_DPAS);
 
-#define DEBUG_SHOW 1
+#define DEBUG_SHOW 0
 #if !DEBUG_SHOW
 template<typename T, int M, int N>
 void show(const matrix<T, M, N> mat, bool isfloat=true) {
@@ -217,9 +243,6 @@ inline matrix<float, _kv_step, _q_step> ugemm_KQ(uint slm_K, matrix_ref<half, nu
 
     matrix<half, num_K, REG_M * REG_K> Kmat;
     cm_slm_block_read(slm_K, GENX_NONE, slm_offset, Kmat.format<half>());
-    // if (cm_local_id(2) == 3 && cm_group_id(2) == 0) {
-    //     show(Kmat.format<half, 16, 16>());
-    // }
     #pragma unroll
     for(int k = 0; k < num_K; k++)
         St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(0, Qt[0].format<int32_t>(), Kmat[k].format<int32_t>());
@@ -244,16 +267,12 @@ inline void ugemm_PV0(uint slm_V, matrix_ref<half, REG_N, REG_K> P, matrix_ref<f
     for(int k = 0, ri = 0; k < _head_size; k += REG_N, ri += num_P_tiles) {
         matrix<half, REG_K/2, REG_N*2> Vmat;
         cm_slm_block_read(slm_V, GENX_NONE, slm_offset + REG_K*k*sizeof(half), Vmat.format<half>());
-        // if (cm_local_id(2) == 0 && cm_group_id(2) == 0) {
-        //     show(Vmat.format<half, 16, 16>());
-        // }
         #pragma unroll
         for(int p = 0; p < num_P_tiles; p++) {
             rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
                             0,
                             Vmat.format<int32_t>(),
                             P2.row(p).format<int32_t>());
-            //show(rO[ri + p].format<float, REG_M, REG_N>());
         }
     }
 }
@@ -268,9 +287,6 @@ inline void ugemm_PV1(uint slm_V, matrix_ref<half, REG_N, REG_K> P, vector_ref<f
         matrix<half, REG_K/2, REG_N*2> Vmat;
 
         cm_slm_block_read(slm_V, GENX_NONE, slm_offset + REG_K*k*sizeof(half), Vmat.format<half>());
-        // if (cm_local_id(2) == 0 && cm_group_id(2) == 0) {
-        //     show(Vmat.format<half, 16, 16>());
-        // }
         #pragma unroll
         for(int p = 0; p < num_P_tiles; p++) {
             auto cO = rO[ri + p].format<float, REG_M, REG_N>();
@@ -279,7 +295,6 @@ inline void ugemm_PV1(uint slm_V, matrix_ref<half, REG_N, REG_K> P, vector_ref<f
                 cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
         }
 
-        //show(rO[ri].format<float, REG_M, REG_N>());
 
         #pragma unroll
         for(int p = 0; p < num_P_tiles; p++) {
@@ -287,12 +302,11 @@ inline void ugemm_PV1(uint slm_V, matrix_ref<half, REG_N, REG_K> P, vector_ref<f
                         rO[ri + p].format<float>(),
                         Vmat.format<int32_t>(),
                         P2.row(p).format<int32_t>());
-            //if (kv_pos == args_verbose) show(rO[ri + p].format<float, REG_M, REG_N>());
         }
-        // if (kv_pos == args_verbose) show(cur_O.format<float, 2*REG_M, REG_N>());
     }
 }
 
+// Online-softmax update (linear-chain max/sum reduction).
 template<typename T, int rows, int cols>
 vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_ref<T, cols> cur_max, vector_ref<T, cols> cur_sum) {
     vector<float, cols> new_max_t;
@@ -301,85 +315,108 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     new_max_t = cm_max<float>(new_max_t, cur_max);
 
     // Pt = torch.exp(St - new_max)
-    constexpr float log2e = 1.4426950408889634f;
+#if CMFLA_Q_SCALED_BY_LOG2
+    for(int r = 0; r < St.n_rows(); r++) St[r] = cm_exp(St[r] - new_max_t);
+#else
     for(int r = 0; r < St.n_rows(); r++) St[r] = cm_exp((St[r] - new_max_t)*log2e);
+#endif
 
     vector<float, cols> row_sum_t;
     row_sum_t = cm_add<float>(St[0], St[1]);
     for(int r = 2; r < St.n_rows(); r++) row_sum_t = cm_add<float>(row_sum_t, St[r]);
 
     vector<float, cols> max_comp;
+#if CMFLA_Q_SCALED_BY_LOG2
+    max_comp = cm_exp(cur_max - new_max_t);
+#else
     max_comp = cm_exp((cur_max - new_max_t)*log2e);
+#endif
     cur_sum = cm_mul<float>(cur_sum, max_comp);
     cur_sum = cm_add<float>(cur_sum, row_sum_t);
     cur_max = new_max_t;
     return max_comp;
 }
 
-#ifdef CM_HAS_LSC_UNTYPED_2D
-    #define cm_load_normal cm_load<lsc::Normal>
-    #define cm_load_transpose cm_load<lsc::Transpose>
-    #define cm_load_vnni cm_load<lsc::VNNI>
-    #define cm_store_normal cm_store
-    // // simulation of LSC API using SVM API
-    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    // inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-    //     static_assert(NBlocks == 1);
-    //     auto pitch = Desc.get_pitch() + 1;
-    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-    //     #pragma unroll
-    //     for(int i = 0; i < BlockH; i++) {
-    //         cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-    //     }
-    // }
-
-    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    // inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-    //     static_assert(NBlocks == 1);
-    //     auto pitch = Desc.get_pitch() + 1;
-    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-    //     matrix<T, BlockH, BlockW> temp;
-    //     #pragma unroll
-    //     for(int i = 0; i < BlockH; i++) {
-    //         cm_svm_block_read(base + i * pitch, temp[i]);
-    //     }
-    //     Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
-    // }
-
-    // // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
-    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    // inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-    //     static_assert(NBlocks == 1 || NBlocks == 2);
-    //     // each block must be a full XMX B matrix
-    //     static_assert(BlockH == REG_K);
-    //     static_assert(BlockW == REG_N);
-    //     auto pitch = Desc.get_pitch() + 1;
-    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-    //     matrix<T, BlockH, NBlocks * BlockW> temp;
-    //     #pragma unroll
-    //     for(int i = 0; i < BlockH; i++) {
-    //         cm_svm_block_read(base + i * pitch, temp[i]);
-    //     }
-
-    //     auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
-    //     #pragma unroll
-    //     for(int i = 0; i < NBlocks; i ++) {
-    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
-    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
-    //     }
-    // }
-
-    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    // inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
-    //     static_assert(NBlocks == 1);
-    //     auto pitch = Desc.get_pitch() + 1;
-    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-    //     #pragma unroll
-    //     for(int i = 0; i < BlockH; i++) {
-    //         cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-    //     }
-    // }
+// Tree-reduction variant: max/sum reductions use a balanced binary tree (depth log2(rows))
+// instead of a linear chain (depth rows-1), shortening the loop-carried dependency chain.
+// Requires rows to be a power of two; the PA kv_step=16 and KV_BLK*kv_step satisfy this.
+template<typename T, int rows, int cols>
+CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, cols> St,
+                                                         vector_ref<T, cols> cur_max,
+                                                         vector_ref<T, cols> cur_sum) {
+    static_assert((rows & (rows - 1)) == 0, "tree reduction needs power-of-two rows");
+    vector<float, cols> new_max_t;
+    {
+        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
+        #pragma unroll
+        for (int r = 0; r < rows/2; r++) t.row(r) = cm_max<float>(St[r], St[r + rows/2]);
+        #pragma unroll
+        for (int stride = rows/4; stride > 0; stride >>= 1)
+            #pragma unroll
+            for (int r = 0; r < stride; r++)
+                t.row(r) = cm_max<float>(t.row(r), t.row(r + stride));
+        new_max_t = cm_max<float>(t.row(0), cur_max);
+    }
+#if CMFLA_Q_SCALED_BY_LOG2
+    #pragma unroll
+    for (int r = 0; r < rows; r++) St[r] = cm_exp(St[r] - new_max_t);
+#else
+    #pragma unroll
+    for (int r = 0; r < rows; r++) St[r] = cm_exp((St[r] - new_max_t) * log2e);
 #endif
+
+    vector<float, cols> row_sum_t;
+    {
+        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
+        #pragma unroll
+        for (int r = 0; r < rows/2; r++) t.row(r) = cm_add<float>(St[r], St[r + rows/2]);
+        #pragma unroll
+        for (int stride = rows/4; stride > 0; stride >>= 1)
+            #pragma unroll
+            for (int r = 0; r < stride; r++)
+                t.row(r) = cm_add<float>(t.row(r), t.row(r + stride));
+        row_sum_t = t.row(0);
+    }
+
+    vector<float, cols> max_comp;
+#if CMFLA_Q_SCALED_BY_LOG2
+    max_comp = cm_exp(cur_max - new_max_t);
+#else
+    max_comp = cm_exp((cur_max - new_max_t) * log2e);
+#endif
+    cur_sum = cm_mul<float>(cur_sum, max_comp);
+    cur_sum = cm_add<float>(cur_sum, row_sum_t);
+    cur_max = new_max_t;
+    return max_comp;
+}
+
+// Dispatch macro used by every SDPA/PA kernel; selects linear vs tree reduction.
+#if CMFLA_USE_TREE_SOFTMAX
+#define cm_online_softmax_update(St, cur_max, cur_sum) online_softmax_update_tree(St, cur_max, cur_sum)
+#else
+#define cm_online_softmax_update(St, cur_max, cur_sum) online_softmax_update(St, cur_max, cur_sum)
+#endif
+
+// Transpose a float score tile (kv x q) into a half P tile (q x kv) for the P@V matmul.
+// Casting float->half first (one vectorized cm_mul-free copy) lets the shuffle network
+// run at half width -- roughly halving the mov count vs transposing the float tile
+// directly through Transpose_*x*<float,half>.
+//
+// Two overloads cover both Xe generations (kv_step is always 16; q_step = REG_N):
+//   * [16,16] -> [16,16] for Xe2 (q_step = 16)
+//   * [16, 8] -> [ 8,16] for Xe1 (q_step =  8)
+CM_INLINE void transpose_St_to_P_half(matrix_ref<float, 16, 16> St, matrix_ref<half, 16, 16> P) {
+    matrix<half, 16, 16> Sh;
+    #pragma unroll
+    for (int r = 0; r < 16; r++) Sh.row(r) = St.row(r);
+    Transpose_16x16(Sh.select<16,1,16,1>(0,0), P);
+}
+CM_INLINE void transpose_St_to_P_half(matrix_ref<float, 16, 8> St, matrix_ref<half, 8, 16> P) {
+    matrix<half, 16, 8> Sh;
+    #pragma unroll
+    for (int r = 0; r < 16; r++) Sh.row(r) = St.row(r);
+    Transpose2DMatrix(Sh.select<16,1,8,1>(0,0), P);
+}
 
 //===============================================================================================
 template <int i, int N, int M>
@@ -410,6 +447,37 @@ inline void apply_causal_mask_with_offset(matrix_ref<float, N, M> St, int causal
         for (int c = 0; c < M; c++) {
             if (c < mask_cols) {
                 St(r, c) = -3.4e38f;
+            }
+        }
+    }
+}
+
+// Speculative tree mask. Apply only on the "new" K range (key_spec >= 0) and
+// for queries that fall inside the spec window (query_spec in [0, spec_num)).
+// St layout: St[k_row][q_col] with k_row in [0, N=kv_step), q_col in [0, M=q_step).
+// qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
+template <int N, int M>
+inline void apply_qq_bias_tree_mask(matrix_ref<float, N, M> St,
+                                    svmptr_t qq_bias_base,
+                                    int qq_bias_num,
+                                    int qq_bias_spec_num,
+                                    int kv_pos,
+                                    int q_start,
+                                    int past_lens) {
+    if (qq_bias_num <= 0) return;
+    const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
+    #pragma unroll
+    for (int k_row = 0; k_row < N; ++k_row) {
+        const int key_local = kv_pos + k_row;
+        const int key_spec = key_local - past_lens;
+        if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
+        #pragma unroll
+        for (int q_col = 0; q_col < M; ++q_col) {
+            const int query_spec = q_start + q_col;
+            if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+            const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+            if (qq_bias_ptr[qq_off] == 0) {
+                St[k_row][q_col] = -3.4e38f;
             }
         }
     }
