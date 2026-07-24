@@ -10,7 +10,9 @@
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {{ov::intel_npu::bypass_umd_caching(true)}},
+        {{ov::intel_npu::bypass_umd_caching(true),
+            // Test manipulates UMD caching, compiler needs to be set to CID
+            ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
