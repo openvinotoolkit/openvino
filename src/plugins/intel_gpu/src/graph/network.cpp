@@ -125,7 +125,7 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
                 std::string stage_suffix = "";
                 if (key.cache_hit)
                     stage_suffix += " (cache_hit) ";
-                if (key.memalloc_info != "")
+                if (!key.memalloc_info.empty())
                     stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","

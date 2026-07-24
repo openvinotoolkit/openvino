@@ -1017,7 +1017,7 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
         { format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv16_fsv16 },
     };
 
-    auto& check_list = custom_list.size() > 0 ? custom_list : supported_list;
+    auto& check_list = !custom_list.empty() ? custom_list : supported_list;
 
     for (auto& pair : check_list) {
         if ((prev_fmt == pair.first && next_fmt == pair.second) &&
@@ -1294,7 +1294,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     auto expected = format::any;
 
     std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
-        bool all_users_gemm = (node.get_users().size() != 0);
+        bool all_users_gemm = (!node.get_users().empty());
 
         for (auto user : node.get_users()) {
             if (user->is_type<reorder>() || user->is_type<reshape>())
@@ -1313,7 +1313,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     if (use_onednn_impls) {
         expected = format::any;
         auto& users = node.get_users();
-        if (users.size() != 0) {
+        if (!users.empty()) {
             auto& user = users.front();
             if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
                 expected = user->get_preferred_input_fmt(user->get_dependency_index(node));

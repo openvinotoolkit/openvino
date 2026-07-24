@@ -43,7 +43,7 @@ std::string ocl_kernel::get_build_log() const {
     auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
     // Assume program was build for only 1 device
     // Return first log
-    if (log.size() > 0) {
+    if (!log.empty()) {
         return log[0].second;
     }
     OPENVINO_THROW("[GPU] Failed to retrieve kernel build log");

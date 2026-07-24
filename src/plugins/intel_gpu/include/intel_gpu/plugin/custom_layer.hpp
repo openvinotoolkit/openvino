@@ -60,7 +60,7 @@ protected:
     CustomLayer() : m_wgDimInputIdx(0) {}
     explicit CustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
 
-    bool Error() const { return m_ErrorMessage.length() > 0; }
+    bool Error() const { return !m_ErrorMessage.empty(); }
     void LoadSingleLayer(const pugi::xml_node& node);
     void ProcessKernelNode(const pugi::xml_node& node);
     void ProcessBuffersNode(const pugi::xml_node& node);

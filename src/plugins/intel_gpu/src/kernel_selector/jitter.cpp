@@ -2198,6 +2198,12 @@ std::string FusedOpsCodeGenerator::GetInputTensorName(size_t input_id) const {
     return "FUSED_OP_" + toCodeString(desc.op_id) + "_INPUT" + toCodeString(input_id);
 }
 
+std::string GetTensorHasMultipleElementsCondition(const std::string& tensor_name) {
+    return tensor_name + "_SIZE_X > 1 || " + tensor_name + "_SIZE_Y > 1 || " + tensor_name + "_SIZE_Z > 1 || " +
+           tensor_name + "_SIZE_W > 1 || " + tensor_name + "_SIZE_U > 1 || " + tensor_name + "_SIZE_V > 1 || " +
+           tensor_name + "_FEATURE_NUM > 1 || " + tensor_name + "_BATCH_NUM > 1";
+}
+
 std::string FusedOpsCodeGenerator::GetOutputTensorName() const {
     return "FUSED_OP_" + toCodeString(desc.op_id) + "_OUTPUT";
 }
@@ -2338,19 +2344,16 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 return block_read;
             }
 
-            bool multiple_elements = false;
-            // For dynamic shape input tensor, check any one of static dimension has more than one element.
             if (input_tensor.is_dynamic()) {
-                for (auto dim : input_tensor.GetDims()) {
-                    auto v = dim.v;
-                    if (v > 1) {
-                        multiple_elements = true;
-                        break;
-                    }
-                }
+                // The compile-time logical size of a fully dynamic tensor may be reported as one even though
+                // the runtime tensor contains multiple elements. Select the load at runtime to preserve scalar
+                // broadcasting while using a subgroup block read for non-scalar tensors.
+                const auto has_multiple_elements = GetTensorHasMultipleElementsCondition(GetInputTensorName(input_id));
+                auto scalar_load = Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
+                return ternary(JitTerm{"(" + has_multiple_elements + ")"}, JitTerm{Broadcast(block_read, input_dt, vec_size)}, JitTerm{scalar_load}) .str();
             }
 
-            if (input_tensor.LogicalSize() > 1 || multiple_elements) {
+            if (input_tensor.LogicalSize() > 1) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
             } else {
