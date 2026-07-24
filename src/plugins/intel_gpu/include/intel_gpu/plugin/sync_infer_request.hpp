@@ -15,6 +15,8 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <mutex>
+#include <shared_mutex>
 
 namespace ov::intel_gpu {
 
@@ -59,6 +61,38 @@ struct TensorWrapper {
     size_t actual_size;
 };
 
+// Couples the lazily-allocated user-input map with its mutex so the map is reachable only
+// through a held lock: read() takes a shared lock (read-only view), write() an exclusive one.
+class GuardedUserInputs {
+public:
+    using map_t = std::unordered_map<size_t, TensorWrapper>;
+
+    GuardedUserInputs() = default;
+    GuardedUserInputs(const GuardedUserInputs&) = delete;
+
+    template <typename LockType, typename MapRef>
+    class Accessor {
+    public:
+        Accessor(LockType lock, MapRef map) : m_lock(std::move(lock)), m_map(map) {}
+        auto operator->() const { return &m_map; }
+        MapRef operator*() const { return m_map; }
+    private:
+        LockType m_lock;
+        MapRef m_map;
+    };
+
+    Accessor<std::shared_lock<std::shared_mutex>, const map_t&> read() const {
+        return { std::shared_lock<std::shared_mutex>(m_mutex), m_map};
+    }
+    Accessor<std::unique_lock<std::shared_mutex>, map_t&> write() const {
+        return {std::unique_lock<std::shared_mutex>(m_mutex), m_map};
+    }
+
+private:
+    mutable std::shared_mutex m_mutex;
+    mutable map_t m_map;
+};
+
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
     using Ptr = std::shared_ptr<SyncInferRequest>;
@@ -89,7 +123,12 @@ public:
 private:
     void check_tensors() const override;
 
-    std::unordered_map<size_t, TensorWrapper> m_user_inputs;
+    // Materializes a deferred (lazy) input slot on first access. Const-safe; takes
+    // an exclusive lock on m_user_inputs.
+    void ensure_input_allocated(size_t input_idx) const;
+
+    // Self-guarding: reachable only via read()/write(), which lock internally.
+    GuardedUserInputs m_user_inputs;
     std::unordered_map<size_t, TensorWrapper> m_user_outputs;
 
     std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
@@ -132,7 +171,7 @@ private:
     void allocate_inputs();
     void allocate_outputs();
     void allocate_states();
-    void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
+    void allocate_input(size_t input_idx, GuardedUserInputs::map_t& user_inputs);
     void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
