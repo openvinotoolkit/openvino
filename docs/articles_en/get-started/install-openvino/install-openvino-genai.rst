@@ -64,24 +64,24 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/linux/openvino_genai_ubuntu24_2026.2.1.0_x86_64.tar.gz --output openvino_genai_2026.2.1.0.tgz
-               tar -xf openvino_genai_2026.2.1.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu24_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+               tar -xf openvino_genai_2026.3.0.0.tgz
 
          .. tab-item:: Ubuntu 22.04
             :sync: ubuntu-22
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/linux/openvino_genai_ubuntu22_2026.2.1.0_x86_64.tar.gz --output openvino_genai_2026.2.1.0.tgz
-               tar -xf openvino_genai_2026.2.1.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu22_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+               tar -xf openvino_genai_2026.3.0.0.tgz
 
          .. tab-item:: Ubuntu 20.04
             :sync: ubuntu-20
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/linux/openvino_genai_ubuntu20_2026.2.1.0_x86_64.tar.gz  --output openvino_genai_2026.2.1.0.tgz
-               tar -xf openvino_genai_2026.2.1.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu20_2026.3.0.0_x86_64.tar.gz  --output openvino_genai_2026.3.0.0.tgz
+               tar -xf openvino_genai_2026.3.0.0.tgz
 
 
    .. tab-item:: ARM 64-bit
@@ -89,8 +89,8 @@ Linux
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/linux/openvino_genai_ubuntu20_2026.2.1.0_arm64.tar.gz --output openvino_genai_2026.2.1.0.tgz
-         tar -xf openvino_genai_2026.2.1.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu20_2026.3.0.0_arm64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+         tar -xf openvino_genai_2026.3.0.0.tgz
 
 
 Windows
@@ -99,7 +99,7 @@ Windows
 .. code-block:: sh
 
    cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/windows/openvino_genai_windows_2026.2.1.0_x86_64.zip --output openvino_genai_2026.2.1.0.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/windows/openvino_genai_windows_2026.3.0.0_x86_64.zip --output openvino_genai_2026.3.0.0.zip
 
 macOS
 ++++++++++++++++++++++++++
@@ -111,22 +111,21 @@ macOS
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/macos/openvino_genai_macos_12_6_2026.2.1.0_x86_64.tar.gz --output openvino_genai_2026.2.1.0.tgz
-         tar -xf openvino_genai_2026.2.1.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/macos/openvino_genai_macos_12_6_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+         tar -xf openvino_genai_2026.3.0.0.tgz
 
    .. tab-item:: ARM, 64-bit
       :sync: arm-64
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.2/macos/openvino_genai_macos_12_6_2026.2.1.0_arm64.tar.gz --output openvino_genai_2026.2.1.0.tgz
-         tar -xf openvino_genai_2026.2.1.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/macos/openvino_genai_macos_12_6_2026.3.0.0_arm64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+         tar -xf openvino_genai_2026.3.0.0.tgz
 
 
 Here are the full guides:
 :doc:`Linux <install-openvino-archive-linux>`,
 :doc:`Windows <install-openvino-archive-windows>`, and
 :doc:`macOS <install-openvino-archive-macos>`.
-
 
 
