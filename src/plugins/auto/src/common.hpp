@@ -210,6 +210,7 @@ public:
     bool                                           m_startup_fallback = true;
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
+    bool                                           m_compile_for_all = false;
     std::shared_ptr<ov::Model>                     m_model;
     std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;

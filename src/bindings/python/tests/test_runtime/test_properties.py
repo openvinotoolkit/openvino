@@ -420,6 +420,16 @@ def test_properties_ro(ov_property_ro, expected_value):
                 (0, False),
             ),
         ),
+        (
+            intel_auto.compile_for_all,
+            "COMPILE_FOR_ALL",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
         (device.id, "DEVICE_ID", (("0", "0"),)),
         (
             log.level,

@@ -3,6 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <chrono>
+
 #include "auto_schedule.hpp"
 
 #include "async_infer_request.hpp"
@@ -199,6 +201,8 @@ void AutoSchedule::init() {
         m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
+        // Warm up the cache blobs for the remaining candidate devices.
+        compile_for_all_other_devices_for_cache();
         auto recycleTask = [this]() mutable {
             wait_actual_compiled_model_ready();
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
@@ -287,6 +291,61 @@ void AutoSchedule::init() {
         }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+}
+
+void AutoSchedule::compile_for_all_other_devices_for_cache() {
+    if (!m_context->m_compile_for_all) {
+        return;
+    }
+    const std::string cache_dir =
+        m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
+            ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
+            : m_context->m_ov_core->get_property("", ov::cache_dir);
+    if (cache_dir.empty()) {
+        LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
+        return;
+    }
+    // Keep the source model alive for the background tasks. The actual-device path may reset
+    // m_context->m_model once its compilation finishes, so capture a copy of the shared pointer.
+    const auto model = m_context->m_model;
+    const auto model_path = m_context->m_model_path;
+    if (!model && model_path.empty()) {
+        return;
+    }
+    const std::string& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+    for (const auto& device : m_context->m_device_priorities) {
+        // Skip the actual device and CPU (already handled by CPU_HELP).
+        if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
+            continue;
+        }
+        m_executor->run([this, device, model, model_path] {
+            const auto compile_begin = std::chrono::steady_clock::now();
+            try {
+                // Follow the same model-source priority as the blob existence check: model first, then path.
+                SoCompiledModel precompile_model = model
+                    ? m_context->m_ov_core->compile_model(model->clone(), device.device_name, device.config)
+                    : m_context->m_ov_core->compile_model(model_path, device.device_name, device.config);
+                // The cache blob is generated during compilation; release the compiled model right away
+                // so we do not keep holding device resources.
+                precompile_model._ptr.reset();
+                precompile_model._so.reset();
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
+                             device.device_name.c_str(),
+                             compile_ms);
+            } catch (const ov::Exception& e) {
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_DEBUG_TAG("cache pre-compilation failed for device: %s, %s",
+                              device.device_name.c_str(),
+                              e.what());
+                LOG_DEBUG_TAG("cache pre-compilation time for device: %s: %lf ms",
+                              device.device_name.c_str(),
+                              compile_ms);
+            }
+        });
+    }
 }
 
 void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
