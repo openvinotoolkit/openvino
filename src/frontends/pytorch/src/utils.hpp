@@ -55,6 +55,38 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
+/// \brief Ensures the trailing two axes of `x` form an n x n matrix.
+///
+/// Static trailing dims that are not n x n are rejected at conversion (`op_label` names the op).
+/// When they are dynamic (the common TorchScript case) a runtime guard pins each trailing axis to
+/// n with its own Reshape -- the per-axis check catches e.g. [1, 9] that a single [n, n] reshape
+/// would accept as 3x3. A genuine n x n is an identity; any other size fails loudly at runtime.
+/// \param context Node context for marking nodes.
+/// \param x Batched matrix whose trailing two axes are validated/guarded.
+/// \param n Expected square matrix size.
+/// \param op_label Op name used in the error message.
+/// \return `x` unchanged when statically validated, otherwise the runtime reshape-guarded matrix.
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label);
+
+/// \brief Flattens the leading batch dims of a batched matrix into a single axis: (..., N, N) ->
+/// (B, N, N). The rank-changing [-1, N, N] reshape doubles as a squareness guard (it cannot fold to
+/// a no-op and its element-count check fails loudly on a non-square trailing pair); the guard node's
+/// friendly name is `op_label + "/requires_square"`. `n_1d` is the trailing size N as a [1] tensor.
+Output<Node> flatten_batch_to_square(const NodeContext& context,
+                                     const Output<Node>& x,
+                                     const Output<Node>& n_1d,
+                                     const std::string& op_label);
+
+/// \brief Reshapes `flat` back to the original leading batch dims (`orig_shape[:-2]`) followed by
+/// `trailing` (empty for a scalar-per-batch result). Inverse of the batch-flatten above.
+Output<Node> restore_leading_batch(const NodeContext& context,
+                                   const Output<Node>& flat,
+                                   const Output<Node>& orig_shape,
+                                   const OutputVector& trailing);
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x);
@@ -131,6 +163,20 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& data,
                          const Output<Node>& mask,
                          const Output<Node>& value);
+
+// Build the static-kernel max pool (v14::MaxPool) for an already-resolved kernel/strides/pads/
+// dilations. Shared by the translator (constant kernel) and the deferred resolver (kernel that
+// became constant after shape propagation). Nodes go into `rg`; returns the pool result (2 outputs
+// when `return_indices`).
+OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
+                                   Output<Node> input,
+                                   int dims,
+                                   bool return_indices,
+                                   const ov::Shape& kernel,
+                                   const ov::Strides& strides,
+                                   const ov::Shape& pads,
+                                   const ov::Strides& dilations,
+                                   ov::op::RoundingType rounding_type);
 
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
 

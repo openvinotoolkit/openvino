@@ -11,23 +11,33 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
+// After utils.hpp: op/jacobi_svd.hpp opens ns ...::pytorch::op, but utils.hpp uses unqualified op::.
+#include "op/jacobi_svd.hpp"
 
 namespace ov {
 namespace frontend {
@@ -75,6 +85,122 @@ Output<Node> norm_vector(const NodeContext& context,
     return res;
 };
 
+// Singular values of the batched trailing (M, N) matrix of `x`, sorted descending, shape (..., K)
+// with K = min(M, N). General MxN one-sided Jacobi (values only): run_jacobi_column_loop
+// orthogonalizes the N columns, the column norms are the singular values, and for N > M the extra
+// columns converge to ~0 so the top-K norms are the true values. Batch dims are flattened to a
+// single axis (a CPU-plugin loop body cannot have a dynamic rank). Used by the spectral (ord=+-2)
+// and nuclear ("nuc") matrix norms.
+Output<Node> matrix_svdvals(const NodeContext& context, const Output<Node>& x) {
+    // Number of Jacobi sweeps: fixed (data-independent) so the loop trip count is static. Rectangular
+    // / near-rank-deficient matrices need a few more sweeps than the square 3x3 case.
+    constexpr int SVDVALS_SWEEPS = 24;
+    auto i64_c = [&](const std::vector<int64_t>& v) {
+        return context.mark_node(v0::Constant::create(element::i64, Shape{v.size()}, v));
+    };
+    auto i64_s = [&](int64_t v) {
+        return context.mark_node(v0::Constant::create(element::i64, Shape{}, {v}));
+    };
+    auto mul = [&](const Output<Node>& a, const Output<Node>& b) {
+        return context.mark_node(std::make_shared<v1::Multiply>(a, b));
+    };
+
+    auto x_f32 = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x_f32, element::i64));    // (rank,)
+    auto m = context.mark_node(std::make_shared<v8::Gather>(shape, i64_s(-2), i64_s(0)));  // scalar M
+    auto n = context.mark_node(std::make_shared<v8::Gather>(shape, i64_s(-1), i64_s(0)));  // scalar N
+    auto k = context.mark_node(std::make_shared<v1::Minimum>(m, n));                       // K = min(M,N)
+    auto m_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(m, i64_c({0})));
+    auto n_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(n, i64_c({0})));
+
+    // Flatten leading batch dims into one axis: working matrix (B, M, N). Rectangular, so no square
+    // guard (the columns being rotated are the N axis).
+    auto flat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{i64_c({-1}), m_1d, n_1d}, 0));
+    auto A_flat = context.mark_node(std::make_shared<v1::Reshape>(x_f32, flat_shape, /*special_zero=*/false));
+
+    auto jac = run_jacobi_column_loop(context, A_flat, n, SVDVALS_SWEEPS, element::f32, /*accumulate_v=*/false);
+
+    // Column norms (B, N); the top-K descending are the singular values.
+    auto sq_norms = context.mark_node(std::make_shared<v1::ReduceSum>(mul(jac.a, jac.a), i64_c({1}), false));  // (B,N)
+    auto col_norms = context.mark_node(std::make_shared<v0::Sqrt>(sq_norms));                                  // (B, N)
+    auto topk = context.mark_node(std::make_shared<v11::TopK>(col_norms,
+                                                              k,
+                                                              1,
+                                                              v11::TopK::Mode::MAX,
+                                                              v11::TopK::SortType::SORT_VALUES,
+                                                              element::i64));
+    auto sv_flat = topk->output(0);  // (B, K) descending
+
+    // Restore the original leading batch dims (shape[:-2]) -> (..., K).
+    auto k_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(k, i64_c({0})));
+    auto sv = restore_leading_batch(context, sv_flat, shape, {k_1d});
+    return context.mark_node(std::make_shared<v1::ConvertLike>(sv, x));
+}
+
+// Move the two matrix axes (dim[0], dim[1]) to the trailing positions (-2, -1) so matrix_svdvals sees
+// the matrix as the last two axes. `dim` is the 2-element axis list (may be negative).
+Output<Node> move_matrix_axes_to_end(const NodeContext& context, const Output<Node>& x, const Output<Node>& dim) {
+    // Normalize the two axes to non-negative, build a permutation that appends them after the rest.
+    Output<Node> rank_s;
+    std::tie(std::ignore, rank_s) = get_shape_rank(context, x, /*as_scalar=*/true, element::i64);  // scalar rank
+    auto dim_i64 = context.mark_node(std::make_shared<v0::Convert>(dim, element::i64));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto zero_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+    auto norm_axes = normalize_axis(context, dim_i64, rank_s);  // (2,) in [0,rank)
+    // full axis range [0, rank)
+    auto all_axes = context.mark_node(std::make_shared<v4::Range>(zero, rank_s, one, element::i64));  // (rank,)
+    // mask out the two matrix axes: keep axes not in norm_axes, then append the two matrix axes.
+    auto a0 = context.mark_node(std::make_shared<v8::Gather>(norm_axes, zero_1d, zero));  // [ax0]
+    auto a1 = context.mark_node(
+        std::make_shared<v8::Gather>(norm_axes, v0::Constant::create(element::i64, Shape{1}, {1}), zero));  // [ax1]
+    auto eq0 = context.mark_node(std::make_shared<v1::Equal>(all_axes, a0));
+    auto eq1 = context.mark_node(std::make_shared<v1::Equal>(all_axes, a1));
+    auto is_mat = context.mark_node(std::make_shared<v1::LogicalOr>(eq0, eq1));  // (rank,)
+    auto keep_mask = context.mark_node(std::make_shared<v1::LogicalNot>(is_mat));
+    auto keep_idx = context.mark_node(std::make_shared<v3::NonZero>(keep_mask, element::i64));  // (1, rank-2)
+    auto keep_axes = context.mark_node(
+        std::make_shared<v8::Gather>(all_axes,
+                                     context.mark_node(std::make_shared<v0::Squeeze>(keep_idx, zero_1d)),
+                                     zero));  // (rank-2,)
+    auto perm = context.mark_node(std::make_shared<v0::Concat>(OutputVector{keep_axes, a0, a1}, 0));
+    return context.mark_node(std::make_shared<v1::Transpose>(x, perm));
+}
+
+// Singular-value matrix norms: spectral (mode "max"=ord 2 / "min"=ord -2) and nuclear ("sum"). Moves
+// the two `dim` axes to the trailing positions, computes the singular values there, reduces them
+// (max/min/sum), and restores the output layout honoring keep_dim.
+Output<Node> svd_matrix_norm(const NodeContext& context,
+                             const Output<Node>& input_tensor,
+                             const Output<Node>& dim,
+                             const std::string& mode,
+                             bool keep_dim) {
+    auto moved = move_matrix_axes_to_end(context, input_tensor, dim);
+    auto sv = matrix_svdvals(context, moved);  // (rest..., K)
+    auto last_axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    Output<Node> res;
+    if (mode == "max") {
+        res = context.mark_node(std::make_shared<v1::ReduceMax>(sv, last_axis, false));  // (rest...)
+    } else if (mode == "min") {
+        res = context.mark_node(std::make_shared<v1::ReduceMin>(sv, last_axis, false));
+    } else {  // "sum" -> nuclear norm
+        res = context.mark_node(std::make_shared<v1::ReduceSum>(sv, last_axis, false));
+    }
+    // `res` (the kept axes in original order) already matches torch's keepdim=False output. For
+    // keepdim=True, reshape to the input shape with the two matrix axes pinned to 1.
+    if (keep_dim) {
+        Output<Node> shape, rank;
+        std::tie(shape, rank) = get_shape_rank(context, input_tensor, /*as_scalar=*/true, element::i64);
+        auto dim_i64 = context.mark_node(std::make_shared<v0::Convert>(dim, element::i64));
+        auto norm_axes = normalize_axis(context, dim_i64, rank);  // (2,) in [0,rank)
+        auto ones = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {1, 1}));
+        auto axis0 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+        auto kd_shape = context.mark_node(std::make_shared<v3::ScatterUpdate>(shape, norm_axes, ones, axis0));
+        res = context.mark_node(std::make_shared<v1::Reshape>(res, kd_shape, /*special_zero=*/false));
+    }
+    return res;
+}
+
 Output<Node> norm_matrix(const NodeContext& context,
                          Output<Node> input_tensor,
                          Output<Node> dim,
@@ -101,6 +227,12 @@ Output<Node> norm_matrix(const NodeContext& context,
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, first_dim, true));
         res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, second_dim, true));
+    } else if (p == 2) {
+        // Spectral norm: the largest singular value.
+        return svd_matrix_norm(context, input_tensor, dim, "max", keep_dim);
+    } else if (p == -2) {
+        // Smallest singular value.
+        return svd_matrix_norm(context, input_tensor, dim, "min", keep_dim);
     } else {
         PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p, " for matrix norm");
     }
@@ -226,7 +358,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
     Output<Node> result;
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
-    // linalg.mtrix_norm(x.to(dtype))
+    // linalg.matrix_norm(x.to(dtype))
     if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
@@ -234,6 +366,9 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
         auto p_str = context.const_input<std::string>(1);
         if (p_str == "fro") {
             result = frobenius_norm(context, x, dim, keep_dim);
+        } else if (p_str == "nuc") {
+            // Nuclear norm: the sum of the singular values.
+            result = svd_matrix_norm(context, x, dim, "sum", keep_dim);
         } else {
             PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
         }
@@ -269,16 +404,10 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not determined
+    // ord=None: Frobenius and vector L2 are both sqrt(sum(x^2)) over `dim` for the real inputs here,
+    // so a single L2 reduction is correct and rank-agnostic -- no static rank or foldable `dim` needed.
     if (context.input_is_none(1)) {
-        auto input_rank = x.get_partial_shape().rank();
-        if (input_rank.is_static() && input_rank.get_length() == 2) {
-            result = frobenius_norm(context, x, dim, keep_dim);
-        } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
-            result = norm_vector(context, x, dim, 2, keep_dim);
-        } else {
-            PYTORCH_OP_CONVERSION_CHECK(false, "linalg norm for tensor rank > 2 without ord specification unsupported");
-        }
+        result = norm_vector(context, x, dim, 2, keep_dim);
     } else {
         // ord defines the  norm that is computed can be string or number
         auto ord_type = context.get_input_type(1);
@@ -286,6 +415,9 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
             auto p_str = context.const_input<std::string>(1);
             if (p_str == "fro") {
                 result = frobenius_norm(context, x, dim, keep_dim);
+            } else if (p_str == "nuc") {
+                // Nuclear norm: the sum of the singular values.
+                result = svd_matrix_norm(context, x, dim, "sum", keep_dim);
             } else {
                 PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
             }

@@ -19,6 +19,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -158,6 +159,98 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
                         new_kernel_shape,
                         res});
     return res;
+}
+
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label) {
+    const auto& pshape = x.get_partial_shape();
+    const auto rank = pshape.rank();
+    if (rank.is_static()) {
+        // A matrix op needs >= 2 axes; reject a lower static rank rather than letting the runtime
+        // guard reinterpret e.g. a 1-D n*n tensor as n x n.
+        PYTORCH_OP_CONVERSION_CHECK(rank.get_length() >= 2,
+                                    op_label,
+                                    " requires a batch of ",
+                                    n,
+                                    "x",
+                                    n,
+                                    " matrices (rank >= 2), got rank ",
+                                    rank.get_length(),
+                                    ".");
+        const auto& m_dim = pshape[rank.get_length() - 2];
+        const auto& n_dim = pshape[rank.get_length() - 1];
+        // Fail at conversion on any statically-known trailing dim != n, giving the clean op-labeled
+        // message instead of a bare runtime reshape error.
+        PYTORCH_OP_CONVERSION_CHECK(
+            (!m_dim.is_static() || m_dim.get_length() == n) && (!n_dim.is_static() || n_dim.get_length() == n),
+            op_label,
+            " is only supported for ",
+            n,
+            "x",
+            n,
+            " matrices, got trailing dimensions ",
+            m_dim,
+            "x",
+            n_dim,
+            ".");
+        if (m_dim.is_static() && n_dim.is_static()) {
+            return x;  // genuine static n x n: no runtime guard needed
+        }
+    }
+    // Dynamic trailing dims: pin each trailing axis to n with its own Reshape so the element-count
+    // check runs per axis (one [..,n,n] reshape checks only n*n total, so [1,9] would pass as 3x3).
+    // A genuine n x n is an identity through both; anything else fails loudly at runtime. The
+    // op-labeled name surfaces the op and size in the CPU error, matching the static branch.
+    const auto guard_name = op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n);
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto n_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {n}));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+
+    // Pin the last axis to n (fails iff the last extent != n).
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto neg_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto head = context.mark_node(std::make_shared<v8::Slice>(shape, zero, neg_one, step, axis));
+    auto shape_last = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head, n_1d}, 0));
+    auto g1 = context.mark_node(std::make_shared<v1::Reshape>(x, shape_last, /*special_zero=*/false));
+    g1->set_friendly_name(guard_name);
+
+    // Pin the second-to-last axis to n (fails iff the -2 extent != n), keeping the validated last = n.
+    auto shape1 = context.mark_node(std::make_shared<v3::ShapeOf>(g1, element::i64));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape1, zero, neg_two, step, axis));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    auto g2 = context.mark_node(std::make_shared<v1::Reshape>(g1, new_shape, /*special_zero=*/false));
+    g2->set_friendly_name(guard_name);
+    return g2;
+}
+
+Output<Node> flatten_batch_to_square(const NodeContext& context,
+                                     const Output<Node>& x,
+                                     const Output<Node>& n_1d,
+                                     const std::string& op_label) {
+    auto minus_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto flat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{minus_one, n_1d, n_1d}, 0));
+    auto x_flat = context.mark_node(std::make_shared<v1::Reshape>(x, flat_shape, /*special_zero=*/false));
+    x_flat->set_friendly_name(op_label + "/requires_square");
+    return x_flat;
+}
+
+Output<Node> restore_leading_batch(const NodeContext& context,
+                                   const Output<Node>& flat,
+                                   const Output<Node>& orig_shape,
+                                   const OutputVector& trailing) {
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(orig_shape, zero, neg_two, step));
+    OutputVector parts{batch_shape};
+    parts.insert(parts.end(), trailing.begin(), trailing.end());
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(parts, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(flat, new_shape, /*special_zero=*/false));
 }
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
@@ -751,6 +844,83 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
     auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(mask));
     auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
     return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
+}
+
+OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
+                                   Output<Node> input,
+                                   int dims,
+                                   bool return_indices,
+                                   const Shape& kernel,
+                                   const Strides& strides,
+                                   const Shape& pads,
+                                   const Strides& dilations,
+                                   RoundingType rounding_type) {
+    auto input_shape = rg.make<v3::ShapeOf>(input);
+
+    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+    bool is_static = input.get_partial_shape().rank().is_static();
+    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
+
+    if (is_static) {
+        if (no_batch_dim) {
+            input = rg.make<v0::Unsqueeze>(input, const_0);
+        }
+    } else {
+        input = rg.make<v0::Unsqueeze>(input, const_0);
+        auto unsqueeze_shape = rg.make<v3::ShapeOf>(input);
+        auto rank = rg.make<v0::ShapeOf>(unsqueeze_shape);
+        auto end_index = rg.make<v1::Add>(rank, const_1);
+        auto start_index = v0::Constant::create(element::i64, Shape{1}, {-dims - 2});
+        auto reshape_pattern = rg.make<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0);
+        input = rg.make<v1::Reshape>(input, reshape_pattern, true);
+    }
+
+    auto res = rg.make<
+        v14::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type, PadType::EXPLICIT, element::i64, 2);
+    if (is_static) {
+        if (no_batch_dim) {
+            if (return_indices) {
+                auto out1 = res->output(0);
+                auto out2 = res->output(1);
+                out1 = rg.make<v0::Squeeze>(out1, const_0);
+                out2 = rg.make<v0::Squeeze>(out2, const_0);
+                return {out1, out2};
+            } else {
+                auto squeezed = rg.make<v0::Squeeze>(res, const_0);
+                return {squeezed};
+            }
+        } else {
+            if (return_indices) {
+                return {res->output(0), res->output(1)};
+            } else {
+                return {res};
+            }
+        }
+
+    } else {
+        auto pooled_output_shape = rg.make<v3::ShapeOf>(res);
+
+        auto start_index_input = v0::Constant::create(element::i64, Shape{1}, {-dims});
+        auto slice_input_shape = rg.make<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0);
+
+        auto start_index_pooled = v0::Constant::create(element::i64, Shape{1}, {-dims});
+        auto end_index_pooled = v0::Constant::create(element::i64, Shape{1}, {2 + dims});
+        auto slice_pooled_output_shape =
+            rg.make<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0);
+
+        auto concat_shape = rg.make<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0);
+        if (return_indices) {
+            auto out1 = res->output(0);
+            auto out2 = res->output(1);
+            out1 = rg.make<v1::Reshape>(out1, concat_shape, true);
+            out2 = rg.make<v1::Reshape>(out2, concat_shape, true);
+            return {out1, out2};
+        } else {
+            auto reshaped = rg.make<v1::Reshape>(res, concat_shape, true);
+            return {reshaped};
+        }
+    }
 }
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {

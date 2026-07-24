@@ -297,6 +297,66 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                            "dim": dim, "keepdim": keepdim})
 
 
+class TestLinalgMatrixNormSvd(PytorchLayerTest):
+    """Matrix norms that require singular values: spectral (ord=2 / ord=-2) and nuclear ("nuc").
+
+    ord=2 is the largest singular value, ord=-2 the smallest, "nuc" their sum. The frontend computes
+    the singular values of the trailing (or dim-selected) matrix via a general MxN one-sided Jacobi
+    (values only), so square and rectangular matrices are both supported. Singular values are computed
+    in FP32 (the Jacobi rotations); reference values come from PyTorch (torch.linalg.matrix_norm).
+    """
+
+    def _prepare_input(self, input_shape):
+        return (self.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self, p, dim, keepdim):
+        class aten_linalg_matrix_norm(torch.nn.Module):
+            def __init__(self, p, dim, keepdim):
+                super().__init__()
+                self.ord = p
+                self.dim = dim
+                self.keepdim = keepdim
+
+            def forward(self, x):
+                return torch.linalg.matrix_norm(x, ord=self.ord, dim=self.dim, keepdim=self.keepdim)
+
+        return aten_linalg_matrix_norm(p, dim, keepdim), "aten::linalg_matrix_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('p', [2, -2, "nuc"])
+    @pytest.mark.parametrize('dim', [[-2, -1]])
+    @pytest.mark.parametrize('keepdim', [True, False])
+    @pytest.mark.parametrize('input_shape', [
+        [3, 3],          # square, no batch
+        [4, 4],          # square
+        [5, 3],          # tall rectangular
+        [3, 5],          # wide rectangular
+        [2, 4, 4],       # batch of square
+        [2, 6, 4],       # batch of tall
+    ])
+    def test_matrix_norm_svd(self, p, dim, keepdim, input_shape, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("singular-value matrix norms are validated in FP32")
+        if ie_device != "CPU":
+            pytest.skip("Jacobi singular-value accuracy is validated in FP32 on CPU")
+        self._test(*self.create_model(p, dim, keepdim), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape})
+
+
+# ord=None on rank>2 inputs (previously raised in the FE): torch maps ord=None to the vector
+# 2-norm over `dim` (Frobenius for a 2-axis dim), rank-agnostic. Shared by the dynamic-rank
+# test_linalg_norm cases and the forced-static-rank cases below.
+_ORD_NONE_RANK_GT2_CASES = [
+    (None, -1,       [2, 4, 3]),         # ord=None, scalar dim, rank-3
+    (None, 1,        [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
+    (None, (0, 1),   [1, 3, 3]),         # ord=None, 2-elem dim -> frobenius
+    (None, None,     [2, 3, 4]),         # ord=None, dim=None, rank-3 -> flat L2
+    (None, (-2, -1), [2, 4, 3, 3]),      # ord=None, 2-elem dim, rank-4 -> frobenius
+    (None, -1,       [1, 7, 7, 3, 3]),   # SAM-6D geo_embedding shape (rank-5)
+]
+
+
 class TestLinalgNorm(PytorchLayerTest):
 
     def _prepare_input(self, out=False, out_dtype=None, input_shape=(3, 3), dim=None, keepdim=False):
@@ -367,7 +427,7 @@ class TestLinalgNorm(PytorchLayerTest):
         (float('inf'), 1,      [1, 3, 3]),   # numeric ord, scalar dim -> norm_vector(p=inf)
         ("fro",        (0, 1), [1, 3, 3]),   # string ord -> frobenius_norm
         (0,            1,      [1, 3, 3]),   # p==0 branch
-    ])
+    ] + _ORD_NONE_RANK_GT2_CASES)
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
@@ -378,6 +438,25 @@ class TestLinalgNorm(PytorchLayerTest):
                    kwargs_to_prepare_input={
                        "out": out or prim_dtype,
                        "out_dtype": dtype if prim_dtype else None,
+                       "input_shape": input_shape,
+                       "dim": dim,
+                       "keepdim": keepdim
+        })
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    # ord=None with static rank > 2 used to raise in the frontend; pin the static-rank path
+    # (the harness default uses dynamic rank, a different branch).
+    @pytest.mark.parametrize('p,dim,input_shape', _ORD_NONE_RANK_GT2_CASES)
+    @pytest.mark.parametrize('keepdim', [True, False])
+    def test_linalg_norm_ordNone_rank_gt2_static(self, p, dim, keepdim, input_shape,
+                                                 ie_device, precision, ir_version):
+        self._test(*self.create_model(p, dim, keepdim, None, False, False),
+                   ie_device, precision, ir_version,
+                   dynamic_shapes=False,
+                   kwargs_to_prepare_input={
+                       "out": False,
+                       "out_dtype": None,
                        "input_shape": input_shape,
                        "dim": dim,
                        "keepdim": keepdim
