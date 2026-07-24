@@ -1283,9 +1283,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
-        // Disable HOST_GATHER for LM head: DQUnpackDictMatMulCWu would crash
-        // when vocab is provided as Parameter (vocab_as_input mode)
-        lm_head_config["NPUW_HOST_GATHER"] = "NO";
+        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>()) {
+            LOG_INFO("Vocab is provided as input to LM head, disabling HOST_GATHER for LM head.");
+        
+            // Disable HOST_GATHER for LM head: DQUnpackDictMatMulCWu would crash
+            // when vocab is provided as Parameter (vocab_as_input mode)
+            lm_head_config["NPUW_HOST_GATHER"] = "NO";
+        }
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
