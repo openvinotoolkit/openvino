@@ -259,6 +259,7 @@ public:
                 uint32_t F8E4M3 : 1;
                 uint32_t F8E5M2 : 1;
                 uint32_t F8E8M0 : 1;
+                uint32_t uint2 : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
