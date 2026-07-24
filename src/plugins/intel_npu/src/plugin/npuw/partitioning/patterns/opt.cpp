@@ -1978,7 +1978,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         const bool pretransposed_layout = qcoeff_shape.size() == 2 && qcoeff_shape[0] == 1 &&
                                           !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
         if (ov::element::u8 == matched_qweight->get_element_type() && (standard_layout || pretransposed_layout)) {
-            to_keep.get().push_back(matched_qweight);
+           // to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed
@@ -2033,7 +2033,7 @@ PreserveConstDictMatMulFP8::PreserveConstDictMatMulFP8(Context::Ref ctx, Preserv
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            to_keep.get().push_back(matched_qweight);
+            //to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed
         }
