@@ -236,6 +236,9 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     if (!params.has_dynamic_inputs()) {
         jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
 
+        const bool full_block = (blockWidth == 1) || ((params.inputs[0].X().v * params.inputs[0].Y().v) % blockWidth == 0);
+        jit.AddConstant(MakeJitConstant("FULL_BLOCK", full_block));
+
         bool padded_output = params.outputs[0].X().pad.Total() != 0;
         bool non_unit_fused_op_spatial = false;
 
@@ -271,6 +274,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         DimensionAccessHelperJit input0_padded_dims(params.inputs[0], true);
         DimensionAccessHelperJit output_dims(params.outputs[0]);
         DimensionAccessHelperJit output_padded_dims(params.outputs[0], true);
+
+        jit.AddConstant(MakeJitConstant("FULL_BLOCK", blockWidth == 1));
 
         const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().second + ") != 0";
         jit.AddConstant(MakeJitConstant("PADDED_INPUT", padded_input));

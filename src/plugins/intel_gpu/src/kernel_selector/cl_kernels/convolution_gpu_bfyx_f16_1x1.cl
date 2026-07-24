@@ -162,7 +162,21 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 #else // PADDED_INPUT
 
 #if X_BLOCK_SIZE > 1
+#if FULL_BLOCK
             src = UNIT_BLOCK_READ_VEC(input, input_offset + k * input_fs_pitch + input_y * input_y_pitch + input_x * input_x_pitch);
+#else // FULL_BLOCK
+            __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
+            for (int i = 0; i < X_BLOCK_SIZE; i++) {
+                if (xy * X_BLOCK_SIZE + i >= INPUT0_SIZE_X * INPUT0_SIZE_Y)
+                    break;
+
+                const uint xb = (input_x + i) % INPUT0_SIZE_X;
+                const uint yb = input_y + (input_x + i) / INPUT0_SIZE_X;
+                const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+
+                src[i] = UNIT_BLOCK_READ(input, input_idx);
+            }
+#endif  // FULL_BLOCK
 #else
             src = UNIT_BLOCK_READ(input, input_offset + k * input_fs_pitch);
 #endif // X_BLOCK_SIZE > 1
