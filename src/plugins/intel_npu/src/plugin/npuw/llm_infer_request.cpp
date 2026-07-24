@@ -1259,11 +1259,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                      0);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
                                      0);
-            if (token_type_ids) {
-                uu::fill_tensor<int64_t>(
-                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
-                    0);
-            }
 
             m_generate_initialized = true;
         }
@@ -1291,11 +1286,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     input_ids->get_byte_size(),
                     reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() -
                         input_ids->get_byte_size());
-
-        if (token_type_ids) {
-            auto kv_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
-            util::copy_to_right(token_type_ids, kv_token_type_ids);
-        }
 
         // NOTE: Attention mask pattern for generate model requires the set of "1"
         //       units of length of the current prompt on the right (for present
