@@ -41,7 +41,11 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 #elif defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
     return (num + 0.5f) * scale;
 #elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
-    return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
+    if (length_resized == 1)
+        return 0.f;
+    if (num == 0.f || num == (float)(length_resized - 1))
+        return num == 0.f ? 0.f : (float)(length_original - 1);
+    return (float)((int)num * (length_original - 1)) / (float)(length_resized - 1);
 #else
 #error [clDNN resample_opt.cl]: coordinate transformation mode - not supported
 #endif

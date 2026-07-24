@@ -129,7 +129,7 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     OPENVINO_ASSERT(channelIndex >= 0, "Invalid layout channel index");
 
     dims[channelIndex] = ybox_last - ybox_first;
-    DataTensor result{dims, Datatype::F16, layout};
+    DataTensor result{dims, params.inputs[0].GetDType(), layout};
     return result;
 }
 
@@ -410,7 +410,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
                 idx_order = {"b", "f", "w", "z", "y", "x"};
             }
-            FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
+            FusedOpsConfiguration conf = {"", idx_order, "resample_result", params.inputs[0].GetDType(), 1};
             jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
         }
     }
@@ -421,7 +421,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
 KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     const resample_params& resample_parameters = static_cast<const resample_params&>(params);
     KernelData kd = KernelData::Default<resample_params>(params, GetKernelsNum(resample_parameters));
-    kd.internalBufferDataType = Datatype::F16;
+    kd.internalBufferDataType = resample_parameters.inputs[0].GetDType();
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
         if (!NeedHorizontalPass(resample_parameters) &&

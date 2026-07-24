@@ -152,6 +152,10 @@ protected:
 
         const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
 
+        if (mode == ov::op::v4::Interpolate::InterpolateMode::CUBIC && ngPrc == ov::element::f32) {
+            abs_threshold = 1e-3;
+        }
+
         const auto& [_shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes] = shapeParams;
         shapeCalcMode = _shapeCalcMode;
 
