@@ -47,7 +47,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.0/macos/>`__,
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/macos/>`__,
    extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
@@ -57,7 +57,7 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.0/macos/openvino_toolkit_macos_12_6_2026.3.0.22446.ce03a15d415_arm64.tgz --output openvino_2026.3.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/macos/openvino_toolkit_macos_12_6_2026.3.0.22446.ce03a15d415_arm64.tgz --output openvino_2026.3.0.tgz
             tar -xf openvino_2026.3.0.tgz
             sudo mv openvino_toolkit_macos_12_6_2026.3.0.22446.ce03a15d415_arm64 /opt/intel/openvino_2026.3.0
 

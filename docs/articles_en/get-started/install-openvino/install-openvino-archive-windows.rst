@@ -41,14 +41,14 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.0/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.0/windows/openvino_toolkit_windows_2026.3.0.22446.ce03a15d415_x86_64.zip --output openvino_2026.3.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/windows/openvino_toolkit_windows_2026.3.0.22446.ce03a15d415_x86_64.zip --output openvino_2026.3.0.zip
 
    .. note::
 
