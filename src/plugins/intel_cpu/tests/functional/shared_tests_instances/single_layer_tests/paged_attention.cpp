@@ -60,7 +60,7 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
     {ov::value_cache_group_size.name(), 0},
 }};
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 // Basic verification tests
 
