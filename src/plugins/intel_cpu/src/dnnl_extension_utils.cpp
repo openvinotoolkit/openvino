@@ -37,6 +37,8 @@ using namespace dnnl;
 
 namespace ov::intel_cpu {
 
+static constexpr memory::data_type dnnl_data_type_u2 = static_cast<memory::data_type>(18);
+
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
     case dnnl::memory::data_type::f64:
@@ -91,7 +93,7 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
     case ov::element::u4:
         return memory::data_type::u4;
     case ov::element::u2:
-        return memory::data_type::u2;
+        return dnnl_data_type_u2;
     case ov::element::f8e8m0:
         return memory::data_type::e8m0;
     case ov::element::f8e4m3:
@@ -139,7 +141,7 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
         return ov::element::i4;
     case memory::data_type::u4:
         return ov::element::u4;
-    case memory::data_type::u2:
+    case dnnl_data_type_u2:
         return ov::element::u2;
     case memory::data_type::e8m0:
         return ov::element::f8e8m0;
