@@ -1018,10 +1018,12 @@ TEST(GGUFOps, FlashAttnExt) {
     expect_near(out, expected, 2e-2f);  // fp16 SDPA
 }
 
-// GatedDeltaNet (qwen3next linear attention) as a recurrent scan. Minimal scalar case
-// B=H=S=1, T=2 exercises the full per-token gated delta update + output packing
-// [attn_t0, attn_t1, final_state].
-TEST(GGUFOps, GatedDeltaNet) {
+// GatedDeltaNet, reference (Loop) path. With head size S=1 the gate last-dim equals S_v, so this is
+// the per-key-dimension gating case (kda) that the fused op does not support and which therefore
+// lowers to the serializable Loop scan. Minimal scalar case B=H=S=1, T=2 exercises the full
+// per-token gated delta update + output packing [attn_t0, attn_t1, final_state]. This model stays
+// serializable, so we also assert no internal GatedDeltaNet op is present.
+TEST(GGUFOps, GatedDeltaNetRefFallback) {
     const int64_t B = 1, T = 2, H = 1, S = 1;
     auto shp = ov::PartialShape{B, T, H, S};
     auto model = SingleOpBuilder()
@@ -1059,6 +1061,99 @@ TEST(GGUFOps, GatedDeltaNet) {
         expected.push_back(state * q[t]);  // attn_t
     }
     expected.push_back(state);  // final state, packed after the attn outputs
+    expect_near(out, expected, 1e-4f);
+
+    // Fallback path is core-op only: no internal fused op, and it uses a Loop scan.
+    bool has_fused = false, has_loop = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (std::string(node->get_type_name()) == std::string("GatedDeltaNet"))
+            has_fused = true;
+        if (std::string(node->get_type_name()) == std::string("Loop"))
+            has_loop = true;
+    }
+    EXPECT_FALSE(has_fused);
+    EXPECT_TRUE(has_loop);
+}
+
+// GatedDeltaNet, fused-op path. A scalar gate (gate last-dim 1 with head size Dv>1) selects the
+// fused ov::op::internal::GatedDeltaNet op instead of the Loop scan. B=H=1, T=2, D=Dv=2. We assert
+// the fused op is actually emitted and that its result matches the core reference recurrence.
+// NOTE: a model on this path contains an internal op and is therefore NOT IR-serializable
+// (see src/frontends/gguf/docs/internal_ops.md).
+TEST(GGUFOps, GatedDeltaNetFused) {
+    const int64_t B = 1, T = 2, H = 1, D = 2;  // head size D = Dv = 2, scalar gate
+    auto qkv_shp = ov::PartialShape{B, T, H, D};
+    auto gate_shp = ov::PartialShape{B, T, H, 1};    // scalar gate -> fused path
+    auto state_shp = ov::PartialShape{B, H, D, D};   // ggml [B, H_v, value_dim, key_dim]
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GATED_DELTA_NET")
+                     .input("q", ov::element::f32, qkv_shp)
+                     .input("k", ov::element::f32, qkv_shp)
+                     .input("v", ov::element::f32, qkv_shp)
+                     .input("g", ov::element::f32, gate_shp)
+                     .input("beta", ov::element::f32, gate_shp)
+                     .input("state", ov::element::f32, state_shp)
+                     .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H})
+                     .build();
+
+    // Assert the fused internal op is present (this is the whole point of this path).
+    bool has_fused = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (std::string(node->get_type_name()) == std::string("GatedDeltaNet"))
+            has_fused = true;
+    }
+    ASSERT_TRUE(has_fused) << "fused ov::op::internal::GatedDeltaNet was not emitted";
+
+    // Per-token, per-dim inputs (row-major over [T, D]).
+    std::vector<float> q{1, 0, 0, 1}, k{1, 0, 0, 1}, v{1, 2, 3, 4};
+    std::vector<float> g{0.0f, 0.0f}, beta{1.0f, 1.0f};  // exp(g)=1, full update
+    std::vector<float> state0(D * D, 0.0f);
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, q)},
+                           {"k", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, k)},
+                           {"v", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, v)},
+                           {"g", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, g)},
+                           {"beta", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, beta)},
+                           {"state", make_f32_tensor({(size_t)B, (size_t)H, (size_t)D, (size_t)D}, state0)}});
+
+    // Reference: mirror ov::reference::gated_delta_net for B=H=1. state[d][dv]; q scaled by
+    // 1/sqrt(D). For each token: decay state by exp(g); h_k[dv] = sum_d state[d][dv]*k[d];
+    // update state[d][dv] += k[d]*(v[dv]-h_k[dv])*beta; attn[dv] = sum_d state[d][dv]*q_scaled[d].
+    const float scale = 1.0f / std::sqrt((float)D);
+    std::vector<std::vector<float>> st(D, std::vector<float>(D, 0.0f));  // st[d][dv]
+    std::vector<float> attn;  // [T*D]
+    for (int t = 0; t < T; ++t) {
+        std::vector<float> qs(D), kv(D);
+        for (int d = 0; d < D; ++d) {
+            qs[d] = q[t * D + d] * scale;
+            kv[d] = k[t * D + d];
+        }
+        float gexp = std::exp(g[t]);
+        for (int d = 0; d < D; ++d)
+            for (int dv = 0; dv < D; ++dv)
+                st[d][dv] *= gexp;
+        for (int dv = 0; dv < D; ++dv) {
+            float h_k = 0.0f;
+            for (int d = 0; d < D; ++d)
+                h_k += st[d][dv] * kv[d];
+            float upd = (v[t * D + dv] - h_k) * beta[t];
+            for (int d = 0; d < D; ++d)
+                st[d][dv] += kv[d] * upd;
+        }
+        for (int dv = 0; dv < D; ++dv) {
+            float a = 0.0f;
+            for (int d = 0; d < D; ++d)
+                a += st[d][dv] * qs[d];
+            attn.push_back(a);
+        }
+    }
+    // Packed output layout: [attn (T*D) | final_state (D*D)] flattened. The frontend transposes the
+    // op's [key_dim, value_dim] state back to ggml's [value_dim, key_dim] before flattening, so the
+    // state is packed value-dim outer, key-dim inner.
+    std::vector<float> expected = attn;
+    for (int dv = 0; dv < D; ++dv)
+        for (int d = 0; d < D; ++d)
+            expected.push_back(st[d][dv]);
     expect_near(out, expected, 1e-4f);
 }
 
