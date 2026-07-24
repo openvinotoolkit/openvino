@@ -18,6 +18,12 @@ inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& des
         data_inputs_num--;
     }
 
+    // split_kv appends a trailing i32 control input (the valid cache length). It is not a
+    // Q/K/V/mask/scale data input, so exclude it from the count (mask detection, base loop, etc.).
+    if (desc.split_kv) {
+        data_inputs_num--;
+    }
+
     if (desc.is_kv_compressed) {
         data_inputs_num -= 2;
         if (desc.get_compression_zp_inputs_num() > 0) {

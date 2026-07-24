@@ -23,6 +23,11 @@ struct SDPAStage {
     constexpr static size_t MICRO = 3;
 };
 
+// Defined in sdpa_gen_opt.cpp. Forward-declared here (rather than including sdpa_gen_opt.hpp, which
+// includes this header for SDPAStage) to avoid a circular include. True when the split-KV op can be
+// lowered by the partitioned opt decode path (static shapes, default [B,H,S,D] layout).
+[[nodiscard]] bool split_kv_opt_supported(const kernel_impl_params& params);
+
 struct SDPAOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
@@ -30,6 +35,12 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
+        // split_kv: handled by the SPLIT_KV-gated single-token decode path (sdpa_opt.cl + the
+        // SDPASplitKVOpt* generators). The fusion only produces a split-KV op for the cases this
+        // path supports (static shapes, default [B,H,S,D] layout), so gate on split_kv_opt_supported.
+        if (desc->split_kv) {
+            return split_kv_opt_supported(*node.get_kernel_impl_params());
+        }
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,

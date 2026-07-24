@@ -73,6 +73,21 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     bool has_sink_input = false;
     int64_t indirect_axis = -1;
 
+    // split_kv: K and V are supplied as two chunks each (persistent cache + current step), so the
+    // kernel attends over their logical sequence concatenation without materializing a full-cache
+    // copy. The input order is [Q, K_cache, V_cache, mask, K_new, V_new, kv_len] (no scale input;
+    // scale is the scale_val attribute). The trailing i32 kv_len carries the valid cache length
+    // (last attended cache index + 1, derived in-graph from the mask) so the kernel caps its cache
+    // loops there, skipping the padding tail of the allocated cache. When false (default) the
+    // primitive behaves exactly as the standard single-K/single-V SDPA.
+    //
+    // NOTE: this is a settable field (like scale_val / attn_mask_val), not a constructor argument,
+    // so the base constructor's auto-derivation of has_attn_mask_input / has_scale_input /
+    // has_sink_input (which counts inputs) is unaware of the trailing K_new/V_new/kv_len inputs. The
+    // lowering that builds a split_kv primitive MUST set split_kv = true AND set has_attn_mask_input
+    // / has_scale_input explicitly, and leave has_sink_input == false (sink is unsupported here).
+    bool split_kv = false;
+
     bool is_kv_compressed = false;
     QuantizationAttributes quantization_attributes;
 
@@ -90,6 +105,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
         seed = hash_combine(seed, has_sink_input);
+        seed = hash_combine(seed, split_kv);
         seed = hash_combine(seed, indirect_axis);
         seed = hash_range(seed, input_q_transpose_order.begin(), input_q_transpose_order.end());
         seed = hash_range(seed, input_k_transpose_order.begin(), input_k_transpose_order.end());
@@ -125,6 +141,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
                has_sink_input == rhs_casted.has_sink_input &&
+               split_kv == rhs_casted.split_kv &&
                indirect_axis == rhs_casted.indirect_axis &&
                input_q_transpose_order == rhs_casted.input_q_transpose_order &&
                input_k_transpose_order == rhs_casted.input_k_transpose_order &&
@@ -149,6 +166,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << has_attn_mask_input;
         ob << has_scale_input;
         ob << has_sink_input;
+        ob << split_kv;
         ob << indirect_axis;
         ob << input_q_transpose_order;
         ob << input_k_transpose_order;
@@ -178,6 +196,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
         ib >> has_sink_input;
+        ib >> split_kv;
         ib >> indirect_axis;
         ib >> input_q_transpose_order;
         ib >> input_k_transpose_order;

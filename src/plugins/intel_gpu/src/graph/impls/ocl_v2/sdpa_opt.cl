@@ -17,6 +17,26 @@
 // exp_sums      [batch, heads_num, q_len, partition_idx]
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
+//
+// ============================================================================================
+// SPLIT_KV mode (jit-gated; #ifdef SPLIT_KV). The single-token (2nd+ token) decode path doubles as
+// the split-KV decode kernel: the persistent KV cache (key_input/value_input) and the current
+// step's KV (key_new_input/value_new_input) are kept SEPARATE -- no full-cache Concat copy every
+// step -- and the kernel attends over the logical concatenation [K_cache; K_new] / [V_cache;
+// V_new]. The ONLY extension is the K/V load; KV-sequence partitioning, the SLM softmax
+// reductions, the finalization stage, GQA broadcast (DO_BROADCAST_KEY_VALUE) and dispatch are the
+// non-split path, unchanged. Split-KV is decode-only (q_len == 1), so only SDPA_STAGE_0 with
+// TARGET_SEQ_LEN_BLOCK_SIZE == 1 is exercised in that mode.
+//
+// Split-load: each partition runs the cache loops UNCHANGED, bounded by the live cache length
+// cache_len = min(kv_len, SOURCE_SEQ_LEN_CACHE). The new chunk runs as its own (highest) partition,
+// reading key_new/value_new with the same index helpers + GQA broadcast as the cache. In decode
+// S_new == 1, so that partition is trivial and never straddles a subgroup boundary. Extra inputs
+// in SPLIT_KV mode:
+//   key_new_input    [batch, kv_heads_num, S_new, head_size]   (K_new)
+//   value_new_input  [batch, kv_heads_num, S_new, head_size]   (V_new)
+//   kv_len_input     scalar i32 valid-cache-length (attended prefix; caps the cache loops)
+// and attn_mask then spans [*, *, q_len, S_cache + S_new].
 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
@@ -96,6 +116,41 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 }
 
+#ifdef SPLIT_KV
+// K_new / V_new chunk index helpers. They mirror get_input1_index / get_input2_index but use the
+// KEY_NEW_* / VALUE_NEW_* layout macros (and optional *_DIMS_ORDER), applying the SAME GQA
+// broadcast (DO_BROADCAST_KEY_VALUE) as the cache chunk. Split-KV is restricted to the default
+// contiguous [B,H,S,D] layout and is mutually exclusive with KV compression / beam table, so only
+// the simple 4D index path is needed here.
+inline uint FUNC(get_key_new_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef DO_BROADCAST_KEY_VALUE
+    DO_BROADCAST_KEY_VALUE;
+#endif
+    return KEY_NEW_GET_INDEX(b, f, y, x);
+}
+inline uint FUNC(get_key_new_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef KEY_NEW_DIMS_ORDER
+    return FUNC_CALL(get_key_new_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR KEY_NEW_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_key_new_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
+inline uint FUNC(get_value_new_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef DO_BROADCAST_KEY_VALUE
+    DO_BROADCAST_KEY_VALUE;
+#endif
+    return VALUE_NEW_GET_INDEX(b, f, y, x);
+}
+inline uint FUNC(get_value_new_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef VALUE_NEW_DIMS_ORDER
+    return FUNC_CALL(get_value_new_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR VALUE_NEW_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_value_new_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+#endif // SPLIT_KV
+
 #ifdef BEAM_TABLE_TYPE
 inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if BEAM_TABLE_SIMPLE
@@ -167,6 +222,14 @@ KERNEL(sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
+#ifdef SPLIT_KV
+    // split_kv: K_new / V_new / kv_len follow Q,K,V,mask (no scale input; scale is
+    // STATIC_SCALE_VALUE), matching the split-KV generator's argument order. kv_len[0] is the valid
+    // cache length (attended prefix), used to cap the cache loops.
+    const __global INPUT1_TYPE* key_new_input,
+    const __global INPUT2_TYPE* value_new_input,
+    const __global int* kv_len_input,
+#endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
@@ -206,9 +269,66 @@ KERNEL(sdpa_opt)(
     const uint wi_num_per_partition = get_local_size(2);
 
     const uint start_partition_idx = partition_idx * SEQ_LEN_PARTITION_SIZE;
+#ifdef SPLIT_KV
+    // ---- split-KV partition classification ----------------------------------------------------
+    // Cache occupies logical positions [0, SOURCE_SEQ_LEN_CACHE); the new chunk occupies
+    // [SOURCE_SEQ_LEN_CACHE, SOURCE_SEQ_LEN). The new chunk gets its OWN partition (the highest
+    // partition index), so S_cache need NOT be partition-aligned: each partition is wholly cache or
+    // wholly new and reuses sdpa_opt's loop body verbatim against one source buffer.
+    //   * cache partition: read key_input/value_input at the global cache position; live length is
+    //     truncated by the dynamic valid-cache-length cache_len. Partitions entirely beyond cache_len
+    //     are pure padding -> early-exit.
+    //   * new partition: read key_new_input/value_new_input restarting at seq 0; full S_new length.
+    // Because S_cache may be unaligned, the new partition's start_partition_idx (a multiple of the
+    // partition size) is NOT the logical position. seq_pos_base gives the true logical position of
+    // in-partition index 0, used for the attention-mask column: SOURCE_SEQ_LEN_CACHE for the new
+    // partition, start_partition_idx for cache partitions.
+    const bool is_new_partition = (start_partition_idx >= SOURCE_SEQ_LEN_CACHE);
+    const uint seq_pos_base = is_new_partition ? (uint)SOURCE_SEQ_LEN_CACHE : start_partition_idx;
+    const uint cache_len = min((uint)kv_len_input[0], (uint)SOURCE_SEQ_LEN_CACHE);
+    uint partition_seq_len;
+    if (is_new_partition) {
+        partition_seq_len = SOURCE_SEQ_LEN - SOURCE_SEQ_LEN_CACHE;  // S_new
+    } else {
+        partition_seq_len = (start_partition_idx >= cache_len) ? 0u
+                          : min((uint)SEQ_LEN_PARTITION_SIZE, cache_len - start_partition_idx);
+    }
+    // Pure-padding cache partition: emit a neutral partial (max_logit = -inf, exp_sum = 0) so the
+    // finalization stage's flash-combine ignores it, then exit. The condition is uniform across the
+    // whole work-group (depends only on partition_idx / cache_len), so this return is barrier-safe.
+    if (partition_seq_len == 0) {
+        if (num_of_partitions > 1 && lid == 0) {
+            const uint part_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
+                                     b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
+                                     target_seq_idx * (num_of_partitions) + partition_idx;
+            exp_sums[part_offset] = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+            max_logits[part_offset] = SOFTMAX_ACCUMULATOR_VAL_MIN;
+        }
+        return;
+    }
+    // Source-buffer seq origin: cache positions are global (start_partition_idx + s); the new chunk
+    // restarts at 0 within key_new/value_new. SPLIT_KV_KEY_OFFSET / SPLIT_KV_VALUE_OFFSET below map
+    // an in-partition index s to the correct buffer offset (b_idx fixed to b0_idx: split-KV has no
+    // beam table). The chosen *_ptr selects which global buffer the load reads from.
+    #define SPLIT_KV_KEY_OFFSET(s) (is_new_partition \
+        ? FUNC_CALL(get_key_new_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, (s), 0) \
+        : FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (s), 0))
+    #define SPLIT_KV_VALUE_OFFSET(s) (is_new_partition \
+        ? FUNC_CALL(get_value_new_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, (s), head_size_idx) \
+        : FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (s), head_size_idx))
+    const __global INPUT1_TYPE* key_src = is_new_partition ? key_new_input : key_input;
+    const __global INPUT2_TYPE* value_src = is_new_partition ? value_new_input : value_input;
+    // Aliases so the shared (sdpa_opt-verbatim) load bodies below name the right source buffer in
+    // both split-KV (cache vs new) and non-split builds without further #ifdefs at each read site.
+    #define KEY_LOAD_SRC key_src
+    #define VALUE_LOAD_SRC value_src
+#else
+    #define KEY_LOAD_SRC key_input
+    #define VALUE_LOAD_SRC value_input
     const uint partition_seq_len =
         ((partition_idx + 1) < num_of_partitions) ? (SEQ_LEN_PARTITION_SIZE)
                                                   : (SOURCE_SEQ_LEN - partition_idx * SEQ_LEN_PARTITION_SIZE);
+#endif
 
     // SLM for query inputs
     __local INPUT0_TYPE query_local[K_HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
@@ -292,7 +412,12 @@ KERNEL(sdpa_opt)(
                 const uint b_idx = b0_idx;
 #endif
 
-#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#ifdef SPLIT_KV
+                // Cache reads from key_input at the global position; the new chunk reads from
+                // key_new_input restarting at seq 0. SPLIT_KV_KEY_OFFSET encodes that origin; the
+                // matching key_src buffer is selected for the block reads below.
+                uint key_offset = SPLIT_KV_KEY_OFFSET(seq_len);
+#elif IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
                 uint key_offset = key_base_p0 + (start_partition_idx + seq_len) * key_packed_pitch_p0;
 #elif defined(INPUT1_DIMS_ORDER)
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
@@ -370,7 +495,7 @@ KERNEL(sdpa_opt)(
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
-                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(KEY_LOAD_SRC, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed) - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
@@ -402,7 +527,7 @@ KERNEL(sdpa_opt)(
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
-                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(KEY_LOAD_SRC, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed) - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
@@ -434,7 +559,7 @@ KERNEL(sdpa_opt)(
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
-                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(KEY_LOAD_SRC, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed) - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
@@ -466,7 +591,7 @@ KERNEL(sdpa_opt)(
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
-                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(KEY_LOAD_SRC, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed) - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
@@ -512,7 +637,14 @@ KERNEL(sdpa_opt)(
                         if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
+#ifdef SPLIT_KV
+                        // seq_pos_base maps in-partition seq_len to the logical mask column (cache:
+                        // start_partition_idx; new chunk: SOURCE_SEQ_LEN_CACHE, since S_cache may be
+                        // unaligned to the partition size).
+                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, seq_pos_base + seq_len);
+#else
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
+#endif
                         INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
 #ifdef CLAMP_ATTN_MASK_INPUT
                         // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
@@ -759,7 +891,12 @@ KERNEL(sdpa_opt)(
     #endif
 #else
             const uint b_idx = b0_idx;
-    #if IS_INT4_COMPRESSED
+    #ifdef SPLIT_KV
+                // Cache vs new chunk: SPLIT_KV_VALUE_OFFSET encodes the seq origin (global vs 0),
+                // value_src selects the buffer. value_pitch is identical for both (same [B,H,S,D]
+                // layout), so the per-step increment below is unchanged.
+                uint value_offset = SPLIT_KV_VALUE_OFFSET(seq_len * SUBGROUP_SIZE);
+    #elif IS_INT4_COMPRESSED
                 uint value_offset = value_base_p0 + (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch;
     #elif defined(INPUT2_DIMS_ORDER)
                 uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
@@ -790,7 +927,7 @@ KERNEL(sdpa_opt)(
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
     #endif
 #else
-                const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(VALUE_LOAD_SRC, value_offset);
 #endif
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
@@ -840,6 +977,10 @@ KERNEL(sdpa_opt)(
     #else
             const uint value_offset = value_base_p0 + (start_partition_idx + seq_len) * value_pitch;
     #endif
+#elif defined(SPLIT_KV)
+            // Unaligned-tail seq positions of a homogeneous partition (cache: truncated by the
+            // dynamic cache_len; new: the S_new remainder). Same buffer-select as the main loop.
+            const uint value_offset = SPLIT_KV_VALUE_OFFSET(seq_len);
 #elif defined(INPUT2_DIMS_ORDER)
             const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
 #else
@@ -863,7 +1004,7 @@ KERNEL(sdpa_opt)(
             const INPUT2_TYPE value_packed = (val_packed_x + sglid < K_HEAD_SIZE / 2)
                 ? VALUE_BLOCK_READ(value_input, value_offset) : (INPUT2_TYPE)0;
 #else
-            const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+            const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(VALUE_LOAD_SRC, value_offset);
 #endif
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
@@ -931,6 +1072,13 @@ KERNEL(sdpa_opt)(
 #endif
     } // Gemm2 calculation end
 }
+
+#undef KEY_LOAD_SRC
+#undef VALUE_LOAD_SRC
+#ifdef SPLIT_KV
+#undef SPLIT_KV_KEY_OFFSET
+#undef SPLIT_KV_VALUE_OFFSET
+#endif
 
 #else
 /* This version is used for 1st token */

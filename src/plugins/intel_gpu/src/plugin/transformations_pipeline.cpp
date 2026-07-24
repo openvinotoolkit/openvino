@@ -115,6 +115,7 @@
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
+#include "plugin/transformations/sdpa_split_kv_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
@@ -1604,6 +1605,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
+        // Build a split-KV SDPA for the "split attention" sub-graph (cache + new K/V attended
+        // separately then summed) in decode (q_len == 1). A naive single-SDPA fusion is avoided
+        // here because it would force a full-cache concat copy every step. The matcher anchors on
+        // the raw MatMul/Concat/Softmax sub-graph, so it must run before any pass that rewrites
+        // those ops:
+        //   - before ConvertMatMulToFullyConnected (below): single-KV-head (e.g. Gemma global)
+        //     attention matmuls have all-1 batch dims and would be rewritten to FullyConnected,
+        //     making the fusion silently miss them. Running first lets it absorb the attention
+        //     matmuls into op::SDPA; the remaining matmuls fall through to the conversion below.
+        //   - before TransposeFusion (further below), which folds the Q/K/V transposes away.
+        manager.register_pass<ov::intel_gpu::SDPASplitKVFusion>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::pass::MoveFCReshapeToWeights<ov::intel_gpu::op::FullyConnected>>();
         if (!device_info.supports_immad) {
