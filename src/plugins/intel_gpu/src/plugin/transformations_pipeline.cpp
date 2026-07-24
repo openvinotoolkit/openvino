@@ -498,7 +498,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
     // are automatically propagated by copy_runtime_info through all transformations.
     // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100) {
+    // Note: this runs on the pre-resolution config, so the ratio may still be
+    // OFFLOAD_RATIO_AUTO (-1) here. Stamping is cheap and harmless even if OTD ends
+    // up disabled, so we also stamp for AUTO to keep bin offsets available once auto resolves.
+    const int64_t otd_ratio = config.get_offload_ratio();
+    const bool otd_maybe_enabled = otd_ratio == -1 || (otd_ratio > 0 && otd_ratio < 100);
+    if (otd_maybe_enabled) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
