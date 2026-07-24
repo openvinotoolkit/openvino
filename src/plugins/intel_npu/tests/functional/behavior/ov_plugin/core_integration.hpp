@@ -66,10 +66,10 @@ public:
     }
 
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         std::tie(target_device, configuration) = this->GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
         actualNetwork = ov::test::utils::make_split_conv_concat();
         // Quite simple network
@@ -383,7 +383,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInf
     ov::CompiledModel compiledModel;
     auto model = createModelWithLargeSize();
 
-    //Warm up inference to initialize driver scratch buffers
+    // Warm up inference to initialize driver scratch buffers
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
     auto inferRequest = compiledModel.create_infer_request();
     inferRequest.infer();
@@ -450,6 +450,37 @@ TEST_P(OVClassCompileModel, CompileModelWithDifferentThreadNumbers) {
         std::ignore = ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(-1)}}),
         ::ov::Exception,
         testing::HasSubstr("ov::compilation_num_threads must be positive int32 value"));
+}
+
+TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSubsequentCompile) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    ov::Core ie;
+
+    // if the log level leaks, the second compile will produce WARNING logs and the test will fail
+    utils::LoggerLevelGuard levelGuard(ov::log::Level::ERR);
+    const ov::log::Level baseline = ov::log::Level::ERR;
+
+    {
+        utils::LogCallbackGuard silentGuard(nullptr);
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}));
+    }
+    ASSERT_EQ(::intel_npu::Logger::global().level(), baseline)
+        << "Per-call log::level(WARNING) contaminated Logger::global() after compile_model returned";
+
+    std::string secondCompileLogs;
+    {
+        utils::LogCallbackGuard captureGuard([&](std::string_view m) {
+            secondCompileLogs.append(m);
+            secondCompileLogs.push_back('\n');
+        });
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
+    }
+    EXPECT_EQ(secondCompileLogs.find("[WARNING]"), std::string::npos)
+        << "Per-call log::level(WARNING) from first compile contaminated the second compile.\n"
+           "Captured output snippet:\n"
+        << secondCompileLogs.substr(0, 500);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

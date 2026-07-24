@@ -29,11 +29,20 @@ protected:
     std::string deviceName;
     ov::Core core;
 
+private:
+    std::optional<utils::LoggerLevelGuard> _logGuard;
+
 public:
     void SetUp() override {
+        _logGuard.emplace(::intel_npu::Logger::global().level());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVCompiledModelPropertiesBase::SetUp();
         deviceName = GetParam();
+    }
+
+    void TearDown() override {
+        _logGuard.reset();
+        OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         auto targetDevice = obj.param;
@@ -114,11 +123,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     ASSERT_FALSE(it->is_mutable());
     OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
 
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-                           model,
-                           deviceName,
-                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                            ov::intel_npu::bypass_umd_caching(true)}));
+    OV_ASSERT_NO_THROW(compiledModel =
+                           core.compile_model(model,
+                                              deviceName,
+                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::bypass_umd_caching(true)}));
     // Test that RUNTIME_REQUIREMENTS is supported for CID when the L0 graph extension version >= 1.16,
     // and unsupported for earlier driver versions. CIP always supports it.
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
@@ -155,11 +164,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
 
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-                           model,
-                           deviceName,
-                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                            ov::intel_npu::bypass_umd_caching(true)}));
+    OV_ASSERT_NO_THROW(compiledModel =
+                           core.compile_model(model,
+                                              deviceName,
+                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::bypass_umd_caching(true)}));
 
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
