@@ -22,6 +22,10 @@
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
 
+#if F4E2M1_OUTPUT && defined(F4E2M1_PACKED_ELEMENTS) && ((F4E2M1_PACKED_ELEMENTS) % 8 != 0)
+#error "reorder_data.cl: F4E2M1 packed output must contain a multiple of 8 elements (32-bit atomic write granularity) to avoid out-of-bounds memory access"
+#endif
+
 KERNEL (reorder_data)(
     OPTIONAL_SHAPE_INFO_ARG
 #if INPUT0_LAYOUT_NV12 || INPUT0_LAYOUT_IMAGE_2D_RGBA || SURFACE_INPUT

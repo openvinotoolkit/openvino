@@ -57,6 +57,10 @@
 #define ELEMENTS_PER_BYTE 1
 #endif
 
+#if F4E2M1_OUTPUT && defined(F4E2M1_PACKED_ELEMENTS) && ((F4E2M1_PACKED_ELEMENTS) % 8 != 0)
+#error "dynamic_quantize_gpu_ref.cl: F4E2M1 packed output must contain a multiple of 8 elements (32-bit atomic write granularity) to avoid out-of-bounds memory access"
+#endif
+
 #if OUTPUT_DIMS != 4
 #error "dynamic_quantize_gpu_ref.cl: Unsupported output dimension"
 #endif
@@ -175,7 +179,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if GROUP_SIZE_DIM3 == 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
-        const uint byte_offset = out_offset / ELEMENTS_PER_BYTE;
 
         half val = input[in_offset];
         val *= scale;
