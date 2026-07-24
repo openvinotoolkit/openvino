@@ -21,7 +21,6 @@ struct GRUSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<gru_seq>());
-        return true;
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
         if (info.arch == gpu_arch::unknown || !config.get_use_onednn())
@@ -52,7 +51,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
             one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::f32, in1_dt, in4_dt, out1_dt);
         bool s8s8s8_case = everyone_is(data_types::i8, in0_dt, in1_dt, out0_dt, out1_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
             everyone_is(data_types::f32, in2_dt, in4_dt);
-        bool f32s8f32_case = everyone_is(data_types::i8, in0_dt, in1_dt, in2_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
+        bool f32s8f32_case = everyone_is(data_types::i8, in0_dt, in2_dt, in3_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
             everyone_is(data_types::f32, in1_dt, in4_dt, out1_dt);
 
         return f16_case || f32_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
