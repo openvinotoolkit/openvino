@@ -558,8 +558,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
-        // mark rope angles before they are converted to f16
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::DisableFP16CompForLtxVideoRopePattern);
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
@@ -1195,7 +1193,8 @@ void Transformations::PostLpt() {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
     }
-    // f16 is marked before ConvertPrecision (PreLpt); bf16 is enforced per node after transformations
+    // Only bf16 needs the rope markup: under f16 the angle chain is already kept precise by
+    // ConvertPrecision, and marking it there regresses accuracy.
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableFP16CompForLtxVideoRopePattern);
     }

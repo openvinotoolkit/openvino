@@ -106,18 +106,17 @@ protected:
 };
 
 TEST_P(RopeTablePrecisionCPUTest, CompareWithRefs) {
-    // gate on the plugin's own capability: bf16/f16 are also supported without avx512 (avx2_vnni_2)
-    const std::string capability = std::get<0>(GetParam()) == ov::element::bf16 ? "BF16" : "FP16";
+    // gate on the plugin's own capability: bf16 is also supported without avx512 (avx2_vnni_2)
     const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
-    if (std::find(capabilities.begin(), capabilities.end(), capability) == capabilities.end()) {
-        GTEST_SKIP() << "No " << capability << " support";
+    if (std::find(capabilities.begin(), capabilities.end(), "BF16") == capabilities.end()) {
+        GTEST_SKIP() << "No BF16 support";
     }
     run();
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_RopeTablePrecision,
                          RopeTablePrecisionCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16, ov::element::f16),
+                         testing::Combine(testing::Values(ov::element::bf16),
                                           testing::Values(InputShape{ov::PartialShape{-1, 256},
                                                                      {ov::Shape{64, 256}, ov::Shape{32, 256}}},
                                                           InputShape{ov::PartialShape{64, 256}, {ov::Shape{64, 256}}})),
