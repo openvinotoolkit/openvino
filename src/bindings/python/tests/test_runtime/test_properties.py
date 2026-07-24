@@ -375,6 +375,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_cpu.multi_app_thread_sync_execution,
+            "CPU_MULTI_APP_THREAD_SYNC_EXECUTION",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             intel_cpu.sparse_weights_decompression_rate,
             "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE",
             (
@@ -677,6 +687,7 @@ def test_property_pathlib_path(device):
                 hints.scheduling_core_type(hints.SchedulingCoreType.PCORE_ONLY),
                 hints.enable_hyper_threading(True),
                 hints.num_requests(12),
+                intel_cpu.multi_app_thread_sync_execution(True),
                 streams.num(5),
             ],
         ),
@@ -691,6 +702,7 @@ def test_property_pathlib_path(device):
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.enable_hyper_threading: True,
             hints.num_requests: 12,
+            intel_cpu.multi_app_thread_sync_execution: True,
             streams.num: 5,
         },
         # Mixed dict
@@ -702,6 +714,7 @@ def test_property_pathlib_path(device):
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests: 12,
+            "CPU_MULTI_APP_THREAD_SYNC_EXECUTION": True,
             "NUM_STREAMS": streams.Num(5),
             "ENABLE_MMAP": False,
         },
@@ -718,6 +731,7 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", props.enable_profiling) is True
     assert core.get_property("CPU", props.cache_dir) == "./"
     assert core.get_property("CPU", props.inference_num_threads) == 9
+    assert core.get_property("CPU", intel_cpu.multi_app_thread_sync_execution) is True
     assert core.get_property("CPU", streams.num) == 5
 
     # RO properties
@@ -728,3 +742,28 @@ def test_core_cpu_properties(properties_to_set):
     assert isinstance(core.get_property("CPU", props.range_for_async_infer_requests), tuple)
     assert isinstance(core.get_property("CPU", device.full_name), str)
     assert isinstance(core.get_property("CPU", device.capabilities), list)
+
+
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test"
+)
+def test_compiled_model_cpu_multi_app_thread_sync_execution_property():
+    from tests.utils.helpers import generate_add_model
+
+    core = Core()
+
+    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
+
+    compiled_model = core.compile_model(
+        generate_add_model(),
+        "CPU",
+        dict([
+            intel_cpu.multi_app_thread_sync_execution(True),
+            streams.num(4),
+        ]),
+    )
+
+    supported_properties = compiled_model.get_property(props.supported_properties)
+    assert intel_cpu.multi_app_thread_sync_execution() in supported_properties

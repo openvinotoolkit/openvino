@@ -60,6 +60,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
         RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RW_property(ov::intel_cpu::tbb_partitioner.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -334,6 +335,45 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 #elif defined(OPENVINO_ARCH_RISCV64)
     ASSERT_EQ(value.as<std::string>(), "riscv");
 #endif
+}
+
+// ---------------------------------------------------------------------------
+// B2: Default value is false at plugin level
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuPluginMultiAppThreadSyncDefaultIsFalse) {
+    ov::Core core;
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = core.get_property(deviceName,
+                                                  ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+}
+
+// ---------------------------------------------------------------------------
+// B3: Set true at plugin level and read back
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuPluginSetMultiAppThreadSyncTrue) {
+    ov::Core core;
+    OV_ASSERT_NO_THROW(core.set_property(deviceName,
+                                         ov::intel_cpu::multi_app_thread_sync_execution(true)));
+    bool value = false;
+    OV_ASSERT_NO_THROW(value = core.get_property(deviceName,
+                                                  ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_TRUE(value);
+}
+
+// ---------------------------------------------------------------------------
+// B4: Set false at plugin level and read back
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuPluginSetMultiAppThreadSyncFalse) {
+    ov::Core core;
+    // First set to true, then explicitly set back to false
+    core.set_property(deviceName, ov::intel_cpu::multi_app_thread_sync_execution(true));
+    OV_ASSERT_NO_THROW(core.set_property(deviceName,
+                                         ov::intel_cpu::multi_app_thread_sync_execution(false)));
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = core.get_property(deviceName,
+                                                  ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
 }
 
 } // namespace

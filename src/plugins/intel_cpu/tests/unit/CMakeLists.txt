@@ -59,6 +59,7 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino::reference,SOURCE_DIR>/include
             PRIVATE
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
+                $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/tests/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
             ${CMAKE_CURRENT_SOURCE_DIR}/vectorized
