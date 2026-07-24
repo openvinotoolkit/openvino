@@ -193,15 +193,31 @@ void ov::npuw::failsafe::InferRequest::ensure_inner_request_locked() const {
     m_request = m_failsafe_compiled_model->create_request(m_generation);
 }
 
+ov::ISyncInferRequest::FoundPort ov::npuw::failsafe::InferRequest::require_port(
+    const ov::Output<const ov::Node>& port) const {
+    auto found = ov::ISyncInferRequest::find_port(port);
+    OPENVINO_ASSERT(found.found(), "Cannot find failsafe port ", port);
+    return found;
+}
+
 ov::npuw::failsafe::InferRequest::PortKey ov::npuw::failsafe::InferRequest::port_key_locked(
     const ov::Output<const ov::Node>& port) const {
-    auto found = find_port(port);
-    OPENVINO_ASSERT(found.found(), "Cannot find failsafe port ", port);
+    auto found = require_port(port);
     return PortKey{port.get_node(), port.get_index(), found.is_output()};
 }
 
 bool ov::npuw::failsafe::InferRequest::is_output_port_locked(const ov::Output<const ov::Node>& port) const {
     return port_key_locked(port).is_output;
+}
+
+ov::Output<const ov::Node> ov::npuw::failsafe::InferRequest::map_to_inner_port_locked(
+    const ov::Output<const ov::Node>& port) const {
+    // If the imported inner compiled model exposes ports from a reconstructed
+    // dummy runtime model, node friendly names may not be stable,
+    // so the outer port should be mapped to the corresponding inner one using (is_output, idx).
+    auto found = require_port(port);
+    const auto& inner_cm = m_request->get_compiled_model();
+    return found.is_output() ? inner_cm->outputs()[found.idx] : inner_cm->inputs()[found.idx];
 }
 
 void ov::npuw::failsafe::InferRequest::infer() {
@@ -214,10 +230,10 @@ void ov::npuw::failsafe::InferRequest::infer() {
 
     ensure_inner_request_locked();
     for (auto&& port : m_failsafe_compiled_model->inputs()) {
-        input_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+        input_tensors.push_back(Binding{port, m_request->get_tensor(map_to_inner_port_locked(port))});
     }
     for (auto&& port : m_failsafe_compiled_model->outputs()) {
-        output_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+        output_tensors.push_back(Binding{port, m_request->get_tensor(map_to_inner_port_locked(port))});
     }
 
     while (true) {
@@ -225,10 +241,10 @@ void ov::npuw::failsafe::InferRequest::infer() {
         try {
             if (need_rebind) {
                 for (auto&& binding : input_tensors) {
-                    m_request->set_tensor(binding.first, binding.second);
+                    m_request->set_tensor(map_to_inner_port_locked(binding.first), binding.second);
                 }
                 for (auto&& binding : output_tensors) {
-                    m_request->set_tensor(binding.first, binding.second);
+                    m_request->set_tensor(map_to_inner_port_locked(binding.first), binding.second);
                 }
             }
             m_request->infer();
@@ -249,14 +265,14 @@ void ov::npuw::failsafe::InferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::failsafe::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    return m_request->get_tensor(port);
+    return m_request->get_tensor(map_to_inner_port_locked(port));
 }
 
 void ov::npuw::failsafe::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                                   const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    m_request->set_tensor(port, tensor);
+    m_request->set_tensor(map_to_inner_port_locked(port), tensor);
 }
 
 void ov::npuw::failsafe::InferRequest::check_tensors() const {}

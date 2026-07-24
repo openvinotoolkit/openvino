@@ -102,8 +102,13 @@ private:
     };
 
     void ensure_inner_request_locked() const;
+
+    // Wrapper around ov::ISyncInferRequest::find_port(), throws assert if port not found
+    ov::ISyncInferRequest::FoundPort require_port(const ov::Output<const ov::Node>& port) const;
+
     PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
     bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;
+    ov::Output<const ov::Node> map_to_inner_port_locked(const ov::Output<const ov::Node>& port) const;
 
     std::shared_ptr<const CompiledModel> m_failsafe_compiled_model;
     mutable std::mutex m_mutex;
