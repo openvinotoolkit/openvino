@@ -20,6 +20,7 @@
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+#include "wsh_lookup.hpp"
 
 // NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
@@ -32,12 +33,18 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
                                                const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts,
-                                               const ov::FileHandleProvider& _handle_provider)
+                                               const ov::FileHandleProvider& _handle_provider,
+                                               std::size_t _handle_region_offset,
+                                               std::size_t _handle_region_size,
+                                               const std::shared_ptr<ov::MappedMemory>& _host_region)
     : weights(_weights),
       weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts),
-      handle_provider(_handle_provider) {
+      handle_provider(_handle_provider),
+      handle_region_offset(_handle_region_offset),
+      handle_region_size(_handle_region_size),
+      host_region(_host_region) {
     is_weightless = _weights || !_consts_cache.empty();
 }
 
@@ -48,13 +55,9 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
             if (c->get_element_type() != ov::element::bf16) {
                 continue;
             }
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
+            if (auto origin = ov::npuw::wsh::resolve_origin(*c)) {
+                bf16_cache.insert({origin->offset, c->get_byte_size()});
             }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            bf16_cache.insert({offset, c->get_byte_size()});
         }
     }
     return bf16_cache;

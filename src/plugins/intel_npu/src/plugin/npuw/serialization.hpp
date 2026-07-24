@@ -152,11 +152,17 @@ struct WeightsContext {
 
     // NOTE: This constructor is used on blob import to carry the resolved weight source
     // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // _handle_region_offset/_handle_region_size (when the latter is non-zero)
+    // restrict the mmap to a sub-region of the provided handle so descriptor
+    // offsets remain pool-relative (fd-backed weight sharing, Option B).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts,
-                   const ov::FileHandleProvider& _handle_provider = nullptr);
+                   const ov::FileHandleProvider& _handle_provider = nullptr,
+                   std::size_t _handle_region_offset = 0,
+                   std::size_t _handle_region_size = 0,
+                   const std::shared_ptr<ov::MappedMemory>& _host_region = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -172,6 +178,15 @@ struct WeightsContext {
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
     ov::FileHandleProvider handle_provider = nullptr;
+    // Sub-region of the handle to map (size 0 => whole handle). Used so that
+    // mapped->data() points at the weights pool start and descriptor offsets
+    // resolve pool-relative (fd-backed weight sharing, Option B).
+    std::size_t handle_region_offset = 0;
+    std::size_t handle_region_size = 0;
+    // Buffer-backed weight source (fd == -1): a MappedMemory wrapping an
+    // already-resident host pool. Mutually exclusive with handle_provider /
+    // weights_path. When set, `weights` is built over it. See HostRegionMemory.
+    std::shared_ptr<ov::MappedMemory> host_region = nullptr;
 };
 
 // Context for deserializing submodels with dynamic attention mechanisms
