@@ -117,6 +117,17 @@ public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
 
+    /// \brief Returns the underlying GraphIterator without forcing the Place graph to be built.
+    /// Used by the single-pass converter to translate directly from decoders.
+    ov::frontend::onnx::GraphIterator::Ptr get_graph_iterator() const;
+
+    /// \brief True when load_model() has run and the Place graph is available.
+    bool is_loaded() const;
+
+    /// \brief True when constant data may be wrapped zero-copy rather than deep-copied.
+    /// Used by the single-pass converter, which materializes Constants without the Place graph.
+    bool is_const_data_reusable() const;
+
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
