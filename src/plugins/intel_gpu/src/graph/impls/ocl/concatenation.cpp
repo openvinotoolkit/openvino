@@ -7,6 +7,7 @@
 #include "concatenation_inst.h"
 #include "concatenation/concatenation_kernel_selector.h"
 #include "concatenation/concatenation_kernel_base.h"
+#include <set>
 
 namespace cldnn {
 namespace ocl {
@@ -33,6 +34,8 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
         case 3: return kernel_selector::concat_axis::Y;
         case 4: return kernel_selector::concat_axis::Z;
         case 5: return kernel_selector::concat_axis::W;
+        case 6: return kernel_selector::concat_axis::U;
+        case 7: return kernel_selector::concat_axis::V;
         default: OPENVINO_THROW("Unsupported concatenation axis: ", axis);
     }
 
@@ -95,12 +98,22 @@ public:
 namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
-    auto dyn_types = {data_types::i8, data_types::u8, data_types::f16, data_types::f32, data_types::i32, data_types::i64, data_types::f8e4m3};
+    auto dyn_types = {
+        data_types::i8,
+        data_types::u8,
+        data_types::f16,
+        data_types::f32,
+        data_types::i32,
+        data_types::i64,
+        data_types::f8e4m3
+    };
 
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx
     };
 
     implementation_map<concatenation>::add(impl_types::ocl,
@@ -109,78 +122,58 @@ attach_concatenation_impl::attach_concatenation_impl() {
                                            dyn_types,
                                            dyn_formats);
 
-    implementation_map<concatenation>::add(impl_types::ocl, typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::u8, format::yxfb),
-        std::make_tuple(data_types::i32, format::yxfb),
-        std::make_tuple(data_types::i64, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i32, format::byxf),
-        std::make_tuple(data_types::i64, format::byxf),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i64, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv16_fsv16),
+    std::set<implementation_map<concatenation>::key_type> keys;
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv32),
+    auto static_types = {
+        data_types::i8,
+        data_types::u8,
+        data_types::f16,
+        data_types::f32,
+        data_types::i32,
+        data_types::i64
+    };
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv16),
+    const auto static_formats = {
+        format::yxfb,
+        format::bfyx,
+        format::byxf,
+        format::bfzyx,
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
+        format::b_fs_zyx_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+    };
+    for (const auto type : static_types) {
+        for (const auto format : static_formats) {
+            keys.emplace(type, format);
+        }
+    }
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i64, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-    });
+    keys.emplace(data_types::f32, format::fyxb);
+    keys.emplace(data_types::f16, format::fyxb);
+
+    keys.emplace(data_types::f32, format::bs_fs_yx_bsv16_fsv16);
+    keys.emplace(data_types::f16, format::bs_fs_yx_bsv16_fsv16);
+
+    keys.emplace(data_types::f32, format::b_fs_yx_fsv16);
+    keys.emplace(data_types::f16, format::b_fs_yx_fsv16);
+    keys.emplace(data_types::u8, format::b_fs_yx_fsv16);
+    keys.emplace(data_types::i8, format::b_fs_yx_fsv16);
+
+    keys.emplace(data_types::i8, format::b_fs_yx_fsv4);
+    keys.emplace(data_types::u8, format::b_fs_yx_fsv4);
+
+    keys.emplace(data_types::i8, format::b_fs_yx_fsv32);
+    keys.emplace(data_types::u8, format::b_fs_yx_fsv32);
+
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
+
+    implementation_map<concatenation>::add(impl_types::ocl,
+                                           typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>,
+                                           keys);
 }
 
 }  // namespace detail
