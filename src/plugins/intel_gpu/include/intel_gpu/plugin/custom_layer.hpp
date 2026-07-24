@@ -21,12 +21,12 @@ public:
         CustomLayerMap& customLayers,
         bool can_be_missed = false);
 
-    typedef enum {
+    enum ParamType {
         Input,
         Output,
         Data,
         Internal,
-    } ParamType;
+    };
     struct KerenlParam {
         KerenlParam() :type(Input), paramIndex(-1), portIndex(-1),
                        format(cldnn::format::any) {}

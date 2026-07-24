@@ -242,7 +242,7 @@ public:
 
         static_assert(sizeof(restrict_t) == sizeof(uint64_t), "problem with union");
 
-        typedef union DataTypesKey_t {
+        union DataTypesKey {
             struct val_t {
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
@@ -261,7 +261,7 @@ public:
                 uint32_t F8E8M0 : 1;
             } val;
             uint32_t raw;
-        } DataTypesKey;
+        };
 
         DataTypesKey inputType;
         DataTypesKey outputType;
