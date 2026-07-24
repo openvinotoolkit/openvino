@@ -919,3 +919,13 @@ TEST(FrontEndConvertTrickyModels, ModelTF1WhileNoLeftoverControlFlow) {
             << "' type=" << op->get_type_name();
     });
 }
+
+// A Switch consumed only through control dependencies is pruned and freed before Switch/Merge
+// resolution, so its weak_ptr in a Merge conditional-flow marker legitimately expires. Conversion
+// must skip such expired entries, not fail. Guards against re-introducing a fail-fast that aborts.
+TEST(FrontEndConvertTrickyModels, ModelSwitchMergeSeveralCondFlows) {
+    shared_ptr<Model> model = nullptr;
+    ASSERT_NO_THROW(
+        model = convert_model("model_switch_merge_several_cond_flows/model_switch_merge_several_cond_flows.pbtxt"));
+    ASSERT_NE(model, nullptr);
+}
