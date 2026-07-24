@@ -67,6 +67,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
     #else
     uint dir = DIRECTION;
     #endif
+    ACCUMULATOR_TYPE temp_cell_state[NUM_HIDDEN_TO_DO];
     unroll_for(uint i=0;i<real_seq_length;++i){
         #ifdef SEQUENCE
             uint prev_idx = i-1;
@@ -74,7 +75,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                prev_idx = real_seq_length - i;
             }
             if(i>0){
-                barrier(CLK_LOCAL_MEM_FENCE);
+                barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
             }
         #endif
         unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
@@ -160,51 +161,51 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                     case 0:
                     case 1:
                     case 3:
-                        gate_output[k] = ACTIVATION_F(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_F);
+                        gate_output[k] = ACTIVATION_F(ACCUMULATOR, ACTIVATION_CLIP(ACCUMULATOR, gate_output[k], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_F);
                         break;
                     case 2:
-                        gate_output[k] = ACTIVATION_G(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_G);
+                        gate_output[k] = ACTIVATION_G(ACCUMULATOR, ACTIVATION_CLIP(ACCUMULATOR, gate_output[k], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_G);
                         break;
                     default:
                         break;
                 }
             }
-            ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
-                temp_cell_state = gate_output[0]*initial_cell_state[GET_IN2_IDX(b, dir, hidden_idx)] + gate_output[1]*gate_output[2];
+                temp_cell_state[l] = gate_output[0]*initial_cell_state[GET_IN2_IDX(b, dir, hidden_idx)] + gate_output[1]*gate_output[2];
             }else{
-                temp_cell_state *= gate_output[0];
-                temp_cell_state += gate_output[1]*gate_output[2];
+                temp_cell_state[l] *= gate_output[0];
+                temp_cell_state[l] += gate_output[1]*gate_output[2];
             }
             uint cur_history_idx = i;
             if (dir == 1) {  //reverse
                 cur_history_idx = real_seq_length - 1 - i ;
             }
+            const ACCUMULATOR_TYPE hidden_value = gate_output[3]*ACTIVATION_H(ACCUMULATOR, temp_cell_state[l], ACTIVATION_PARAMS_H);
             #ifdef SEQUENCE
                 #if DIRECTION == 2
-                    hidden_state[OUTPUT1_GET_INDEX(b, dir, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                    hidden_state[OUTPUT1_GET_INDEX(b, dir, hidden_idx, 0)] = TO_OUTPUT1_TYPE(hidden_value);
                 #else
-                    hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                    hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = TO_OUTPUT1_TYPE(hidden_value);
                 #endif
             #else
-                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = TO_OUTPUT_TYPE(hidden_value);
             #endif
             #ifdef SEQUENCE
                 #if DIRECTION == 2
-                    hidden_history[OUTPUT_GET_INDEX(b, dir, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, dir, hidden_idx, 0)];
+                    hidden_history[OUTPUT_GET_INDEX(b, dir, cur_history_idx, hidden_idx)] = TO_OUTPUT_TYPE(hidden_value);
                 #else // DIRECTION == 2
-                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
+                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = TO_OUTPUT_TYPE(hidden_value);
                 #endif
             #endif
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
                     #if DIRECTION == 2
-                        cell_state[OUTPUT2_GET_INDEX(b, dir, hidden_idx, 0)] = temp_cell_state;
+                        cell_state[OUTPUT2_GET_INDEX(b, dir, hidden_idx, 0)] = TO_OUTPUT2_TYPE(temp_cell_state[l]);
                     #else
-                        cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state;
+                        cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = TO_OUTPUT2_TYPE(temp_cell_state[l]);
                     #endif
                 #else
-                    cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state;
+                        cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = TO_OUTPUT1_TYPE(temp_cell_state[l]);
                 #endif
             }
         }

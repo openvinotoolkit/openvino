@@ -65,13 +65,13 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params) const {
     static const std::vector<std::string> asuffixes = {"_F", "_G", "_H", "_CLIP"};
     for (size_t i = 0; i < params.activations.size(); i++) {
         std::vector<base_activation_params> aparams = { params.activations[i] };
-        jit.Merge(MakeActivationJitConstants(aparams, params.inputs[0].GetDType(), asuffixes[i]));
+        jit.Merge(MakeActivationJitConstants(aparams, ftype, asuffixes[i], true));
     }
 
     if (params.clip <= 0) {
         jit.AddConstants({
                 MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
-                MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),
+                MakeJitConstant("ACTIVATION_CLIP(jit_type, x, p)", "(x)"),
             });
     }
 
