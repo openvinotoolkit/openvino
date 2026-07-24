@@ -482,7 +482,9 @@ protected:
     std::filesystem::path m_file_path;
 
     void TearDown() override {
-        std::filesystem::remove(m_file_path);
+        if (!m_file_path.empty()) {
+            std::filesystem::remove(m_file_path);
+        }
     }
 
     static std::vector<uint8_t> read_mapped(MappedMemory& mm) {

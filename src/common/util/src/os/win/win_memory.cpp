@@ -73,7 +73,7 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     }
 }
 
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+PrefetchToken vm_prefetch_async(void* /*ptr*/, size_t /*size*/, size_t /*num_threads*/) noexcept {
     return {};
 }
 

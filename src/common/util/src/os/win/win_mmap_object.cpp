@@ -306,7 +306,7 @@ public:
 
     void hint_prefetch(size_t offset, size_t size) override;
 
-    void hint_prefetch_async(size_t offset, size_t size) override {}
+    void hint_prefetch_async(size_t /*offset*/, size_t /*size*/) override {}
 
 private:
     /**
