@@ -510,6 +510,42 @@ TEST(reorder_inputs, mvn_expected_plain_format) {
     ASSERT_EQ(mvn_node.get_input_layouts()[0].format, format::bfyx);
     ASSERT_EQ(mvn_node.get_output_layout().format, format::bfyx);
 }
+
+TEST(reorder_inputs, mvn_across_channels_rejects_blocked_layout) {
+    // Across-channels MVN has no optimized blocked-layout kernel: the bfyx opt kernel is planar-only
+    // and the fsv16/fsv32 kernels implement WITHIN_CHANNELS only. is_aligned_layout_supported() (used
+    // by layout_optimizer::is_format_supported) must therefore reject non-planar layouts for an
+    // across-channels MVN so a reorder to planar bfyx is inserted and the fast bfyx opt kernel runs
+    // instead of falling back to the slow reference (mvn_gpu_ref) kernel. Reduction over axis 1
+    // (channel) makes an MVN across-channels; this mirrors DialogSeparator's axes={1,2} MVN nodes.
+    const ov::PartialShape shape{1, 256, 60, 60};
+
+    // Across-channels (axes include channel axis 1): blocked layouts must be rejected, planar allowed.
+    mvn across("mvn_across", input_info("input"), true, 1e-10f, true, {1, 2, 3});
+    ASSERT_TRUE(across.across_channels());
+    EXPECT_FALSE(across.is_aligned_layout_supported(layout{shape, data_types::f16, format::b_fs_yx_fsv16}));
+    EXPECT_FALSE(across.is_aligned_layout_supported(layout{shape, data_types::f16, format::b_fs_yx_fsv32}));
+    EXPECT_FALSE(across.is_aligned_layout_supported(layout{shape, data_types::f16, format::byxf}));
+    EXPECT_TRUE(across.is_aligned_layout_supported(layout{shape, data_types::f16, format::bfyx}));
+
+    // Within-channels (spatial-only reduction): the fsv16/fsv32 opt kernels support this mode, so the
+    // blocked layout must remain supported (no unnecessary reorder-to-planar; preserves the fast path).
+    mvn within("mvn_within", input_info("input"), true, 1e-10f, true, {2, 3});
+    ASSERT_FALSE(within.across_channels());
+    EXPECT_TRUE(within.is_aligned_layout_supported(layout{shape, data_types::f16, format::b_fs_yx_fsv16}));
+    EXPECT_TRUE(within.is_aligned_layout_supported(layout{shape, data_types::f16, format::bfyx}));
+
+    // Dynamic shapes: the rejection must apply for dynamic across-channels MVN too. A dynamic node can
+    // still be assigned a blocked layout (e.g. inherited from an fsv16-producing dynamic convolution),
+    // and across-channels + blocked selects the slow mvn_gpu_ref kernel just like the static case. The
+    // across_channels() check therefore must precede the dynamic-shape early-return. Within-channels
+    // dynamic keeps deferring to dyn_formats (blocked stays supported).
+    const ov::PartialShape dyn_shape = ov::PartialShape::dynamic(4);
+    EXPECT_FALSE(across.is_aligned_layout_supported(layout{dyn_shape, data_types::f16, format::b_fs_yx_fsv16}));
+    EXPECT_FALSE(across.is_aligned_layout_supported(layout{dyn_shape, data_types::f16, format::b_fs_yx_fsv32}));
+    EXPECT_TRUE(across.is_aligned_layout_supported(layout{dyn_shape, data_types::f16, format::bfyx}));
+    EXPECT_TRUE(within.is_aligned_layout_supported(layout{dyn_shape, data_types::f16, format::b_fs_yx_fsv16}));
+}
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
