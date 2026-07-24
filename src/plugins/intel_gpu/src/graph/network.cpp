@@ -404,8 +404,16 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
     }
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-    const bool was_unallocated = !input->output_memory_ptr();
+    const auto prev_mem = input->output_memory_ptr();
+    const bool was_unallocated = !prev_mem;
     auto ev = input->set_data(data, need_to_check_memory_to_set);
+
+    const auto new_mem = input->output_memory_ptr();
+    const bool same_buffer = prev_mem && new_mem &&
+                             get_engine().is_the_same_buffer(*prev_mem, *new_mem) &&
+                             prev_mem->get_layout().compatible(new_mem->get_layout());
+    if (!same_buffer)
+        discard_stream_recording();
 
     if (was_unallocated) {
         // The initial set_arguments() skipped nodes whose dep buffer was null —
@@ -563,6 +571,13 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
+
+    const auto prev_out = p_inst->output_memory_ptr();
+    const bool same_output_buffer = prev_out && mem_new &&
+                                    get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
+                                    prev_out->get_layout().compatible(mem_new->get_layout());
+    if (!same_output_buffer)
+        discard_stream_recording();
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
@@ -797,6 +812,7 @@ void network::reset_output_remote_memory_ptrs() {
 void network::invalidate_output_memory_chain(const primitive_id& id) {
     auto p_inst = find_primitive(id);
     p_inst->clear_output_memory();
+    discard_stream_recording();
 
     auto o_iter = _output_chains.find(id);
     if (o_iter != _output_chains.end()) {
@@ -861,6 +877,7 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
+    discard_stream_recording();
     for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
         invalidate_ext_block_compute_nodes(prim_id);
     }
@@ -947,6 +964,20 @@ bool network::has_event(const primitive_id& id) const {
 }
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
+    auto &net_stream = get_stream();
+    bool is_recording = false;
+    if (net_stream.supports_recording()) {
+        if (net_stream.can_replay_recording()) {
+            net_stream.replay_recording(events);
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] Replayed last iteration" << std::endl;
+            return;
+        }
+
+        if (_recording_attempts > 0) {
+            net_stream.start_recording();
+            is_recording = true;
+        }
+    }
     set_arguments();
 
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
@@ -971,17 +1002,31 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
-            get_stream().flush();
+            net_stream.flush();
+    }
+    if (is_recording) {
+        auto recording_success = net_stream.stop_recording();
+        if (!recording_success) {
+            _recording_attempts--;
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording failed. Remaining attempts: " << _recording_attempts << std::endl;
+        }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    get_stream().flush();
+    net_stream.flush();
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
         inst->reset_flags();
+    }
+}
+
+void discard_stream_recording() {
+    auto &net_stream = get_stream();
+    if (net_stream.supports_recording()) {
+        net_stream.discard_recording();
     }
 }
 

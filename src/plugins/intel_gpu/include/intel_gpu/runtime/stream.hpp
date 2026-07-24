@@ -54,6 +54,12 @@ public:
     virtual void flush() const = 0;
     virtual void finish() const = 0;
     virtual void wait() = 0;
+    virtual bool supports_recording() { return false; }
+    virtual void start_recording() = 0;
+    virtual bool stop_recording() = 0;
+    virtual void discard_recording() = 0;
+    virtual bool can_replay_recording() { return false; }
+    virtual void replay_recording(const std::vector<event::ptr>& events) = 0;
 
     virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,
