@@ -145,7 +145,11 @@ if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
 endif()
 
-if(DNNL_USE_ACL)
+# OpenVINO keeps its own standalone ACL executors even though oneDNN no longer uses
+# ACL (replaced by KleidiAI). ARM Compute Library is built independently in
+# thirdparty/CMakeLists.txt (ov_build_arm_compute), so gate OV_CPU_WITH_ACL on the
+# target architecture rather than on DNNL_USE_ACL.
+if(AARCH64 OR ARM)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
@@ -261,6 +265,17 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+endif()
+
+if(OV_CPU_WITH_ACL)
+    # oneDNN no longer links ARM Compute Library, so the CPU plugin links it directly
+    # for its own standalone ACL executors (headers used to be provided transitively
+    # via dnnl's include directories). arm_compute::half provides the third-party
+    # half/half.hpp header used by ComputeLibrary's support/Half.h.
+    target_link_libraries(${TARGET_NAME} PRIVATE arm_compute::arm_compute)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+        $<TARGET_PROPERTY:arm_compute::arm_compute,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:arm_compute::half,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
 if(RISCV64)
@@ -429,6 +444,11 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_KLEIDIAI_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:kleidiai,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+    if(OV_CPU_WITH_ACL)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC
+            $<TARGET_PROPERTY:arm_compute::arm_compute,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:arm_compute::half,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
     if(RISCV64)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)

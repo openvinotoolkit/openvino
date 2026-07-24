@@ -38,6 +38,16 @@ function(ov_build_kleidiai_static)
     add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
 endfunction()
 
+# Build ARM Compute Library (ACL) independently of oneDNN. Historically ACL was
+# pulled in through oneDNN's find_package(ACL); the oneDNN fork no longer uses ACL
+# (it has been replaced by KleidiAI), so OpenVINO builds ACL directly here to keep
+# its own standalone ACL executors working. ACLConfig.cmake creates the
+# arm_compute::arm_compute / arm_compute::half imported targets.
+function(ov_build_arm_compute)
+    list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+    include(ACLConfig)
+endfunction()
+
 function(ov_add_onednn)
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
@@ -87,8 +97,11 @@ function(ov_add_onednn)
         message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
+    # oneDNN no longer uses ARM Compute Library (ACL has been replaced by KleidiAI in
+    # the oneDNN fork). ACL is still built independently (see ov_build_arm_compute below)
+    # and used only by OpenVINO's own standalone ACL executors.
     if(AARCH64 OR ARM)
-        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
+        set(DNNL_USE_ACL OFF CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
@@ -158,7 +171,7 @@ function(ov_add_onednn)
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
-    if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
+    if((AARCH64 OR ARM) AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
         # we cannot use 'ov_install_static_lib' for imported targets,
         # but for this we need to install library files
@@ -199,6 +212,10 @@ if(RISCV64)
     set(XBYAK_RISCV_V ON)
     add_subdirectory(xbyak_riscv EXCLUDE_FROM_ALL)
     ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
+endif()
+
+if(AARCH64 OR ARM)
+    ov_build_arm_compute()
 endif()
 
 ov_add_onednn()
