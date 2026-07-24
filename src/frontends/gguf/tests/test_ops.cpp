@@ -1018,10 +1018,12 @@ TEST(GGUFOps, FlashAttnExt) {
     expect_near(out, expected, 2e-2f);  // fp16 SDPA
 }
 
-// GatedDeltaNet (qwen3next linear attention) as a recurrent scan. Minimal scalar case
-// B=H=S=1, T=2 exercises the full per-token gated delta update + output packing
-// [attn_t0, attn_t1, final_state].
-TEST(GGUFOps, GatedDeltaNet) {
+// GatedDeltaNet, reference (Loop) path. With head size S=1 the gate last-dim equals S_v, so this is
+// the per-key-dimension gating case (kda) that the fused op does not support and which therefore
+// lowers to the serializable Loop scan. Minimal scalar case B=H=S=1, T=2 exercises the full
+// per-token gated delta update + output packing [attn_t0, attn_t1, final_state]. This model stays
+// serializable, so we also assert no internal GatedDeltaNet op is present.
+TEST(GGUFOps, GatedDeltaNetRefFallback) {
     const int64_t B = 1, T = 2, H = 1, S = 1;
     auto shp = ov::PartialShape{B, T, H, S};
     auto model = SingleOpBuilder()
@@ -1059,6 +1061,99 @@ TEST(GGUFOps, GatedDeltaNet) {
         expected.push_back(state * q[t]);  // attn_t
     }
     expected.push_back(state);  // final state, packed after the attn outputs
+    expect_near(out, expected, 1e-4f);
+
+    // Fallback path is core-op only: no internal fused op, and it uses a Loop scan.
+    bool has_fused = false, has_loop = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (std::string(node->get_type_name()) == std::string("GatedDeltaNet"))
+            has_fused = true;
+        if (std::string(node->get_type_name()) == std::string("Loop"))
+            has_loop = true;
+    }
+    EXPECT_FALSE(has_fused);
+    EXPECT_TRUE(has_loop);
+}
+
+// GatedDeltaNet, fused-op path. A scalar gate (gate last-dim 1 with head size Dv>1) selects the
+// fused ov::op::internal::GatedDeltaNet op instead of the Loop scan. B=H=1, T=2, D=Dv=2. We assert
+// the fused op is actually emitted and that its result matches the core reference recurrence.
+// NOTE: a model on this path contains an internal op and is therefore NOT IR-serializable
+// (see src/frontends/gguf/docs/internal_ops.md).
+TEST(GGUFOps, GatedDeltaNetFused) {
+    const int64_t B = 1, T = 2, H = 1, D = 2;  // head size D = Dv = 2, scalar gate
+    auto qkv_shp = ov::PartialShape{B, T, H, D};
+    auto gate_shp = ov::PartialShape{B, T, H, 1};    // scalar gate -> fused path
+    auto state_shp = ov::PartialShape{B, H, D, D};   // ggml [B, H_v, value_dim, key_dim]
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GATED_DELTA_NET")
+                     .input("q", ov::element::f32, qkv_shp)
+                     .input("k", ov::element::f32, qkv_shp)
+                     .input("v", ov::element::f32, qkv_shp)
+                     .input("g", ov::element::f32, gate_shp)
+                     .input("beta", ov::element::f32, gate_shp)
+                     .input("state", ov::element::f32, state_shp)
+                     .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H})
+                     .build();
+
+    // Assert the fused internal op is present (this is the whole point of this path).
+    bool has_fused = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (std::string(node->get_type_name()) == std::string("GatedDeltaNet"))
+            has_fused = true;
+    }
+    ASSERT_TRUE(has_fused) << "fused ov::op::internal::GatedDeltaNet was not emitted";
+
+    // Per-token, per-dim inputs (row-major over [T, D]).
+    std::vector<float> q{1, 0, 0, 1}, k{1, 0, 0, 1}, v{1, 2, 3, 4};
+    std::vector<float> g{0.0f, 0.0f}, beta{1.0f, 1.0f};  // exp(g)=1, full update
+    std::vector<float> state0(D * D, 0.0f);
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, q)},
+                           {"k", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, k)},
+                           {"v", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, v)},
+                           {"g", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, g)},
+                           {"beta", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, beta)},
+                           {"state", make_f32_tensor({(size_t)B, (size_t)H, (size_t)D, (size_t)D}, state0)}});
+
+    // Reference: mirror ov::reference::gated_delta_net for B=H=1. state[d][dv]; q scaled by
+    // 1/sqrt(D). For each token: decay state by exp(g); h_k[dv] = sum_d state[d][dv]*k[d];
+    // update state[d][dv] += k[d]*(v[dv]-h_k[dv])*beta; attn[dv] = sum_d state[d][dv]*q_scaled[d].
+    const float scale = 1.0f / std::sqrt((float)D);
+    std::vector<std::vector<float>> st(D, std::vector<float>(D, 0.0f));  // st[d][dv]
+    std::vector<float> attn;  // [T*D]
+    for (int t = 0; t < T; ++t) {
+        std::vector<float> qs(D), kv(D);
+        for (int d = 0; d < D; ++d) {
+            qs[d] = q[t * D + d] * scale;
+            kv[d] = k[t * D + d];
+        }
+        float gexp = std::exp(g[t]);
+        for (int d = 0; d < D; ++d)
+            for (int dv = 0; dv < D; ++dv)
+                st[d][dv] *= gexp;
+        for (int dv = 0; dv < D; ++dv) {
+            float h_k = 0.0f;
+            for (int d = 0; d < D; ++d)
+                h_k += st[d][dv] * kv[d];
+            float upd = (v[t * D + dv] - h_k) * beta[t];
+            for (int d = 0; d < D; ++d)
+                st[d][dv] += kv[d] * upd;
+        }
+        for (int dv = 0; dv < D; ++dv) {
+            float a = 0.0f;
+            for (int d = 0; d < D; ++d)
+                a += st[d][dv] * qs[d];
+            attn.push_back(a);
+        }
+    }
+    // Packed output layout: [attn (T*D) | final_state (D*D)] flattened. The frontend transposes the
+    // op's [key_dim, value_dim] state back to ggml's [value_dim, key_dim] before flattening, so the
+    // state is packed value-dim outer, key-dim inner.
+    std::vector<float> expected = attn;
+    for (int dv = 0; dv < D; ++dv)
+        for (int d = 0; d < D; ++d)
+            expected.push_back(st[d][dv]);
     expect_near(out, expected, 1e-4f);
 }
 
@@ -1169,6 +1264,239 @@ TEST(GGUFOps, Add1) {
     for (size_t i = 0; i < a.size(); ++i)
         expected[i] = a[i] + b[0];
     expect_near(out, expected);
+}
+
+// Cumsum: prefix sum along ggml dim 0 = the last OV axis. Each row accumulates independently.
+TEST(GGUFOps, Cumsum) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CUMSUM")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
+
+    std::vector<float> expected{1, 3, 6, 10, 5, 11, 18, 26};
+    expect_near(out, expected);
+}
+
+// Sqr: element-wise square.
+TEST(GGUFOps, Sqr) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SQR")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{1, -2, 3, -4, 0.5f, -0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = x[i] * x[i];
+    expect_near(out, expected);
+}
+
+// Sqrt: element-wise square root (non-negative inputs).
+TEST(GGUFOps, Sqrt) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SQRT")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, 4.0f, 9.0f, 2.0f, 0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = std::sqrt(x[i]);
+    expect_near(out, expected);
+}
+
+// Diag: a [.,.,1,n] vector becomes a [.,.,n,n] diagonal matrix (row axis = OV axis 2).
+TEST(GGUFOps, Diag) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIAG")
+                     .input("x", ov::element::f32, {1, 1, 1, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .build();
+
+    std::vector<float> x{2, 5, 7};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t i = 0; i < n; ++i)
+        expected[i * n + i] = x[i];
+    expect_near(out, expected);
+}
+
+// Unary Sigmoid: 1 / (1 + exp(-x)) via the 1to1 template.
+TEST(GGUFOps, UnarySigmoid) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_SIGMOID")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = 1.0f / (1.0f + std::exp(-x[i]));
+    expect_near(out, expected);
+}
+
+// Unary Exp: element-wise exponential (moderate inputs to stay well inside f32 range).
+TEST(GGUFOps, UnaryExp) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_EXP")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = std::exp(x[i]);
+    expect_near(out, expected);
+}
+
+// Unary Neg: element-wise negation.
+TEST(GGUFOps, UnaryNeg) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_NEG")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{1, -2, 3, -4, 0.5f, -0.25f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = -x[i];
+    expect_near(out, expected);
+}
+
+// Tri: zero out elements outside a triangular region of a square matrix. tri_type selects the region:
+// 0=UPPER_DIAG (col>=row), 1=UPPER (col>row), 2=LOWER_DIAG (col<=row), 3=LOWER (col<row).
+TEST(GGUFOps, TriLowerDiag) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TRI")
+                     .input("x", ov::element::f32, {1, 1, n, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .attr<int>("tri_type", 2)  // LOWER_DIAG: keep col <= row
+                     .build();
+
+    // Row-major [n,n] with distinct values.
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, static_cast<size_t>(n), static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t row = 0; row < n; ++row)
+        for (int64_t col = 0; col < n; ++col)
+            if (col <= row)
+                expected[row * n + col] = x[row * n + col];
+    expect_near(out, expected);
+}
+
+// Tri UPPER (strict): keep col > row.
+TEST(GGUFOps, TriUpper) {
+    const int64_t n = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TRI")
+                     .input("x", ov::element::f32, {1, 1, n, n})
+                     .output("out", ov::element::f32, {1, 1, n, n})
+                     .attr<int>("tri_type", 1)  // UPPER: keep col > row
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, static_cast<size_t>(n), static_cast<size_t>(n)}, x)}});
+
+    std::vector<float> expected(n * n, 0.0f);
+    for (int64_t row = 0; row < n; ++row)
+        for (int64_t col = 0; col < n; ++col)
+            if (col > row)
+                expected[row * n + col] = x[row * n + col];
+    expect_near(out, expected);
+}
+
+// Fill: set every element to a constant scalar; output has the input's shape.
+TEST(GGUFOps, Fill) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FILL")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .attr<float>("fill_value", -1.5f)
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6};  // ignored; only shape matters
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size(), -1.5f);
+    expect_near(out, expected);
+}
+
+// Div: plain element-wise divide when both inputs already share a shape.
+// (The silu(x)/x -> sigmoid(x) fold requires input 0 to be a Multiply(x,Sigmoid(x)) node, which a
+// single-op decoder cannot express -- that path is exercised by the qwen2moe E2E test instead.)
+TEST(GGUFOps, Div) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {2, 3})
+                     .input("b", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> a{1, 2, 3, 4, 5, 6};
+    std::vector<float> b{2, 4, 3, 8, 5, 12};
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 3}, a)}, {"b", make_f32_tensor({2, 3}, b)}});
+
+    std::vector<float> expected(a.size());
+    for (size_t i = 0; i < a.size(); ++i)
+        expected[i] = a[i] / b[i];
+    expect_near(out, expected);
+}
+
+// Div with ggml-style integer-repeat broadcast: the denominator [1,2] repeats to match [1,4].
+TEST(GGUFOps, DivBroadcast) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {1, 4})
+                     .input("b", ov::element::f32, {1, 2})
+                     .output("out", ov::element::f32, {1, 4})
+                     .build();
+
+    std::vector<float> a{2, 4, 6, 8};
+    std::vector<float> b{2, 4};  // repeats to {2, 4, 2, 4}
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({1, 4}, a)}, {"b", make_f32_tensor({1, 2}, b)}});
+
+    expect_near(out, {1, 1, 3, 2});
+}
+
+// Set: write src into a contiguous region of dst (flattened) starting at set_offset_elems.
+TEST(GGUFOps, Set) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET")
+                     .input("dst", ov::element::f32, {2, 4})
+                     .input("src", ov::element::f32, {1, 2})
+                     .output("out", ov::element::f32, {2, 4})
+                     .attr<int64_t>("set_offset_elems", 2)
+                     .build();
+
+    std::vector<float> dst(8, 1.0f);
+    std::vector<float> src{10, 20};
+    auto out = run_on_cpu(model, {{"dst", make_f32_tensor({2, 4}, dst)}, {"src", make_f32_tensor({1, 2}, src)}});
+
+    // Flattened dst with src written at [2,3], reshaped back to [2,4].
+    expect_near(out, {1, 1, 10, 20, 1, 1, 1, 1});
 }
 
 }  // namespace
