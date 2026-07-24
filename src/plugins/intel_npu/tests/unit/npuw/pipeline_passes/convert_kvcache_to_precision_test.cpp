@@ -363,6 +363,36 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, OptimizeFp8ConsecutiveFakeConvertsKvCa
     }
 }
 
+// If optimize_fp8 successfully selects FP8 storage via FakeConvert decomposition,
+// integer kv_cache_precision hint must not force dynamic i8/u8 dequantization path.
+TEST_F(ConvertKVCacheToPrecisionPassTest, OptimizeFp8IgnoresIntegerHintAndKeepsFp8KvCache) {
+    for (const auto fp8_type : {ov::element::f8e4m3, ov::element::f8e5m2}) {
+        SCOPED_TRACE(std::string("optimize_fp8 type=") + fp8_type.get_type_name());
+
+        RecordingFactory recorder;
+        auto model = ov::test::npuw::build_llm_test_model_with_kv_fake_convert(fp8_type);
+        std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+        try {
+            compiled = create_compiled_model(model,
+                                             {{"NPUW_LLM_OPTIMIZE_FP8", "YES"},
+                                              {ov::hint::kv_cache_precision.name(), ov::element::i8}},
+                                             recorder);
+        } catch (const std::exception& ex) {
+            FAIL() << "create_compiled_model failed with exception: " << ex.what();
+        } catch (...) {
+            FAIL() << "create_compiled_model failed with a non-std exception";
+        }
+        ASSERT_NE(compiled, nullptr);
+
+        const auto& generate = require_sub_model_containing(recorder, "_kv");
+        const auto& prefill = require_sub_model(recorder, "_prefill");
+
+        expect_kv_cache_input_types(generate.model, fp8_type);
+        expect_kv_cache_present_output_types(generate.model, fp8_type);
+        expect_kv_cache_present_output_types(prefill.model, fp8_type);
+    }
+}
+
 // NPUW_LLM_OPTIMIZE_FP8 should leave KV cache in f16 when the model has no suitable FakeConvert pattern.
 TEST_F(ConvertKVCacheToPrecisionPassTest, OptimizeFp8WithPlainModelKeepsF16KvCache) {
     RecordingFactory recorder;

@@ -49,6 +49,10 @@ std::map<size_t, TensorInfo> collect_tensor_info(
 void populate_nodes(const tflite::SubGraph* graph, std::vector<ov::Any>& nodes) {
     const auto operators = graph->operators();
     FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators");
+    // Flatbuffers iterators use uint32_t for size; safe to suppress narrowing warnings
+    // since flatbuffers has a 2GB size limit
+#pragma warning(push)
+#pragma warning(disable : 4244)
     nodes.assign(operators->begin(), operators->end());
     const auto outputs = graph->outputs();
     const auto inputs = graph->inputs();
@@ -56,6 +60,7 @@ void populate_nodes(const tflite::SubGraph* graph, std::vector<ov::Any>& nodes) 
     FRONT_END_GENERAL_CHECK(inputs != nullptr, "TFLite subgraph has no inputs");
     nodes.insert(nodes.begin(), outputs->begin(), outputs->end());
     nodes.insert(nodes.begin(), inputs->begin(), inputs->end());
+#pragma warning(pop)
 }
 
 std::string get_builtin_operator_type(int32_t builtin_code) {
