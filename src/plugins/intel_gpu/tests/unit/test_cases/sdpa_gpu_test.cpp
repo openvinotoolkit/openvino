@@ -40,21 +40,21 @@ struct sdpa_test_params {
     float scale_val;
     bool use_scalar_attn_mask;
     float attn_mask_val;
+    bool is_causal;
 
     // Constructor for basic tests (backward compatibility)
-    sdpa_test_params(int h_size, int n_heads, int seq_q, int seq_kv, int b,
-                     bool dynamic_shape)
+    sdpa_test_params(int h_size, int n_heads, int seq_q, int seq_kv, int b, bool dynamic_shape, bool causal = false)
         : head_size(h_size), num_heads(n_heads), sequence_length_q(seq_q),
           sequence_length_kv(seq_kv), batch(b), dynamic(dynamic_shape),
           use_scalar_scale_val(false), scale_val(1.0f), use_scalar_attn_mask(false),
-          attn_mask_val(0.0f) {}
+          attn_mask_val(0.0f), is_causal(causal) {}
 
     // Constructor for advanced caching tests
     sdpa_test_params(int h_size, int n_heads, int seq_q, int seq_kv, int b,
-                     bool use_scale, float scale, bool use_mask, float mask)
+                     bool use_scale, float scale, bool use_mask, float mask, bool causal = false)
         : head_size(h_size), num_heads(n_heads), sequence_length_q(seq_q), sequence_length_kv(seq_kv),
           batch(b), dynamic(true), use_scalar_scale_val(use_scale),
-          scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask) {}
+          scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask), is_causal(causal) {}
 };
 
 struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
@@ -83,7 +83,8 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             bool use_scalar_scale_val = false,
             float scale_val = 1.0f,
             bool use_scalar_attn_mask = false,
-            float attn_mask_val = 0.0f) {
+            float attn_mask_val = 0.0f,
+            bool is_causal = false) {
         auto& engine = get_test_engine();
         topology topo;
         topo.add(input_layout("input0", input0_layout));
@@ -92,7 +93,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         topo.add(input_layout("input3", input3_layout));
 
         auto sdpa_prim = scaled_dot_product_attention("sdpa", {input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3")},
-            false, -1, {0,2,1,3}, {0,2,1,3}, {0,2,1,3}, {0,1,2,3}, {}, false);
+            is_causal, -1, {0,2,1,3}, {0,2,1,3}, {0,2,1,3}, {0,1,2,3}, {}, false);
 
         if (use_scalar_scale_val) {
             sdpa_prim.scale_val = scale_val;
@@ -145,6 +146,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         const auto scale_val = p.scale_val;
         const auto use_scalar_attn_mask = p.use_scalar_attn_mask;
         const auto attn_mask_val = p.attn_mask_val;
+        const auto is_causal = p.is_causal;
         const auto test_two_rank_mask = p.sequence_length_q == p.sequence_length_kv ? true : false;
 
         auto& engine = get_test_engine();
@@ -157,28 +159,28 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             input2_layout = cldnn::layout({-1, -1, num_heads, head_size}, data_types::f16, format::bfyx);
 
             if (test_two_rank_mask) {
-                input3_layout = cldnn::layout({ -1, -1}, data_types::f16, format::bfyx);
+                input3_layout = cldnn::layout({-1, -1}, data_types::f16, format::bfyx);
             } else {
                 input3_layout = cldnn::layout({-1, num_heads, -1, -1}, data_types::f16, format::bfyx);
             }
 
-            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
+            input0_static_layout = cldnn::layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
             input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
             input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
             if (test_two_rank_mask) {
                 input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, data_types::f32, format::bfyx);
             } else {
-                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, data_types::f16, format::bfyx);
+                input3_static_layout = cldnn::layout({batch, num_heads, 1, seq_length_kv}, data_types::f16, format::bfyx);
             }
         } else {
-            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
+            input0_static_layout = cldnn::layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
             input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
             input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
 
             if (test_two_rank_mask) {
                 input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, data_types::f16, format::bfyx);
             } else {
-                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, data_types::f16, format::bfyx);
+                input3_static_layout = cldnn::layout({batch, num_heads, 1, seq_length_kv}, data_types::f16, format::bfyx);
             }
 
             input0_layout = input0_static_layout;
@@ -200,11 +202,11 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         auto [mem_ref_ptr, net_ref_ptr] = run_network(is_caching_test, false,
                                         input0_layout, input1_layout, input2_layout, input3_layout,
                                         input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val);
+                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, is_causal);
         auto [mem_opt_ptr, net_opt_ptr] = run_network(is_caching_test, true,
                                         input0_layout, input1_layout, input2_layout, input3_layout,
                                         input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val);
+                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, is_causal);
 
         if (is_caching_test) {
             auto inst = net_opt_ptr->get_primitive("sdpa");
@@ -248,6 +250,10 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             result += "_mask_" + std::to_string(static_cast<int>(info.param.attn_mask_val * 1000));
         }
 
+        if (info.param.is_causal) {
+            result += "_causal";
+        }
+
         if (!info.param.dynamic) {
             result += "_static";
         }
@@ -256,22 +262,20 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_sdpa_gpu_test,
-    sdpa_gpu_test,
-    ::testing::Values(
-        sdpa_test_params{64, 32, 990, 128, 2, true}, // dynamic
-        sdpa_test_params{64, 32, 990, 128, 2, false}, // static
-        sdpa_test_params{64, 32, 990, 1, 2, true}, // dynamic
-        sdpa_test_params{64, 32, 990, 1, 2, false}, // static
-        sdpa_test_params{64, 10, 77, 77, 1, true}, // two ranks mask
-        sdpa_test_params{64, 10, 77, 77, 1, false}, // two ranks mask
-        sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f},  // scale_val only
-        sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},     // attn_mask only
-        sdpa_test_params{512, 8, 1, 1024, 2, true}
-    ),
-    sdpa_gpu_test::PrintToStringParamName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_test,
+                         sdpa_gpu_test,
+                         ::testing::Values(sdpa_test_params{64, 32, 990, 128, 2, true},                       // dynamic
+                                           sdpa_test_params{64, 32, 990, 128, 2, false},                      // static
+                                           sdpa_test_params{64, 32, 990, 1, 2, true},                         // dynamic
+                                           sdpa_test_params{64, 32, 990, 1, 2, false},                        // static
+                                           sdpa_test_params{64, 10, 77, 77, 1, true},                         // two ranks mask
+                                           sdpa_test_params{64, 10, 77, 77, 1, false},                        // two ranks mask
+                                           sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f},  // scale_val only
+                                           sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},    // attn_mask only
+                                           sdpa_test_params{512, 8, 1, 1024, 2, true},
+                                           sdpa_test_params{64, 32, 128, 128, 2, true, true},                 // causal dynamic
+                                           sdpa_test_params{64, 32, 128, 128, 2, false, true}),               // causal static
+                         sdpa_gpu_test::PrintToStringParamName);
 
 TEST_P(sdpa_gpu_test, basic) {
     auto p = GetParam();
@@ -298,7 +302,7 @@ TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     const int seq_length_kv = 448;
     const int batch = 1;
 
-    layout input0_layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
+    layout input0_layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
     layout input1_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
     layout input2_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
     layout input3_layout({batch, num_heads, 1, seq_length_kv}, data_types::f16, format::bfyx);
