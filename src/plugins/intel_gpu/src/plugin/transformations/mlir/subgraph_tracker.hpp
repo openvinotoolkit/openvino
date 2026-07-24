@@ -34,7 +34,9 @@ public:
     using Finalizer = std::function<void(SubgraphPtr)>;
 
     SubgraphTracker(Finalizer finalizer);
-    void add_node (NodePtr node, bool belongs);
+    // name == "" means the node does not belong to any subgraph. Nodes that belong are merged only with
+    // connected input subgraphs sharing the same name; a different name starts a separate (named) subgraph.
+    void add_node (NodePtr node, const std::string& name);
     void finalize();
     SubgraphPtr get_current_subgraph(NodePtr node);
 

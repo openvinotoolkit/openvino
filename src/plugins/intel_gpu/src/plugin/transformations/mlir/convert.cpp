@@ -30,6 +30,7 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/util/env_util.hpp>
 #include <unordered_map>
+#include <unordered_set>
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
 #include "graph_converter.hpp"
@@ -169,7 +170,9 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     auto memref_args = inputTypes;
     memref_args.append(outputTypes);
     const auto funcType = mlir::FunctionType::get(context, ArrayRef(memref_args), ArrayRef(SmallVector<mlir::Type>()));
-    auto func = moduleBuilder.create<mlir::func::FuncOp>(funcLoc, function_name, funcType);
+    auto trunc = function_name.rfind('#');
+    auto name = trunc == std::string::npos ? function_name : function_name.substr(0, trunc);
+    auto func = mlir::func::FuncOp::create(moduleBuilder, funcLoc, name, funcType);
     auto block_builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock() /* TODO: Add logger here */);
 
     GraphConverter graph_converter(context, &block_builder);
@@ -269,9 +272,8 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
                 if(0 == input_map.count(symbol)) {
                     input_map[symbol] = Index(i, j);
                 } else {
-                    OPENVINO_MLIR_DEBUG_PRINT(
-                        "[ DEBUG ] Lost equality constraint for dimensions in output " << input << ".\n" <<
-                        "          If the constraint is violated in runtime it will result in the undefined behaviour.\n");
+                    OPENVINO_MLIR_DEBUG_PRINT("Lost equality constraint for dimensions in output " << input << ".");
+                    OPENVINO_MLIR_DEBUG_PRINT("If the constraint is violated in runtime it will result in the undefined behaviour.");
                 }
             }
         }
@@ -317,6 +319,144 @@ void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
     }
 }
 
+// Marks matched subgraphs with a custom function name so the
+// Partitioner groups them into a dedicated MLIR function.
+// The patterns are specified with the env var:
+//   OV_MLIR_PATTERNS="name1=Type1,Type2;name2=Type3,Type4,...".
+class PatternMatcher : public ov::pass::ModelPass {
+    struct NamedPattern {
+        std::string name;
+        std::vector<std::string> types;
+    };
+
+    const std::vector<NamedPattern> patterns = []() {
+        std::vector<NamedPattern> patterns;
+        const auto& spec = ov::util::getenv_string("OV_MLIR_PATTERNS");
+        size_t pos = 0;
+        while (pos < spec.size()) {
+            auto sep = spec.find(';', pos);
+            auto entry = spec.substr(pos, sep == std::string::npos ? std::string::npos : sep - pos);
+            pos = sep == std::string::npos ? spec.size() : sep + 1;
+
+            auto eq = entry.find('=');
+            if (eq == std::string::npos)
+                continue;
+            NamedPattern p{entry.substr(0, eq), {}};
+            for (size_t tp = eq + 1; tp < entry.size();) {
+                auto comma = entry.find(',', tp);
+                auto type = entry.substr(tp, comma == std::string::npos ? std::string::npos : comma - tp);
+                if (!type.empty())
+                    p.types.push_back(type);
+                tp = comma == std::string::npos ? entry.size() : comma + 1;
+            }
+            if (!p.name.empty() && !p.types.empty())
+                patterns.push_back(std::move(p));
+        }
+        return patterns;
+    }();
+
+public:
+    OPENVINO_RTTI("PatternMatcher");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        if (patterns.empty())
+            return false;
+
+        auto ordered_ops = model->get_ordered_ops();
+        auto filter = std::remove_if(ordered_ops.begin(), ordered_ops.end(), [](const auto& n) {
+            static std::string skip[] = {"Constant", "Parameter", "Result"};
+            for (const auto& s : skip) {
+                if (s == n->get_type_info().name)
+                    return true;
+            }
+            return false;
+        });
+        ordered_ops.erase(filter, ordered_ops.end());
+
+        auto print_chain = [&](const char* msg, size_t offset, size_t count) {
+            std::string chain;
+            for (size_t i = offset; i < offset + count; ++i) {
+                chain += ordered_ops[i]->get_type_info().name;
+                chain += ",";
+            }
+            if (!chain.empty()) {
+                chain.pop_back();
+                OPENVINO_MLIR_DEBUG_PRINT(msg << chain);
+            }
+        };
+
+        if (::ov::intel_gpu::mlir::is_debug())
+            print_chain("Matching model: ", 0, ordered_ops.size());
+
+        bool changed = false;
+        std::unordered_set<ov::Node*> matched;
+        // Per-pattern match counter: each match gets a unique name (name, name1, name2, ...) so
+        // repeated matches stay separate single-output subgraphs instead of being force-joined by name.
+        std::unordered_map<std::string, int> match_count;
+        for (size_t i = 0, count = ordered_ops.size(); i < count; ++i) {
+            auto node = ordered_ops[i];
+            for (const auto& p : patterns) {
+                if (p.types.size() > count - i || p.types.front() != node->get_type_info().name || !has_subgraph_mark(node))
+                    continue;
+                bool all_matches = true;
+                size_t len = p.types.size();
+                for (size_t n = i + 1, t = 1; t < len; ++n, ++t) {
+                    if (p.types[t] != ordered_ops[n]->get_type_info().name || !has_subgraph_mark(ordered_ops[n])) {
+                        all_matches = false;
+                        break;
+                    }
+                }
+                // Connectivity check
+                if (all_matches && len > 1) {
+                    std::unordered_set<ov::Node*> nodes;
+                    for (size_t t = 0; t < len; ++t)
+                        nodes.insert(ordered_ops[i + t].get());
+                    std::unordered_set<ov::Node*> seen{ordered_ops[i].get()};
+                    std::vector<ov::Node*> stack{ordered_ops[i].get()};
+                    auto visit = [&](ov::Node* nb) {
+                        if (nodes.count(nb) && seen.insert(nb).second)
+                            stack.push_back(nb);
+                    };
+                    while (!stack.empty()) {
+                        auto* cur = stack.back();
+                        stack.pop_back();
+                        for (auto& in : cur->input_values())
+                            visit(in.get_node());
+                        for (auto& out : cur->outputs())
+                            for (auto& ti : out.get_target_inputs())
+                                visit(ti.get_node());
+                    }
+                    all_matches = seen.size() == len;
+                }
+                if (all_matches) {
+                    int n = match_count[p.name]++;
+                    std::string name = n ? p.name + "#" + std::to_string(n) : p.name;
+                    if (::ov::intel_gpu::mlir::is_debug()) {
+                        std::string msg = "Matched pattern " + name + "=";
+                        print_chain(msg.c_str(), i, len);
+                    }
+                    for (size_t t = 0; t < len; ++t, ++i) {
+                        set_subgraph_mark(ordered_ops[i], name);
+                        matched.insert(ordered_ops[i].get());
+                    }
+                    changed = true;
+                    --i;
+                    break;
+                }
+            }
+        }
+
+        // Clear marks on nodes not matched by any pattern - they will not be converted to MLIR.
+        for (auto node : ordered_ops) {
+            if (matched.count(node.get()) == 0) {
+                set_subgraph_mark(node, "");
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+};
 
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
@@ -331,19 +471,12 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         SubgraphTracker tracker([this](SubgraphPtr subgraph) {
-                auto mlir_op = ngraph_to_mlir_op(context, subgraph, loweringContext);
-                replace_subgraph(subgraph, mlir_op);
-                OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op << "\n");
-            }
-        );
-        for(auto node: model->get_ordered_ops()) {
-            if (auto name = get_subgraph_mark(node); !name.empty()) {
-                tracker.add_node(node, true);
-                if (auto subgraph = tracker.get_current_subgraph(node))
-                    subgraph->function_name = name;
-            } else {
-                tracker.add_node(node, false);
-            }
+            auto mlir_op = ngraph_to_mlir_op(context, subgraph, loweringContext);
+            replace_subgraph(subgraph, mlir_op);
+            OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op);
+        });
+        for (auto node : model->get_ordered_ops()) {
+            tracker.add_node(node, get_subgraph_mark(node));
         }
         tracker.finalize();
         return true;
@@ -387,6 +520,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<TransposePattern>();
     manager.register_pass<UnsqueezePattern>();
     manager.register_pass<MatMulPattern>();
+    manager.register_pass<PatternMatcher>();
     manager.register_pass<Partitioner>(context, loweringContext);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();

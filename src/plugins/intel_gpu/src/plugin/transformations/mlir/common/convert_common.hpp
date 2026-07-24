@@ -25,7 +25,7 @@ using namespace ::mlir;
 bool is_debug();
 
 #define OPENVINO_MLIR_DEBUG(X) do if(::ov::intel_gpu::mlir::is_debug()) { X; } while(false)
-#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::intel_gpu::mlir::is_debug()) { ::std::cerr << X; } while(false)
+#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::intel_gpu::mlir::is_debug()) { ::std::cerr << "[DEBUG] " << X << ::std::endl; } while(false)
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType);
 
