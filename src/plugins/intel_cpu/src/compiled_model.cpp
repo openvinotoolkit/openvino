@@ -5,6 +5,7 @@
 #include "compiled_model.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <memory>
@@ -86,6 +87,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(loaded_from_cache),
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
+    m_runtime_requirements = build_runtime_requirements();
     const auto& core = m_plugin->get_core();
     OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
@@ -309,7 +311,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::key_cache_precision.name()),
             RO_property(ov::value_cache_precision.name()),
             RO_property(ov::key_cache_group_size.name()),
-            RO_property(ov::value_cache_group_size.name())};
+            RO_property(ov::value_cache_group_size.name()),
+            RO_property(ov::runtime_requirements.name())};
 
         return ro_properties;
     }
@@ -411,10 +414,19 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::weights_path) {
         return static_cast<decltype(ov::weights_path)::value_type>("");
     }
+    if (name == ov::runtime_requirements) {
+        return static_cast<decltype(ov::runtime_requirements)::value_type>(m_runtime_requirements);
+    }
     OPENVINO_THROW("Unsupported property: ", name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
+    modelStream.write(reinterpret_cast<const char*>(&runtime_requirements_magic), sizeof(runtime_requirements_magic));
+    modelStream.write(reinterpret_cast<const char*>(&runtime_requirements_version),
+                      sizeof(runtime_requirements_version));
+    uint64_t reqs_size = m_runtime_requirements.size();
+    modelStream.write(reinterpret_cast<const char*>(&reqs_size), sizeof(reqs_size));
+    modelStream.write(m_runtime_requirements.data(), reqs_size);
     ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE);
     serializer << m_model;
 }
