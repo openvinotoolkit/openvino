@@ -598,7 +598,7 @@ TEST(mvn_gpu_test, mvn_test_variance_epsilon_scaling_large_values_bfyx_opt) {
     for (float eps : epsilons) {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(mvn("mvn", input_info("input"), true, eps, false, {3}));
+        topology.add(mvn("mvn", input_info("input"), true, eps, false, {2}));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::force_implementations(
