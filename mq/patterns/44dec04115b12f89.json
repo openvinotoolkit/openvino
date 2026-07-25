@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "title": "Linux Ubuntu 24.04 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-25T13:05:00Z",
+  "last_seen": "2026-07-25T13:05:00Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30156795631"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37024"],
+  "recent_timestamps": ["2026-07-25T13:05:00Z"],
+  "rerun_search_string": null
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-25-13-05-00-000-30156795631",
+  "timestamp": "2026-07-25T13:05:00Z",
+  "run_id": "30156795631",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30156795631",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37024",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37024",
+  "author": "maxnick",
+  "category": "Infrastructure",
+  "title": "Linux Ubuntu 24.04 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "Low",
+  "failed_jobs": ["Unknown - logs not retrievable (403 secrecy policy / empty pre-downloaded logs)"],
+  "key_errors": ["No job logs available: get_job_logs returned 403 (secrecy policy filter). Pre-downloaded failed-jobs.json contained empty array. Run was already on attempt 2 (in_progress) when investigation started."],
+  "root_cause": "The first attempt of run 30156795631 for PR #37024 ([GPU][CLANG-TIDY] Enable modernize-redundant-void-arg) failed with an unknown cause. By the time the CI Failure Doctor was invoked, the run had already advanced to attempt 2 which is currently in progress. Job logs for attempt 1 could not be retrieved due to access controls. The failure is classified as Infrastructure/transient because a re-run was already automatically triggered and is proceeding successfully (all jobs except Samples are done with success status).",
+  "reproduction_steps": "N/A - failure cause unknown due to inaccessible logs",
+  "recommended_actions": ["Monitor attempt 2 for completion - it appears to be succeeding", "If attempt 2 also fails, investigate logs manually in the GitHub Actions UI"],
+  "prevention_strategies": "Ensure CI Doctor has access to job logs for all workflow runs to enable proper root cause analysis.",
+  "historical_context": "This is a recurring pattern where CI Doctor is invoked but logs are inaccessible (403 secrecy policy). Similar cases: 2026-07-24-06-35-00-000-30068549392 (Windows VS 2022), 2026-07-22-08-51-55-000-29897298826 (Windows), 2026-07-23-21-24-12-000-30043161341 (Linux ARM64)."
+}
