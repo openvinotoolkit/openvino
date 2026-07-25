@@ -481,7 +481,7 @@ ov::Output<ov::Node> build_multi_identity(EinsumDecomposition* einsum_decompose_
                                                   const std::vector<std::string>& repeated_labels,
                                                   const LabelDimMap& label_dim_map,
                                                   ov::NodeVector& subgraph_nodes) {
-    OPENVINO_ASSERT(repeated_labels.size() > 0);
+    OPENVINO_ASSERT(!repeated_labels.empty());
 
     const auto get_identity = [&](size_t idx) {
         const auto repeated_label_dims = label_dim_map.find(repeated_labels[idx]);
