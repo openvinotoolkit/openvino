@@ -788,7 +788,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         {
             // Disable XAttention if GPU Xe2/Xe3 architectures is unavaiable or IGC incompatiable.
-            auto check_xattn_gpu_compatibility  = [&](void) -> bool {
+            auto check_xattn_gpu_compatibility  = [&]() -> bool {
                         auto& engine = m_context->get_engine();
                         const auto& info = engine.get_device_info();
                          if (!info.supports_immad) {  // CM optimized for systolic-array architectures
