@@ -368,7 +368,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node
-            while (eltw_node.get_dependencies().size() > 0) {
+            while (!eltw_node.get_dependencies().empty()) {
                 auto& dep = eltw_node.get_dependency(eltw_node.get_dependencies().size() - 1);
                 p.remove_connection(dep, eltw_node);
             }
@@ -686,11 +686,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto has_reorder_behind_mvn = [&]() -> bool {
                 // MVN with rank size 3 always requires Reorder and Reshape. This pattern always run simple formats(bfyx..).
-                if (node.get_dependencies().size() > 0 && node.get_dependency(0).is_type<reshape>()) {
+                if (!node.get_dependencies().empty() && node.get_dependency(0).is_type<reshape>()) {
                     auto& reshape_node = node.get_dependency(0);
-                    if (reshape_node.get_dependencies().size() > 0 && reshape_node.get_dependency(0).is_type<reorder>()) {
+                    if (!reshape_node.get_dependencies().empty() && reshape_node.get_dependency(0).is_type<reorder>()) {
                         auto& reorder_node = reshape_node.get_dependency(0);
-                        if (reorder_node.get_dependencies().size() > 0 && reorder_node.get_dependency(0).is_type<mvn>()) {
+                        if (!reorder_node.get_dependencies().empty() && reorder_node.get_dependency(0).is_type<mvn>()) {
                             return true;
                         }
                     }

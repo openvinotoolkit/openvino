@@ -80,7 +80,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
                                          bool is_runtime) {
-    if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
+    if (concat_node.is_output() || !concat_params.fused_desc.empty() || concat_node.is_in_shape_of_subgraph())
         return false;
     bool do_runtime_buffer_fusing = true;
     GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
@@ -578,7 +578,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
-    if (node.get_users().size() > 0) {
+    if (!node.get_users().empty()) {
         GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && dyn_aware) {
             return false;
         }
