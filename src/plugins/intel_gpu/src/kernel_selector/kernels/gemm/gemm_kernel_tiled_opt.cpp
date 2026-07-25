@@ -108,7 +108,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.simd_size = 16;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        bool output_ndim_transposed = (!params.output_order.empty() && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
             && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad() && params.indirect_axis != 1)
             && (!output_ndim_transposed || params.fused_ops.empty())
@@ -201,7 +201,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
         });
 
-        bool transpose_output = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        bool transpose_output = (!params.output_order.empty() && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if (transpose_output)
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 2 /* set as TRANSPOSE_OTHER */));
         else
@@ -218,18 +218,18 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             const size_t rank = data_tensor.GetDims().size();
             if (dims_order.size() > 1 && dim.compare("Y") == 0) {
                 target_dim_idx = dims_order.at(dims_order.size() - 2);
-            } else if (dims_order.size() > 0 && dim.compare("X") == 0) {
+            } else if (!dims_order.empty() && dim.compare("X") == 0) {
                 target_dim_idx = dims_order.back();
-            } else if (dims_order.size() == 0 && dim.compare("Y") == 0) {
+            } else if (dims_order.empty() && dim.compare("Y") == 0) {
                 target_dim_idx = rank - 2;
-            } else if (dims_order.size() == 0 && dim.compare("X") == 0) {
+            } else if (dims_order.empty() && dim.compare("X") == 0) {
                 target_dim_idx = rank - 1;
             } else {
                 OPENVINO_THROW("Unsupported dimension: ", dim);
             }
 
             size_t loc = static_cast<size_t>(target_dim_idx);
-            if (dims_order.size() > 0) {
+            if (!dims_order.empty()) {
                 loc += (dims_order.size() < rank) ? (rank - dims_order.size()) : 0;
             }
 
