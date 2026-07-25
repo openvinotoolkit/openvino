@@ -25,7 +25,7 @@ void prepare_padding::run(program& p) {
             const size_t alignment = 2;
             auto weight_layout = weight_node.get_output_layout(0);
             const auto const_shape = weight_layout.get_partial_shape().to_shape();
-            OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
+            OPENVINO_ASSERT(!const_shape.empty(), "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
             auto inner_most_idx = node->as<fully_connected>().get_primitive()->weights_rank - 1;
 
             if (const_shape[inner_most_idx] % alignment != 0) {
@@ -121,11 +121,11 @@ void prepare_padding::run(program& p) {
 
                 ov::Dimension::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
                 ov::Dimension::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
-                ov::Dimension::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
+                ov::Dimension::value_type pb_x = std::max<std::ptrdiff_t>(!padding_begin.empty() ? padding_begin[padding_begin.size() - 1] : 0, 0);
 
                 ov::Dimension::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
                 ov::Dimension::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
-                ov::Dimension::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
+                ov::Dimension::value_type pe_x = std::max<std::ptrdiff_t>(!padding_end.empty() ? padding_end[padding_end.size() - 1] : 0, 0);
 
                 const auto& lower_sizes = in_layout.data_padding._lower_size;
                 const auto& upper_sizes = in_layout.data_padding._upper_size;
@@ -292,15 +292,15 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     auto dilation = conv->dilation;
     uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
     uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-    uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
+    uint32_t stride_x = !stride.empty() ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
 
     uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
     uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-    uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
+    uint32_t dilation_x = !dilation.empty() ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
 
     ov::Dimension::value_type pad_z = padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0;
     ov::Dimension::value_type pad_y = padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0;
-    ov::Dimension::value_type pad_x = padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0;
+    ov::Dimension::value_type pad_x = !padding_begin.empty() ? padding_begin[padding_begin.size() - 1] : 0;
 
     ov::Dimension::value_type padding_begin_x, padding_begin_y, padding_begin_z;
     ov::Dimension::value_type padding_end_x, padding_end_y, padding_end_z;
@@ -312,7 +312,7 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
 
         pad_z = padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0;
         pad_y = padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0;
-        pad_x = padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0;
+        pad_x = !padding_end.empty() ? padding_end[padding_end.size() - 1] : 0;
 
         padding_end_x = std::max<ov::Dimension::value_type>(pad_x, 0);
         padding_end_y = std::max<ov::Dimension::value_type>(pad_y, 0);
@@ -344,7 +344,7 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         needed_padding = padding({0, 0, padding_begin_z, padding_begin_y, padding_begin_x}, {0, 0, padding_end_z, padding_end_y, padding_end_x}, 0);
     else if (padding_begin.size() >= 2)
         needed_padding = padding({0, 0, padding_begin_y, padding_begin_x}, {0, 0, padding_end_y, padding_end_x}, 0);
-    else if (padding_begin.size() >= 1)
+    else if (!padding_begin.empty())
         needed_padding = padding({0, 0, padding_begin_x}, {0, 0, padding_end_x}, 0);
     needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
 

@@ -581,7 +581,7 @@ public:
         }
 
         assert(my_sizes.size() == adjusted_coords.size());
-        assert(adjusted_coords.size() > 0);
+        assert(!adjusted_coords.empty());
 
         size_t offset = adjusted_coords[0];
         for (size_t i = 1; i < adjusted_coords.size(); i++) {
