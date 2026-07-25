@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-25-15-32-27-000-30160143296",
+  "timestamp": "2026-07-25T15:32:27Z",
+  "run_id": "30160143296",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30160143296",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37024",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37024",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "JS API E2E openvino-node package (cmd) step fails on Windows",
+  "signature": "e2e of openvino-node package cmd step failed on windows js api job|Flaky Test",
+  "signature_hash": "2c5337624cd0205d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "E2E of openvino-node package (cmd) step fails on Windows"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because JS API (22) failed"
+    }
+  ],
+  "key_errors": [
+    "Step: E2E of openvino-node package (cmd) \u2014 conclusion: failure (logs unavailable due to secrecy policy)",
+    "Job: JS API (22) \u2014 conclusion: failure; step 11 'E2E of openvino-node package (cmd)' failed; prior step 10 'E2E of openvino-node package' succeeded"
+  ],
+  "root_cause": "The JS API (22) job's 'E2E of openvino-node package (cmd)' step failed on the Windows runner. The bash-based E2E step (step 10) passed while only the cmd.exe variant (step 11) failed. Actual log content is unavailable due to secrecy policy, but based on strong historical precedent (12 occurrences of similar Windows JS API E2E failures), the most likely root cause is either: (a) Windows file locking on Electron DLL files (d3dcompiler_47.dll etc.) during rm -rf cleanup, which fails differently under cmd.exe than under bash; or (b) a cmd.exe-specific command syntax issue in the E2E test script. The workflow conclusion is 'cancelled' (run_attempt=2), indicating the first attempt also failed and was retried.",
+  "reproduction_steps": "Run the E2E test for openvino-node on a Windows host using cmd.exe: cd src/bindings/js/node && npm run test:e2e:cmd (or equivalent). Observe whether the cmd variant exits non-zero.",
+  "recommended_actions": [
+    "Review the 'E2E of openvino-node package (cmd)' step script for cmd.exe compatibility issues.",
+    "Check if the Windows runner shows Permission denied errors on Electron DLL files during cleanup.",
+    "If cleanup is the issue: replace 'rm -rf' with 'rimraf' or PowerShell 'Remove-Item -Force -Recurse'.",
+    "Re-add PR #37024 to the merge queue to get a fresh run (run_attempt=2 already consumed the rerun budget)."
+  ],
+  "prevention_strategies": "Use cross-platform delete utilities (rimraf, fs.rmSync with force:true) in JS E2E test cleanup hooks to handle Windows file locking. Add a CI check that validates cmd.exe compatibility for Windows E2E scripts.",
+  "historical_context": "Windows JS API E2E Electron cleanup failures are the most frequent recurring pattern in the CI Doctor MQ database (12 occurrences). Related patterns: 'rm cannot remove electron.exe Permission denied' (Flaky Test, count=12). This specific cmd variant is a new signature but shares the same root-cause domain."
+}
