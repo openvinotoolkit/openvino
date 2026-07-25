@@ -137,7 +137,7 @@ std::shared_ptr<Node> ReadValues::clone_with_new_inputs(const ov::OutputVector& 
                     "Incorrect number of inputs. Expected: 0 or ", m_internal_states_infos.size(), ". ",
                     "Actual: ", new_args.size(), ".");
 
-    if (new_args.size() > 0) {
+    if (!new_args.empty()) {
         return std::make_shared<ReadValues>(new_args, m_variable, m_internal_states_infos);
     } else {
         return std::make_shared<ReadValues>(m_variable, m_internal_states_infos);
