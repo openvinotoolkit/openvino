@@ -16,7 +16,7 @@ public:
 
     arg_max_min_kernel_selector();
 
-    virtual ~arg_max_min_kernel_selector() {}
+    ~arg_max_min_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

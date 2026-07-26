@@ -928,7 +928,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             }
         }
 
-        if (!batched_inputs.size()) {
+        if (batched_inputs.empty()) {
             GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
             return static_cast<uint32_t>(max_batch_size);
         }

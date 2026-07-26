@@ -549,7 +549,7 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
-    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
+    bool IsPostReorderFused() const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
         int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
@@ -655,7 +655,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    virtual ~base_params() {}
+    ~base_params() override {}
 
     enum class ArgType {
         Input,
