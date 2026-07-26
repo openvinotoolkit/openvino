@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// OV_CONFIG_RELEASE_OPTION:
+//      Options exposed via the public API in all build types.
+//      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
+// OV_CONFIG_RELEASE_INTERNAL_OPTION:
+//      Available in all build types, but not settable via the public API.
+//      Not intended as production options for customers, as API stability is not guaranteed.
+//      If a customer requires one of these options in a production scenario,
+//      it should be promoted to RELEASE_OPTION. May be used for development or troubleshooting purposes.
+// OV_CONFIG_DEBUG_OPTION:
+//      Options available only in builds with `ENABLE_DEBUG_CAPS` enabled.
+//      Intended for OpenVINO development and troubleshooting features.
+// OV_CONFIG_DEBUG_GLOBAL_OPTION:
+//      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")

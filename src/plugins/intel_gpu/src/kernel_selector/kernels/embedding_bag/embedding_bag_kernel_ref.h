@@ -24,7 +24,7 @@ struct embedding_bag_params : public base_params {
 class EmbeddingBagKernelRef : public KernelBaseOpenCL {
 public:
     EmbeddingBagKernelRef() : KernelBaseOpenCL("embedding_bag_ref") {}
-    virtual ~EmbeddingBagKernelRef() = default;
+    ~EmbeddingBagKernelRef() override = default;
 
 protected:
     KernelsData GetKernelsData(const Params& params) const override;
