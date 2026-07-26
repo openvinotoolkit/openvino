@@ -8,6 +8,7 @@
 Checks: >
   -*,
   modernize-use-override,
+  modernize-use-using
   modernize-redundant-void-arg
   readability-container-size-empty
   readability-redundant-string-cstr
