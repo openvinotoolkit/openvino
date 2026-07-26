@@ -17,7 +17,7 @@ struct tile_params : public base_params {
 class TileKernelRef : public KernelBaseOpenCL {
 public:
     TileKernelRef() : KernelBaseOpenCL("tile_ref") {}
-    virtual ~TileKernelRef() {}
+    ~TileKernelRef() override {}
 
     virtual JitConstants GetJitConstants(const tile_params& params) const;
     virtual CommonDispatchData SetDefault(const tile_params& params) const;

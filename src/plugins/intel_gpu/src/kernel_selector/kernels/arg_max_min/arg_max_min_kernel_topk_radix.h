@@ -11,7 +11,7 @@ namespace kernel_selector {
 class ArgMaxMinKernelTopKRadix : public ArgMaxMinKernelBase {
 public:
     ArgMaxMinKernelTopKRadix() : ArgMaxMinKernelBase("arg_max_min_topk_radix") {}
-    virtual ~ArgMaxMinKernelTopKRadix() {}
+    ~ArgMaxMinKernelTopKRadix() override {}
 
     JitConstants GetJitConstants(const arg_max_min_params& params) const override;
     DispatchData SetDefault(const arg_max_min_params& params) const override;

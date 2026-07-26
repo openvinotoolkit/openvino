@@ -83,7 +83,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
         try {
             KernelsData kds = implementation->GetKernelsData(params);
 
-            if (kds.size() && kds[0].kernels.size()) {
+            if (!kds.empty() && !kds[0].kernels.empty()) {
                 kernelsData = kds;
                 kernelName = implementation->GetName();
                 break;
@@ -96,7 +96,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
     }
 
     // TODO: find a better place to located this assignment
-    if (kernelsData.size()) {
+    if (!kernelsData.empty()) {
         kernelsData[0].kernelName = kernelName;
         kernelsData[0].kernels[0].params.layerID = params.layerID;
     }
@@ -128,7 +128,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
             // TODO: make sure kernel names are unique.
             if (implementation->GetName().compare(cachedkernelName) == 0) {
                 KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, autoTuneIndex);
-                if (kds.size() && kds[0].kernels.size()) {
+                if (!kds.empty() && !kds[0].kernels.empty()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
                     kernelsData[0].kernels[0].params.layerID = params.layerID;

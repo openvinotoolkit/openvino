@@ -16,7 +16,7 @@ public:
 
     pooling_kernel_selector();
 
-    virtual ~pooling_kernel_selector() {}
+    ~pooling_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

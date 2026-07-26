@@ -39,11 +39,13 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
@@ -185,6 +187,11 @@ static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& pa
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
+
+    // Flag fp8 inputs so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
+    // (see scatter_update_ref.cl). INPUT0 = dictionary (first kernel), INPUT2 = updates (second).
+    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
+    jit.AddConstant(MakeJitConstant("INPUT2_IS_F8E4M3", params.inputs[2].GetDType() == Datatype::F8E4M3));
 
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
