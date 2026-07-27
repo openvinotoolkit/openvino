@@ -35,9 +35,17 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     }
     jit.AddConstants({MakeJitConstant("GATE_IDX", params.gate_idx)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    // For BF16 input, ACCUMULATOR_TYPE is F32 but reading ushort from global
+    // memory needs bf16→float decode, not integer promotion.
+    if (params.inputs[0].GetDType() == Datatype::BF16) {
+        jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE(v)", "_convert_as_bfloat16_float(v)"));
+    }
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
-    if ((params.clamp_min > std::numeric_limits<float>::lowest() || params.clamp_max < std::numeric_limits<float>::max()) &&
+    // Only enable clamp when bounds are meaningful (min < max).
+    // clamp_min == clamp_max is the sentinel for "no clamping".
+    if (params.clamp_min < params.clamp_max &&
         (params.glu_type == ov::op::internal::GLU::GluType::Swish)) {
         jit.AddConstants({MakeJitConstant("CLAMP_MAX", static_cast<float>(params.clamp_max))});
         jit.AddConstants({MakeJitConstant("CLAMP_MIN", static_cast<float>(params.clamp_min))});
@@ -95,6 +103,8 @@ bool SwiGLUKernelBase::Validate(const Params& params) const {
 }
 
 Datatype SwiGLUKernelBase::GetAccumulatorType(const swiglu_params& params) const {
+    // BF16 has no native GPU ALU; math must be done in F32.
+    // Skip BF16 in the preference list so we fall through to F32.
     Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types)
