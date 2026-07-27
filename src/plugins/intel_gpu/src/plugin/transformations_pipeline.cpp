@@ -217,6 +217,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
@@ -722,7 +723,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type_any_of<ov::op::v0::MatMul,
                                        ov::op::internal::MOE,
-                                       ov::op::internal::GatherMatmulCompressed>(next_node);
+                                       ov::op::internal::GatherMatmulCompressed,
+                                       ov::op::internal::GroupedMatMulCompressed>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
