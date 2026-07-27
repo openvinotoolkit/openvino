@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-14-02-12-000-30266971603",
+  "timestamp": "2026-07-27T14:02:12Z",
+  "run_id": "30266971603",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30266971603",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit opt_gptq fails with accuracy validation failed",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nassert False\ninstall/tests/model_hub_tests/models_hub_common/test_convert_model.py:93",
+    "katuni4ka/opt-125m-gptq running failed:\n  File test_convert_model.py:118 in _run\n    self.compare_results(fw_outputs, ov_outputs)"
+  ],
+  "root_cause": "The OPT-GPTQ model (katuni4ka/opt-125m-gptq) export test failed accuracy comparison between PyTorch and OpenVINO outputs. The model uses GPTQ 4-bit quantization (via AutoGPTQ/GPT-QModel 6.0.3 with TorchFusedQuantLinear kernel). The export produces an OV model but the results diverge from the PyTorch reference at inference time, failing the compare_results assertion. This could be due to a regression in the GPTQ quantization path, a change in how compressed weights are exported, or a mismatch in dequantization logic between the PyTorch and OV execution paths.",
+  "reproduction_steps": "pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+  "recommended_actions": [
+    "Investigate recent changes to the OPT/GPTQ export path in the PyTorch frontend or nncf/openvino-genai stack",
+    "Check if GPT-QModel 6.0.3 or Transformers 5.5.3 has changed its quantization output format",
+    "Run compare_results locally to inspect the magnitude of the output discrepancy",
+    "Check git blame on test_llm.py compare_results and the GPTQ export path for recent changes"
+  ],
+  "prevention_strategies": "Add numerical tolerance assertions for GPTQ models; pin model/library versions used in export tests",
+  "historical_context": "This same test failure was seen 2 prior times today (runs 30264014436 and 30261291251), associated with PRs #36860 and #37029. This is now the 3rd occurrence in 12 hours."
+}

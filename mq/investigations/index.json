@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 50,
+  "total": 51,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -492,6 +492,15 @@
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
       "pr_number": "36860"
+    },
+    {
+      "investigation_id": "2026-07-27-14-02-12-000-30266971603",
+      "run_id": "30266971603",
+      "timestamp": "2026-07-27T14:02:12Z",
+      "title": "test_export_model_precommit opt_gptq fails with accuracy validation failed",
+      "category": "Code Issue",
+      "signature_hash": "671a331e9a60933e",
+      "pr_number": null
     }
   ]
 }
