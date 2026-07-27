@@ -45,16 +45,8 @@ struct GRUSeqImplementationManager : public ImplementationManager {
         auto out1_dt = node.get_output_layout(1).data_type;
         bool f16_case = everyone_is(data_types::f16, in0_dt, in1_dt, in2_dt, in3_dt, in4_dt, out0_dt, out1_dt);
         bool f32_case = everyone_is(data_types::f32, in0_dt, in1_dt, in2_dt, in3_dt, in4_dt, out0_dt, out1_dt);
-        bool u8u8u8_case = one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::i8, in3_dt) &&
-            everyone_is(data_types::u8, in0_dt, in1_dt, out1_dt) && everyone_is(data_types::f32, in2_dt, in4_dt);
-        bool f32u8f32_case = everyone_is(data_types::u8, in0_dt) && everyone_is(data_types::i8, in2_dt, in3_dt) &&
-            one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::f32, in1_dt, in4_dt, out1_dt);
-        bool s8s8s8_case = everyone_is(data_types::i8, in0_dt, in1_dt, out0_dt, out1_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
-            everyone_is(data_types::f32, in2_dt, in4_dt);
-        bool f32s8f32_case = everyone_is(data_types::i8, in0_dt, in2_dt, in3_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
-            everyone_is(data_types::f32, in1_dt, in4_dt, out1_dt);
 
-        return f16_case || f32_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
+        return f16_case || f32_case;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
