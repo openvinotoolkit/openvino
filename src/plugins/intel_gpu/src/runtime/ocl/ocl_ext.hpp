@@ -31,8 +31,8 @@ typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 #else
 # include <CL/cl_va_api_media_sharing_intel.h>
-typedef cl_va_api_device_source_intel cl_device_source_intel;
-typedef cl_va_api_device_set_intel    cl_device_set_intel;
+using cl_device_source_intel = cl_va_api_device_source_intel;
+using cl_device_set_intel = cl_va_api_device_set_intel;
 #endif
 
 #include <sstream>
@@ -428,7 +428,7 @@ T load_entrypoint(const cl_command_queue queue, const std::string name) {
 
 namespace cl {
 
-typedef CL_API_ENTRY cl_int(CL_API_CALL *PFN_clEnqueueAcquireMediaSurfacesINTEL)(
+using PFN_clEnqueueAcquireMediaSurfacesINTEL = CL_API_ENTRY cl_int(CL_API_CALL *)(
     cl_command_queue /* command_queue */,
     cl_uint /* num_objects */,
     const cl_mem* /* mem_objects */,
@@ -436,7 +436,7 @@ typedef CL_API_ENTRY cl_int(CL_API_CALL *PFN_clEnqueueAcquireMediaSurfacesINTEL)
     const cl_event* /* event_wait_list */,
     cl_event* /* event */);
 
-typedef CL_API_ENTRY cl_int(CL_API_CALL *PFN_clEnqueueReleaseMediaSurfacesINTEL)(
+using PFN_clEnqueueReleaseMediaSurfacesINTEL = CL_API_ENTRY cl_int(CL_API_CALL *)(
     cl_command_queue /* command_queue */,
     cl_uint /* num_objects */,
     const cl_mem* /* mem_objects */,
@@ -444,7 +444,7 @@ typedef CL_API_ENTRY cl_int(CL_API_CALL *PFN_clEnqueueReleaseMediaSurfacesINTEL)
     const cl_event* /* event_wait_list */,
     cl_event* /* event */);
 
-typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
+using PFN_clCreateFromMediaSurfaceINTEL = CL_API_ENTRY cl_mem(CL_API_CALL *)(
     cl_context /* context */,
     cl_mem_flags /* flags */,
     void* /* surface */,
@@ -453,7 +453,7 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
 
 
 #ifdef WIN32
-    typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromD3D11Buffer)(
+    using PFN_clCreateFromD3D11Buffer = CL_API_ENTRY cl_mem(CL_API_CALL *)(
         cl_context context,
         cl_mem_flags flags,
         void* resource, cl_int* errcode_ret);
@@ -694,7 +694,7 @@ public:
 #endif
 
 class ExternalMemoryHelper {
-    typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueAcquireExternalMemObjectsKHR)(
+    using PFN_clEnqueueAcquireExternalMemObjectsKHR = CL_API_ENTRY cl_int(CL_API_CALL *)(
         cl_command_queue /* command_queue */,
         cl_uint /* num_mem_objects */,
         const cl_mem* /* mem_objects */,
@@ -702,7 +702,7 @@ class ExternalMemoryHelper {
         const cl_event* /* event_wait_list */,
         cl_event* /* event */);
 
-    typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueReleaseExternalMemObjectsKHR)(
+    using PFN_clEnqueueReleaseExternalMemObjectsKHR = CL_API_ENTRY cl_int(CL_API_CALL *)(
         cl_command_queue /* command_queue */,
         cl_uint /* num_mem_objects */,
         const cl_mem* /* mem_objects */,
@@ -756,7 +756,7 @@ public:
         void *                 media_adapter,
         cl_device_set_intel    media_adapter_set,
         vector<Device>* devices) const {
-        typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clGetDeviceIDsFromMediaAdapterINTEL)(
+        using PFN_clGetDeviceIDsFromMediaAdapterINTEL = CL_API_ENTRY cl_int(CL_API_CALL *)(
             cl_platform_id /* platform */,
             cl_device_source_intel /* media_adapter_type */,
             void * /* media_adapter */,

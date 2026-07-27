@@ -9,6 +9,9 @@ Checks: >
   -*,
   modernize-use-override,
   modernize-use-nullptr
+  modernize-use-bool-literals
+  modernize-deprecated-headers
+  modernize-use-using
   modernize-redundant-void-arg
   readability-container-size-empty
   readability-redundant-string-cstr
