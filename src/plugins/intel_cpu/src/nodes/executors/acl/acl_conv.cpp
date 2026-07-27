@@ -54,11 +54,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
 
-    const auto srcPrec = memory.at(ARG_SRC_0)->getDescPtr()->getPrecision();
-    const auto dstPrec = memory.at(ARG_DST)->getDescPtr()->getPrecision();
-    isI8DstF32 = (srcPrec == ov::element::i8 && dstPrec == ov::element::f32);
-    isU8DstF32 = (srcPrec == ov::element::u8 && dstPrec == ov::element::f32);
-
     weightsInfo = arm_compute::WeightsInfo(false, kw, kh, oc, false, arm_compute::WeightFormat::UNSPECIFIED);
     auto paddingLeft = (attrs.paddingL.size() >= 2U) ? attrs.paddingL[1] : attrs.paddingL[0];
     auto paddingRight = (attrs.paddingR.size() >= 2U) ? attrs.paddingR[1] : attrs.paddingR[0];
@@ -143,14 +138,11 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     const bool isQuantizedI8DstF32 = srcDesc->getPrecision() == ov::element::i8 &&
                                      weiDesc->getPrecision() == ov::element::i8 &&
                                      dstDesc->getPrecision() == ov::element::f32;
-    const bool isQuantizedU8DstF32 = srcDesc->getPrecision() == ov::element::u8 &&
-                                     any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
-                                     dstDesc->getPrecision() == ov::element::f32;
 
-    VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32 || isQuantizedU8DstF32, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32, UNSUPPORTED_BY_EXECUTOR);
     if (config.attrs.withBias) {
         const auto biasPrecision = config.descs.at(ARG_BIAS)->getPrecision();
-        if (isQuantizedI8DstF32 || isQuantizedU8DstF32) {
+        if (isQuantizedI8DstF32) {
             VERIFY(biasPrecision == ov::element::f32, UNSUPPORTED_BIAS_PRECISIONS);
         } else {
             VERIFY(biasPrecision == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
@@ -171,7 +163,6 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    // skip for f32 output path (Swish + separate FQ_after)
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
         const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
                                     ? ov::element::i8
@@ -188,10 +179,8 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
                                                      weightsInfo,
                                                      dilation,
                                                      activationLayerInfo,
-                                                     false, //enable fast math 
-                                                     1, //num_groups
-                                                     isI8DstF32, //use_direct_i8_s8_f32
-                                                     isU8DstF32); //use_direct_u8_u8_f32
+                                                     false, //enable fast math
+                                                     1); //num_groups
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -205,10 +194,8 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       weightsInfo,
                       dilation,
                       activationLayerInfo,
-                      false, //enable fast math 
-                      1, //num_groups
-                      isI8DstF32, //use_direct_i8_s8_f32
-                      isU8DstF32); //use_direct_u8_u8_f32
+                      false, //enable fast math
+                      1); //num_groups
     return neConv;
 }
 
