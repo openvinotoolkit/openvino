@@ -78,6 +78,15 @@ def _patch_cpu_model_runner():
         if not is_ov:
             return
 
+        # Install OV-fused sampler now that we know this worker is on OV.
+        # Gated here (not in register()) so eager/inductor workers do not
+        # get monkey-patched with the OV sampler path.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import sampler as _vs
+            _vs.install()
+        except Exception as _e:
+            logger.debug("[OV plugin] sampler install skipped: %s", _e)
+
         import torch
         try:
             import openvino.torch  # noqa: F401  (registers backend)
@@ -146,8 +155,3 @@ def register():
     """
     _disable_layername()
     _patch_cpu_model_runner()
-    try:
-        from openvino.frontend.pytorch.torchdynamo.vllm import sampler as _vs
-        _vs.install()
-    except Exception as _e:
-        logger.debug("[OV plugin] sampler install skipped: %s", _e)
