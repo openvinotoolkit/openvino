@@ -22,9 +22,10 @@ Each row was verified with the named real model.
 | `olmoe`   | OLMoE-1B-7B-0924-Instruct (Q4_0)  | Mixture-of-experts. |
 | `gemma3`  | gemma-3 family                    | Mixed sliding-window / global RoPE. |
 | `gemma4`  | gemma-4-E4B-it (Q4_K_M)           | Per-op RoPE (SWA vs global); f16 KV cache. |
+| `qwen35`  | Qwen3.5-4B (Q4_K_M)               | Hybrid GatedDeltaNet + full-attention layers; partial-rotary IMROPE; interleaved Q/gate joint projection; f16 KV cache. |
 
-`llama`, `qwen2`, `qwen3`, `olmoe`, and `gemma4` were verified with a fresh end-to-end
-run of the model named above. `qwen3moe` and `gemma3` were verified in earlier
+`llama`, `qwen2`, `qwen3`, `olmoe`, `gemma4`, and `qwen35` were verified with a fresh
+end-to-end run of the model named above. `qwen3moe` and `gemma3` were verified in earlier
 development on the models named above.
 
 Quantization formats verified in the above runs: `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K`,
