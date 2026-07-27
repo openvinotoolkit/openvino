@@ -14,7 +14,7 @@ class ConvolutionKernel_bfyx_GEMMLike : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_bfyx_GEMMLike() : Parent("convolution_gpu_bfyx_gemm_like") {}
-    virtual ~ConvolutionKernel_bfyx_GEMMLike() {}
+    ~ConvolutionKernel_bfyx_GEMMLike() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

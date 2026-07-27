@@ -20,7 +20,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Asinh                                                   |9                       |22, 9                           |                                |
 |                        |Atan                                                    |7                       |22, 7                           |                                |
 |                        |Atanh                                                   |9                       |22, 9                           |                                |
-|                        |Attention                                               |23                      |23                              |                                |
+|                        |Attention                                               |24, 23                  |24, 23                          |                                |
 |                        |AveragePool                                             |1                       |22, 19, 11, 10, 7, 1            |                                |
 |                        |BatchNormalization                                      |14, 7, 1                |15, 14, 9, 7, 6, 1              |                                |
 |                        |Bernoulli                                               |                        |22, 15                          |                                |
@@ -243,6 +243,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |FusedMatMul                                             |1                       |1                               |                                |
 |com.microsoft           |FusedMatMulActivation                                   |                        |1                               |                                |
 |com.microsoft           |GatedRelativePositionBias                               |                        |1                               |                                |
+|com.microsoft           |GatherBlockQuantized                                    |1                       |1                               |                                |
 |com.microsoft           |GatherND                                                |1                       |1                               |                                |
 |com.microsoft           |Gelu                                                    |1                       |1                               |                                |
 |com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |

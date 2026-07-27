@@ -512,6 +512,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{5, 3}, {7, 3}, {9, 3}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence by-channel divergent [basic/112]
 }));
 
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_head_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    //////////////////////////////////////////////////////////////////////////////// single-seq + bypass xattention ////////////////////////////////////////////////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+
+    //////////////////////////////////////////////////////////////////////////////// single-seq + enable xattention ////////////////////////////////////////////////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + bypass xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill-only
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} },
+    // multi-seq generate-only
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} },
+    // multi-seq mixed
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} },
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + enable xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill-only
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} },
+    // multi-seq generate-only
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} },
+    // multi-seq mixed
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} },
+}));
+
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // Valid values
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },

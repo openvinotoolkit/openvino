@@ -64,7 +64,7 @@ static void initFCAttrs(const FCAttrs& attrs,
                         const MemoryArgs& memory,
                         arm_compute::GEMMInfo& fullyConnectedLayerInfo) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
-    aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
+    aclfcAttrs.inputPrecision = memory.at(ARG_WEI)->getDescPtr()->getPrecision();
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!attrs.postOps.empty()) {

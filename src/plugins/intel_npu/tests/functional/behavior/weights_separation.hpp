@@ -379,6 +379,32 @@ TEST_P(WeightsSeparationTests, WrongInferenceResultIfWrongWeightsProvided) {
 }
 
 /**
+ * @brief compile -> delete .xml file -> import the result, ov::weights_path provided -> create inference request -> run
+ * one inference and check the result
+ */
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsedAndModelFileDeleted) {
+    model = createTestModel();
+
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(model, model_path + ".xml", model_path + ".bin");
+
+    configuration.insert(ov::enable_weightless(true));
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    utils::removeFile(model_path + ".xml");
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".bin"));
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+/**
  * @brief compile -> import the result shaped as a tensor, ov::hint::model provided -> create inference request -> run
  * one inference and check the result
  */

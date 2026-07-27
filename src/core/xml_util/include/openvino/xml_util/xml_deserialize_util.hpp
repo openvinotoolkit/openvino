@@ -18,7 +18,9 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 #include "openvino/xml_util/weights_provider.hpp"
+
 
 namespace ov::util {
 struct GenericLayerParams;

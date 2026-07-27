@@ -65,13 +65,6 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
             echo "deb https://apt.repos.intel.com/openvino ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
 
-      .. tab-item:: Ubuntu 20
-         :sync: ubuntu-20
-
-         .. code-block:: sh
-
-            echo "deb https://apt.repos.intel.com/openvino ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
-
 
 3. Update the list of packages via the update command:
 

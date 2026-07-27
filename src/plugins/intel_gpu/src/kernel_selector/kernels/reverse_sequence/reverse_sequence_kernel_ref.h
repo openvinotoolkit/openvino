@@ -21,7 +21,7 @@ struct reverse_sequence_params : public base_params {
 class ReverseSequenceKernelRef : public KernelBaseOpenCL {
 public:
     ReverseSequenceKernelRef() : KernelBaseOpenCL("reverse_sequence_ref") {}
-    virtual ~ReverseSequenceKernelRef() {}
+    ~ReverseSequenceKernelRef() override {}
     virtual JitConstants GetJitConstants(const reverse_sequence_params& params) const;
     virtual CommonDispatchData SetDefault(const reverse_sequence_params& params) const;
     KernelsData GetKernelsData(const Params& params) const override;
