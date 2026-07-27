@@ -13299,3 +13299,106 @@ TEST(convolution_gpu_bfyx_f16, dynamic_fused_input_scalar_and_non_scalar_fp32) {
     ASSERT_NE(std::find(conv_info->c_fused_ids.begin(), conv_info->c_fused_ids.end(), "add"), conv_info->c_fused_ids.end());
     ASSERT_NE(conv_info->kernel_id.find("convolution_gpu_bfyx_f16_1x1"), std::string::npos);
 }
+
+TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    constexpr int batch_num = 1;
+    constexpr int groups = 240;
+    constexpr int input_y = 64;
+    constexpr int input_x = 32;
+    constexpr int filter_y = 9;
+    constexpr int filter_x = 17;
+
+    const int input_f = groups;
+    const int output_f = groups;
+    const int pad_y = 0;
+    const int pad_x = 0;
+    const int output_padding = 0;
+    const int f_group_size = 16;
+    const int f_group_num_in_batch = (output_f % f_group_size) ? (output_f / f_group_size + 1) : (output_f / f_group_size);
+
+    const int output_y = 1 + (input_y + 2 * pad_y - filter_y) + 2 * output_padding;
+    const int output_x = 1 + (input_x + 2 * pad_x - filter_x) + 2 * output_padding;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, groups, input_y, input_x, -1, 1);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, flatten_4d<ov::float16>(format::bfyx, input_data));
+
+    auto weights_size = tensor(group(groups), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = rg.generate_random_4d<ov::float16>(groups, 1, filter_y, filter_x, -1, 1);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, flatten_4d<ov::float16>(format::bfyx, weights_data));
+
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+
+    for (auto bi = 0; bi < batch_num; ++bi) {
+        for (auto ofi = 0; ofi < output_f; ++ofi) {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],
+                1, 1,
+                0,
+                1, 1,
+                pad_y, pad_x,
+                output_padding, output_padding,
+                ofi, ofi + 1,
+                true);
+        }
+    }
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input_fsv"), "weights", no_bias,
+                    groups,
+                    { 1, 1 },
+                    { 1, 1 },
+                    { 0, 0 },
+                    { 0, 0 },
+                    true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
+    ));
+
+    network net(engine, topology, config);
+    net.set_input_data("input", input_mem);
+
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("conv").get_memory();
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+
+    ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
+
+    for (int bi = 0; bi < batch_num; ++bi) {
+        for (int fi = 0; fi < output_f; ++fi) {
+            for (int yi = 0; yi < output_y; ++yi) {
+                for (int xi = 0; xi < output_x; ++xi) {
+                    auto val_ref = reference_result[bi][fi][yi][xi];
+                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x +
+                                       (fi / f_group_size) * output_y * output_x * f_group_size +
+                                       yi * output_x * f_group_size +
+                                       xi * f_group_size +
+                                       fi % f_group_size];
+
+                    auto equal = are_equal(val_ref, val, 1e-2f);
+                    ASSERT_TRUE(equal);
+                    if (!equal) {
+                        std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
+                    }
+                }
+            }
+        }
+    }
+}
