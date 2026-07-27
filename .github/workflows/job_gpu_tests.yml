@@ -57,6 +57,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
+      MODELS_PATH: ${{ github.workspace }}/testdata
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
@@ -91,17 +92,27 @@ jobs:
         if: ${{ inputs.test_type == 'unit' }}
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
 
+      - name: Clone test models
+        if: ${{ inputs.test_type == 'unit' }}
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: ${{ env.MODELS_PATH }}
+          lfs: 'true'
+          ref: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref_name }}
+
       - name: Run hello_query_device sample
         if: ${{ inputs.test_type == 'unit' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           $INSTALL_DIR/samples_bin/hello_query_device
       
-      - name: Run hello_query_device sample
+      - name: Run benchmark_app sample
         if: ${{ inputs.test_type == 'unit' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          $INSTALL_DIR/samples_bin/benchmark_app -d "GPU"
+          $INSTALL_DIR/samples_bin/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d GPU
 
       #
       # Tests
