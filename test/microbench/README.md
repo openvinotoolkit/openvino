@@ -24,6 +24,7 @@ Actually run a kernel on the GPU and print the observed data layout (ground trut
 
     ./run_probe.sh verify_k_transform    # K 8b-transform read -> lane==head, no shuffle
     ./run_probe.sh probe_v_layouts       # V load layouts (8b-transform is already VNNI-aligned)
+    ./run_probe.sh probe_v_multiblock    # is transform_8b_32r16x{2,4}c block-major in the dest?
 
 ## API probe
     ./probe_dpas_api.sh    # which DPAS/2d-block builtins exist on bmg (int8 yes, mixed-prec no)
