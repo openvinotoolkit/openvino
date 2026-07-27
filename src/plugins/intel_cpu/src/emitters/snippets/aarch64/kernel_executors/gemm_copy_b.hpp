@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "common/utils.hpp"
 #include "cpu_memory.h"
@@ -115,10 +116,13 @@ struct GemmCopyBCompiledKernelF16 {
 };
 
 struct GemmCopyBCompiledKernelI8 {
+    explicit GemmCopyBCompiledKernelI8(size_t N) : scales(N, 1.0F) {}
+
     static kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel get_selected_ukernel();
 
     std::shared_ptr<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel> copy_b_ukernel =
         std::make_shared<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(get_selected_ukernel());
+    const std::vector<float> scales;
 };
 
 class GemmCopyBKaiKernelExecutorBase {

@@ -21,6 +21,7 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi8cxp_qsi8cx_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi8cxp_qsi8cx_neon.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
@@ -76,44 +77,48 @@ void repack_matrix(size_t N,
     }
 }
 
-void repack_matrix_i8(size_t N, size_t K, const uint8_t* src, uint8_t* dst) {
+void repack_matrix_i8(size_t N, size_t K, bool is_transposed, const float* scales, const uint8_t* src, uint8_t* dst) {
     const auto uk = ov::intel_cpu::aarch64::GemmCopyBCompiledKernelI8::get_selected_ukernel();
-    const auto n_blk_size = ov::intel_cpu::aarch64::GemmCopyBKernelKaiConfig::get_N_blk();
     const size_t nr = uk.get_nr();
     const size_t kr = uk.get_kr();
     const size_t sr = uk.get_sr();
-    const size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
     const kai_rhs_pack_qsi8cx_params params{1, 1.0F};
-    for (size_t n_block = 0; n_block < n_blocks; n_block++) {
-        const size_t n_start = n_block * n_blk_size;
-        const size_t n_end = std::min(n_start + n_blk_size, N);
-        const size_t n_step = n_end - n_start;
-        std::vector<int8_t> dense(K * n_step);
-        const auto* src_i8 = reinterpret_cast<const int8_t*>(src);
-        for (size_t k = 0; k < K; ++k) {
-            for (size_t n = 0; n < n_step; ++n) {
-                dense[k * n_step + n] = src_i8[k * N + n_start + n];
-            }
-        }
-        const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
-        auto* dst_ptr = dst + packed_off;
-        const std::vector<float> scales(n_step, 1.0F);
-        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
-                                                 n_step,
+    if (is_transposed) {
+        kai_run_rhs_pack_nxk_qsi8cxp_qsi8cx_neon(1,
+                                                 N,
                                                  K,
                                                  nr,
                                                  kr,
                                                  sr,
-                                                 dense.data(),
+                                                 reinterpret_cast<const int8_t*>(src),
                                                  nullptr,
-                                                 scales.data(),
-                                                 dst_ptr,
+                                                 scales,
+                                                 dst,
+                                                 0,
+                                                 &params);
+    } else {
+        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
+                                                 N,
+                                                 K,
+                                                 nr,
+                                                 kr,
+                                                 sr,
+                                                 reinterpret_cast<const int8_t*>(src),
+                                                 nullptr,
+                                                 scales,
+                                                 dst,
                                                  0,
                                                  &params);
     }
 }
 
-void repack_matrix(size_t N, size_t K, ov::element::Type precision, const uint8_t* src, uint8_t* dst) {
+void repack_matrix(size_t N,
+                   size_t K,
+                   bool is_transposed,
+                   ov::element::Type precision,
+                   const float* scales,
+                   const uint8_t* src,
+                   uint8_t* dst) {
     const auto row_stride_bytes = N * precision.size();
     const auto col_stride_bytes = precision.size();
     if (precision == ov::element::f16) {
@@ -135,7 +140,7 @@ void repack_matrix(size_t N, size_t K, ov::element::Type precision, const uint8_
             src,
             dst);
     } else if (precision == ov::element::i8) {
-        repack_matrix_i8(N, K, src, dst);
+        repack_matrix_i8(N, K, is_transposed, scales, src, dst);
     } else {
         OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
     }
@@ -146,6 +151,7 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
                                  const MemoryPtr& orig_src_mem_ptr,
                                  const CpuBlockedMemoryDescPtr& dst_desc,
                                  bool is_src_planar,
+                                 bool is_src_transposed,
                                  ov::element::Type precision) {
     const auto planar_shape = src_desc->getShape().getStaticDims();
     OPENVINO_ASSERT(planar_shape.size() >= 2, "GEMM weights must have rank >= 2");
@@ -170,17 +176,24 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
     if (N == 0 || K == 0) {
         return dst_mem;
     }
+    const std::vector<float> scales(precision == ov::element::i8 ? N : 0, 1.0F);
 
-    auto repack_matrices = [&](const uint8_t* src) {
+    auto repack_matrices = [&](const uint8_t* src, bool is_transposed) {
         const auto src_matrix_bytes = K * N * precision.size();
         auto* dst = dst_mem->getDataAs<uint8_t>();
         context->getCpuParallel()->parallel_for(batch, [&](size_t batch_idx) {
-            repack_matrix(N, K, precision, src + batch_idx * src_matrix_bytes, dst + batch_idx * packed_bytes);
+            repack_matrix(N,
+                          K,
+                          is_transposed,
+                          precision,
+                          scales.data(),
+                          src + batch_idx * src_matrix_bytes,
+                          dst + batch_idx * packed_bytes);
         });
     };
 
-    if (is_src_planar) {
-        repack_matrices(orig_src_mem_ptr->getDataAs<const uint8_t>());
+    if (is_src_planar || (precision == ov::element::i8 && is_src_transposed)) {
+        repack_matrices(orig_src_mem_ptr->getDataAs<const uint8_t>(), is_src_transposed);
     } else {
         Memory src_mem{eng, src_desc, orig_src_mem_ptr->getData()};
         Memory planar_mem{eng, std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{planar_shape})};
@@ -190,7 +203,7 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
                                    planar_mem,
                                    context->getParamsCache(),
                                    context->getCpuParallel()->get_thread_pool());
-        repack_matrices(planar_mem.getDataAs<const uint8_t>());
+        repack_matrices(planar_mem.getDataAs<const uint8_t>(), false);
     }
 
     // Do not use the shared weights cache here: snippets repacks constants once during subgraph compilation, and each
@@ -211,11 +224,17 @@ std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::r
     const auto src_desc = get_src_cpu_desc(source, precision);
     const auto planar_shape = src_desc->getShape().getStaticDims();
     const auto dst_desc = get_dst_cpu_desc(planar_shape, precision);
+    const auto rank = source.layout.size();
+    bool is_src_transposed = rank >= 2 && source.layout[rank - 2] == rank - 1 && source.layout[rank - 1] == rank - 2;
+    for (size_t i = 0; is_src_transposed && i + 2 < rank; ++i) {
+        is_src_transposed = source.layout[i] == i;
+    }
     return RepackedMatMulWeights{prepare_weights_memory(m_context,
                                                         src_desc,
                                                         orig_src_mem_ptr,
                                                         dst_desc,
                                                         ov::snippets::utils::is_planar_layout(source.layout),
+                                                        is_src_transposed,
                                                         precision),
                                  dst_desc};
 }

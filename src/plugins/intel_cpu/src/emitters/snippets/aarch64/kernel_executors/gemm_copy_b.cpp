@@ -172,13 +172,14 @@ static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config, const 
     }
 }
 
-static std::vector<int8_t> make_dense_rhs_tile(const GemmCopyBKernelKaiConfig& config,
-                                               const int8_t* src,
-                                               size_t n_step) {
+static void make_dense_rhs_tile(const GemmCopyBKernelKaiConfig& config,
+                                const int8_t* src,
+                                size_t n_step,
+                                std::vector<int8_t>& dense) {
     const auto K = config.get_K();
     const auto copy_b_wei_stride = config.get_copy_b_wei_stride();
     const auto copy_b_col_stride = config.get_copy_b_col_stride();
-    std::vector<int8_t> dense(n_step * K);
+    dense.resize(n_step * K);
 
     if (config.is_transposed()) {
         for (size_t n = 0; n < n_step; ++n) {
@@ -195,46 +196,63 @@ static std::vector<int8_t> make_dense_rhs_tile(const GemmCopyBKernelKaiConfig& c
             }
         }
     }
-    return dense;
 }
 
 static void execute_copy_b_i8_common(const GemmCopyBKernelKaiConfig& config,
                                      const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel& uk,
+                                     const std::vector<float>& scales,
                                      void* in0,
                                      void* out0) {
     const auto K = config.get_K();
     const auto N = config.get_N();
+    const auto copy_b_wei_stride = config.get_copy_b_wei_stride();
     const auto copy_b_col_stride = config.get_copy_b_col_stride();
     const auto& n_blk_size = GemmCopyBKernelKaiConfig::get_N_blk();
     const size_t nr = uk.get_nr();
     const size_t kr = uk.get_kr();
     const size_t sr = uk.get_sr();
     const kai_rhs_pack_qsi8cx_params params{1, 1.0F};
+    OV_CPU_JIT_EMITTER_ASSERT(scales.size() >= N, "Insufficient scale values for KAI i8 RHS packing");
+    if (!config.is_transposed() && copy_b_wei_stride == N && copy_b_col_stride == 1) {
+        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
+                                                 N,
+                                                 K,
+                                                 nr,
+                                                 kr,
+                                                 sr,
+                                                 static_cast<const int8_t*>(in0),
+                                                 nullptr,
+                                                 scales.data(),
+                                                 out0,
+                                                 0,
+                                                 &params);
+        return;
+    }
 
     const size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
+    std::vector<int8_t> dense;
     for (size_t n_block = 0; n_block < n_blocks; ++n_block) {
         const size_t n_start = n_block * n_blk_size;
         const size_t n_end = std::min(n_start + n_blk_size, N);
         const size_t n_step = n_end - n_start;
         const auto* src_ptr = static_cast<const int8_t*>(in0) + n_start * copy_b_col_stride;
         auto* dst_ptr = static_cast<int8_t*>(out0) + uk.get_rhs_packed_offset(n_start, K);
-        const std::vector<int8_t> dense = make_dense_rhs_tile(config, src_ptr, n_step);
-        const std::vector<float> scales(n_step, 1.0F);
 
-        if (config.is_transposed()) {
+        if (config.is_transposed() && copy_b_wei_stride == 1 && copy_b_col_stride == K) {
             kai_run_rhs_pack_nxk_qsi8cxp_qsi8cx_neon(1,
                                                      n_step,
                                                      K,
                                                      nr,
                                                      kr,
                                                      sr,
-                                                     dense.data(),
+                                                     src_ptr,
                                                      nullptr,
                                                      scales.data(),
                                                      dst_ptr,
                                                      0,
                                                      &params);
         } else {
+            make_dense_rhs_tile(config, src_ptr, n_step, dense);
             kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
                                                      n_step,
                                                      K,
@@ -308,9 +326,11 @@ void GemmCopyBF16KaiKernelExecutor::execute(const GemmCopyBF16KaiKernelExecutor*
 GemmCopyBI8KaiKernelExecutor::GemmCopyBI8KaiKernelExecutor(GemmCopyBKernelKaiConfig config)
     : KernelExecutor(std::move(config)) {}
 
-void GemmCopyBI8KaiKernelExecutor::update_kernel([[maybe_unused]] const GemmCopyBKernelKaiConfig& config,
+void GemmCopyBI8KaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& config,
                                                  std::shared_ptr<GemmCopyBCompiledKernelI8>& kernel) const {
-    ensure_kernel(kernel);
+    if (kernel == nullptr || kernel->scales.size() != config.get_N()) {
+        kernel = std::make_shared<GemmCopyBCompiledKernelI8>(config.get_N());
+    }
 }
 
 void GemmCopyBI8KaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -325,7 +345,7 @@ void GemmCopyBI8KaiKernelExecutor::execute(const GemmCopyBI8KaiKernelExecutor* e
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_i8_common(config, *kernel->copy_b_ukernel, in0, out0);
+    execute_copy_b_i8_common(config, *kernel->copy_b_ukernel, kernel->scales, in0, out0);
 }
 
 }  // namespace ov::intel_cpu::aarch64

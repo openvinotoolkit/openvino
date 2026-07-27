@@ -31,6 +31,29 @@ public:
     }
 
     void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
+
+    [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+        return std::make_unique<GemmKernelKaiConfig>(*this);
+    }
+
+    [[nodiscard]] size_t hash() const override {
+        return m_hash;
+    }
+
+private:
+    size_t m_hash{SIZE_MAX};
+};
+
+struct GemmI8KernelKaiConfig : public GemmKernelKaiConfig {
+public:
+    GemmI8KernelKaiConfig() = default;
+
+    bool operator==(const GemmI8KernelKaiConfig& rhs) const;
+    bool operator!=(const GemmI8KernelKaiConfig& rhs) const {
+        return !(*this == rhs);
+    }
+
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
     void set_input_a_zero_point(int32_t input_a_zero_point);
 
     [[nodiscard]] int32_t get_input_a_zero_point() const {
@@ -38,7 +61,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
-        return std::make_unique<GemmKernelKaiConfig>(*this);
+        return std::make_unique<GemmI8KernelKaiConfig>(*this);
     }
 
     [[nodiscard]] size_t hash() const override {
@@ -143,18 +166,18 @@ private:
 };
 
 class GemmI8KaiKernelExecutor : public GemmKaiKernelExecutorBase,
-                                public snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernelI8> {
+                                public snippets::KernelExecutor<GemmI8KernelKaiConfig, GemmCompiledKernelI8> {
 public:
     using call_args = GemmKaiCallArgs;
-    GemmI8KaiKernelExecutor(GemmKernelKaiConfig config);
-    void update_kernel(const GemmKernelKaiConfig& config,
+    GemmI8KaiKernelExecutor(GemmI8KernelKaiConfig config);
+    void update_kernel(const GemmI8KernelKaiConfig& config,
                        std::shared_ptr<GemmCompiledKernelI8>& kernel) const override final;
     static void execute(const GemmI8KaiKernelExecutor* executor, const call_args* args);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                       GemmKernelKaiConfig& config) const override;
+                       GemmI8KernelKaiConfig& config) const override;
 
     mutable ov::threading::ThreadLocal<std::vector<uint8_t>> m_packed_lhs;
 };

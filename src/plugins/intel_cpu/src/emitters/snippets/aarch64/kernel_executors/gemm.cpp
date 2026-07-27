@@ -4,10 +4,13 @@
 
 #include "gemm.hpp"
 
+#include <arm_neon.h>
+
 #include <algorithm>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -32,21 +35,30 @@ namespace ov::intel_cpu::aarch64 {
 
 void GemmKernelKaiConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
     BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
+    m_hash = BrgemmGenericKernelConfig::compute_hash();
+}
+
+bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
+    return BrgemmGenericKernelConfig::operator==(rhs) && m_hash == rhs.m_hash;
+}
+
+void GemmI8KernelKaiConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
+    GemmKernelKaiConfig::update(M, N, K, LDA, LDB, LDC, beta);
     m_hash = compute_hash();
 }
 
-void GemmKernelKaiConfig::set_input_a_zero_point(int32_t input_a_zero_point) {
+void GemmI8KernelKaiConfig::set_input_a_zero_point(int32_t input_a_zero_point) {
     m_input_a_zero_point = input_a_zero_point;
     m_hash = compute_hash();
 }
 
-bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
-    return BrgemmGenericKernelConfig::operator==(rhs) && m_input_a_zero_point == rhs.m_input_a_zero_point &&
+bool GemmI8KernelKaiConfig::operator==(const GemmI8KernelKaiConfig& rhs) const {
+    return GemmKernelKaiConfig::operator==(rhs) && m_input_a_zero_point == rhs.m_input_a_zero_point &&
            m_hash == rhs.m_hash;
 }
 
-size_t GemmKernelKaiConfig::compute_hash() const {
-    return dnnl::impl::hash_combine(BrgemmGenericKernelConfig::compute_hash(), m_input_a_zero_point);
+size_t GemmI8KernelKaiConfig::compute_hash() const {
+    return dnnl::impl::hash_combine(GemmKernelKaiConfig::hash(), m_input_a_zero_point);
 }
 
 void GemmKaiKernelExecutorBase::update_config_common(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -133,13 +145,6 @@ static void execute_common_impl(const GemmKernelKaiConfig& config,
     }
 }
 
-static int8_t load_lhs_value(const uint8_t* src, size_t idx, int32_t input_a_zero_point) {
-    if (input_a_zero_point == 0) {
-        return reinterpret_cast<const int8_t*>(src)[idx];
-    }
-    return static_cast<int8_t>(static_cast<int32_t>(src[idx]) - input_a_zero_point);
-}
-
 static void pack_lhs_i8(const uint8_t* src,
                         size_t M,
                         size_t K,
@@ -151,33 +156,48 @@ static void pack_lhs_i8(const uint8_t* src,
     const size_t kr = ukernel.get_kr();
     const size_t sr = ukernel.get_sr();
     OPENVINO_ASSERT(sr != 0 && kr % sr == 0, "Unexpected KAI i8 GEMM packing parameters");
+    OPENVINO_ASSERT(input_a_zero_point == 0 || input_a_zero_point == 128, "Unexpected input A zero point");
 
     const size_t k_block_len = kr / sr;
     const size_t k_internal = ov::snippets::utils::rnd_up(K, static_cast<size_t>(32));
     const size_t num_blocks_k_internal = k_internal / k_block_len;
+    const bool convert_u8_to_i8 = input_a_zero_point == 128;
+    const uint8x8_t sign_bit = vdup_n_u8(0x80);
 
-    for (size_t row = 0; row < M; ++row) {
-        auto* row_block = dst + kai_get_lhs_packed_offset_lhs_quant_pack_qai8dxp_f32(row, K, mr, kr, sr);
-        const size_t dst_x = row % mr;
-        auto* payload = row_block + dst_x * k_block_len;
-        const auto* src_row = src + row * lda;
-
+    for (size_t row_start = 0; row_start < M; row_start += mr) {
+        auto* row_block = dst + kai_get_lhs_packed_offset_lhs_quant_pack_qai8dxp_f32(row_start, K, mr, kr, sr);
+        std::memset(row_block, 0, mr * (k_internal + sizeof(int32_t) + sizeof(float)));
         for (size_t block = 0; block < num_blocks_k_internal; ++block) {
-            for (size_t k_block_idx = 0; k_block_idx < k_block_len; ++k_block_idx) {
-                const size_t k_idx = block * k_block_len + k_block_idx;
-                *payload++ = k_idx < K ? static_cast<uint8_t>(load_lhs_value(src_row, k_idx, input_a_zero_point)) : 0U;
+            const size_t k_start = block * k_block_len;
+            const size_t valid_k = k_start < K ? std::min(k_block_len, K - k_start) : 0;
+            for (size_t row = row_start; row < std::min(row_start + mr, M); ++row) {
+                const auto* src_fragment = src + row * lda + std::min(k_start, K);
+                auto* dst_fragment = row_block + block * mr * k_block_len + (row - row_start) * k_block_len;
+                if (valid_k == 8) {
+                    auto values = vld1_u8(src_fragment);
+                    if (convert_u8_to_i8) {
+                        values = veor_u8(values, sign_bit);
+                    }
+                    vst1_u8(dst_fragment, values);
+                } else {
+                    for (size_t k = 0; k < valid_k; ++k) {
+                        dst_fragment[k] = convert_u8_to_i8 ? src_fragment[k] ^ 0x80 : src_fragment[k];
+                    }
+                }
             }
-            payload += (mr - 1) * k_block_len;
         }
 
         auto* lhs_offsets = row_block + mr * k_internal;
-        reinterpret_cast<int32_t*>(lhs_offsets)[dst_x] = input_a_zero_point;
         auto* lhs_scales = lhs_offsets + mr * sizeof(int32_t);
-        reinterpret_cast<float*>(lhs_scales)[dst_x] = 1.0F;
+        for (size_t row = row_start; row < std::min(row_start + mr, M); ++row) {
+            const size_t dst_x = row - row_start;
+            reinterpret_cast<int32_t*>(lhs_offsets)[dst_x] = input_a_zero_point;
+            reinterpret_cast<float*>(lhs_scales)[dst_x] = 1.0F;
+        }
     }
 }
 
-static void execute_i8_impl(const GemmKernelKaiConfig& config,
+static void execute_i8_impl(const GemmI8KernelKaiConfig& config,
                             const GemmKaiCallArgs* args,
                             const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel& ukernel,
                             std::vector<uint8_t>& packed_lhs) {
@@ -278,16 +298,16 @@ void GemmF16KaiKernelExecutor::execute(const GemmF16KaiKernelExecutor* executor,
                         std::numeric_limits<float>::max());
 }
 
-GemmI8KaiKernelExecutor::GemmI8KaiKernelExecutor(GemmKernelKaiConfig config) : KernelExecutor(std::move(config)) {}
+GemmI8KaiKernelExecutor::GemmI8KaiKernelExecutor(GemmI8KernelKaiConfig config) : KernelExecutor(std::move(config)) {}
 
-void GemmI8KaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiConfig& config,
+void GemmI8KaiKernelExecutor::update_kernel([[maybe_unused]] const GemmI8KernelKaiConfig& config,
                                             std::shared_ptr<GemmCompiledKernelI8>& kernel) const {
     ensure_kernel(kernel);
 }
 
 void GemmI8KaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                            GemmKernelKaiConfig& config) const {
+                                            GemmI8KernelKaiConfig& config) const {
     const auto& input_prc = expr->get_node()->get_input_element_type(0);
     const auto& weights_prc = expr->get_node()->get_input_element_type(1);
     OV_CPU_JIT_EMITTER_ASSERT(
@@ -300,7 +320,7 @@ void GemmI8KaiKernelExecutor::update_config(const ov::snippets::lowered::Express
 void GemmI8KaiKernelExecutor::execute(const GemmI8KaiKernelExecutor* executor, const call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
-    execute_i8_impl(static_cast<const GemmKernelKaiConfig&>(executor->get_config()),
+    execute_i8_impl(static_cast<const GemmI8KernelKaiConfig&>(executor->get_config()),
                     args,
                     *executor->get_kernel()->gemm_ukernel,
                     executor->m_packed_lhs.local());
