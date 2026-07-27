@@ -28,7 +28,7 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-RMSFusion::RMSFusion(bool force_tail_convert, bool enable_without_gamma) {
+RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
