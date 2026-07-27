@@ -496,6 +496,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
+        #if USE_2D_BLOCK_IO_V_I8
+            // Declared outside the cp loop because with V_I8_PAIRED_READ one read serves two
+            // consecutive cp blocks (see below). Unpaired, the def-use pattern is unchanged.
+            uint vt[8 * sv_value_blocks];
+        #endif
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
             #if USE_2D_BLOCK_IO_V_I8
@@ -505,13 +510,30 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // reads below so the global-memory latency overlaps with the SLM traffic.
                 // Value columns past d only exist when d < D_MAX; the block read clamps them to 0
                 // and the store guard (out_col < d) drops the corresponding A_tile columns.
-                uint vt[8 * sv_value_blocks];
-                #pragma unroll
-                for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                        (global void *)V, VD_w, VD_h, VD_p,
-                        (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
-                        (private uint *)&vt[cd * 8]);
+                //
+                // The builtin returns 32 key rows (uints 0..7, 4 rows each) but one cp block is
+                // only SUBGROUP_SIZE == 16 keys, so a per-cp read discards half of every message
+                // and consecutive cp reads overlap by 16 rows. V_I8_PAIRED_READ issues the read
+                // on even cp only and lets it serve two blocks -- uints 0..3 for cp, uints 4..7
+                // for cp+1 -- halving the V message count. cp is a full-unroll constant, so both
+                // vt_do_read and vt_half fold at compile time: no branch and no dynamic vt index
+                // survive. An odd sv_key_blocks needs no tail case; the last even cp simply uses
+                // uints 0..3 exactly as the unpaired form does.
+                #if V_I8_PAIRED_READ
+                    const bool vt_do_read = ((cp & 1) == 0);
+                    const int vt_half = (cp & 1) * 4;
+                #else
+                    const bool vt_do_read = true;
+                    const int vt_half = 0;
+                #endif
+                if (vt_do_read) {
+                    #pragma unroll
+                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                            (global void *)V, VD_w, VD_h, VD_p,
+                            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
+                            (private uint *)&vt[cd * 8]);
+                    }
                 }
             #endif
 
@@ -554,12 +576,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #if USE_2D_BLOCK_IO_V_I8
                 // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
                 // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
-                // need this cp-block's 16 keys, which are uints 0..3 (keys cp*16 .. +15 when read
-                // at row k0+cp*16). Dequant each byte (per-key scale via the cached vs_c
-                // broadcast) and repack into the f16 VNNI operand (2 half-keys per int), matching
-                // the scalar vb layout with no subgroup shuffle.
+                // need this cp-block's 16 keys, which are the 4 uints at vt_half (0 for an even
+                // cp, 4 for the odd cp that reuses the previous read). Dequant each byte (per-key
+                // scale via the cached vs_c broadcast) and repack into the f16 VNNI operand
+                // (2 half-keys per int), matching the scalar vb layout with no subgroup shuffle.
                 {
-                    // this cp-block = 16 keys = uints 0..3 (4 keys each). key_rel = u*4 + b.
+                    // this cp-block = 16 keys = 4 uints (4 keys each). key_rel = u*4 + b.
                     // Bias-trick dequant (microbench-validated, mov -66% vs convert_half4):
                     // extract each key byte with shift+mask (NO as_char4 -> no <4;1,0> :b
                     // deinterleave), widen via the denormal-bias reinterpret (0x6480 ^ byte)
@@ -583,7 +605,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     for (int cd = 0; cd < sv_value_blocks; ++cd) {
                         #pragma unroll
                         for (int u = 0; u < 4; ++u) {
-                            const uint w = vt[cd * 8 + u];
+                            const uint w = vt[cd * 8 + vt_half + u];
                             const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
                                                         as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
                                                         as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
