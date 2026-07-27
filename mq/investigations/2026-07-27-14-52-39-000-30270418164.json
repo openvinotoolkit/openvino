@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-14-52-39-000-30270418164",
+  "timestamp": "2026-07-27T14:52:39Z",
+  "run_id": "30270418164",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30270418164",
+  "workflow_name": "PyTorch Models tests / PyTorch Models tests",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED [100%]",
+    "AssertionError: Accuracy validation failed\nassert False\nMax diff is 0.06871891021728516"
+  ],
+  "root_cause": "The OpenVINO exported model for katuni4ka/opt-125m-gptq (OPT-125M with 4-bit GPTQ quantization) produces outputs that diverge from the PyTorch reference by up to ~0.069, exceeding the accuracy threshold. The convert test (same model, same framework) passed, indicating the conversion itself is valid, but the export path (likely using openvino-genai or optimum-intel export mode) introduces additional numerical error, possibly due to changed quantization dequantization handling or changes to GPTQ layer decomposition in the PyTorch FX frontend.",
+  "reproduction_steps": "cd openvino/install/tests && pytest model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Check recent changes in the PyTorch FX frontend for GPTQ-quantized model handling",
+    "Compare OV and framework logits more closely to identify which layer diverges",
+    "Check if the accuracy threshold was recently tightened or if GPTQ dequantization was changed",
+    "Check the PR #37029 diff for any changes touching quantization lowering or OPT model patterns"
+  ],
+  "prevention_strategies": "Add per-layer output comparison in GPTQ export tests to catch accuracy regressions earlier. Consider adding a looser accuracy threshold specifically for GPTQ 4-bit models where inherent quantization noise is expected.",
+  "historical_context": "First recorded occurrence of this specific GPTQ export accuracy failure. The convert path for the same model passed, suggesting export-path-specific regression."
+}
