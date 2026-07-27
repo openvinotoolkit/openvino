@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
@@ -51,10 +51,10 @@ RopeChain make_rope_chain() {
 }  // namespace
 
 // The whole angle chain from the frequency Multiply up to Sin/Cos is kept in f32.
-TEST_F(TransformationTestsF, DisableFP16CompForLtxVideoRopeMarksAngleChain) {
+TEST_F(TransformationTestsF, DisableBF16CompForLtxVideoRopeMarksAngleChain) {
     model = make_rope_chain().model("model");
 
-    manager.register_pass<ov::pass::DisableFP16CompForLtxVideoRopePattern>();
+    manager.register_pass<ov::pass::DisableBF16CompForLtxVideoRopePattern>();
 
     {
         auto c = make_rope_chain();
@@ -69,10 +69,10 @@ TEST_F(TransformationTestsF, DisableFP16CompForLtxVideoRopeMarksAngleChain) {
 }
 
 // Sin/Cos outside the rope pattern are left untouched, so unrelated subgraphs keep low precision.
-TEST_F(TransformationTestsF, DisableFP16CompForLtxVideoRopeSkipsUnrelatedSinCos) {
+TEST_F(TransformationTestsF, DisableBF16CompForLtxVideoRopeSkipsUnrelatedSinCos) {
     auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 8});
     auto sin = std::make_shared<v0::Sin>(x);
     model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{x}, "model");
 
-    manager.register_pass<ov::pass::DisableFP16CompForLtxVideoRopePattern>();
+    manager.register_pass<ov::pass::DisableBF16CompForLtxVideoRopePattern>();
 }

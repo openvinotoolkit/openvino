@@ -106,9 +106,8 @@ protected:
 };
 
 TEST_P(RopeTablePrecisionCPUTest, CompareWithRefs) {
-    // gate on the plugin's own capability: bf16 is also supported without avx512 (avx2_vnni_2)
-    const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
-    if (std::find(capabilities.begin(), capabilities.end(), "BF16") == capabilities.end()) {
+    // bf16-only test: skip on CPUs without bf16 support
+    if (!ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP() << "No BF16 support";
     }
     run();

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
@@ -12,7 +12,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
@@ -21,8 +20,8 @@ namespace v1 = ov::op::v1;
 
 namespace ov::pass {
 
-DisableFP16CompForLtxVideoRopePattern::DisableFP16CompForLtxVideoRopePattern() {
-    MATCHER_SCOPE(DisableFP16CompForLtxVideoRopePattern);
+DisableBF16CompForLtxVideoRopePattern::DisableBF16CompForLtxVideoRopePattern() {
+    MATCHER_SCOPE(DisableBF16CompForLtxVideoRopePattern);
     using namespace ov::pass::pattern;
 
     // grid values are small; the large magnitude appears only from the frequency Multiply onwards
@@ -31,16 +30,16 @@ DisableFP16CompForLtxVideoRopePattern::DisableFP16CompForLtxVideoRopePattern() {
     auto add = wrap_type<v1::Add>({mul, add_constant});
     auto transpose = wrap_type<v1::Transpose>({add, any_input()});
     auto reshape = wrap_type<v1::Reshape>({transpose, any_input()});
-    auto sin = wrap_type<v0::Sin>({reshape});
-    auto cos = wrap_type<v0::Cos>({reshape});
-    auto sin_or_cos = std::make_shared<pattern::op::Or>(OutputVector{sin, cos});
+    auto sin_or_cos = wrap_type<v0::Sin, v0::Cos>({reshape});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        for (const auto& node : {mul, add_constant, add, transpose, reshape}) {
+        // disable_conversion tags each node with the shared "keep original precision" marker. This pass is
+        // registered by the CPU plugin only under bf16, where EnforceInferencePrecision honors the tag and
+        // leaves the angle chain in f32 instead of lowering it. element::f16 names the marker, not a target.
+        for (const auto& node : {mul, add_constant, add, transpose, reshape, sin_or_cos}) {
             ov::disable_conversion(pattern_map.at(node).get_node_shared_ptr(), element::f16);
         }
-        ov::disable_conversion(m.get_match_root(), element::f16);
         return false;
     };
 

@@ -79,7 +79,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
-#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -1196,7 +1196,7 @@ void Transformations::PostLpt() {
     // Only bf16 needs the rope markup: under f16 the angle chain is already kept precise by
     // ConvertPrecision, and marking it there regresses accuracy.
     if (config.inferencePrecision == ov::element::bf16) {
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableFP16CompForLtxVideoRopePattern);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
