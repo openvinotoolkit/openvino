@@ -24,14 +24,74 @@ The integration assumes a recent OpenVINO build with this PR applied and a
 matching CPU-only vLLM install. SPR / Granite Rapids / similar AMX-bf16 CPUs
 are the primary target.
 
-### 1. OpenVINO
+### Tested environment
+
+The tables and perf numbers below were measured on this stack:
+
+| Component | Version | Notes |
+|---|---|---|
+| CPU | Intel Xeon Platinum 8580 (Sapphire Rapids) | AMX-BF16, 40 cores per socket |
+| OS | Linux 5.15+ / glibc 2.34+ | THP=madvise |
+| Python | 3.11 | 3.10 also works |
+| PyTorch | 2.11.0+cpu | CPU-only build; MUST match vLLM's torch pin |
+| vLLM | 0.25.0 | v1 engine; CPU wheel |
+| OpenVINO | 2026.2.0 (branch `vllm_dev`) | must include this subpackage |
+
+Older/newer combinations may work but are not benched. In particular vLLM
+0.24.x targets torch 2.10 and 0.26.x moves to torch 2.12 — do not mix minor
+versions across vLLM and PyTorch.
+
+### 1. Fresh venv
+
+```bash
+python3.11 -m venv ~/ov_vllm_env
+source ~/ov_vllm_env/bin/activate
+python -m pip install -U pip setuptools wheel
+```
+
+### 2. PyTorch (CPU-only)
+
+Install this FIRST so vLLM picks it up rather than pulling CUDA-enabled
+torch during its own resolve.
+
+```bash
+python -m pip install "torch==2.11.*+cpu" \
+    --index-url https://download.pytorch.org/whl/cpu
+```
+
+### 3. vLLM (CPU)
+
+```bash
+# Recent vLLM CPU wheels ship on PyPI and don't require CUDA.
+python -m pip install "vllm==0.25.*"
+```
+
+If the resolver tries to reinstall CUDA torch, use
+`--no-deps` for vllm and install the runtime deps manually, or use vLLM's
+official CPU installation guide:
+https://docs.vllm.ai/en/latest/getting_started/installation/cpu/
+
+Optional (perf, Linux):
+
+```bash
+# Preload tcmalloc before Python starts for a cleaner CPU allocator profile.
+# WARNING: some vLLM 0.25.x releases have a `free(): invalid size` crash
+# under tcmalloc; if you hit it, unset LD_PRELOAD and use MALLOC_ARENA_MAX=4
+# as a fallback.
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
+```
+
+### 4. OpenVINO
+
+Option A — build from the `vllm_dev` branch (required for this integration
+until the changes merge to a released wheel):
 
 ```bash
 git clone --recursive https://github.com/openvinotoolkit/openvino.git
 cd openvino
+git checkout vllm_dev
 git submodule update --init --recursive
 
-# Build (Release, with the pytorch frontend)
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_PYTHON=ON \
@@ -41,32 +101,20 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_OV_PYTORCH_FRONTEND=ON ..
 cmake --build . -j $(nproc)
 
-# Install the Python wheel into your venv
-cd .. && python -m pip install -e ./src/bindings/python
+# Build & install the Python wheel into the venv
+cd ..
+python -m pip wheel ./src/bindings/python -w /tmp/ov_wheel
+python -m pip install --force-reinstall /tmp/ov_wheel/openvino-*.whl
 ```
 
-Or install a published OV wheel that already contains this subpackage:
+Option B — install a published wheel that already contains this
+subpackage:
 
 ```bash
-python -m pip install openvino==<version>
+python -m pip install "openvino>=2026.2"
 ```
 
-### 2. vLLM (CPU)
-
-```bash
-# Recent vLLM releases ship CPU support out-of-the-box. Install via the CPU
-# extras so the right wheels (no CUDA) are picked.
-python -m pip install vllm
-
-# Optional but strongly recommended for performance on Linux: preload
-# tcmalloc + libiomp before launching Python so vLLM's CPU memory and OMP
-# pools are well-behaved. See
-# https://docs.vllm.ai/en/latest/getting_started/installation/cpu/ for the
-# canonical instructions.
-export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
-```
-
-### 3. Verify the entry point is registered
+### 5. Verify the entry point is registered
 
 ```bash
 python -c "
@@ -160,6 +208,8 @@ its default backend; OV is not engaged.
 - **`KeyError: 'openvino'` from torch.compile**: the OV pytorch frontend was not installed or the entry-point file `entry_points.txt` doesn't list `[torch_dynamo_backends] openvino = openvino.frontend.pytorch.torchdynamo.backend:openvino`. Reinstall the OV Python wheel.
 - **Output text differs in the smoke test at temperature=0**: a fusion produced semantically wrong code. Re-run with `OV_DISABLE_FUSED_SAMPLER=1` to isolate the sampler.
 - **Per-step latency much higher than expected**: enable `OV_PERF_COUNT_OUT=/tmp/ov.log` and inspect counts. `LLMMLP`, `QKVProjection`, `PagedAttentionExtension` should each appear once per layer per decode step. If they're 0 the corresponding fusion did not fire on this model.
+- **`ValueError: Field 'level' not found in CompilationConfig`**: You are on a newer vLLM that renamed `level` to `mode`. Use `{"mode": "STOCK_TORCH_COMPILE", "backend": "openvino"}` (as shown above). vLLM 0.25.x used `level=3`; 0.26+ uses `mode`.
+- **Fused sampler didn't fire (grep `[OV plugin] Fused sampler compiled` in stderr)**: the vocab-size gate (default: 100000) skips small-vocab models. Override with `OV_FUSED_SAMPLER_MIN_VOCAB=0` if you want it on for all models.
 
 ## Limitations
 
