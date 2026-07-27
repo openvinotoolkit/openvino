@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -57,6 +58,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // The fused GatedDeltaNet op only supports scalar gating. Per-key-dimension gating (kda) uses
     // the Loop reference path.
     if (kda) {
+        return translate_gated_delta_net_ref(context);
+    }
+
+    // Test/diagnostic seam: force the decomposed Loop reference path even for the scalar-gate case
+    // that would normally take the fused op. Lets a test (GatedDeltaNetRefMultiHead) exercise the
+    // Loop path's multi-head packing against the ggml-CPU oracle, and lets the fused vs decomposed
+    // paths be A/B-compared on a full model without a rebuild.
+    if (std::getenv("GGUF_GDN_FORCE_REF")) {
         return translate_gated_delta_net_ref(context);
     }
 

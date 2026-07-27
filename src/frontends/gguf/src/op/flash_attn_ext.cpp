@@ -34,8 +34,13 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     float scale = context.get_attribute<float>("scale");
 
-    auto q = std::make_shared<ov::op::v0::Convert>(q_f32, ov::element::f16);
-    auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<float>{scale});
+    // DEBUG: GGUF_FLASH_ATTN_F32 keeps SDPA in f32 instead of the default f16, to test whether the
+    // f16 attention cast is the source of qwen3-next's accumulated drift. The plugin's f32 precision
+    // hint cannot undo an explicit Convert-to-f16 op, so this must be gated here in the converter.
+    const bool fa_f32 = getenv("GGUF_FLASH_ATTN_F32") != nullptr;
+    const auto sdpa_type = fa_f32 ? ov::element::f32 : ov::element::f16;
+    auto q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
+    auto scale_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{scale});
 
     ov::Output<ov::Node> mask_sliced, res;
     const std::string mask_name = context.get_attribute<bool>("is_swa", false) ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
@@ -49,8 +54,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
     }
 
-    if (mask_sliced.get_element_type() != ov::element::f16) {
-        mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, ov::element::f16);
+    if (mask_sliced.get_element_type() != sdpa_type) {
+        mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
     }
 
     auto tile_kv = [&](int64_t num_heads, int64_t num_heads_kv, int64_t head_size, ov::Output<Node> kv) {
