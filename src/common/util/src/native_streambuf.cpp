@@ -5,9 +5,12 @@
 #include "openvino/util/native_streambuf.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cstring>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include "openvino/util/memory.hpp"
 #include "openvino/util/parallel_io.hpp"
@@ -79,14 +82,44 @@ bool NativeStreamBuf::allocate_window() {
     return m_window != nullptr;
 }
 
-bool NativeStreamBuf::read_into(char* /* dst */, size_t /* size */, std::streamoff /* abs */) {
-    // TODO(CVS-186707): io_read_into backend not yet implemented
-    return false;
+bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
+    if (m_handle == ov::invalid_handle) {
+        return false;
+    }
+
+    const size_t hw = std::max<size_t>(1, std::thread::hardware_concurrency());
+    const size_t max_by_size = size / default_parallel_io_min_chunk;
+    const size_t num_threads = std::max<size_t>(1, std::min(hw, max_by_size));
+    if (size < default_parallel_io_threshold || num_threads == 1) {
+        return positional_read(m_handle, dst, size, static_cast<size_t>(abs));
+    }
+
+    size_t chunk = align_size_up(size / num_threads, min_page_alignment);
+    std::atomic<bool> ok{true};
+    std::vector<std::thread> workers;
+    workers.reserve(num_threads);
+    const size_t base_offset = static_cast<size_t>(abs);
+    for (size_t i = 0; i < num_threads; ++i) {
+        workers.emplace_back([&, i]() {
+            const size_t local_off = i * chunk;
+            if (local_off >= size) {
+                return;
+            }
+            const size_t read_size =
+                (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
+            if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
+                ok.store(false, std::memory_order_relaxed);
+            }
+        });
+    }
+    for (auto& t : workers) {
+        t.join();
+    }
+    return ok.load(std::memory_order_relaxed);
 }
 
 // Refill the get-area (window) with up to m_window_capacity bytes starting at m_cursor.
 bool NativeStreamBuf::fill_window() {
-    // 	CVS-189123
     if (m_cursor >= m_end || !allocate_window()) {
         return false;
     }
@@ -102,7 +135,6 @@ bool NativeStreamBuf::fill_window() {
 
 // xsgetn: main bulk-read path. Large requests bypass the window; small requests are amortized through it.
 std::streamsize NativeStreamBuf::xsgetn(char_type* dst, std::streamsize n) {
-    // 	CVS-189123
     if (n <= 0) {
         return 0;
     }
@@ -148,7 +180,6 @@ std::streamsize NativeStreamBuf::xsgetn(char_type* dst, std::streamsize n) {
 
 // underflow: char-by-char / peek path (operator>>, std::getline).
 NativeStreamBuf::int_type NativeStreamBuf::underflow() {
-    // 	CVS-189123
     if (gptr() != nullptr && gptr() < egptr()) {
         return traits_type::to_int_type(*gptr());
     }
@@ -161,7 +192,6 @@ NativeStreamBuf::int_type NativeStreamBuf::underflow() {
 NativeStreamBuf::pos_type NativeStreamBuf::seekoff(off_type off,
                                                    std::ios_base::seekdir way,
                                                    std::ios_base::openmode /* which */) {
-    // 	CVS-189123
     // Internal offsets are absolute; public stream positions are logical (0 == m_start).
     std::streamoff new_pos = 0;
     if (way == std::ios_base::beg) {
@@ -191,12 +221,10 @@ NativeStreamBuf::pos_type NativeStreamBuf::seekoff(off_type off,
 }
 
 NativeStreamBuf::pos_type NativeStreamBuf::seekpos(pos_type pos, std::ios_base::openmode /* which */) {
-    // 	CVS-189123
     return seekoff(off_type(pos), std::ios_base::beg, std::ios_base::in);
 }
 
 std::streamsize NativeStreamBuf::showmanyc() {
-    // 	CVS-189123
     std::streamsize buffered = 0;
     if (gptr() != nullptr && egptr() > gptr()) {
         buffered = static_cast<std::streamsize>(egptr() - gptr());
