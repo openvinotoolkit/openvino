@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-14-34-56-000-30269464343",
+  "timestamp": "2026-07-27T14:34:56Z",
+  "run_id": "30269464343",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30269464343",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] - AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nassert False\ninstall/tests/model_hub_tests/models_hub_common/test_convert_model.py:93"
+  ],
+  "root_cause": "The test exports the katuni4ka/opt-125m-gptq GPTQ-quantized OPT model via PyTorch FX path and compares OpenVINO inference outputs against reference PyTorch outputs. The assertion 'Accuracy validation failed' fires in compare_results(), meaning the OV model's output differs from the PyTorch baseline beyond tolerance. This has now been observed 4 times in 12 hours across multiple merge-queue runs, strongly indicating a deterministic code regression (not flakiness) introduced by a recent commit that affects GPTQ/INT4 quantized model conversion or inference accuracy on CPU.",
+  "reproduction_steps": "pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Identify recent commits to the PyTorch frontend or CPU plugin that touch INT4/GPTQ quantization handling",
+    "Run the failing test locally against HEAD and the previous merge-queue base to bisect the regression",
+    "Check changes to GPTQ dequantization logic in src/frontends/pytorch/ or src/plugins/intel_cpu/"
+  ],
+  "prevention_strategies": "Add this test to precommit gates for PyTorch GPTQ quantization changes. CI currently catches this only in the PyTorch Models tests job which runs after merge.",
+  "historical_context": "This exact failure (671a331e9a60933e) has been seen 4 times starting 2026-07-27T12:33:21Z. Prior affected PRs: #36860, #37029."
+}
