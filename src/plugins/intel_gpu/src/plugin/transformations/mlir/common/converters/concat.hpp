@@ -21,7 +21,6 @@ struct ConvertConcat {
         auto& builder = context.builder();
         const auto inputs = context.getInputs(node);
 
-        const auto ov_element_type = node->get_input_element_type(0);
         const auto src_partial_shape = node->get_input_partial_shape(0);
         const auto rank = src_partial_shape.rank().get_length();
 

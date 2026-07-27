@@ -28,7 +28,6 @@ struct ConvertBinaryEltwise {
         const auto ov_output_element_type = node->get_output_element_type(0);
         const auto ov_output_shape = node->get_output_partial_shape(0);
         auto outType = importTensor(context.context, ov_output_shape, ov_output_element_type);
-        const int output_rank = ov_output_shape.rank().get_length();
 
         SmallVector<Value> dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
 

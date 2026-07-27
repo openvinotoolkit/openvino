@@ -25,7 +25,7 @@ struct ConvertSqueeze {
         auto src_rank = src_partial_shape.rank().get_length();
         SmallVector<ReassociationIndices> collapse_groups;
         ReassociationIndices group = ReassociationIndices();
-        for (size_t src_i = 0; src_i < src_rank; src_i++) {
+        for (int64_t src_i = 0; src_i < src_rank; src_i++) {
             auto src_d = src_partial_shape[src_i];
             group.push_back(src_i);
             if (src_d.is_static() && src_d.get_length() == 1) {

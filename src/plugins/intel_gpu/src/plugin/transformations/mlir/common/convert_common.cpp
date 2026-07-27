@@ -86,7 +86,7 @@ BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialS
     ReassociationIndices group;
     bool group_bonded = false;  // true if `group` has a non-brodcasted dimension
 
-    size_t dst_i = 0;  // dimension index in the `dst` shape
+    int64_t dst_i = 0;  // dimension index in the `dst` shape
     for(; dst_i < offset; ++dst_i) {
         dimensions.push_back(dst_i);
     }
@@ -164,7 +164,7 @@ bool has_dynamic_rank(NodePtr node) {
 
 bool are_equal_dimensions(Dimension d1, Dimension d2) {
     return
-        d1.is_static() && d2.is_static() && d1 == d2
+        (d1.is_static() && d2.is_static() && d1 == d2)
         ||
         ov::symbol::are_equal(d1.get_symbol(), d2.get_symbol());
 }
@@ -186,7 +186,7 @@ bool statically_broadcastable(const PartialShape& from, const PartialShape& to) 
     }
 
     auto offset = to_rank - from_rank;
-    for(size_t i = 0; i < from_rank; ++i) {
+    for(int64_t i = 0; i < from_rank; ++i) {
         auto d_from = from[i];
         auto d_to = to[offset + i];
         if(!are_equal_dimensions(d_from, d_to) && !has_broadcast(d_from, d_to)) {

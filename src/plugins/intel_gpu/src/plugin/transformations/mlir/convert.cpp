@@ -137,7 +137,8 @@ void dropUnusedInputArgs(mlir::func::FuncOp func, size_t numInputs, SmallVector<
         }
         kept.push_back(i);
     }
-    func.eraseArguments(toErase);
+    [[maybe_unused]] auto result = func.eraseArguments(toErase);
+    assert(mlir::succeeded(result) && "Failed to erase unused function arguments");
 }
 
 mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
@@ -187,22 +188,22 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
             // transition from memref enclosure to tensor interior
             auto ranked = mlir::dyn_cast<mlir::MemRefType>(funcInputVal.getType());
             auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
-            auto tensor = block_builder.create<bufferization::ToTensorOp>(
-                loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
+            auto tensor = bufferization::ToTensorOp::create(
+                block_builder, loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
             graph_converter.nodeOutputMap.emplace(inputs[i], tensor);
 
             // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
             auto input_shape = inputs[i].get_partial_shape();
             auto input_rank = input_shape.rank();
             if(input_rank.is_static()) {
-                for(size_t j = 0; j < input_rank.get_length(); ++j) {
+                for(int64_t j = 0; j < input_rank.get_length(); ++j) {
                     auto dim = input_shape[j];
                     if(dim.is_dynamic()) {
                         auto symbol = dim.get_symbol();
                         assert(symbol);
                         symbol = ov::symbol::ancestor_of(symbol);
                         if(dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
-                            auto dimSize = block_builder.create<tensor::DimOp>(loc, tensor, j);
+                            auto dimSize = tensor::DimOp::create(block_builder, loc, tensor, j);
                             graph_converter.dimension_map[symbol] = dimSize;
                         }
                     }
@@ -226,16 +227,17 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         // Ensure the result is stored in the provided function argument.
         // Mark as restrict to avoid temporary buffer and copy.
         // Mark as writable to ensure the output can be written to the buffer.
-        block_builder.create<bufferization::MaterializeInDestinationOp>(loc,
-                                                                        TypeRange{},
-                                                                        tensor,
-                                                                        memref,
-                                                                        /*restrict=*/true,
-                                                                        /*writable=*/true);
+        bufferization::MaterializeInDestinationOp::create(block_builder,
+                                                          loc,
+                                                          TypeRange{},
+                                                          tensor,
+                                                          memref,
+                                                          /*restrict=*/true,
+                                                          /*writable=*/true);
     }
 
     const auto retLoc = createLayerLocation(context, "output", "Output");
-    block_builder.create<mlir::func::ReturnOp>(retLoc, ArrayRef(SmallVector<Value>()));
+    mlir::func::ReturnOp::create(block_builder, retLoc, ArrayRef(SmallVector<Value>()));
     SmallVector<size_t> keptRuntimeIndices;
     dropUnusedInputArgs(func, runtime_inputs.size(), keptRuntimeIndices);
     auto runtime_to_original = llvm::map_to_vector(
@@ -319,6 +321,10 @@ void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
     }
 }
 
+}  // namespace
+
+namespace ov::intel_gpu::mlir {
+
 // Marks matched subgraphs with a custom function name so the
 // Partitioner groups them into a dedicated MLIR function.
 // The patterns are specified with the env var:
@@ -356,7 +362,7 @@ class PatternMatcher : public ov::pass::ModelPass {
     }();
 
 public:
-    OPENVINO_RTTI("PatternMatcher");
+    OPENVINO_MODEL_PASS_RTTI("PatternMatcher");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         if (patterns.empty())
@@ -462,7 +468,7 @@ class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
     std::shared_ptr<ov::EvaluationContext> loweringContext;
 public:
-    OPENVINO_RTTI("Partitioner");
+    OPENVINO_MODEL_PASS_RTTI("Partitioner");
 
     Partitioner(MLIRContext* context, std::shared_ptr<ov::EvaluationContext> loweringContext) :
         context(context),
@@ -483,6 +489,12 @@ public:
     }
 };
 
+}  // namespace ov::intel_gpu::mlir
+
+namespace {
+
+using namespace mlir;
+using namespace ov::intel_gpu::mlir;
 
 void injectMLIR(std::shared_ptr<ov::Model> model,
                 MLIRContext* context,

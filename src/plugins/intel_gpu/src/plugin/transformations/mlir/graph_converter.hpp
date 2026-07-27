@@ -60,7 +60,7 @@ std::string get_subgraph_mark(NodePtr node);
 
 class MarkPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkPattern");
     MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor);
     using Callback = std::function<bool(ov::pass::pattern::Matcher&)>;
     MarkPattern(NodePtr pattern, Callback callback);

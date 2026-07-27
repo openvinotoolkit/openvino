@@ -14,86 +14,86 @@ namespace ov::intel_gpu::mlir {
 
 class ReluPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("ReluPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReluPattern");
     ReluPattern();
 };
 
 class ConcatPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("ConcatPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConcatPattern");
     ConcatPattern();
 };
 
 class FloorPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("FloorPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FloorPattern");
     FloorPattern();
 };
 
 class GatherPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("GatherPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GatherPattern");
     GatherPattern();
 };
 
 class MatMulPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("MatMulPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MatMulPattern");
     MatMulPattern();
 };
 
 template <typename OVOp>
 class ReducePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("ReducePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReducePattern");
     ReducePattern();
 };
 
 class ReshapePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("ReshapePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapePattern");
     ReshapePattern();
 };
 
 class SDPAPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("SDPAPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SDPAPattern");
     SDPAPattern();
 };
 
 class ShapeOfPattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("ShapeOfPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ShapeOfPattern");
     ShapeOfPattern();
 };
 
 class SlicePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("SlicePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SlicePattern");
     SlicePattern();
 };
 
 class SqueezePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("SqueezePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SqueezePattern");
     SqueezePattern();
 };
 
 class TransposePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("TransposePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposePattern");
     TransposePattern();
 };
 
 class UnsqueezePattern : public MarkPattern {
 public:
-    OPENVINO_RTTI("UnsqueezePattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UnsqueezePattern");
     UnsqueezePattern();
 };
 
 class BinaryEltwisePatternBase : public MarkPattern {
 public:
-    OPENVINO_RTTI("BinaryEltwisePatternBase", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BinaryEltwisePatternBase");
     BinaryEltwisePatternBase(NodeTypeInfo wrapped_type, GraphConverter::Convertor convertor,
                              const std::set<element::Type>& element_types = {});
 };

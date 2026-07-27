@@ -48,7 +48,7 @@ struct ConvertReduce {
         ::mlir::RankedTensorType result_type;
         {
             SmallVector<int64_t> shape;
-            for (size_t i = 0; i < input_rank; ++i) {
+            for (int64_t i = 0; i < input_rank; ++i) {
                 if (!llvm::is_contained(reduction_axes, i)) {
                     auto dim = input_shape[i];
                     assert(dim.is_static() && "Dynamic shapes not supported");

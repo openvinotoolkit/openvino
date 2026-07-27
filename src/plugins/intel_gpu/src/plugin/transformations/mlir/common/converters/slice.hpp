@@ -22,7 +22,6 @@ struct ConvertSlice {
         const auto start = context.getInputs(node)[1];
         const auto stop = context.getInputs(node)[2];
         const auto step = context.getInputs(node)[3];
-        const auto axes = context.getInputs(node)[4];
 
         const auto ov_index_shape = node->get_input_partial_shape(1);
         const auto ov_index_element_type = node->get_input_element_type(1);

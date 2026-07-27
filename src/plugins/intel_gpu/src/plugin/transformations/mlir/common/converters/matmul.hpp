@@ -70,7 +70,7 @@ struct ConvertMatMul {
             int64_t rank = ov_output_shape.size();
             auto type = mlir::cast<RankedTensorType>(tensor.getType());
             auto shape = type.getShape();
-            if (shape.size() == rank)
+            if (static_cast<int64_t>(shape.size()) == rank)
                 return tensor;
             SmallVector<ReassociationIndices> reassoc;
             ReassociationIndices leading;
