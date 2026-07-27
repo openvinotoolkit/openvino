@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 58,
+  "total": 59,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -570,6 +570,15 @@
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
       "pr_number": "36957"
+    },
+    {
+      "investigation_id": "2026-07-27-21-09-54-000-30294062597",
+      "run_id": "30294062597",
+      "timestamp": "2026-07-27T21:09:54Z",
+      "title": "OPT GPTQ model export accuracy validation fails - max diff 0.069 exceeds tolerance",
+      "category": "Code Issue",
+      "signature_hash": "671a331e9a60933e",
+      "pr_number": "37029"
     }
   ]
 }

@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-21-09-54-000-30294062597",
+  "timestamp": "2026-07-27T21:09:54Z",
+  "run_id": "30294062597",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294062597",
+  "workflow_name": "PyTorch Models tests / PyTorch Models tests",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": null,
+  "category": "Code Issue",
+  "title": "OPT GPTQ model export accuracy validation fails - max diff 0.069 exceeds tolerance",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "AssertionError: Accuracy validation failed\nassert False",
+    "Max diff is 0.06871891021728516",
+    "fw_re: [[[-4.259464 -4.254485 6.1782293 ...]]]  ov_res: [[[-4.270678 -4.265716 6.197334 ...]]]"
+  ],
+  "root_cause": "The OpenVINO exported model for katuni4ka/opt-125m-gptq (OPT 125M GPTQ-quantized) produces logits that differ from the PyTorch reference by a maximum of ~0.069. The comparison is performed in test_llm.py:559 via compare_results, which propagates to the base class assertion at test_convert_model.py:93. The deviation is likely caused by a regression in the PyTorch frontend or a quantization/dequantization handling change affecting GPTQ-packed weight unpacking accuracy for the OPT architecture.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Investigate recent changes in src/frontends/pytorch/ that affect GPTQ quantization handling or OPT model conversion",
+    "Check if the accuracy tolerance threshold was recently changed in test_llm.py compare_results",
+    "Compare the PR diff (PR #37029) against test_convert_model.py to see if accuracy thresholds changed",
+    "Run the test locally with the PR changes reverted to confirm this is a regression introduced by the PR"
+  ],
+  "prevention_strategies": "Add per-model accuracy threshold monitoring; run GPTQ model accuracy checks in precommit for every PR touching the PyTorch frontend or quantization paths.",
+  "historical_context": "No previous identical pattern recorded."
+}
