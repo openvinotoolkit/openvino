@@ -527,13 +527,34 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int vt_half = 0;
                 #endif
                 if (vt_do_read) {
-                    #pragma unroll
-                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                    // The multi-block x2c / x4c variants fetch this subgroup's whole 32 / 64
+                    // value columns in ONE message. GPU-probed on B580 (see
+                    // test/microbench/probe_v_multiblock) their destination is BLOCK-MAJOR --
+                    // uint u carries block u/8, key (u%8)*4+b, value (u/8)*16+lane -- which is
+                    // bit-identical to what the x1c loop below writes into &vt[cd * 8], so the
+                    // dequant indexing needs no change. coord.x must be a multiple of 4 for
+                    // 8-bit data: sg_j0_sv is a multiple of sv_sg_tile_values (16/32/64), so
+                    // that holds. The x1c loop stays as the fallback for any sv_value_blocks
+                    // the extension has no single-message variant for.
+                    #if V_I8_MULTIBLOCK_READ && sv_value_blocks == 2
+                        intel_sub_group_2d_block_read_transform_8b_32r16x2c(
                             (global void *)V, VD_w, VD_h, VD_p,
-                            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
-                            (private uint *)&vt[cd * 8]);
-                    }
+                            (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
+                            (private uint *)&vt[0]);
+                    #elif V_I8_MULTIBLOCK_READ && sv_value_blocks == 4
+                        intel_sub_group_2d_block_read_transform_8b_32r16x4c(
+                            (global void *)V, VD_w, VD_h, VD_p,
+                            (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
+                            (private uint *)&vt[0]);
+                    #else
+                        #pragma unroll
+                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                            intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                                (global void *)V, VD_w, VD_h, VD_p,
+                                (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
+                                (private uint *)&vt[cd * 8]);
+                        }
+                    #endif
                 }
             #endif
 
