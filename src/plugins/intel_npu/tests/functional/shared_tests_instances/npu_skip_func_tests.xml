@@ -19,4 +19,235 @@ Example:
 -->
 <skip_configs>
 
+    <!-- E###### -->
+    <skip_config>
+        <message>GetExecGraphInfo function is not implemented for NPU plugin</message>
+        <filters>
+            <filter>.*CheckExecGraphInfo.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>TensorIterator layer is not supported</message>
+        <filters>
+            <filter>.*OVInferenceChaining.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#128116 -->
+    <skip_config>
+        <message>Unicode paths for ov::cache_dir are not correctly handled on Windows</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#108600 -->
+    <skip_config>
+        <message>Unsupported NPU properties</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVCheckMetricsPropsTests_ModelDependceProps.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#114623 -->
+    <skip_config>
+        <message>The private platform names cannot be identified via the \"ov::available_devices\" configuration.</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Output I4 / U4 precision is not currently supported.</message>
+        <filters>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#112064 -->
+    <skip_config>
+        <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Failing properties tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <!-- E#133153 -->
+            <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E####### -->
+    <skip_config>
+        <message>Test will set NPU_TILES to -1 which is an invalid value, in this case default values don't work</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#116575 -->
+    <skip_config>
+        <message>NPU fails for `OVIterationChaining.Simple` tests</message>
+        <filters>
+            <filter>.*OVIterationChaining.Simple.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#116596 -->
+    <skip_config>
+        <message>Missing model ops in profiling info</message>
+        <filters>
+            <filter>.*OVInferRequestPerfCountersTest.CheckOperationInProfilingInfo.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#118045 -->
+    <skip_config>
+        <message>A property with the name of the tensors must be set to support ROI Tensors</message>
+        <filters>
+            <filter>.*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#121347 -->
+    <skip_config>
+        <message>Error message for empty model from stream must be changed to have \"device xml header\"</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>NPU cannot set properties for compiled models except CACHE_ENCRYPTION_CALLBACKS, but is not convertible to string</message>
+        <filters>
+            <filter>.*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#139118 -->
+    <skip_config>
+        <message>Failing runtime model tests</message>
+        <filters>
+            <filter>.*OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*</filter>
+            <filter>.*OVExecGraphSerializationTest.ExecutionGraph.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW-162037 -->
+    <skip_config>
+        <message>compiled_blob test use `CACHE_MODE` which is not supported on NPU</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_from_model_path/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_from_model_path/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#187111 -->
+    <skip_config>
+        <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*ENABLE_WEIGHTLESS.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#185847 -->
+    <skip_config>
+        <message>Write only (WO) properties will return empty ov::Any objects</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
+            <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
+            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Exclusive Async Request is not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+            <filter>.*InferRequestPropertiesTest.ReusableCPUStreamsExecutor.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#218923 -->
+    <skip_config>
+        <message>The tests crash when compiling MaxPool model on NPU4000 and NPU5010</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
