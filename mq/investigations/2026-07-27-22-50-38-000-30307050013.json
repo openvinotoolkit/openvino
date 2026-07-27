@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-22-50-38-000-30307050013",
+  "timestamp": "2026-07-27T22:50:38Z",
+  "run_id": "30307050013",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30307050013",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "nazanin-beheshti",
+  "category": "Flaky Test",
+  "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
+  "signature": "pytorch llm model tests step failed in pytorch models tests job|Flaky Test",
+  "signature_hash": "e9f14463b6d39bf8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "Step 'PyTorch LLM Model Tests' failed; PR changes are GPU plugin memory management unrelated to LLM testing"
+    }
+  ],
+  "key_errors": [
+    "Job 90120301074: PyTorch Models tests - step 16 'PyTorch LLM Model Tests' failed (log content unavailable due to access policy)"
+  ],
+  "root_cause": "The 'PyTorch LLM Model Tests' step failed in the PyTorch Models tests job. The PR (35116) only modifies intel_gpu plugin memory management files (memory_pool.hpp, pass_manager.h, program_node.h, program_node.cpp), which are unrelated to PyTorch LLM model testing. The failure is most likely a transient infrastructure or model download issue (e.g., external model repository timeout or flaky test) rather than a regression introduced by the PR.",
+  "reproduction_steps": "N/A - likely transient, not reproducible consistently",
+  "recommended_actions": [
+    "Re-run the failed 'PyTorch Models tests' job to check if the failure is transient",
+    "If the test continues to fail, check if there is a known issue with the PyTorch LLM model test infrastructure or external model downloads",
+    "Review PR 35116 diff (GPU memory management changes) to confirm no linkage to LLM model tests"
+  ],
+  "prevention_strategies": "Tag PyTorch LLM model tests that depend on external resources with retry logic or fallback. Consider caching model artifacts.",
+  "historical_context": "Prior investigations show similar PyTorch Models test transient failures: ECONNREFUSED downloading artifacts (count: 2), HTTP 504 gateway timeout in EasyOCR downloads (count: 1). Unrelated PR changes that caused a merge queue failure due to flaky PyTorch tests are common."
+}
