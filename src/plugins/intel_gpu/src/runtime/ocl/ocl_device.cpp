@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
-#include <time.h>
+#include <ctime>
 #include <limits>
 #include <chrono>
 #include <fstream>
@@ -41,7 +41,7 @@
 #include <cstring>
 #else
 #include <unistd.h>
-#include <limits.h>
+#include <climits>
 #include <link.h>
 #include <dlfcn.h>
 #endif
