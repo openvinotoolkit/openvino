@@ -5558,3 +5558,175 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_src_shorter_than_
     test_case.add_expected_output<int64_t>(Shape{}, {-1});
     test_case.run();
 }
+
+// GatherBlockQuantized: block-quantized embedding lookup (com.microsoft).
+// All models use V=2, H=32, block_size=16 (nb=2), gather_axis=0, quantize_axis=1, indices=[1,0].
+// Expected values are hand-derived from output = (data - zero_point) * scale, then gathered.
+namespace {
+// Helper: build a [2, 32] expected output where row r is [blockA(x16), blockB(x16)].
+std::vector<float> gbq_expected(float r0a, float r0b, float r1a, float r1b) {
+    std::vector<float> out;
+    out.reserve(64);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r0a);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r0b);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r1a);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r1b);
+    return out;
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4) {
+    // data row0 = 16x(2), 16x(-1); row1 = 16x(1), 16x(3). scales row0=[0.5,4.0], row1=[2.0,0.25]. no zp.
+    // gather [1,0] -> out[0]=row1, out[1]=row0.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (1-0)*2.0=2.0, (3-0)*0.25=0.75 ; out[1]=row0: (2-0)*0.5=1.0, (-1-0)*4.0=-4.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, -4.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint4) {
+    // data row0 = 16x(2), 16x(15); row1 = 16x(1), 16x(3). int64 indices. no zp.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int64_t>(Shape{2}, {1, 0});
+    // out[0]=row1: 1*2.0=2.0, 3*0.25=0.75 ; out[1]=row0: 2*0.5=1.0, 15*4.0=60.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, 60.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4_zp) {
+    // Same data/scales as int4 case. zero_points row0=[1,2], row1=[0,1].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (1-0)*2.0=2.0, (3-1)*0.25=0.5 ; out[1]=row0: (2-1)*0.5=0.5, (-1-2)*4.0=-12.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.5f, 0.5f, -12.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4_f16) {
+    // Same as int4 case but scales are float16; output is float16.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4_f16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    const auto expected_f32 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);
+    test_case.add_expected_output<ov::float16>(Shape{2, 32},
+                                               std::vector<ov::float16>(expected_f32.begin(), expected_f32.end()));
+
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8) {
+    // uint8, bits=8, default zero_point=128. data row0=16x(130),16x(124); row1=16x(128),16x(136).
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (128-128)*2.0=0.0, (136-128)*0.25=2.0 ; out[1]=row0: (130-128)*0.5=1.0, (124-128)*4.0=-16.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(0.0f, 2.0f, 1.0f, -16.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4) {
+    // uint8 data holding 2 int4 values per byte (bits=4), default zero_point=8. Logical H=32, block=16.
+    // Unpacked row0 = 16x(9), 16x(7); row1 = 16x(10), 16x(6). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-8)*1.0=2.0, (6-8)*4.0=-8.0 ; out[1]=row0: (9-8)*0.5=0.5, (7-8)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits2) {
+    // uint8 data holding 4 2-bit values per byte (bits=2), default zero_point=2. Logical H=32, block=16.
+    // Unpacked row0 = 16x(3), 16x(1); row1 = 16x(2), 16x(0). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits2.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (2-2)*1.0=0.0, (0-2)*4.0=-8.0 ; out[1]=row0: (3-2)*0.5=0.5, (1-2)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(0.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4_zp) {
+    // uint8 bits=4 with packed zero_points (2 per byte along the quantize axis). Same data/scales as bits4.
+    // zero_points row0=[1,2], row1=[3,0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-3)*1.0=7.0, (6-0)*4.0=24.0 ; out[1]=row0: (9-1)*0.5=4.0, (7-2)*2.0=10.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(7.0f, 24.0f, 4.0f, 10.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_neg_axis) {
+    // Same as int4 case but quantize_axis=-1 (normalizes to 1); verifies negative-axis handling.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_neg_axis.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, -4.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_bf16) {
+    // Same int4 data/scales as the base case, but scales (and output) are bfloat16.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // Expected values (2.0, 0.75, 1.0, -4.0) are all exactly representable in bfloat16, so compare bit-exact.
+    const auto expected_f32 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);
+    test_case.add_expected_output<ov::bfloat16>(Shape{2, 32},
+                                                std::vector<ov::bfloat16>(expected_f32.begin(), expected_f32.end()));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_indices_2d) {
+    // Rank-2 indices [2,2] -> output rank q + (r-1) = 2 + 1 = 3, shape [2,2,32]. int64 indices.
+    // indices = [[1,0],[0,1]]; row1 = [2.0 x16, 0.75 x16], row0 = [1.0 x16, -4.0 x16].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_indices_2d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int64_t>(Shape{2, 2}, {1, 0, 0, 1});
+    const auto r1 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);  // one gathered row pair, reused per index
+    std::vector<float> expected;
+    const std::vector<float> row1(r1.begin(), r1.begin() + 32);
+    const std::vector<float> row0(r1.begin() + 32, r1.end());
+    for (const auto* row : {&row1, &row0, &row0, &row1}) {  // [1,0,0,1] -> row1,row0,row0,row1
+        expected.insert(expected.end(), row->begin(), row->end());
+    }
+    test_case.add_expected_output<float>(Shape{2, 2, 32}, expected);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_quantize_axis_not_last) {
+    // quantize_axis is not the last dimension (quantize_axis=0, gather_axis=1). This must be rejected:
+    // the compressed-gather fusion reconstructs the table by merging the trailing dims, which is only
+    // valid when the quantized axis is last, so importing a non-last quantize_axis is disallowed.
+    EXPECT_THROW(convert_model("com.microsoft/gather_block_quantized_quantize_axis_not_last.onnx"), ov::Exception);
+}
