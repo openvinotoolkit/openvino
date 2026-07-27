@@ -412,7 +412,7 @@ TEST(sdpa_gpu_causal_mask, decode_40q_10kv_444seq) {
 }
 
 TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
-    run_sdpa_causal_mask(1, 32, 8, 1, 1024, 128);
+    run_sdpa_causal_mask(1, 40, 10, 512, 1024, 128);
 }
 #endif
 
