@@ -160,6 +160,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_input_sk
         0.04256713f,  -0.71902490f, 0.23107991f, 0.17300847f,  -0.04390603f, -0.31109563f, 0.51021838f,  -0.66914201f,
         -0.20009395f, -0.43313017f, 0.67281967f, -0.01712347f, 0.09767530f,  -0.43024653f, -0.01836969f, -0.29238200f,
     };
+    // mean = ReduceMean(input + skip + bias, axis=-1, keepdims=1)
+    std::vector<float> expected_mean = {
+        1.00196671f,
+        1.03105211f,
+        1.01968336f,
+        1.06410110f,
+        0.95135093f,
+        1.11162472f,
+    };
+    // inv_std_var = 1 / sqrt(ReduceMean((sum - mean)^2, axis=-1, keepdims=1) + eps)
+    std::vector<float> expected_inv_std_var = {
+        3.14212680f,
+        2.63410830f,
+        3.40978694f,
+        5.66779423f,
+        2.02757072f,
+        3.61555910f,
+    };
     // input_skip_bias_sum = input + skip + bias, feeds the `skip` input of a subsequent
     // SkipLayerNormalization node when several layers are chained together
     std::vector<float> expected_input_skip_bias_sum = {
@@ -171,6 +189,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_input_sk
     test_case.add_input<float>(input);
     test_case.add_input<float>(skip);
     test_case.add_expected_output<float>(expected_out);
+    test_case.add_expected_output<float>(expected_mean);
+    test_case.add_expected_output<float>(expected_inv_std_var);
     test_case.add_expected_output<float>(expected_input_skip_bias_sum);
     test_case.run_with_tolerance_as_fp();
 }
