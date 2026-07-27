@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 """Re-run ONLY the failed jobs of an analysed GitHub Actions workflow run.
 
 Used by the `rerun-failed-jobs` custom safe-output job of the CI Doctor MQ

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 """Re-add a pull request dropped from the merge queue back into the queue.
 
 Used by the `readd-to-merge-queue` custom safe-output job of the CI Doctor MQ

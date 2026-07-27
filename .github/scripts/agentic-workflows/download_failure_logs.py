@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 """Pre-download failed CI logs and pre-locate error hints for the CI Doctor.
 
 Used by the shared pre-agent step of the CI Doctor workflows
