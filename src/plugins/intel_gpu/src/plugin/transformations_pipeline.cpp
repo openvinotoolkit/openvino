@@ -1012,7 +1012,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return false;
                     }
 
-                    if (lstm_seq->get_clip() > 0.f) {
+                    // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip); only a finite clip is unsupported
+                    if (lstm_seq->get_clip() > 0.f && !std::isinf(lstm_seq->get_clip())) {
                         return false;
                     }
 
@@ -1137,7 +1138,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else if (const auto &lstm_cell = ov::as_type_ptr<const ov::op::v4::LSTMCell>(node)) {
                 return false;
             } else if (const auto &lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
-                return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
+                return (lstm_cell_v1->get_clip() == 0.0f || std::isinf(lstm_cell_v1->get_clip())) &&
+                       lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
             return false;
         };
@@ -1159,21 +1162,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
-                return gru_seq->get_clip() == 0.0f &&
-                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                    max_seq_len != 1 &&
-                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                        gru_seq->get_input_node_shared_ptr(2)) ||
-                    is_batch_one_with_dynamic_seq_len) &&
-                    gru_seq->get_linear_before_reset();
+                // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
+                return (gru_seq->get_clip() == 0.0f || std::isinf(gru_seq->get_clip())) &&
+                       gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} && max_seq_len != 1 &&
+                       (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0), gru_seq->get_input_node_shared_ptr(2)) ||
+                        is_batch_one_with_dynamic_seq_len) &&
+                       gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 if (!data_pshape[1].is_static())
                     return false;
-                return (lstm_seq->get_clip() == 0.0f &&
-                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                    max_seq_len != 1 &&
-                    !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                        lstm_seq->get_input_node_shared_ptr(3)));
+                // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
+                return ((lstm_seq->get_clip() == 0.0f || std::isinf(lstm_seq->get_clip())) &&
+                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} && max_seq_len != 1 &&
+                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0), lstm_seq->get_input_node_shared_ptr(3)));
             }
             return false;
         };
