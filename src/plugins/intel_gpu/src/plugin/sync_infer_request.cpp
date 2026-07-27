@@ -750,7 +750,7 @@ void SyncInferRequest::ensure_input_allocated(size_t input_idx) const {
     const_cast<SyncInferRequest&>(*this).allocate_input(input_idx, *inputs);
 }
 
-void SyncInferRequest::allocate_input(size_t input_idx, GuardedUserInputs::map_t& user_inputs) {
+void SyncInferRequest::allocate_input(size_t input_idx, GuardedMap::map_t& user_inputs) {
     // Caller passes the already write-locked map. Shape/type come from m_input_ports_map (this
     // compiled model's own port), not a caller port which may carry a different (un-reshaped) shape.
     const auto& internal_port = m_input_ports_map.at(input_idx);
