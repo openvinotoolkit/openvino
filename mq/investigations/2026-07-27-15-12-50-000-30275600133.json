@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-15-12-50-000-30275600133",
+  "timestamp": "2026-07-27T15:12:50Z",
+  "run_id": "30275600133",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30275600133",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "RISC-V clang-tidy build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
+  "signature": "Failed to FinalizeArtifact non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "602c52a223d7ebfe",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "Build-riscv64 / Build"
+  ],
+  "key_errors": [
+    "Upload compile_commands step failed with conclusion=failure (job 90010364811)",
+    "Pattern match: FinalizeArtifact 403 Forbidden on GitHub artifact service - same as pattern 602c52a223d7ebfe"
+  ],
+  "root_cause": "The Build-riscv64 job's 'Upload compile_commands' step failed with a 403 Forbidden error when calling the GitHub artifact FinalizeArtifact API. This is a known transient infrastructure issue where the GitHub artifact service returns 403 (not a permission/auth issue, but a transient service error on GitHub's backend artifact storage). The upload-artifact action (ababushk/upload-artifact) treats this as a non-retryable error and fails the step. This in turn caused the downstream 'ci/gha_overall_status_clang_tidy' job to fail. A second attempt of Build-riscv64 (job 90018649932) was already in progress at investigation time.",
+  "reproduction_steps": "N/A - transient GitHub infrastructure issue, not reproducible locally",
+  "recommended_actions": [
+    "Wait for the in-progress retry (job 90018649932) to complete - it may succeed",
+    "If retry fails, re-add PR #37029 to the merge queue",
+    "Monitor GitHub Status page for artifact service issues"
+  ],
+  "prevention_strategies": "Consider setting if-no-files-found: 'ignore' in the upload step (already set) and wrapping the upload step with continue-on-error: true for non-critical artifacts. However compile_commands.json is needed for clang-tidy analysis, so this may not be viable.",
+  "historical_context": "This is the second recorded occurrence of this pattern (602c52a223d7ebfe). First occurrence was 2026-07-17 on run 29591125373 / PR #36905. The error is a transient GitHub artifact service 403 Forbidden, not a code issue."
+}

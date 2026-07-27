@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 53,
+  "total": 54,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -520,6 +520,15 @@
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
+      "pr_number": "37029"
+    },
+    {
+      "investigation_id": "2026-07-27-15-12-50-000-30275600133",
+      "run_id": "30275600133",
+      "timestamp": "2026-07-27T15:12:50Z",
+      "title": "RISC-V clang-tidy build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
+      "category": "Infrastructure",
+      "signature_hash": "602c52a223d7ebfe",
       "pr_number": "37029"
     }
   ]
