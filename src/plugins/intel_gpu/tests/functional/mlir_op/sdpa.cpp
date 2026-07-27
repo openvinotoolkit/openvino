@@ -16,6 +16,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -40,6 +41,7 @@ protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose);
+    void check_mlir_execution();
     bool is_causal;
     bool has_attn;
     bool is_attn_const;
@@ -320,8 +322,36 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
     }
 }
 
+void ScaledAttnLayerGPUMlirTest::check_mlir_execution() {
+    auto exec_model = compiledModel.get_runtime_model();
+    ASSERT_NE(exec_model, nullptr);
+
+    bool has_mlir_op = false;
+    bool has_sdpa = false;
+    for (const auto& node : exec_model->get_ordered_ops()) {
+        const auto& rt_info = node->get_rt_info();
+        auto it = rt_info.find(ov::exec_model_info::LAYER_TYPE);
+        if (it == rt_info.end()) {
+            continue;
+        }
+        const auto layer_type = it->second.as<std::string>();
+        if (layer_type == "mlir_primitive" || layer_type == "MLIROp") {
+            has_mlir_op = true;
+        } else if (layer_type == "ScaledDotProductAttention" || layer_type == "scaled_dot_product_attention") {
+            has_sdpa = true;
+        }
+    }
+
+    // The SDPA pattern must have matched: execution goes through MLIROp and no
+    // ScaledDotProductAttention primitive is left in the execution graph.
+    EXPECT_TRUE(has_mlir_op) << "Expected an MLIROp in the execution graph, but none was found. "
+                             << "Is 'OV_GPU_ENABLE_MLIR=1' ?";
+    EXPECT_FALSE(has_sdpa) << "Unexpected ScaledDotProductAttention in the execution graph";
+}
+
 TEST_P(ScaledAttnLayerGPUMlirTest, CompareWithRefs) {
     run();
+    check_mlir_execution();
 }
 
 const std::vector<std::vector<int64_t>> disable_transpose{};

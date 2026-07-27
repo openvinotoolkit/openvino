@@ -6,6 +6,7 @@
 
 #include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
+#include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/floor.hpp>
 #include <openvino/op/power.hpp>
@@ -92,7 +93,57 @@ ReshapePattern::ReshapePattern()
     : MarkPattern(wrap_type<v1::Reshape>({any_input(), any_input()}), ConvertReshape()) {}
 
 SDPAPattern::SDPAPattern()
-    : MarkPattern(wrap_type<v13::ScaledDotProductAttention>(), ConvertSDPA()) {}
+    : MarkPattern(
+        wrap_type<v13::ScaledDotProductAttention>([](const Output<Node>& output) {
+            auto node = std::dynamic_pointer_cast<v13::ScaledDotProductAttention>(output.get_node_shared_ptr());
+            if (!node) {
+                return false;
+            }
+
+            // Query, Key, Value ranks must be static, equal, and either 3D or 4D
+            const auto q_shape = node->get_input_partial_shape(0);
+            const auto k_shape = node->get_input_partial_shape(1);
+            const auto v_shape = node->get_input_partial_shape(2);
+            if (q_shape.rank().is_dynamic() || k_shape.rank().is_dynamic() || v_shape.rank().is_dynamic()) {
+                return false;
+            }
+            const auto q_rank = q_shape.rank().get_length();
+            if (q_rank != k_shape.rank().get_length() || q_rank != v_shape.rank().get_length()) {
+                return false;
+            }
+            if (q_rank != 3 && q_rank != 4) {
+                return false;
+            }
+
+            // Causal attention is not supported
+            if (node->get_causal()) {
+                return false;
+            }
+
+            const auto input_size = node->get_input_size();
+            // Sink parameter (6th input) is not supported
+            if (input_size >= 6) {
+                return false;
+            }
+
+            // Mask (input 3): only static shapes are supported, dynamic ones are rejected
+            if (input_size > 3) {
+                const auto mask_shape = node->get_input_partial_shape(3);
+                const bool has_mask = mask_shape.rank().is_dynamic() || mask_shape.rank().get_length() > 0;
+                if (has_mask && mask_shape.is_dynamic()) {
+                    return false;
+                }
+            }
+
+            // Scale (input 4) must be a Constant, dynamic scale input is not supported
+            if (input_size > 4 &&
+                !std::dynamic_pointer_cast<v0::Constant>(node->get_input_node_shared_ptr(4))) {
+                return false;
+            }
+
+            return true;
+        }),
+        ConvertSDPA()) {}
 
 ShapeOfPattern::ShapeOfPattern()
     : MarkPattern(wrap_type<v3::ShapeOf>({any_input()}), ConvertShapeOf()) {}
