@@ -37,6 +37,7 @@
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx/onnx
 	url = https://github.com/onnx/onnx.git
+	ignore = dirty
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git

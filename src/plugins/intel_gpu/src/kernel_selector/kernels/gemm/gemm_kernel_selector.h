@@ -15,7 +15,7 @@ public:
     }
 
     gemm_kernel_selector();
-    virtual ~gemm_kernel_selector() {}
+    ~gemm_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
