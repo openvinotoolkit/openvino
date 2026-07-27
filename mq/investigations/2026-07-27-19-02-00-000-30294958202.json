@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-19-02-00-000-30294958202",
+  "timestamp": "2026-07-27T19:02:00Z",
+  "run_id": "30294958202",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294958202",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "yury-intel",
+  "category": "Infrastructure",
+  "title": "Windows (VS 2022, Python 3.11, Debug) failed - logs unavailable (attempt 2 already in progress)",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "Windows (VS 2022, Python 3.11, Debug)",
+      "conclusion": "failure",
+      "symptom": "Job failed in attempt 1; logs unavailable - run is on attempt 2 (in_progress) when CI Doctor ran"
+    }
+  ],
+  "key_errors": [
+    "No logs available: run attempt 1 logs were not pre-downloaded; run is already on attempt 2 (status: in_progress)"
+  ],
+  "root_cause": "The CI Doctor was triggered for attempt 1 of run 30294958202 (Windows VS2022 Debug), but by the time the investigation ran, the run had already been restarted (attempt 2 is in_progress). The pre-downloaded log files are empty (failed-jobs.json contains no entries) and no hint files were generated. The actual failure cause in attempt 1 could not be determined.",
+  "reproduction_steps": "N/A - logs unavailable for attempt 1",
+  "recommended_actions": [
+    "Monitor attempt 2 of run 30294958202 to see if it passes.",
+    "If attempt 2 also fails, check the Windows Debug CI logs directly at https://github.com/openvinotoolkit/openvino/actions/runs/30294958202",
+    "PR 35116 changes memory_dependency storage from unordered_set to vector; verify this does not cause issues in Debug build mode (e.g., iterator invalidation, sorting assumptions)."
+  ],
+  "prevention_strategies": "Ensure CI Doctor log pre-download happens before any automatic re-run to avoid losing failure evidence.",
+  "historical_context": "No similar Windows Debug failures with this signature in the investigation history."
+}
