@@ -23,6 +23,36 @@ class Model;
 
 namespace ov::hetero {
 
+// HETERO compiled blob layout (blob_format_version = 2, framed format):
+//
+//   [header line]
+//     UTF-8 XML produced by pugi::xml_document::save(..., format_raw)
+//     + '\n' delimiter
+//
+//   [submodel payload #0]
+//   [submodel payload #1]
+//   ...
+//   [submodel payload #N-1]
+//
+// Payload frame (repeated once per compiled_submodel in the XML header order):
+//
+//   +--------------------+--------------------------+----------------------+
+//   | type (1 byte char) | payload size (uint64_t) | payload bytes        |
+//   +--------------------+--------------------------+----------------------+
+//
+// Payload type values:
+//   'B' (COMPILED_BLOB_PAYLOAD): backend-specific compiled blob bytes.
+//   'I' (IR_PAYLOAD): serialized IR fallback payload with internal layout:
+//
+//     +----------------------+------------------+-------------------------+--------------------+
+//     | IR XML size (u64)    | IR XML bytes     | IR weights size (u64)   | IR weights bytes   |
+//     +----------------------+------------------+-------------------------+--------------------+
+//
+// Notes:
+//   - uint64_t values are written/read as raw host-endian bytes.
+//   - blob_format_version = 1 is a legacy unframed format handled by the reader
+//     for backward compatibility.
+
 constexpr std::uint32_t HETERO_BLOB_FORMAT_VERSION = 2;
 constexpr const char* HETERO_BLOB_FORMAT_VERSION_ATTR = "blob_format_version";
 constexpr char COMPILED_BLOB_PAYLOAD = 'B';
