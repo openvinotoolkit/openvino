@@ -278,7 +278,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     }
                 }
             }
-#elif USE_2D_BLOCK_IO
+#elif USE_2D_BLOCK_IO_KV
             intel_sub_group_2d_block_read_16b_16r16x1c(
                 (global void *)K, KD_w, KD_h, KD_p,
                 (int2)(db * DPAS_K, key_base), (private ushort *)&k_raw[0]);
@@ -499,17 +499,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
             #if USE_2D_BLOCK_IO_V_I8
-                #if sv_value_blocks == 1
-                    uint vt[8];
+                // One _8b_32r16x1c read covers a fixed 16 value columns, while a subgroup owns
+                // sv_sg_tile_values == sv_value_blocks * SUBGROUP_SIZE of them, so issue one read
+                // per cd, stepping x by SUBGROUP_SIZE. Reads are kept ahead of the S_slm (pA)
+                // reads below so the global-memory latency overlaps with the SLM traffic.
+                // Value columns past d only exist when d < D_MAX; the block read clamps them to 0
+                // and the store guard (out_col < d) drops the corresponding A_tile columns.
+                uint vt[8 * sv_value_blocks];
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     intel_sub_group_2d_block_read_transform_8b_32r16x1c(
                         (global void *)V, VD_w, VD_h, VD_p,
-                        (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
-                // #elif sv_value_blocks == 2
-                //     uint vt[16];
-                //     intel_sub_group_2d_block_read_transform_8b_32r16x2c(
-                //         (global void *)V, VD_w, VD_h, VD_p,
-                //         (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vt[0]);
-                #endif
+                        (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
+                        (private uint *)&vt[cd * 8]);
+                }
             #endif
 
             short8 pA[sv_score_blocks];
@@ -562,32 +565,44 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     // deinterleave), widen via the denormal-bias reinterpret (0x6480 ^ byte)
                     // == signed_byte+1152 as half. scale is folded into pA above (score side),
                     // so only the bias-folded zp subtraction (vzb=zp+1152) remains here.
+                    #if VAL_ZERO_POINTS
+                        // zp is per-key and independent of the value/head index, so the broadcasts
+                        // are hoisted out of the cd loop: issued once per cp-block instead of once
+                        // per (cd, u) pair.
+                        half4 zpb4[4];
+                        #pragma unroll
+                        for (int u = 0; u < 4; ++u) {
+                            const int k0r = u * 4;
+                            zpb4[u] = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
+                                              sub_group_broadcast(vzb_c, k0r + 1),
+                                              sub_group_broadcast(vzb_c, k0r + 2),
+                                              sub_group_broadcast(vzb_c, k0r + 3));
+                        }
+                    #endif
                     #pragma unroll
-                    for (int u = 0; u < 4; ++u) {
-                        const uint w = vt[u];
-                        const int k0r = u * 4;
-                        const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
-                                                    as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
-                                                    as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
-                                                    as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
-                        #if VAL_ZERO_POINTS
-                            const half4 zpb4 = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
-                                                        sub_group_broadcast(vzb_c, k0r + 1),
-                                                        sub_group_broadcast(vzb_c, k0r + 2),
-                                                        sub_group_broadcast(vzb_c, k0r + 3));
-                            const half4 deq4 = wide4 - zpb4;
-                        #else
-                            const half4 deq4 = wide4 - (half4)((half)1152.0h);
-                        #endif
-                        // f16 VNNI operand: vb[key_pair] packs keys (2*key_pair, 2*key_pair+1).
-                        // deq4 already holds keys k0r..k0r+3 in order, so its .lo/.hi halves
-                        // are exactly the two key_pairs (u*2, u*2+1) for this u — store
-                        // straight into vb instead of round-tripping through an array.
-                        vb[0][u * 2 + 0] = as_int(deq4.lo);
-                        vb[0][u * 2 + 1] = as_int(deq4.hi);
+                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                        #pragma unroll
+                        for (int u = 0; u < 4; ++u) {
+                            const uint w = vt[cd * 8 + u];
+                            const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
+                                                        as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
+                            #if VAL_ZERO_POINTS
+                                const half4 deq4 = wide4 - zpb4[u];
+                            #else
+                                const half4 deq4 = wide4 - (half4)((half)1152.0h);
+                            #endif
+                            // f16 VNNI operand: vb[cd][key_pair] packs keys (2*key_pair, 2*key_pair+1).
+                            // deq4 already holds keys u*4..u*4+3 in order, so its .lo/.hi halves
+                            // are exactly the two key_pairs (u*2, u*2+1) for this u — store
+                            // straight into vb instead of round-tripping through an array.
+                            vb[cd][u * 2 + 0] = as_int(deq4.lo);
+                            vb[cd][u * 2 + 1] = as_int(deq4.hi);
+                        }
                     }
                 }
-            #elif USE_2D_BLOCK_IO
+            #elif USE_2D_BLOCK_IO_KV
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     intel_sub_group_2d_block_read_transform_16b_16r16x1c(
@@ -670,7 +685,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             half8 out = convert_half8(A_tile[r][cd]);
             const int col = sg_j0_sv + cd * SUBGROUP_SIZE;
             const int row = wg_j0 + sg_i0_sv + r * 8;
-#if USE_2D_BLOCK_IO
+#if USE_2D_BLOCK_IO_A
             if (row + 7 < q && col + SUBGROUP_SIZE <= d) {
                 intel_sub_group_2d_block_write_16b_8r16x1c(
                     (global void *)A, AD_w, AD_h, AD_p,
@@ -685,7 +700,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     if (out_row < q && out_col < d)
                         A[(size_t)out_row * DST_S2 + out_col] = out[rr];
                 }
-#if USE_2D_BLOCK_IO
+#if USE_2D_BLOCK_IO_A
             }
 #endif
         }
