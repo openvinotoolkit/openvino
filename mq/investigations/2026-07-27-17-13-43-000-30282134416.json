@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-17-13-43-000-30282134416",
+  "timestamp": "2026-07-27T17:13:43Z",
+  "run_id": "30282134416",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30282134416",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "36957",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36957",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] \u2014 AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "AssertionError: Accuracy validation failed",
+    "assert False"
+  ],
+  "root_cause": "The test exports the katuni4ka/opt-125m-gptq GPTQ-quantized OPT model and compares OpenVINO inference outputs against PyTorch reference outputs. The comparison fails with 'Accuracy validation failed', indicating numeric divergence between the OV export path and PyTorch for this quantized model. This is a deterministic failure that has appeared across multiple runs today, suggesting a regression in GPTQ model conversion or inference affecting the OPT GPTQ path.",
+  "reproduction_steps": "pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Identify the PR(s) introducing changes to GPTQ/OPT model export path (likely in src/frontends/pytorch or related transformation code)",
+    "Compare OV model outputs against PyTorch for katuni4ka/opt-125m-gptq to narrow down which operator produces divergent results",
+    "Check if recent changes to quantization-related transformations affect GPTQ handling",
+    "Review PR 36957 diff for changes related to quantized model export"
+  ],
+  "prevention_strategies": "Add pre-merge accuracy threshold checks for quantized models in the PyTorch LLM model hub tests. Ensure GPTQ export accuracy is validated as part of any PR touching quantization transformations.",
+  "historical_context": "This same test has failed 5 times today (2026-07-27) across multiple MQ runs, indicating an ongoing regression first seen at 12:33 UTC. Affected PRs include 37029 and 36860 in addition to the current 36957."
+}
