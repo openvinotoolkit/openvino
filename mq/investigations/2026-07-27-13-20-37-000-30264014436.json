@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-13-20-37-000-30264014436",
+  "timestamp": "2026-07-27T13:20:37Z",
+  "run_id": "30264014436",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30264014436",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "36860",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36860",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed",
+    "katuni4ka/opt-125m-gptq running failed",
+    "Max diff is 0.06871891021728516"
+  ],
+  "root_cause": "Deterministic accuracy validation failure in test_export_model_precommit for opt_gptq model (katuni4ka/opt-125m-gptq). The maximum numerical difference between PyTorch framework outputs and OpenVINO export outputs is 0.06871891021728516, exceeding tolerance. This is the second occurrence of this exact failure on the same day (also seen in run 30261291251 for a different PR). Likely a code regression in GPTQ model export path.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Investigate the GPTQ/OPT export path in the PyTorch frontend for recent changes that may affect numerical accuracy.",
+    "Check if the opt_gptq test tolerance thresholds have recently changed.",
+    "Cross-check against PR #36860 diff to identify which code change triggers the mismatch.",
+    "Consider adding a tighter numerical tolerance test to catch this regression earlier."
+  ],
+  "prevention_strategies": "Add a dedicated CI check that validates OPT-GPTQ export accuracy before merging changes to the PyTorch frontend or model export pipeline.",
+  "historical_context": "Same failure was seen on 2026-07-27 in run 30261291251 for PR #37029. This is the second occurrence in the same day, suggesting a recurring code-level regression."
+}
