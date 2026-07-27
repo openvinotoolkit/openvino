@@ -387,7 +387,7 @@ bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl
     }
 
     // Don't support swiglu fused
-    if (impl_param.fused_desc.size() > 0) {
+    if (!impl_param.fused_desc.empty()) {
         for (const auto& f : impl_param.fused_desc) {
             if (f.is_type<swiglu>())
                 return false;

@@ -24,11 +24,11 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
         || !act_layout.is_static())
         return false;
 
-    // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
-    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
-                    "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
-    if (!(*node.get_users().begin())->is_type<fully_connected>())
-        return false;
+    // Do not skip dynamic quantization if any user node is not fully connected.(such as SDPA)
+    for (auto& user : node.get_users()) {
+        if (!user->is_type<fully_connected>())
+            return false;
+    }
 
     // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
