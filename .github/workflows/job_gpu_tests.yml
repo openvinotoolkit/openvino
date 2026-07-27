@@ -48,7 +48,7 @@ jobs:
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-        - /root/.cache/neo_compiler_cache:/root/.cache/neo_compiler_cache # Persistent cl_cache across runs
+        - /opt/home/actions_runner/.cache/neo_compiler_cache:/root/.cache/neo_compiler_cache # Persistent cl_cache across runs
       options: ${{ inputs.options }}
     defaults:
       run:
@@ -59,7 +59,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-      NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+      NEO_CACHE_DIR: /opt/home/actions_runner/.cache/neo_compiler_cache
       NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
     steps:
 
