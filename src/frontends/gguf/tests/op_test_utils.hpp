@@ -35,6 +35,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -211,9 +212,14 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
 }
 
 // Compile on CPU and run one inference with the given named inputs; return the single output.
+//
+// Inference precision is pinned to f32: these tests validate the converted graph against an fp32
+// reference, not the plugin's reduced-precision arithmetic. Without the hint, platforms that default
+// to fp16 (e.g. ARM CPU) accumulate rounding error through long op chains such as rope, which is
+// unrelated to what is being tested.
 inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std::map<std::string, ov::Tensor>& inputs) {
     ov::Core core;
-    auto compiled = core.compile_model(model, "CPU");
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
     auto req = compiled.create_infer_request();
     for (const auto& kv : inputs) {
         req.set_tensor(kv.first, kv.second);
