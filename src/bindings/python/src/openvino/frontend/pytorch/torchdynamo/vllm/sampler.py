@@ -98,6 +98,15 @@ def install():
         if not _is_fastpath_eligible(sampling_metadata):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
+        # Gate on vocab size: below ~100k, torch's topk_topp_sampler on CPU
+        # is faster than round-tripping through a compiled OV graph. Empirically
+        # measured on Llama-1B (128k, +41% w/ fused), TinyLlama (32k, -17%),
+        # Qwen (152k, +27%), Qwen-1.5B (152k, -15% - forward dominates).
+        # Also skip when logits shape[0] > 1 (batching not proven yet here).
+        _min_vocab = int(os.environ.get("OV_FUSED_SAMPLER_MIN_VOCAB", "100000"))
+        if logits.shape[-1] < _min_vocab or logits.shape[0] > 1:
+            return _orig_sample(self, logits, sampling_metadata,
+                                logprobs_mode_override=logprobs_mode_override)
         if _OV_SAMPLE_COMPILED is None:
             try:
                 _OV_SAMPLE_COMPILED = _build_fused_sampler()
