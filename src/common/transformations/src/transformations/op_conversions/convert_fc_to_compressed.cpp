@@ -90,7 +90,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
 
     const bool with_zero_point = weights_block->get_anchor("sub_no_convert", pattern_map) ||
                                  weights_block->get_anchor("sub_with_convert", pattern_map);
-
     if (with_zero_point) {
         // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
         optional_zero_point = convert_u4const_to_u8(
@@ -132,7 +131,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                 auto inner = wrapping_convert ? wrapping_convert->get_input_node_shared_ptr(0) : node;
                 auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
                 auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(inner, axis);
-
                 result_nodes.push_back(unsqueezed);
                 if (wrapping_convert) {
                     auto rewrapped =
