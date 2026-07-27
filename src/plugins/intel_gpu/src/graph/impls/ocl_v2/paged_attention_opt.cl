@@ -181,7 +181,7 @@ KERNEL(pa_sdpa_opt)(
 
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
-#if SWA_BLOCK_SKIP && SLIDING_WINDOW_SIZE != 0 && !MULTI_TOKENS_PROCESSING
+#if SLIDING_WINDOW_SIZE != 0 && !MULTI_TOKENS_PROCESSING
     const uint window_blocks = CEIL_DIV(SLIDING_WINDOW_SIZE, PAGED_ATTENTION_BLOCK_SIZE);
     const uint swa_start_block = (total_blocks_num > window_blocks) ? (total_blocks_num - window_blocks) : 0;
     const uint effective_blocks_num = total_blocks_num - swa_start_block;
@@ -267,17 +267,6 @@ KERNEL(pa_sdpa_opt)(
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_indice = block_indices[start_block_idx + block_num * SUBGROUPS_PER_WG];
 
-#if KV_PREFETCH && IS_KV_COMPRESSED
-            if (block_num + 1 < blocks_num) {
-                const uint next_block_indice = block_indices[start_block_idx + (block_num + 1) * SUBGROUPS_PER_WG];
-    #ifdef IS_KEY_BY_CHANNEL
-                const uint next_key_offset = next_block_indice * KV_HEADS_NUM * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + head_idx * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-    #else
-                const uint next_key_offset = next_block_indice * phys_adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * phys_adjusted_k_head_size * SUBGROUP_SIZE;
-    #endif
-                prefetch(key_cache + next_key_offset, phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE);
-            }
-#endif
 
             SOFTMAX_ACCUMULATOR_VEC_TYPE qk_acc = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
@@ -691,13 +680,6 @@ KERNEL(pa_sdpa_opt)(
 
             const uint value_offset = block_offset + head_size_idx;
 
-#if KV_PREFETCH && IS_KV_COMPRESSED
-            if (block_num + 1 < block_end_idx) {
-                const uint next_packed_v_offset = block_indices[start_block_idx + block_num + 1] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
-                                                    + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-                prefetch(value_cache + next_packed_v_offset, phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
-            }
-#endif
 
 #if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
@@ -1037,11 +1019,7 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-#if FINALIZATION_SWA_FIX
     const uint num_of_partitions = min((uint)CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
-#else
-    const uint num_of_partitions = CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE);
-#endif
 
     if (num_of_partitions <= 1) {
         /* Short path, no need any actions for currently processing sequence */
