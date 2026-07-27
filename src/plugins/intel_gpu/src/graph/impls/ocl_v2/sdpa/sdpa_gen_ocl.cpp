@@ -97,6 +97,16 @@ inline bool block2d_surface_ok(size_t row_bytes) {
 // arch is currently used only for the subgroup size; per-arch specialization can be
 // added here later the same way sdpa_micro splits choose_config_xehpc/xe2/xe3p.
 sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
+    // The branch chain below tops out at d_max == 512 (sv_sg_tile_values 64 * sv_sg_per_wg_values 8).
+    // get_d_max() will happily return 1024 for a larger head size, and the final else would then
+    // cover only half the head dimension -- silently producing wrong results rather than failing.
+    // Head sizes above 512 are rejected upstream by SDPAOpt::supports_micro_sdpa, so this only
+    // guards against that gate being relaxed later without extending the tiling table here.
+    OPENVINO_ASSERT(d_max <= 512,
+                    "[GPU] sdpa_ocl: unsupported head size (d_max=",
+                    d_max,
+                    "); the tiling table covers d_max <= 512 only");
+
     sdpa_ocl_config_t config;  // struct defaults already encode the d_max <= 128 tiling
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
 
@@ -466,17 +476,22 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
+    // Q is f16 and carries no dequant, so this is independent of the KV-cache precision. The only
+    // real constraints are the 2D block IO surface rules (block2d_surface_ok, which for an f16 Q
+    // means head_size % 32 == 0) plus a subgroup size of 16, which the transpose builtin's 16-row
+    // geometry assumes. Head sizes that are not a multiple of DPAS_K, and the D_MAX > d tail, are
+    // already handled inside the kernel by the (head_base + DPAS_K <= d) runtime guard, so no
+    // head-size whitelist is needed here.
     const bool q_2d_compatible = ocl_config.subgroup_size == 16 &&
                                  ov::element::Type(Q.data_type).size() == 2 &&
-                                 (head_size == 64u || head_size == 128u) &&
-                                 ldq % 16 == 0 &&
+                                 block2d_surface_ok(ldq) &&
                                  !Q.data_padding &&
                                  !Q.data_padding.is_dynamic();
     int q_2d = q_2d_compatible;
-    if (q_2d_compatible) {
-        if (const char* env = std::getenv("SDPA_OCL_Q_2D"))
-            q_2d = std::atoi(env);
-    }
+    // Applied outside the gate, like SDPA_OCL_K_I8_2D / SDPA_OCL_V_I8_2D, so SDPA_OCL_Q_2D=1 can
+    // also *enable* the path on surfaces that do not satisfy the rules above; =0 forces scalar.
+    if (const char* env = std::getenv("SDPA_OCL_Q_2D"))
+        q_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_Q", q_2d);
     // f16 K/V loads. 2D block IO uses 16-bit reads and half-sized byte pitches, which are invalid
     // for an i8 compressed KV-cache -- those take the dedicated *_I8 paths below (or the scalar
@@ -510,6 +525,15 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             v_i8_2d = std::atoi(env);
     }
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
+    // The _8b_32r16x1c builtin returns 32 key rows, but one cp-block is only SUBGROUP_SIZE == 16
+    // keys, so the naive per-cp read discards uints 4..7 of every message and consecutive cp
+    // reads overlap by 16 rows. Paired mode issues the read on even cp only and feeds cp from
+    // uints 0..3 and cp+1 from uints 4..7, halving the V message count for every head size.
+    // Default on; SDPA_OCL_V_I8_PAIRED=0 restores the per-cp read for A/B measurement.
+    int v_i8_paired = 1;
+    if (const char* env = std::getenv("SDPA_OCL_V_I8_PAIRED"))
+        v_i8_paired = std::atoi(env);
+    jit.make("V_I8_PAIRED_READ", v_i8_paired);
     // int8 compressed K via the SAME 8-bit VNNI-transform read (intel_sub_group_2d_block_read_
     // transform_8b_32r16x1c). Reading K memory (row-major [key, head]) at (x=head, y=key) yields
     // lane=head, each uint packing 4 consecutive keys as bytes -- GPU-probed to match the DPAS-A
