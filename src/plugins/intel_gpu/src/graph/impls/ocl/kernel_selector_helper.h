@@ -344,23 +344,17 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                         // higher-rank peer unchanged, so the fused-op kernel would read the peer with a
                         // rank/format inconsistent with the host iteration space (df1 output-0 defect).
                         // Fold the peer onto the host rank when it is a provably order-preserving reshape
-                        // (equal-total planar reshape or a legal planar broadcast); otherwise leave it to
-                        // the pre-existing rank-extension path. Optimization inapplicability is not an
-                        // error, so no assertion is raised and valid models always compile.
-                        if (auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout)) {
-                            dep_layout.set_partial_shape(*folded);
-                            dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
-                        } else {
-                            // For static shapes this branch is unreachable: fused_peers_can_fold_to_layout()
-                            // in can_fuse_reorder_to_prev() declines any rank-reducing reorder fusion whose
-                            // higher-rank peer is not foldable, so we never compile a static graph that lands
-                            // here (verified: 0 hits across 4096 GPU unit tests). Dynamic/shape-agnostic builds
-                            // skip that guard, so keep a non-fatal fallback there instead of a hard failure.
-                            OPENVINO_ASSERT(dep_shape.is_dynamic() || out_pshape.is_dynamic(),
-                                            "Unfoldable higher-rank fused eltwise peer reached canonicalization "
-                                            "for a static shape; can_fuse_reorder_to_prev guard was expected to prevent this.");
-                            dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
-                        }
+                        // (equal-total planar reshape or a legal planar broadcast).
+                        auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout);
+                        // A non-foldable higher-rank peer must never reach here: for static shapes
+                        // can_fuse_reorder_to_prev() declines the rank-reducing reorder fusion, and dynamic
+                        // shapes never fuse a rank-reducing reorder in the first place. Assert loudly rather
+                        // than silently mis-indexing the peer.
+                        OPENVINO_ASSERT(folded.has_value(),
+                                        "Unfoldable higher-rank fused eltwise peer reached canonicalization; "
+                                        "can_fuse_reorder_to_prev guard was expected to prevent this.");
+                        dep_layout.set_partial_shape(*folded);
+                        dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
                     } else {
                         dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
                     }
