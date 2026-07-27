@@ -9,11 +9,14 @@
 #include <malloc.h>
 #include <windows.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <thread>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov::util {
@@ -68,6 +71,10 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
         // blocks until every page has been faulted in.
         populate_pages(ptr, size, num_threads);
     }
+}
+
+PrefetchToken vm_prefetch_async(void* /*ptr*/, size_t /*size*/, size_t /*num_threads*/) noexcept {
+    return {};
 }
 
 }  // namespace ov::util
