@@ -71,7 +71,7 @@ public:
                 LOG_DEBUG_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
                 return std::nullopt;
             }
-            const float value = parsed["Performance"][metric_key].get<float>();
+            float value = parsed["Performance"][metric_key].get<float>();
             const std::string value_as_string = std::to_string(value);
             LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
                           value_as_string.c_str(),
@@ -82,6 +82,7 @@ public:
                               device_name.c_str());
                 return std::nullopt;
             }
+            value = value > 100.0f ? 100.0f : value;
             return value;
         } catch (...) {
             LOG_DEBUG_TAG("TelemetryClient: unknown exception during query for device=%s", device_name.c_str());
