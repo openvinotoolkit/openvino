@@ -32,10 +32,10 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -212,14 +212,9 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
 }
 
 // Compile on CPU and run one inference with the given named inputs; return the single output.
-//
-// Inference precision is pinned to f32: these tests validate the converted graph against an fp32
-// reference, not the plugin's reduced-precision arithmetic. Without the hint, platforms that default
-// to fp16 (e.g. ARM CPU) accumulate rounding error through long op chains such as rope, which is
-// unrelated to what is being tested.
 inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std::map<std::string, ov::Tensor>& inputs) {
     ov::Core core;
-    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto compiled = core.compile_model(model, "CPU");
     auto req = compiled.create_infer_request();
     for (const auto& kv : inputs) {
         req.set_tensor(kv.first, kv.second);
@@ -228,15 +223,24 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
     return req.get_output_tensor(0);
 }
 
+// Default relative tolerance. On ARM the CPU plugin always infers in fp16 (fp32 inference is not
+// supported), so error accumulates through long op chains such as rope and needs a wider bound than
+// the ~fp16-precision (2^-9) default that fits x86 fp32 inference.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    define OV_GGUF_TEST_DEFAULT_RTOL 1e-2f
+#else
+#    define OV_GGUF_TEST_DEFAULT_RTOL 2e-3f
+#endif
+
 // Compare against an fp32 reference with a combined absolute + relative tolerance:
 //   |actual - expected| <= atol + rtol * |expected|
-// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU by default),
-// where the rounding error grows with the magnitude of the value; a fixed absolute atol tuned on
-// fp32 x86 is too tight there. rtol defaults to ~fp16 precision (2^-9).
+// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU), where the
+// rounding error grows with the magnitude of the value; a fixed absolute atol tuned on fp32 x86 is
+// too tight there.
 inline void expect_near(const ov::Tensor& actual,
                         const std::vector<float>& expected,
                         float atol = 1e-4f,
-                        float rtol = 2e-3f) {
+                        float rtol = OV_GGUF_TEST_DEFAULT_RTOL) {
     ASSERT_EQ(actual.get_element_type(), ov::element::f32);
     ASSERT_EQ(actual.get_size(), expected.size());
     const float* a = actual.data<float>();
