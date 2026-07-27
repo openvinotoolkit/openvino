@@ -1190,7 +1190,7 @@ void Transformations::PostLpt() {
 
     // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
     // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
-    const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    [[maybe_unused]] const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
     CPU_REGISTER_PASS_X64(postLPTPassManager,
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
