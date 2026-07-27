@@ -36,6 +36,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -212,9 +213,15 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
 }
 
 // Compile on CPU and run one inference with the given named inputs; return the single output.
+//
+// Inference precision is requested as f32: these tests validate the converted graph against an fp32
+// reference, not the plugin's reduced-precision arithmetic, so wherever fp32 inference is available we
+// want it regardless of the plugin's performance-mode default (e.g. bf16 on avx512_core_bf16 hosts).
+// Where fp32 is not supported (ARM, which always infers in fp16) the request is silently ignored, and
+// the wider tolerance below covers the resulting rounding error.
 inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std::map<std::string, ov::Tensor>& inputs) {
     ov::Core core;
-    auto compiled = core.compile_model(model, "CPU");
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
     auto req = compiled.create_infer_request();
     for (const auto& kv : inputs) {
         req.set_tensor(kv.first, kv.second);
@@ -223,12 +230,12 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
     return req.get_output_tensor(0);
 }
 
-// Default relative tolerance, per inference precision of the CPU plugin.
+// Default relative tolerance, per inference precision the CPU plugin actually uses.
 //
-// On ARM the plugin always infers in fp16 (fp32 inference is not supported), so rounding error
-// accumulates through long op chains such as rope; the measured worst case needs ~3e-3.
+// On ARM the f32 request above cannot be honored (the plugin always infers in fp16), so rounding
+// error accumulates through long op chains such as rope; the measured worst case needs ~3e-3.
 //
-// Everywhere else inference runs in fp32 and the measured worst case across this suite is ~1.4e-6,
+// Everywhere else the f32 request holds and the measured worst case across this suite is ~1.4e-6,
 // so the bound stays near fp32 precision — tight enough that a real conversion error cannot hide
 // inside it.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
