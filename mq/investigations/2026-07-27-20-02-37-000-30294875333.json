@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-20-02-37-000-30294875333",
+  "timestamp": "2026-07-27T20:02:37Z",
+  "run_id": "30294875333",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294875333",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "36957",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36957",
+  "author": "evkotov",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit[CPU-opt_gptq] accuracy validation failed for katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] \u2014 AssertionError: Accuracy validation failed (max diff 0.0687)"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nassert False\n\nMax diff is 0.06871891021728516",
+    "katuni4ka/opt-125m-gptq running failed:\n  File test_convert_model.py:93 in compare_results\n    assert is_ok, \"Accuracy validation failed\""
+  ],
+  "root_cause": "The OPT-125M GPTQ model export test failed because the numerical outputs from the OpenVINO-converted model deviate from the PyTorch framework outputs beyond the test's tolerance threshold. The maximum difference observed was 0.0687, indicating that the GPTQ quantized model conversion introduces numerical precision loss. This is likely caused by a regression in how quantized linear layers (TorchFusedQuantLinear) are handled during OV model export or inference, affecting the accuracy of GPTQ-quantized models.",
+  "reproduction_steps": "1. Install OpenVINO from the build artifact\n2. Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v\n3. Requires HuggingFace access to katuni4ka/opt-125m-gptq",
+  "recommended_actions": [
+    "Review the PR #36957 changes to GPTQ/quantized model conversion path in the PyTorch frontend",
+    "Run the test locally with the GPTQ model to confirm the regression",
+    "Check if the accuracy threshold for GPTQ models needs adjusting or if it is a genuine accuracy regression",
+    "Compare conversion output for GPTQ models before and after the PR changes"
+  ],
+  "prevention_strategies": "Add GPTQ accuracy checks to precommit tests for any changes to the PyTorch frontend quantization path. Ensure test_export_model_precommit covers GPTQ models consistently.",
+  "historical_context": "No previous identical pattern found. This appears to be a new failure pattern specific to GPTQ model export accuracy."
+}
