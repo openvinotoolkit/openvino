@@ -1813,9 +1813,6 @@ jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host,
 size_t jit_logical_or_emitter::get_inputs_num() const {
     return 2;
 }
-size_t jit_logical_or_emitter::aux_vecs_count() const {
-    return 0;
-}
 size_t jit_logical_or_emitter::aux_gprs_count() const {
     return 1;
 }
@@ -2231,10 +2228,6 @@ size_t jit_logical_and_emitter::get_inputs_num() const {
 
 size_t jit_logical_and_emitter::aux_fp_gprs_count() const {
     return 2;
-}
-
-size_t jit_logical_and_emitter::aux_vecs_count() const {
-    return 0;
 }
 
 void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
