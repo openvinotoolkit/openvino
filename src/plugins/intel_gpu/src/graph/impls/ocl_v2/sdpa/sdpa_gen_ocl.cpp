@@ -534,6 +534,20 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_V_I8_PAIRED"))
         v_i8_paired = std::atoi(env);
     jit.make("V_I8_PAIRED_READ", v_i8_paired);
+    // A subgroup owns sv_sg_tile_values value columns but the x1c builtin covers a fixed 16, so
+    // the .cl issues sv_value_blocks reads per cp-block. The extension also defines the multi-
+    // block _8b_32r16x2c / _8b_32r16x4c variants, which fetch 32 / 64 columns in ONE message and
+    // -- GPU-probed on B580 (test/microbench/probe_v_multiblock) -- lay their blocks out
+    // BLOCK-MAJOR, i.e. bit-identical to the per-cd loop writing into &vt[cd * 8]. So the kernel
+    // swaps the read only; the dequant indexing is untouched. Combined with the paired read this
+    // takes the V messages per k0 iteration from 8 to 4 at head 256 and from 16 to 4 at head 512
+    // (head <= 128 has sv_value_blocks == 1 and is unaffected). Default on; the .cl falls back to
+    // the x1c loop for any sv_value_blocks with no matching builtin.
+    // SDPA_OCL_V_I8_MULTIBLOCK=0 restores the per-cd x1c reads for A/B measurement.
+    int v_i8_multiblock = 1;
+    if (const char* env = std::getenv("SDPA_OCL_V_I8_MULTIBLOCK"))
+        v_i8_multiblock = std::atoi(env);
+    jit.make("V_I8_MULTIBLOCK_READ", v_i8_multiblock);
     // int8 compressed K via the SAME 8-bit VNNI-transform read (intel_sub_group_2d_block_read_
     // transform_8b_32r16x1c). Reading K memory (row-major [key, head]) at (x=head, y=key) yields
     // lane=head, each uint packing 4 consecutive keys as bytes -- GPU-probed to match the DPAS-A
