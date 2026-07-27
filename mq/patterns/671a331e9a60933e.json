@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-07-27T12:33:21Z",
+  "last_seen": "2026-07-27T12:33:21Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30261291251"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37029"],
+  "recent_timestamps": ["2026-07-27T12:33:21Z"],
+  "rerun_search_string": null
+}

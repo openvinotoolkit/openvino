@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-12-33-21-000-30261291251",
+  "timestamp": "2026-07-27T12:33:21Z",
+  "run_id": "30261291251",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30261291251",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": ["PyTorch Models tests / PyTorch Models tests"],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed",
+    "katuni4ka/opt-125m-gptq running failed",
+    "Max diff is 0.06871891021728516"
+  ],
+  "root_cause": "The test_export_model_precommit test for opt_gptq (katuni4ka/opt-125m-gptq) failed with an accuracy validation mismatch. The maximum difference between framework (PyTorch) and OpenVINO inference outputs was ~0.069, exceeding the allowed tolerance. This indicates a deterministic numerical mismatch in the conversion/export path for OPT-GPTQ 4-bit quantized model export mode, likely introduced by a code change in PR #37029."
+}
