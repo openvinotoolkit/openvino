@@ -41,6 +41,9 @@ public:
     }
 
     ~AsyncInferQueue() {
+        // Release the GIL before destroying requests. m_requests.clear() triggers a C++ destructor chain that
+        // eventually joins plugin executor threads (via CoreImpl dtor).
+        py::gil_scoped_release release;
         m_requests.clear();
     }
 
