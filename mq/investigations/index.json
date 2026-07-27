@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 55,
+  "total": 56,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -537,6 +537,17 @@
       "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30282134416",
       "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T17:13:43Z",
+      "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+      "category": "Code Issue",
+      "signature_hash": "671a331e9a60933e",
+      "pr_number": "36957"
+    },
+    {
+      "investigation_id": "2026-07-27-18-32-37-000-30287927832",
+      "run_id": "30287927832",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30287927832",
+      "workflow_name": "PyTorch Models tests",
+      "timestamp": "2026-07-27T18:32:37Z",
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",

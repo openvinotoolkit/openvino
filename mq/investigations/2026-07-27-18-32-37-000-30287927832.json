@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-18-32-37-000-30287927832",
+  "timestamp": "2026-07-27T18:32:37Z",
+  "run_id": "30287927832",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30287927832",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "36957",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36957",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "AssertionError: Accuracy validation failed",
+    "multiprocessing.context.ProcessError: katuni4ka/opt-125m-gptq running failed: ... AssertionError: Accuracy validation failed"
+  ],
+  "root_cause": "The test exports the katuni4ka/opt-125m-gptq GPTQ model via OpenVINO and compares inference outputs with PyTorch reference. The AssertionError indicates the OV model produces numerically different outputs than the PyTorch model. This is a deterministic accuracy regression in the OV export path for GPTQ-quantized OPT models (opt_gptq type). Pattern has now occurred 7 times since 2026-07-27T12:33:21Z across multiple PRs, strongly indicating a regression introduced around that time rather than a flaky issue.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] on an x86 Linux runner with the model pre-downloaded.",
+  "recommended_actions": [
+    "Identify the commit that first caused this regression (around 2026-07-27T12:33:21Z) by bisecting the merge queue history.",
+    "Investigate changes to the GPTQ/OPT model export path in src/frontends/pytorch/ and related quantization handling.",
+    "Check if any recent transformations affecting integer/quantized operations changed accuracy for this model.",
+    "Consider temporarily xfailing or skipping this test while the root cause is investigated to unblock the merge queue."
+  ],
+  "prevention_strategies": "Add precommit accuracy thresholds for GPTQ-quantized models. Ensure any transformation touching quantized model export paths is covered by regression tests with accuracy comparison.",
+  "historical_context": "This exact failure (signature 671a331e9a60933e) has now been recorded 7 times starting from 2026-07-27T12:33:21Z across PRs #36860, #37029, and #36957. It is a persistent Code Issue blocking the merge queue."
+}
