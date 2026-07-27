@@ -253,10 +253,18 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int stride_src = srcStrides[1] * sizeof(T);
-        auto stride_dst_0 = dstStrides0[1];
-        auto stride_dst_1 = dstStrides1[1];
-        auto stride_dst_2 = dstStrides2[1];
+        // For rank-2 [M, H] and rank-3 [B, S, H] both, the M-stride is at
+        // strides.size()-2. Hardcoding strides[1] breaks rank-2 (where
+        // strides[1] is the innermost element stride == 1). vLLM emits
+        // rank-2 activations, so this affected the vLLM+OV path.
+        auto src_ms = srcStrides.size() >= 2 ? srcStrides.size() - 2 : 0;
+        auto dst0_ms = dstStrides0.size() >= 2 ? dstStrides0.size() - 2 : 0;
+        auto dst1_ms = dstStrides1.size() >= 2 ? dstStrides1.size() - 2 : 0;
+        auto dst2_ms = dstStrides2.size() >= 2 ? dstStrides2.size() - 2 : 0;
+        int stride_src = srcStrides[src_ms] * sizeof(T);
+        auto stride_dst_0 = dstStrides0[dst0_ms];
+        auto stride_dst_1 = dstStrides1[dst1_ms];
+        auto stride_dst_2 = dstStrides2[dst2_ms];
 
         auto asym = true;
         for (int m = 0; m < M;) {
@@ -271,7 +279,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             if (m_node->m_config.quantized) {
                 // quantize psrc0 into m_quantized_act buffer
                 // per-token asym
-                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[1]);
+                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[src_ms]);
                 pA = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 strideA = m_quant_act.K;
             }

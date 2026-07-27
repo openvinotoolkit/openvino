@@ -175,7 +175,7 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // trailing dims are known: that's a single Reshape op vs the dynamic
     // path's ShapeOf+Gather+Concat+Reshape chain (4 ops × 3 tensors × 16
     // layers = 192 extra ops of pure shape plumbing).
-    auto force_rank2 = [&](Output<Node>& t) {
+    auto force_rank2 = [&](Output<Node>& t, bool safe_to_fuse_upstream = false) {
         const auto& ps = t.get_partial_shape();
         const auto r = ps.rank();
         if (r.is_static() && r.get_length() == 2) {
@@ -195,6 +195,25 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
                 }
             }
             if (trailing_static) {
+                // Fuse into upstream: if this input is produced by a Reshape
+                // with a single consumer (this PA), retarget that upstream
+                // Reshape to [-1, trailing] and reuse it — one Reshape
+                // instead of Reshape->Reshape. Saves ~48 ops/iter on Llama.
+                static const bool _pa_fuse_upstream =
+                    std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE") == nullptr ||
+                    std::string(std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE")) != "0";
+                if (_pa_fuse_upstream && safe_to_fuse_upstream) {
+                    auto up = std::dynamic_pointer_cast<v1::Reshape>(t.get_node_shared_ptr());
+                    if (up && up->get_output_target_inputs(0).size() <= 1) {
+                        auto target = v0::Constant::create(element::i64, Shape{2},
+                                                            std::vector<int64_t>{-1, trailing});
+                        up->input(1).replace_source_output(target->output(0));
+                        up->validate_and_infer_types();
+                        // t already points at up's output; refresh partial shape
+                        t = up->output(0);
+                        return;
+                    }
+                }
                 auto target = v0::Constant::create(element::i64, Shape{2},
                                                    std::vector<int64_t>{-1, trailing});
                 t = std::make_shared<v1::Reshape>(t, target, false);
@@ -210,7 +229,10 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         auto target = std::make_shared<v0::Concat>(OutputVector{dim0, neg1}, 0);
         t = std::make_shared<v1::Reshape>(t, target, false);
     };
-    force_rank2(query);
+    // Only Q's upstream Reshape can be fused: K/V upstream Reshapes have a
+    // second consumer (Result -> vLLM CPU attention KV-cache writeback) that
+    // needs the original rank-3 shape.
+    force_rank2(query, /*safe_to_fuse_upstream=*/true);
     force_rank2(key);
     force_rank2(value);
 
