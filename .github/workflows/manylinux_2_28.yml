@@ -143,7 +143,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -294,7 +294,7 @@ jobs:
           branch_name: ${{ inputs.target-branch }}
 
   Python_API_Tests:
-    name: Python API tests
+    name: Python API tests - Python ${{ matrix.python-version }}
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     strategy:
