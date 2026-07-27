@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <memory>
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -36,13 +35,10 @@ namespace op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
-// GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the OV core fused op
-// ov::op::internal::GatedDeltaNet, which CPU/GPU/template plugins support natively. This is an
-// internal (non-opset) op: the gguf frontend deliberately allows it as a pragmatic tradeoff so the
-// device gets the fused kernel instead of a hand-built Loop scan. A model containing it is NOT
-// serializable to IR -- see src/frontends/gguf/docs/internal_ops.md. The fused op only supports a
-// scalar gate; the per-key-dimension gating case (kda) falls back to the serializable Loop
-// reference path below.
+// GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
+// ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
+// IR-serializable (see docs/internal_ops.md). The fused op only supports scalar gating, so the
+// per-key-dimension gating case (kda) uses the serializable Loop reference path below.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
@@ -55,17 +51,9 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     const int64_t H_k = q_shape[2];
     const bool kda = (g_shape[3] == (size_t)S_v);
 
-    // The fused GatedDeltaNet op only supports scalar gating. Per-key-dimension gating (kda) uses
-    // the Loop reference path.
-    if (kda) {
-        return translate_gated_delta_net_ref(context);
-    }
-
-    // Test/diagnostic seam: force the decomposed Loop reference path even for the scalar-gate case
-    // that would normally take the fused op. Lets a test (GatedDeltaNetRefMultiHead) exercise the
-    // Loop path's multi-head packing against the ggml-CPU oracle, and lets the fused vs decomposed
-    // paths be A/B-compared on a full model without a rebuild.
-    if (std::getenv("GGUF_GDN_FORCE_REF")) {
+    // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
+    // against the ggml-CPU oracle for the scalar-gate case too.
+    if (kda || context.get_attribute<bool>("force_ref", false)) {
         return translate_gated_delta_net_ref(context);
     }
 
@@ -99,8 +87,8 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
 
-    // Transpose the output state back to ggml's [B, H_v, value_dim, key_dim] and pack
-    // [attn | state] into ggml's flat output layout, matching the reference path.
+    // Transpose state back to ggml's [B, H_v, value_dim, key_dim] and pack [attn | state] flat,
+    // matching the reference path.
     auto state_transposed = std::make_shared<ov::op::v1::Transpose>(state_4d, state_perm);
     auto flat_shape_1d = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     auto attn = std::make_shared<ov::op::v1::Reshape>(attn_4d, flat_shape_1d, false);
@@ -114,10 +102,8 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 
-// Reference path for GGML_OP_GATED_DELTA_NET: a recurrent OV Loop scan over the sequence, matching
-// ggml's per-token gated delta update. Built entirely from core ops, so a model using this path
-// stays serializable. Used for the per-key-dimension gating case (kda), which the fused
-// ov::op::internal::GatedDeltaNet op does not support, and as a portable fallback.
+// Serializable reference path: a recurrent OV Loop scan over the sequence built from core ops,
+// matching ggml's per-token gated delta update. Used for the kda case and as a portable fallback.
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
@@ -142,10 +128,8 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
 
-    // The token count T is dynamic: the stateful model is compiled once with a dynamic token axis and
-    // reused across dispatches with different token counts (prefill vs decode vs 0-token). Every
-    // T-dependent reshape uses -1 on the token axis and the Loop trip count is read at runtime, so the
-    // static T read above (convert-time only) is used solely for the fully-static dims (B/H_v/S_v/H_k).
+    // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
+    // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
     (void) T;
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
@@ -261,9 +245,8 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto final_state_out = loop->get_iter_value(state_updated, -1);
     auto attn_concat_out = loop->get_concatenated_slices(attn_out_unsq, 0, 1, 1, -1, 1);
 
-    // Pack [attn | state] into ggml's output layout: OV [1, 1, T*B + S_v*B, S_v*H_v] with the token
-    // count T dynamic. attn_4d keeps T on axis 2 as -1; the final [1,1,rows,S_v*H_v] reshape derives its
-    // row count with a -1 so the packed height (T*B + S_v*B) follows the runtime token count.
+    // Pack [attn | state] into ggml's [1, 1, T*B + S_v*B, S_v*H_v] output; the row axis is dynamic
+    // (-1) so the packed height follows the runtime token count.
     auto attn_4d_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{B, H_v, -1, S_v});
     auto attn_4d = std::make_shared<ov::op::v1::Reshape>(attn_concat_out, attn_4d_shape, false);
     auto attn_perm = std::make_shared<ov::op::v1::Transpose>(attn_4d, perm_0213);

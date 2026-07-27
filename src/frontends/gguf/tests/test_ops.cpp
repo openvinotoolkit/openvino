@@ -1386,7 +1386,7 @@ TEST(GGUFOps, GatedDeltaNetFusedMultiHead) {
 
 // GatedDeltaNet, DECOMPOSED (Loop reference) path with MULTIPLE HEADS. Same inputs and same ggml-CPU
 // authoritative reference as GatedDeltaNetFusedMultiHead, but forces the serializable Loop scan
-// (GGUF_GDN_FORCE_REF) even for the scalar-gate case. Both paths must match ggml; running the real
+// (force_ref attribute) even for the scalar-gate case. Both paths must match ggml; running the real
 // model showed they produce DIFFERENT wrong outputs, so at least one mishandles the head axis. This
 // isolates which. The Loop path is the one used when a model must stay IR-serializable, so its
 // multi-head correctness matters independently of the fused op.
@@ -1396,9 +1396,9 @@ TEST(GGUFOps, GatedDeltaNetRefMultiHead) {
     auto gate_shp = ov::PartialShape{B, T, H, 1};
     auto state_shp = ov::PartialShape{B, H, D, D};
 
-    setenv("GGUF_GDN_FORCE_REF", "1", 1);
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GATED_DELTA_NET")
+                     .attr<bool>("force_ref", true)
                      .input("q", ov::element::f32, qkv_shp)
                      .input("k", ov::element::f32, qkv_shp)
                      .input("v", ov::element::f32, qkv_shp)
@@ -1407,7 +1407,6 @@ TEST(GGUFOps, GatedDeltaNetRefMultiHead) {
                      .input("state", ov::element::f32, state_shp)
                      .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H})
                      .build();
-    unsetenv("GGUF_GDN_FORCE_REF");
 
     // This path must be the core-op Loop scan, not the fused internal op.
     bool has_fused = false, has_loop = false;
@@ -1467,10 +1466,9 @@ static void run_gdn_gqa(bool force_ref) {
     auto gate_shp = ov::PartialShape{B, T, H_v, 1};
     auto state_shp = ov::PartialShape{B, H_v, D, D};  // ggml [B, H_v, value_dim, key_dim]
 
-    if (force_ref)
-        setenv("GGUF_GDN_FORCE_REF", "1", 1);
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GATED_DELTA_NET")
+                     .attr<bool>("force_ref", force_ref)
                      .input("q", ov::element::f32, q_shp)
                      .input("k", ov::element::f32, q_shp)
                      .input("v", ov::element::f32, v_shp)
@@ -1479,8 +1477,6 @@ static void run_gdn_gqa(bool force_ref) {
                      .input("state", ov::element::f32, state_shp)
                      .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H_v})
                      .build();
-    if (force_ref)
-        unsetenv("GGUF_GDN_FORCE_REF");
 
     // q/k: [T, H_k, D]; v: [T, H_v, D] -- distinct per head so the GQA pairing is observable.
     std::vector<float> q{1, 0, 0, 1, 0, 1, 1, 0};
@@ -1545,11 +1541,9 @@ ov::Tensor run_gdn_tneqd(bool force_ref) {
     auto qkv_shp = ov::PartialShape{B, T, H, D};
     auto gate_shp = ov::PartialShape{B, T, H, 1};
     auto state_shp = ov::PartialShape{B, H, D, D};
-    if (force_ref) {
-        setenv("GGUF_GDN_FORCE_REF", "1", 1);
-    }
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GATED_DELTA_NET")
+                     .attr<bool>("force_ref", force_ref)
                      .input("q", ov::element::f32, qkv_shp)
                      .input("k", ov::element::f32, qkv_shp)
                      .input("v", ov::element::f32, qkv_shp)
@@ -1558,9 +1552,6 @@ ov::Tensor run_gdn_tneqd(bool force_ref) {
                      .input("state", ov::element::f32, state_shp)
                      .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H})
                      .build();
-    if (force_ref) {
-        unsetenv("GGUF_GDN_FORCE_REF");
-    }
     std::vector<float> state0((size_t)(H * D * D), 0.0f);
     return run_on_cpu(model,
                       {{"q", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, kGdnTneqDq)},
