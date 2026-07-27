@@ -233,7 +233,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                  k = shape_a[shape_a.rank().get_length() - 1].get_length();
              // M is the row/token dimension and N the output dimension of the matmul.
              size_t m = output_shape.size() >= 2 ? output_shape[output_shape.size() - 2] : 1;
-             size_t n = output_shape.size() >= 1 ? output_shape[output_shape.size() - 1] : 1;
+             size_t n = !output_shape.empty() ? output_shape[output_shape.size() - 1] : 1;
              // Empirical benchdnn study (f16 GPU matmul, see
              // temp/gemm_transpose_study): the non-transposed weight layout
              // (onednn abc) wins for matmuls with a large reduction dimension
