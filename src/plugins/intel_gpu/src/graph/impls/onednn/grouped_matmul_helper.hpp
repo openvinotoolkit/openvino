@@ -194,7 +194,7 @@ struct onednn_matmul {
 template <typename... TTypes>
 class tuple_hasher {
 private:
-    typedef std::tuple<TTypes...> Tuple;
+    using Tuple = std::tuple<TTypes...>;
     template <int N>
     size_t hash(Tuple& value) const {
         return 0;
