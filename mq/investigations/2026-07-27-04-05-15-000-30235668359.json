@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-04-05-15-000-30235668359",
+  "timestamp": "2026-07-27T04:05:15Z",
+  "run_id": "30235668359",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30235668359",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36931",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36931",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Windows VS 2022 build job failed in attempt 1; attempt 2 auto-started. Job logs unavailable (secrecy policy)."
+    }
+  ],
+  "key_errors": [
+    "No log data available: job logs filtered by secrecy policy. Run is on attempt 2, indicating attempt 1 failed transiently."
+  ],
+  "root_cause": "The Windows (VS 2022, Python 3.11, Release) workflow run (attempt 1) failed with no retrievable log data. This is a known recurring infrastructure pattern (3rd occurrence) where Windows runner issues or transient environment problems cause the workflow to fail; GitHub auto-initiated attempt 2. The PR #36931 itself is an ARM SVE cmake fix which should not affect the Windows build path.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible locally.",
+  "recommended_actions": [
+    "Monitor attempt 2 progress; if it fails, investigate with fresh log data.",
+    "No code changes needed - the failure is infrastructure-related, not caused by the PR."
+  ],
+  "prevention_strategies": "Windows runner reliability issues are recurrent. Consider investigating Windows runner pool health if this continues to occur multiple times per day.",
+  "historical_context": "This is the 3rd occurrence of this pattern. Previous occurrences: 2026-07-24 (run 30068549392, PR #36866) and 2026-07-27 02:46 (run 30229750900, PR #36866). Both resolved when attempt 2 succeeded."
+}
