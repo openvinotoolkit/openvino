@@ -565,14 +565,14 @@ bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
     //check for multiply node
     auto isScaleShiftMul = [&](const NodePtr& n) -> bool {
-        if (n->getAlgorithm() != Algorithm::EltwiseMultiply)                                                                                                                                                        
+        if (n->getAlgorithm() != Algorithm::EltwiseMultiply)
             return false;
-        for (size_t i = 0; i < n->getParentEdges().size(); i++) {                                                                                                                                                   
+        for (size_t i = 0; i < n->getParentEdges().size(); i++) {
             auto parent = n->getParentEdgeAt(i)->getParent();
-            if (parent.get() != this && parent->isConstant())                                                                                                                                                      
+            if (parent.get() != this && parent->isConstant())
                 return true;
-            }                                                                                                                                                                                                           
-        return false;                                                                                                                                                                                               
+        }
+        return false;
     };
 
     if (!fusedWith.empty()) {
