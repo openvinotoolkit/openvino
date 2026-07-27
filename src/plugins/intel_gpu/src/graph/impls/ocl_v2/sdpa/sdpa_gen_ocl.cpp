@@ -71,6 +71,22 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
+// Whether a K/V/Q/A surface whose row is `row_bytes` wide can be accessed with the Xe 2D block
+// IO builtins. The hardware requires, for the block read/write intrinsics used by sdpa_ocl.cl:
+//   - surface width  >= 64 bytes and a multiple of 4,
+//   - surface pitch  >= 64 bytes and a multiple of 16,
+//   - base address 64-byte aligned.
+// All four tensors are unpadded here, so width == pitch == row_bytes. The base address handed to
+// the builtin is the tensor pointer advanced by the per-(batch, head) offset
+// (b * num_heads + h) * seq_len * row_bytes, and seq_len is dynamic, so the only way to guarantee
+// 64-byte base alignment at JIT time is to require row_bytes itself to be a multiple of 64 --
+// which simultaneously satisfies the width and pitch rules.
+// For compressed (i8) K/V, row_bytes == head_size, so this means head_size % 64 == 0
+// (64/128/192/256/320/384/448/512); for f16 tensors it means head_size % 32 == 0.
+inline bool block2d_surface_ok(size_t row_bytes) {
+    return row_bytes >= 64 && (row_bytes % 64) == 0;
+}
+
 // Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
 // choose_config_* tables. The KQ workgroup tile is kept at 128 keys with sg_per_wg = 16
 // across all head sizes; only the S*V split (and, for d_max <= 32, the query tile) vary.
@@ -462,23 +478,34 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             q_2d = std::atoi(env);
     }
     jit.make("USE_2D_BLOCK_IO_Q", q_2d);
-    // 2D block IO uses 16-bit reads and half-sized byte pitches for K/V, which are invalid
-    // for i8 compressed KV-cache. Force the manual scalar load/dequant path in that case.
-    jit.make("USE_2D_BLOCK_IO", !config.is_kv_compressed && (ldk % 16 == 0) && (ldv % 16 == 0) && (lda % 16 == 0));
+    // f16 K/V loads. 2D block IO uses 16-bit reads and half-sized byte pitches, which are invalid
+    // for an i8 compressed KV-cache -- those take the dedicated *_I8 paths below (or the scalar
+    // load/dequant fallback), so this flag is off whenever the cache is compressed.
+    jit.make("USE_2D_BLOCK_IO_KV", !config.is_kv_compressed && (ldk % 16 == 0) && (ldv % 16 == 0));
+    // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
+    // output layout only, so KV compression must NOT disable it -- it used to share one flag with
+    // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
+    jit.make("USE_2D_BLOCK_IO_A", lda % 16 == 0);
     // int8 compressed V uses an 8-bit VNNI-transform 2D block read
     // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
     // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
     // uint packs 4 keys as bytes), which the kernel dequants (per-token scale cached per cp-block
-    // and broadcast) and repacks into the f16 VNNI operand — no subgroup shuffle needed. The value
-    // tiling keeps sv_sg_tile_values == 16 (one 16-value block per subgroup) for head 64 and 128,
-    // so the fixed 16-wide builtin geometry fits; the .cl loop is written in terms of
-    // sv_value_blocks/cd and d, with no head-size hardcoding. Measured on B580 (head=64 prefill):
-    // 26.3us scalar -> 21.7us (~18% faster), accuracy PASS. Requires ldv%16==0 (pitch) and mem
-    // width = v_head_size bytes in [64,224]. Enabled by default for compressed KV; env
-    // SDPA_OCL_V_I8_2D=0 forces scalar.
+    // and broadcast) and repacks into the f16 VNNI operand — no subgroup shuffle needed. The
+    // builtin's 16-value geometry is fixed, so the .cl issues sv_value_blocks reads per cp-block
+    // (x stepped by SUBGROUP_SIZE) to cover the subgroup's sv_sg_tile_values columns; everything
+    // else in that path is expressed in terms of cd and d, with no head-size hardcoding.
+    // Measured on B580 (head=64 prefill): 26.3us scalar -> 21.7us (~18% faster), accuracy PASS.
+    // Gate is the 2D block IO surface rule -- for i8 V that is ldv == v_head_size and therefore
+    // v_head_size % 64 == 0. Enabled by default for compressed KV; SDPA_OCL_V_I8_2D=0 forces
+    // scalar.
     int v_i8_2d = 0;
-    if (config.is_kv_compressed && (v_head_size == 64u || v_head_size == 128u) && (ldv % 16 == 0)) {
+    if (config.is_kv_compressed && block2d_surface_ok(ldv)) {
         v_i8_2d = 1;
+    }
+    // Applied outside the gate so SDPA_OCL_V_I8_2D=1 can also *enable* the path on surfaces that
+    // do not satisfy block2d_surface_ok(), for investigation. Forcing it on for e.g. head 80/96
+    // can read misaligned surfaces (undefined behaviour), so use with care.
+    if (config.is_kv_compressed) {
         if (const char* env = std::getenv("SDPA_OCL_V_I8_2D"))
             v_i8_2d = std::atoi(env);
     }
@@ -490,11 +517,19 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // read succeeds where the earlier non-transform _8b_16r16x4c K attempt failed (that one needed
     // a shuffle and lost to scalar). Prerequisite: Step-1 scale/zp hoist (per-key scale/zp loaded
     // once, broadcast in dequant) so the K dequant reduces to the same shuffle-free byte->half path
-    // as V. Requires ldk%16==0. Enabled by default for compressed KV head 64/128; SDPA_OCL_K_I8_2D=0
-    // forces scalar (used for A/B measurement and regression guard).
+    // as V.
+    // The .cl read loop is head-size generic (x = db * DPAS_K, trip count depends only on
+    // kq_sg_tile_keys), so the gate is purely the 2D block IO surface rule -- for i8 K that is
+    // ldk == k_head_size and therefore k_head_size % 64 == 0. Validated on head 256.
+    // SDPA_OCL_K_I8_2D=0 forces scalar (used for A/B measurement and regression guard).
     int k_i8_2d = 0;
-    if (config.is_kv_compressed && (k_head_size == 64u || k_head_size == 128u) && (ldk % 16 == 0)) {
+    if (config.is_kv_compressed && block2d_surface_ok(ldk)) {
         k_i8_2d = 1;
+    }
+    // Applied outside the gate so SDPA_OCL_K_I8_2D=1 can also *enable* the path on surfaces that
+    // do not satisfy block2d_surface_ok(), for investigation. Forcing it on for e.g. head 80/96
+    // can read misaligned surfaces (undefined behaviour), so use with care.
+    if (config.is_kv_compressed) {
         if (const char* env = std::getenv("SDPA_OCL_K_I8_2D"))
             k_i8_2d = std::atoi(env);
     }
