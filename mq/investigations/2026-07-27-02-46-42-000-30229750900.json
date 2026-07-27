@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-02-46-42-000-30229750900",
+  "timestamp": "2026-07-27T02:46:42Z",
+  "run_id": "30229750900",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30229750900",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36866",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36866",
+  "author": "hyunback",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Windows (VS 2022, Python 3.11, Release)",
+      "conclusion": "failure",
+      "symptom": "Workflow run failed on attempt 1; job logs inaccessible due to secrecy policy filter. Run is currently on attempt 2 (queued)."
+    }
+  ],
+  "key_errors": [
+    "Failed to retrieve job logs: secrecy policy filter prevented access to job log content.",
+    "Run ID 30229750900 shows conclusion=failure on attempt 1 (run_attempt=2 currently queued)."
+  ],
+  "root_cause": "The Windows (VS 2022, Python 3.11, Release) merge-queue workflow failed on attempt 1 for PR #36866. Job logs are inaccessible due to a secrecy policy filter on the MCP GitHub tool. The run was already automatically re-triggered (attempt 2 is queued). Based on the identical pattern seen previously (run 30068549392 on 2026-07-24), this is a transient infrastructure-level issue where the Windows CI runner encountered a problem that is resolved by re-running. The head SHA e83bd3eb is a GPU plugin change (DynamicQuantize sharing optimization) that is unlikely to cause Windows build failures.",
+  "reproduction_steps": "N/A - transient CI infrastructure issue",
+  "recommended_actions": [
+    "Monitor attempt 2 (currently queued) to confirm the run passes.",
+    "If attempt 2 also fails, manually re-add PR #36866 to the merge queue after investigating the specific job failure."
+  ],
+  "prevention_strategies": "Recurring Windows CI infrastructure issues should be tracked. If this pattern repeats, consider investigating Windows runner pool stability.",
+  "historical_context": "Same pattern seen previously: run 30068549392 (2026-07-24) for the same PR #36866 also showed Windows VS 2022 logs unavailable. Also similar to run 29897298826 (2026-07-22). The run is already on attempt 2 indicating automatic re-run already triggered."
+}
