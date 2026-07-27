@@ -163,6 +163,10 @@ void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& c
     }
 }
 
+bool CfMarkerType::is_copyable() const {
+    return false;
+}
+
 Type get_ov_type(const ::tensorflow::DataType& type) {
     using ::tensorflow::DataType;
 
