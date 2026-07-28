@@ -13,21 +13,42 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
+using namespace ov;
+
 // excludes a Constant and a Convert(Constant), e.g. a bias -- not a residual activation
-bool is_not_constant_like(const std::shared_ptr<ov::Node>& node) {
-    if (ov::is_type<ov::op::v0::Constant>(node)) {
+bool is_not_constant_like(const std::shared_ptr<Node>& node) {
+    if (is_type<op::v0::Constant>(node)) {
         return false;
     }
-    if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-        return !ov::is_type<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+    if (auto convert = as_type_ptr<op::v0::Convert>(node)) {
+        return !is_type<op::v0::Constant>(convert->get_input_node_shared_ptr(0));
     }
     return true;
+}
+
+// if `output` is (optionally, through one Convert) a constant-weight, f16, single-consumer
+// MatMul, returns that MatMul; otherwise nullptr. Derived directly from the graph rather than
+// via a pattern_value_map lookup: Optional's binding for a nested sub-pattern is not reliable
+// when the outer op (Add) is commutative and triggers permutation-based matching.
+std::shared_ptr<op::v0::MatMul> get_fc_matmul(const Output<Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    if (auto convert = as_type_ptr<op::v0::Convert>(node)) {
+        node = convert->get_input_node_shared_ptr(0);
+    }
+    auto matmul = as_type_ptr<op::v0::MatMul>(node);
+    if (!matmul || matmul->get_output_element_type(0) != element::f16 ||
+        matmul->get_output_target_inputs(0).size() != 1) {
+        return nullptr;
+    }
+    if (!is_type<op::v0::Constant>(matmul->get_input_node_shared_ptr(1)) ||
+        is_type<op::v0::Constant>(matmul->get_input_node_shared_ptr(0))) {
+        return nullptr;
+    }
+    return matmul;
 }
 }  // namespace
 
@@ -36,47 +57,33 @@ namespace pass {
 
 ClampFP16FCOutput::ClampFP16FCOutput() {
     using namespace ov::op;
-    using namespace ov::pass::pattern;
-    using namespace ov::pass::pattern::op;
 
-    auto activation_in = any_input(class_other_than<v0::Constant>());
-    auto weight_in = wrap_type<v0::Constant>();
-    auto matmul_m =
-        wrap_type<v0::MatMul>({activation_in, weight_in}, type_matches(ov::element::f16) && consumers_count(1));
-    auto fc_output_m = optional<v0::Convert>(matmul_m);
-    auto residual_in = any_input(is_not_constant_like);
-    auto residual_add_m = wrap_type<v1::Add>({fc_output_m, residual_in});
-
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto add = ov::as_type_ptr<v1::Add>(pattern_map.at(residual_add_m).get_node_shared_ptr());
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        auto add = ov::as_type_ptr<v1::Add>(m.get_match_root());
         if (!add || transformation_callback(add)) {
             return false;
         }
-        auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
-        auto fc_output = pattern_map.at(fc_output_m);
 
-        int fc_input_index = -1;
-        for (size_t i = 0; i < add->get_input_size(); ++i) {
-            if (add->input_value(i) == fc_output) {
-                fc_input_index = static_cast<int>(i);
-                break;
+        for (size_t fc_idx = 0; fc_idx < 2; ++fc_idx) {
+            auto fc_output = add->input_value(fc_idx);
+            auto residual = add->input_value(1 - fc_idx);
+            auto matmul = get_fc_matmul(fc_output);
+            if (!matmul || !is_not_constant_like(residual.get_node_shared_ptr())) {
+                continue;
             }
-        }
-        if (fc_input_index < 0) {
-            return false;
-        }
 
-        auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
-        auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
-        auto clamp = std::make_shared<v0::Clamp>(fc_output, min, max);
-        clamp->set_friendly_name(matmul->get_friendly_name() + "/ClampFP16FCOutput");
-        ov::copy_runtime_info({matmul, add}, clamp);
-        add->input(fc_input_index).replace_source_output(clamp);
-        return true;
+            auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
+            auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
+            auto clamp = std::make_shared<v0::Clamp>(fc_output, min, max);
+            clamp->set_friendly_name(matmul->get_friendly_name() + "/ClampFP16FCOutput");
+            ov::copy_runtime_info({matmul, add}, clamp);
+            add->input(fc_idx).replace_source_output(clamp);
+            return true;
+        }
+        return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(residual_add_m, "ClampFP16FCOutput");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<v1::Add>(), "ClampFP16FCOutput");
     this->register_matcher(m, callback);
 }
 
