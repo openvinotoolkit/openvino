@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "benchmark app no warmup with api modes async cpu python returned non zero exit status 3221225477|Flaky Test",
+  "signature_hash": "d94e7bf016670e8e",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-07-28T15:21:49Z",
+  "last_seen": "2026-07-28T15:21:49Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30366218837"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36949"
+  ],
+  "recent_timestamps": [
+    "2026-07-28T15:21:49Z"
+  ],
+  "rerun_search_string": "returned non-zero exit status 3221225477"
+}

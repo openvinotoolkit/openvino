@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-15-21-49-000-30366218837",
+  "timestamp": "2026-07-28T15:21:49Z",
+  "run_id": "30366218837",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30366218837",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36949",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36949",
+  "author": null,
+  "category": "Flaky Test",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+  "signature": "benchmark app no warmup with api modes async cpu python returned non zero exit status 3221225477|Flaky Test",
+  "signature_hash": "d94e7bf016670e8e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples",
+      "conclusion": "failure",
+      "symptom": "test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python] returned exit status 3221225477 (STATUS_ACCESS_VIOLATION)"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python] - subprocess.CalledProcessError: Command '('benchmark_app', '-i', ..., '-api', 'async', '-no_warmup')' returned non-zero exit status 3221225477.",
+    "============ 1 failed, 186 passed, 15 skipped in 143.95s (0:02:23) ============"
+  ],
+  "root_cause": "benchmark_app exits with Windows status code 3221225477 (0xC0000005 = STATUS_ACCESS_VIOLATION) when invoked with '-api async -no_warmup' flags on CPU. This is a known intermittent crash on Windows CI runners \u2014 the pattern has been observed before under similar test conditions. The crash is likely triggered by a race condition or uninitialized memory access in the async inference path when warmup is disabled, making it a flaky test rather than a deterministic code regression.",
+  "reproduction_steps": "Run: benchmark_app -i <image> -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 -api async -no_warmup on Windows. The crash is intermittent and may not reproduce on every run.",
+  "recommended_actions": [
+    "Re-run the failed job \u2014 the failure is intermittent and likely will pass on retry.",
+    "If the failure persists across multiple reruns, investigate the async inference teardown path for memory safety issues on Windows when no warmup is used.",
+    "Consider adding a test skip or retry decorator for this test variant on Windows if flakiness continues."
+  ],
+  "prevention_strategies": "Track recurrence rate in CI Doctor pattern DB. If this fails more than once per week, escalate to the Windows CPU plugin owners for a deeper look at async teardown.",
+  "historical_context": "Pattern 2fe5fca9503d7326 recorded the same failure (STATUS_ACCESS_VIOLATION in async no_warmup benchmark_app on Windows) on 2026-06-29 run 28260319677. This is therefore a recurring flaky test."
+}
