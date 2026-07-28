@@ -6,15 +6,21 @@ pre-compiled OpenVINO graph instead of PyTorch eager / `torch.compile +
 inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
-> ⚠️ **Known regression on `vllm_dev` tip (as of `52edc43fef`):** the OV
-> backend hangs on the first `generate()` after model load
+> ⚠️ **First-infer hang caused by pip dep drift.** On some fresh venvs
+> the OV backend hangs on the first `generate()` after model load
 > (`EngineDeadError` / `Processed prompts: 0%`, worker stuck in
-> `posix_memalign` inside `libopenvino_intel_cpu_plugin.so` per
-> `py-spy --native`). Verified via a fresh venv following the steps below.
-> Pin to commit **`dddcff2cc70`** for a working stack; the "Measured
-> performance" table below is against that commit. Eager and Inductor
-> paths on the tip are fine — only the OV compile-and-infer path is
-> affected.
+> `posix_memalign → libtvm_ffi.so → __lll_lock_wait_private` per
+> `py-spy --native`). Bisecting proved this is **not** an OV source
+> regression: cloning a known-working venv onto the exact same host,
+> against the exact same OV binaries, makes the hang go away.
+> Whatever pip resolution produced the working env picked a
+> combination that avoids the glibc heap-lock contention that
+> `libtvm_ffi.so` triggers on newer minor versions.
+> **Use `requirements-known-good.txt` in this directory as the pip
+> lockfile.** Do NOT rely on `pip install "vllm-cpu==0.25.0"` alone —
+> it resolves to different dep versions week to week, and the wrong
+> resolution hangs. The performance table below is against
+> `dddcff2cc70` + `requirements-known-good.txt`.
 
 ## Layout
 
@@ -174,28 +180,45 @@ python -m pip install "torch==2.11.0+cpu" \
     --index-url https://download.pytorch.org/whl/cpu
 ```
 
-### 3. vLLM (CPU)
+### 3. vLLM (CPU) — use the known-good lockfile
 
-Install the CPU-only `vllm-cpu` package, NOT plain `vllm`. The plain
-`vllm` wheel on PyPI ships without the CPU C extension (`vllm._C`); it
-fails at runtime with `AttributeError: '_OpNamespace' '_C' has no
-attribute 'init_cpu_memory_env'`.
+Install the pinned requirements from this directory. This is required —
+see the "First-infer hang" warning at the top of this file. Loose
+constraints (`vllm-cpu==0.25.0` alone) resolve to different dep
+versions over time and some of those combinations hang.
+
+```bash
+python -m pip install -r requirements-known-good.txt \
+    --index-url https://pypi.org/simple \
+    --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+The lockfile pins all ~200 packages that reproduced a working stack
+(SPR, bf16, 66 tok/s TinyLlama). Notably it pins `apache-tvm-ffi==0.1.9`
+(later versions trigger a `__cxa_thread_atexit → posix_memalign`
+lock-contention with OV's intel_cpu plugin allocator) and torchvision
+`0.26.0+cpu` / torchaudio `2.11.0+cpu` (non-`+cpu` variants fail to
+load with `libnvrtc.so.13: cannot open shared object file`).
+
+Verified reproducer: `cp -a` the known-working `venv/` tree to a new
+location and rewrite hardcoded paths in `bin/activate*`. This runs the
+smoke test at 66 tok/s. A fresh `pip install "vllm-cpu==0.25.0"` today
+does NOT.
+
+If you don't have this lockfile handy, install `vllm-cpu==0.25.0` then
+downgrade `apache-tvm-ffi` explicitly:
 
 ```bash
 python -m pip install "vllm-cpu==0.25.0"
-```
-
-Also align torch family versions on the CPU wheel index (installing
-`vllm-cpu` may pull `torchvision`/`torchaudio` from PyPI without the
-`+cpu` suffix, which then fails to load `torchvision::nms`):
-
-```bash
+python -m pip install --force-reinstall "apache-tvm-ffi==0.1.9"
 python -m pip install --force-reinstall \
     "torch==2.11.0+cpu" "torchvision==0.26.0+cpu" "torchaudio==2.11.0+cpu" \
     --index-url https://download.pytorch.org/whl/cpu
-# torchcodec pulls in CUDA nvrtc; remove it on CPU-only hosts:
 python -m pip uninstall -y torchcodec
 ```
+
+But this shortcut has NOT been verified end-to-end — apache-tvm-ffi
+alone was not the whole cause in our fresh-env test. Use the lockfile.
 
 Optional (perf, Linux):
 
