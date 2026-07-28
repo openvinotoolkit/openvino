@@ -26,6 +26,19 @@ export type elementTypeString =
 export type OVAny = string | number | boolean;
 
 /**
+ * Version information that describes the OpenVINO runtime or a device plugin.
+ *
+ * @remarks
+ * The object also defines a non-enumerable `toString()` that returns a
+ * formatted, multi-line representation (description, version and build number).
+ * It does not appear in `Object.keys()`, spread or `JSON.stringify()`.
+ */
+export interface Version {
+  buildNumber: string;
+  description: string;
+}
+
+/**
  * Core represents an OpenVINO runtime Core entity.
  *
  * User applications can create several Core class instances.
@@ -117,10 +130,7 @@ export interface Core {
    * @param deviceName A device name to identify a plugin.
    */
   getVersions(deviceName: string): {
-    [deviceName: string]: {
-      buildNumber: string;
-      description: string;
-    };
+    [deviceName: string]: Version;
   };
   /**
    * Asynchronously imports a previously exported compiled model from a Tensor.
@@ -807,15 +817,15 @@ export interface NodeAddon {
   saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
   /**
-   * The build number of the OpenVINO runtime library currently loaded by the
-   * addon, for example `"2026.3.0-21905-bb42a2f2073"`.
+   * It returns the version of the underlying OpenVINO core binary that is
+   * actually executing, which can differ from the `version` field declared in
+   * the package's `package.json`.
    *
    * @remarks
-   * This reflects the version of the underlying OpenVINO core binary that is
-   * actually executing. It should not differ from the `version` field declared in
-   * the package's `package.json`.
+   * Use `String(version)`, a template literal or `version.toString()` to print a
+   * formatted, multi-line representation. See {@link Version}.
    */
-  version: string;
+  getOpenvinoVersion(): Version;
 
   element: typeof element;
   resizeAlgorithm: typeof resizeAlgorithm;

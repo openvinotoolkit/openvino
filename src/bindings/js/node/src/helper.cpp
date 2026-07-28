@@ -4,6 +4,8 @@
 
 #include "node/include/helper.hpp"
 
+#include <sstream>
+
 #include "node/include/compiled_model.hpp"
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
@@ -321,6 +323,29 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_m
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->set_compiled_model(compiled_model);
     return obj;
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
+    Napi::Object version_obj = Napi::Object::New(env);
+    version_obj.Set("buildNumber", Napi::String::New(env, version.buildNumber));
+    version_obj.Set("description", Napi::String::New(env, version.description));
+
+    std::ostringstream formatted;
+    formatted << version;
+    std::string formatted_str = formatted.str();
+    while (!formatted_str.empty() && (formatted_str.back() == '\n' || formatted_str.back() == '\r')) {
+        formatted_str.pop_back();
+    }
+    const auto to_string_fn = Napi::Function::New(
+        env,
+        [formatted_str](const Napi::CallbackInfo& cb) -> Napi::Value {
+            return Napi::String::New(cb.Env(), formatted_str);
+        },
+        "toString");
+    // toString() is defined as a non-enumerable method so
+    // it does not show up in Object.keys()/spread and keeps the object a pure data shape.
+    version_obj.DefineProperty(Napi::PropertyDescriptor::Value("toString", to_string_fn, napi_default));
+    return version_obj;
 }
 
 ov::TensorVector parse_input_data(const Napi::Value& input) {
