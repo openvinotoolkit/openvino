@@ -25,28 +25,31 @@ namespace ov::hetero {
 
 // HETERO compiled blob layout (blob_format_version = 2, framed format):
 //
-//   [header line]
-//     UTF-8 XML produced by pugi::xml_document::save(..., format_raw)
-//     + '\n' delimiter
+//   [blob header XML]
+//     One UTF-8 XML line written by pugi::xml_document::save(..., format_raw)
+//     and terminated by '\n'.
+//     This XML stores the HETERO metadata (model name, format version,
+//     I/O mapping, hetero config, and compiled_submodel entries).
 //
-//   [submodel payload #0]
-//   [submodel payload #1]
-//   ...
-//   [submodel payload #N-1]
+//   | blob header XML | submodel payload frame #0 | submodel payload frame #1 | ... | submodel payload frame #N-1 |
+//     The XML header comes first and lists the compiled_submodel entries.
+//     After that, one payload frame is written for each entry, in the same order.
 //
 // Payload frame (repeated once per compiled_submodel in the XML header order):
 //
 //   +--------------------+--------------------------+----------------------+
-//   | type (1 byte char) | payload size (uint64_t) | payload bytes        |
+//   | type (1 byte char) | payload size (uint64_t) | payload raw data     |
 //   +--------------------+--------------------------+----------------------+
 //
 // Payload type values:
-//   'B' (COMPILED_BLOB_PAYLOAD): backend-specific compiled blob bytes.
-//   'I' (IR_PAYLOAD): serialized IR fallback payload with internal layout:
+//   'B' (COMPILED_BLOB_PAYLOAD): payload raw data is the backend-specific
+//     compiled blob for one submodel.
+//   'I' (IR_PAYLOAD): payload raw data contains a serialized IR fallback payload.
+//     Its internal layout is:
 //
-//     +----------------------+------------------+-------------------------+--------------------+
-//     | IR XML size (u64)    | IR XML bytes     | IR weights size (u64)   | IR weights bytes   |
-//     +----------------------+------------------+-------------------------+--------------------+
+//       +----------------------+------------------+-------------------------+--------------------+
+//       | IR XML size (u64)    | IR XML raw data  | IR weights size (u64)   | IR weights raw data |
+//       +----------------------+------------------+-------------------------+--------------------+
 //
 // Notes:
 //   - uint64_t values are written/read as raw host-endian bytes.
