@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, ClampFp16FCOutputTest4_MultiConsumerMatMulNotChange
         auto other_consumer = std::make_shared<ov::op::v1::Add>(matmul, residual);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{add, other_consumer},
-                                             ov::ParameterVector{activation, residual});
+                                            ov::ParameterVector{activation, residual});
         manager.register_pass<ClampFP16FCOutput>();
     }
     { model_ref = model->clone(); }
@@ -123,8 +123,7 @@ TEST_F(TransformationTestsF, ClampFp16FCOutputTest5_NonConstantWeightNotChanged)
         auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
         auto add = std::make_shared<ov::op::v1::Add>(matmul, residual);
 
-        model =
-            std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{activation, weight, residual});
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{activation, weight, residual});
         manager.register_pass<ClampFP16FCOutput>();
     }
     { model_ref = model->clone(); }  // not changed: weight operand must be a Constant

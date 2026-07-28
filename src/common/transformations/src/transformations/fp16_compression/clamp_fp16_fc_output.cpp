@@ -13,7 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -30,8 +30,7 @@ ClampFP16FCOutput::ClampFP16FCOutput() {
     auto weight_in = wrap_type<v0::Constant>();
     auto matmul_m =
         wrap_type<v0::MatMul>({activation_in, weight_in}, type_matches(ov::element::f16) && consumers_count(1));
-    auto convert_m = wrap_type<v0::Convert>({matmul_m}, consumers_count(1));
-    auto fc_output_m = std::make_shared<Or>(ov::OutputVector{matmul_m, convert_m});
+    auto fc_output_m = optional<v0::Convert>(matmul_m);
     auto residual_add_m = wrap_type<v1::Add>({fc_output_m, any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -41,7 +40,7 @@ ClampFP16FCOutput::ClampFP16FCOutput() {
             return false;
         }
         auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
-        auto fc_output = pattern_map.count(convert_m) ? pattern_map.at(convert_m) : pattern_map.at(matmul_m);
+        auto fc_output = pattern_map.at(fc_output_m);
 
         int fc_input_index = -1;
         for (size_t i = 0; i < add->get_input_size(); ++i) {

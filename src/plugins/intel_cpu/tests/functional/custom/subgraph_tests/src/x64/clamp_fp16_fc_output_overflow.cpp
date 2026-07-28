@@ -42,8 +42,8 @@ TEST_F(ClampFP16FCOutputOverflowCPUTest, ResidualAddStaysFiniteUnderF16) {
     auto add = std::make_shared<ov::op::v1::Add>(matmul, residual);
 
     auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(add)},
-                                              ov::ParameterVector{activation, residual},
-                                              "ClampFP16FCOutputOverflow");
+                                             ov::ParameterVector{activation, residual},
+                                             "ClampFP16FCOutputOverflow");
 
     ov::AnyMap config{{ov::hint::inference_precision.name(), ov::element::f16}};
     auto compiled = core.compile_model(model, ov::test::utils::DEVICE_CPU, config);
