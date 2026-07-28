@@ -1489,7 +1489,7 @@ public:
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
-        if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE) {
+        if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE && !desc->has_scores_output()) {
             effective_context_len = std::min(rt_params->max_context_len, desc->sliding_window);
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
