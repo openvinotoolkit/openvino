@@ -693,7 +693,7 @@ TEST_F(SanitizePathTest, empty_dir_dotdot_still_rejected) {
     EXPECT_THROW(ov::util::sanitize_path("", ".."), std::runtime_error);
 }
 
-TEST(file_util_get_id_for_file, matchesByteFold) {
+TEST(file_util_get_id_for_file, matches_byte_fold) {
     // Recompute the id by independently folding the raw path bytes with u64_hash_combine. The id must
     // match this fold; if get_id_for_file is switched back to std::filesystem::hash_value / std::hash
     // (ABI-sensitive, crashed across a libstdc++ ABI boundary), it will diverge and this test fails.
@@ -712,7 +712,7 @@ TEST(file_util_get_id_for_file, matchesByteFold) {
     EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), expected_file_id(path, 64, 256));
 }
 
-TEST(file_util_get_id_for_file, isDeterministic) {
+TEST(file_util_get_id_for_file, is_deterministic) {
     const std::filesystem::path path = "dir/subdir/model.bin";
     // Same inputs -> same id (used as a weight-sharing cache key).
     EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(path, 64, 256));
@@ -721,7 +721,7 @@ TEST(file_util_get_id_for_file, isDeterministic) {
     EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(same_path, 64, 256));
 }
 
-TEST(file_util_get_id_for_file, distinguishesPathOffsetAndSize) {
+TEST(file_util_get_id_for_file, distinguishes_path_offset_and_size) {
     const std::filesystem::path path_a = "weights_a.bin";
     const std::filesystem::path path_b = "weights_b.bin";
     const auto base = ov::util::get_id_for_file(path_a, 0, 128);
