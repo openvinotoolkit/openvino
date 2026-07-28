@@ -29,39 +29,39 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 
 * New models supported:
 
-  * On CPU and GPU: Harrier-OSS-v1, SmolLM3-3B, Gemma-4, Qwen3-8B with Eagle-3
+  * On CPU and GPU: Harrier-OSS-v1 0.6B, SmolLM3-3B, Qwen3-8B with Eagle-3, MiniCPM5-1B
 
   * Extended GPU & NPUs: Yolo26
 
-  * Extended to NPUs: LFM2, LFM2.5, Qwen3-VL
+  * Extended to NPUs: LFM2, LFM2.5
+
+  * Other models enabled on CPUs and GPUs: FLUX.2-klein, Qwen3-ASR, Qwen3-Omni, Gemma-3n, Qwen3-VL-Embedding-8B, Kokoro-82M
 
 * Support for Hugging Face Transformers v5.5, ensuring compatibility with the latest model architectures on Hugging Face
 
 Broader LLM model support and more model compression techniques
 ---------------------------------------------------------------
 
-* OpenVINO™ GenAI extends the EAGLE3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding TopK sampling to deliver additional tokengeneration speedups on CPUs, GPUs, and NPUs.
+* OpenVINO™ GenAI extends the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to deliver additional token-generation speedups on CPUs, GPUs, and NPUs.
 
-* MoE offloading to disk enabled, allowing 30B MoE models like Gemma 4 26B and Qwen330B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokenspersecond (TPS) generation rates.
+* MoE offloading to disk enabled, allowing 30B MoE models like Qwen3-30B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokens-per-second (TPS) generation rates.
 
-* Added GroupedMatMul to accelerate native execution of MixtureofExperts (MoE) models, enabling faster support for new MoE architectures and improving their outofthebox performance.
+* Added GroupedMatMul to accelerate native execution of Mixture-of-Experts (MoE) models, enabling faster support for new MoE architectures and improving their out-of-the-box performance.
 
 * Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
-* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding lowprecision inference options for production deployments.
+* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding low-precision inference options for production deployments.
 
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
 * Introducing support for Intel® Xeon® 6+ processors (formerly codenamed Clearwater Forest)
 
-* OpenVINO GenAI and tokenizers are now available as a native Windows package via WinGet, allowing developers to install and get started with a single command on Windows.
-
 * OpenVINO™ Model Server simplifies model deployment and unifies REST API endpoints, reducing command complexity while providing standard v1/chat/completions support for easier integration with other serving frameworks.
 
-* OpenVINO™ Model Server adds support for audio models, including Kokoro TTS and Qwen3ASR, enabling speech generation and transcription workflows.
+* OpenVINO™ Model Server adds support for audio models, including Kokoro TTS and Qwen3-ASR, enabling speech generation and transcription workflows.
 
-* OpenVINO™ Model Server further hardens support for LLMs with linear attention, (such as Gemma 4 and Qwen3.5/6), and extends toolparser support to MiniCPM5 and LFM2.5, improving accuracy and reliability.
+* OpenVINO™ Model Server further improves stability, performance, and accuracy for LLMs such as Qwen3.5/3.6 with linear attention and extends tool-parser support to MiniCPM5-1B and LFM2.5, improving accuracy and reliability.
 
 OpenVINO™ Runtime
 +++++++++++++++++
@@ -99,7 +99,7 @@ GPU Device Plugin
 
 * Introduced compiled blob compatibility checks based on OpenVINO version, GPU device properties, and GPU driver, improving reliability and safety of model caching and reuse workflows.
 
-* Improved inference performance for Gemma-4 and Qwen3-ASR models on GPU.
+* Improved inference performance for Qwen3-ASR models on GPU.
 
 * Introduced Mixture of Experts (MoE) weight offloading to disk, reducing memory requirements for INT4 models through partial weight offloading.
 
@@ -206,23 +206,23 @@ OpenVINO GenAI
 
 * Introduced new pipelines:
 
-  * Preview: Added ``OmniPipeline`` with support for Qwen3-Omni, enabling multimodal understanding with combined text and speech output.
+  * Preview: ``OmniPipeline`` with support for Qwen3-Omni, enabling multimodal understanding with combined text and speech output.
 
-  * Added ``EmbeddingPipeline`` for multimodal embedding generation with Qwen3-VL-Embedding.
+  * ``EmbeddingPipeline`` for multimodal embedding generation with Qwen3-VL-Embedding.
 
-  * Added ``ASRPipeline`` as a common interface for automatic speech recognition models.
+  * ``ASRPipeline`` as a common interface for automatic speech recognition models.
 
 * Added Kokoro text-to-speech model support to ``Text2SpeechPipeline``.
 
 * Added support for speech recognition with Qwen3-ASR.
 
-* Extended VLM support to include Gemma 3n and Gemma 4 12B. Gemma 4 models also support the PagedAttention backend and stateful multi-token prediction.
+* Extended VLM support to include Gemma 3n.
 
 * Extended image generation support to Flux.2 Klein.
 
 * Enabled CDPruner visual token pruning for Qwen3-VL, reducing KV cache usage and improving TTFT and throughput.
 
-* Extended the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing continuous batching and adding Top-K sampling to improve token generation on CPU, GPU, and NPU.
+* Extended the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing continuous batching and adding Top-K sampling to improve token generation speed on CPU, GPU, and NPU.
 
 * Improved VideoChat-Flash vision encoder performance.
 
@@ -250,7 +250,7 @@ Jupyter Notebooks
 
   * `Document Parsing using Unlimited-OCR <https://openvinotoolkit.github.io/openvino_notebooks/?search=Document+Parsing+using+Unlimited-OCR>`__ (experimental)
 
-  * `gemma-4-12b <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma+4>`__
+  * `Gemma 4 12B <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma+4>`__ (experimental)
 
 * Archived notebooks (still available in 2026.2 branch and on the Archived tab):
 
@@ -281,6 +281,7 @@ Jupyter Notebooks
 Known Issues
 ------------
 
+* CPU Plugin: The ``ENABLE_CPU_PINNING`` property is not currently supported on dual-sockets CWF Windows Servers. Its default value on these systems is No. If a user changes the value to Yes in the application, the application will crash on this system.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
