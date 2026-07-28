@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-00-13-15-000-30311996736",
+  "timestamp": "2026-07-28T00:13:15Z",
+  "run_id": "30311996736",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30311996736",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "Windows VS2022 merge-queue run failed on attempt 1 - logs inaccessible (403)",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "queued",
+      "symptom": "Job still queued on attempt 2; attempt 1 produced failure conclusion, logs inaccessible (403 secrecy policy)"
+    }
+  ],
+  "key_errors": [
+    "Run 30311996736 attempt 1 concluded as failure; run is now on attempt 2 (queued/running). Logs inaccessible via CI Doctor secrecy policy (403). Attempt 2 shows all other jobs succeeded; JS API (22) still queued."
+  ],
+  "root_cause": "The Windows (VS 2022, Python 3.11, Release) merge-queue workflow for PR #37029 ([GPU][CLANG-TIDY] Enable modernize-use-nullptr) failed on attempt 1. The run has already been re-queued as attempt 2, with all jobs either succeeding or still running. Job logs for attempt 1 are inaccessible due to CI Doctor secrecy policy (403 Forbidden). This is consistent with a transient infrastructure or runner failure that resolved on the rerun.",
+  "reproduction_steps": "N/A - likely transient infrastructure failure, logs not accessible",
+  "recommended_actions": [
+    "Monitor attempt 2 (currently queued/in-progress) to see if it completes successfully",
+    "If attempt 2 also fails, manually inspect the runner logs for Windows VS2022 infrastructure issues",
+    "No immediate action required - rerun already triggered"
+  ],
+  "prevention_strategies": "Ensure CI Doctor has access to job logs for post-failure diagnostics. Consider improving log retention and access policies.",
+  "historical_context": "This matches the known pattern of merge-queue run failures where attempt 1 fails (logs inaccessible via 403) and a rerun is automatically triggered. Similar cases seen on 2026-07-27 for ARM64 runs (run 30311997797, PR #37040) and on 2026-07-23 (run 30043161341, PR #37027)."
+}
