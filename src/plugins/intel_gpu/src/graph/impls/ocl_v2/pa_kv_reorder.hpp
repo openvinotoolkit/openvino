@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "intel_gpu/primitives/pa_kv_reorder.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
@@ -23,7 +24,12 @@ struct PA_KV_reorder : public ImplementationManager {
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         if (node.has_fused_primitives())
             return false;
-        return true;
+        // OCL kernel handles the legacy head-major KV layout (dense PA). Sparse-attention
+        // models (XAttention / qq_bias) use a token-major layout produced by the CM pipeline
+        // and are handled by the CM reorder impl. The flag is set in ops/pa_kv_reorder.cpp
+        // from the model rt_info "sparse_enabled".
+        const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
+        return !desc->is_sparse;
     }
 };
 

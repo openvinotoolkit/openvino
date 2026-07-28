@@ -28,12 +28,20 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         static constexpr std::array supported_kv_types = {
             ov::element::f16,
             ov::element::i8,
+            ov::element::u8,  // GPU plugin maps original i4/u4 cache precision to u8 for
+                              // RemoteTensor compatibility (see transformations_pipeline.cpp).
         };
 
-        // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
+        // CM PA is enabled when EITHER:
+        //   - XAttention sparse path is requested, OR
+        //   - QQ bias (speculative tree mask) is requested.
+        // Both rely on the CM token-major KV cache layout produced by the same pipeline.
+        // When both flags are set, the user is expected to bypass xattn at runtime via a
+        // threshold >= 1.0 — execute_multi_token_path() then routes to the dense
+        // pa_multi_token_1 stage which carries the qq_bias mask.
         auto desc = node.as<paged_attention>().get_primitive();
-        if (!desc->has_xattention) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because we enable CM PA when XAttention is enabled. " << std::endl;
+        if (!desc->has_xattention && !desc->has_qq_bias) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false: CM PA requires has_xattention or has_qq_bias. " << std::endl;
             return false;
         }
 

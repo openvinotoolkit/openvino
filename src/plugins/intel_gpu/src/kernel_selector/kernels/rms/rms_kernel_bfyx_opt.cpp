@@ -4,24 +4,38 @@
 
 #include "rms_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
+static constexpr size_t target_items_per_wi = 8;
+static constexpr size_t max_register_stack = 16;
 
-// Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
-static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, size_t data_size) {
-    size_t lws = 1;
-    size_t itemsNum = data_size;
+// Generalized aboutSHW rule: largest power-of-two LWS that keeps at least 8 normalized
+// elements per work-item. RMS is subgroup-based, so clamp the minimum LWS to one subgroup.
+static size_t get_generalized_lws(const rms_params& params, size_t data_size) {
+    size_t lws = subgroup_size;
     const auto& input = params.inputs[0];
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 
-    while ((itemsNum > 8 || lws < itemsNum) && (2 * lws <= max_lws)) {
+    const size_t limit = std::max(subgroup_size, std::min(max_lws, data_size / target_items_per_wi));
+    while (2 * lws <= limit) {
         lws *= 2;
-        itemsNum /= 2;
     }
-    return {itemsNum, lws};
+    return lws;
+}
+
+static size_t get_stack_size(size_t data_size, size_t lws) {
+    return (data_size + lws - 1) / lws;
+}
+
+static bool is_decimal_number(const std::string& value) {
+    return !value.empty() && std::all_of(value.begin(), value.end(), [](char c) {
+        return std::isdigit(static_cast<unsigned char>(c));
+    });
 }
 
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
@@ -88,31 +102,48 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
                 break;
         }
 
-        const std::string lws_0 = "get_local_size(0)";
+        std::string lws_0 = "get_local_size(0)";
         // data_size string starts digit when it has static dim.
-        bool is_static_data_size = std::isdigit(data_size[0]);
-        size_t stack_size = 33;
+        bool is_static_data_size = is_decimal_number(data_size);
+        size_t stack_size = max_register_stack;
+        bool reread_input = true;
+        bool one_subgroup_row = false;
+        bool multi_subgroup_row = false;
         if (is_static_data_size) {
-            auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
-            stack_size = cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second);
+            const size_t static_data_size = std::stoul(data_size);
+            const size_t lws = get_generalized_lws(params, static_data_size);
+            const size_t required_stack = get_stack_size(static_data_size, lws);
+            lws_0 = std::to_string(lws);
+            stack_size = std::min(required_stack, max_register_stack);
+            reread_input = required_stack > max_register_stack;
+            one_subgroup_row = lws == subgroup_size;
+            multi_subgroup_row = !one_subgroup_row;
         }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("STACK_SIZE", stack_size)
+            MakeJitConstant("STACK_SIZE", stack_size),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", 8),
+            MakeJitConstant("ONE_SUBGROUP_ROW", one_subgroup_row),
+            MakeJitConstant("MULTI_SUBGROUP_ROW", multi_subgroup_row),
+            MakeJitConstant("RMS_REREAD_INPUT", reread_input),
         });
     } else {
+        const size_t stack_size = get_stack_size(dispatchData.dataSize, dispatchData.lws[0]);
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
             MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
+            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("STACK_SIZE", std::min(stack_size, max_register_stack)),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", 8),
+            MakeJitConstant("ONE_SUBGROUP_ROW", dispatchData.lws[0] == subgroup_size),
+            MakeJitConstant("MULTI_SUBGROUP_ROW", dispatchData.lws[0] != subgroup_size),
+            MakeJitConstant("RMS_REREAD_INPUT", stack_size > max_register_stack),
         });
     }
     jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
-    jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
         switch (params.ov_input_rank) {
             case 1 :
@@ -152,26 +183,29 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
-    if (!params.has_dynamic_tensors()) {
-        // data size to be processed within a LWG
-        switch (params.ov_input_rank) {
-            case 1:
-                dispatchData.dataSize = input.Batch().v;
-                dispatchData.dataCount = 1;
-                break;
-            case 2:
-                dispatchData.dataSize = input.Feature().v;
-                dispatchData.dataCount = input.Batch().v;
-                break;
-            case 3:
-                dispatchData.dataSize = input.Y().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v;
-                break;
-            default:
-                dispatchData.dataSize = input.X().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
-                break;
-        }
+    // data size to be processed within a LWG. For dynamic kernels, these values are
+    // populated during dispatch update once concrete dimensions are known; if a dimension
+    // is still unknown, leave the default dynamic dispatch data untouched.
+    switch (params.ov_input_rank) {
+        case 1:
+            dispatchData.dataSize = input.Batch().v;
+            dispatchData.dataCount = 1;
+            break;
+        case 2:
+            dispatchData.dataSize = input.Feature().v;
+            dispatchData.dataCount = input.Batch().v;
+            break;
+        case 3:
+            dispatchData.dataSize = input.Y().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v;
+            break;
+        default:
+            dispatchData.dataSize = input.X().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
+            break;
+    }
+
+    if (dispatchData.dataSize != 0 && dispatchData.dataCount != 0) {
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataCount;
         dispatchData.gws[2] = 1;
@@ -180,20 +214,11 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
 
-        auto item_num_and_lws = get_item_num_and_lws(params, dispatchData.dataSize);
-        dispatchData.itemsNum = item_num_and_lws.first;
-        dispatchData.lws[0] = item_num_and_lws.second;
+        dispatchData.lws[0] = get_generalized_lws(params, dispatchData.dataSize);
+        dispatchData.itemsNum = dispatchData.dataSize / dispatchData.lws[0];
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
-
-        if (dispatchData.itemsNum >> 3)
-            dispatchData.subgroupBlockSize = 8;
-        else if (dispatchData.itemsNum >> 2)
-            dispatchData.subgroupBlockSize = 4;
-        else if (dispatchData.itemsNum >> 1)
-            dispatchData.subgroupBlockSize = 2;
-        else
-            dispatchData.subgroupBlockSize = 1;
+        dispatchData.subgroupBlockSize = 8;
     } else {
         dispatchData.subgroupBlockSize = 8;
     }
