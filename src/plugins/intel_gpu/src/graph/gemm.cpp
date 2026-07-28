@@ -83,7 +83,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     size_t ones_to_add = 4 - std::min(output_shape.size(), static_cast<size_t>(4));
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
 
-    if (prim->output_transpose_order.size() > 0)
+    if (!prim->output_transpose_order.empty())
         output_shape = transpose_shape(output_shape, prim->output_transpose_order);
 
     auto output_type = input0_layout.data_type;
@@ -294,7 +294,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = std::move(N);
         output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
 
-        if (primitive->output_transpose_order.size() > 0) {
+        if (!primitive->output_transpose_order.empty()) {
             output_pshape = transpose_pshape(output_pshape, primitive->output_transpose_order);
         }
 
