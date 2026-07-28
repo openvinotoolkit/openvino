@@ -128,6 +128,20 @@ public:
     void clear_all();
 
     /**
+     * @brief Truncate the allocated block list to its first keep_count blocks.
+     *
+     * Used by continuous prefill to discard the suffix of a previous turn while
+     * retaining the shared prefix. Retained blocks keep their IDs, order, token
+     * counts and tensors. Suffix blocks are deallocated with token counts zeroed
+     * and their device tensors kept warm, and subsequent allocations return the
+     * freed IDs in ascending order so logical append order is preserved.
+     *
+     * @param keep_count Number of leading allocated blocks to retain. Must not
+     *                   exceed the current allocated count.
+     */
+    void truncate_allocated(uint32_t keep_count);
+
+    /**
      * @brief Get block size (tokens per block)
      */
     uint32_t get_block_size() const {

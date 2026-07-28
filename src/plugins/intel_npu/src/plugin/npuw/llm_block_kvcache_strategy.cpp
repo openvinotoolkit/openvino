@@ -483,6 +483,106 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
 }
 
+namespace {
+
+// Plan for continuing a prefill on the block pool. Only records the retained block
+// count, since validation happens in the plan phase and blocks need no KV movement.
+struct BlockContinuationPlan final : ContinuedPrefillPlan {
+    uint32_t keep_blocks = 0u;
+};
+
+}  // anonymous namespace
+
+std::unique_ptr<ContinuedPrefillPlan> LLMBlockKVCacheStrategy::plan_continued_prefill(uint32_t keep,
+                                                                                      uint32_t delta_len) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(), "Continued prefill: block managers are not initialized.");
+    OPENVINO_ASSERT(m_block_size > 0u && keep % m_block_size == 0u,
+                    "Continued prefill: keep (",
+                    keep,
+                    ") must be a multiple of the block size (",
+                    m_block_size,
+                    ").");
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+    OPENVINO_ASSERT(keep + delta_len <= kvcache_desc.max_prompt_size,
+                    "Continued prefill: keep plus delta exceeds the maximum prompt size.");
+
+    const uint32_t keep_blocks = keep / m_block_size;
+
+    // Validate every manager in every layer before changing any of them. Each retained
+    // block must exist and be completely full, since a partially filled block would
+    // make the continuation prefix incoherent.
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        auto validate = [&](KVCacheBlockManager* manager, const char* kv_type) {
+            if (!manager) {
+                return;
+            }
+            const auto allocated = manager->get_allocated_blocks();
+            OPENVINO_ASSERT(allocated.size() >= keep_blocks,
+                            "Continued prefill: layer ",
+                            layer_idx,
+                            " ",
+                            kv_type,
+                            " has only ",
+                            allocated.size(),
+                            " allocated blocks, ",
+                            keep_blocks,
+                            " are required.");
+            for (uint32_t i = 0; i < keep_blocks; ++i) {
+                OPENVINO_ASSERT(manager->get_block_tokens(allocated[i]) == m_block_size,
+                                "Continued prefill: retained block ",
+                                i,
+                                " of layer ",
+                                layer_idx,
+                                " ",
+                                kv_type,
+                                " is not full.");
+            }
+        };
+        validate(layer_managers.key_manager.get(), "key");
+        validate(layer_managers.value_manager.get(), "value");
+    }
+
+    auto plan = std::make_unique<BlockContinuationPlan>();
+    plan->keep_blocks = keep_blocks;
+    return plan;
+}
+
+void LLMBlockKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan& base_plan) {
+    auto& plan = static_cast<BlockContinuationPlan&>(base_plan);
+    LOG_DEBUG("Continued prefill: truncating block pool to " << plan.keep_blocks << " blocks per layer.");
+
+    // Drop prefill output redirections left over from a previous zero-copy chunk so
+    // the model does not write into a block we are about to release.
+    if (m_zero_copy_last_chunk) {
+        restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+        m_zero_copy_last_chunk = false;
+    }
+
+    // Release every input binding that may reference a suffix block. Retained blocks
+    // are rebound by load_past_kv_blocks_to_prefill() at the next chunk begin, and by
+    // on_generate_kv_init() for the generate phase. Dummies go to all variants because
+    // any of them may have been bound during earlier turns.
+    set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
+    for (const auto& generate_request : m_req.m_generate_requests) {
+        set_dummy_tensors_to_request(generate_request, m_gen_classified_in_ports.at(generate_request), m_dummy_tensors);
+    }
+    for (const auto& base_req : m_req.m_generate_base_requests) {
+        base_req->propagate_params_to_subrequests();
+    }
+
+    // Truncate the managers. Stale bytes beyond the retained prefix are inert once no
+    // metadata or binding exposes them, and on_reset() must not run here because it
+    // would release the retained block tensors back to the allocator.
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        if (layer_managers.key_manager) {
+            layer_managers.key_manager->truncate_allocated(plan.keep_blocks);
+        }
+        if (layer_managers.value_manager) {
+            layer_managers.value_manager->truncate_allocated(plan.keep_blocks);
+        }
+    }
+}
+
 // ============================================================================
 // Private: prefill path primitives
 // ============================================================================

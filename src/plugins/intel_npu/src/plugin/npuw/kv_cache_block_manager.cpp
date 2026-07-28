@@ -178,6 +178,36 @@ void KVCacheBlockManager::clear_all() {
     release(0);
 }
 
+void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
+    const auto allocated = get_allocated_blocks();
+    OPENVINO_ASSERT(keep_count <= allocated.size(),
+                    "KVCacheBlockManager: cannot truncate to ",
+                    keep_count,
+                    " blocks, only ",
+                    allocated.size(),
+                    " are allocated");
+
+    // Deallocate the suffix, keeping device tensors warm for quick reuse.
+    for (size_t i = keep_count; i < allocated.size(); ++i) {
+        auto& block = blocks_[allocated[i]];
+        block.is_allocated = false;
+        block.num_tokens = 0;
+    }
+
+    // Rebuild the free stack so the smallest free ID is allocated first. This keeps
+    // logical append order intact when the freed suffix IDs are reacquired.
+    std::stack<uint32_t> empty;
+    free_block_ids_.swap(empty);
+    for (uint32_t i = max_blocks_; i > 0; --i) {
+        if (!blocks_[i - 1].is_allocated) {
+            free_block_ids_.push(i - 1);
+        }
+    }
+
+    LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
+                                                   << " suffix block(s) freed");
+}
+
 void KVCacheBlockManager::validate_block_id(uint32_t block_id) const {
     if (block_id >= max_blocks_) {
         OPENVINO_THROW("KVCacheBlockManager: Invalid block ID ", block_id, " (valid range: 0-", max_blocks_ - 1, ")");

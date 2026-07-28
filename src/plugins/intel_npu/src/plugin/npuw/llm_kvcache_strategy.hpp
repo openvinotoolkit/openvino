@@ -16,6 +16,17 @@ namespace npuw {
 class LLMInferRequest;  // forward declaration — strategy always outlived by its owning request
 
 /**
+ * @brief Opaque, strategy-owned plan for a continued prefill.
+ *
+ * Produced by the non-mutating plan_continued_prefill() preflight and consumed
+ * by apply_continued_prefill(). Destroying an unapplied plan releases any
+ * staging resources without changing the live cache.
+ */
+struct ContinuedPrefillPlan {
+    virtual ~ContinuedPrefillPlan() = default;
+};
+
+/**
  * @brief Abstract strategy interface for LLM KV cache management.
  *
  * Decouples `LLMInferRequest` from the two concrete KV cache implementations:
@@ -86,6 +97,26 @@ public:
 
     // Called after each generate step's infer(): persist new token KV and update bindings
     virtual void on_generate_step_done(uint32_t input_tokens_len) = 0;
+
+    // Continuous prefill support.
+
+    /// Validate every dynamic precondition of a continued prefill that keeps the first
+    /// `keep` tokens and prefills `delta_len` new ones, and reserve all staging
+    /// resources. Must not change live KV, bindings, block metadata, counters or
+    /// phase flags. A failure here leaves the cache exactly as it was.
+    virtual std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) {
+        (void)keep;
+        (void)delta_len;
+        OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");
+    }
+
+    /// Apply an already validated plan. The request is active, so any exception from
+    /// this point poisons the request and must not be converted into a fallback that
+    /// continues inference.
+    virtual void apply_continued_prefill(ContinuedPrefillPlan& plan) {
+        (void)plan;
+        OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");
+    }
 
 protected:
     LLMInferRequest& m_req;

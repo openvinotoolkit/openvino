@@ -32,6 +32,11 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
 public:
     static constexpr const char* output_embeds = "npuw_output_embed";
 
+    // Read-only compiled-model property advertising continuous-prefill support.
+    // GenAI probes this by name; it must NOT be inferred from the presence of
+    // npuw_stored_tokens_state in query_state(), which every plugin build publishes.
+    static constexpr const char* continuous_prefill_supported_name = "NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED";
+
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;
     static constexpr uint32_t whisper_max_prompt_size = 4u;
@@ -133,6 +138,13 @@ private:
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
+
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
