@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 82,
+  "total": 83,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -798,6 +798,17 @@
       "category": "Infrastructure",
       "signature_hash": "cc822c07e113be0a",
       "pr_number": "36860"
+    },
+    {
+      "investigation_id": "2026-07-28-14-11-02-332-30356512752",
+      "run_id": "30356512752",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30356512752",
+      "workflow_name": "Conformance (OP)",
+      "timestamp": "2026-07-28T14:11:02Z",
+      "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
+      "category": "Configuration",
+      "signature_hash": "c0643d23262bbd29",
+      "pr_number": null
     }
   ]
 }

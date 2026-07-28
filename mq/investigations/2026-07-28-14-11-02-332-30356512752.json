@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-14-11-02-332-30356512752",
+  "timestamp": "2026-07-28T14:11:02Z",
+  "run_id": "30356512752",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30356512752",
+  "workflow_name": "Conformance (OP)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Configuration",
+  "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
+  "signature": "tar file changed as we read it|Configuration",
+  "signature_hash": "c0643d23262bbd29",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conformance (OP)",
+      "conclusion": "failure",
+      "symptom": "Pack Conformance Artifacts step exits with code 1 due to tar writing output file into the directory being archived"
+    }
+  ],
+  "key_errors": [
+    "tar: conformance_artifacts.tar.gz: file changed as we read it",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Pack Conformance Artifacts' step runs: `tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz`. This creates the output file inside the same directory being archived (the glob `*` matches the output .tar.gz as it is being written). `tar` detects the file changing mid-read, prints 'file changed as we read it', and exits with a non-zero return code (1), which fails the step.",
+  "reproduction_steps": "Run: cd /some/dir && tar -cvf - * | pigz > /some/dir/output.tar.gz — tar will fail because the output file is inside the source directory.",
+  "recommended_actions": [
+    "Write the tar output to a location outside the source directory: e.g., `tar -cvf - * | pigz > /tmp/conformance_artifacts.tar.gz && mv /tmp/conformance_artifacts.tar.gz ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz`",
+    "Alternatively, exclude the output file: `tar --exclude=conformance_artifacts.tar.gz -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz`"
+  ],
+  "prevention_strategies": "When using tar with a glob or directory argument, always write the output to a path outside the source tree, or use --exclude to skip the output file. Add a CI lint check for this pattern.",
+  "historical_context": "New pattern, not previously seen in the CI Doctor MQ database."
+}
