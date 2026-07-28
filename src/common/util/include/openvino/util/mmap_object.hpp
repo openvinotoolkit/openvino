@@ -16,6 +16,7 @@
 #include <string>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
@@ -48,6 +49,17 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
+
+    /**
+     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the given region in the
+     * background and returns immediately. Any background work is joined before this object is
+     * destroyed.
+     *
+     * @param offset Offset within the mapping where prefetching starts.
+     * @param size   Number of bytes to prefetch. Defaults to the rest of the
+     *               mapping when set to auto_size.
+     */
+    virtual void hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

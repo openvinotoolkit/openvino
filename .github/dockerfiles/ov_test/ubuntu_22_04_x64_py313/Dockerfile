@@ -51,5 +51,4 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3.13 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.13/site-packages

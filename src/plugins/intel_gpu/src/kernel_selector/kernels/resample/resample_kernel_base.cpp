@@ -102,7 +102,7 @@ bool ResampleKernelBase::Validate(const Params& p) const {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (params.inputs.size() == 0) {
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

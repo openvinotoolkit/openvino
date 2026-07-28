@@ -16,7 +16,7 @@ public:
 
     convert_color_kernel_selector();
 
-    virtual ~convert_color_kernel_selector() {}
+    ~convert_color_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

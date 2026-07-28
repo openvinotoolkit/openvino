@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -121,6 +122,9 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameBlobAfterImportExport) {
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
     ov::Core core;
     std::stringstream encrypted_blob_stream;
 
@@ -199,6 +203,9 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFu
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, DifferentSizesOfEncryptedVsDecryptedBlobWorks) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
     ov::Core core;
     std::stringstream encrypted_blob_stream;
 

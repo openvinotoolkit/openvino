@@ -9,6 +9,7 @@ set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(WIN32_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/os.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/parallel_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_file_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_mmap_object.cpp
@@ -17,6 +18,7 @@ set(WIN32_SOURCES
 )
 
 set(UNIX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_file_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_mmap_object.cpp
@@ -47,6 +49,8 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/log.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/memory.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/mmap_object.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/native_stream.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/native_streambuf.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/os.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/ov_version.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/parallel_io.hpp
@@ -65,6 +69,10 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/file_path.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/memory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/memory_prefetch.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/native_stream.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
         # Windows specific sources
@@ -86,7 +94,13 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+target_include_directories(${TARGET_NAME}
+    PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+if (ENABLE_IO_URING AND LINUX)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::liburing)
+endif()
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

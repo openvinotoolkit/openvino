@@ -13,7 +13,7 @@ class ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw : public ConvolutionKernelBase
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw();
-    virtual ~ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw() {}
+    ~ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw() override {}
 
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;

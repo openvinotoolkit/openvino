@@ -19,10 +19,13 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
@@ -966,6 +969,18 @@ bool ov::npuw::util::isPastValueParam(const std::string& str) {
     return std::regex_match(str, pattern);
 }
 
+bool ov::npuw::util::isDQScaleOrZPKey(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past key cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/key/(?:scale|zp))");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past value cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/value/(?:scale|zp))");
+    return std::regex_match(str, pattern);
+}
+
 bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
@@ -1056,7 +1071,8 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 
             // Allow traversing through Reshape and Transpose
             if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
-                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node) || ov::is_type<ov::op::v1::Transpose>(current_node) ||
+                ov::is_type<ov::op::v1::Multiply>(current_node) || ov::is_type<ov::op::v0::Convert>(current_node)) {
                 if (current_node->get_input_size() > 0) {
                     current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
                 } else {
