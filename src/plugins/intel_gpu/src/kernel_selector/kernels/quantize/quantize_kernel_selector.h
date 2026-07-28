@@ -16,7 +16,7 @@ public:
 
     quantize_kernel_selector();
 
-    virtual ~quantize_kernel_selector() {}
+    ~quantize_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

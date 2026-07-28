@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
-#include <time.h>
+#include <ctime>
 #include <limits>
 #include <chrono>
 #include <fstream>
@@ -41,7 +41,7 @@
 #include <cstring>
 #else
 #include <unistd.h>
-#include <limits.h>
+#include <climits>
 #include <link.h>
 #include <dlfcn.h>
 #endif
@@ -209,6 +209,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
     info.cacheline_size = device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE>();
+    // Alignment requirement (in bits) for sub-buffer offsets, converting to bytes and ensuring at least 1 byte alignment.
+    auto bits = device.getInfo<CL_DEVICE_MEM_BASE_ADDR_ALIGN>(); 
+    info.sub_buffer_base_alignment = std::max<uint32_t>(1, bits / 8);
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
     info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
@@ -398,7 +401,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
-    auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, NULL);
+    auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, nullptr);
     if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
 
     return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);

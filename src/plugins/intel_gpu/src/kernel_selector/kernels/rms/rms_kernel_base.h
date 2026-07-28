@@ -23,7 +23,7 @@ struct rms_params : public base_params {
 class RMSKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~RMSKernelBase() {}
+    ~RMSKernelBase() override {}
 
     struct DispatchData : public CommonDispatchData {
         size_t dataSize;

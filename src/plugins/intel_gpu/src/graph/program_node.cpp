@@ -50,7 +50,7 @@ static size_t get_shape_data_size(const layout& l) {
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : std::string()) {
     if (prim) {
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
@@ -251,7 +251,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
-    if (onednn_post_ops.size()) {
+    if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
         for (auto& fused_prim_desc : onednn_post_ops) {
