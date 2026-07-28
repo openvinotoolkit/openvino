@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "signature": "Inconsistency detected by ld.so dl-sort-maps Assertion maps_head maps failed|Infrastructure",
+  "signature_hash": "feb1e4843edafb48",
+  "title": "throughput_benchmark sample crashes with ld.so DFS assertion failure",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-28T02:13:41Z",
+  "last_seen": "2026-07-28T02:13:41Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30320203467"
+  ],
+  "affected_prs": [],
+  "recent_timestamps": [
+    "2026-07-28T02:13:41Z"
+  ],
+  "rerun_search_string": "Inconsistency detected by ld.so"
+}

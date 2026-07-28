@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-02-13-41-000-30320203467",
+  "timestamp": "2026-07-28T02:13:41Z",
+  "run_id": "30320203467",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320203467",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "throughput_benchmark sample crashes with ld.so DFS assertion failure",
+  "signature": "Inconsistency detected by ld.so dl-sort-maps Assertion maps_head maps failed|Infrastructure",
+  "signature_hash": "feb1e4843edafb48",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "Test_throughput_benchmark_py.test failed: ld.so assertion in dl_sort_maps_dfs"
+    }
+  ],
+  "key_errors": [
+    "ERROR root:samples_common_test_class.py:312 Inconsistency detected by ld.so: dl-sort-maps.c: 272: _dl_sort_maps_dfs: Assertion `maps_head == maps' failed!",
+    "FAILED install/tests/smoke_tests/test_throughput_benchmark.py::Test_throughput_benchmark_py::test - AssertionError: Sample execution failed"
+  ],
+  "root_cause": "The throughput_benchmark Python sample crashed with a dynamic linker (ld.so) assertion failure during DFS sort of shared library maps. This is an Infrastructure-level transient issue: it indicates shared library loading inconsistency in the runner environment, likely triggered by concurrent or multi-threaded loading of OpenVINO shared libraries, a race condition in the dynamic linker, or a corrupted/incompatible runner state. This is not caused by the PR code changes themselves. 189 other tests passed successfully.",
+  "reproduction_steps": "N/A \u2014 runner-environment glibc/ld.so transient issue, not reproducible deterministically.",
+  "recommended_actions": [
+    "Re-run the failed job \u2014 this is a transient ld.so assertion that typically clears on retry.",
+    "If the failure recurs repeatedly on ARM64 runners, investigate whether TBB or other multi-threaded libraries in the build are triggering ld.so map sorting races.",
+    "Consider pinning or upgrading the runner's glibc version if this becomes persistent."
+  ],
+  "prevention_strategies": "Monitor ld.so assertion frequency on ARM64 runners. If pattern recurs, file a runner infrastructure ticket. Consider using LD_PRELOAD or ld.so configuration to stabilize shared library loading order.",
+  "historical_context": "No prior occurrences of this exact signature in the investigation database."
+}
