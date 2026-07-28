@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-06-11-25-000-30329778351",
+  "timestamp": "2026-07-28T06:11:25Z",
+  "run_id": "30329778351",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30329778351",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "36894",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36894",
+  "author": null,
+  "category": "Code Issue",
+  "title": "PyTorch LLM model accuracy validation fails for katuni4ka/opt-125m-gptq on CPU",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "E           AssertionError: Accuracy validation failed\nE           assert False\ninstall/tests/model_hub_tests/models_hub_common/test_convert_model.py:93: in compare_results"
+  ],
+  "root_cause": "The test exports the katuni4ka/opt-125m-gptq GPTQ-quantized OPT model to OpenVINO IR using the PyTorch frontend, then runs inference on CPU and compares outputs against the original PyTorch model. The accuracy comparison fails, meaning the OpenVINO-converted model produces numerically different results from the reference model. This could be caused by a regression in the PyTorch frontend's handling of GPTQ-quantized linear layers (TorchFusedQuantLinear kernel) or in the CPU plugin's execution of the resulting graph. The recently upgraded dependencies (transformers 5.5.3, gptqmodel 6.0.3, torchao 0.17.0) may have altered quantization semantics or output precision in a way that the current conversion path does not handle correctly.",
+  "reproduction_steps": "Run: python3 -m pytest install/tests/model_hub_tests/pytorch/test_llm.py -m precommit -k 'CPU-opt_gptq-katuni4ka/opt-125m-gptq' --ie_device CPU",
+  "recommended_actions": [
+    "Investigate whether the accuracy regression is due to the dependency upgrade (transformers 5.5.3, gptqmodel 6.0.3) by running the test with the previous versions.",
+    "Check if the PyTorch FX decoder correctly handles TorchFusedQuantLinear layers from gptqmodel 6.x.",
+    "Review any PR-changed files in the PyTorch frontend or CPU plugin that may affect GPTQ weight dequantization.",
+    "If the failure is due to the dependency upgrade, either pin the old version or fix the conversion path for the new API."
+  ],
+  "prevention_strategies": "Add gptqmodel and transformers version pins in the test requirements and test against version bumps in a separate pre-integration pipeline before merging dependency upgrades.",
+  "historical_context": "No prior record of this exact accuracy failure for opt-125m-gptq in the investigation database."
+}
