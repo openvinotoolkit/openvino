@@ -13,7 +13,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <string>
 #include <utility>
 #include <vector>
@@ -858,13 +857,14 @@ std::shared_ptr<ov::Model> build_repro_v3_model() {
     return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{in1, in2}, "reproducer_v3");
 }
 
-// Compiles build_repro_v3_model() on the given device and returns the f16 output flattened to float.
-std::pair<std::vector<float>, ov::CompiledModel> run_repro_v3(ov::Core& core,
-                                                              const std::string& device,
-                                                              const ov::AnyMap& cfg,
-                                                              const ov::Tensor& in1,
-                                                              const ov::Tensor& in2) {
-    auto model = build_repro_v3_model();
+// Compiles the given model on device, runs one inference with (in1, in2), and returns the f16 output
+// flattened to float alongside the compiled model (used by every reproducer variant below).
+std::pair<std::vector<float>, ov::CompiledModel> compile_and_infer(ov::Core& core,
+                                                                    const std::string& device,
+                                                                    const ov::AnyMap& cfg,
+                                                                    const std::shared_ptr<ov::Model>& model,
+                                                                    const ov::Tensor& in1,
+                                                                    const ov::Tensor& in2) {
     auto compiled = core.compile_model(model, device, cfg);
     auto req = compiled.create_infer_request();
     req.set_input_tensor(0, in1);
@@ -876,6 +876,52 @@ std::pair<std::vector<float>, ov::CompiledModel> run_repro_v3(ov::Core& core,
     for (size_t i = 0; i < out.get_size(); ++i)
         vals[i] = static_cast<float>(p[i]);
     return std::make_pair(vals, compiled);
+}
+
+std::pair<std::vector<float>, ov::CompiledModel> run_repro_v3(ov::Core& core,
+                                                              const std::string& device,
+                                                              const ov::AnyMap& cfg,
+                                                              const ov::Tensor& in1,
+                                                              const ov::Tensor& in2) {
+    return compile_and_infer(core, device, cfg, build_repro_v3_model(), in1, in2);
+}
+
+// Scans a compiled model's runtime graph for the (at most one) node whose ORIGINAL_NAMES rt-info
+// contains every string in must_contain and none of must_not_contain. Used by every reproducer test
+// below to check whether the fused Add is present and at what rank/impl it executed.
+struct node_probe {
+    bool found = false;
+    int64_t rank = -1;
+    std::string impl_type;
+};
+
+node_probe probe_node(const std::shared_ptr<const ov::Model>& rt,
+                       const std::vector<std::string>& must_contain,
+                       const std::vector<std::string>& must_not_contain = {}) {
+    node_probe result;
+    for (const auto& node : rt->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
+        if (it == info.end())
+            continue;
+        const auto orig = it->second.as<std::string>();
+        const bool contains_all = std::all_of(must_contain.begin(), must_contain.end(), [&](const std::string& s) {
+            return orig.find(s) != std::string::npos;
+        });
+        if (!contains_all)
+            continue;
+        const bool excludes_all =
+            std::none_of(must_not_contain.begin(), must_not_contain.end(), [&](const std::string& s) {
+                return orig.find(s) != std::string::npos;
+            });
+        if (!excludes_all)
+            continue;
+        result.found = true;
+        result.rank = node->get_output_partial_shape(0).rank().get_length();
+        if (auto impl_it = info.find(ov::exec_model_info::IMPL_TYPE); impl_it != info.end())
+            result.impl_type = impl_it->second.as<std::string>();
+    }
+    return result;
 }
 
 double repro_v3_mse(const std::vector<float>& a, const std::vector<float>& b, double& max_ae) {
@@ -909,50 +955,6 @@ void fill_repro_v3_inputs(ov::Tensor& in1, ov::Tensor& in2) {
     auto rnd2 = rg.generate_random_1d<ov::float16>(1 * 2 * 60 * 12, -2, 2);
     std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
 }
-
-// Cross-platform, exception-safe scoped environment-variable override. On construction it records the
-// previous value (if any) and sets the new one; on destruction it restores the previous value or unsets
-// the variable, so every exit path (including a thrown/failed assertion) leaves the environment as it
-// was found. Uses _putenv_s on Windows and setenv/unsetenv elsewhere.
-class ScopedEnvVar {
-public:
-    ScopedEnvVar(const char* name, const char* value) : m_name(name) {
-        const char* prev = std::getenv(name);
-        if (prev != nullptr) {
-            m_had_prev = true;
-            m_prev = prev;
-        }
-        set(name, value);
-    }
-    ~ScopedEnvVar() {
-        if (m_had_prev) {
-            set(m_name.c_str(), m_prev.c_str());
-        } else {
-            unset(m_name.c_str());
-        }
-    }
-    ScopedEnvVar(const ScopedEnvVar&) = delete;
-    ScopedEnvVar& operator=(const ScopedEnvVar&) = delete;
-
-private:
-    static void set(const char* name, const char* value) {
-#ifdef _WIN32
-        _putenv_s(name, value);
-#else
-        ::setenv(name, value, 1);
-#endif
-    }
-    static void unset(const char* name) {
-#ifdef _WIN32
-        _putenv_s(name, "");
-#else
-        ::unsetenv(name);
-#endif
-    }
-    std::string m_name;
-    std::string m_prev;
-    bool m_had_prev = false;
-};
 
 // Builds a higher-rank *broadcast* variant of the reproducer_v3 model: the host branch produces
 // [1,2,8,6,10] (flattened to 4D bfyx [1,2,48,10]) while the peer branch produces [1,1,8,6,10] (5D
@@ -999,18 +1001,7 @@ std::pair<std::vector<float>, ov::CompiledModel> run_broadcast_repro(ov::Core& c
                                                                      const std::string& device,
                                                                      const ov::Tensor& in1,
                                                                      const ov::Tensor& in2) {
-    auto model = build_broadcast_repro_model();
-    auto compiled = core.compile_model(model, device);
-    auto req = compiled.create_infer_request();
-    req.set_input_tensor(0, in1);
-    req.set_input_tensor(1, in2);
-    req.infer();
-    auto out = req.get_output_tensor(0);
-    std::vector<float> vals(out.get_size());
-    const auto* p = out.data<ov::float16>();
-    for (size_t i = 0; i < out.get_size(); ++i)
-        vals[i] = static_cast<float>(p[i]);
-    return std::make_pair(vals, compiled);
+    return compile_and_infer(core, device, {}, build_broadcast_repro_model(), in1, in2);
 }
 }  // namespace
 
@@ -1032,38 +1023,13 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_5d_peer_into_4d_host) {
 
     // --- Prove the buggy graph state is actually present on GPU (4D fused host + 5D peer). ---
     auto rt = gpu_compiled.get_runtime_model();
-    bool found_fused_target = false;
-    bool target_is_4d = false;
-    bool target_is_permute_ref = false;
-    bool peer_is_5d = false;
-    for (const auto& node : rt->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
-        if (it == info.end())
-            continue;
-        const auto orig = it->second.as<std::string>();
-        std::string impl;
-        if (auto i2 = info.find(ov::exec_model_info::IMPL_TYPE); i2 != info.end())
-            impl = i2->second.as<std::string>();
-
-        // Target permute: Add fused in, permute_ref, 4D output.
-        if (orig.find("Transpose_target") != std::string::npos &&
-            orig.find("Add_target") != std::string::npos) {
-            found_fused_target = true;
-            target_is_permute_ref = impl.find("permute_ref") != std::string::npos;
-            target_is_4d = node->get_output_partial_shape(0).rank().get_length() == 4;
-        }
-        // Peer permute: still 5D.
-        if (orig.find("Transpose_peer") != std::string::npos &&
-            orig.find("Add_target") == std::string::npos) {
-            peer_is_5d = node->get_output_partial_shape(0).rank().get_length() == 5;
-        }
-    }
-    ASSERT_TRUE(found_fused_target) << "Add_target was not fused into Transpose_target on GPU; "
-                                       "the fusion mechanism under test is absent.";
-    ASSERT_TRUE(target_is_permute_ref) << "Target permute did not select permute_ref.";
-    ASSERT_TRUE(target_is_4d) << "Target permute host output was not flattened to 4D.";
-    ASSERT_TRUE(peer_is_5d) << "Fused peer dependency was not 5D; rank-mismatch condition absent.";
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    auto peer = probe_node(rt, {"Transpose_peer"}, {"Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target on GPU; "
+                                 "the fusion mechanism under test is absent.";
+    ASSERT_TRUE(target.impl_type.find("permute_ref") != std::string::npos) << "Target permute did not select permute_ref.";
+    ASSERT_EQ(target.rank, 4) << "Target permute host output was not flattened to 4D.";
+    ASSERT_EQ(peer.rank, 5) << "Fused peer dependency was not 5D; rank-mismatch condition absent.";
 
     // --- Numerical gate: GPU must match the CPU reference. ---
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
@@ -1078,8 +1044,6 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_5d_peer_into_4d_host) {
 // New-shape-infer (NSI) path: the host output stays 5D bfzyx so the fused peer is already
 // rank-consistent (both 5D). This path never entered the broken repair branch and must remain correct;
 // it guards against a fix that only works because it changed the default flattening behavior.
-// NSI is a RELEASE_INTERNAL option, so it is selected through its OV_GPU environment variable (the same
-// mechanism used by the standalone reproducer controls), not via a public compile_model property.
 TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
     ov::Core core;
     if (!discover_gpu_and_cpu(core)) {
@@ -1091,36 +1055,14 @@ TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
     fill_repro_v3_inputs(in1, in2);
 
     auto [cpu_vals, cpu_compiled] = run_repro_v3(core, "CPU", {}, in1, in2);
-
-    // Use a fresh Core so the NSI env option is picked up for the GPU compile. The scoped guard restores
-    // any pre-existing value on every exit path, including a failed assertion below.
-    std::pair<std::vector<float>, ov::CompiledModel> gpu_result;
-    {
-        ScopedEnvVar nsi_env("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
-        ov::Core nsi_core;
-        gpu_result = run_repro_v3(nsi_core, "GPU", {}, in1, in2);
-    }
-    auto& gpu_vals = gpu_result.first;
-    auto& gpu_compiled = gpu_result.second;
+    auto [gpu_vals, gpu_compiled] =
+        run_repro_v3(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, in1, in2);
 
     // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
     auto rt = gpu_compiled.get_runtime_model();
-    bool found_fused_target = false;
-    bool target_is_5d = false;
-    for (const auto& node : rt->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
-        if (it == info.end())
-            continue;
-        const auto orig = it->second.as<std::string>();
-        if (orig.find("Transpose_target") != std::string::npos &&
-            orig.find("Add_target") != std::string::npos) {
-            found_fused_target = true;
-            target_is_5d = node->get_output_partial_shape(0).rank().get_length() == 5;
-        }
-    }
-    ASSERT_TRUE(found_fused_target) << "Add_target was not fused into Transpose_target under NSI.";
-    ASSERT_TRUE(target_is_5d) << "Under NSI the fused permute host output should remain 5D.";
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target under NSI.";
+    ASSERT_EQ(target.rank, 5) << "Under NSI the fused permute host output should remain 5D.";
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
     double max_ae = 0.0;
@@ -1163,26 +1105,10 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_higher_rank_broadcast_peer_comp
 
     // The legal Add fusion must be retained (the fold represents the peer at the host rank).
     auto rt = gpu_compiled.get_runtime_model();
-    bool found_fused_target = false;
-    bool target_is_permute_ref = false;
-    for (const auto& node : rt->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
-        if (it == info.end())
-            continue;
-        const auto orig = it->second.as<std::string>();
-        std::string impl;
-        if (auto i2 = info.find(ov::exec_model_info::IMPL_TYPE); i2 != info.end())
-            impl = i2->second.as<std::string>();
-        if (orig.find("Transpose_target") != std::string::npos &&
-            orig.find("Add_target") != std::string::npos) {
-            found_fused_target = true;
-            target_is_permute_ref = impl.find("permute_ref") != std::string::npos;
-        }
-    }
-    ASSERT_TRUE(found_fused_target) << "Add_target was not fused into Transpose_target on GPU; the "
-                                       "broadcast fold must retain the legal fusion.";
-    EXPECT_TRUE(target_is_permute_ref) << "Target permute did not select permute_ref.";
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target on GPU; the "
+                                 "broadcast fold must retain the legal fusion.";
+    EXPECT_TRUE(target.impl_type.find("permute_ref") != std::string::npos) << "Target permute did not select permute_ref.";
 
     // Numerical gate: GPU broadcast result must match the CPU reference.
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
@@ -1261,18 +1187,7 @@ std::pair<std::vector<float>, ov::CompiledModel> run_collapse_mask(ov::Core& cor
                                                                    const collapse_mask_case& c,
                                                                    const ov::Tensor& in1,
                                                                    const ov::Tensor& in2) {
-    auto model = build_collapse_mask_model(c);
-    auto compiled = core.compile_model(model, device);
-    auto req = compiled.create_infer_request();
-    req.set_input_tensor(0, in1);
-    req.set_input_tensor(1, in2);
-    req.infer();
-    auto out = req.get_output_tensor(0);
-    std::vector<float> vals(out.get_size());
-    const auto* p = out.data<ov::float16>();
-    for (size_t i = 0; i < out.get_size(); ++i)
-        vals[i] = static_cast<float>(p[i]);
-    return std::make_pair(vals, compiled);
+    return compile_and_infer(core, device, {}, build_collapse_mask_model(c), in1, in2);
 }
 
 class permute_fused_collapse_broadcast_matrix : public ::testing::TestWithParam<collapse_mask_case> {};
@@ -1309,24 +1224,12 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
     // Assert the intended runtime state: Add fused into Transpose_target, and the host permute rank
     // matches the fix's decision (5D preserved for the inner-spatial masks, 4D flattened otherwise).
     auto rt = gpu_compiled.get_runtime_model();
-    bool found_fused_target = false;
-    int64_t target_rank = 0;
-    for (const auto& node : rt->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
-        if (it == info.end())
-            continue;
-        const auto orig = it->second.as<std::string>();
-        if (orig.find("Transpose_target") != std::string::npos && orig.find("Add_target") != std::string::npos) {
-            found_fused_target = true;
-            target_rank = node->get_output_partial_shape(0).rank().get_length();
-        }
-    }
-    ASSERT_TRUE(found_fused_target) << "Add_target not fused into Transpose_target for mask " << c.label;
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target not fused into Transpose_target for mask " << c.label;
     if (c.expect_rank_preserved) {
-        EXPECT_EQ(target_rank, 5) << "Inner-spatial mask " << c.label << " must keep the fused permute host at 5D (rank preserved).";
+        EXPECT_EQ(target.rank, 5) << "Inner-spatial mask " << c.label << " must keep the fused permute host at 5D (rank preserved).";
     } else {
-        EXPECT_EQ(target_rank, 4) << "Representable mask " << c.label << " should keep the flattened 4D fused host.";
+        EXPECT_EQ(target.rank, 4) << "Representable mask " << c.label << " should keep the flattened 4D fused host.";
     }
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
@@ -1356,11 +1259,14 @@ INSTANTIATE_TEST_SUITE_P(collapse_broadcast_matrix,
 // -----------------------------------------------------------------------------
 // Direct-fix 6D-to-4D matrix. Host permute output is 6D bfwzyx
 // [1,2,X=2,W=4,Z=3,Y=5], and a downstream Reshape introduces the actual reduced
-// bfyx layout selected by the optimizer. All 16 spatial broadcast masks are
-// covered. Rank reduction is retained only when fold_higher_rank_fused_peer()
-// proves that the peer can be represented at that exact reduced layout; every
-// other mask conservatively keeps the producer at 6D. Each case must remain
-// fused, compile by default, be finite, match CPU, and use the expected rank.
+// bfyx layout selected by the optimizer. Rank reduction is retained only when
+// fold_higher_rank_fused_peer() proves that the peer can be represented at that
+// exact reduced layout; every other mask conservatively keeps the producer at
+// 6D. One representative case per behavior class is covered here (equal-total,
+// single-axis fold, multi-axis fold, maximal fold); fold_higher_rank_fused_peer()
+// itself is exhaustively unit-tested (including every rejection reason) in
+// canonicalize_fused_shapes_test.cpp. Each case must remain fused, compile by
+// default, be finite, match CPU, and use the expected rank.
 namespace {
 
 struct collapse6d_case {
@@ -1413,18 +1319,7 @@ std::pair<std::vector<float>, ov::CompiledModel> run_collapse6d(ov::Core& core,
                                                                 const collapse6d_case& c,
                                                                 const ov::Tensor& in1,
                                                                 const ov::Tensor& in2) {
-    auto model = build_collapse6d_model(c);
-    auto compiled = core.compile_model(model, device);
-    auto req = compiled.create_infer_request();
-    req.set_input_tensor(0, in1);
-    req.set_input_tensor(1, in2);
-    req.infer();
-    auto out = req.get_output_tensor(0);
-    std::vector<float> vals(out.get_size());
-    const auto* p = out.data<ov::float16>();
-    for (size_t i = 0; i < out.get_size(); ++i)
-        vals[i] = static_cast<float>(p[i]);
-    return std::make_pair(vals, compiled);
+    return compile_and_infer(core, device, {}, build_collapse6d_model(c), in1, in2);
 }
 
 class permute_fused_collapse6d_matrix : public ::testing::TestWithParam<collapse6d_case> {};
@@ -1459,24 +1354,12 @@ TEST_P(permute_fused_collapse6d_matrix, compiles_finite_and_matches_cpu) {
        << c.label;
 
     auto rt = gpu_compiled.get_runtime_model();
-    bool found_fused_target = false;
-    int64_t target_rank = 0;
-    for (const auto& node : rt->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto it = info.find(ov::exec_model_info::ORIGINAL_NAMES);
-        if (it == info.end())
-            continue;
-        const auto orig = it->second.as<std::string>();
-        if (orig.find("Transpose_target") != std::string::npos && orig.find("Add_target") != std::string::npos) {
-            found_fused_target = true;
-            target_rank = node->get_output_partial_shape(0).rank().get_length();
-        }
-    }
-    ASSERT_TRUE(found_fused_target) << "Add_target not fused into Transpose_target for 6D mask " << c.label;
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target not fused into Transpose_target for 6D mask " << c.label;
     if (c.expect_rank_preserved) {
-        EXPECT_EQ(target_rank, 6) << "Inner-spatial 6D mask " << c.label << " must preserve 6D host rank.";
+        EXPECT_EQ(target.rank, 6) << "Inner-spatial 6D mask " << c.label << " must preserve 6D host rank.";
     } else {
-        EXPECT_EQ(target_rank, 4) << "Representable 6D mask " << c.label << " should keep the 4D host.";
+        EXPECT_EQ(target.rank, 4) << "Representable 6D mask " << c.label << " should keep the 4D host.";
     }
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
@@ -1494,20 +1377,8 @@ INSTANTIATE_TEST_SUITE_P(collapse6d_matrix,
                              // A 4D metadata fold is retained only when the peer can be proven broadcast-compatible with
                              // the actual reduced layout. Every other mask conservatively preserves the 6D host rank.
                              collapse6d_case{2, 2, 4, 3, 5, false, "equal_total_6d"},
-                             collapse6d_case{2, 2, 4, 3, 1, false, "y_broadcast_6d"},
                              collapse6d_case{2, 2, 4, 1, 5, true, "z_broadcast_6d"},
-                             collapse6d_case{2, 2, 4, 1, 1, true, "zy_broadcast_6d"},
-                             collapse6d_case{2, 2, 1, 3, 5, true, "w_broadcast_6d"},
-                             collapse6d_case{2, 2, 1, 3, 1, true, "wy_broadcast_6d"},
-                             collapse6d_case{2, 2, 1, 1, 5, true, "wz_broadcast_6d"},
-                             collapse6d_case{2, 2, 1, 1, 1, true, "wzy_broadcast_6d"},
-                             collapse6d_case{2, 1, 4, 3, 5, true, "x_broadcast_6d"},
-                             collapse6d_case{2, 1, 4, 3, 1, true, "xy_broadcast_6d"},
-                             collapse6d_case{2, 1, 4, 1, 5, true, "xz_broadcast_6d"},
-                             collapse6d_case{2, 1, 4, 1, 1, true, "xzy_broadcast_6d"},
                              collapse6d_case{2, 1, 1, 3, 5, true, "xw_broadcast_6d"},
-                             collapse6d_case{2, 1, 1, 3, 1, true, "xwy_broadcast_6d"},
-                             collapse6d_case{2, 1, 1, 1, 5, false, "xwz_broadcast_6d"},
                              collapse6d_case{2, 1, 1, 1, 1, false, "xwzy_broadcast_6d"}),
                          [](const ::testing::TestParamInfo<collapse6d_case>& info) {
                              return std::string(info.param.label);
