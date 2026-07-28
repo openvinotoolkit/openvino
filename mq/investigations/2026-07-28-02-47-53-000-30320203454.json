@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-02-47-53-000-30320203454",
+  "timestamp": "2026-07-28T02:47:53Z",
+  "run_id": "30320203454",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320203454",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "nazanin-beheshti",
+  "category": "Flaky Test",
+  "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
+  "signature": "pytorch llm model tests step failed in pytorch models tests job|Flaky Test",
+  "signature_hash": "e9f14463b6d39bf8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "in_progress",
+      "symptom": "PyTorch LLM Model Tests step is failing/still running (same pattern as prior run 30307050013 on same PR)"
+    },
+    {
+      "name": "iGPU Tests (unit) / GPU",
+      "conclusion": "in_progress",
+      "symptom": "GPU unit tests in progress - may be cancelled"
+    },
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "in_progress",
+      "symptom": "GPU functional tests in progress - may be cancelled"
+    }
+  ],
+  "key_errors": [
+    "PyTorch LLM Model Tests step in progress / failing - direct log access blocked by secrecy policy (HTTP 403)",
+    "Previous investigation (run 30307050013) on same PR 35116 identified this as a flaky PyTorch LLM test failure"
+  ],
+  "root_cause": "The PyTorch Models tests / PyTorch Models tests job is failing at the 'PyTorch LLM Model Tests' step. Logs are inaccessible due to the secrecy policy (403), but this is the same pattern as investigation run 30307050013 for the same PR #35116, classified as a Flaky Test. The PR itself changes GPU plugin memory dependency data structures (hashMap to vector) and is unrelated to PyTorch LLM tests, strongly suggesting this is a pre-existing flaky test unrelated to the PR changes. The iGPU test jobs appear to be infrastructure-related (running on special GPU hardware runners). This is run attempt 2.",
+  "reproduction_steps": "N/A - flaky test not reliably reproducible",
+  "recommended_actions": [
+    "Monitor whether the PyTorch LLM Model Tests step completes successfully on this run attempt 2",
+    "If it fails again, re-add the PR to the merge queue as this appears to be a flaky test unrelated to PR changes",
+    "The PR changes GPU memory dependency structures (hashMap to vector) which are unrelated to PyTorch LLM tests"
+  ],
+  "prevention_strategies": "Flaky LLM model tests should be tracked and stabilized. Consider adding retries or marking known-flaky tests.",
+  "historical_context": "Run 30307050013 on the same PR 35116 had the same PyTorch LLM Model Tests failure, classified as Flaky Test. This is the 2nd occurrence of this pattern."
+}

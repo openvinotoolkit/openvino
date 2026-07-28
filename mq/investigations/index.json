@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 65,
+  "total": 66,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -633,6 +633,15 @@
       "category": "Infrastructure",
       "signature_hash": "feb1e4843edafb48",
       "pr_number": null
+    },
+    {
+      "investigation_id": "2026-07-28-02-47-53-000-30320203454",
+      "run_id": "30320203454",
+      "timestamp": "2026-07-28T02:47:53Z",
+      "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
+      "category": "Flaky Test",
+      "signature_hash": "e9f14463b6d39bf8",
+      "pr_number": "35116"
     }
   ]
 }
