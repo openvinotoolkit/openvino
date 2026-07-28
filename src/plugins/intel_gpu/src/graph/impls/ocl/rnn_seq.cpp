@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "lstm_seq_inst.h"
 #include "rnn_seq.hpp"
+
+#include <cmath>
+
 #include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
+#include "lstm_seq_inst.h"
 #include "openvino/op/lstm_sequence.hpp"
+#include "primitive_base.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace cldnn {
@@ -63,12 +65,14 @@ public:
             }
         }
 
-        if (primitive->clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
+        // clip == 0 and clip == inf both mean "no clipping"; normalize inf to 0 so the kernel skips clamping
+        const float clip = std::isinf(primitive->clip) ? 0.0f : primitive->clip;
+        if (clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }
 
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
-        params.clip = primitive->clip;
+        params.clip = clip;
         params.direction = primitive->direction;
         return params;
     }
