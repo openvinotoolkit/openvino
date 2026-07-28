@@ -68,8 +68,8 @@ public:
 
     static constexpr size_t kMaxRegisterStack = 16;
 
-    // Generalized rule from ce_test_AI_job/aboutSHW: pick the largest power-of-two
-    // LWS that keeps about target_items normalized elements per work-item.
+    // Generalized rule: pick the largest power-of-two LWS that keeps about target_items
+    // normalized elements per work-item.
     static size_t GetGeneralizedLws(size_t data_set_size, size_t max_lws, size_t target_items = kTargetItemsPerWi) {
         size_t lws = 1;
         const size_t limit = std::max<size_t>(1, std::min(max_lws, data_set_size / target_items));
