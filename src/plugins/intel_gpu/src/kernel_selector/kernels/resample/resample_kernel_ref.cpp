@@ -4,6 +4,7 @@
 
 #include <kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
+#include "resample/utils.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -90,24 +91,11 @@ static bool use_packing(const resample_params& params) {
     return packed_work_items >= minimum_work_items;
 }
 
-static bool has_padding(const resample_params& params) {
-    return std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
-           std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
-}
-
-static bool is_integral_ratio(size_t lhs, size_t rhs) {
-    return lhs != 0 && rhs != 0 && (lhs % rhs == 0 || rhs % lhs == 0);
-}
-
-static bool is_integral_upsampling_ratio(size_t output, size_t input) {
-    return input != 0 && output >= input && output % input == 0;
-}
-
 static bool is_fast_nearest_case(const resample_params& params) {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR || has_padding(params) ||
+    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR || ResampleKernelBase::has_padding(params) ||
         input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
         return false;
     }
@@ -141,7 +129,7 @@ static bool is_fast_linear_onnx_case(const resample_params& params) {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    if (params.resampleType != ResampleType::LINEAR_ONNX || has_padding(params) ||
+    if (params.resampleType != ResampleType::LINEAR_ONNX || ResampleKernelBase::has_padding(params) ||
         params.coordTransMode != CoordinateTransformationMode::HALF_PIXEL ||
         input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
         return false;
@@ -160,59 +148,9 @@ static bool is_fast_caffe_bilinear_interp_case(const resample_params& params) {
     const auto& output = params.outputs[0];
 
     return params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP &&
-           !has_padding(params) &&
+           !ResampleKernelBase::has_padding(params) &&
            input.Batch().v == output.Batch().v &&
            input.Feature().v == output.Feature().v;
-}
-
-static int get_axis_index(InterpolateAxis axis) {
-    switch (axis) {
-    case InterpolateAxis::BATCH:
-        return 0;
-    case InterpolateAxis::FEATURE:
-        return 1;
-    case InterpolateAxis::Z:
-        return 2;
-    case InterpolateAxis::Y:
-        return 3;
-    case InterpolateAxis::X:
-        return 4;
-    default:
-        return 0;
-    }
-}
-
-static std::vector<float> get_legacy_scales(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-    auto pads_begin = params.pads_begin;
-    auto pads_end = params.pads_end;
-    if (pads_begin.size() == 4)
-        pads_begin.insert(pads_begin.begin() + 2, 0);
-    if (pads_end.size() == 4)
-        pads_end.insert(pads_end.begin() + 2, 0);
-
-    const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
-    const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
-    const auto z_size_padded = pads_begin[2] + input.Z().v + pads_end[2];
-    const auto y_size_padded = pads_begin[3] + input.Y().v + pads_end[3];
-    const auto x_size_padded = pads_begin[4] + input.X().v + pads_end[4];
-
-    std::vector<float> scales = {
-        static_cast<float>(b_size_padded) / static_cast<float>(output.Batch().v),
-        static_cast<float>(f_size_padded) / static_cast<float>(output.Feature().v),
-        static_cast<float>(z_size_padded) / static_cast<float>(output.Z().v),
-        static_cast<float>(y_size_padded) / static_cast<float>(output.Y().v),
-        static_cast<float>(x_size_padded) / static_cast<float>(output.X().v),
-    };
-
-    for (std::size_t i = 0; i < params.axes.size(); i++) {
-        const int idx = get_axis_index(params.axes[i]);
-        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
-            scales[idx] = 1.f / params.scales[i];
-    }
-
-    return scales;
 }
 
 JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {

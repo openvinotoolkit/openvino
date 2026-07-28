@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
+#include "resample/utils.hpp"
 
 namespace kernel_selector {
 
@@ -96,14 +97,6 @@ static int get_feature_slice_size(const resample_params &params) {
     return static_cast<int>(16 * get_vec_size(params));
 }
 
-static bool is_integral_ratio(size_t lhs, size_t rhs) {
-    return lhs != 0 && rhs != 0 && (lhs % rhs == 0 || rhs % lhs == 0);
-}
-
-static bool is_integral_upsampling_ratio(size_t output, size_t input) {
-    return input != 0 && output >= input && output % input == 0;
-}
-
 static bool is_asymmetric_simple_optimized_case(const resample_params& params) {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
@@ -151,56 +144,6 @@ static bool is_half_pixel_round_prefer_floor_optimized_case(const resample_param
     }
 
     return input.Dimentions() != 5 || is_integral_ratio(output.Z().v, input.Z().v);
-}
-
-static int get_axis_index(InterpolateAxis axis) {
-    switch (axis) {
-    case InterpolateAxis::BATCH:
-        return 0;
-    case InterpolateAxis::FEATURE:
-        return 1;
-    case InterpolateAxis::Z:
-        return 2;
-    case InterpolateAxis::Y:
-        return 3;
-    case InterpolateAxis::X:
-        return 4;
-    default:
-        return 0;
-    }
-}
-
-static std::vector<float> get_legacy_scales(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-    auto pads_begin = params.pads_begin;
-    auto pads_end = params.pads_end;
-    if (pads_begin.size() == 4)
-        pads_begin.insert(pads_begin.begin() + 2, 0);
-    if (pads_end.size() == 4)
-        pads_end.insert(pads_end.begin() + 2, 0);
-
-    const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
-    const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
-    const auto z_size_padded = pads_begin[2] + input.Z().v + pads_end[2];
-    const auto y_size_padded = pads_begin[3] + input.Y().v + pads_end[3];
-    const auto x_size_padded = pads_begin[4] + input.X().v + pads_end[4];
-
-    std::vector<float> scales = {
-        static_cast<float>(b_size_padded) / static_cast<float>(output.Batch().v),
-        static_cast<float>(f_size_padded) / static_cast<float>(output.Feature().v),
-        static_cast<float>(z_size_padded) / static_cast<float>(output.Z().v),
-        static_cast<float>(y_size_padded) / static_cast<float>(output.Y().v),
-        static_cast<float>(x_size_padded) / static_cast<float>(output.X().v),
-    };
-
-    for (std::size_t i = 0; i < params.axes.size(); i++) {
-        const int idx = get_axis_index(params.axes[i]);
-        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
-            scales[idx] = 1.f / params.scales[i];
-    }
-
-    return scales;
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
@@ -264,8 +207,7 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    const auto has_padding = std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
-                             std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
+    const auto has_padding = ResampleKernelBase::has_padding(params);
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&

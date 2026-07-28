@@ -11,7 +11,7 @@
 #include <iostream>
 
 namespace {
-int getAxisIndex(kernel_selector::InterpolateAxis axis) {
+int get_axis_index(kernel_selector::InterpolateAxis axis) {
     switch (axis) {
     case kernel_selector::InterpolateAxis::BATCH:
         return 0;
@@ -30,6 +30,44 @@ int getAxisIndex(kernel_selector::InterpolateAxis axis) {
 }  // namespace
 
 namespace kernel_selector {
+
+std::vector<float> ResampleKernelBase::get_legacy_scales(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+    auto pads_begin = params.pads_begin;
+    auto pads_end = params.pads_end;
+    if (pads_begin.size() == 4)
+        pads_begin.insert(pads_begin.begin() + 2, 0);
+    if (pads_end.size() == 4)
+        pads_end.insert(pads_end.begin() + 2, 0);
+
+    const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
+    const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
+    const auto z_size_padded = pads_begin[2] + input.Z().v + pads_end[2];
+    const auto y_size_padded = pads_begin[3] + input.Y().v + pads_end[3];
+    const auto x_size_padded = pads_begin[4] + input.X().v + pads_end[4];
+
+    std::vector<float> scales = {
+        static_cast<float>(b_size_padded) / static_cast<float>(output.Batch().v),
+        static_cast<float>(f_size_padded) / static_cast<float>(output.Feature().v),
+        static_cast<float>(z_size_padded) / static_cast<float>(output.Z().v),
+        static_cast<float>(y_size_padded) / static_cast<float>(output.Y().v),
+        static_cast<float>(x_size_padded) / static_cast<float>(output.X().v),
+    };
+
+    for (std::size_t i = 0; i < params.axes.size(); i++) {
+        const int idx = get_axis_index(params.axes[i]);
+        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
+            scales[idx] = 1.f / params.scales[i];
+    }
+
+    return scales;
+}
+
+bool ResampleKernelBase::has_padding(const resample_params& params) {
+    return std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
+           std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
+}
 
 size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) const {
     const size_t max_size = 32;
@@ -153,7 +191,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     scales[2] = static_cast<float>(out_z_size_padded) / static_cast<float>(z_size_padded);
 
     for (std::size_t i = 0; i < params.axes.size(); i++) {
-        int idx = getAxisIndex(params.axes[i]);
+        int idx = get_axis_index(params.axes[i]);
         axesUsed[idx] = 1;
         if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
             scales[idx] = params.scales[i];
