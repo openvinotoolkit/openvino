@@ -11,6 +11,7 @@
 #include <set>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_context_helpers.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
 #include "snippets/emitter.hpp"
@@ -22,19 +23,6 @@ namespace ov::intel_cpu::riscv64 {
 namespace {
 
 constexpr int64_t gpr_size = 8;
-
-void adjust_sp(jit_generator_t* h, int64_t bytes) {
-    while (bytes > 0) {
-        const auto step = std::min<int64_t>(bytes, 2047);
-        h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, static_cast<int32_t>(step));
-        bytes -= step;
-    }
-    while (bytes < 0) {
-        const auto step = std::max<int64_t>(bytes, -2048);
-        h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, static_cast<int32_t>(step));
-        bytes -= step;
-    }
-}
 
 int64_t get_vec_slot_size() {
     return rnd_up(Xbyak_riscv::CPU::getInstance().getVlen() / 8, 16);
@@ -51,9 +39,8 @@ std::vector<snippets::Reg> filter_regs(const std::vector<snippets::Reg>& regs, s
 
 void validate_supported_regs(const std::vector<snippets::Reg>& regs) {
     for (const auto& reg : regs) {
-        if (reg.type != snippets::RegType::gpr && reg.type != snippets::RegType::vec) {
-            OPENVINO_THROW("Unsupported register type in RV64 RegSpill emitter");
-        }
+        OPENVINO_ASSERT(reg.type == snippets::RegType::gpr || reg.type == snippets::RegType::vec,
+                        "Unsupported register type in RV64 RegSpill emitter");
     }
 }
 
@@ -70,14 +57,14 @@ void EmitABIRegSpills::store_regs_to_stack(jit_generator_t* h, const std::vector
 
     const auto vec_slot_size = get_vec_slot_size();
     for (const auto& reg : filter_regs(regs_to_store, snippets::RegType::vec)) {
-        adjust_sp(h, -vec_slot_size);
+        utils::sub_sp(*h, vec_slot_size);
         h->vs1r_v(Xbyak_riscv::VReg(static_cast<int>(reg.idx)), Xbyak_riscv::sp);
     }
 
     const auto gpr_regs = filter_regs(regs_to_store, snippets::RegType::gpr);
     const auto gpr_frame_size = rnd_up(gpr_regs.size() * gpr_size, 16);
     if (gpr_frame_size > 0) {
-        adjust_sp(h, -static_cast<int64_t>(gpr_frame_size));
+        utils::sub_sp(*h, gpr_frame_size);
     }
 
     int32_t offset = 0;
@@ -99,14 +86,14 @@ void EmitABIRegSpills::load_regs_from_stack(jit_generator_t* h, const std::vecto
 
     const auto gpr_frame_size = rnd_up(gpr_regs.size() * gpr_size, 16);
     if (gpr_frame_size > 0) {
-        adjust_sp(h, static_cast<int64_t>(gpr_frame_size));
+        utils::add_sp(*h, gpr_frame_size);
     }
 
     const auto vec_regs = filter_regs(regs_to_load, snippets::RegType::vec);
     const auto vec_slot_size = get_vec_slot_size();
     for (auto it = vec_regs.rbegin(); it != vec_regs.rend(); ++it) {
         h->vl1re8_v(Xbyak_riscv::VReg(static_cast<int>(it->idx)), Xbyak_riscv::sp);
-        adjust_sp(h, vec_slot_size);
+        utils::add_sp(*h, vec_slot_size);
     }
 }
 
