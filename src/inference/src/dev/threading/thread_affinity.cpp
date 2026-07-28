@@ -129,10 +129,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
     auto proc_type_table = get_proc_type_table();
     if (proc_type_table.size() > 1) {
         int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC];
-        cores_in_numa = cores_in_numa > 0 ? cores_in_numa
-                                          : (proc_type_table[1][EFFICIENT_CORE_PROC] > 0
-                                                 ? proc_type_table[1][EFFICIENT_CORE_PROC]
-                                                 : proc_type_table[1][LP_EFFICIENT_CORE_PROC]);
+        cores_in_numa = cores_in_numa > 0 ? cores_in_numa : proc_type_table[1][EFFICIENT_CORE_PROC];
         if (cores_in_numa <= 0) {
             return false;
         }
