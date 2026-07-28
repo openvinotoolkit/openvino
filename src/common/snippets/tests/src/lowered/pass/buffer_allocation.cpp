@@ -160,6 +160,7 @@ public:
 protected:
     std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
         const auto subtensor = std::vector<size_t>{1, m_vector_size};
+        const auto buffer_subtensor = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
         ov::ParameterVector parameters;
         ov::OutputVector branch_outputs;
         parameters.reserve(shapes.size());
@@ -168,14 +169,16 @@ protected:
         for (const auto& shape : shapes) {
             const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(parameter);
+            const auto buffer = std::make_shared<ov::snippets::op::Buffer>(relu);
             MarkOp(relu, subtensor);
+            MarkOp(buffer, buffer_subtensor);
             parameters.push_back(parameter);
-            branch_outputs.push_back(relu);
+            branch_outputs.push_back(buffer);
         }
 
-        const auto concat = std::make_shared<ov::op::v0::Concat>(branch_outputs, 0);
-        MarkOp(concat, subtensor);
-        const auto result = std::make_shared<ov::snippets::op::Result>(concat);
+        const auto result = std::make_shared<ov::snippets::op::Result>(
+            branch_outputs.front(),
+            ov::OutputVector(branch_outputs.begin() + 1, branch_outputs.end()));
         return std::make_shared<ov::Model>(result, parameters);
     }
 };
