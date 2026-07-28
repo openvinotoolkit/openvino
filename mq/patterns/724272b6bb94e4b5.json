@@ -4,17 +4,19 @@
   "signature_hash": "724272b6bb94e4b5",
   "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-07-23T21:24:12Z",
-  "last_seen": "2026-07-23T21:24:12Z",
+  "last_seen": "2026-07-27T23:50:30Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30311997797",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30043161341"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37040",
     "https://github.com/openvinotoolkit/openvino/pull/37027"
   ],
   "recent_timestamps": [
-    "2026-07-23T21:24:12Z"
+    "2026-07-27T23:50:30Z"
   ],
   "rerun_search_string": null
 }

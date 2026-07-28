@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 61,
+  "total": 62,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -597,6 +597,15 @@
       "category": "Flaky Test",
       "signature_hash": "e9f14463b6d39bf8",
       "pr_number": "35116"
+    },
+    {
+      "investigation_id": "2026-07-27-23-50-30-000-30311997797",
+      "run_id": "30311997797",
+      "timestamp": "2026-07-27T23:50:30Z",
+      "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
+      "category": "Infrastructure",
+      "signature_hash": "724272b6bb94e4b5",
+      "pr_number": "37040"
     }
   ]
 }

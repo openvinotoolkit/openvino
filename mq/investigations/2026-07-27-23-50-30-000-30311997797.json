@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-27-23-50-30-000-30311997797",
+  "timestamp": "2026-07-27T23:50:30Z",
+  "run_id": "30311997797",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30311997797",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37040",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37040",
+  "author": "v-Golubev",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
+  "signature": "cpu functional tests job failed arm64 logs unavailable 403 forbidden|Infrastructure",
+  "signature_hash": "724272b6bb94e4b5",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "in_progress",
+      "symptom": "Job still in_progress on attempt 2 rerun; attempt 1 produced failure conclusion, logs inaccessible (403 secrecy policy)"
+    }
+  ],
+  "key_errors": [
+    "Job 90139024674: CPU functional tests - status=in_progress on run attempt 2 (rerun); original attempt 1 concluded as failure; logs inaccessible via CI Doctor secrecy policy (403)"
+  ],
+  "root_cause": "The CPU functional tests job failed in the Linux ARM64 (Ubuntu 22.04, Python 3.11) workflow for PR #37040 ([Snippets] Skip kernel update for unchanged config). The run is on attempt 2, meaning a re-run has already been triggered. The original failure (attempt 1) cannot be investigated directly because job logs are inaccessible (403 Forbidden, filtered by secrecy policy). This matches a known recurring pattern of transient ARM64 runner failures where the CPU functional tests job fails without accessible diagnostics.",
+  "reproduction_steps": "N/A - likely transient, logs not accessible",
+  "recommended_actions": [
+    "Monitor attempt 2 (currently in_progress) to see if it succeeds",
+    "If attempt 2 also fails, manually inspect the runner environment for ARM64 infrastructure issues",
+    "Consider checking for known ARM64 runner capacity issues at the time of the failure"
+  ],
+  "prevention_strategies": "Add retry logic to CI for transient ARM64 runner failures. Investigate access policies that block job log retrieval for post-failure diagnostics.",
+  "historical_context": "This matches pattern 724272b6bb94e4b5 'Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)' seen on 2026-07-23 for run 30043161341 (PR #37027). Both cases show the same symptom: CPU functional tests fail, logs are inaccessible, and a rerun is triggered."
+}
