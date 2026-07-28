@@ -73,8 +73,7 @@ class TestArgMinArgMax(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
-                                                                                                     'aarch64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
     def test_argmin_argmax(self, axes, keep_dims, op_type, dtype, ie_device, precision, ir_version):

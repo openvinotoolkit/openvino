@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/convolution_backprop_data.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -12,6 +13,18 @@ using namespace CPUTestUtils;
 using namespace ov::test;
 
 namespace {
+
+// The AclDeconvExecutor (gemm_acl) is disabled on SVE-capable cores (e.g. Neoverse-V2 / Graviton4)
+// because ACL's gemm-based deconvolution miscomputes there; deconvolution then falls back to oneDNN's
+// own ACL primitive, which reports impl type "acl". On non-SVE ARM the gemm_acl executor is still used.
+// Pick the primitive these tests expect accordingly so the impl-type check matches the active path.
+static std::vector<CPUSpecificParams> deconvPlanar2DCPUParams() {
+    if (ov::with_cpu_sve()) {
+        return {CPUSpecificParams{{nchw}, {nchw}, {"acl"}, "acl"},
+                CPUSpecificParams{{nhwc}, {nhwc}, {"acl"}, "acl"}};
+    }
+    return {conv_gemm_2D, conv_gemm_acl_2D, conv_gemm_acl_2D_nspc};
+}
 
 /* INSTANCES */
 /* ============= Deconvolution (Planar 2D) ============= */
@@ -48,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_arm_Deconv_2D_Planar_FP16,
                                             ::testing::ValuesIn(Planar_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f16),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfo({conv_gemm_2D, conv_gemm_acl_2D, conv_gemm_acl_2D_nspc})),
+                                            ::testing::ValuesIn(filterCPUInfo(deconvPlanar2DCPUParams())),
                                             ::testing::Values(cpu_f16_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -58,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_arm_Deconv_2D_Planar_FP32,
                                             ::testing::ValuesIn(Planar_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfo({conv_gemm_2D, conv_gemm_acl_2D, conv_gemm_acl_2D_nspc})),
+                                            ::testing::ValuesIn(filterCPUInfo(deconvPlanar2DCPUParams())),
                                             ::testing::Values(empty_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -68,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_arm_Deconv_2D_Planar_FP16,
                                             ::testing::ValuesIn(Planar_2D_inputs_nightly),
                                             ::testing::Values(ElementType::f16),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfo({conv_gemm_2D, conv_gemm_acl_2D, conv_gemm_acl_2D_nspc})),
+                                            ::testing::ValuesIn(filterCPUInfo(deconvPlanar2DCPUParams())),
                                             ::testing::Values(cpu_f16_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -78,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_arm_Deconv_2D_Planar_FP32,
                                             ::testing::ValuesIn(Planar_2D_inputs_nightly),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfo({conv_gemm_2D, conv_gemm_acl_2D, conv_gemm_acl_2D_nspc})),
+                                            ::testing::ValuesIn(filterCPUInfo(deconvPlanar2DCPUParams())),
                                             ::testing::Values(empty_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 } // namespace

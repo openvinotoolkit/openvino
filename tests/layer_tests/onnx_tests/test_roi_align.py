@@ -138,8 +138,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Windows', reason="Ticket - 122731")
-    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
-                                                                                                     'aarch64',
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122846, 122783, 126312')
     def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir):

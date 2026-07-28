@@ -11,7 +11,7 @@
 namespace ov::intel_cpu {
 
 // ARM-only: referenced solely by the ARM executors (ACL / KleidiAI). Not defined on x86_64 / RISC-V.
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
 
 // ISA an ARM executor requires in its supports() predicate. ASIMD is the baseline (declare
 // nothing); requiring a higher ISA (e.g. SVE) makes the executor decline on incapable cores.

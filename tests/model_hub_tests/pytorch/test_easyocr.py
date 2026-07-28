@@ -36,7 +36,7 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
     @pytest.mark.nightly
     @pytest.mark.parametrize("name", ["detector", "recognizer"])
     def test_convert_model(self, name, ie_device):
-        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64']:
             pytest.skip("EasyOCR models are not enabled on ARM")
         self.run(name, None, ie_device)
 
@@ -44,7 +44,7 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
     @pytest.mark.nightly
     @pytest.mark.parametrize("name", ["detector", "recognizer"])
     def test_convert_model_export(self, name, ie_device):
-        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64']:
             pytest.skip("EasyOCR models are not enabled on ARM")
         self.mode = "export"
         self.run(name, None, ie_device)

@@ -144,7 +144,7 @@ class TestTimmConvertModel(TestTorchConvertModel):
             "mobilevitv2_050.cvnets_in1k",
             "poolformerv2_s12.sail_in1k",
         ]
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() not in ['aarch64', 'arm64', 'ARM64']:
             models.extend([
                 "vit_tiny_patch16_224.augreg_in21k",
                 "efficientnet_b0.ra_in1k",

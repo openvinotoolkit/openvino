@@ -55,7 +55,7 @@ class TestTopKV2(CommonTFLayerTest):
     def test_topk_v2(self, input_shape, input_type, k, k_type, sorted, index_type,
                      ie_device, precision, ir_version,
                      temp_dir):
-        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'] and \
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64'] and \
                 input_type in [np.int32, np.uint8, np.int16, np.int8, np.int64,
                                np.uint16, np.uint32, np.uint64]:
             pytest.skip('156588: Segmenation fault or OpenVINO hangs for TopKV2 on ARM')

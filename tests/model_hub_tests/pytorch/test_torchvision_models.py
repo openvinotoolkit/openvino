@@ -89,7 +89,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         models = [
             "efficientnet_b7",
         ]
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() not in ['aarch64', 'arm64', 'ARM64']:
             models.extend([
                 "raft_small",
                 "swin_v2_s",

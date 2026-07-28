@@ -26,7 +26,7 @@ CPU
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
       * 6th - 14th generation Intel® Core™ processors
       * 1st - 5th generation Intel® Xeon® Scalable Processors
-      * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
+      * ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 

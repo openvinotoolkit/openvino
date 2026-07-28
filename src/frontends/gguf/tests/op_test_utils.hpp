@@ -238,7 +238,7 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
 // Everywhere else the f32 request holds and the measured worst case across this suite is ~1.4e-6,
 // so the bound stays near fp32 precision — tight enough that a real conversion error cannot hide
 // inside it.
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
 #    define OV_GGUF_TEST_DEFAULT_RTOL 1e-2f
 #else
 #    define OV_GGUF_TEST_DEFAULT_RTOL 1e-5f

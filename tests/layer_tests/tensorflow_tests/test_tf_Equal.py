@@ -244,8 +244,7 @@ class TestEqualStr(CommonTFLayerTest):
     @pytest.mark.parametrize('y_shape', [[], [1], [5]])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['aarch64',
                                                                                                      'arm64', 'ARM64'],
                        reason='126314, 132699: Build tokenizers for ARM and MacOS')
     def test_equal_str(self, x_shape, y_shape,

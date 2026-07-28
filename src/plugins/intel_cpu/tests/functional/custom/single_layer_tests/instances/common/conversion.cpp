@@ -15,7 +15,7 @@ static std::string expectedPrimitiveType() {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     return "ref";
 #endif
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     return "acl";
 #endif
     return {};

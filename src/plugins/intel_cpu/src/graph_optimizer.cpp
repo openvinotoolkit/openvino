@@ -100,7 +100,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 // The order of applying scales and shifts is different for ARM to get specific postops order:
 // postops order on ARM: bias, scale, fq
 // postops order on x86: scale, bias, fq
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
@@ -268,7 +268,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto parentNode = node->getParentEdgeAt(0)->getParent();
         auto scaleNode = node->getParentEdgeAt(1)->getParent();
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::FullyConnected)) {
             return false;
         }
@@ -285,7 +285,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
             return false;
         }
 // The order of applying scales and shifts is different for ARM, so bias could be already fused here for ARM
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         return any_of(parentNode->getParentEdges().size(), 2U, 3U);
 #else
         return (parentNode->getParentEdges().size() == 2);
@@ -937,7 +937,7 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
 // zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     return;
 #endif
 
@@ -3419,7 +3419,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
     if (inferPrec != ov::element::f16) {
         return;
     }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     return;  // precision of configured by ov::pass::ConvertPrecision
 #endif
     const std::vector<NodePtr> outputNodes = [&] {

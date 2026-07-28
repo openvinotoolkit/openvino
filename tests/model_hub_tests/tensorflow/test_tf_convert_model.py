@@ -162,7 +162,7 @@ class TestTFHubConvertModel(TestConvertModel):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
         
-        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        arm_platforms = {'aarch64', 'arm64', 'ARM64'}
         arm_failed_models = {
             'movenet/singlepose/lightning',
             'imagenet/mobilenet_v2_100_224/feature_vector',

@@ -94,11 +94,6 @@ if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
-OS_NAME=""
-if command -v lsb_release >/dev/null 2>&1; then
-    OS_NAME=$(lsb_release -i -s)
-fi
-
 PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="10"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="14"
@@ -134,7 +129,7 @@ check_python_version () {
     python_bitness=$("$python_interp" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
     unset python_interp
 
-    if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
+    if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ]; then
         echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
     fi
     unset python_bitness
@@ -170,6 +165,5 @@ unset python_version_to_check
 unset PYTHON_VERSION_MAJOR
 unset MIN_REQUIRED_PYTHON_VERSION_MINOR
 unset MAX_SUPPORTED_PYTHON_VERSION_MINOR
-unset OS_NAME
 
 echo "[setupvars.sh] OpenVINO environment initialized"

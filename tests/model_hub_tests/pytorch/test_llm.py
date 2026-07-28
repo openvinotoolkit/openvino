@@ -688,7 +688,7 @@ class TestLLMModel(TestTorchConvertModel):
         models = [
             ("gpt2", "openai-community/gpt2"),
         ]
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() not in ['aarch64', 'arm64', 'ARM64']:
             models.extend([
                 ("opt_gptq", "katuni4ka/opt-125m-gptq"),
                 ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
@@ -752,7 +752,7 @@ class TestLLMModel(TestTorchConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     def get_supported_export_precommit_models():
-        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64']:
             return []
         
         # Reason for "opt_gptq", "katuni4ka/opt-125m-gptq" skip: CVS-191720

@@ -97,7 +97,7 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
 def test_gptq_torchfx_precommit(tmp_path, model_name, model_link, mark, reason, prompt_result_pair, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
-    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_machine_names = {'aarch64', 'arm64', 'ARM64'}
     arm_missing_accelerate_models = {
         "atorsvn/TinyLlama-1.1B-Chat-v0.3-gptq-4bit",
     }

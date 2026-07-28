@@ -966,7 +966,7 @@ def verify_model(model, example_input, expected_ops):
     res = compiled_model((test_input,))
     ref = model(torch.from_numpy(test_input))
     rtol, atol = 1e-7, 0
-    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+    if platform.machine() in ('aarch64', 'arm64', 'ARM64'):
         rtol, atol = 0.1, 0.001
     if isinstance(ref, tuple):
         for i, ref_part in enumerate(ref):
@@ -1478,7 +1478,7 @@ def test_patched_8bit_model_converts_e4m3fn():
 
 
 @pytest.mark.skipif(
-    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    platform.system() == "Darwin" and platform.machine() in ['aarch64', 'arm64', 'ARM64'],
     reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
 )
 def test_patched_8bit_model_converts_e5m2():
@@ -1607,7 +1607,7 @@ def test_patched_bitnet_model_converts():
     cm = compile_model(converted_model, "CPU", default_cfg)
     res = cm([x.numpy()])
     rtol, atol = 1e-4, 1e-4
-    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+    if platform.machine() in ('aarch64', 'arm64', 'ARM64'):
         rtol, atol = 0.5, 0.1
     np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
 
@@ -2651,7 +2651,7 @@ def test_bitnet_export_pipeline():
         cm = compile_model(ov_model, "CPU", default_cfg)
         res = cm([x.numpy()])
         rtol, atol = 1e-4, 1e-4
-        if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        if platform.machine() in ('aarch64', 'arm64', 'ARM64'):
             rtol, atol = 0.5, 0.1
         np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
     finally:

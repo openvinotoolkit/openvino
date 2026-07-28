@@ -101,7 +101,7 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_lstm_flags_float32(self, params, ie_device, precision, temp_dir, ir_version):
-        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64']:
             pytest.skip("inference mismatch issue on ARM")
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,

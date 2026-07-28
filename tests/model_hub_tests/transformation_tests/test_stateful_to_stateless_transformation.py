@@ -81,7 +81,7 @@ def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
 def test_stateful_to_stateless_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
-    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_machine_names = {'aarch64', 'arm64', 'ARM64'}
     arm_dtype_mismatch_models = {
         "hf-internal-testing/tiny-random-LlamaForCausalLM",
         "hf-internal-testing/tiny-random-StableLmForCausalLM",

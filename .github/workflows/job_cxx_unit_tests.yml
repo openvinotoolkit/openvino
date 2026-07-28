@@ -283,7 +283,7 @@ jobs:
 
       # Disabled for debug build due to long execution time
       - name: Hetero func tests
-        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.build-type != 'debug' }} # Ticket: 153170
+        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.build-type != 'debug' }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"

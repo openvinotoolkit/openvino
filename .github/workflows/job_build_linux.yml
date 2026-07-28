@@ -268,10 +268,6 @@ jobs:
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
-            if [[ "${ARCH}" == 'arm' ]]; then
-              echo "Adding ARM specific CMake options"
-              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
-            fi
 
             if [[ $py_version == "3.14t" ]]; then
               CMAKE_OPTIONS+=" -DENABLE_GIL_PYTHON_API=OFF"
@@ -411,7 +407,6 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
-        if: ${{ inputs.arch != 'arm' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_wheels
@@ -500,5 +495,5 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
         env:
-          STORE_WHEELS: ${{ inputs.arch != 'arm' }}
+          STORE_WHEELS: 'true'
           STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}

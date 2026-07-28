@@ -52,8 +52,7 @@ class TestTextVectorization(CommonTF2LayerTest):
     @pytest.mark.nightly
     def test_text_vectorization(self, input_shapes, vocabulary, output_mode, output_sequence_length, strings_dictionary,
                                 ie_device, precision, ir_version, temp_dir):
-        if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
-                                                                     'aarch64',
+        if platform.system() in ('Darwin') or platform.machine() in ['aarch64',
                                                                      'arm64',
                                                                      'ARM64']:
             pytest.xfail(reason='126314, 132699: Build tokenizers for ARM and MacOS')

@@ -40,12 +40,7 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_quantize_uint8) {
     test_case.run();
 }
 
-#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
-// Ticket: 153164
-OPENVINO_TEST(TensorFlowLiteTrickyModels, DISABLED_tflite_dequantize) {
-#else
 OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize) {
-#endif
     auto model = convert_model("dequantize.tflite");
 
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);

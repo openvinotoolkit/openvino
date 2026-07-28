@@ -137,7 +137,7 @@ class TestTFReadModel(TestConvertModel):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
 
-        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        arm_platforms = {'aarch64', 'arm64', 'ARM64'}
         arm_failed_models = {
             'movenet/singlepose/lightning',
             'efficientdet/lite0/detection',

@@ -77,7 +77,7 @@ class TestTFHubApiNotebooks(TestConvertModel):
     @pytest.mark.parametrize("model_name", ['mobilenet_v2_100_224_dict', 'mobilenet_v2_100_224_list', 'film'])
     def test_tf_hub_api_notebook1(self, model_name, ie_device):
 
-        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        arm_platforms = {'aarch64', 'arm64', 'ARM64'}
         if platform.machine() in arm_platforms and model_name == 'film':
             pytest.skip(f"Model {model_name} is not enabled on ARM platform")
 

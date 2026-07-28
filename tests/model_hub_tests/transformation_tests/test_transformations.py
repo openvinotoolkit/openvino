@@ -155,7 +155,7 @@ def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
 def test_transformations_precommit(tmp_path, model_name, model_link, mark, reason, ie_device, ts_names, layer_types, model_type):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
-    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_machine_names = {'aarch64', 'arm64', 'ARM64'}
     arm_unsupported_rope_models = {
         "hf-internal-testing/tiny-random-GPTJForCausalLM",
         "hf-internal-testing/tiny-random-CodeGenForCausalLM",

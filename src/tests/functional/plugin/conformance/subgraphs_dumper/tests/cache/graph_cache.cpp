@@ -62,12 +62,7 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
     ASSERT_EQ(graph_cache_0, graph_cache_1);
 }
 
-#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
-// Ticket: 153168
-TEST_F(GraphCacheFuncTest, DISABLED_update_cache) {
-#else
 TEST_F(GraphCacheFuncTest, update_cache) {
-#endif
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
     graph_cache->update_cache(test_model, test_model_path, true);
     OV_ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));

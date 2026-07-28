@@ -58,8 +58,8 @@ if [ -n "$selftest" ] ; then
                  almalinux:8.7 amazonlinux:2 \
                  fedora:34 fedora:35 fedora:36 fedora:37 fedora:38 \
                  opensuse/leap:15.3 \
-                 raspbian:9 debian:9 ubuntu:18.04 \
-                 raspbian:10 debian:10 ubuntu:20.04 ubuntu:20.10 ubuntu:21.04 \
+                 debian:9 ubuntu:18.04 \
+                 debian:10 ubuntu:20.04 ubuntu:20.10 ubuntu:21.04 \
                  raspbian:11 debian:11 ubuntu:21.10 ubuntu:22.04 \
                  raspbian:12 debian:12 ubuntu:22.10 ubuntu:23.04 ubuntu:24.04 \
                  debian:13 ; do
@@ -108,8 +108,8 @@ if [ "$os" == "auto" ] ; then
         fedora29|fedora30|fedora31|fedora32|fedora33|fedora34|fedora35|fedora36|\
         fedora37|fedora38|fedora39|fedora40|fedora41|\
         opensuse-leap15.3|\
-        raspbian9|debian9|ubuntu18.04|\
-        raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
+        debian9|ubuntu18.04|\
+        debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
         raspbian12|debian12|ubuntu22.10|ubuntu23.04|ubuntu23.10|ubuntu24.04|\
         debian13) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
@@ -122,7 +122,7 @@ fi
 
 extra_repos=()
 
-if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
+if [ "$os" == "debian9" ] ; then
 
     # proper versions of cmake and python should be installed separately, because the defaults are:
     # - python version is 3.5
@@ -139,7 +139,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
 
-elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
+elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ||
      [ "$os" == "debian13" ]; then
@@ -148,7 +148,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
 
-    if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
+    if [ "$os" == "debian10" ] ; then
         pkgs_python+=(libpython3.7)
     elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
         pkgs_python+=(libpython3.8)
@@ -276,8 +276,8 @@ fi
 
 iopt=
 
-if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04" ] ||
-   [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
+if [ "$os" == "debian9" ] || [ "$os" == "ubuntu18.04" ] ||
+   [ "$os" == "debian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
    [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ||
    [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu23.10" ] || [ "$os" == "ubuntu24.04" ] ||
    [ "$os" == "debian13" ] ; then

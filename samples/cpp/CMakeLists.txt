@@ -90,12 +90,6 @@ endif()
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*|ARM64.*)")
     set(AARCH64 ON)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
-    set(ARM ON)
-endif()
-
-if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
-    add_compile_options(-march=armv7-a+fp)
 endif()
 
 ####################################

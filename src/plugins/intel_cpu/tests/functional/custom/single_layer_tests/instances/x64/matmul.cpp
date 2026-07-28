@@ -1318,7 +1318,7 @@ class MatMul3DWeightLayerCPUTest : public MatMulLayerCPUTest {
             rel_threshold = abs_threshold = 1e-2f;
         } else if (inference_precision == ov::element::f16) {
             inType = outType = netType = ElementType::f16;
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
             // rel_threshold = abs_threshold = 1e-2f;
             // Temporarily created the following rel_threshold because of this bug CVS-144523 and
             // https://github.com/ARM-software/ComputeLibrary/issues/1112

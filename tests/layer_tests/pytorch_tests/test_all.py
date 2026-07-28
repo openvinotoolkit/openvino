@@ -113,8 +113,7 @@ class TestAll(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
-                                                                                                     'aarch64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
     def test_all(self, input_shape, d_type, keepdim, out, ie_device, precision, ir_version):

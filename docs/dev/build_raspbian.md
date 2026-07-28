@@ -1,11 +1,9 @@
-# Build OpenVINO™ Runtime for Raspbian Stretch OS
+# Build OpenVINO™ Runtime for Raspberry Pi OS (AArch64)
 
-> **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on ARM platforms.
+> **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on AArch64 platforms.
 
 ## Hardware Requirements
-* Raspberry Pi with Raspbian Stretch OS or Raspberry Pi OS (32 or 64-bit).
-
-  > **NOTE**: Despite the Raspberry Pi CPU is ARMv8, 32-bit OS detects ARMv7 CPU instruction set. The default `gcc` compiler applies ARMv6 architecture flag for compatibility with lower versions of boards. For more information, run the `gcc -Q --help=target` command and refer to the description of the `-march=` option.
+* Raspberry Pi with a 64-bit Raspberry Pi OS (AArch64).
 
 ## Compilation
 You can perform native compilation of the OpenVINO Runtime for Raspberry Pi, which is the most straightforward solution. However, it might take at least one hour to complete on Raspberry Pi 3.
@@ -254,7 +252,7 @@ Installing the build with `cmake --install` is the preferred way to preserve the
 
 ## Additional Build Options
 
-- To build Python API, install `libpython3-dev:armhf` and `python3-pip`
+- To build Python API, install `libpython3-dev:arm64` and `python3-pip`
   packages using `apt-get`; add the following options:
    ```sh
    -DENABLE_PYTHON=ON \

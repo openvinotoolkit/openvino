@@ -236,8 +236,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
-                                                                                                     'aarch64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122846, 122783, 126312')
     def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,

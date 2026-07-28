@@ -10,7 +10,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 rng = np.random.default_rng()
 
 def list_arm_platforms():
-    return ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']
+    return ['aarch64', 'arm64', 'ARM64']
 
 class TestFloorDiv(CommonTFLayerTest):
     def create_add_placeholder_const_net(self, x_shape, dtype, ir_version):

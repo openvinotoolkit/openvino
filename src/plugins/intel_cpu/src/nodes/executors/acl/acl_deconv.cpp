@@ -27,6 +27,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/arm_isa_support.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -236,6 +237,18 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
                                                  const std::vector<MemoryDescPtr>& dstDescs) {
     VERIFY(aclSupported({srcDescs[0], dstDescs[0]}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+
+    // ACL's gemm-based deconvolution (NEDeconvolutionLayer) miscomputes on SVE-capable cores
+    // (e.g. Neoverse-V2 / AWS Graviton4). Fused-into-weights and quantized deconvolution subgraphs
+    // produce ~74-85% wrong elements there, while the exact same primitive descriptor is correct on
+    // non-SVE ARM (Neoverse-N1, Apple, Cortex-A72) and via the oneDNN/reference path. The miscompute
+    // is data-dependent - a passing plain deconv and a failing fused deconv share a byte-identical
+    // descriptor - so it cannot be told apart from shapes/attrs here. Decline on SVE cores so
+    // deconvolution falls back to the correct oneDNN/reference implementation; non-SVE ARM keeps ACL.
+    if (hasArmISASupport(ArmISA::SVE)) {
+        DEBUG_LOG("AclDeconvExecutor is disabled on SVE-capable cores: gemm_acl deconvolution is inaccurate");
+        return false;
+    }
     if (srcDescs[0]->getShape().getDims().size() != 4 || dstDescs[0]->getShape().getDims().size() != 4 ||
         srcDescs[1]->getShape().getDims().size() != 4) {
         DEBUG_LOG("AclDeconvExecutor only supports 4D tensors:",

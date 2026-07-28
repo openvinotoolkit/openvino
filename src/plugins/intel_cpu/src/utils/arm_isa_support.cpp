@@ -4,7 +4,7 @@
 
 #include "openvino/core/visibility.hpp"  // OPENVINO_ARCH_* macros used by the guard below
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
 #    include "arm_isa_support.h"
 #    include "openvino/core/except.hpp"
 #    include "openvino/runtime/system_conf.hpp"

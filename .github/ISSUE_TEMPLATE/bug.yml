@@ -26,7 +26,6 @@ body:
         - Windows System
         - Red Hat Enterprise Linux 8
         - Android System
-        - Raspbian Stretch OS
         - macOS Systems for Intel CPU
         - macOS Systems for Apple Silicon
         - WebAssembly

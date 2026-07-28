@@ -115,12 +115,7 @@ public:
     }
 };
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153155
-TEST_P(FakeQuantizeTransformation, DISABLED_CompareFunctions) {
-#else
 TEST_P(FakeQuantizeTransformation, CompareFunctions) {
-#endif
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;

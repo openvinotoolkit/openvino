@@ -123,7 +123,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
 
     def get_supported_precommit_models():
         models = []
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        if platform.machine() not in ['aarch64', 'arm64', 'ARM64']:
             models.extend(['aliked-n16rot'])
         return models
 

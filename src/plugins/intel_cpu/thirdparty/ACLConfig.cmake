@@ -93,7 +93,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
         endif()
 
         # Multi-ISA support with SME
-        if(NOT ARM AND OV_CPU_AARCH64_USE_MULTI_ISA)
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
             add_compile_definitions(ENABLE_SME ARM_COMPUTE_ENABLE_SME ARM_COMPUTE_ENABLE_SME2)
         endif()
 
@@ -182,8 +182,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
             if(ANDROID_ABI STREQUAL "arm64-v8a")
                 set(android_triple_prefix "aarch64-linux-android")
-            elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-                set(android_triple_prefix "armv7a-linux-androideabi")
             elseif(ANDROID_ABI STREQUAL "x86")
                 set(android_triple_prefix "i686-linux-android")
             elseif(ANDROID_ABI STREQUAL "x86_64")
@@ -318,8 +316,15 @@ elseif(NOT TARGET arm_compute::arm_compute)
         endif()
 
         # Multi-ISA support
-        if(NOT ARM AND OV_CPU_AARCH64_USE_MULTI_ISA)
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
             set(local_extra_cxx_flags "${local_extra_cxx_flags} -DENABLE_SME -DARM_COMPUTE_ENABLE_SME -DARM_COMPUTE_ENABLE_SME2")
+        endif()
+
+        # Keep ACL common code portable in AArch64 multi-ISA builds. SVE/SVE2
+        # objects are still built separately with their own architecture flags.
+        if(LINUX AND AARCH64 AND OV_CPU_AARCH64_USE_MULTI_ISA AND
+           (OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX))
+            set(local_extra_cxx_flags "${local_extra_cxx_flags} -march=armv8-a")
         endif()
 
         # Export flags
@@ -357,13 +362,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     # Architecture configuration
-    if(ARM)
-        ov_arm_compute_add_option("estate" "32")
-    else()
-        ov_arm_compute_add_option("estate" "64")
-        if(OV_CPU_AARCH64_USE_MULTI_ISA)
-            ov_arm_compute_add_option("multi_isa" "1")
-        endif()
+    ov_arm_compute_add_option("estate" "64")
+    if(OV_CPU_AARCH64_USE_MULTI_ISA)
+        ov_arm_compute_add_option("multi_isa" "1")
     endif()
 
     # Install directory

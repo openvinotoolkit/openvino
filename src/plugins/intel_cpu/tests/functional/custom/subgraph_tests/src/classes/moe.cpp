@@ -271,18 +271,13 @@ void MoECompressedWeightsSubgraphTest::check_results() {
 
 TEST_P(MoESubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    #if defined(OPENVINO_ARCH_ARM)
-        GTEST_SKIP();
-    #endif
     run();
     check_results();
 }
 
 TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    #if defined(OPENVINO_ARCH_ARM)
-        GTEST_SKIP();
-    #elif defined(OPENVINO_ARCH_ARM64)
+    #if defined(OPENVINO_ARCH_ARM64)
         if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()){
             GTEST_SKIP();
         }

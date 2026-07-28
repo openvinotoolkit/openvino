@@ -19,7 +19,7 @@ The articles below provide the basic informations about the process of building 
 * [Mac (Intel CPU)](build_mac_intel_cpu.md)
 * [Mac (ARM)](build_mac_arm.md)
 * [Android](build_android.md)
-* [Raspbian Stretch](./build_raspbian.md)
+* [Raspberry Pi OS (AArch64)](./build_raspbian.md)
 * [Web Assembly](./build_webassembly.md)
 * [Docker Image](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles/ubuntu20/build_custom)
 * [Linux RISC-V](./build_riscv64.md)

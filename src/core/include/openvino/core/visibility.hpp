@@ -48,10 +48,7 @@
 #endif
 
 // see https://sourceforge.net/p/predef/wiki/Architectures/
-#if defined(__arm__) || defined(_M_ARM) || defined(__ARMEL__)
-#    define OPENVINO_ARCH_ARM
-#    define OPENVINO_ARCH_32_BIT
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64)
 #    define OPENVINO_ARCH_ARM64
 #    define OPENVINO_ARCH_64_BIT
 #elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_I86) || \
