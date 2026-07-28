@@ -44,12 +44,15 @@ public:
 
     ~ResampleKernelBase() override = default;
 
+    static bool has_padding(const resample_params& params);
+
 protected:
     bool Validate(const Params& p) const override;
     virtual DispatchData SetDefault(const resample_params& arg) const;
     virtual JitConstants GetJitConstants(const resample_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     size_t GetFeatureBlockSize(const resample_params& params) const;
+    static std::vector<float> get_legacy_scales(const resample_params& params);
     virtual Datatype GetAccumulatorType(const resample_params& params) const;
 };
 }  // namespace kernel_selector
