@@ -774,7 +774,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 // (MSE ~= 12-20 vs CPU). The fix folds the contiguous planar peer onto the host
 // shape, keeping the Add fused and producing the correct result.
 //
-// This mirrors the accepted reproducer_v3.xml built in-memory with its exact
+// This mirrors the accepted defect-triggering IR built in-memory with its exact
 // f16 weights, so it exercises the real GPU compile/layout/fusion path rather
 // than a hand-forced cldnn topology (the 5D->4D flattening is IR-layout-optimizer
 // driven and cannot be reproduced with raw cldnn primitives). The reference is the
@@ -790,8 +790,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 // installing the plugin.
 
 namespace {
-// Exact f16 weights of reproducer_v3.bin (branch-1 and branch-2 MatMul, [12,8]).
-const std::vector<float> kReproV3Weights1 = {
+// Exact f16 weights captured from the customer defect-triggering model (branch-1 and branch-2 MatMul, [12,8]).
+const std::vector<float> kFusedPeerFoldWeights1 = {
     -1.085938f, 0.997559f, 0.282959f, -1.505859f, -0.578613f, 1.651367f, -2.425781f, -0.428955f,
     1.265625f, -0.866699f, -0.678711f, -0.094727f, 1.491211f, -0.638672f, -0.444092f, -0.434326f,
     2.205078f, 2.187500f, 1.003906f, 0.386230f, 0.737305f, 1.491211f, -0.936035f, 1.175781f,
@@ -805,7 +805,7 @@ const std::vector<float> kReproV3Weights1 = {
     1.254883f, -0.688965f, 1.661133f, 0.807129f, -0.314697f, -1.085938f, -0.732422f, -1.212891f,
     2.087891f, 0.164429f, 1.150391f, -1.267578f, 0.181030f, 1.177734f, -0.334961f, 1.031250f};
 
-const std::vector<float> kReproV3Weights2 = {
+const std::vector<float> kFusedPeerFoldWeights2 = {
     -1.084961f, -1.363281f, 0.379395f, -0.379150f, 0.642090f, -1.977539f, 0.712402f, 2.597656f,
     -0.024628f, 0.034149f, 0.179565f, -1.862305f, 0.426025f, -1.605469f, -0.427734f, 1.243164f,
     -0.735352f, 0.501465f, 1.012695f, 0.278809f, -1.371094f, -0.332520f, 1.958984f, -2.025391f,
@@ -819,11 +819,11 @@ const std::vector<float> kReproV3Weights2 = {
     0.307373f, -0.611328f, -0.391602f, 0.140015f, 0.093445f, 1.459961f, 1.395508f, -0.358887f,
     -0.548828f, -2.556641f, -0.548828f, -0.978027f, -0.354736f, 0.391602f, 0.177246f, -0.029968f};
 
-// Builds the reproducer_v3 model:
+// Builds the fused-peer-fold reproducer model:
 //   in[1,2,60,12] -> Reshape[1,2,6,10,12] -> MatMul(*W) -> [1,2,6,10,8]
 //     -> Transpose[0,1,4,2,3] -> [1,2,8,6,10]     (two such branches)
 //   Add(branch1, branch2) -> Reshape[2,8,6,10] -> Result
-std::shared_ptr<ov::Model> build_repro_v3_model() {
+std::shared_ptr<ov::Model> build_fused_peer_fold_model() {
     using namespace ov;
     auto make_branch = [](const std::shared_ptr<op::v0::Parameter>& param,
                           const std::vector<float>& w) {
@@ -841,9 +841,9 @@ std::shared_ptr<ov::Model> build_repro_v3_model() {
     in1->set_friendly_name("input1");
     in2->set_friendly_name("input2");
 
-    auto t1 = make_branch(in1, kReproV3Weights1);
+    auto t1 = make_branch(in1, kFusedPeerFoldWeights1);
     t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, kReproV3Weights2);
+    auto t2 = make_branch(in2, kFusedPeerFoldWeights2);
     t2->set_friendly_name("Transpose_peer");
 
     auto add = std::make_shared<op::v1::Add>(t1, t2);
@@ -854,7 +854,7 @@ std::shared_ptr<ov::Model> build_repro_v3_model() {
     reshape4d->set_friendly_name("Reshape_to4D");
 
     auto result = std::make_shared<op::v0::Result>(reshape4d);
-    return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{in1, in2}, "reproducer_v3");
+    return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{in1, in2}, "fused_peer_fold_repro");
 }
 
 // Compiles the given model on device, runs one inference with (in1, in2), and returns the f16 output
@@ -878,12 +878,12 @@ std::pair<std::vector<float>, ov::CompiledModel> compile_and_infer(ov::Core& cor
     return std::make_pair(vals, compiled);
 }
 
-std::pair<std::vector<float>, ov::CompiledModel> run_repro_v3(ov::Core& core,
+std::pair<std::vector<float>, ov::CompiledModel> run_fused_peer_fold_model(ov::Core& core,
                                                               const std::string& device,
                                                               const ov::AnyMap& cfg,
                                                               const ov::Tensor& in1,
                                                               const ov::Tensor& in2) {
-    return compile_and_infer(core, device, cfg, build_repro_v3_model(), in1, in2);
+    return compile_and_infer(core, device, cfg, build_fused_peer_fold_model(), in1, in2);
 }
 
 // Scans a compiled model's runtime graph for the (at most one) node whose ORIGINAL_NAMES rt-info
@@ -924,7 +924,7 @@ node_probe probe_node(const std::shared_ptr<const ov::Model>& rt,
     return result;
 }
 
-double repro_v3_mse(const std::vector<float>& a, const std::vector<float>& b, double& max_ae) {
+double fused_peer_fold_mse(const std::vector<float>& a, const std::vector<float>& b, double& max_ae) {
     double se = 0.0;
     max_ae = 0.0;
     for (size_t i = 0; i < a.size(); ++i) {
@@ -947,7 +947,7 @@ bool discover_gpu_and_cpu(ov::Core& core) {
     return has_gpu && has_cpu;
 }
 
-void fill_repro_v3_inputs(ov::Tensor& in1, ov::Tensor& in2) {
+void fill_fused_peer_fold_inputs(ov::Tensor& in1, ov::Tensor& in2) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto rnd = rg.generate_random_1d<ov::float16>(1 * 2 * 60 * 12, -2, 2);
@@ -956,12 +956,12 @@ void fill_repro_v3_inputs(ov::Tensor& in1, ov::Tensor& in2) {
     std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
 }
 
-// Builds a higher-rank *broadcast* variant of the reproducer_v3 model: the host branch produces
-// [1,2,8,6,10] (flattened to 4D bfyx [1,2,48,10]) while the peer branch produces [1,1,8,6,10] (5D
-// bfzyx), which broadcasts against the host over the feature dim. Element counts differ (960 vs 480),
-// so this is a legal NumPy broadcast, NOT the equal-total reshape of reproducer_v3. Before the Worker
-// 08R fix this aborted GPU compilation at the Worker 08 fold assertion; the fix must compile it and
-// match CPU with the Add kept fused.
+// Builds a higher-rank *broadcast* variant of the fused-peer-fold reproducer model: the host branch
+// produces [1,2,8,6,10] (flattened to 4D bfyx [1,2,48,10]) while the peer branch produces [1,1,8,6,10]
+// (5D bfzyx), which broadcasts against the host over the feature dim. Element counts differ (960 vs
+// 480), so this is a legal NumPy broadcast, NOT the equal-total reshape of the base reproducer. Before
+// the fold fix, this aborted GPU compilation at the equal-total-only fold assertion; the fix must
+// compile it and match CPU with the Add kept fused.
 std::shared_ptr<ov::Model> build_broadcast_repro_model() {
     using namespace ov;
     auto make_branch = [](const std::shared_ptr<op::v0::Parameter>& param, int64_t f,
@@ -981,9 +981,9 @@ std::shared_ptr<ov::Model> build_broadcast_repro_model() {
     in1->set_friendly_name("input1");
     in2->set_friendly_name("input2");
 
-    auto t1 = make_branch(in1, 2, kReproV3Weights1);  // host: [1,2,8,6,10]
+    auto t1 = make_branch(in1, 2, kFusedPeerFoldWeights1);  // host: [1,2,8,6,10]
     t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, 1, kReproV3Weights2);  // peer: [1,1,8,6,10] (broadcasts over F)
+    auto t2 = make_branch(in2, 1, kFusedPeerFoldWeights2);  // peer: [1,1,8,6,10] (broadcasts over F)
     t2->set_friendly_name("Transpose_peer");
 
     auto add = std::make_shared<op::v1::Add>(t1, t2);
@@ -1016,10 +1016,10 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_5d_peer_into_4d_host) {
 
     ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
     ov::Tensor in2(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    fill_repro_v3_inputs(in1, in2);
+    fill_fused_peer_fold_inputs(in1, in2);
 
-    auto [cpu_vals, cpu_compiled] = run_repro_v3(core, "CPU", {}, in1, in2);
-    auto [gpu_vals, gpu_compiled] = run_repro_v3(core, "GPU", {}, in1, in2);
+    auto [cpu_vals, cpu_compiled] = run_fused_peer_fold_model(core, "CPU", {}, in1, in2);
+    auto [gpu_vals, gpu_compiled] = run_fused_peer_fold_model(core, "GPU", {}, in1, in2);
 
     // --- Prove the buggy graph state is actually present on GPU (4D fused host + 5D peer). ---
     auto rt = gpu_compiled.get_runtime_model();
@@ -1034,7 +1034,7 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_5d_peer_into_4d_host) {
     // --- Numerical gate: GPU must match the CPU reference. ---
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
     double max_ae = 0.0;
-    double mse = repro_v3_mse(gpu_vals, cpu_vals, max_ae);
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     // FP16 tolerance: correct path agrees with CPU to ~1e-3 MSE; the bug produced MSE ~12.
     EXPECT_LT(mse, 1e-2) << "GPU fused-permute output diverges from CPU reference. "
                             "MSE=" << mse << " MaxAbsErr=" << max_ae
@@ -1052,11 +1052,11 @@ TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
 
     ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
     ov::Tensor in2(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    fill_repro_v3_inputs(in1, in2);
+    fill_fused_peer_fold_inputs(in1, in2);
 
-    auto [cpu_vals, cpu_compiled] = run_repro_v3(core, "CPU", {}, in1, in2);
+    auto [cpu_vals, cpu_compiled] = run_fused_peer_fold_model(core, "CPU", {}, in1, in2);
     auto [gpu_vals, gpu_compiled] =
-        run_repro_v3(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, in1, in2);
+        run_fused_peer_fold_model(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, in1, in2);
 
     // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
     auto rt = gpu_compiled.get_runtime_model();
@@ -1066,7 +1066,7 @@ TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
     double max_ae = 0.0;
-    double mse = repro_v3_mse(gpu_vals, cpu_vals, max_ae);
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     EXPECT_LT(mse, 1e-2) << "GPU (NSI) fused-permute output diverges from CPU reference. "
                             "MSE=" << mse << " MaxAbsErr=" << max_ae;
 }
@@ -1113,7 +1113,7 @@ TEST(permute_fused_eltwise_rank_mismatch, legacy_higher_rank_broadcast_peer_comp
     // Numerical gate: GPU broadcast result must match the CPU reference.
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
     double max_ae = 0.0;
-    double mse = repro_v3_mse(gpu_vals, cpu_vals, max_ae);
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     for (float v : gpu_vals)
         ASSERT_TRUE(std::isfinite(v)) << "GPU broadcast output has non-finite values.";
     EXPECT_LT(mse, 1e-2) << "GPU higher-rank-broadcast fused-permute output diverges from CPU. "
@@ -1166,9 +1166,9 @@ std::shared_ptr<ov::Model> build_collapse_mask_model(const collapse_mask_case& c
     in1->set_friendly_name("input1");
     in2->set_friendly_name("input2");
 
-    auto t1 = make_branch(in1, 2, 8, 6, 10, kReproV3Weights1);  // host [1,2,8,6,10]
+    auto t1 = make_branch(in1, 2, 8, 6, 10, kFusedPeerFoldWeights1);  // host [1,2,8,6,10]
     t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, c.pf, c.pz, c.py, c.px, kReproV3Weights2);  // peer [1,pf,pz,py,px]
+    auto t2 = make_branch(in2, c.pf, c.pz, c.py, c.px, kFusedPeerFoldWeights2);  // peer [1,pf,pz,py,px]
     t2->set_friendly_name("Transpose_peer");
 
     auto add = std::make_shared<op::v1::Add>(t1, t2);
@@ -1236,7 +1236,7 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
     for (float v : gpu_vals)
         ASSERT_TRUE(std::isfinite(v)) << "Non-finite GPU output for mask " << c.label;
     double max_ae = 0.0;
-    double mse = repro_v3_mse(gpu_vals, cpu_vals, max_ae);
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     EXPECT_LT(mse, 1e-2) << "GPU vs CPU mismatch for mask " << c.label << " MSE=" << mse << " MaxAbsErr=" << max_ae;
 }
 
@@ -1297,9 +1297,9 @@ std::shared_ptr<ov::Model> build_collapse6d_model(const collapse6d_case& c) {
     in1->set_friendly_name("input1");
     in2->set_friendly_name("input2");
 
-    auto t1 = make_branch(in1, 2, X, 4, 3, 5, kReproV3Weights1);  // host [1,2,X,4,3,5]
+    auto t1 = make_branch(in1, 2, X, 4, 3, 5, kFusedPeerFoldWeights1);  // host [1,2,X,4,3,5]
     t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, c.pf, c.px, c.pw, c.pz, c.py, kReproV3Weights2);
+    auto t2 = make_branch(in2, c.pf, c.px, c.pw, c.pz, c.py, kFusedPeerFoldWeights2);
     t2->set_friendly_name("Transpose_peer");
 
     auto add = std::make_shared<op::v1::Add>(t1, t2);
@@ -1366,7 +1366,7 @@ TEST_P(permute_fused_collapse6d_matrix, compiles_finite_and_matches_cpu) {
     for (float v : gpu_vals)
         ASSERT_TRUE(std::isfinite(v)) << "Non-finite GPU output for 6D mask " << c.label;
     double max_ae = 0.0;
-    double mse = repro_v3_mse(gpu_vals, cpu_vals, max_ae);
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     EXPECT_LT(mse, 1e-2) << "GPU vs CPU mismatch for 6D mask " << c.label << " MSE=" << mse << " MaxAbsErr=" << max_ae;
 }
 
