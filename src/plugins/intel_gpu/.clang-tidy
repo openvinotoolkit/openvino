@@ -8,6 +8,7 @@
 Checks: >
   -*,
   modernize-use-override,
+  readability-redundant-control-flow
   modernize-use-nullptr
   modernize-use-bool-literals
   modernize-deprecated-headers
