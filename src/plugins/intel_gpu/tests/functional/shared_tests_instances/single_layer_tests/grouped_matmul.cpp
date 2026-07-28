@@ -17,7 +17,6 @@ using ov::test::GroupedMatMulShapeParams;
 using ov::test::TokensPerExpert;
 using ov::test::utils::DecompressionType;
 
-// GPU-specific subclass that validates weights precision is preserved in the compiled model.
 class GroupedMatMulCompressedLayerTest_GPU : public GroupedMatMulCompressedLayerTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
@@ -26,6 +25,7 @@ public:
 
 protected:
     void check_results() {
+        // validates weights precision is preserved in the compiled model.
         const auto& test_param = GetParam();
         const ov::element::Type expected_weights_prec = std::get<2>(test_param);
         const auto subtract_type = std::get<6>(test_param);
