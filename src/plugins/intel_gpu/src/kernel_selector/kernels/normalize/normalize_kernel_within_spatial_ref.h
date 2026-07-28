@@ -10,7 +10,7 @@ namespace kernel_selector {
 class NormalizeKernelWithinSpatialRef : public NormalizeKernelBase {
 public:
     NormalizeKernelWithinSpatialRef() : NormalizeKernelBase("normalize_gpu_within_spatial_ref") {}
-    virtual ~NormalizeKernelWithinSpatialRef() {}
+    ~NormalizeKernelWithinSpatialRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
