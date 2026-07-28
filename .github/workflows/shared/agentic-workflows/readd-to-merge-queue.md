@@ -36,7 +36,7 @@ safe-outputs:
         - name: Set up Python
           uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
           with:
-            python-version: '3.11'
+            python-version: '3.13'
         - name: Install PyGithub
           run: python -m pip install --quiet PyGithub
         - name: Re-add pull request to merge queue
@@ -46,7 +46,9 @@ safe-outputs:
             # cannot re-trigger merge_group check runs (events it creates do not
             # start new workflow runs), so the re-queued PR would stall.
             GH_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
-          run: python .github/scripts/agentic-workflows/readd_to_merge_queue.py
+          run: |
+            export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+            python .github/scripts/agentic-workflows/readd_to_merge_queue.py
 ---
 
 # CI Doctor MQ — Re-add Pull Request to Merge Queue

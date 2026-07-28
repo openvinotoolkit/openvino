@@ -48,11 +48,13 @@ safe-outputs:
         - name: Set up Python
           uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
           with:
-            python-version: '3.11'
+            python-version: '3.13'
         - name: Send recurring failure escalation to Teams
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          run: python .github/scripts/agentic-workflows/notify_teams_recurring.py
+          run: |
+            export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+            python .github/scripts/agentic-workflows/notify_teams_recurring.py
 ---
 
 # CI Doctor MQ — Recurring Teams Notification Job

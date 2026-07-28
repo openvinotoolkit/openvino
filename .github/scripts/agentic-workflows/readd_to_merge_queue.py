@@ -10,89 +10,86 @@ Reads the agent output referenced by GH_AW_AGENT_OUTPUT, and re-adds the PR via
 skips merged/closed/draft PRs and PRs already carrying a re-add marker comment.
 """
 
-import json
-import os
-import re
-import subprocess
-import sys
+from __future__ import annotations
 
-from github import Auth, Github
+import subprocess
+from typing import TYPE_CHECKING
+
+from common import github_client, handle_numeric_id, read_agent_item, require_env, resolve_repository
+
+if TYPE_CHECKING:
+    from github.PullRequest import PullRequest
 
 MARKER = "<!-- ci-doctor-mq-readd -->"
 
-token = os.environ.get("GH_TOKEN", "")
-if not token:
-    sys.exit("MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue.")
 
-agent_output = os.environ.get("GH_AW_AGENT_OUTPUT", "")
-if not agent_output or not os.path.isfile(agent_output):
-    sys.exit("No agent output found at GH_AW_AGENT_OUTPUT")
+def already_readded(pull: "PullRequest") -> bool:
+    """Return True if a previous CI Doctor re-add marker comment is present."""
+    return any(MARKER in (comment.body or "") for comment in pull.get_issue_comments())
 
-with open(agent_output, encoding="utf-8") as handle:
-    payload_items = json.load(handle).get("items", [])
 
-items = [it for it in payload_items if it.get("type") == "readd_to_merge_queue"]
-if not items:
-    sys.exit("No readd_to_merge_queue item present in agent output")
-item = items[-1]
+def skip_reason(pull: "PullRequest", pr_number: str) -> str | None:
+    """Return a human-readable reason to skip re-adding, or None to proceed."""
+    if pull.merged:
+        return f"PR #{pr_number} is already merged; nothing to re-add."
+    if pull.state != "open":
+        return f"PR #{pr_number} is not open (state={pull.state}); not re-adding."
+    if pull.draft:
+        return f"PR #{pr_number} is a draft; not re-adding."
+    return None
 
-pr_number = item.get("pr_number") or ""
-repository = item.get("repository") or ""
-reason = item.get("reason") or ""
 
-# Validate pr_number is purely numeric to avoid API path/query injection.
-if not re.fullmatch(r"[0-9]+", pr_number):
-    sys.exit(f"pr_number must be a numeric string, got: '{pr_number}'")
+def enqueue(pull: "PullRequest", pr_number: str, repository: str) -> None:
+    """Re-add the PR to the merge queue via ``gh pr merge``.
 
-# Fall back to the current repository when none was supplied.
-if not repository or repository == "not_found":
-    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    On a branch that requires a merge queue, ``gh pr merge`` adds the PR to the
+    queue (using the queue's own configured merge method) instead of merging
+    directly. ``--squash`` keeps the CLI non-interactive; ``--match-head-commit``
+    guards against the head moving under us.
+    """
+    merge_command = ["gh", "pr", "merge", pr_number, "--repo", repository, "--squash"]
+    if pull.head.sha:
+        merge_command += ["--match-head-commit", pull.head.sha]
+    result = subprocess.run(merge_command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"Merge-queue enqueue failed: {result.stderr.strip()}")
 
-# Validate repository is in owner/repo form to avoid API path injection.
-if not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", repository):
-    sys.exit(f"repository must be in owner/repo format, got: '{repository}'")
 
-print(f"Requested re-add of PR #{pr_number} in {repository} to merge queue (reason: {reason})")
+def record_marker(pull: "PullRequest", reason: str) -> None:
+    """Comment a marker so subsequent CI Doctor runs do not re-add again."""
+    comment_body = (
+        f"{MARKER}\n\n_CI Doctor re-added this pull request to the merge queue "
+        f"after a transient failure (reason: {reason})._"
+    )
+    pull.create_issue_comment(comment_body)
 
-github = Github(auth=Auth.Token(token))
-pull = github.get_repo(repository).get_pull(int(pr_number))
 
-# Loop guard: if CI Doctor already re-added this PR (marker comment
-# present), do not re-add again to avoid queue thrash.
-if any(MARKER in (comment.body or "") for comment in pull.get_issue_comments()):
-    print(f"PR #{pr_number} already re-added by CI Doctor (marker comment found); skipping.")
-    sys.exit(0)
+def main() -> None:
+    token = require_env("GH_TOKEN", "MERGE_QUEUE_TOKEN secret is not configured; cannot re-add to merge queue.")
+    item = read_agent_item("readd_to_merge_queue")
+    pr_number = handle_numeric_id(item.get("pr_number") or "", "pr_number")
+    repository = resolve_repository(item.get("repository") or "")
+    reason = item.get("reason") or ""
 
-# Only re-add an open, non-draft, unmerged PR.
-if pull.merged:
-    print(f"PR #{pr_number} is already merged; nothing to re-add.")
-    sys.exit(0)
-if pull.state != "open":
-    print(f"PR #{pr_number} is not open (state={pull.state}); not re-adding.")
-    sys.exit(0)
-if pull.draft:
-    print(f"PR #{pr_number} is a draft; not re-adding.")
-    sys.exit(0)
+    print(f"Requested re-add of PR #{pr_number} in {repository} to merge queue (reason: {reason})")
 
-# Re-add the PR to the merge queue. On a branch that requires a merge
-# queue, `gh pr merge` adds the PR to the queue (using the queue's own
-# configured merge method) instead of merging directly. A merge-method
-# flag (`--squash`) is required so the CLI runs non-interactively.
-# `--match-head-commit` guards against the head moving under us.
-merge_command = ["gh", "pr", "merge", pr_number, "--repo", repository, "--squash"]
-if pull.head.sha:
-    merge_command += ["--match-head-commit", pull.head.sha]
-merge_result = subprocess.run(merge_command, capture_output=True, text=True)
-if merge_result.returncode != 0:
-    sys.exit(f"Merge-queue enqueue failed: {merge_result.stderr.strip()}")
+    pull = github_client(token).get_repo(repository).get_pull(int(pr_number))
 
-print(f"Successfully requested re-add of PR #{pr_number} to the merge queue.")
+    if already_readded(pull):
+        print(f"PR #{pr_number} already re-added by CI Doctor (marker comment found); skipping.")
+        return
 
-# Record a marker comment so subsequent CI Doctor runs do not re-add again.
-comment_body = (
-    f"{MARKER}\n\n_CI Doctor re-added this pull request to the merge queue "
-    f"after a transient failure (reason: {reason})._"
-)
-pull.create_issue_comment(comment_body)
+    reason_to_skip = skip_reason(pull, pr_number)
+    if reason_to_skip:
+        print(reason_to_skip)
+        return
 
-print(f"Recorded re-add marker comment on PR #{pr_number}.")
+    enqueue(pull, pr_number, repository)
+    print(f"Successfully requested re-add of PR #{pr_number} to the merge queue.")
+
+    record_marker(pull, reason)
+    print(f"Recorded re-add marker comment on PR #{pr_number}.")
+
+
+if __name__ == "__main__":
+    main()

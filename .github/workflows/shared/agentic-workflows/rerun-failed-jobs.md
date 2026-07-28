@@ -35,13 +35,15 @@ safe-outputs:
         - name: Set up Python
           uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
           with:
-            python-version: '3.11'
+            python-version: '3.13'
         - name: Install PyGithub
           run: python -m pip install --quiet PyGithub
         - name: Re-run failed jobs
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: python .github/scripts/agentic-workflows/rerun_failed_jobs.py
+          run: |
+            export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+            python .github/scripts/agentic-workflows/rerun_failed_jobs.py
 ---
 
 # CI Doctor MQ — Re-run Failed Jobs

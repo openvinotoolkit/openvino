@@ -67,12 +67,14 @@ safe-outputs:
         - name: Set up Python
           uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
           with:
-            python-version: '3.11'
+            python-version: '3.13'
         - name: Send Teams notification
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
             RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
-          run: python .github/scripts/agentic-workflows/notify_teams.py
+          run: |
+            export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+            python .github/scripts/agentic-workflows/notify_teams.py
 
         - name: Upload statistics artifact
           if: always()

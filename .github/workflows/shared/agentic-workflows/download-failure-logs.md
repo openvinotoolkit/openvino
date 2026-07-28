@@ -18,7 +18,7 @@ steps:
   - name: Set up Python
     uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
     with:
-      python-version: '3.11'
+      python-version: '3.13'
   - name: Install PyGithub
     run: python -m pip install --quiet PyGithub
   - name: Download CI failure logs
@@ -27,7 +27,9 @@ steps:
       REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.issue.number }}
       RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
-    run: python .github/scripts/agentic-workflows/download_failure_logs.py
+    run: |
+      export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+      python .github/scripts/agentic-workflows/download_failure_logs.py
 ---
 
 <!--

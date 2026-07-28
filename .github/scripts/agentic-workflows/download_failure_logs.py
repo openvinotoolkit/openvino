@@ -11,39 +11,37 @@ detects its mode from the environment:
 Outputs go under /tmp/gh-aw/agent/ci-doctor/ (logs, hint files, summary).
 """
 
+from __future__ import annotations
+
 import glob
 import json
 import os
 import re
 import sys
 import urllib.request
+from typing import TYPE_CHECKING, Any, TextIO
 
-from github import Auth, Github
+from common import github_client
+
+if TYPE_CHECKING:
+    from github.Repository import Repository
+    from github.WorkflowJob import WorkflowJob
+    from github.WorkflowRun import WorkflowRun
 
 LOG_DIR = "/tmp/gh-aw/agent/ci-doctor/logs"
 FILTERED_DIR = "/tmp/gh-aw/agent/ci-doctor/filtered"
 SUMMARY_FILE = "/tmp/gh-aw/agent/ci-doctor/summary.txt"
-os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(FILTERED_DIR, exist_ok=True)
 
 HINT_RE = re.compile(
     r"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])"
 )
 
-repo_name = os.environ.get("REPO", "")
-run_id = (os.environ.get("RUN_ID") or "").strip()
-pr_number = (os.environ.get("PR_NUMBER") or "").strip()
-token = os.environ.get("GH_TOKEN", "")
 
-github = Github(auth=Auth.Token(token))
-repo = github.get_repo(repo_name)
-
-
-def line_count(text):
+def line_count(text: str) -> int:
     return text.count("\n")
 
 
-def download_job_log(job):
+def download_job_log(job: "WorkflowJob") -> None:
     """Download the log for a single failed job and pre-locate error hints."""
     log_file = os.path.join(LOG_DIR, f"job-{job.id}.log")
     print(f"Downloading log for job {job.id}...")
@@ -69,9 +67,9 @@ def download_job_log(job):
         print(f"  -> Pre-located {len(matches)} hint line(s) in {hints_file}")
 
 
-def failed_jobs_for_run(workflow_run):
+def failed_jobs_for_run(workflow_run: "WorkflowRun") -> list[dict[str, Any]]:
     """Return the failed/cancelled jobs of a run as serialisable dicts."""
-    result = []
+    result: list[dict[str, Any]] = []
     for job in workflow_run.jobs():
         if job.conclusion in ("failure", "cancelled"):
             failed_steps = [step.name for step in (job.steps or []) if step.conclusion == "failure"]
@@ -79,7 +77,7 @@ def failed_jobs_for_run(workflow_run):
     return result
 
 
-def write_summary_footer(handle):
+def write_summary_footer(handle: TextIO) -> None:
     """Append the shared 'downloaded files' + 'hint files' footer to the summary."""
     handle.write("\n")
     handle.write(f"Downloaded job log files ({LOG_DIR}):\n")
@@ -99,8 +97,8 @@ def write_summary_footer(handle):
             handle.write(f"    {line}\n")
 
 
-if run_id:
-    # ---- run mode: a single workflow run (CI Doctor — Merge Queue) ----
+def run_mode(repo: "Repository", run_id: str) -> None:
+    """Pre-download logs for a single workflow run (CI Doctor — Merge Queue)."""
     print(f"=== CI Doctor: Pre-downloading logs for run {run_id} ===")
 
     workflow_run = repo.get_workflow_run(int(run_id))
@@ -131,8 +129,9 @@ if run_id:
     with open(SUMMARY_FILE, "a", encoding="utf-8") as handle:
         write_summary_footer(handle)
 
-elif pr_number:
-    # ---- pr mode: every failed run on a pull request head commit ----
+
+def pr_mode(repo: "Repository", pr_number: str) -> None:
+    """Pre-download logs for every failed run on a pull request head commit."""
     print(f"=== CI Doctor: Pre-downloading logs for PR #{pr_number} ===")
 
     try:
@@ -147,7 +146,7 @@ elif pr_number:
     print(f"PR head SHA: {head_sha}")
 
     # Find all workflow runs for the PR head SHA that failed or were cancelled.
-    failed_runs = []
+    failed_runs: list[dict[str, Any]] = []
     try:
         for workflow_run in repo.get_workflow_runs(head_sha=head_sha):
             if workflow_run.conclusion in ("failure", "cancelled"):
@@ -161,7 +160,7 @@ elif pr_number:
         failed_runs = []
 
     # De-duplicate by workflow name, keeping the most recent (highest id) run per workflow.
-    latest_by_name = {}
+    latest_by_name: dict[str, dict[str, Any]] = {}
     for entry in failed_runs:
         current = latest_by_name.get(entry["name"])
         if current is None or entry["id"] > current["id"]:
@@ -198,10 +197,30 @@ elif pr_number:
     with open(SUMMARY_FILE, "a", encoding="utf-8") as handle:
         write_summary_footer(handle)
 
-else:
-    print("Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.")
-    with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
-        handle.write("No CI Doctor context (no RUN_ID or PR_NUMBER).\n")
 
-print("")
-print(f"Pre-analysis complete. Agent should start with {SUMMARY_FILE}")
+def main() -> None:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(FILTERED_DIR, exist_ok=True)
+
+    repo_name = os.environ.get("REPO", "")
+    run_id = (os.environ.get("RUN_ID") or "").strip()
+    pr_number = (os.environ.get("PR_NUMBER") or "").strip()
+    token = os.environ.get("GH_TOKEN", "")
+
+    repo = github_client(token).get_repo(repo_name)
+
+    if run_id:
+        run_mode(repo, run_id)
+    elif pr_number:
+        pr_mode(repo, pr_number)
+    else:
+        print("Neither RUN_ID nor PR_NUMBER is set; nothing to pre-download.")
+        with open(SUMMARY_FILE, "w", encoding="utf-8") as handle:
+            handle.write("No CI Doctor context (no RUN_ID or PR_NUMBER).\n")
+
+    print("")
+    print(f"Pre-analysis complete. Agent should start with {SUMMARY_FILE}")
+
+
+if __name__ == "__main__":
+    main()
