@@ -13226,3 +13226,76 @@ TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
         ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
     }
 }
+
+TEST(convolution_gpu_bfyx_f16, dynamic_fused_input_scalar_and_non_scalar_fp32) {
+    auto& engine = get_test_engine();
+
+    const ov::Shape input_shape = {1, 32, 3, 5};
+    const ov::Shape weights_shape = {32, 32, 1, 1};
+    const ov::Shape scalar_shape = {1, 1, 1, 1};
+
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({weights_shape, data_types::f32, format::bfyx});
+    auto residual_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto scalar_mem = engine.allocate_memory({scalar_shape, data_types::f32, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1));
+    set_values(weights_mem, rg.generate_random_1d<float>(ov::shape_size(weights_shape), -1, 1));
+    set_values(residual_mem, rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1));
+    set_values(scalar_mem, std::vector<float>{0.25f});
+
+    const layout dynamic_layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto make_topology = [&]() {
+        return topology(
+            input_layout("input", dynamic_layout),
+            input_layout("residual", dynamic_layout),
+            reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+            data("weights", weights_mem),
+            convolution("conv", input_info("input_fsv16"), "weights", no_bias, 1,
+                        ov::Strides{1, 1}, ov::Strides{1, 1},
+                        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false),
+            eltwise("add", {input_info("conv"), input_info("residual")}, eltwise_mode::sum),
+            reorder("output", input_info("add"), format::bfyx, data_types::f32));
+    };
+
+    ExecutionConfig cfg_fused = get_test_default_config(engine);
+    cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl}}
+    }));
+
+    ExecutionConfig cfg_ref = cfg_fused;
+    cfg_ref.set_property(ov::intel_gpu::optimize_data(false));
+
+    network net_fused(engine, make_topology(), cfg_fused);
+    network net_ref(engine, make_topology(), cfg_ref);
+    net_fused.set_input_data("input", input_mem);
+    net_ref.set_input_data("input", input_mem);
+
+    auto compare = [&](const memory::ptr& fused_input) {
+        net_fused.set_input_data("residual", fused_input);
+        net_ref.set_input_data("residual", fused_input);
+
+        auto fused_outputs = net_fused.execute();
+        auto ref_outputs = net_ref.execute();
+        auto fused_values = get_output_values_to_float(net_fused, fused_outputs.at("output"));
+        auto ref_values = get_output_values_to_float(net_ref, ref_outputs.at("output"));
+
+        ASSERT_EQ(fused_values.size(), ref_values.size());
+        for (size_t i = 0; i < fused_values.size(); ++i)
+            ASSERT_NEAR(fused_values[i], ref_values[i], 1e-4f) << "Mismatch at idx=" << i;
+    };
+
+    compare(residual_mem);
+    compare(scalar_mem);
+
+    const auto primitives_info = net_fused.get_primitives_info();
+    const auto conv_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "conv";
+    });
+    ASSERT_NE(conv_info, primitives_info.end());
+    ASSERT_NE(std::find(conv_info->c_fused_ids.begin(), conv_info->c_fused_ids.end(), "add"), conv_info->c_fused_ids.end());
+    ASSERT_NE(conv_info->kernel_id.find("convolution_gpu_bfyx_f16_1x1"), std::string::npos);
+}

@@ -21,7 +21,7 @@ void skipped_branch_memory_dependencies::run(program& p) {
         auto itrA = ++itrB;
         if (!nodeB->may_use_mempool())
             continue;
-        if (nodeB->get_users().size() == 0)
+        if (nodeB->get_users().empty())
             continue;
 
         // find the last user of B in processing order

@@ -71,13 +71,13 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
     auto& memory_deps = impl_param.memory_deps;
 
     // Consider axes and signal_size are constant case
-    if ((primitive->axes.size() > 0) &&
-        ((impl_param.input_layouts.size() == 2) || (primitive->signal_size.size() > 0))) {
+    if ((!primitive->axes.empty()) &&
+        ((impl_param.input_layouts.size() == 2) || (!primitive->signal_size.empty()))) {
         auto axes_ptr = reinterpret_cast<uint8_t*>(const_cast<int64_t*>(primitive->axes.data()));
         axes_tensor = ov::Tensor(ov::element::i64, ov::Shape({primitive->axes.size()}), axes_ptr, {});
         const_data.emplace(1, axes_tensor);
 
-        if (primitive->signal_size.size() > 0) {
+        if (!primitive->signal_size.empty()) {
             auto signal_size_ptr = reinterpret_cast<uint8_t*>(const_cast<int64_t*>(primitive->signal_size.data()));
             signal_size_tensor = ov::Tensor(ov::element::i64, ov::Shape({primitive->signal_size.size()}), signal_size_ptr, {});
             const_data.emplace(2, signal_size_tensor);

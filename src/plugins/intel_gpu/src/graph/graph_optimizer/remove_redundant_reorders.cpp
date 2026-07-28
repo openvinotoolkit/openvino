@@ -235,7 +235,7 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() ||
             r_node.has_mean() ||
             r_node.get_users().size() > 1 ||
-            r_node.get_primitive()->subtract_per_feature.size() ||
+            !r_node.get_primitive()->subtract_per_feature.empty() ||
             r_node.has_fused_primitives())
             continue;
 
