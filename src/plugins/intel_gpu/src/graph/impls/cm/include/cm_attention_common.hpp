@@ -5,6 +5,8 @@
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 
+#include "cm_qq_bias_mask.hpp"
+
 //# CM-compiler is C++17
 static_assert(__cplusplus >= 201703L);
 //# static_assert(__cplusplus >= 202002L);
@@ -410,37 +412,6 @@ inline void apply_causal_mask_with_offset(matrix_ref<float, N, M> St, int causal
         for (int c = 0; c < M; c++) {
             if (c < mask_cols) {
                 St(r, c) = -3.4e38f;
-            }
-        }
-    }
-}
-
-// Speculative tree mask. Apply only on the "new" K range (key_spec >= 0) and
-// for queries that fall inside the spec window (query_spec in [0, spec_num)).
-// St layout: St[k_row][q_col] with k_row in [0, N=kv_step), q_col in [0, M=q_step).
-// qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
-template <int N, int M>
-inline void apply_qq_bias_tree_mask(matrix_ref<float, N, M> St,
-                                    svmptr_t qq_bias_base,
-                                    int qq_bias_num,
-                                    int qq_bias_spec_num,
-                                    int kv_pos,
-                                    int q_start,
-                                    int past_lens) {
-    if (qq_bias_num <= 0) return;
-    const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
-    #pragma unroll
-    for (int k_row = 0; k_row < N; ++k_row) {
-        const int key_local = kv_pos + k_row;
-        const int key_spec = key_local - past_lens;
-        if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
-        #pragma unroll
-        for (int q_col = 0; q_col < M; ++q_col) {
-            const int query_spec = q_start + q_col;
-            if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
-            const int qq_off = query_spec * qq_bias_spec_num + key_spec;
-            if (qq_bias_ptr[qq_off] == 0) {
-                St[k_row][q_col] = -3.4e38f;
             }
         }
     }

@@ -360,7 +360,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
 #if HAS_QQ_BIAS
                             reinterpret_cast<svmptr_t>(qq_bias_subseq_ptr),
-                            qq_bias_num_subseq,
                             qq_bias_spec_num,
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
@@ -399,7 +398,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
 #if HAS_QQ_BIAS
                             reinterpret_cast<svmptr_t>(qq_bias_subseq_ptr),
-                            qq_bias_num_subseq,
                             qq_bias_spec_num,
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),

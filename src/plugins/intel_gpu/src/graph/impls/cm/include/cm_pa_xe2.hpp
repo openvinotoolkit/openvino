@@ -63,7 +63,6 @@ void pa_lsc_u8(
 #endif
 #if HAS_QQ_BIAS
     svmptr_t qq_bias_base [[type("svmptr_t")]],
-    int32_t qq_bias_num,
     int32_t qq_bias_spec_num,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
@@ -404,7 +403,7 @@ void pa_lsc_u8(
                     int kv_tokens = kv_stop - kv_pos;
                     for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 #if HAS_QQ_BIAS
-                    apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                    apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                             kv_pos, q_start, (int)past_lens);
 #endif
                     auto max_comp = online_softmax_update(St, cur_max, cur_sum);
@@ -642,7 +641,7 @@ void pa_lsc_u8(
             int kv_tokens = kv_stop - kv_pos;
             for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 #if HAS_QQ_BIAS
-            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                     kv_pos, q_start, (int)past_lens);
 #endif
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
@@ -787,7 +786,6 @@ void pa_kernel_lsc_prefetch_f16(
     // Speculative tree mask. Layout per subsequence: [spec_num, spec_num] row-major,
     // i.e. qq_bias[query_spec * spec_num + key_spec]. Zero entries imply masked-out pairs.
     svmptr_t qq_bias_base [[type("svmptr_t")]],
-    int32_t qq_bias_num,
     int32_t qq_bias_spec_num,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
@@ -989,7 +987,7 @@ void pa_kernel_lsc_prefetch_f16(
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 
 #if HAS_QQ_BIAS
-        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                 kv_pos, q_start, (int)past_lens);
 #endif
 
@@ -1299,7 +1297,7 @@ void pa_kernel_lsc_prefetch_f16(
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 
 #if HAS_QQ_BIAS
-        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                 kv_pos, q_start, (int)past_lens);
 #endif
 

@@ -29,10 +29,8 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
         if (!(desc->cache_dt == cldnn::data_types::f16 || desc->cache_dt == cldnn::data_types::i8 || desc->cache_dt == cldnn::data_types::u8)) {
             return false;
         }
-        // CM PA materializes a token-major KV layout for sparse-attention pipelines
-        // (XAttention / qq_bias). The OCL reorder handles the legacy head-major layout.
-        // The flag is set in ops/pa_kv_reorder.cpp from the model rt_info "sparse_enabled".
-        return desc->is_sparse;
+
+        return desc->has_xattention;
     }
 };
 

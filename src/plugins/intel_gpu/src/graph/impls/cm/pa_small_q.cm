@@ -14,6 +14,8 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include "cm_qq_bias_mask.hpp"
+
 namespace KERNEL_NAME {
 
 // TILE_Q optimisation: each SG packs TILE_Q q-tokens of the same subsequence
@@ -113,6 +115,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     ) {
     // tile_idx indexes the host-packed (orig_seq, q_start, valid_count) triple list.
     const uint tile_idx = cm_global_id(0);
+
     if (tile_idx >= (uint)selected_token_count) {
         return;
     }
@@ -131,6 +134,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     if (subseq_q_end_i <= subseq_q_begin_i) {
         return;
     }
+    printf("small q\n");
     const uint subseq_q_begin = (uint)subseq_q_begin_i;
 
     // Causal cap: row t sees past + q_start + t + 1 keys. The whole tile uses the
@@ -557,24 +561,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         continue;
                     }
                     #pragma unroll
-                    for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
-                        const int row = t * Q_head_chunk_size + qi;
-                        auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
+                    for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
+                        const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
+                        vector<unsigned short, REG_N> m =
+                            qq_bias_tree_mask_row<REG_N>(qq_bias_subseq_ptr, qq_bias_spec_num,
+                                                         query_spec, kv_global_start + blk_lo,
+                                                         (int)past_q_lens);
                         #pragma unroll
-                        for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
-                            const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
-                            #pragma unroll
-                            for (int c = 0; c < REG_N; ++c) {
-                                const int key_local = kv_global_start + blk_lo + c;
-                                const int key_spec = key_local - (int)past_q_lens;
-                                if (key_spec < 0 || key_spec >= qq_bias_spec_num) {
-                                    continue;
-                                }
-                                const int qq_off = query_spec * qq_bias_spec_num + key_spec;
-                                if (qq_bias_subseq_ptr[qq_off] == 0) {
-                                    rs_row(b, c) = NEG_INF;
-                                }
-                            }
+                        for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
+                            const int row = t * Q_head_chunk_size + qi;
+                            auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
+                            auto blk = rs_row.row(b);
+                            blk.merge(NEG_INF, m);
                         }
                     }
                 }
@@ -583,7 +581,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
             // Also mask columns beyond kv_pos_end for the last tile
             {
-                uint partition_kv_pos_end = KV_BLOCK_SIZE;  // = kv_pos_end for single block
+                uint partition_kv_pos_end = KV_PARTITION_SIZE;  // = kv_pos_end for single block
                 if (leftover_size > 0) {
                     partition_kv_pos_end = leftover_size % KV_BLOCK_SIZE;
                     if (partition_kv_pos_end == 0) partition_kv_pos_end = KV_BLOCK_SIZE;

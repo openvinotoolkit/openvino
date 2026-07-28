@@ -304,6 +304,7 @@ public:
                     // and a non-empty past keep all tokens in pa_small_q. Each subseq is tiled into
                     // ceil_div(q_len, TILE_Q) tiles; each tile is one SG.
                     const bool small_q_subsequence = (q_len > 1) && (q_len <= SMALL_Q_THRESHOLD) && (past_len > 0);
+                    //std::cout << "small _q mode: " << small_q_subsequence << "  decode mode: " << decode_subsequence << std::endl;
                     if (decode_subsequence) {
                         rt_params->single_token_selected_count++;
                     } else if (small_q_subsequence) {

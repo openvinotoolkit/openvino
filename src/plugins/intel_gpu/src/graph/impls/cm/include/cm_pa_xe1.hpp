@@ -26,7 +26,6 @@ void pa_lsc_u8(
 #endif
 #if HAS_QQ_BIAS
     svmptr_t qq_bias_base [[type("svmptr_t")]],
-    int32_t qq_bias_num,
     int32_t qq_bias_spec_num,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
@@ -306,7 +305,7 @@ void pa_lsc_u8(
                 for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
 #if HAS_QQ_BIAS
-            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                     kv_pos, q_start, (int)past_lens);
 #endif
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
@@ -417,7 +416,6 @@ void pa_kernel_lsc_prefetch_f16(
 #endif
 #if HAS_QQ_BIAS
     svmptr_t qq_bias_base [[type("svmptr_t")]],
-    int32_t qq_bias_num,
     int32_t qq_bias_spec_num,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
@@ -583,7 +581,7 @@ void pa_kernel_lsc_prefetch_f16(
         }
 
 #if HAS_QQ_BIAS
-        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                 kv_pos, q_start, (int)past_lens);
 #endif
 
