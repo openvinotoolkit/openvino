@@ -37,10 +37,7 @@ struct Clamp {
 
     // Generic implementation
     static TO apply(const TI v) {
-        // Preserve IEEE special values: ±inf and NaN pass through the native conversion
-        // (every OV float destination can represent them). Only finite out-of-range values
-        // are clamped to the destination's representable range. For integral TI std::isfinite
-        // is always true, so the clamping behavior is unchanged.
+        // Preserve ±inf/NaN; clamp only finite out-of-range values (isfinite is always true for integral TI).
         if (!std::isfinite(v)) {
             return detail::convert<TI, TO>(v);
         }

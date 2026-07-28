@@ -1164,7 +1164,6 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    // Clamps finite out-of-range values to ±f16::max while preserving ±inf/NaN (see reference Clamp).
     ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
 
     return new_constant;
@@ -1185,7 +1184,6 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::e
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    // Clamps finite out-of-range values to ±f16::max while preserving ±inf/NaN (see reference Clamp).
     ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, size);
 
     return new_constant;
