@@ -621,7 +621,7 @@ TEST(mvn_gpu_test, mvn_test_variance_epsilon_scaling_large_values_bfyx_opt) {
                 valid_count++;
             }
         }
-        std::cout << "Epsilon " << eps << ": NaN=" << nan_count << ", Inf=" << inf_count << ", valid=" << valid_count << std::endl;
+        SCOPED_TRACE(::testing::Message() << "eps=" << eps << ": NaN=" << nan_count << ", Inf=" << inf_count << ", valid=" << valid_count);
         ASSERT_EQ(nan_count, 0) << "eps=" << eps << ": Found " << nan_count << " NaN";
         ASSERT_EQ(inf_count, 0) << "eps=" << eps << ": Found " << inf_count << " Inf";
         ASSERT_GT(valid_count, output->count() * 0.99) << "eps=" << eps << ": Less than 99% valid";
