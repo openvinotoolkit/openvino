@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-07-32-00-000-30331659250b",
+  "timestamp": "2026-07-28T07:32:00Z",
+  "run_id": "30331659250",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30331659250",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Code Issue",
+  "title": "OPT GPTQ model export accuracy validation failed in PyTorch LLM tests",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] failed with AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+    "AssertionError: Accuracy validation failed",
+    "Max diff is 0.06871891021728516",
+    "fw_re and ov_res logit values differ beyond tolerance in OPT GPTQ 4-bit model export"
+  ],
+  "root_cause": "The OPT GPTQ model (katuni4ka/opt-125m-gptq, 4-bit quantized via GPT-QModel) fails accuracy validation when exported via OpenVINO. The maximum output difference between the PyTorch (TorchFusedQuantLinear kernel) and the OV-converted model reaches 0.069, which exceeds the test's acceptance threshold. This is a deterministic failure: the model was loaded with GPT-QModel 6.0.3 / Torch 2.12.0+cpu and the conversion produced a numerically divergent result. The divergence likely originates from numerical precision differences in the 4-bit dequantization path between TorchFusedQuantLinear and the OpenVINO runtime's handling of GPTQ weights.",
+  "reproduction_steps": "python -m pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Investigate the GPTQ 4-bit weight dequantization path in the PyTorch FX frontend for accuracy regressions",
+    "Compare dequantized weight values between TorchFusedQuantLinear and the OV runtime output",
+    "Check recent commits touching src/frontends/pytorch or GPTQ/AWQ quantization handling",
+    "Review tolerance thresholds in compare_results for GPTQ quantized models",
+    "If tolerance is correct, bisect recent commits to find the regression"
+  ],
+  "prevention_strategies": "Add a dedicated precommit accuracy test for GPTQ model exports that runs on every PR touching the PyTorch frontend or quantization code paths, with tight diff tolerances to catch regressions early.",
+  "historical_context": "First occurrence of this specific accuracy validation failure for OPT GPTQ export. Prior investigations for the same run (30331659250) lacked log access and were incorrectly classified as Flaky Test."
+}
