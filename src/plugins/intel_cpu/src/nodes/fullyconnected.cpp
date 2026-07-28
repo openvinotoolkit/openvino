@@ -196,7 +196,10 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
+        bool isNotGroupWise = (IC % G != 0 || IC / G < 4 || OC == 1 || (IC / G) % 32 != 0);
+        bool isNotChannelWise =
+            (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC);
+        if (isNotChannelWise && isNotGroupWise) {
             return false;
         }
 
@@ -573,6 +576,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                                                         context->getConfig().fcSparseWeiDecompressionRate);
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
+
+    attrs.dqScales = getDQScales();
 
     attrs.postOps = getPostOps(fusedWith);
 

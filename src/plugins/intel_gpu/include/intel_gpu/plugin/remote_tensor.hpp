@@ -18,6 +18,7 @@
 #endif
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -41,12 +42,8 @@ public:
                      cldnn::shared_handle mem = nullptr,
                      cldnn::shared_surface surf = 0,
                      uint32_t plane = 0,
-#ifdef __linux__
-                     ov::intel_gpu::os_handle_param os_handle = -1
-#else
-                     ov::intel_gpu::os_handle_param os_handle = nullptr
-#endif
-);
+                     ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
+                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr));
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -87,9 +84,10 @@ private:
     TensorType m_mem_type;
 
     cldnn::shared_handle m_mem;
-    ov::intel_gpu::os_handle_param m_os_handle;
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
+    ov::intel_gpu::SharedBufferHandle m_shared_buffer_handle;
+    ov::intel_gpu::VirtualAddressMemory m_va_mem;
     size_t m_hash = 0;
 
     bool supports_caching() const;

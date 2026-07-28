@@ -152,6 +152,7 @@ protected:
 
     bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
+    void propagate_params_to_subrequests() override;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
         // for function bodies (replaced_by == idx)
