@@ -50,6 +50,8 @@ protected:
     virtual JitConstants GetJitConstants(const resample_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     size_t GetFeatureBlockSize(const resample_params& params) const;
+    static int GetAxisIndex(InterpolateAxis axis);
+    static std::vector<float> get_legacy_scales(const resample_params& params);
     virtual Datatype GetAccumulatorType(const resample_params& params) const;
 };
 }  // namespace kernel_selector
