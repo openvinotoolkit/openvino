@@ -58,7 +58,7 @@ namespace pass {
 ClampFP16FCOutput::ClampFP16FCOutput() {
     using namespace ov::op;
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto add = ov::as_type_ptr<v1::Add>(m.get_match_root());
         if (!add || transformation_callback(add)) {
             return false;
