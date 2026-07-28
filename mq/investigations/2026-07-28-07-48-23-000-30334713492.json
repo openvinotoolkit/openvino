@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-07-48-23-000-30334713492",
+  "timestamp": "2026-07-28T07:48:23Z",
+  "run_id": "30334713492",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30334713492",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "37020",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37020",
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] failed: AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "AssertionError: Accuracy validation failed\nMax diff is 0.06871891021728516",
+    "E           multiprocessing.context.ProcessError:\nE           katuni4ka/opt-125m-gptq running failed:\n  File test_convert_model.py:93 in compare_results: assert is_ok, \"Accuracy validation failed\""
+  ],
+  "root_cause": "The OPT 125m GPTQ model export test (`test_export_model_precommit`) produces OpenVINO inference results that diverge from the PyTorch framework reference outputs beyond the test's tolerance threshold. The maximum absolute difference between ov_res and fw_res is ~0.069. This is a persistent accuracy regression affecting the GPTQ INT4 quantized OPT model conversion path, first observed 2026-07-27 and recurring across 16 merge-queue runs. The failure is deterministic, not transient — a restart does not resolve it.",
+  "reproduction_steps": "cd install/tests && python -m pytest model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Identify which PR introduced the accuracy regression (first appeared 2026-07-27 ~12:33 UTC)",
+    "Inspect the PyTorch frontend GPTQ/INT4 dequantization path for numerical precision changes",
+    "Check if the accuracy threshold in test_llm.py compare_results was changed or needs updating for export mode",
+    "Consider temporarily skipping this test while the root cause is investigated if it is blocking PRs unrelated to the GPTQ path"
+  ],
+  "prevention_strategies": "Add accuracy regression CI checks specifically for quantized models when modifying the PyTorch frontend or quantization-related transformations.",
+  "historical_context": "This exact failure has been recorded 16 times since 2026-07-27T12:33:21Z. It is a persistent, deterministic Code Issue — not a flaky test. Multiple PRs have been blocked by this issue."
+}
