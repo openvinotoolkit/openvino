@@ -68,7 +68,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             new_OC = OC;
             new_IC = n_groups * group_size;
         }
-        return std::make_shared<v0::Constant>(*constant, new_shape);
+        auto new_constant = std::make_shared<v0::Constant>(*constant, new_shape);
+        // Propagate plain "otd_bin_offset" entry (used by GPU OTD when WCA is lost)
+        auto otd_it = constant->get_rt_info().find("otd_bin_offset");
+        if (otd_it != constant->get_rt_info().end()) {
+            new_constant->get_rt_info()["otd_bin_offset"] = otd_it->second;
+        }
+        return new_constant;
     };
 
     auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {

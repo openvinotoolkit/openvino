@@ -1,0 +1,99 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <cstdint>
+#include <memory>
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include <string>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
+#include "utils.hpp"
+
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
+
+OutputVector translate_flash_attn_ext(const NodeContext& context) {
+    num_inputs_check(context, 4, 4);
+    auto q_f32 = context.get_input(0);
+    auto k = context.get_input(1);
+    auto v = context.get_input(2);
+    auto mask = context.get_input(3);
+
+    float scale = context.get_attribute<float>("scale");
+
+    auto q = std::make_shared<ov::op::v0::Convert>(q_f32, ov::element::f16);
+    auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<float>{scale});
+
+    ov::Output<ov::Node> mask_sliced, res;
+    const std::string mask_name = context.get_attribute<bool>("is_swa", false) ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
+    if (context.has_input(mask_name)) {
+        mask_sliced = context.get_input(mask_name);
+    } else {
+        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+        auto token_len = get_dimensions(q, {2});
+        mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
+    }
+
+    if (mask_sliced.get_element_type() != ov::element::f16) {
+        mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, ov::element::f16);
+    }
+
+    auto tile_kv = [&](int64_t num_heads, int64_t num_heads_kv, int64_t head_size, ov::Output<Node> kv) {
+        int64_t factor = num_heads / num_heads_kv;
+        if (factor > 1 && num_heads_kv > 1) {
+            ov::Output<ov::Node> kv_broadcast_shape, kv_unsqueezed, new_kv_shape;
+            auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {2});
+            kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
+
+            kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                              {5},
+                                                              {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
+            new_kv_shape =
+                ov::op::v0::Constant::create(ov::element::i64, {4}, {(int64_t)0, num_heads, (int64_t)-1, head_size});
+
+            kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
+                                                         kv_broadcast_shape,
+                                                         ov::op::BroadcastType::BIDIRECTIONAL);
+            kv = std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
+        }
+        return kv;
+    };
+
+    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
+    // stateful KV-cache path the OV node's batch/seq dims are dynamic (K/V are fed by the cache
+    // concat), but the head-count / head-size dims are static ggml facts the decoder knows.
+    auto q_shape = context.get_input_shape(0).to_shape();
+    auto k_shape = context.get_input_shape(1).to_shape();
+    k = tile_kv(q_shape[1], k_shape[1], q_shape[3], k);
+    v = tile_kv(q_shape[1], k_shape[1], q_shape[3], v);
+
+    // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
+    k = std::make_shared<ov::op::v1::ConvertLike>(k, q);
+    v = std::make_shared<ov::op::v1::ConvertLike>(v, q);
+
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, false);
+    res = std::make_shared<ov::op::v1::Transpose>(sdpa,
+                                                  ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+    res = std::make_shared<ov::op::v0::Convert>(res, ov::element::f32);
+    return rename_outputs_with_suffix({res}, context.get_name());
+}
+
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

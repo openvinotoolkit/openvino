@@ -63,18 +63,22 @@ void GroupQueryAttention::validate_and_infer_types() {
                           "GroupQueryAttention supports following query element types: {f32, f16}");
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
-    // cache element type so a quantized (i8/u8) cache round-trips from past to present, matching the ONNX spec.
+    // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
     const auto& kv_cache_type = get_input_element_type(3);
     NODE_VALIDATION_CHECK(this,
                           kv_cache_type == element::f32 || kv_cache_type == element::f16 ||
-                              kv_cache_type == element::i8 || kv_cache_type == element::u8,
-                          "GroupQueryAttention supports following KV cache element types: {f32, f16, i8, u8}");
+                              kv_cache_type == element::i8 || kv_cache_type == element::u8 ||
+                              kv_cache_type == element::f8e4m3,
+                          "GroupQueryAttention supports following KV cache element types: {f32, f16, i8, u8, f8e4m3}");
 
     if (is_kv_quantized()) {
-        // Quantized KV cache: i8 (8-bit) or u8 (4-bit values packed two per byte). Requires float dequant scales.
-        NODE_VALIDATION_CHECK(this,
-                              kv_cache_type == element::i8 || kv_cache_type == element::u8,
-                              "GroupQueryAttention with quantized KV cache requires an i8 or u8 past/present KV type");
+        // Quantized KV cache: i8 (8-bit), u8 (4-bit values packed two per byte), or f8e4m3 (8-bit float). Requires
+        // float dequant scales.
+        NODE_VALIDATION_CHECK(
+            this,
+            kv_cache_type == element::i8 || kv_cache_type == element::u8 || kv_cache_type == element::f8e4m3,
+            "GroupQueryAttention with quantized KV cache requires an i8, u8, or f8e4m3 past/present "
+            "KV type");
         NODE_VALIDATION_CHECK(this,
                               m_kv_cache_bit_width == 8 || m_kv_cache_bit_width == 4,
                               "GroupQueryAttention supports kv_cache_bit_width of 8 or 4, got: ",

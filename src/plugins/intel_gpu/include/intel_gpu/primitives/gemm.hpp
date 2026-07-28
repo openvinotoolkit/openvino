@@ -25,11 +25,11 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
-    typedef enum {
+    enum TransposeType {
         X_LAST = 0,
         Y_LAST,
         OTHER,
-    } TransposeType;
+    };
 
     gemm() : primitive_base("", {}) {}
 

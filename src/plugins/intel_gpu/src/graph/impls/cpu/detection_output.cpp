@@ -221,7 +221,7 @@ public:
         if (top_k != -1)
             if (scoreIndexPairs.size() > static_cast<size_t>(top_k))
                 scoreIndexPairs.resize(top_k);
-        while (scoreIndexPairs.size() != 0) {
+        while (!scoreIndexPairs.empty()) {
             const int cls = scoreIndexPairs.front().second.first;
             const int prior = scoreIndexPairs.front().second.second;
             std::vector<int>& currInd = indices[cls];

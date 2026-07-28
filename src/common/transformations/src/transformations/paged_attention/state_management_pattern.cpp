@@ -5,6 +5,7 @@
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <tuple>
+#include <unordered_set>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -242,6 +243,18 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     return {mask, offset};
 }
 
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gemma4_sliding_window_pattern() {
+    auto offset = wrap_type<v0::Constant>();
+    auto ge = wrap_type<v1::GreaterEqual>({any_input(), offset});
+    auto unsqueeze_0 = wrap_type<v0::Unsqueeze>({ge, any_input()});
+    auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({unsqueeze_0, any_input()});
+    auto inner_select = wrap_type<v1::Select>({unsqueeze_1, any_input(), any_input()});
+    auto outer_select = wrap_type<v1::Select>({any_input(), any_input(), inner_select});
+    auto mask = pattern::optional<v8::Slice>({outer_select, any_input(), any_input(), any_input(), any_input()});
+
+    return {mask, offset};
+}
+
 typedef std::
     tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
         node_tuple;
@@ -405,6 +418,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
     std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
+    // gemma4 sliding layer case
+    std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
+    std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
+
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
         return output.get_partial_shape() == ov::PartialShape{} ||
@@ -429,6 +446,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
                                                           gptoss_gemma3_mask,
+                                                          gemma4_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -640,6 +658,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
+        } else if (pattern_map.count(gemma4_offset)) {
+            auto offset = pattern_map.at(gemma4_offset).get_node_shared_ptr();
+            if (pattern_map.at(gemma4_offset).get_partial_shape().rank() != 0) {
+                offset = std::make_shared<v15::Squeeze>(offset);
+            }
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = offset;
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
