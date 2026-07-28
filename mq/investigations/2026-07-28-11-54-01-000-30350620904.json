@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-11-54-01-000-30350620904",
+  "timestamp": "2026-07-28T11:54:01Z",
+  "run_id": "30350620904",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30350620904",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "37071",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37071",
+  "author": null,
+  "category": "Code Issue",
+  "title": "OPT-GPTQ model export accuracy validation fails - max diff 0.069 exceeds threshold",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] failed with AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nassert False\n\nMax diff is 0.06871891021728516",
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED"
+  ],
+  "root_cause": "The OpenVINO export of the GPTQ-quantized OPT-125M model (katuni4ka/opt-125m-gptq) produces logits that deviate from the PyTorch reference by up to 0.069, exceeding the test tolerance threshold. The model uses 4-bit GPTQ quantization (GPT-QModel 6.0.3, Transformers 5.5.3, Torch 2.12.0+cpu). The accuracy discrepancy indicates a numerical precision issue in the PyTorch frontend's handling of the GPTQ TorchFusedQuantLinear kernel during export mode conversion.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Investigate the GPTQ dequantization path in the PyTorch FX decoder to find the source of ~0.069 max diff in OPT-GPTQ models",
+    "Check if the PR changes to the PyTorch frontend or GPTQ handling introduced a regression in quantized model accuracy",
+    "Review test_llm.py compare_results tolerance thresholds for GPTQ models with TorchFusedQuantLinear",
+    "Add debug logging comparing intermediate tensor values to isolate which layer introduces the diff"
+  ],
+  "prevention_strategies": "Ensure GPTQ quantized model tests run on both convert and export modes before merging changes to the PyTorch frontend. Add stricter CI coverage for quantized model accuracy.",
+  "historical_context": "No prior occurrences of this specific GPTQ accuracy signature in the database."
+}
