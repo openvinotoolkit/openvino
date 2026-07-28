@@ -55,21 +55,32 @@ Install this FIRST so vLLM picks it up rather than pulling CUDA-enabled
 torch during its own resolve.
 
 ```bash
-python -m pip install "torch==2.11.*+cpu" \
+python -m pip install "torch==2.11.0+cpu" \
     --index-url https://download.pytorch.org/whl/cpu
 ```
 
 ### 3. vLLM (CPU)
 
+Install the CPU-only `vllm-cpu` package, NOT plain `vllm`. The plain
+`vllm` wheel on PyPI ships without the CPU C extension (`vllm._C`); it
+fails at runtime with `AttributeError: '_OpNamespace' '_C' has no
+attribute 'init_cpu_memory_env'`.
+
 ```bash
-# Recent vLLM CPU wheels ship on PyPI and don't require CUDA.
-python -m pip install "vllm==0.25.*"
+python -m pip install "vllm-cpu==0.25.0"
 ```
 
-If the resolver tries to reinstall CUDA torch, use
-`--no-deps` for vllm and install the runtime deps manually, or use vLLM's
-official CPU installation guide:
-https://docs.vllm.ai/en/latest/getting_started/installation/cpu/
+Also align torch family versions on the CPU wheel index (installing
+`vllm-cpu` may pull `torchvision`/`torchaudio` from PyPI without the
+`+cpu` suffix, which then fails to load `torchvision::nms`):
+
+```bash
+python -m pip install --force-reinstall \
+    "torch==2.11.0+cpu" "torchvision==0.26.0+cpu" "torchaudio==2.11.0+cpu" \
+    --index-url https://download.pytorch.org/whl/cpu
+# torchcodec pulls in CUDA nvrtc; remove it on CPU-only hosts:
+python -m pip uninstall -y torchcodec
+```
 
 Optional (perf, Linux):
 
@@ -92,19 +103,22 @@ cd openvino
 git checkout vllm_dev
 git submodule update --init --recursive
 
+# patchelf is required for the wheel build target
+python -m pip install patchelf
+
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_PYTHON=ON \
+      -DENABLE_WHEEL=ON \
       -DENABLE_TESTS=OFF \
       -DENABLE_INTEL_GPU=OFF \
       -DENABLE_INTEL_NPU=OFF \
       -DENABLE_OV_PYTORCH_FRONTEND=ON ..
 cmake --build . -j $(nproc)
 
-# Build & install the Python wheel into the venv
-cd ..
-python -m pip wheel ./src/bindings/python -w /tmp/ov_wheel
-python -m pip install --force-reinstall /tmp/ov_wheel/openvino-*.whl
+# Build the wheel via the ie_wheel target, then install it
+cmake --build . --target ie_wheel -j $(nproc)
+python -m pip install --force-reinstall ./wheels/openvino-*.whl
 ```
 
 Option B — install a published wheel that already contains this
@@ -210,6 +224,7 @@ its default backend; OV is not engaged.
 - **Per-step latency much higher than expected**: enable `OV_PERF_COUNT_OUT=/tmp/ov.log` and inspect counts. `LLMMLP`, `QKVProjection`, `PagedAttentionExtension` should each appear once per layer per decode step. If they're 0 the corresponding fusion did not fire on this model.
 - **`ValueError: Field 'level' not found in CompilationConfig`**: You are on a newer vLLM that renamed `level` to `mode`. Use `{"mode": "STOCK_TORCH_COMPILE", "backend": "openvino"}` (as shown above). vLLM 0.25.x used `level=3`; 0.26+ uses `mode`.
 - **Fused sampler didn't fire (grep `[OV plugin] Fused sampler compiled` in stderr)**: the vocab-size gate (default: 100000) skips small-vocab models. Override with `OV_FUSED_SAMPLER_MIN_VOCAB=0` if you want it on for all models.
+- **First `generate()` hangs at `Processed prompts: 0%`, `shm_broadcast.py:705` warns "No available shared memory broadcast block found in 60 seconds"**: worker is stuck inside `posix_memalign` / TBB / glibc heap-lock contention during the very first OV infer. Verified with `py-spy dump --native`. Set `VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=1800` to rule out slow-but-progressing compile; if the worker still hangs at ~64% CPU with no output, py-spy the worker pid to confirm the stack pins in `libopenvino_intel_cpu_plugin.so`. Currently reproducible against `vllm_dev` tip `8269f336` on SPR with vllm-cpu 0.25.0; not present on `dddcff2cc70` (~30 commits earlier). Root cause bisect open.
 
 ## Limitations
 
