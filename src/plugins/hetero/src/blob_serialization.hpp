@@ -35,7 +35,7 @@ namespace ov::hetero {
 //     The XML header comes first and lists the compiled_submodel entries.
 //     After that, one payload frame is written for each entry, in the same order.
 //
-// Payload frame (repeated once per compiled_submodel in the XML header order):
+// Submodel payload frame (repeated once per compiled_submodel in the XML header order):
 //
 //   +--------------------+--------------------------+----------------------+
 //   | type (1 byte char) | payload size (uint64_t)  | payload raw data     |
