@@ -774,20 +774,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 // (MSE ~= 12-20 vs CPU). The fix folds the contiguous planar peer onto the host
 // shape, keeping the Add fused and producing the correct result.
 //
-// This mirrors the accepted defect-triggering IR built in-memory with its exact
-// f16 weights, so it exercises the real GPU compile/layout/fusion path rather
-// than a hand-forced cldnn topology (the 5D->4D flattening is IR-layout-optimizer
-// driven and cannot be reproduced with raw cldnn primitives). The reference is the
-// same model compiled on the reference device (CPU); GPU must match it. The
-// fusion, impl, and 4D-host / 5D-peer layout state are asserted explicitly so a
-// silently-unfused or re-laid-out graph cannot make the test pass for the wrong
-// reason. A companion NSI variant asserts the rank-consistent (both-5D) path stays
-// correct as well. A broadcast variant asserts that a legal higher-rank NumPy
-// broadcast peer (fewer elements than the host) compiles by default and matches
-// CPU, proving the fold is not restricted to the equal-total reshape case and that
-// no valid model fails compilation. Because ov::Core loads the installed GPU
-// plugin, validating a source change with these tests requires building AND
-// installing the plugin.
+// This exercises the real GPU compile/layout/fusion path rather than a
+// hand-forced cldnn topology (the 5D->4D flattening is IR-layout-optimizer
+// driven and cannot be reproduced with raw cldnn primitives). The reference is
+// the same model compiled on the reference device (CPU); GPU must match it.
+// fold_higher_rank_fused_peer() itself is exhaustively unit-tested (including
+// every rejection reason) in canonicalize_fused_shapes_test.cpp; the single
+// parametrized matrix below only needs to prove that decision is correctly
+// plumbed through the real compile/layout-optimizer/fusion pipeline for one
+// case per behavior class -- not re-derive the decision itself. Because
+// ov::Core loads the installed GPU plugin, validating a source change with
+// these tests requires building AND installing the plugin.
 
 namespace {
 // Exact f16 weights captured from the customer defect-triggering model (branch-1 and branch-2 MatMul, [12,8]).
@@ -819,46 +816,8 @@ const std::vector<float> kFusedPeerFoldWeights2 = {
     0.307373f, -0.611328f, -0.391602f, 0.140015f, 0.093445f, 1.459961f, 1.395508f, -0.358887f,
     -0.548828f, -2.556641f, -0.548828f, -0.978027f, -0.354736f, 0.391602f, 0.177246f, -0.029968f};
 
-// Builds the fused-peer-fold reproducer model:
-//   in[1,2,60,12] -> Reshape[1,2,6,10,12] -> MatMul(*W) -> [1,2,6,10,8]
-//     -> Transpose[0,1,4,2,3] -> [1,2,8,6,10]     (two such branches)
-//   Add(branch1, branch2) -> Reshape[2,8,6,10] -> Result
-std::shared_ptr<ov::Model> build_fused_peer_fold_model() {
-    using namespace ov;
-    auto make_branch = [](const std::shared_ptr<op::v0::Parameter>& param,
-                          const std::vector<float>& w) {
-        auto to5d = op::v0::Constant::create(element::i64, Shape{5}, {1, 2, 6, 10, 12});
-        auto reshape5d = std::make_shared<op::v1::Reshape>(param, to5d, false);
-        auto weights = std::make_shared<op::v0::Constant>(element::f16, Shape{12, 8},
-                                                          std::vector<ov::float16>(w.begin(), w.end()));
-        auto matmul = std::make_shared<op::v0::MatMul>(reshape5d, weights, false, false);
-        auto order = op::v0::Constant::create(element::i64, Shape{5}, {0, 1, 4, 2, 3});
-        return std::make_shared<op::v1::Transpose>(matmul, order);
-    };
-
-    auto in1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 2, 60, 12});
-    auto in2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 2, 60, 12});
-    in1->set_friendly_name("input1");
-    in2->set_friendly_name("input2");
-
-    auto t1 = make_branch(in1, kFusedPeerFoldWeights1);
-    t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, kFusedPeerFoldWeights2);
-    t2->set_friendly_name("Transpose_peer");
-
-    auto add = std::make_shared<op::v1::Add>(t1, t2);
-    add->set_friendly_name("Add_target");
-
-    auto to4d = op::v0::Constant::create(element::i64, Shape{4}, {2, 8, 6, 10});
-    auto reshape4d = std::make_shared<op::v1::Reshape>(add, to4d, false);
-    reshape4d->set_friendly_name("Reshape_to4D");
-
-    auto result = std::make_shared<op::v0::Result>(reshape4d);
-    return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{in1, in2}, "fused_peer_fold_repro");
-}
-
 // Compiles the given model on device, runs one inference with (in1, in2), and returns the f16 output
-// flattened to float alongside the compiled model (used by every reproducer variant below).
+// flattened to float alongside the compiled model.
 std::pair<std::vector<float>, ov::CompiledModel> compile_and_infer(ov::Core& core,
                                                                     const std::string& device,
                                                                     const ov::AnyMap& cfg,
@@ -878,17 +837,9 @@ std::pair<std::vector<float>, ov::CompiledModel> compile_and_infer(ov::Core& cor
     return std::make_pair(vals, compiled);
 }
 
-std::pair<std::vector<float>, ov::CompiledModel> run_fused_peer_fold_model(ov::Core& core,
-                                                              const std::string& device,
-                                                              const ov::AnyMap& cfg,
-                                                              const ov::Tensor& in1,
-                                                              const ov::Tensor& in2) {
-    return compile_and_infer(core, device, cfg, build_fused_peer_fold_model(), in1, in2);
-}
-
 // Scans a compiled model's runtime graph for the (at most one) node whose ORIGINAL_NAMES rt-info
-// contains every string in must_contain and none of must_not_contain. Used by every reproducer test
-// below to check whether the fused Add is present and at what rank/impl it executed.
+// contains every string in must_contain and none of must_not_contain. Used by every test below to
+// check whether the fused Add is present and at what rank/impl it executed.
 struct node_probe {
     bool found = false;
     int64_t rank = -1;
@@ -947,199 +898,14 @@ bool discover_gpu_and_cpu(ov::Core& core) {
     return has_gpu && has_cpu;
 }
 
-void fill_fused_peer_fold_inputs(ov::Tensor& in1, ov::Tensor& in2) {
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    auto rnd = rg.generate_random_1d<ov::float16>(1 * 2 * 60 * 12, -2, 2);
-    std::copy(rnd.begin(), rnd.end(), in1.data<ov::float16>());
-    auto rnd2 = rg.generate_random_1d<ov::float16>(1 * 2 * 60 * 12, -2, 2);
-    std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
-}
-
-// Builds a higher-rank *broadcast* variant of the fused-peer-fold reproducer model: the host branch
-// produces [1,2,8,6,10] (flattened to 4D bfyx [1,2,48,10]) while the peer branch produces [1,1,8,6,10]
-// (5D bfzyx), which broadcasts against the host over the feature dim. Element counts differ (960 vs
-// 480), so this is a legal NumPy broadcast, NOT the equal-total reshape of the base reproducer. Before
-// the fold fix, this aborted GPU compilation at the equal-total-only fold assertion; the fix must
-// compile it and match CPU with the Add kept fused.
-std::shared_ptr<ov::Model> build_broadcast_repro_model() {
-    using namespace ov;
-    auto make_branch = [](const std::shared_ptr<op::v0::Parameter>& param, int64_t f,
-                          const std::vector<float>& w) {
-        auto to5d = op::v0::Constant::create(element::i64, Shape{5},
-                                             std::vector<int64_t>{1, f, 6, 10, 12});
-        auto reshape5d = std::make_shared<op::v1::Reshape>(param, to5d, false);
-        auto weights = std::make_shared<op::v0::Constant>(element::f16, Shape{12, 8},
-                                                          std::vector<ov::float16>(w.begin(), w.end()));
-        auto matmul = std::make_shared<op::v0::MatMul>(reshape5d, weights, false, false);
-        auto order = op::v0::Constant::create(element::i64, Shape{5}, {0, 1, 4, 2, 3});
-        return std::make_shared<op::v1::Transpose>(matmul, order);
-    };
-
-    auto in1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 2, 60, 12});
-    auto in2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 1, 60, 12});
-    in1->set_friendly_name("input1");
-    in2->set_friendly_name("input2");
-
-    auto t1 = make_branch(in1, 2, kFusedPeerFoldWeights1);  // host: [1,2,8,6,10]
-    t1->set_friendly_name("Transpose_target");
-    auto t2 = make_branch(in2, 1, kFusedPeerFoldWeights2);  // peer: [1,1,8,6,10] (broadcasts over F)
-    t2->set_friendly_name("Transpose_peer");
-
-    auto add = std::make_shared<op::v1::Add>(t1, t2);
-    add->set_friendly_name("Add_target");
-
-    auto to4d = op::v0::Constant::create(element::i64, Shape{4}, {2, 8, 6, 10});
-    auto reshape4d = std::make_shared<op::v1::Reshape>(add, to4d, false);
-    reshape4d->set_friendly_name("Reshape_to4D");
-
-    auto result = std::make_shared<op::v0::Result>(reshape4d);
-    return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{in1, in2}, "broadcast_repro");
-}
-
-std::pair<std::vector<float>, ov::CompiledModel> run_broadcast_repro(ov::Core& core,
-                                                                     const std::string& device,
-                                                                     const ov::Tensor& in1,
-                                                                     const ov::Tensor& in2) {
-    return compile_and_infer(core, device, {}, build_broadcast_repro_model(), in1, in2);
-}
-}  // namespace
-
-// Default (legacy) path: the target permute host output is flattened to 4D bfyx while the fused Add's
-// peer dependency stays 5D bfzyx. The fix must keep the Add fused, keep permute_ref, and produce a
-// result that matches the CPU reference (the higher-rank peer is folded onto the 4D host shape).
-TEST(permute_fused_eltwise_rank_mismatch, legacy_5d_peer_into_4d_host) {
-    ov::Core core;
-    if (!discover_gpu_and_cpu(core)) {
-        GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
-    }
-
-    ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    ov::Tensor in2(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    fill_fused_peer_fold_inputs(in1, in2);
-
-    auto [cpu_vals, cpu_compiled] = run_fused_peer_fold_model(core, "CPU", {}, in1, in2);
-    auto [gpu_vals, gpu_compiled] = run_fused_peer_fold_model(core, "GPU", {}, in1, in2);
-
-    // --- Prove the buggy graph state is actually present on GPU (4D fused host + 5D peer). ---
-    auto rt = gpu_compiled.get_runtime_model();
-    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
-    auto peer = probe_node(rt, {"Transpose_peer"}, {"Add_target"});
-    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target on GPU; "
-                                 "the fusion mechanism under test is absent.";
-    ASSERT_TRUE(target.impl_type.find("permute_ref") != std::string::npos) << "Target permute did not select permute_ref.";
-    ASSERT_EQ(target.rank, 4) << "Target permute host output was not flattened to 4D.";
-    ASSERT_EQ(peer.rank, 5) << "Fused peer dependency was not 5D; rank-mismatch condition absent.";
-
-    // --- Numerical gate: GPU must match the CPU reference. ---
-    ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
-    double max_ae = 0.0;
-    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
-    // FP16 tolerance: correct path agrees with CPU to ~1e-3 MSE; the bug produced MSE ~12.
-    EXPECT_LT(mse, 1e-2) << "GPU fused-permute output diverges from CPU reference. "
-                            "MSE=" << mse << " MaxAbsErr=" << max_ae
-                         << " (rank-mismatched fused eltwise reads 5D peer with 4D indexing).";
-}
-
-// New-shape-infer (NSI) path: the host output stays 5D bfzyx so the fused peer is already
-// rank-consistent (both 5D). This path never entered the broken repair branch and must remain correct;
-// it guards against a fix that only works because it changed the default flattening behavior.
-TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
-    ov::Core core;
-    if (!discover_gpu_and_cpu(core)) {
-        GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
-    }
-
-    ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    ov::Tensor in2(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    fill_fused_peer_fold_inputs(in1, in2);
-
-    auto [cpu_vals, cpu_compiled] = run_fused_peer_fold_model(core, "CPU", {}, in1, in2);
-    auto [gpu_vals, gpu_compiled] =
-        run_fused_peer_fold_model(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, in1, in2);
-
-    // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
-    auto rt = gpu_compiled.get_runtime_model();
-    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
-    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target under NSI.";
-    ASSERT_EQ(target.rank, 5) << "Under NSI the fused permute host output should remain 5D.";
-
-    ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
-    double max_ae = 0.0;
-    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
-    EXPECT_LT(mse, 1e-2) << "GPU (NSI) fused-permute output diverges from CPU reference. "
-                            "MSE=" << mse << " MaxAbsErr=" << max_ae;
-}
-
-// Legal higher-rank NumPy broadcast peer: the host branch produces a 4D-flattened bfyx [1,2,48,10]
-// host while the fused peer stays 5D bfzyx [1,1,8,6,10] and broadcasts over the feature dim. The peer
-// holds FEWER elements than the host (480 vs 960), so it is not the equal-total reshape case; Worker
-// 08's equal-total predicate rejected it and its OPENVINO_ASSERT aborted compilation of this valid
-// model. The Worker 08R fix must compile it by default (no override), keep the Add fused, and match the
-// CPU reference. This is the primary regression guard for the rejected-broadcast defect.
-TEST(permute_fused_eltwise_rank_mismatch, legacy_higher_rank_broadcast_peer_compiles_and_matches_cpu) {
-    ov::Core core;
-    if (!discover_gpu_and_cpu(core)) {
-        GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
-    }
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
-    ov::Tensor in2(ov::element::f16, ov::Shape{1, 1, 60, 12});
-    auto rnd1 = rg.generate_random_1d<ov::float16>(1 * 2 * 60 * 12, -2, 2);
-    std::copy(rnd1.begin(), rnd1.end(), in1.data<ov::float16>());
-    auto rnd2 = rg.generate_random_1d<ov::float16>(1 * 1 * 60 * 12, -2, 2);
-    std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
-
-    auto [cpu_vals, cpu_compiled] = run_broadcast_repro(core, "CPU", in1, in2);
-
-    // Default GPU compilation must SUCCEED (the Worker 08 assertion is removed) and keep the Add fused.
-    std::vector<float> gpu_vals;
-    ov::CompiledModel gpu_compiled;
-    ASSERT_NO_THROW({
-        auto res = run_broadcast_repro(core, "GPU", in1, in2);
-        gpu_vals = res.first;
-        gpu_compiled = res.second;
-    }) << "Default GPU compilation of the valid higher-rank broadcast model must not fail.";
-
-    // The legal Add fusion must be retained (the fold represents the peer at the host rank).
-    auto rt = gpu_compiled.get_runtime_model();
-    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
-    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target on GPU; the "
-                                 "broadcast fold must retain the legal fusion.";
-    EXPECT_TRUE(target.impl_type.find("permute_ref") != std::string::npos) << "Target permute did not select permute_ref.";
-
-    // Numerical gate: GPU broadcast result must match the CPU reference.
-    ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
-    double max_ae = 0.0;
-    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
-    for (float v : gpu_vals)
-        ASSERT_TRUE(std::isfinite(v)) << "GPU broadcast output has non-finite values.";
-    EXPECT_LT(mse, 1e-2) << "GPU higher-rank-broadcast fused-permute output diverges from CPU. "
-                            "MSE=" << mse << " MaxAbsErr=" << max_ae;
-}
-
-// -----------------------------------------------------------------------------
-// Worker 08S: behavior-level collapsed-axis broadcast matrix.
-//
-// Host permute output is 5D bfzyx [1,2,8,6,10], flattened by the layout optimizer
-// to 4D bfyx [1,2,48,10] (collapsing z=8,y=6 -> 48) because a downstream Reshape
-// consumes it. The fused Add peer keeps its 5D rank with a per-axis broadcast mask
-// over {f,z,y,x}. The direct fix retains rank reduction only when the shared
-// fold_higher_rank_fused_peer() proof can represent that peer at the actual 4D
-// output layout. Every other mask conservatively keeps the permute at 5D, avoiding
-// the mismatched indexing that made inner-spatial broadcasts silently wrong. Every
-// mask below must compile by default on GPU.1, be finite, and match the CPU
-// reference; the intended fused/rank-preserved runtime state is asserted so a
-// silently-unfused or mis-laid-out graph cannot pass for the wrong reason.
-namespace {
-
+// One case of the collapsed-axis broadcast matrix: host permute output is 5D bfzyx [1,2,8,6,10],
+// flattened by the layout optimizer to 4D bfyx [1,2,48,10] (collapsing z=8,y=6 -> 48) because a
+// downstream Reshape consumes it. The fused Add peer keeps its 5D rank with a per-axis broadcast mask
+// over {f,z,y,x} (1 => broadcast on that axis). Rank reduction is retained only when
+// fold_higher_rank_fused_peer() can represent the peer at the actual 4D output layout; every other mask
+// conservatively keeps the permute at 5D.
 struct collapse_mask_case {
-    // peer extents on f,z,y,x (1 => broadcast). Host is always [1,2,8,6,10].
     int64_t pf, pz, py, px;
-    // Expected: does the host permute stay higher-rank because no exact 4D peer
-    // representation can be proven?
     bool expect_rank_preserved;
     const char* label;
 };
@@ -1184,10 +950,20 @@ std::shared_ptr<ov::Model> build_collapse_mask_model(const collapse_mask_case& c
 
 std::pair<std::vector<float>, ov::CompiledModel> run_collapse_mask(ov::Core& core,
                                                                    const std::string& device,
+                                                                   const ov::AnyMap& cfg,
                                                                    const collapse_mask_case& c,
                                                                    const ov::Tensor& in1,
                                                                    const ov::Tensor& in2) {
-    return compile_and_infer(core, device, {}, build_collapse_mask_model(c), in1, in2);
+    return compile_and_infer(core, device, cfg, build_collapse_mask_model(c), in1, in2);
+}
+
+void fill_collapse_mask_inputs(const collapse_mask_case& c, ov::Tensor& in1, ov::Tensor& in2) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto rnd1 = rg.generate_random_1d<ov::float16>(in1.get_size(), -2, 2);
+    std::copy(rnd1.begin(), rnd1.end(), in1.data<ov::float16>());
+    auto rnd2 = rg.generate_random_1d<ov::float16>(in2.get_size(), -2, 2);
+    std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
 }
 
 class permute_fused_collapse_broadcast_matrix : public ::testing::TestWithParam<collapse_mask_case> {};
@@ -1201,21 +977,16 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
         GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
     }
 
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
     ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
     ov::Tensor in2(ov::element::f16, ov::Shape{1, static_cast<size_t>(c.pf), static_cast<size_t>(c.py * c.px), 12});
-    auto rnd1 = rg.generate_random_1d<ov::float16>(in1.get_size(), -2, 2);
-    std::copy(rnd1.begin(), rnd1.end(), in1.data<ov::float16>());
-    auto rnd2 = rg.generate_random_1d<ov::float16>(in2.get_size(), -2, 2);
-    std::copy(rnd2.begin(), rnd2.end(), in2.data<ov::float16>());
+    fill_collapse_mask_inputs(c, in1, in2);
 
-    auto [cpu_vals, cpu_compiled] = run_collapse_mask(core, "CPU", c, in1, in2);
+    auto [cpu_vals, cpu_compiled] = run_collapse_mask(core, "CPU", {}, c, in1, in2);
 
     std::vector<float> gpu_vals;
     ov::CompiledModel gpu_compiled;
     ASSERT_NO_THROW({
-        auto res = run_collapse_mask(core, "GPU", c, in1, in2);
+        auto res = run_collapse_mask(core, "GPU", {}, c, in1, in2);
         gpu_vals = res.first;
         gpu_compiled = res.second;
     }) << "Default GPU compilation must not fail for mask "
@@ -1223,13 +994,20 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
 
     // Assert the intended runtime state: Add fused into Transpose_target, and the host permute rank
     // matches the fix's decision (5D preserved for the inner-spatial masks, 4D flattened otherwise).
+    // Also require permute_ref (the fused-eltwise-rank-mismatch defect only manifests via that impl) and,
+    // when the host is expected to flatten to 4D, that the peer itself is still seen at its native 5D --
+    // confirming the rank-mismatch condition under test is actually present rather than avoided upstream.
     auto rt = gpu_compiled.get_runtime_model();
     auto target = probe_node(rt, {"Transpose_target", "Add_target"});
     ASSERT_TRUE(target.found) << "Add_target not fused into Transpose_target for mask " << c.label;
+    EXPECT_TRUE(target.impl_type.find("permute_ref") != std::string::npos)
+        << "Target permute did not select permute_ref for mask " << c.label;
     if (c.expect_rank_preserved) {
         EXPECT_EQ(target.rank, 5) << "Inner-spatial mask " << c.label << " must keep the fused permute host at 5D (rank preserved).";
     } else {
         EXPECT_EQ(target.rank, 4) << "Representable mask " << c.label << " should keep the flattened 4D fused host.";
+        auto peer = probe_node(rt, {"Transpose_peer"}, {"Add_target"});
+        EXPECT_EQ(peer.rank, 5) << "Fused peer dependency was not 5D for mask " << c.label << "; rank-mismatch condition absent.";
     }
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
@@ -1238,35 +1016,70 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
     double max_ae = 0.0;
     double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
     EXPECT_LT(mse, 1e-2) << "GPU vs CPU mismatch for mask " << c.label << " MSE=" << mse << " MaxAbsErr=" << max_ae;
+    // FP16 tolerance: correct path agrees with CPU to ~1e-3 MSE; the original defect produced MSE ~12-20.
 }
 
+// "equal_total": both host and peer are [1,2,8,6,10] -- this is the exact df1 output-0 defect shape.
+// The Add's peer dependency stays 5D while the target permute host is flattened to 4D, which is the
+// case that broke before the fix (rank-mismatched fused eltwise read the 5D peer with 4D indexing).
+// "feature_broadcast": the peer is [1,1,8,6,10] (fewer elements than the host, 480 vs 960) -- a legal
+// NumPy broadcast rather than an equal-total reshape. Before the fold fix, this aborted GPU compilation
+// at an equal-total-only fold assertion.
+// "inner_y_broadcast" and "inner_y_and_x_broadcast" are REGRESSION cases: an inner spatial axis
+// broadcasts, which is not representable at the reduced rank, so the permute must stay 5D.
 INSTANTIATE_TEST_SUITE_P(collapse_broadcast_matrix,
                          permute_fused_collapse_broadcast_matrix,
                          ::testing::Values(
                              // host [1,2,8,6,10]; peer f,z,y,x extents (1 == broadcast).
-                             collapse_mask_case{2, 8, 6, 10, false, "equal_total"},            // [1,2,8,6,10]
-                             collapse_mask_case{1, 8, 6, 10, false, "feature_broadcast"},      // [1,1,8,6,10] (W08R)
-                             collapse_mask_case{2, 1, 6, 10, true, "outer_z_broadcast"},       // [1,2,1,6,10]
-                             collapse_mask_case{2, 8, 1, 10, true, "inner_y_broadcast"},       // [1,2,8,1,10] REGRESSION
-                             collapse_mask_case{2, 1, 1, 10, false, "all_spatial_broadcast"},  // [1,2,1,1,10]
-                             collapse_mask_case{2, 8, 6, 1, false, "trailing_x_broadcast"},    // [1,2,8,6,1]
-                             collapse_mask_case{2, 8, 1, 1, true, "inner_y_and_x_broadcast"}   // [1,2,8,1,1] REGRESSION
-                             ),
+                             collapse_mask_case{2, 8, 6, 10, false, "equal_total"},
+                             collapse_mask_case{1, 8, 6, 10, false, "feature_broadcast"},
+                             collapse_mask_case{2, 8, 1, 10, true, "inner_y_broadcast"},
+                             collapse_mask_case{2, 8, 1, 1, true, "inner_y_and_x_broadcast"}),
                          [](const ::testing::TestParamInfo<collapse_mask_case>& info) {
                              return std::string(info.param.label);
                          });
 
+// New-shape-infer (NSI) path: the host output stays 5D bfzyx so the fused peer is already
+// rank-consistent (both 5D). This path never entered the broken repair branch and must remain correct;
+// it guards against a fix that only works because it changed the default flattening behavior.
+TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
+    ov::Core core;
+    if (!discover_gpu_and_cpu(core)) {
+        GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
+    }
+
+    const collapse_mask_case c{2, 8, 6, 10, false, "equal_total"};
+    ov::Tensor in1(ov::element::f16, ov::Shape{1, 2, 60, 12});
+    ov::Tensor in2(ov::element::f16, ov::Shape{1, 2, 60, 12});
+    fill_collapse_mask_inputs(c, in1, in2);
+
+    auto [cpu_vals, cpu_compiled] = run_collapse_mask(core, "CPU", {}, c, in1, in2);
+    auto [gpu_vals, gpu_compiled] =
+        run_collapse_mask(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, c, in1, in2);
+
+    // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
+    auto rt = gpu_compiled.get_runtime_model();
+    auto target = probe_node(rt, {"Transpose_target", "Add_target"});
+    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target under NSI.";
+    ASSERT_EQ(target.rank, 5) << "Under NSI the fused permute host output should remain 5D.";
+
+    ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
+    double max_ae = 0.0;
+    double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
+    EXPECT_LT(mse, 1e-2) << "GPU (NSI) fused-permute output diverges from CPU reference. "
+                            "MSE=" << mse << " MaxAbsErr=" << max_ae;
+}
+
 // -----------------------------------------------------------------------------
-// Direct-fix 6D-to-4D matrix. Host permute output is 6D bfwzyx
-// [1,2,X=2,W=4,Z=3,Y=5], and a downstream Reshape introduces the actual reduced
-// bfyx layout selected by the optimizer. Rank reduction is retained only when
-// fold_higher_rank_fused_peer() proves that the peer can be represented at that
-// exact reduced layout; every other mask conservatively keeps the producer at
-// 6D. One representative case per behavior class is covered here (equal-total,
-// single-axis fold, multi-axis fold, maximal fold); fold_higher_rank_fused_peer()
-// itself is exhaustively unit-tested (including every rejection reason) in
-// canonicalize_fused_shapes_test.cpp. Each case must remain fused, compile by
-// default, be finite, match CPU, and use the expected rank.
+// 6D-to-4D matrix. Same purpose as the 5D matrix above, but the peer's leading
+// axes fold via fold_higher_rank_fused_peer()'s multi-axis path (folding three
+// spatial axes into one, fold_count=2, vs. the 5D case's single-axis fold) --
+// the one behavior the 5D matrix can't exercise. Only two cases are needed to
+// prove that multi-axis path is correctly plumbed through the real pipeline:
+// one that folds (equal-total) and one that must conservatively preserve rank
+// (an inner-spatial broadcast). The decision logic itself, including this
+// multi-axis case, is already exhaustively unit-tested in
+// canonicalize_fused_shapes_test.cpp.
 namespace {
 
 struct collapse6d_case {
@@ -1373,13 +1186,11 @@ TEST_P(permute_fused_collapse6d_matrix, compiles_finite_and_matches_cpu) {
 INSTANTIATE_TEST_SUITE_P(collapse6d_matrix,
                          permute_fused_collapse6d_matrix,
                          ::testing::Values(
-                             // host [1,2,X=2,W=4,Z=3,Y=5]. Peer f,x,w,z,y (1 == broadcast).
-                             // A 4D metadata fold is retained only when the peer can be proven broadcast-compatible with
-                             // the actual reduced layout. Every other mask conservatively preserves the 6D host rank.
-                             collapse6d_case{2, 2, 4, 3, 5, false, "equal_total_6d"},
-                             collapse6d_case{2, 2, 4, 1, 5, true, "z_broadcast_6d"},
-                             collapse6d_case{2, 1, 1, 3, 5, true, "xw_broadcast_6d"},
-                             collapse6d_case{2, 1, 1, 1, 1, false, "xwzy_broadcast_6d"}),
+                             // host [1,2,X=2,W=4,Z=3,Y=5]. Peer f,x,w,z,y (1 == broadcast). Folding
+                             // 6D->4D always collapses the three middle spatial axes (w,z,y) at once
+                             // (fold_count=3), unlike the 5D matrix's single-axis fold.
+                             collapse6d_case{2, 2, 4, 3, 5, false, "equal_total_6d"},   // folds
+                             collapse6d_case{2, 2, 4, 1, 5, true, "z_broadcast_6d"}),   // preserved
                          [](const ::testing::TestParamInfo<collapse6d_case>& info) {
                              return std::string(info.param.label);
                          });
