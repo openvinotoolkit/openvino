@@ -75,6 +75,15 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
             const int64_t input_dim = input_shape[axis].get_length();
             const int64_t target_dim = target_shape[axis].get_length();
 
+            // An empty axis needs no repetition: repeating 0 elements any number of times still
+            // yields 0. This is a real case, not a malformed graph -- an ubatch whose active token
+            // count is 0 (the trailing chunk of a chunked prefill) reaches DIV as [.., 0, ..]
+            // against a [.., 0, ..] target, where the divisibility test below would reject it.
+            if (input_dim == 0 && target_dim == 0) {
+                repeats[axis] = 1;
+                continue;
+            }
+
             FRONT_END_OP_CONVERSION_CHECK(input_dim > 0 && target_dim > 0 && target_dim % input_dim == 0,
                                           "DIV input shape ", input_shape, " cannot repeat to match ", target_shape);
 

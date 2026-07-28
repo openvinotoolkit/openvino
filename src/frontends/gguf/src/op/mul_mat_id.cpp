@@ -41,6 +41,53 @@ ov::Output<ov::Node> slice_axis(const ov::Output<ov::Node>& input, int64_t axis,
                                                const_i64({axis}));
 }
 
+// Lay the 3D activations out as [n_token, n_used, k]: one row per (token, selected expert) pair,
+// which is exactly the batch layout of the gathered expert weights, so the MatMul below needs no
+// implicit batch broadcasting.
+//
+// ggml hands us the activations of a MUL_MAT_ID in one of three layouts, all three of which occur in
+// a single MoE model:
+//   [n_token, 1,       k]  the usual gate/up input -- a singleton expert axis to expand;
+//   [n_token, n_used,  k]  the ffn_down input, whose expert axis is already expanded;
+//   [1,       n_token, k]  the plain 2D form, with no expert axis at all, so the token count sits one
+//                          axis over. It appears in the last layer, where the activations are first
+//                          gathered down to the ubatch's output rows.
+// Only the second may not be reshaped -- it already holds n_token * n_used * k elements, so folding it
+// to one row per token would drop data. For the other two the Reshape below is what puts the token
+// count in axis 0, and it is a no-op for the first, so the two need no telling apart. The second is
+// recognized by its expert axis matching the ids' n_used, which holds on a static (NPU) graph too,
+// where no axis is dynamic to give the layout away.
+//
+// Driving that Reshape from the *ids'* token count is also what makes an empty ubatch work: the
+// output-row count is 0 for every non-final chunk of a chunked prefill (only the final chunk produces
+// logits), and 0 tokens must stay 0 rows. Broadcasting an empty axis up to n_used is rejected by
+// OpenVINO -- and meaningless, as there is nothing to replicate -- whereas here the empty count simply
+// flows into the token axis and yields an empty result.
+ov::Output<ov::Node> activations_per_expert(const ov::Output<ov::Node>& activations,
+                                           const std::shared_ptr<ov::op::v3::ShapeOf>& activations_shape,
+                                           const ov::Output<ov::Node>& ids,
+                                           const std::shared_ptr<ov::op::v3::ShapeOf>& ids_shape) {
+    const auto& acts_ps = activations.get_partial_shape();  // [n_token, 1 | n_used, k], or [1, n_token, k]
+    const auto& ids_ps = ids.get_partial_shape();           // [n_token, n_used]
+    const bool already_per_expert = acts_ps.rank().is_static() && acts_ps.rank().get_length() == 3 &&
+                                    ids_ps.rank().is_static() && ids_ps.rank().get_length() == 2 &&
+                                    acts_ps[1].is_static() && ids_ps[1].is_static() &&
+                                    ids_ps[1].get_length() > 1 && acts_ps[1] == ids_ps[1];
+
+    ov::Output<ov::Node> rows = activations;
+    if (!already_per_expert) {
+        rows = std::make_shared<ov::op::v1::Reshape>(
+            activations,
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{get_dimensions(ids_shape, {0}), const_i64({1}),
+                                                                  get_dimensions(activations_shape, {2})},
+                                                 0),
+            false);
+    }
+    auto target = std::make_shared<ov::op::v0::Concat>(
+        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), get_dimensions(activations_shape, {2})}, 0);
+    return std::make_shared<ov::op::v3::Broadcast>(rows, target, ov::op::BroadcastType::BIDIRECTIONAL);
+}
+
 // Packed-MXFP4 MoE path: expert weights arrive as raw u8 blocks of shape
 // [1, n_expert, m, k_blocks, 17] (1 e8m0 scale byte + 16 nibble-packed f4e2m1 quants per 32-block).
 // The dequant (nibble unpack + LUT + scale) is done on-graph, per selected expert.
@@ -113,15 +160,7 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
     selected_weights = std::make_shared<ov::op::v1::Reshape>(selected_weights, selected_weights_target_dims, false);
 
     auto activations_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
-    ov::Output<ov::Node> acts_target_dims = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{
-            get_dimensions(activations_shape, {0}),
-            get_dimensions(ids_shape, {1}),
-            get_dimensions(activations_shape, {2}),
-        },
-        0);
-    ov::Output<ov::Node> acts_broadcasted =
-        std::make_shared<ov::op::v3::Broadcast>(activations, acts_target_dims, ov::op::BroadcastType::BIDIRECTIONAL);
+    auto acts_broadcasted = activations_per_expert(activations, activations_shape, ids, ids_shape);
 
     auto activations_expanded = std::make_shared<ov::op::v0::Unsqueeze>(acts_broadcasted, const_i64({2}));
     ov::Output<ov::Node> result =
@@ -190,15 +229,7 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
 
     auto activations_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
     auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
-    ov::Output<ov::Node> acts_target_dims = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{
-            get_dimensions(activations_shape, {0}),
-            get_dimensions(ids_shape, {1}),
-            get_dimensions(activations_shape, {2}),
-        },
-        0);
-    ov::Output<ov::Node> acts_broadcasted =
-        std::make_shared<ov::op::v3::Broadcast>(activations, acts_target_dims, ov::op::BroadcastType::BIDIRECTIONAL);
+    auto acts_broadcasted = activations_per_expert(activations, activations_shape, ids, ids_shape);
 
     auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
     auto activations_expanded = std::make_shared<ov::op::v0::Unsqueeze>(acts_broadcasted, unsqueeze_axes);

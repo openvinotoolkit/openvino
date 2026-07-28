@@ -584,6 +584,62 @@ TEST(GGUFOps, MulMatIdNused2) {
     expect_near(out, expected, 1e-4f);
 }
 
+// MulMatId whose activations already carry the expanded expert axis ([n_token, n_used, k]) instead of
+// a singleton -- the layout ggml uses for the ffn_down matmul, where each (token, expert) pair has its
+// own activation row. Reshaping this form to one row per token would silently drop data, so the
+// translator has to leave it as it is.
+TEST(GGUFOps, MulMatIdActivationsPerExpert) {
+    const int64_t n_expert = 3, m = 2, k = 2, n_tokens = 2, n_used = 2;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MUL_MAT_ID")
+                     .input("w", ov::element::f32, {1, n_expert, m, k})
+                     .input("a", ov::element::f32, {1, n_tokens, n_used, k})
+                     .input("ids", ov::element::i32, {1, 1, n_tokens, n_used})
+                     .output("out", ov::element::f32, {1, n_tokens, n_used, m})
+                     .build();
+
+    // experts: e0 rows [1,0],[0,1]; e1 rows [2,0],[0,2]; e2 rows [3,0],[0,3]
+    std::vector<float> w{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
+    // a[token][used] -- a distinct activation row per (token, expert) pair.
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8};
+    std::vector<int32_t> ids{0, 1, 2, 0};  // tok0 uses experts {0,1}; tok1 uses {2,0}
+
+    ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, (size_t)n_tokens, (size_t)n_used});
+    std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
+    auto out = run_on_cpu(model,
+                          {{"w", make_f32_tensor({1, (size_t)n_expert, (size_t)m, (size_t)k}, w)},
+                           {"a", make_f32_tensor({1, (size_t)n_tokens, (size_t)n_used, (size_t)k}, a)},
+                           {"ids", ids_t}});
+
+    // out[token][used][row] = dot(expert(ids[token][used]).row, a[token][used])
+    // tok0: e0 . [1,2] = [1,2];  e1 . [3,4] = [6,8]
+    // tok1: e2 . [5,6] = [15,18]; e0 . [7,8] = [7,8]
+    std::vector<float> expected{1, 2, 6, 8, 15, 18, 7, 8};
+    expect_near(out, expected, 1e-4f);
+}
+
+// MulMatId over an empty token axis. Every non-final chunk of a chunked prefill produces no logits, so
+// its inp_out_ids gather leaves the last layer's activations with 0 rows; that empty extent must flow
+// through to an empty result rather than being broadcast up to n_used (which OpenVINO rejects).
+TEST(GGUFOps, MulMatIdEmptyTokens) {
+    const int64_t n_expert = 3, m = 2, k = 2, n_used = 2;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MUL_MAT_ID")
+                     .input("w", ov::element::f32, {1, n_expert, m, k})
+                     .input("a", ov::element::f32, {1, ov::Dimension::dynamic(), 1, k})
+                     .input("ids", ov::element::i32, {1, 1, ov::Dimension::dynamic(), n_used})
+                     .output("out", ov::element::f32, {1, ov::Dimension::dynamic(), n_used, m})
+                     .build();
+
+    std::vector<float> w{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
+    auto out = run_on_cpu(model,
+                          {{"w", make_f32_tensor({1, (size_t)n_expert, (size_t)m, (size_t)k}, w)},
+                           {"a", ov::Tensor(ov::element::f32, ov::Shape{1, 0, 1, (size_t)k})},
+                           {"ids", ov::Tensor(ov::element::i32, ov::Shape{1, 1, 0, (size_t)n_used})}});
+
+    EXPECT_EQ(out.get_shape(), (ov::Shape{1, 0, (size_t)n_used, (size_t)m}));
+}
+
 // GetRows batched gather for MoE routing weights: data [1, n_tok, n_expert, 1], indices
 // [1,1,n_tok,n_used] -> per-token gather of n_used of the n_expert probs -> [1, n_tok, n_used, 1].
 TEST(GGUFOps, GetRowsMoeWeights) {
@@ -1895,6 +1951,23 @@ TEST(GGUFOps, DivBroadcast) {
     auto out = run_on_cpu(model, {{"a", make_f32_tensor({1, 4}, a)}, {"b", make_f32_tensor({1, 2}, b)}});
 
     expect_near(out, {1, 1, 3, 2});
+}
+
+// Div over an empty token axis, as produced by a non-final chunked-prefill chunk (see
+// MulMatIdEmptyTokens). Both operands are empty, so the ggml-style repeat has nothing to repeat and
+// must be skipped rather than computing a 0/0 repeat count.
+TEST(GGUFOps, DivEmptyTokens) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {ov::Dimension::dynamic(), 4})
+                     .input("b", ov::element::f32, {ov::Dimension::dynamic(), 4})
+                     .output("out", ov::element::f32, {ov::Dimension::dynamic(), 4})
+                     .build();
+
+    auto out = run_on_cpu(model, {{"a", ov::Tensor(ov::element::f32, ov::Shape{0, 4})},
+                                  {"b", ov::Tensor(ov::element::f32, ov::Shape{0, 4})}});
+
+    EXPECT_EQ(out.get_shape(), (ov::Shape{0, 4}));
 }
 
 // Set: write src into a contiguous region of dst (flattened) starting at set_offset_elems.
