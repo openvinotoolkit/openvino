@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-03-14-57-000-30320204236",
+  "timestamp": "2026-07-28T03:14:57Z",
+  "run_id": "30320204236",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320204236",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "JS API E2E openvino-node package (cmd) step fails on Windows",
+  "signature": "e2e of openvino-node package cmd step failed on windows js api job|Flaky Test",
+  "signature_hash": "2c5337624cd0205d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "Step 'E2E of openvino-node package (cmd)' failed; preceding 'E2E of openvino-node package' step succeeded"
+    }
+  ],
+  "key_errors": [
+    "Step 11: E2E of openvino-node package (cmd) -> failure (job 90162899749, attempt 1)"
+  ],
+  "root_cause": "The 'E2E of openvino-node package (cmd)' step in JS API (24) (Node.js 24) failed while the prior identical non-cmd step passed. This is a known recurring flaky pattern on Windows runners where the cmd-invoked E2E test intermittently fails — likely due to Windows CMD shell quoting, path escaping, or a race condition in Electron/npm process teardown. This exact pattern was previously observed on 2026-07-25 (run 30160143296, PR 37024). The workflow was automatically re-run (attempt 2 is currently queued with all previously-failed jobs now in progress).",
+  "reproduction_steps": "N/A — intermittent Windows runner issue; not reliably reproducible locally.",
+  "recommended_actions": [
+    "Wait for attempt 2 to complete — the re-run was triggered automatically before CI Doctor ran.",
+    "If attempt 2 also fails on the same step, investigate the cmd vs non-cmd E2E test invocation difference in the JS workflow.",
+    "Consider adding a retry mechanism or shell: pwsh override for the cmd step to avoid Windows CMD shell edge cases."
+  ],
+  "prevention_strategies": "Consider replacing the cmd shell invocation in the 'E2E of openvino-node package (cmd)' step with PowerShell or fixing test teardown to avoid process lock races on Windows.",
+  "historical_context": "This is the second occurrence of this exact failure pattern (signature_hash 2c5337624cd0205d). Previously seen on 2026-07-25 in run 30160143296 for PR 37024. A related but distinct pattern (electron.exe permission denied) was seen 12 times between 2026-07-09 and 2026-07-17 (pattern 85df26485ff568d8)."
+}
