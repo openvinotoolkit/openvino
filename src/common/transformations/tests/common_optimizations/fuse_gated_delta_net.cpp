@@ -39,6 +39,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/convert_precision.hpp"
 
@@ -560,6 +561,17 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode_F16) {
 
 namespace {
 
+std::shared_ptr<ov::op::v0::Constant> make_repeated_head_indices(size_t head_count, size_t repeats) {
+    std::vector<int64_t> indices;
+    indices.reserve(head_count * repeats);
+    for (size_t rep = 0; rep < repeats; ++rep) {
+        for (size_t head = 0; head < head_count; ++head) {
+            indices.push_back(static_cast<int64_t>(head));
+        }
+    }
+    return ov::op::v0::Constant::create(ov::element::i64, {indices.size()}, indices);
+}
+
 // Build a model where Q, K, V share one Split anchor, each connected via a single Transpose.
 // After FuseGroupedQueryIntoGDN the Transposes are removed and GDN is directly fed from Split outputs.
 std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
@@ -758,6 +770,93 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_dynamic_after() {
                                        ov::ParameterVector{src0, src1, state, gate, beta});
 }
 
+// Regression: grouped-query style Q/K expansion. Anchor Q/K tensors carry 2 heads,
+// while the GDN reference inputs are expanded to V's 4 heads via Gather on the head dim.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_head_expansion_before() {
+    auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 4});
+
+    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+    auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, {3}, {8, 8, 16});
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(src, split_axis, split_lengths);
+
+    auto q_base_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 2, 4});
+    auto k_base_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 2, 4});
+    auto v_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 4, 4});
+    auto q_base = std::make_shared<ov::op::v1::Reshape>(split->output(0), q_base_shape, false);
+    auto k_base = std::make_shared<ov::op::v1::Reshape>(split->output(1), k_base_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(split->output(2), v_shape, false);
+
+    auto gather_idx = make_repeated_head_indices(2, 2);
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+    auto q = std::make_shared<ov::op::v8::Gather>(q_base, gather_idx, gather_axis, 0);
+    auto k = std::make_shared<ov::op::v8::Gather>(k_base, gather_idx, gather_axis, 0);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src, state, gate, beta});
+}
+
+std::shared_ptr<ov::Model> build_grouped_query_gdn_head_expansion_after() {
+    auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 4});
+
+    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+    auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, {3}, {8, 8, 16});
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(src, split_axis, split_lengths);
+    auto gather_idx = make_repeated_head_indices(2, 2);
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+
+    auto q_ref = std::make_shared<ov::op::v8::Gather>(
+        std::make_shared<ov::op::v1::Reshape>(split->output(0),
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 2, 4}),
+                                              false),
+        gather_idx,
+        gather_axis,
+        0);
+    auto k_ref = std::make_shared<ov::op::v8::Gather>(
+        std::make_shared<ov::op::v1::Reshape>(split->output(1),
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 2, 4}),
+                                              false),
+        gather_idx,
+        gather_axis,
+        0);
+    auto v_ref =
+        std::make_shared<ov::op::v1::Reshape>(split->output(2),
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 4, 4}),
+                                              false);
+
+    auto indices = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+
+    auto q_shape = std::make_shared<ov::op::v3::ScatterUpdate>(std::make_shared<ov::op::v3::ShapeOf>(q_ref),
+                                                               indices,
+                                                               ov::op::v0::Constant::create(ov::element::i64, {1}, {2}),
+                                                               axis);
+    auto k_shape = std::make_shared<ov::op::v3::ScatterUpdate>(std::make_shared<ov::op::v3::ShapeOf>(k_ref),
+                                                               indices,
+                                                               ov::op::v0::Constant::create(ov::element::i64, {1}, {2}),
+                                                               axis);
+    auto v_shape = std::make_shared<ov::op::v3::ScatterUpdate>(std::make_shared<ov::op::v3::ShapeOf>(v_ref),
+                                                               indices,
+                                                               ov::op::v0::Constant::create(ov::element::i64, {1}, {4}),
+                                                               axis);
+
+    auto q = std::make_shared<ov::op::v1::Reshape>(split->output(0), q_shape, false);
+    auto k = std::make_shared<ov::op::v1::Reshape>(split->output(1), k_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(split->output(2), v_shape, false);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src, state, gate, beta});
+}
+
 }  // namespace
 
 // Positive: all Q/K/V share one Split anchor via a Transpose each → transformation fuses them.
@@ -784,6 +883,12 @@ TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_DynamicSeqLen_A
     model = build_grouped_query_gdn_rank3_dynamic_before();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_rank3_dynamic_after();
+}
+
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_HeadExpansion_Applied) {
+    model = build_grouped_query_gdn_head_expansion_before();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    model_ref = build_grouped_query_gdn_head_expansion_after();
 }
 
 }  // namespace ov::test

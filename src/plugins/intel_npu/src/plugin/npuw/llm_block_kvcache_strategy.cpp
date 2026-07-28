@@ -268,6 +268,7 @@ void LLMBlockKVCacheStrategy::on_initialize() {
         }
     }
     LOG_INFO("Snapshotted " << m_prefill_original_output_tensors.size() << " original prefill output tensors");
+
     LOG_INFO("=== Block-based KV Cache Initialization Complete ===");
 }
 
@@ -458,6 +459,16 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
     }
 
     LOG_DEBUG("Initial binding complete.");
+}
+
+// Rebind existing block tensors to the new (larger) variant's ports (zero-copy).
+// Lincache is shared across all variants by on_initialize(), so no migration is needed.
+void LLMBlockKVCacheStrategy::on_generate_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& /*old_req*/,
+                                                         const PortsMap& /*old_in_ports*/,
+                                                         const std::shared_ptr<ov::IAsyncInferRequest>& /*new_req*/,
+                                                         const PortsMap& /*new_in_ports*/) {
+    LOG_DEBUG("Rebinding KV blocks to new generate variant.");
+    on_generate_kv_init();
 }
 
 void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {

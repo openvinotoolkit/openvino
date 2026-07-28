@@ -23,6 +23,7 @@
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "moe_gemm_inst.h"
+#include "grouped_matmul_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "gru_seq_inst.h"
@@ -136,6 +137,15 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
+
+    // Aligned MVN flattens the normalized axes into the innermost dimension, which is only valid for planar /
+    // single feature-blocked layouts; reject other layouts (e.g. byxf) so a reorder to planar is inserted instead.
+    if (node.is_type<mvn>()) {
+        const auto& input_layout = node.get_input_layout(0);
+        const layout candidate{input_layout.get_partial_shape(), input_layout.data_type, fmt};
+        if (!node.as<mvn>().get_primitive()->is_aligned_layout_supported(candidate))
+            return false;
+    }
 
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
@@ -532,6 +542,9 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         return false;
 
     auto prim = node.get_primitive();
+    // count()/spatial() below require a static shape.
+    if (input_layout.is_dynamic())
+        return false;
     if (input_layout.data_type != data_types::f16
         || (input_layout.is_static() && input_layout.feature() % 64 != 0)  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
@@ -561,6 +574,9 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
+        // feature() requires a static shape.
+        if (node.get_input_layout(0).is_dynamic() || node.get_output_layout(0).is_dynamic())
+            return false;
         const auto output_channels = node.get_output_layout(0).feature();
         const auto input_channels = node.get_input_layout(0).feature();
 
@@ -720,7 +736,8 @@ static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, s
             auto reorder_first_user = node.get_users().front();
             if (reorder_first_user->is_type<reshape>()) {
                 for (auto& reshape_user : reorder_first_user->get_users()) {
-                    if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                    if (reshape_user->is_type<mvn>() && !node.get_output_layout().is_dynamic() &&
+                        node.get_output_layout().get_linear_size() > reorder_size_threshold) {
                         GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
                         return true;
                     }
@@ -1000,7 +1017,7 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
         { format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv16_fsv16 },
     };
 
-    auto& check_list = custom_list.size() > 0 ? custom_list : supported_list;
+    auto& check_list = !custom_list.empty() ? custom_list : supported_list;
 
     for (auto& pair : check_list) {
         if ((prev_fmt == pair.first && next_fmt == pair.second) &&
@@ -1277,7 +1294,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     auto expected = format::any;
 
     std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
-        bool all_users_gemm = (node.get_users().size() != 0);
+        bool all_users_gemm = (!node.get_users().empty());
 
         for (auto user : node.get_users()) {
             if (user->is_type<reorder>() || user->is_type<reshape>())
@@ -1296,7 +1313,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     if (use_onednn_impls) {
         expected = format::any;
         auto& users = node.get_users();
-        if (users.size() != 0) {
+        if (!users.empty()) {
             auto& user = users.front();
             if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
                 expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
@@ -1505,7 +1522,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else { // gemm
             if (!use_onednn_impls && !allow_new_shape_infer) {
                 // Plain input format is enforced because gemm opt kernels allow only plain formats.
-                expected = format::get_default_format(node.get_output_layout(0).get_rank());
+                expected = format::get_default_format(node.get_output_layout(false).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             }
         }
@@ -1597,6 +1614,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
+    enable_onednn_for<grouped_matmul>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {

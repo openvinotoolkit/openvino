@@ -24,6 +24,7 @@
 #include "shape_of_inst.h"
 #include "gather_inst.h"
 #include "strided_slice_inst.h"
+#include "eltwise_inst.h"
 #include "mvn_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
@@ -2383,4 +2384,84 @@ TEST(prepare_buffer_fusing, in_place_crop_static_output_with_dynamic_predecessor
     for (size_t i = 0; i < host_gemm_output.size(); i++) {
         ASSERT_NEAR(out[i], host_gemm_output[i], 1e-3f) << "mismatch at i=" << i;
     }
+}
+
+// A concat with one predecessor inside a shape-of subgraph (a crop lowered from VariadicSplit,
+// running on a CPU impl that can't produce padded output) and one outside must NOT be optimized
+// in place: implicit concat would force offset padding on the CPU crop output and assert at
+// runtime with "[GPU] Padded output is not supported yet".
+TEST(prepare_buffer_fusing, in_place_concat_rejected_for_shape_of_subgraph_input) {
+    auto& engine = get_test_engine();
+    auto in_layout_dyn = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+
+    // The out-of-subgraph concat branch is produced by an eltwise: concat's in-place
+    // optimization only considers predecessors of certain types (see available_pred), and it
+    // must be a runtime (non-const) node so the concat is not constant-folded away.
+    auto other_layout = layout{ ov::PartialShape{1}, data_types::i32, format::bfyx };
+
+    // Constants used to build the shape-calculation flow.
+    auto gather_idx = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+    set_values<int32_t>(gather_idx, {0, 1, 2, 3});
+    auto split_axis = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
+    set_values<int32_t>(split_axis, {0});
+    auto split_lengths = engine.allocate_memory({ ov::PartialShape{2}, data_types::i32, format::bfyx });
+    set_values<int32_t>(split_lengths, {1, 3});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout_dyn));
+    topology.add(input_layout("other", other_layout));
+    topology.add(data("gather_idx", gather_idx));
+    topology.add(data("split_axis", split_axis));
+    topology.add(data("split_lengths", split_lengths));
+    // eltwise producing the out-of-subgraph concat input.
+    topology.add(eltwise("other_elt", { input_info("other"), input_info("other") }, eltwise_mode::sum));
+    // shape-of subgraph: shape_of -> gather -> VariadicSplit(crop out0[1], out1[3])
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(gather("gather", input_info("shape_of"), input_info("gather_idx"), 0, 1, {4}));
+    topology.add(crop("crop0", { input_info("gather"), input_info("split_axis"), input_info("split_lengths") },
+                      cldnn::tensor(1), cldnn::tensor(0), cldnn::crop_ngraph_op_mode::variadic_split, 0, 0, 2));
+    topology.add(crop("crop1", { input_info("gather"), input_info("split_axis"), input_info("split_lengths") },
+                      cldnn::tensor(1), cldnn::tensor(0), cldnn::crop_ngraph_op_mode::variadic_split, 1, 0, 2));
+    // concat mixes the in-subgraph crop1 (CPU impl) with the out-of-subgraph eltwise result.
+    topology.add(concatenation("concat", { input_info("other_elt"), input_info("crop1") }, 0));
+    // Reorder to f32 so it isn't a redundant (identical) reorder that gets removed — which
+    // would promote 'concat' to a network output (renamed) and disable in-place optimization.
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    // Preconditions: crop is a shape-of subgraph node (CPU impl), concat is not.
+    ASSERT_TRUE(prog->get_node("crop1").is_in_shape_of_subgraph());
+    ASSERT_FALSE(prog->get_node("concat").is_in_shape_of_subgraph());
+    // The concat must not be optimized in place. Non-fatal so we still reach execute() below,
+    // which exercises the actual crash path.
+    EXPECT_FALSE(prog->get_node("concat").can_be_optimized());
+
+    cldnn::network net(prog, 0);
+    auto input_mem = engine.allocate_memory({ ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::bfyx });
+    set_values<float>(input_mem, std::vector<float>(2 * 3 * 4 * 5, 1.f));
+    net.set_input_data("input", input_mem);
+    auto other_mem = engine.allocate_memory(other_layout);
+    set_values<int32_t>(other_mem, {5});
+    net.set_input_data("other", other_mem);
+
+    // Without the fix the in-place concat forces padded output on the CPU crop impl and this
+    // throws "[GPU] Padded output is not supported yet". Fatal so the value checks below don't
+    // dereference a null output on failure.
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    ASSERT_NO_THROW(output = net.execute());
+
+    // input shape {2,3,4,5} => shape_of/gather = [2,3,4,5]; other_elt = other+other = [10].
+    // crop1 takes 3 elements at offset 0 => [2,3,4]; concat(other_elt, crop1) axis 0 => {10,2,3,4}.
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), 4u);
+    ASSERT_EQ(out_ptr[0], 10.f);
+    ASSERT_EQ(out_ptr[1], 2.f);
+    ASSERT_EQ(out_ptr[2], 3.f);
+    ASSERT_EQ(out_ptr[3], 4.f);
 }
