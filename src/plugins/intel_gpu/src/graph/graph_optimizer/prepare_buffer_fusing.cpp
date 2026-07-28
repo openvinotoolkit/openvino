@@ -294,7 +294,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         // set dynamic pad dims for shape agnostic kernel
         for (auto& dep_output_layout : preds_layouts) {
             padding::DynamicDimsMask info_dynamic_pad;
-            info_dynamic_pad[concat_axis] = 1;
+            info_dynamic_pad[concat_axis] = true;
             dep_output_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
         }
         return;
@@ -318,7 +318,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
     lower_padd[concat_axis] = concat_out_layout.data_padding._lower_size[concat_axis];
     upper_padd[concat_axis] = concat_out_layout.data_padding._upper_size[concat_axis];
     padding::DynamicDimsMask dyn_pad_dims;
-    dyn_pad_dims[concat_axis] = 1;
+    dyn_pad_dims[concat_axis] = true;
     concat_out_layout.data_padding = padding(lower_padd, upper_padd);
 
     upper_padd[concat_axis] += concat_out_layout.get_dims()[concat_axis];
@@ -663,7 +663,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         padding::DynamicDimsMask info_dynamic_pad;
-        info_dynamic_pad[crop_axis] = 1;
+        info_dynamic_pad[crop_axis] = true;
         crop_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
         return;
     }
@@ -695,7 +695,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     // set padding
     if (is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
@@ -711,7 +711,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding._dynamic_dims_mask = dyn_pad_sizes;
 
         if (user_info.first && user_info.first->is_type<reshape>()) {
@@ -750,7 +750,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             }
 
             auto reshape_dyn_pad_mask = padding::DynamicDimsMask();
-            reshape_dyn_pad_mask[reshape_axis] = 1;
+            reshape_dyn_pad_mask[reshape_axis] = true;
             user_info.second.data_padding._dynamic_dims_mask = reshape_dyn_pad_mask;
         }
         return true;
@@ -773,7 +773,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     if (is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
         if (user_info.first) {
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
@@ -797,7 +797,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     const auto batch_stride_factor = reshape_ps[0].get_length();
                     reshape_lower_sizes[0] = lower_sizes[0] * batch_stride_factor;
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
-                    reshape_dyn_pad_mask[0] = 1;
+                    reshape_dyn_pad_mask[0] = true;
                 } else {
                     ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
@@ -822,7 +822,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                     reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                     reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                    reshape_dyn_pad_mask[reshape_axis] = 1;
+                    reshape_dyn_pad_mask[reshape_axis] = true;
 
                     if (reshape_lower_sizes[reshape_axis])
                         reshape_lower_sizes[reshape_axis] /= divider;
@@ -851,7 +851,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                 reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                reshape_dyn_pad_mask[reshape_axis] = 1;
+                reshape_dyn_pad_mask[reshape_axis] = true;
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             }
@@ -1019,7 +1019,7 @@ void prepare_buffer_fusing::run(program& p) {
                 // set dynamic pad dims for shape agnostic kernel
                 const auto& desc = node.get_primitive();
                 padding::DynamicDimsMask info_dynamic_pad;
-                info_dynamic_pad[concat_axis] = 1;
+                info_dynamic_pad[concat_axis] = true;
                 kv_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
                 node.set_output_layout(kv_out_layout);
                 node.can_share_buffer(false);
@@ -1036,7 +1036,7 @@ void prepare_buffer_fusing::run(program& p) {
 
                     const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
-                    info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
+                    info_dynamic_pad_scales[scales_zp_concat_axis] = true;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;
                     node.set_output_layout(scales_out_layout, true, kv_cache_output_idx);
 
@@ -1107,7 +1107,7 @@ void prepare_buffer_fusing::run(program& p) {
             }
 
             auto &input_layout = node.get_input_layout(0);
-            auto &output_layout = node.get_output_layout(0);
+            auto &output_layout = node.get_output_layout(false);
             if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
                 return;
             }
