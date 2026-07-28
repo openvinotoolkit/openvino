@@ -1293,6 +1293,26 @@ TEST(GGUFOps, GatedDeltaNetRefFallback) {
     EXPECT_TRUE(has_loop);
 }
 
+// K > 1 (multiple recurrent-state snapshot slots, speculative-decode rollback) reserves K state
+// blocks in the ggml output while both frontend paths pack one, so conversion must fail loudly
+// rather than emit a graph whose snapshot views read the wrong block.
+TEST(GGUFOps, GatedDeltaNetMultipleSnapshotSlotsRejected) {
+    const int64_t B = 1, T = 2, H = 1, D = 2, K = 2;
+    auto qkv_shp = ov::PartialShape{B, T, H, D};
+    auto gate_shp = ov::PartialShape{B, T, H, 1};
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_GATED_DELTA_NET")
+                       .attr<int64_t>("gdn_state_slots", K)
+                       .input("q", ov::element::f32, qkv_shp)
+                       .input("k", ov::element::f32, qkv_shp)
+                       .input("v", ov::element::f32, qkv_shp)
+                       .input("g", ov::element::f32, gate_shp)
+                       .input("beta", ov::element::f32, gate_shp)
+                       .input("state", ov::element::f32, {B, H, D, D})
+                       .output("out", ov::element::f32, {1, 1, (T + K * D) * B, D * H});
+    EXPECT_THROW(builder.build(), ov::Exception);
+}
+
 // GatedDeltaNet, fused-op path. A scalar gate (gate last-dim 1 with head size Dv>1) selects the
 // fused ov::op::internal::GatedDeltaNet op instead of the Loop scan. B=H=1, T=2, D=Dv=2. We assert
 // the fused op is actually emitted and that its result matches the core reference recurrence.

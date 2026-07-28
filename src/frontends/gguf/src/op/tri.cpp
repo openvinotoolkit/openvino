@@ -41,6 +41,7 @@ OutputVector translate_tri(const NodeContext& context) {
 
     auto shape = context.get_input_shape(0).to_shape();
     size_t n = shape[3];  // ne0 == ne1
+    FRONT_END_GENERAL_CHECK(shape[2] == n, "translate_tri: expected a square matrix, got ", shape);
 
     std::vector<float> mask(n * n, 0.0f);
     for (size_t row = 0; row < n; ++row) {
@@ -57,7 +58,10 @@ OutputVector translate_tri(const NodeContext& context) {
             mask[row * n + col] = keep ? 1.0f : 0.0f;
         }
     }
-    auto keep_mask = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, n, n}, mask);
+    // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
+    auto keep_mask = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
+                                                  ov::Shape{1, 1, n, n},
+                                                  mask);
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 

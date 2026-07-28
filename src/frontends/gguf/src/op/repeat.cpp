@@ -43,8 +43,14 @@ OutputVector translate_repeat(const NodeContext& context) {
         for (size_t axis = 0; axis < rank; ++axis) {
             const bool in_dyn = !input_shape[axis].is_static();
             const bool out_dyn = !output_shape[axis].is_static();
+            if (out_dyn && !in_dyn && input_shape[axis].get_length() == 1) {
+                // A genuine broadcast to a runtime count: the factor is only known at inference time,
+                // so a constant 1 would emit a no-op Tile. Use the ShapeOf path instead.
+                resolved = false;
+                break;
+            }
             if (in_dyn || out_dyn) {
-                // A dynamic axis is the token axis, which REPEAT passes through untiled.
+                // Any other dynamic axis is the token axis, which REPEAT passes through untiled.
                 repeats[axis] = 1;
                 continue;
             }

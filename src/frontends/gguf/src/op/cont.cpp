@@ -44,6 +44,12 @@ OutputVector translate_cont(const NodeContext & context) {
         // to length 0). Just reshape the resolved input to the CONT's own layout.
         auto input = context.get_input(0);
         auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
+        // No target means pass-through, which is only valid if the shape is already the CONT's own.
+        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty() || input.get_partial_shape().compatible(context.get_output_shape()),
+                                      "CONT from a VIEW requires a \"cont_reshape\" target: input ",
+                                      input.get_partial_shape(),
+                                      " != output ",
+                                      context.get_output_shape());
         if (!tgt.empty()) {
             auto tgt_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
             res = std::make_shared<ov::op::v1::Reshape>(input, tgt_node, false);

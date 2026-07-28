@@ -39,7 +39,10 @@ OutputVector translate_diag(const NodeContext& context) {
     for (size_t i = 0; i < n; ++i) {
         identity[i * n + i] = 1.0f;
     }
-    auto eye = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, n, n}, identity);
+    // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
+    auto eye = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
+                                            ov::Shape{1, 1, n, n},
+                                            identity);
 
     // Multiply broadcasts the [ne3,ne2,1,ne0] input over the row axis, zeroing off-diagonal entries.
     auto res = std::make_shared<ov::op::v1::Multiply>(x, eye);

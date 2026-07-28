@@ -69,10 +69,13 @@ ov::Output<ov::Node> activations_per_expert(const ov::Output<ov::Node>& activati
                                            const std::shared_ptr<ov::op::v3::ShapeOf>& ids_shape) {
     const auto& acts_ps = activations.get_partial_shape();  // [n_token, 1 | n_used, k], or [1, n_token, k]
     const auto& ids_ps = ids.get_partial_shape();           // [n_token, n_used]
+    // The expert-axis match alone is ambiguous: the plain 2D layout [1, n_token, k] also satisfies it
+    // when n_token == n_used (the warmup graph). The token axis (1 vs n_token) disambiguates.
     const bool already_per_expert = acts_ps.rank().is_static() && acts_ps.rank().get_length() == 3 &&
                                     ids_ps.rank().is_static() && ids_ps.rank().get_length() == 2 &&
                                     acts_ps[1].is_static() && ids_ps[1].is_static() &&
-                                    ids_ps[1].get_length() > 1 && acts_ps[1] == ids_ps[1];
+                                    ids_ps[1].get_length() > 1 && acts_ps[1] == ids_ps[1] &&
+                                    (acts_ps[0].is_dynamic() || ids_ps[0].is_dynamic() || acts_ps[0] == ids_ps[0]);
 
     ov::Output<ov::Node> rows = activations;
     if (!already_per_expert) {

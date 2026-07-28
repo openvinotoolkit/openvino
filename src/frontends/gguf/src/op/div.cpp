@@ -69,8 +69,12 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
         bool needs_repeat = false;
 
         for (size_t axis = 0; axis < rank; ++axis) {
-            FRONT_END_OP_CONVERSION_CHECK(input_shape[axis].is_static() && target_shape[axis].is_static(),
-                                          "DIV repeat requires static dimensions on both inputs");
+            if (input_shape[axis].is_dynamic() || target_shape[axis].is_dynamic()) {
+                // Only the token axis is dynamic, and ggml never tiles it: both operands carry the
+                // same runtime count.
+                repeats[axis] = 1;
+                continue;
+            }
 
             const int64_t input_dim = input_shape[axis].get_length();
             const int64_t target_dim = target_shape[axis].get_length();
@@ -134,17 +138,13 @@ OutputVector translate_div(const NodeContext& context) {
     }
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Divide>(input_0, input_1);
-    if (use_f32_compute) {
-        // Keep the reciprocal/divide path in FP32. Without this hint the GPU plugin can compress the
-        // subgraph back to FP16 and overflow on small gate values (e.g. silu(x) / x in qwen2moe).
-        ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(0));
-        ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(1));
-    }
+    // Keep the divide in FP32: the GPU plugin would otherwise compress it back to FP16 and overflow
+    // on small gate values (e.g. silu(x) / x in qwen2moe).
+    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(0));
+    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(1));
     if (res.get_element_type() != output_type) {
         auto output_convert = std::make_shared<ov::op::v0::Convert>(res, output_type);
-        if (use_f32_compute) {
-            ov::mark_as_precision_sensitive(output_convert->input(0));
-        }
+        ov::mark_as_precision_sensitive(output_convert->input(0));
         res = output_convert;
     }
     return rename_outputs_with_suffix({res}, context.get_name());

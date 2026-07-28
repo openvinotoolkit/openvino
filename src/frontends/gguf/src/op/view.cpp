@@ -14,6 +14,43 @@ namespace frontend {
 namespace gguf {
 namespace op {
 
+namespace {
+// Put the reshape target's single -1 on the axis carrying the runtime token count, recovered by
+// element-count conservation: product(tgt) / product(res_ps's static dims). No-op for a static
+// res_ps, where the target is already exact and a -1 could land on the wrong axis.
+void place_dynamic_token_axis(std::vector<int64_t> & tgt, const ov::PartialShape & res_ps) {
+    if (res_ps.rank().is_dynamic()) {
+        return;
+    }
+    int64_t slice_static = 1;
+    bool res_has_dyn = false;
+    for (int64_t i = 0; i < res_ps.rank().get_length(); ++i) {
+        if (res_ps[i].is_static()) {
+            slice_static *= res_ps[i].get_length();
+        } else {
+            res_has_dyn = true;
+        }
+    }
+    if (!res_has_dyn || slice_static == 0) {
+        return;
+    }
+    int64_t out_prod = 1;
+    for (auto d : tgt) {
+        out_prod *= d;
+    }
+    if (out_prod % slice_static != 0) {
+        return;
+    }
+    const int64_t token_len = out_prod / slice_static;
+    for (auto & d : tgt) {
+        if (d == token_len) {
+            d = -1;
+            break;
+        }
+    }
+}
+}  // namespace
+
 OutputVector translate_view(const NodeContext & context) {
     num_inputs_check(context, 1, 1);
 
@@ -69,28 +106,7 @@ OutputVector translate_view(const NodeContext & context) {
         // Reshape to the view's own OV layout; -1 lands on the (dynamic) token axis.
         auto tgt = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
         if (!tgt.empty()) {
-            const auto & res_ps = sliced.get_partial_shape();
-            int64_t slice_static = 1;
-            if (res_ps.rank().is_static()) {
-                for (int64_t i = 0; i < res_ps.rank().get_length(); ++i) {
-                    if (res_ps[i].is_static()) {
-                        slice_static *= res_ps[i].get_length();
-                    }
-                }
-            }
-            int64_t out_prod = 1;
-            for (auto d : tgt) {
-                out_prod *= d;
-            }
-            if (slice_static != 0 && out_prod % slice_static == 0) {
-                int64_t token_len = out_prod / slice_static;
-                for (auto & d : tgt) {
-                    if (d == token_len) {
-                        d = -1;
-                        break;
-                    }
-                }
-            }
+            place_dynamic_token_axis(tgt, sliced.get_partial_shape());
             auto res = std::make_shared<ov::op::v1::Reshape>(
                 sliced, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
             return rename_outputs_with_suffix({res}, context.get_name());
@@ -130,27 +146,7 @@ OutputVector translate_view(const NodeContext & context) {
         auto tgt = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
         if (!tgt.empty()) {
             if (part == 0) {
-                // token axis is dynamic; place the single -1 on the axis holding the token count via
-                // element-count conservation against the sliced result's static dims.
-                const auto & res_ps = sliced.get_partial_shape();
-                int64_t slice_static = 1;
-                if (res_ps.rank().is_static()) {
-                    for (int64_t i = 0; i < res_ps.rank().get_length(); ++i)
-                        if (res_ps[i].is_static())
-                            slice_static *= res_ps[i].get_length();
-                }
-                int64_t out_prod = 1;
-                for (auto d : tgt)
-                    out_prod *= d;
-                if (slice_static != 0 && out_prod % slice_static == 0) {
-                    int64_t token_len = out_prod / slice_static;
-                    for (auto & d : tgt) {
-                        if (d == token_len) {
-                            d = -1;
-                            break;
-                        }
-                    }
-                }
+                place_dynamic_token_axis(tgt, sliced.get_partial_shape());
             }
             auto res = std::make_shared<ov::op::v1::Reshape>(
                 sliced, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
@@ -199,42 +195,7 @@ OutputVector translate_view(const NodeContext & context) {
         // token axis -- so the token dim stays dynamic and lands where the consumer expects it.
         auto tgt = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
         if (!tgt.empty()) {
-            // The decoder gives the (static) output layout. The sliced result carries the token
-            // count on one dynamic axis; keep it dynamic by placing a single -1 on the output axis
-            // that absorbs it. Determine that axis by conservation of element count: the product of
-            // the sliced result's static dims must equal the product of the output's non--1 dims,
-            // so the -1 axis is the one whose value equals (token count) = slice_static_product /
-            // (output_static_product_without_that_axis). Concretely, if the sliced result has a
-            // dynamic axis, exactly one output axis must be -1; pick the output axis whose value is
-            // not needed to match the sliced result's static dims.
-            const auto& res_ps = result.get_partial_shape();
-            bool res_has_dyn = res_ps.rank().is_static() && [&] {
-                for (int64_t i = 0; i < res_ps.rank().get_length(); ++i)
-                    if (res_ps[i].is_dynamic())
-                        return true;
-                return false;
-            }();
-            if (res_has_dyn) {
-                // product of static dims in the sliced result (excludes the single dynamic axis)
-                int64_t slice_static = 1;
-                for (int64_t i = 0; i < res_ps.rank().get_length(); ++i)
-                    if (res_ps[i].is_static())
-                        slice_static *= res_ps[i].get_length();
-                // product of all output dims
-                int64_t out_prod = 1;
-                for (auto d : tgt)
-                    out_prod *= d;
-                // token count = out_prod / slice_static ; mark the axis holding it as -1
-                if (slice_static != 0 && out_prod % slice_static == 0) {
-                    int64_t token_len = out_prod / slice_static;
-                    for (auto& d : tgt) {
-                        if (d == token_len) {
-                            d = -1;
-                            break;
-                        }
-                    }
-                }
-            }
+            place_dynamic_token_axis(tgt, result.get_partial_shape());
             result = std::make_shared<ov::op::v1::Reshape>(
                 result, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
         }

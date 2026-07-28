@@ -51,6 +51,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     const int64_t H_k = q_shape[2];
     const bool kda = (g_shape[3] == (size_t)S_v);
 
+    // ggml reserves K * S_v * n_seqs state rows for K per-token snapshots (K = 1 + n_rs_seq, > 1 only
+    // for speculative-decode rollback), while both paths here pack exactly one S_v-row block. Reject
+    // K > 1 rather than let the snapshot views read the wrong block.
+    const int64_t snapshot_slots = context.get_attribute<int64_t>("gdn_state_slots", 1);
+    FRONT_END_OP_CONVERSION_CHECK(snapshot_slots == 1,
+                                  "GATED_DELTA_NET supports a single recurrent-state snapshot, got K = ",
+                                  snapshot_slots);
+
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
     if (kda || context.get_attribute<bool>("force_ref", false)) {

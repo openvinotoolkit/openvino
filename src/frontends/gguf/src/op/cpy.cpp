@@ -63,7 +63,8 @@ OutputVector translate_cpy(const NodeContext & context) {
         int64_t out_elems = 1;
         for (auto d : out_shape)
             out_elems *= static_cast<int64_t>(d);
-        if (has_dyn && in_static != 0 && out_elems % in_static == 0) {
+        // out_elems != 0: an empty destination must not be reshaped (0 % anything == 0).
+        if (has_dyn && in_static != 0 && out_elems != 0 && out_elems % in_static == 0) {
             std::vector<int64_t> tgt(out_shape.begin(), out_shape.end());
             res = std::make_shared<ov::op::v1::Reshape>(
                 res, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
