@@ -117,13 +117,13 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
 
     const eltwise_params& params = static_cast<const eltwise_params&>(p);
 
-    if (params.inputs.size() == 0) {
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& operations = params.operations;
 
-    if (operations.size() == 0) {
+    if (operations.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

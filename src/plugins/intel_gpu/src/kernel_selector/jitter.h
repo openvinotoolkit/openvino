@@ -72,6 +72,7 @@ inline std::string GetTypeName<double>() {
 std::string toCLType(WeightsType wType);
 std::string toCLType(Datatype dType);
 std::string getMeanOpString(MeanOp op);
+std::string GetTensorHasMultipleElementsCondition(const std::string& tensor_name);
 inline std::string toVectorMulString(const std::vector<std::string>& vec) {
     std::stringstream ss;
     ss << "(";
@@ -133,7 +134,7 @@ inline std::string toVectorString(const VecT& vec,
                                   ValT padFillingVal,
                                   Func fetchFunc) {
     std::stringstream ss;
-    if (vectorType.length())
+    if (!vectorType.empty())
         ss << "(" << vectorType << " [])";
     ss << toVectorInitString(vec, vectorType, maxDim, padFillingVal, fetchFunc);
     return ss.str();

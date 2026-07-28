@@ -1475,7 +1475,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 }
 
 size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
-    OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+    OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
     const auto& gemms = kernel_data.micro_kernels;
     const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");
