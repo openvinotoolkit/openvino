@@ -36,8 +36,25 @@ struct Clamp {
     static constexpr bool enabled = true;
 
     // Generic implementation
+    static constexpr TO apply(const TI v) {
+        return (v < std::numeric_limits<TO>::lowest())
+                   ? std::numeric_limits<TO>::lowest()
+                   : ((v > std::numeric_limits<TO>::max()) ? std::numeric_limits<TO>::max()
+                                                           : detail::convert<TI, TO>(v));
+    }
+
+    // Specialize for optimization
+    template <class T, class R>
+    static R apply(const T v);
+};
+
+// Like Clamp, but ±inf/NaN pass through instead of clamping.
+template <class TI, class TO>
+struct ClampPreserveSpecials {
+    static constexpr bool enabled = true;
+
+    // Generic implementation
     static TO apply(const TI v) {
-        // Preserve ±inf/NaN; clamp only finite out-of-range values (isfinite is always true for integral TI).
         if (!std::isfinite(v)) {
             return detail::convert<TI, TO>(v);
         }

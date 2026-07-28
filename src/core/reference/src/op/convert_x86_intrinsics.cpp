@@ -28,6 +28,15 @@ template <>
 __m256 Clamp<float, float16>::apply<__m256, __m256>(const __m256 vec_f32) {
     static const auto lo = _mm256_set1_ps(std::numeric_limits<float16>::lowest());
     static const auto hi = _mm256_set1_ps(std::numeric_limits<float16>::max());
+
+    return _mm256_min_ps(_mm256_max_ps(vec_f32, lo), hi);
+}
+
+template <>
+template <>
+__m256 ClampPreserveSpecials<float, float16>::apply<__m256, __m256>(const __m256 vec_f32) {
+    static const auto lo = _mm256_set1_ps(std::numeric_limits<float16>::lowest());
+    static const auto hi = _mm256_set1_ps(std::numeric_limits<float16>::max());
     // A float is non-finite (±inf/NaN) iff its magnitude bits exceed those of FLT_MAX.
     static const auto abs_mask = _mm256_set1_epi32(0x7FFFFFFF);
     static const auto nonfinite_thresh = _mm256_set1_epi32(0x7F7FFFFF);  // FLT_MAX bit pattern
@@ -45,6 +54,13 @@ void Converter<float, float16>::Optimized<Clamp<float, float16>>::run(const floa
     auto vec_f32 = _mm256_loadu_ps(in);                                                        // load f32 input
     auto vec_f16 = _mm256_cvtps_ph(Clamp<float, float16>::apply<__m256, __m256>(vec_f32), 0);  // f32 -> f16 with clamp
     _mm_storeu_si128(reinterpret_cast<__m128i*>(out), vec_f16);                                // store f16 output
+}
+
+void Converter<float, float16>::Optimized<ClampPreserveSpecials<float, float16>>::run(const float* in, float16* out) {
+    auto vec_f32 = _mm256_loadu_ps(in);  // load f32 input
+    auto vec_f16 = _mm256_cvtps_ph(ClampPreserveSpecials<float, float16>::apply<__m256, __m256>(vec_f32),
+                                   0);                           // f32 -> f16 with clamp, preserving ±inf/NaN
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(out), vec_f16);  // store f16 output
 }
 
 void Converter<float, float16>::Optimized<NoClamp>::run(const float* in, float16* out) {
@@ -82,6 +98,15 @@ void Converter<bfloat16, float16>::Optimized<Clamp<float, float16>>::run(const b
     auto vec_f16 =
         _mm256_cvtps_ph(Clamp<float, float16>::apply<__m256, __m256>(vec_f32), _MM_ROUND_NEAREST);  // f32 -> f16
     _mm_storeu_si128(reinterpret_cast<__m128i*>(out), vec_f16);                                     // store f16
+}
+
+void Converter<bfloat16, float16>::Optimized<ClampPreserveSpecials<float, float16>>::run(const bfloat16* in,
+                                                                                         float16* out) {
+    auto vec_bf16 = _mm256_cvtepu16_epi32(*reinterpret_cast<const __m128i*>(in));  // expand to 32-bits
+    auto vec_f32 = _mm256_castsi256_ps(_mm256_slli_epi32(vec_bf16, 16));           // shift left bf16 -> f32
+    auto vec_f16 = _mm256_cvtps_ph(ClampPreserveSpecials<float, float16>::apply<__m256, __m256>(vec_f32),
+                                   _MM_ROUND_NEAREST);           // f32 -> f16, preserving ±inf/NaN
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(out), vec_f16);  // store f16
 }
 
 void Converter<bfloat16, float>::Optimized<NoClamp>::run(const bfloat16* in, float* out) {

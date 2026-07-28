@@ -44,10 +44,11 @@ inline constexpr uint32_t kAbsMaskVal = 0x7FFFFFFFu;
 // to preserve IEEE special values instead of clamping them to the f16 range.
 inline constexpr uint32_t kFltMaxBits = 0x7F7FFFFFu;
 
-template <typename src_t, typename dst_t, bool clamp = false>
+// preserve_specials (with clamp=true): ±inf/NaN pass through instead of clamping.
+template <typename src_t, typename dst_t, bool clamp = false, bool preserve_specials = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
 
-template <typename src_t, typename dst_t, bool clamp = false>
+template <typename src_t, typename dst_t, bool clamp = false, bool preserve_specials = false>
 void jit_convert_vec_prepare(jit::Generator&) {}
 
 template <>
@@ -100,6 +101,24 @@ template <>
 void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
     const auto f32vec = gen.ymm4;
     const auto f16vec = gen.xmm3;
+
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);              // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);                     // convert bf16->f32 by bit shift
+    gen.vminps(f32vec, f32vec, upper_bound);            // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);            // clamp f16 lowest
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);  // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);                // move result to destination
+}
+
+template <>
+void jit_convert_vec<bfloat16, float16, true, true>(jit::Generator& gen,
+                                                    const Xbyak::RegExp& src,
+                                                    const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
     auto orig = gen.ymm7;
     auto mask = gen.ymm2;
 
@@ -132,6 +151,28 @@ template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
+    auto addr = gen.r15;
+
+    static const float upper_bounds[8] =
+        {kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos};
+    static const float lower_bounds[8] =
+        {kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg};
+
+    gen.mov(addr, reinterpret_cast<size_t>(upper_bounds));
+    gen.vmovdqu(upper_bound, gen.yword[addr]);
+    gen.mov(addr, reinterpret_cast<size_t>(lower_bounds));
+    gen.vmovdqu(lower_bound, gen.yword[addr]);
+}
+
+template <>
+void jit_convert_vec_prepare<bfloat16, float16, true>(jit::Generator& gen) {
+    jit_convert_vec_prepare<float, float16, true>(gen);
+}
+
+template <>
+void jit_convert_vec_prepare<float, float16, true, true>(jit::Generator& gen) {
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
     auto abs_mask = gen.ymm8;
     auto nonfinite_thresh = gen.ymm9;
     auto addr = gen.r15;
@@ -156,12 +197,28 @@ void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
 }
 
 template <>
-void jit_convert_vec_prepare<bfloat16, float16, true>(jit::Generator& gen) {
-    jit_convert_vec_prepare<float, float16, true>(gen);
+void jit_convert_vec_prepare<bfloat16, float16, true, true>(jit::Generator& gen) {
+    jit_convert_vec_prepare<float, float16, true, true>(gen);
 }
 
 template <>
 void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    auto f16vec = gen.xmm3;
+    auto f32vec = gen.ymm4;
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
+
+    gen.vmovups(f32vec, gen.yword[src]);
+    gen.vminps(f32vec, f32vec, upper_bound);
+    gen.vmaxps(f32vec, f32vec, lower_bound);
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);
+    gen.vmovdqu(gen.xword[dst], f16vec);
+}
+
+template <>
+void jit_convert_vec<float, float16, true, true>(jit::Generator& gen,
+                                                 const Xbyak::RegExp& src,
+                                                 const Xbyak::RegExp& dst) {
     auto f16vec = gen.xmm3;
     auto f32vec = gen.ymm4;
     auto orig = gen.ymm7;
@@ -303,13 +360,14 @@ public:
 
     typedef void (*fn_t)(const args_t*);
 
-    template <typename src_t, typename dst_t, bool clamp = false>
+    template <typename src_t, typename dst_t, bool clamp = false, bool preserve_specials = false>
     static fn_t get() {
         if (is_x64() && mayiuse(jit::avx) && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
-            static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
-                                                              {sizeof(dst_t), &jit::Generator::copy<dst_t>},
-                                                              jit_convert_vec<src_t, dst_t, clamp>,
-                                                              jit_convert_vec_prepare<src_t, dst_t, clamp>};
+            static const jit_convert_array::context_t context{
+                {sizeof(src_t), &jit::Generator::copy<src_t>},
+                {sizeof(dst_t), &jit::Generator::copy<dst_t>},
+                jit_convert_vec<src_t, dst_t, clamp, preserve_specials>,
+                jit_convert_vec_prepare<src_t, dst_t, clamp, preserve_specials>};
 
             static jit_convert_array generator(context);
 
@@ -896,6 +954,21 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
 #endif  // OV_CORE_USE_XBYAK_JIT
     Converter<TI, TO>::template apply<Clamp>(arg, out, count);
 }
+
+// Dispatcher for ClampPreserveSpecials, kept separate from convert_impl<Clamp>.
+template <typename TI, typename TO>
+void convert_impl_preserve_specials(const TI* arg, TO* out, size_t count) {
+#ifdef OV_CORE_USE_XBYAK_JIT
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_convert_array::get<TI, TO, true, true>()) {
+            jit_convert_array::args_t args = {arg, out, count};
+            converter(&args);
+            return;
+        }
+    }
+#endif  // OV_CORE_USE_XBYAK_JIT
+    Converter<TI, TO>::template apply<ClampPreserveSpecials<float, float16>>(arg, out, count);
+}
 }  // namespace
 
 template <>
@@ -947,6 +1020,15 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     using clamp_bf16_f16 = Clamp<float, float16>;
     convert_impl<clamp_bf16_f16>(arg, out, count);
     // CVS-125496: duplicate and stub for ARM, provide optimized solution
+}
+
+void convert_from_f32_to_f16_with_clamp_preserve_specials(const float* arg, float16* out, size_t count) {
+    convert_impl_preserve_specials<float, float16>(arg, out, count);
+}
+
+void convert_from_bf16_to_f16_with_clamp_preserve_specials(const bfloat16* arg, float16* out, size_t count) {
+    // can re-use ClampPreserveSpecials<float, float16> as bf16 is converted to float before clamping
+    convert_impl_preserve_specials<bfloat16, float16>(arg, out, count);
 }
 
 namespace {
