@@ -35,11 +35,116 @@ The tables and perf numbers below were measured on this stack:
 | Python | 3.11 | 3.10 also works |
 | PyTorch | 2.11.0+cpu | CPU-only build; MUST match vLLM's torch pin |
 | vLLM | 0.25.0 | v1 engine; CPU wheel |
-| OpenVINO | 2026.2.0 (branch `vllm_dev`) | must include this subpackage |
+| OpenVINO | 2026.2.0 build `dddcff2cc70` on `vllm_dev` | see "Known good build" below |
+
+**Known good build:** the performance numbers below were measured against
+OpenVINO source at commit **`dddcff2cc70`** on `vllm_dev`. The current tip
+of `vllm_dev` (`31999c2484` at time of writing) has a first-infer hang
+that is still under investigation — see the Troubleshooting section.
+Pin to `dddcff2cc70` for a working stack:
+
+```bash
+git clone --recursive https://github.com/ynimmaga/openvino.git
+cd openvino
+git checkout dddcff2cc70   # known-good; do not use vllm_dev tip yet
+git submodule update --init --recursive
+```
 
 Older/newer combinations may work but are not benched. In particular vLLM
 0.24.x targets torch 2.10 and 0.26.x moves to torch 2.12 — do not mix minor
 versions across vLLM and PyTorch.
+
+## Measured performance
+
+Isolated single-model runs on Llama-3.2-1B-Instruct, TinyLlama-1.1B,
+DeepSeek-R1-Distill-Qwen-1.5B, Qwen2.5-{0.5,1.5}B. bf16 weights + KV
+cache, 128 decode tokens, `numactl --cpunodebind=0 --membind=0
+--taskset -c 0-39`, all backends built against `dddcff2cc70`.
+
+### Greedy (temperature=0)
+
+| Model | Eager | Inductor | vLLM+OV |
+|---|---|---|---|
+| Llama-3.2-1B | 63.8 | **76.2** | 60.1 |
+| TinyLlama-1.1B | 64.2 | **81.3** | 49.1 |
+| DeepSeek-R1-1.5B | 38.6 | **49.0** | 45.3 |
+| Qwen2.5-0.5B | 70.1 | **98.2** | 83.3 |
+| Qwen2.5-1.5B | 38.8 | **50.3** | 45.1 |
+
+Inductor wins every model under greedy. OV forward pass is
+memory-bound on the QKV/MLP/lm_head GEMMs and sits behind Inductor's
+kernel selection by 8–40%.
+
+### Sampling (temperature=1.0, top_p=0.95, top_k=50)
+
+| Model | Eager | Inductor | vLLM+OV |
+|---|---|---|---|
+| Llama-3.2-1B | 52.4 | **57.5** | 48.8 |
+| TinyLlama-1.1B | 55.8 | **65.7** | 52.8 |
+| DeepSeek-R1-1.5B | 31.6 | 35.9 | **37.6** |
+| Qwen2.5-0.5B | 50.1 | 57.0 | **60.8** |
+| Qwen2.5-1.5B | 31.6 | 34.1 | **37.7** |
+
+Under sampling, OV wins on 3 of 5 models. The OV-fused sampler (see
+`sampler.py`, gated at vocab ≥ 100k) recovers most of the torch
+`apply_top_k_top_p` cost, so backends without it (Eager, Inductor) pay
+a larger sampler-tax:
+
+| Backend | Median tok/s drop, greedy → sampling |
+|---|---|
+| Eager | −19% |
+| Inductor | −27% |
+| vLLM+OV | −17% |
+
+## Changes vs `dddcff2cc70` base
+
+Since the `dddcff2cc70` baseline, `vllm_dev` has landed:
+
+**Perf-improving:**
+- **OV-fused sampler for vLLM v1** (`2af320b9aa`, wired in `21ac11be7e`,
+  gated on vocab in `9dedb29901`): Compiles topk + softmax + Gumbel-max
+  as an OV graph. Fires when `top_k ≤ 128`, no logprobs, no per-request
+  seed. Skips the O(vocab·log(vocab)) torch sort. Sampler kernel ~25×
+  faster than torch baseline on Llama vocab=128k. End-to-end +11–29%
+  under sampling on large-vocab models (DeepSeek, both Qwens, Gemma).
+  See `VLLM_OV_FAST_SAMPLER` and `OV_FUSED_SAMPLER_MIN_VOCAB`.
+- **Q-input Reshape fusion in PA translator** (`431e29654b`): retargets
+  the upstream `Reshape` shape input for the Q branch instead of
+  emitting a second `Reshape`. −16 Reshape ops/iter on Llama-1B. K/V
+  slices left alone (they have a Result consumer that needs rank-3).
+- **QKV projection rank-2 stride fix** (`431e29654b`): the executor
+  was hardcoding `srcStrides[1]` which is the innermost element stride
+  (== 1) for rank-2 activations; use `strides.size()-2` so both rank-2
+  `[M, H]` and rank-3 `[B, S, H]` work. Correctness fix, not a speedup,
+  but without it vLLM+OV produced garbage.
+- **NormalizeVLLMMLP: Gelu activation** (`db83a034b3`): Gemma-3 support
+  — the MLP-fusion pattern now matches models that use Gelu instead of
+  Swish. Without it Gemma-3 falls back to unfused MLP.
+- **NormalizeVLLMQKV: sink Convert past VariadicSplit** (`7b3bb8ccdd`):
+  enables QKV fusion on the bf16 → f16 Convert-annotated graphs
+  produced by newer vLLM versions.
+- **NormalizeVLLMMLP absorbs bf16 narrow-Convert pair** (`73eb29e35b`):
+  eliminates the `f32 → bf16 → f32` envelope around fused MLP that
+  otherwise adds two Convert nodes and blocks weight-in-place
+  reordering.
+- **MADV_HUGEPAGE for large PlainTensor allocations** (`431e29654b`):
+  best-effort 2 MB huge-page hint for tensors ≥ 2 MB. Reduces TLB
+  misses on LLM weight streaming — measurable on machines with THP
+  enabled (`echo always > /sys/kernel/mm/transparent_hugepage/enabled`).
+- **oneDNN re-enabled for `lm_head` outside the OV-traced graph**
+  (`bc4699c2f7`, pre-baseline but relevant): the lm_head GEMM
+  (`[hidden, vocab]`, ~500 MB weight) runs via oneDNN's AMX-prepacked
+  path, saving ~3–5 ms/step at decode.
+
+**Refactor/hygiene (no perf effect):**
+- Move vLLM glue into a `vllm/` subpackage (`0aa932c741`) and split
+  it further (`f28a4bbe9b`, `c64f88ca4f`, `9b9bfd6925`, `1059c0e7fe`,
+  `3029753de4`).
+- Per-layer PA rt_info + per-layer block_indices / KV geometry
+  (`fcad67382f`, `df498641d5`) — required for hybrid attention
+  (Gemma-3/4), no effect on uniform-attention models.
+- Reverts of experimental PT-frontend workarounds (`b95511a2e0`,
+  `b463e6efa9`).
 
 ### 1. Fresh venv
 
@@ -94,13 +199,14 @@ export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
 
 ### 4. OpenVINO
 
-Option A — build from the `vllm_dev` branch (required for this integration
-until the changes merge to a released wheel):
+Option A — build from the known-good commit `dddcff2cc70` on `vllm_dev`
+(required for this integration until the changes merge to a released
+wheel; see "Known good build" above for why not the tip):
 
 ```bash
-git clone --recursive https://github.com/openvinotoolkit/openvino.git
+git clone --recursive https://github.com/ynimmaga/openvino.git
 cd openvino
-git checkout vllm_dev
+git checkout dddcff2cc70
 git submodule update --init --recursive
 
 # patchelf is required for the wheel build target
