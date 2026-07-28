@@ -57,9 +57,9 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/macos/openvino_toolkit_macos_12_6_2026.3.0.22446.ce03a15d415_arm64.tgz --output openvino_2026.3.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/macos/openvino_toolkit_macos_12_6_2026.3.0.dev20260723_arm64.tgz --output openvino_2026.3.0.tgz
             tar -xf openvino_2026.3.0.tgz
-            sudo mv openvino_toolkit_macos_12_6_2026.3.0.22446.ce03a15d415_arm64 /opt/intel/openvino_2026.3.0
+            sudo mv openvino_toolkit_macos_12_6_2026.3.0.dev20260723_arm64 /opt/intel/openvino_2026.3.0
 
 
 5. (Optional) Install *numpy* Python Library:
