@@ -1,0 +1,407 @@
+#-------------------------------------------------------------------------------
+#
+#       OpenVINO all plugins excludes
+#
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+#
+#       OpenVINO ONNX C++ FrontEnd unit tests
+#
+#-------------------------------------------------------------------------------
+
+
+# Result mismatch
+onnx_model_shape
+onnx_model_split_equal_parts_default
+onnx_model_argmin_no_keepdims
+onnx_model_elu
+onnx_model_top_k
+onnx_model_erf
+onnx_model_addmul_abc
+
+# data [<name>] doesn't exist
+onnx_model_tile
+onnx_model_tile_static
+onnx_model_logsoftmax_0D
+
+# Model's output number 0 was not found in the ov::Model.
+onnx_model_split_equal_parts_2d
+onnx_model_split_variable_parts_2d
+onnx_top_k_opset_10_const_k
+onnx_top_k_opset_11_const_k_smallest
+onnx_top_k_opset_11_const_k_smallest_negative_axis
+
+# [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
+onnx_constant_sparse_tensor_boolean_3x4
+
+# Layer <name> input port 1 is not connected to any data
+onnx_model_conv_transpose_w_groups
+
+# [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
+onnx_model_global_lp_pool_p0
+onnx_model_mod_sign_i64
+onnx_model_constant_of_shape_float_zeros
+onnx_model_constant_of_shape_int_ones
+onnx_dyn_shapes_slice_10_3d_input_12_axes
+IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+onnx_dyn_shapes_ab_plus_c_inference
+onnx_dyn_shapes_dynamic_rank_input_inference
+onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_model_conv_with_dynamic_bias
+onnx_dyn_shapes_expand_1_dyn_shape
+onnx_dyn_shapes_expand_2_dyn_shape
+onnx_dyn_shapes_expand_3_dyn_shape
+onnx_dyn_shapes_expand_4_dyn_shape
+onnx_dyn_shapes_expand_5_dyn_shape
+onnx_dyn_shapes_expand_6_dyn_shape
+onnx_dyn_shapes_expand_uint16_dyn_shape
+onnx_dyn_shapes_model_global_lp_dynamic_hw
+onnx_dyn_shapes_slice_10_2d_input
+onnx_dyn_shapes_slice_10_default_steps
+onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
+onnx_dyn_shapes_slice_10_clamp_neg_ends
+onnx_dyn_shapes_slice_10_3d_input
+onnx_dyn_shapes_slice_10_3d_input_neg_axes
+onnx_dyn_shapes_slice_10_3d_input_20_axes
+onnx_dyn_shapes_slice_10_4d_input_23_axes
+onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
+onnx_dyn_shapes_slice_10_3d_input_12_axes
+onnx_top_k_opset_10
+onnx_model_scatterND_param_i64_indices
+IE_CPU.onnx_constant_sparse_tensor_int64_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
+
+# I64 ONNX Clip Failing on ubuntu18/20_release CI
+IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
+IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
+
+# Constant has zero dimension that is not allowable
+onnx_dyn_shapes_transpose
+
+# y Incorrect input precision. Only FP32 is supported!
+onnx_model_erf_int32
+
+# Could not eliminate all Dyn nodes
+onnx_model_conv_with_dynamic_batch
+
+# OneHot operation has a form that is not supported
+onnx_model_one_hot_without_axis
+onnx_model_one_hot_with_axis
+
+# Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
+onnx_dyn_shapes_model_acosh_1_3
+onnx_dyn_shapes_model_acosh_3_2
+onnx_dyn_shapes_model_asinh_1_3
+onnx_dyn_shapes_model_asinh_3_2
+onnx_dyn_shapes_model_atanh_1_3
+onnx_dyn_shapes_model_atanh_3_2
+onnx_dyn_shapes_avg_pool_dyn_shape
+onnx_dyn_shapes_max_pool_dyn_shape
+onnx_dyn_shapes_global_avg_pool_dyn_shape
+onnx_dyn_shapes_global_max_pool_dyn_shape
+onnx_dyn_shapes_model_flatten
+onnx_model_instance_normalization_dyn_shape
+onnx_model_instance_normalization_dyn_shape2
+onnx_dyn_shapes_arg_max_dyn_shape
+onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
+onnx_dyn_shapes_model_tile
+onnx_dyn_shapes_model_convtranspose_dyn_data
+onnx_dyn_shapes_model_convtranspose_dyn_filters
+onnx_dyn_shapes_flatten_axis_0
+onnx_dyn_shapes_flatten_axis
+onnx_dyn_shapes_flatten_neg_axis
+onnx_model_range_positive_step
+onnx_model_range_negative_step
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
+onnx_model_lp_norm_default_dynamic
+onnx_instance_normalization_dynamic
+
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Activation function hardsigmoid is not supported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
+
+# Unsupported dynamic ops
+onnx_size_dyn_op
+onnx_model_gru_defaults_fwd_const_dynamic
+onnx_model_rnn_defaults_fwd_const_dynamic
+onnx_model_depth_to_space_dynamic_input
+onnx_model_space_to_depth_dynamic_input
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
+
+
+# Constant network
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
+onnx_size_op_single
+onnx_size_op_graph_end
+onnx_size_op_graph_middle
+
+# /openvino/src/plugins/intel_cpu/graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
+
+
+# Result mismatch
+onnx_dyn_shapes_model_tile_static
+
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+onnx_dyn_shapes_max_pool_with_indices_output
+onnx_model_max_pool_3d
+onnx_model_max_pool_4d_ceil_mode
+onnx_model_max_pool_4d_dilations
+onnx_model_max_pool_4d_strides
+onnx_model_max_pool_4d_ceil_strides
+
+# Unsupported primitive of type: ROIAlign
+IE_CPU.onnx_roi_align_f32
+
+#-------------------------------------------------------------------------------
+#
+#       OpenVINO CPU plugin excludes
+#
+#-------------------------------------------------------------------------------
+
+# Segfault
+IE_CPU.onnx_model_reverse_sequence_1_batch_0
+IE_CPU.onnx_model_reverse_sequence_0_batch_1
+
+# OpenVINO Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# Y because output with index 0 contains dynamic shapes: {?,?,?,?}
+IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
+
+# Exception from src/plugins/intel_cpu/src/nodes/interpolate.cpp:2468:
+# [CPU] Interpolate node with name 'Y' only supports resize on spatial dimensions(depth, height and width)
+IE_CPU.onnx_resize13_downsample_sizes_3D_linear_params
+
+# Unsupported dynamic ops: v3::NonMaxSuppressionIE3
+IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
+IE_CPU.onnx_model_nonmaxsuppression_single_box
+
+# Unsupported dynamic op
+IE_CPU.onnx_model_reduce_sum_13_axes_as_input
+IE_CPU.onnx_model_reduce_sum_13_input_dynamic
+IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
+IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+
+# Axes has zero dimension which is not allowed
+IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
+
+# OpenVINO test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
+
+# The plugin does not support UNSPECIFIED
+IE_CPU.onnx_constant_sparse_tensor_uint32_3x4
+IE_CPU.onnx_constant_sparse_tensor_double_3x4
+
+# Sparse tensor with (u)i16 type tests
+IE_CPU.onnx_constant_sparse_tensor_int16_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
+
+# Unsupported op NMSRotated
+onnx_model_mm_nms_rotated
+
+#-------------------------------------------------------------------------------
+#
+#       OpenVINO GPU plugin excludes
+#
+#-------------------------------------------------------------------------------
+
+IE_GPU.onnx_model_reshape_reduced_dims
+IE_GPU.onnx_model_reshape_reordered_dims
+IE_GPU.onnx_model_reshape_extended_dims
+IE_GPU.onnx_model_reshape_single_dim
+IE_GPU.onnx_model_reshape_negative_dim
+IE_GPU.onnx_model_reshape_negative_with_zero_dim
+IE_GPU.onnx_model_reshape_output_shape_as_input
+IE_GPU.onnx_model_depth_to_space
+IE_GPU.onnx_model_space_to_depth
+IE_GPU.onnx_model_squeeze
+IE_GPU.onnx_model_unsqueeze
+IE_GPU.onnx_model_unsqueeze_negative_axes
+IE_GPU.onnx_model_concat
+IE_GPU.onnx_model_concat_negative_axis
+IE_GPU.onnx_model_flatten
+IE_GPU.onnx_model_average_pool_2d
+IE_GPU.onnx_model_average_pool_2d_pads
+IE_GPU.onnx_model_max_pool_2d_pads
+IE_GPU.onnx_model_global_lp_pool_p1
+IE_GPU.onnx_test_test_case
+IE_GPU.onnx_test_test_case_mutliple_inputs
+IE_GPU.onnx_model_add_abc
+IE_GPU.onnx_model_binary_add_abc
+IE_GPU.onnx_model_add_abc_initializers
+IE_GPU.onnx_model_override_op
+IE_GPU.onnx_model_custom_op
+IE_GPU.onnx_model_custom_op_default_domain
+IE_GPU.onnx_model_missing_op_domain
+IE_GPU.onnx_model_missing_input
+IE_GPU.onnx_model_initializer_wo_input
+IE_GPU.onnx_model_addmul_abc
+IE_GPU.onnx_model_relu
+IE_GPU.onnx_model_sum_opset1
+IE_GPU.onnx_model_sum
+IE_GPU.onnx_model_min_two_inputs_opset1
+IE_GPU.onnx_model_min_two_inputs
+IE_GPU.onnx_model_max_opset1
+IE_GPU.onnx_model_max
+IE_GPU.onnx_model_gemm_abc
+IE_GPU.onnx_model_matmul
+IE_GPU.onnx_model_sub
+IE_GPU.onnx_model_div
+IE_GPU.onnx_model_add_bcast
+IE_GPU.onnx_model_reduce_log_sum
+IE_GPU.onnx_model_reduce_log_sum_exp
+IE_GPU.onnx_model_reduce_l1
+IE_GPU.onnx_model_reduce_max
+IE_GPU.onnx_model_reduce_mean
+IE_GPU.onnx_model_reduce_min
+IE_GPU.onnx_model_reduce_prod
+IE_GPU.onnx_model_reduce_sum
+IE_GPU.onnx_model_reduce_sum_square
+IE_GPU.onnx_model_leaky_relu
+IE_GPU.onnx_model_selu
+IE_GPU.onnx_model_sigmoid
+IE_GPU.onnx_model_tanh
+IE_GPU.onnx_model_thresholded_relu
+IE_GPU.onnx_model_matmul_vec_ten3d
+IE_GPU.onnx_model_softplus
+IE_GPU.onnx_model_softplus_infinity
+IE_GPU.onnx_model_sum_opset8
+IE_GPU.onnx_model_atanh
+IE_GPU.onnx_model_sinh
+IE_GPU.onnx_model_cosh
+IE_GPU.onnx_model_sign
+IE_GPU.onnx_model_shrink_float
+IE_GPU.onnx_model_shrink_int
+IE_GPU.onnx_model_lp_norm_p1
+IE_GPU.onnx_model_reverse_sequence_0_batch_1
+IE_GPU.onnx_model_reverse_sequence_1_batch_0
+IE_GPU.onnx_matmul_float_type
+IE_GPU.onnx_model_pad_constant
+IE_GPU.onnx_model_reciprocal
+IE_GPU.onnx_dyn_shapes_model_atanh_1_3
+IE_GPU.onnx_dyn_shapes_model_atanh_3_2
+IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
+IE_GPU.onnx_roi_align_f32
+IE_GPU.onnx_model_conv2d_strides_padding
+IE_GPU.onnx_model_conv2d_strides_no_padding
+IE_GPU.onnx_model_conv2d_strides_assymetric_padding
+IE_GPU.onnx_model_conv2d_dilation_assymetric_pads_strides
+IE_GPU.onnx_model_conv3d_bias
+IE_GPU.onnx_model_global_lp_pool_p2
+IE_GPU.onnx_model_global_lp_pool_p3
+IE_GPU.onnx_model_mean_opset1
+IE_GPU.onnx_model_mean
+IE_GPU.onnx_model_reduce_l2
+IE_GPU.onnx_model_acosh
+IE_GPU.onnx_model_asinh
+IE_GPU.onnx_model_hardmax
+IE_GPU.onnx_model_lp_norm_p2
+IE_GPU.onnx_model_lp_norm_default
+IE_GPU.onnx_model_instance_normalization
+IE_GPU.onnx_model_instance_normalization_dyn_shape
+IE_GPU.onnx_model_instance_normalization_dyn_shape2
+IE_GPU.onnx_dyn_shapes_model_acosh_1_3
+IE_GPU.onnx_dyn_shapes_model_acosh_3_2
+IE_GPU.onnx_dyn_shapes_model_asinh_1_3
+IE_GPU.onnx_dyn_shapes_model_asinh_3_2
+
+# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+IE_GPU.onnx_model_fake_quantize_const_inputs_infer
+IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
+
+# Not supported dynamic shapes cases for Loop
+onnx_controlflow_loop_2d_no_identity_termination_cond
+onnx_controlflow_loop_2d_no_identity_termination_cond_false
+onnx_controlflow_loop_2d_trip_count_max_int
+onnx_controlflow_loop_2d_const_no_identity_termination_cond
+onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
+
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
+
+# dynamic trip count
+onnx_controlflow_loop_2d_trip_count_dynamic
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# unsupported dynamic ops
+onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+
+# not implemented yet on GPU plugin
+IE_GPU.onnx_model_gather_elements_float_1D
+IE_GPU.onnx_model_gather_elements_float_negative_axis
+IE_GPU.onnx_model_gather_elements_int32_axis_0
+IE_GPU.onnx_model_gather_elements_int8_axis_1
+IE_GPU.onnx_model_gather_elements_float_3D_axis_2
+
+IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
+
+# RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
+onnx_upsample6_dynamic
+
+# Not yet implemented - refer PR#6601
+IE_CPU.onnx_model_gather_float_2D_neg_indices
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_skip_layer_normalization_dynamic_shapes
+
+# Doesn't support op with dynamic shapes
+onnx_model_embed_layer_normalization_dynamic_shapes
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_attention_dynamic_shapes
+
+# CPU plug-in doesn't support Parameter operation with dynamic rank
+IE_CPU.onnx_scan15_dyn_rank_vals
+
+# z node not found in graph cache ticket: 81976
+IE_CPU.onnx_expand_context_dependent_function
+IE_CPU.onnx_softmax_crossentropy_loss_mean
+
+# Cannot find blob with name: Y
+IE_CPU.onnx_bool_init_and
+
+# Incorrect order of elements returned by the TopK implementation
+IE_CPU.onnx_model_top_k_repeating_1D
+IE_CPU.onnx_model_top_k_repeating
+IE_CPU.onnx_model_top_k_repeating_unsorted
+
+# Accuracy regression - Ticket 105909
+IE_CPU.onnx_model_attention_qkv_hidden_sizes
+
+# Accuracy issues on ARM CPU - Ticket 122663
+IE_CPU.onnx_model_bias_gelu
+IE_CPU.onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len
+IE_CPU.onnx_model_embed_layer_normalization_with_position_ids
+IE_CPU.onnx_resize10_down_scales_const_linear
+IE_CPU.onnx_resize11_down_scales_linear_asymmetric
+IE_CPU.onnx_model_softplus
+IE_CPU.onnx_model_instance_normalization
+IE_CPU.quant_dequant_pattern_axis
+IE_CPU/GRUSequenceOp.onnx_model_gru_reverse_mixed_seq_len_const
+IE_CPU/RNNSequenceOp.onnx_model_rnn_fwd_bias_initial_h_const

@@ -1,0 +1,1907 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#if defined(HAVE_AVX2)
+#    include <immintrin.h>
+#endif
+
+#include <openvino/core/parallel.hpp>
+
+#include "util.hpp"
+#include "util_xarch.hpp"
+
+#ifdef UNPACK_PROFILING
+#    include "tbb/concurrent_unordered_map.h"
+#endif
+
+namespace {
+#if defined(HAVE_AVX2)
+inline int8_t hi4(int8_t x) {
+    return ((x & (1 << 7)) >> 4) | ((x & (1 << 6)) >> 4) | ((x & (1 << 5)) >> 4) | ((x & (1 << 4)) >> 4);
+}
+
+inline int8_t lo4(int8_t x) {
+    return (x & (1 << 3)) | (x & (1 << 2)) | (x & (1 << 1)) | (x & (1 << 0));
+}
+#endif
+
+inline uint8_t hi4(uint8_t x) {
+    return x >> 4;
+}
+
+inline uint8_t lo4(uint8_t x) {
+    return x & 0xF;
+}
+
+#if defined(HAVE_AVX2)
+inline int8_t upc(int8_t h) {
+    return h | (-((h & (1 << 3)) >> 3) & (-8));
+}
+
+// OpenVINO core semantics for e4m3: mag = LUT[bits & 0x7F], sign by bit7.
+// Implement with AVX2 gather from 128-entry float LUT, then cvtps_ph.
+inline __m256i f8e4m3tof16(__m128i vf8) {
+    alignas(32) static constexpr float k_f8e4m3_lut[128] = {
+        0.0f,       0.001953125f, 0.00390625f, 0.005859375f,
+        0.0078125f, 0.009765625f, 0.01171875f, 0.013671875f,
+        0.015625f,  0.017578125f, 0.01953125f, 0.021484375f,
+        0.0234375f, 0.025390625f, 0.02734375f, 0.029296875f,
+        0.03125f,   0.03515625f,  0.0390625f,  0.04296875f,
+        0.046875f,  0.05078125f,  0.0546875f,  0.05859375f,
+        0.0625f,    0.0703125f,   0.078125f,   0.0859375f,
+        0.09375f,   0.1015625f,   0.109375f,   0.1171875f,
+        0.125f,     0.140625f,    0.15625f,    0.171875f,
+        0.1875f,    0.203125f,    0.21875f,    0.234375f,
+        0.25f,      0.28125f,     0.3125f,     0.34375f,
+        0.375f,     0.40625f,     0.4375f,     0.46875f,
+        0.5f,       0.5625f,      0.625f,      0.6875f,
+        0.75f,      0.8125f,      0.875f,      0.9375f,
+        1.0f,       1.125f,       1.25f,       1.375f,
+        1.5f,       1.625f,       1.75f,       1.875f,
+        2.0f,       2.25f,        2.5f,        2.75f,
+        3.0f,       3.25f,        3.5f,        3.75f,
+        4.0f,       4.5f,         5.0f,        5.5f,
+        6.0f,       6.5f,         7.0f,        7.5f,
+        8.0f,       9.0f,         10.0f,       11.0f,
+        12.0f,      13.0f,        14.0f,       15.0f,
+        16.0f,      18.0f,        20.0f,       22.0f,
+        24.0f,      26.0f,        28.0f,       30.0f,
+        32.0f,      36.0f,        40.0f,       44.0f,
+        48.0f,      52.0f,        56.0f,       60.0f,
+        64.0f,      72.0f,        80.0f,       88.0f,
+        96.0f,      104.0f,       112.0f,      120.0f,
+        128.0f,     144.0f,       160.0f,      176.0f,
+        192.0f,     208.0f,       224.0f,      240.0f,
+        256.0f,     288.0f,       320.0f,      352.0f,
+        384.0f,     416.0f,       448.0f,      std::numeric_limits<float>::quiet_NaN(),
+    };
+
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
+
+    const __m256i sign_m = _mm256_set1_epi16(0x80);
+    const __m256i idx_m = _mm256_set1_epi16(0x7F);
+
+    __m256i sign16 = _mm256_and_si256(u16, sign_m);
+    __m256i idx16 = _mm256_and_si256(u16, idx_m);
+
+    __m256i sign_nonzero = _mm256_cmpgt_epi16(sign16, _mm256_setzero_si256());
+
+    __m128i idx16_lo = _mm256_castsi256_si128(idx16);
+    __m128i idx16_hi = _mm256_extracti128_si256(idx16, 1);
+    __m256i idx32_lo = _mm256_cvtepu16_epi32(idx16_lo);
+    __m256i idx32_hi = _mm256_cvtepu16_epi32(idx16_hi);
+
+    __m256 mag_lo = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_lo, 4);
+    __m256 mag_hi = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_hi, 4);
+
+    __m256i sign32_lo = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_castsi256_si128(sign_nonzero)), 31);
+    __m256i sign32_hi = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(sign_nonzero, 1)), 31);
+
+    __m256 v_lo = _mm256_xor_ps(mag_lo, _mm256_castsi256_ps(sign32_lo));
+    __m256 v_hi = _mm256_xor_ps(mag_hi, _mm256_castsi256_ps(sign32_hi));
+
+    __m128i h0 = _mm256_cvtps_ph(v_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(v_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
+}
+
+inline __m256i f8e5m2tof16(__m128i vf8) {
+    const __m256i b16 = _mm256_cvtepu8_epi16(vf8);
+    return _mm256_slli_epi16(b16, 8);
+}
+
+inline __m256i f8e8m0tof16(__m128i vf8) {
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
+
+    __m128i u16_lo = _mm256_castsi256_si128(u16);
+    __m128i u16_hi = _mm256_extracti128_si256(u16, 1);
+    __m256i u32_lo = _mm256_cvtepu16_epi32(u16_lo);
+    __m256i u32_hi = _mm256_cvtepu16_epi32(u16_hi);
+
+    const __m256i ff = _mm256_set1_epi32(0xFF);
+    const __m256i zz = _mm256_setzero_si256();
+
+    __m256i is_ff_lo = _mm256_cmpeq_epi32(u32_lo, ff);
+    __m256i is_ff_hi = _mm256_cmpeq_epi32(u32_hi, ff);
+    __m256i is_00_lo = _mm256_cmpeq_epi32(u32_lo, zz);
+    __m256i is_00_hi = _mm256_cmpeq_epi32(u32_hi, zz);
+
+    __m256i fbits_lo = _mm256_slli_epi32(u32_lo, 23);
+    __m256i fbits_hi = _mm256_slli_epi32(u32_hi, 23);
+
+    const __m256i qnan_bits = _mm256_set1_epi32(0x7FC00000);
+
+    const __m256i zero_fbits = _mm256_setzero_si256();
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, zero_fbits, is_00_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, zero_fbits, is_00_hi);
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, qnan_bits, is_ff_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, qnan_bits, is_ff_hi);
+
+    __m256 f_lo = _mm256_castsi256_ps(fbits_lo);
+    __m256 f_hi = _mm256_castsi256_ps(fbits_hi);
+
+    __m128i h0 = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
+}
+
+inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
+    __m256i mask = _mm256_set1_epi32(0xF);
+    ymm = _mm256_and_si256(ymm, mask);
+
+    __m256i shifts = _mm256_set_epi32(28, 24, 20, 16, 12, 8, 4, 0);
+    ymm = _mm256_sllv_epi32(ymm, shifts);
+
+    __m128i low = _mm256_castsi256_si128(ymm);
+    __m128i high = _mm256_extracti128_si256(ymm, 1);
+    low = _mm_add_epi32(low, high);
+
+    low = _mm_add_epi32(low, _mm_srli_si128(low, 8));
+    low = _mm_add_epi32(low, _mm_srli_si128(low, 4));
+
+    return _mm_cvtsi128_si32(low);
+}
+
+// NOTE: This routine implements the NEW ORDER
+#    define avx2_i4toi8(vinput, vout0, vout1)                                         \
+        {                                                                             \
+            __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+            __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+            __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+            __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+            __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                      \
+            __m256i vht = _mm256_and_si256(vinput, himask);                           \
+            __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+            __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                      \
+            __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+            __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+            __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+            __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+            __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+            __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                      \
+            __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+            __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
+            *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+            *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+        }
+
+inline __m128i avx2_i8tof16(__m128i vi8) {
+    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert: 8 x i32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
+}
+
+inline __m128i avx2_i8tof16(__m128i vi8, __m256 s) {
+    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert: 8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32vec, s);                   // scale:   8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
+}
+
+inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
+    __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32sub = _mm256_sub_ps(f32vec, z);                   // subtract: 8 x f32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32sub, s);                   // scale:    8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
+}
+
+inline __m128i avx2_u8tof16_lo(__m128i vu8, __m256 z, __m256 s) {
+    __m128i vu8h = _mm_bsrli_si128(vu8, 8);
+    return avx2_u8tof16_hi(vu8h, z, s);
+}
+
+inline __m128i avx2_u8tof16(__m128i vi8, __m256 z, __m256 s) {
+    __m256i i32vec = _mm256_cvtepu8_epi32(vi8);                 // extend:   8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32sub = _mm256_sub_ps(f32vec, z);                   // subtract: 8 x f32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32sub, s);                   // scale:    8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
+}
+
+// NOTE: This routine implements the NEW ORDER
+inline void avx2_u4tof16(__m256i vinput, __m128i vout[8], __m256 zvalVec, __m256 svalVec[8]) {
+    // vinput -  64       x u4  elements - 256 bits
+    // vout[]  - 64 (8x8) x f16 elements
+
+    // NOTE: This is largely a copy of unpack_u4f16() {{
+    __m256i himask = _mm256_set1_epi8(static_cast<char>(0xF0));
+    __m256i lomask = _mm256_set1_epi8(static_cast<char>(0x0F));
+
+    // unpacking with interleaving
+    __m256i vht = _mm256_and_si256(vinput, himask);
+    __m256i xmmUnpackedLo = _mm256_srli_epi16(vht, 4);         // 32 x i8 - Extracting High Nibbles
+    __m256i xmmUnpackedHi = _mm256_and_si256(vinput, lomask);  // 32 x i8 - Extracting Low Nibbles
+
+    // need 4 portions of 16 x i8 elements
+    __m128i unpacked32LoHi = _mm256_castsi256_si128(xmmUnpackedLo);       //  lower  16 x i8 - Lower 16 of High Nibbles
+    __m128i unpacked32LoLo = _mm256_extractf128_si256(xmmUnpackedLo, 1);  //  higher 16 x i8 - Higher 16 of High Nibbles
+
+    __m128i unpacked32HiHi = _mm256_castsi256_si128(xmmUnpackedHi);       //  lower  16 x i8 - Lower 16 of Low Nibbles
+    __m128i unpacked32HiLo = _mm256_extractf128_si256(xmmUnpackedHi, 1);  //  higher 16 x i8 - Higher 16 of Low Nibbles
+
+    // Rearranging of scales
+    __m256i indices = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
+    // Extracting all 64 scales as per the indices specified above
+    __m256 scale_v_rearranged[] = {_mm256_permutevar8x32_ps(svalVec[0], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[1], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[2], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[3], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[4], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[5], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[6], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[7], indices)};
+
+    // Scaling should happen like this:
+    // low_nibble[0]->scale[0], high_nibble[0]->scale[1]...low_nibble[31]->scale[60],high_nibble[31]->scale[61]
+
+    // Extracting all the even-indexed scales for the low nibbles
+    __m256 scale_v_even[] = {
+        _mm256_permute2f128_ps(scale_v_rearranged[0], scale_v_rearranged[1], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[2], scale_v_rearranged[3], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[4], scale_v_rearranged[5], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[6], scale_v_rearranged[7], 0x20),
+    };
+
+    // Extracting all the odd-indexed scales for the high nibbles
+    __m256 scale_v_odd[] = {
+        _mm256_permute2f128_ps(scale_v_rearranged[0], scale_v_rearranged[1], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[2], scale_v_rearranged[3], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[4], scale_v_rearranged[5], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[6], scale_v_rearranged[7], 0x31),
+    };
+
+    // converting to 64 x f16
+    // Higher 16 of High Nibbles
+    __m128i f16LoLo[] = {avx2_u8tof16_hi(unpacked32LoLo, zvalVec, scale_v_odd[2]),
+                         avx2_u8tof16_lo(unpacked32LoLo, zvalVec, scale_v_odd[3])};
+    // Lower 16 of High Nibbles
+    __m128i f16LoHi[] = {avx2_u8tof16_hi(unpacked32LoHi, zvalVec, scale_v_odd[0]),
+                         avx2_u8tof16_lo(unpacked32LoHi, zvalVec, scale_v_odd[1])};
+    // Higher 16 of Low Nibbles
+    __m128i f16HiLo[] = {avx2_u8tof16_hi(unpacked32HiLo, zvalVec, scale_v_even[2]),
+                         avx2_u8tof16_lo(unpacked32HiLo, zvalVec, scale_v_even[3])};
+    // Lower 16 of Low Nibbles
+    __m128i f16HiHi[] = {avx2_u8tof16_hi(unpacked32HiHi, zvalVec, scale_v_even[0]),
+                         avx2_u8tof16_lo(unpacked32HiHi, zvalVec, scale_v_even[1])};
+
+    // interleaving back:
+    // Interleaving lower 8 of low nibbles with lower 8 of high nibbles and so on
+    vout[0] = _mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]);
+    vout[1] = _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]);
+    vout[2] = _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]);
+    vout[3] = _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]);
+    vout[4] = _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]);
+    vout[5] = _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]);
+    vout[6] = _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]);
+    vout[7] = _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1]);
+}
+
+inline __m256 avx2_load_scale(const int8_t* data, ov::element::Type type) {
+    if (type == ov::element::f32) {
+        return _mm256_set1_ps(*reinterpret_cast<const float*>(data));
+    } else {
+        NPUW_ASSERT(type == ov::element::f16);
+        float val{};
+        _mm_store_ss(&val, _mm_cvtph_ps(_mm_cvtsi32_si128(*reinterpret_cast<const int16_t*>(data))));
+        return _mm256_set1_ps(val);
+    }
+}
+
+inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
+    if (type == ov::element::f32) {
+        return *reinterpret_cast<const float*>(data);
+    } else {
+        NPUW_ASSERT(type == ov::element::f16);
+        float val{};
+        _mm_store_ss(&val, _mm_cvtph_ps(_mm_cvtsi32_si128(*reinterpret_cast<const int16_t*>(data))));
+        return val;
+    }
+}
+#endif
+
+#ifdef UNPACK_PROFILING
+class UnpackStat {
+    tbb::concurrent_unordered_map<size_t, std::pair<size_t, uint64_t>> inferenceTimes;
+
+public:
+    UnpackStat() {}
+    void addRecord(size_t sz, size_t time) {
+        inferenceTimes[sz].first++;
+        inferenceTimes[sz].second += time;
+    }
+    ~UnpackStat() {
+        for (auto&& r : inferenceTimes) {
+            std::cout << "work: " << r.first  //<< ", stride: " << stride
+                      << " overall_time = " << r.second.second / 1000 << " [ms]"
+                      << " avg_atime = " << r.second.second / r.second.first << " [µs]\n";
+        }
+    }
+};
+
+static UnpackStat ustat;
+#    define UNPACK_START_TICK() std::chrono::steady_clock::time_point _begin_tick = std::chrono::steady_clock::now();
+#    define UNPACK_SAVE_TICK()                                                              \
+        std::chrono::steady_clock::time_point _end_tick = std::chrono::steady_clock::now(); \
+        ustat.addRecord(total, std::chrono::duration_cast<std::chrono::microseconds>(_end_tick - _begin_tick).count());
+#else
+#    define UNPACK_START_TICK()
+#    define UNPACK_SAVE_TICK()
+#endif
+}  // namespace
+
+void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
+                                        const ov::SoPtr<ov::ITensor>& to,
+                                        const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+#if defined(HAVE_AVX2)
+    // with vectorization above, we:
+    // - read  256 bits (= 32 bytes, = 64  i4 elements)
+    // - write 512 bits (= 64 bytes, = 64  i8 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const std::size_t total = from->get_size();
+    const int8_t* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4 elements
+    int8_t* pDst = static_cast<int8_t*>(to->data());          // 1 x i8 element
+    size_t stride = 64;
+
+    auto unpack_body = [pSrc, pDst](size_t index, size_t stride) {
+        size_t halfStride = stride >> 1;
+        const int8_t* pSrcLocal = pSrc + halfStride * index;
+        int8_t* pDstLocal = pDst + stride * index;
+
+        for (size_t j = 0; j < stride; j += 64) {
+            __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
+            __m256i* outv0 = reinterpret_cast<__m256i*>(pDstLocal);
+            __m256i* outv1 = reinterpret_cast<__m256i*>(pDstLocal + 32);
+
+            __m256i vout0, vout1;
+            avx2_i4toi8(inv, &vout0, &vout1);
+
+            _mm256_storeu_si256(outv0, vout0);
+            _mm256_storeu_si256(outv1, vout1);
+
+            pSrcLocal += 32;
+            pDstLocal += 64;
+        }
+    };
+
+    // ov work index / 64
+    if (unpack_options.nPartitions) {
+        std::size_t minPartitions;
+        if (!unpack_options.bStrictPartitioning) {
+            // some heuristics that every tbb thread workload has to have 2048 elements at least,
+            // so in terms of stride, it should be 64 * 2048
+            minPartitions = total / (64 * 2048);
+            minPartitions = std::max<std::size_t>(1u, minPartitions);
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+        } else {
+            minPartitions = unpack_options.nPartitions;
+        }
+
+        // calculating stride in elements - this stride give us nPartitions + 1  partitions
+        stride = static_cast<size_t>(total / minPartitions);
+
+        // stride has to be 64 elements aligned to avoid gaps between workloads
+        stride = (stride >> 6) << 6;
+        // if number of partitions to large comparing to workload, min supported stride still have to be clamped to 64
+        stride = stride < 64 ? 64 : stride;
+    }
+
+    UNPACK_START_TICK();
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(total / stride, [unpack_body, stride](size_t index) {
+            unpack_body(index, stride);
+        });
+    } else {
+        for (std::size_t index = 0; index < total / stride; index++) {
+            unpack_body(index, stride);
+        }
+    }
+    // handle tail
+    size_t tailOffset = (static_cast<size_t>(total / stride) * stride);
+    pSrc = static_cast<int8_t*>(from->data()) + (tailOffset >> 1);
+    pDst = static_cast<int8_t*>(to->data()) + tailOffset;
+
+    for (std::size_t index = 0; index < ((total % 64) >> 1); index++) {
+        *(pDst++) = upc(lo4(*(pSrc)));
+        *(pDst++) = upc(hi4(*(pSrc)));
+        pSrc++;
+    }
+    UNPACK_SAVE_TICK();
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
+                                        const ov::SoPtr<ov::ITensor>& to,
+                                        const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const uint8_t* pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4 elements
+    int8_t* pDst = static_cast<int8_t*>(to->data());            // 1 x i8 element
+
+    const std::size_t total = from->get_size();
+    for (std::size_t index = 0; index < total; index += 2) {
+        pDst[0] = static_cast<int8_t>(lo4(*pSrc));  // LSB is [0] -- since OpenVINO 24.0!
+        pDst[1] = static_cast<int8_t>(hi4(*pSrc));  // MSB is [1] -- since OpenVINO 24.0!
+        pSrc++;
+        pDst += 2;
+    }
+}
+
+void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& to,
+                                         const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+#if defined(HAVE_AVX2)
+    // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
+    // - read    256  bits (= 32  bytes, = 64  i4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    std::size_t total = to->get_size();
+    const int8_t* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    int16_t* pDst = static_cast<int16_t*>(to->data());        // 1 x f16 element
+    // bool tailOnly = total < 64;
+
+    auto unpack_body = [pSrc, pDst](size_t index) {
+        const int8_t* pSrcLocal = pSrc + 32 * index;
+        int16_t* pDstLocal = pDst + 64 * index;
+
+        __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
+        __m128i* outv[8] = {
+            reinterpret_cast<__m128i*>(pDstLocal),
+            reinterpret_cast<__m128i*>(pDstLocal + 8),
+            reinterpret_cast<__m128i*>(pDstLocal + 16),
+            reinterpret_cast<__m128i*>(pDstLocal + 24),
+            reinterpret_cast<__m128i*>(pDstLocal + 32),
+            reinterpret_cast<__m128i*>(pDstLocal + 40),
+            reinterpret_cast<__m128i*>(pDstLocal + 48),
+            reinterpret_cast<__m128i*>(pDstLocal + 56),
+        };
+
+        __m256i vout0, vout1;
+        avx2_i4toi8(inv, &vout0, &vout1);
+
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
+        __m128i i8vecs[8] = {
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
+        };
+
+        __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
+                               avx2_i8tof16(i8vecs[1]),
+                               avx2_i8tof16(i8vecs[2]),
+                               avx2_i8tof16(i8vecs[3]),
+                               avx2_i8tof16(i8vecs[4]),
+                               avx2_i8tof16(i8vecs[5]),
+                               avx2_i8tof16(i8vecs[6]),
+                               avx2_i8tof16(i8vecs[7])};
+
+        _mm_storeu_si128(outv[0], vresults[0]);
+        _mm_storeu_si128(outv[1], vresults[1]);
+        _mm_storeu_si128(outv[2], vresults[2]);
+        _mm_storeu_si128(outv[3], vresults[3]);
+        _mm_storeu_si128(outv[4], vresults[4]);
+        _mm_storeu_si128(outv[5], vresults[5]);
+        _mm_storeu_si128(outv[6], vresults[6]);
+        _mm_storeu_si128(outv[7], vresults[7]);
+    };
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(total / 64, [&unpack_body](size_t index) {
+            unpack_body(index);
+        });
+    } else {
+        for (std::size_t index = 0; index < total / 64; index++) {
+            unpack_body(index);
+        }
+    }
+
+    // handle tail that is < 64 elements
+    size_t tailOffset = ((total >> 6) << 6);
+    pSrc = static_cast<int8_t*>(from->data()) + (tailOffset >> 1);
+    pDst = static_cast<int16_t*>(to->data()) + tailOffset;
+
+    constexpr std::size_t VECSIZE = 8;
+
+    total = ((total % 64) >> 1);
+    int8_t unpackedToI8[VECSIZE] = {0};
+    size_t unpackedIdx = 0;
+    for (std::size_t index = 0; index < total; index++) {
+        unpackedToI8[unpackedIdx++] = upc(lo4(*(pSrc)));
+        unpackedToI8[unpackedIdx++] = upc(hi4(*(pSrc)));
+        if (unpackedIdx == VECSIZE) {
+            __m128i i8vec = _mm_loadl_epi64(reinterpret_cast<__m128i*>(unpackedToI8));
+            __m128i f16vec = avx2_i8tof16(i8vec);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst), f16vec);
+            pDst += VECSIZE;
+            unpackedIdx = 0;
+        }
+        pSrc += 1;
+    }
+
+    // handle tail that is < 8
+    if (unpackedIdx != 0) {
+        int16_t tmp[VECSIZE];
+        __m128i i8vec = _mm_loadl_epi64(reinterpret_cast<__m128i*>(unpackedToI8));
+        __m128i f16vec = avx2_i8tof16(i8vec);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(tmp), f16vec);
+        for (size_t i = 0; i != unpackedIdx; i++) {
+            pDst[i] = tmp[i];
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                                               const ov::SoPtr<ov::ITensor>& scale,
+                                               const ov::SoPtr<ov::ITensor>& to,
+                                               const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    // 2-channel (Symmetric) and 3-channel (group-wise)
+    // scale factors are supported. The scale/value loop
+    // iteration is based on stotal, so should work for
+    // both cases.
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
+    // - read    256  bits (= 32  bytes, = 64  i4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const std::size_t total = to->get_size();
+    const std::size_t stotal = scale->get_size();
+    const std::size_t elementsPerScale = total / stotal;
+
+    // TODO: handle tails
+    NPUW_ASSERT(elementsPerScale % 64 == 0);
+
+    const int8_t* const pSrc = static_cast<int8_t*>(from->data());   // 2 x i4  elements
+    const int8_t* const pScl = static_cast<int8_t*>(scale->data());  // either f16 or f32
+    const int16_t* pDst = static_cast<int16_t*>(to->data());         // 1 x f16 element
+
+    auto unpack_body = [pSrc, pDst, pScl, elementsPerScale, scale_elem_type, stotal](std::size_t sindex,
+                                                                                     std::size_t stride) {
+        // number of vectorized operations per scale
+        size_t elementsPerScaleVectorized = elementsPerScale / 64;
+
+        const int8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
+
+        // if it is last iteration current stride can be smaller - lets check that
+        sindex *= stride;
+        const auto jobFinish = std::min(sindex + stride, stotal);
+
+        for (; sindex != jobFinish; sindex++) {
+            __m256 svec = avx2_load_scale(pSclLocal, scale_elem_type);
+            for (std::size_t index = 0; index < elementsPerScale; index += 64) {
+                __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
+                __m128i* outv[8] = {
+                    reinterpret_cast<__m128i*>(pDstLocal),
+                    reinterpret_cast<__m128i*>(pDstLocal + 8),
+                    reinterpret_cast<__m128i*>(pDstLocal + 16),
+                    reinterpret_cast<__m128i*>(pDstLocal + 24),
+                    reinterpret_cast<__m128i*>(pDstLocal + 32),
+                    reinterpret_cast<__m128i*>(pDstLocal + 40),
+                    reinterpret_cast<__m128i*>(pDstLocal + 48),
+                    reinterpret_cast<__m128i*>(pDstLocal + 56),
+                };
+
+                __m256i vout0, vout1;
+                avx2_i4toi8(inv, &vout0, &vout1);
+
+                __m128i lo0 = _mm256_castsi256_si128(vout0);
+                __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                __m128i lo1 = _mm256_castsi256_si128(vout1);
+                __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
+                __m128i i8vecs[8] = {
+                    _mm_unpacklo_epi64(lo0, lo0),
+                    _mm_srli_si128(lo0, 8),
+                    _mm_unpacklo_epi64(hi0, hi0),
+                    _mm_srli_si128(hi0, 8),
+                    _mm_unpacklo_epi64(lo1, lo1),
+                    _mm_srli_si128(lo1, 8),
+                    _mm_unpacklo_epi64(hi1, hi1),
+                    _mm_srli_si128(hi1, 8),
+                };
+
+                __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec),
+                                       avx2_i8tof16(i8vecs[1], svec),
+                                       avx2_i8tof16(i8vecs[2], svec),
+                                       avx2_i8tof16(i8vecs[3], svec),
+                                       avx2_i8tof16(i8vecs[4], svec),
+                                       avx2_i8tof16(i8vecs[5], svec),
+                                       avx2_i8tof16(i8vecs[6], svec),
+                                       avx2_i8tof16(i8vecs[7], svec)};
+
+                _mm_storeu_si128(outv[0], vresults[0]);
+                _mm_storeu_si128(outv[1], vresults[1]);
+                _mm_storeu_si128(outv[2], vresults[2]);
+                _mm_storeu_si128(outv[3], vresults[3]);
+                _mm_storeu_si128(outv[4], vresults[4]);
+                _mm_storeu_si128(outv[5], vresults[5]);
+                _mm_storeu_si128(outv[6], vresults[6]);
+                _mm_storeu_si128(outv[7], vresults[7]);
+
+                pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x i4
+                pDstLocal += 64;  // note pDst is int16_t
+            }
+            pSclLocal += scale_elem_type.size();
+        }
+    };
+    size_t stride{1};
+
+    // since scaling is always 64 elements aligned operations, lets partition only in scale shape
+    if (unpack_options.nPartitions) {
+        std::size_t minPartitions;
+        if (!unpack_options.bStrictPartitioning) {
+            // some heuristics that every tbb thread workload has to have 2048 x intrinsics operations at least,
+            // so in terms of stride, it should be nElementsPerscale/64 * 2048
+            const auto nIntrinsicsPerScale = elementsPerScale / 64u;
+            auto minScaleStride = 2048u / nIntrinsicsPerScale;
+            minScaleStride = std::max<std::size_t>(1u, minScaleStride);
+            minPartitions = stotal / minScaleStride;
+            minPartitions = std::max<std::size_t>(1u, minPartitions);
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+        } else {
+            minPartitions = unpack_options.nPartitions;
+        }
+
+        // calculating stride in scale elements space
+        stride = static_cast<size_t>(stotal / minPartitions);
+    }
+
+    const size_t numWork = (stotal + stride - 1) / stride;
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(numWork, [unpack_body, stride](size_t index) {
+            unpack_body(index, stride);
+        });
+    } else {
+        for (std::size_t index = 0; index < numWork; index++) {
+            unpack_body(index, stride);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
+                                           const ov::SoPtr<ov::ITensor>& scale,
+                                           const ov::SoPtr<ov::ITensor>& to,
+                                           const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+    NPUW_ASSERT(scale_shape[2] == from_shape[2]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines i4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const size_t C = from_shape[from_shape.size() - 3];
+    const size_t H = from_shape[from_shape.size() - 2];
+    const size_t W = from_shape[from_shape.size() - 1];
+
+    const int8_t* const pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    const float* const pScl = static_cast<float*>(scale->data());   // 1 x f32 element
+    int16_t* pDst = static_cast<int16_t*>(to->data());              // 1 x f16 element
+
+    auto unpack_body = [&](size_t job_index, size_t stride) {
+        size_t start_c = job_index * stride;
+        size_t end_c = std::min(C, start_c + stride);
+
+        for (size_t c = start_c; c < end_c; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; w += 64) {
+                    const int8_t* pSrc_iter = pSrc + (w + W * h + W * H * c) / 2;
+                    __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
+                    __m256i vout0, vout1;
+                    avx2_i4toi8(vinput, &vout0, &vout1);
+
+                    __m128i lo0 = _mm256_castsi256_si128(vout0);
+                    __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                    __m128i lo1 = _mm256_castsi256_si128(vout1);
+                    __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
+                    __m128i i8vecs[8] = {
+                        _mm_unpacklo_epi64(lo0, lo0),
+                        _mm_srli_si128(lo0, 8),
+                        _mm_unpacklo_epi64(hi0, hi0),
+                        _mm_srli_si128(hi0, 8),
+                        _mm_unpacklo_epi64(lo1, lo1),
+                        _mm_srli_si128(lo1, 8),
+                        _mm_unpacklo_epi64(hi1, hi1),
+                        _mm_srli_si128(hi1, 8),
+                    };
+
+                    const float* pScl_iter = pScl + w + W * c;
+                    __m256 svalVec[8];
+                    for (int i = 0; i < 8; ++i) {
+                        svalVec[i] = _mm256_loadu_ps(pScl_iter + i * 8);
+                    }
+
+                    __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svalVec[0]),
+                                           avx2_i8tof16(i8vecs[1], svalVec[1]),
+                                           avx2_i8tof16(i8vecs[2], svalVec[2]),
+                                           avx2_i8tof16(i8vecs[3], svalVec[3]),
+                                           avx2_i8tof16(i8vecs[4], svalVec[4]),
+                                           avx2_i8tof16(i8vecs[5], svalVec[5]),
+                                           avx2_i8tof16(i8vecs[6], svalVec[6]),
+                                           avx2_i8tof16(i8vecs[7], svalVec[7])};
+
+                    int16_t* pDst_iter = pDst + w + W * h + W * H * c;
+                    for (int i = 0; i < 8; ++i) {
+                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst_iter + i * 8), vresults[i]);
+                    }
+                }
+            }
+        }
+    };
+
+    size_t stride = C;
+    size_t num_jobs = 1;
+
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+            num_jobs = unpack_options.nPartitions;
+        } else {
+            stride = std::max<size_t>(1, C / unpack_options.nPartitions);
+            num_jobs = (C + stride - 1) / stride;
+        }
+    }
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(num_jobs, [&](size_t job_index) {
+            unpack_body(job_index, stride);
+        });
+    } else {
+        for (size_t job_index = 0; job_index < num_jobs; ++job_index) {
+            unpack_body(job_index, stride);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& to,
+                                         const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_size() % 64 == 0);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines u4i8 and i8tof16 unpacks. Here we
+    // - read    256  bits (= 32  bytes, = 64  i4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const std::size_t total = to->get_size();
+    const int8_t* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    int16_t* pDst = static_cast<int16_t*>(to->data());        // 1 x f16 element
+
+    for (std::size_t index = 0; index < total; index += 64) {
+        __m128i* outv[8] = {
+            reinterpret_cast<__m128i*>(pDst),
+            reinterpret_cast<__m128i*>(pDst + 8),
+            reinterpret_cast<__m128i*>(pDst + 16),
+            reinterpret_cast<__m128i*>(pDst + 24),
+            reinterpret_cast<__m128i*>(pDst + 32),
+            reinterpret_cast<__m128i*>(pDst + 40),
+            reinterpret_cast<__m128i*>(pDst + 48),
+            reinterpret_cast<__m128i*>(pDst + 56),
+        };
+
+        __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc));
+        __m256i vout0, vout1;
+        avx2_i4toi8(vinput, &vout0, &vout1);
+
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
+        __m128i i8vecs[8] = {
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
+        };
+
+        __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
+                               avx2_i8tof16(i8vecs[1]),
+                               avx2_i8tof16(i8vecs[2]),
+                               avx2_i8tof16(i8vecs[3]),
+                               avx2_i8tof16(i8vecs[4]),
+                               avx2_i8tof16(i8vecs[5]),
+                               avx2_i8tof16(i8vecs[6]),
+                               avx2_i8tof16(i8vecs[7])};
+
+        _mm_storeu_si128(outv[0], vresults[0]);
+        _mm_storeu_si128(outv[1], vresults[1]);
+        _mm_storeu_si128(outv[2], vresults[2]);
+        _mm_storeu_si128(outv[3], vresults[3]);
+        _mm_storeu_si128(outv[4], vresults[4]);
+        _mm_storeu_si128(outv[5], vresults[5]);
+        _mm_storeu_si128(outv[6], vresults[6]);
+        _mm_storeu_si128(outv[7], vresults[7]);
+
+        pSrc += 32;  // shift pSrc only by 32 since it is 64 x i4
+        pDst += 64;  // note pDst is int16_t
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& from,
+                                                  const ov::SoPtr<ov::ITensor>& zerop,
+                                                  const ov::SoPtr<ov::ITensor>& scale,
+                                                  const ov::SoPtr<ov::ITensor>& to,
+                                                  const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    // Only single-size ZP is supported
+    NPUW_ASSERT(zerop->get_size() == 1);
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    // 2-channel (Symmetric) and 3-channel (group-wise)
+    // scale factors are supported. The scale/value loop
+    // iteration is based on stotal, so should work for
+    // both cases.
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::u4);
+    NPUW_ASSERT(scale_elem_type == ov::element::f16);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines u4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const std::size_t total = to->get_size();
+    const std::size_t stotal = scale->get_size();
+    const std::size_t elementsPerScale = total / stotal;
+
+    const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());   // 2 x u4  elements
+    const uint8_t* const pZer = static_cast<uint8_t*>(zerop->data());  // 1 x u4  element
+    const int8_t* const pScl = static_cast<int8_t*>(scale->data());    // 1 x f16 element
+    const int16_t* pDst = static_cast<int16_t*>(to->data());           // 1 x f16 element
+
+    const float zval = static_cast<float>(lo4(*pZer));  // MSB - since OpenVINO 24.0!
+
+    __m256 zvalVec = _mm256_set1_ps(zval);
+
+    auto unpack_body = [pSrc, pDst, pScl, zvalVec, elementsPerScale, scale_elem_type, stotal](std::size_t sindex,
+                                                                                              std::size_t stride) {
+        // number of vectorized operations per scale
+        size_t elementsPerScaleVectorized = elementsPerScale / 64;
+
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
+
+        // if it is last iteration current stride can be smaller - lets check that
+        sindex *= stride;
+        const auto jobFinish = std::min(sindex + stride, stotal);
+
+        for (; sindex < jobFinish; sindex++) {
+            __m256 svalVec = avx2_load_scale(pSclLocal, scale_elem_type);
+
+            for (std::size_t index = 0; index < elementsPerScale; index += 64) {
+                __m128i* outv[] = {
+                    reinterpret_cast<__m128i*>(pDstLocal),
+                    reinterpret_cast<__m128i*>(pDstLocal + 8),
+                    reinterpret_cast<__m128i*>(pDstLocal + 16),
+                    reinterpret_cast<__m128i*>(pDstLocal + 24),
+                    reinterpret_cast<__m128i*>(pDstLocal + 32),
+                    reinterpret_cast<__m128i*>(pDstLocal + 40),
+                    reinterpret_cast<__m128i*>(pDstLocal + 48),
+                    reinterpret_cast<__m128i*>(pDstLocal + 56),
+                };
+                __m256i himask = _mm256_set1_epi8(static_cast<char>(0xF0));
+                __m256i lomask = _mm256_set1_epi8(static_cast<char>(0x0F));
+
+                // loading 256 bit u4 into unalligned memory , so 64 elements
+                // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
+
+                // unpacking with interleaving
+                __m256i vht = _mm256_and_si256(xmmData, himask);
+                __m256i xmmUnpackedLo = _mm256_srli_epi16(vht, 4);          // 32 x i8
+                __m256i xmmUnpackedHi = _mm256_and_si256(xmmData, lomask);  // 32 x i8
+
+                // need 4 portions of 8 x i8 elements
+                __m128i unpacked32LoHi = _mm256_castsi256_si128(xmmUnpackedLo);       //  lower  16 x i8
+                __m128i unpacked32LoLo = _mm256_extractf128_si256(xmmUnpackedLo, 1);  //  higher 16 x i8
+
+                __m128i unpacked32HiHi = _mm256_castsi256_si128(xmmUnpackedHi);       //  lower  16 x i8
+                __m128i unpacked32HiLo = _mm256_extractf128_si256(xmmUnpackedHi, 1);  //  higher 16 x i8
+
+                // converting to 32 x f16
+                __m128i f16LoLo[] = {avx2_u8tof16_hi(unpacked32LoLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32LoLo, zvalVec, svalVec)};
+
+                __m128i f16LoHi[] = {
+                    avx2_u8tof16_hi(unpacked32LoHi, zvalVec, svalVec),
+                    avx2_u8tof16_lo(unpacked32LoHi, zvalVec, svalVec),
+                };
+
+                __m128i f16HiLo[] = {avx2_u8tof16_hi(unpacked32HiLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiLo, zvalVec, svalVec)};
+                __m128i f16HiHi[] = {avx2_u8tof16_hi(unpacked32HiHi, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiHi, zvalVec, svalVec)};
+
+                // interleaving back
+                __m128i interleaved[] = {_mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]),
+                                         _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1])};
+
+                // store the results
+                _mm_storeu_si128(outv[0], interleaved[0]);
+                _mm_storeu_si128(outv[1], interleaved[1]);
+                _mm_storeu_si128(outv[2], interleaved[2]);
+                _mm_storeu_si128(outv[3], interleaved[3]);
+                _mm_storeu_si128(outv[4], interleaved[4]);
+                _mm_storeu_si128(outv[5], interleaved[5]);
+                _mm_storeu_si128(outv[6], interleaved[6]);
+                _mm_storeu_si128(outv[7], interleaved[7]);
+
+                pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
+                pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
+            }  // for(index)
+            pSclLocal += scale_elem_type.size();
+        }  // for(sindex)
+    };
+
+    size_t stride{1};
+
+    // since scaling is always 64 elements aligned operations, lets partition only in scale shape
+    if (unpack_options.nPartitions) {
+        std::size_t minPartitions;
+        if (!unpack_options.bStrictPartitioning) {
+            // some heuristics that every tbb thread workload has to have 2048 x intrinsics operations at least,
+            // so in terms of stride, it should be nElementsPerscale/64 * 2048
+            const auto nIntrinsicsPerScale = elementsPerScale / 64u;
+            auto minScaleStride = 2048u / nIntrinsicsPerScale;
+            minScaleStride = std::max<std::size_t>(1u, minScaleStride);
+            minPartitions = stotal / minScaleStride;
+            minPartitions = std::max<std::size_t>(1u, minPartitions);
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+        } else {
+            minPartitions = unpack_options.nPartitions;
+        }
+
+        // calculating stride in scale elements space
+        stride = static_cast<size_t>(stotal / minPartitions);
+    }
+
+    const size_t numWork = (stotal + stride - 1) / stride;
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(numWork, [unpack_body, stride](size_t index) {
+            unpack_body(index, stride);
+        });
+    } else {
+        for (std::size_t index = 0; index < numWork; index++) {
+            unpack_body(index, stride);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
+                                                  const ov::SoPtr<ov::ITensor>& zerop,
+                                                  const ov::SoPtr<ov::ITensor>& scale,
+                                                  const ov::SoPtr<ov::ITensor>& to,
+                                                  const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    // 3-channel (group-wise) scale factors are
+    // supported.
+
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    }
+
+    const auto& zerop_shape = zerop->get_shape();
+    NPUW_ASSERT(zerop_shape.size() == 3);
+    if (zerop_shape.size() == 3) {
+        NPUW_ASSERT(zerop_shape[0] == from_shape[0]);
+        NPUW_ASSERT(zerop_shape[1] == from_shape[1]);
+        NPUW_ASSERT(zerop_shape[2] == 1);
+    }
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::u4);
+    NPUW_ASSERT(scale_elem_type == ov::element::f16);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines u4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const std::size_t total = to->get_size();
+    const std::size_t stotal = scale->get_size();
+    const std::size_t elementsPerScale = total / stotal;
+
+    const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());   // 2 x u4  elements
+    const uint8_t* const pZer = static_cast<uint8_t*>(zerop->data());  // 2 x u4  element
+    const int8_t* const pScl = static_cast<int8_t*>(scale->data());    // 1 x f16 element
+    const int16_t* pDst = static_cast<int16_t*>(to->data());           // 1 x f16 element
+
+    auto unpack_body = [pSrc, pDst, pScl, pZer, elementsPerScale, scale_elem_type, zerop_elem_type, stotal](
+                           std::size_t sindex,
+                           std::size_t stride) {
+        // number of vectorized operations per scale
+        size_t elementsPerScaleVectorized = elementsPerScale / 64;
+
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const uint8_t* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
+        int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
+
+        // if it is last iteration current stride can be smaller - lets check that
+        sindex *= stride;
+        const auto jobFinish = std::min(sindex + stride, stotal);
+
+        for (; sindex < jobFinish; sindex++) {
+            __m256 svalVec = avx2_load_scale(pSclLocal, scale_elem_type);
+            __m256 zvalVec = _mm256_set1_ps(static_cast<float>((sindex % 2 == 0) ? lo4(*pZerLocal) : hi4(*pZerLocal)));
+
+            for (std::size_t index = 0; index < elementsPerScale; index += 64) {
+                __m128i* outv[] = {
+                    reinterpret_cast<__m128i*>(pDstLocal),
+                    reinterpret_cast<__m128i*>(pDstLocal + 8),
+                    reinterpret_cast<__m128i*>(pDstLocal + 16),
+                    reinterpret_cast<__m128i*>(pDstLocal + 24),
+                    reinterpret_cast<__m128i*>(pDstLocal + 32),
+                    reinterpret_cast<__m128i*>(pDstLocal + 40),
+                    reinterpret_cast<__m128i*>(pDstLocal + 48),
+                    reinterpret_cast<__m128i*>(pDstLocal + 56),
+                };
+                __m256i himask = _mm256_set1_epi8(static_cast<char>(0xF0));
+                __m256i lomask = _mm256_set1_epi8(static_cast<char>(0x0F));
+
+                // loading 256 bit u4 into unalligned memory , so 64 elements
+                // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
+
+                // unpacking with interleaving
+                __m256i vht = _mm256_and_si256(xmmData, himask);
+                __m256i xmmUnpackedLo = _mm256_srli_epi16(vht, 4);          // 32 x i8
+                __m256i xmmUnpackedHi = _mm256_and_si256(xmmData, lomask);  // 32 x i8
+
+                // need 4 portions of 8 x i8 elements
+                __m128i unpacked32LoHi = _mm256_castsi256_si128(xmmUnpackedLo);       //  lower  16 x i8
+                __m128i unpacked32LoLo = _mm256_extractf128_si256(xmmUnpackedLo, 1);  //  higher 16 x i8
+
+                __m128i unpacked32HiHi = _mm256_castsi256_si128(xmmUnpackedHi);       //  lower  16 x i8
+                __m128i unpacked32HiLo = _mm256_extractf128_si256(xmmUnpackedHi, 1);  //  higher 16 x i8
+
+                // converting to 32 x f16
+                __m128i f16LoLo[] = {avx2_u8tof16_hi(unpacked32LoLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32LoLo, zvalVec, svalVec)};
+
+                __m128i f16LoHi[] = {
+                    avx2_u8tof16_hi(unpacked32LoHi, zvalVec, svalVec),
+                    avx2_u8tof16_lo(unpacked32LoHi, zvalVec, svalVec),
+                };
+
+                __m128i f16HiLo[] = {avx2_u8tof16_hi(unpacked32HiLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiLo, zvalVec, svalVec)};
+                __m128i f16HiHi[] = {avx2_u8tof16_hi(unpacked32HiHi, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiHi, zvalVec, svalVec)};
+
+                // interleaving back
+                __m128i interleaved[] = {_mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]),
+                                         _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1])};
+
+                // store the results
+                _mm_storeu_si128(outv[0], interleaved[0]);
+                _mm_storeu_si128(outv[1], interleaved[1]);
+                _mm_storeu_si128(outv[2], interleaved[2]);
+                _mm_storeu_si128(outv[3], interleaved[3]);
+                _mm_storeu_si128(outv[4], interleaved[4]);
+                _mm_storeu_si128(outv[5], interleaved[5]);
+                _mm_storeu_si128(outv[6], interleaved[6]);
+                _mm_storeu_si128(outv[7], interleaved[7]);
+
+                pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
+                pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
+            }  // for(index)
+            pSclLocal += scale_elem_type.size();
+            if (sindex % 2 == 1) {
+                pZerLocal += zerop_elem_type.size();
+            }
+        }  // for(sindex)
+    };
+
+    size_t stride{1};
+
+    // since scaling is always 64 elements aligned operations, lets partition only in scale shape
+    if (unpack_options.nPartitions) {
+        std::size_t minPartitions;
+        if (!unpack_options.bStrictPartitioning) {
+            // some heuristics that every tbb thread workload has to have 2048 x intrinsics operations at least,
+            // so in terms of stride, it should be nElementsPerscale/64 * 2048
+            const auto nIntrinsicsPerScale = elementsPerScale / 64u;
+            auto minScaleStride = 2048u / nIntrinsicsPerScale;
+            minScaleStride = std::max<std::size_t>(1u, minScaleStride);
+            minPartitions = stotal / minScaleStride;
+            minPartitions = std::max<std::size_t>(1u, minPartitions);
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+        } else {
+            minPartitions = unpack_options.nPartitions;
+        }
+
+        // calculating stride in scale elements space
+        stride = static_cast<size_t>(stotal / minPartitions);
+    }
+
+    const size_t numWork = (stotal + stride - 1) / stride;
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(numWork, [unpack_body, stride](size_t index) {
+            unpack_body(index, stride);
+        });
+    } else {
+        for (std::size_t index = 0; index < numWork; index++) {
+            unpack_body(index, stride);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
+                                           const ov::SoPtr<ov::ITensor>& zerop,
+                                           const ov::SoPtr<ov::ITensor>& scale,
+                                           const ov::SoPtr<ov::ITensor>& to,
+                                           const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    // Only single-size ZP is supported
+    NPUW_ASSERT(zerop->get_size() == 1);
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+    NPUW_ASSERT(scale_shape[2] == from_shape[2]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::f32);
+    NPUW_ASSERT(scale_elem_type == ov::element::f32);
+
+#if defined(HAVE_AVX2)
+    // This conversion combines u4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const size_t C = from_shape[from_shape.size() - 3];
+    const size_t H = from_shape[from_shape.size() - 2];
+    const size_t W = from_shape[from_shape.size() - 1];
+
+    const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4  elements
+    const float* const pScl = static_cast<float*>(scale->data());     // 1 x f32 element
+    int16_t* pDst = static_cast<int16_t*>(to->data());                // 1 x f16 element
+
+    const float zval = avx2_load_f32(reinterpret_cast<const int8_t*>(zerop->data()), zerop_elem_type);
+    __m256 zvalVec = _mm256_set1_ps(zval);
+
+    auto unpack_body = [&](size_t job_index, size_t stride) {
+        size_t start_c = job_index * stride;
+        size_t end_c = std::min(C, start_c + stride);
+
+        for (size_t c = start_c; c < end_c; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; w += 64) {
+                    const uint8_t* pSrc_iter = pSrc + (w + W * h + W * H * c) / 2;
+                    __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
+                    const float* pScl_iter = pScl + w + W * c;
+                    int16_t* pDst_iter = pDst + w + W * h + W * H * c;
+
+                    __m256 svalVec[8];
+                    for (int i = 0; i < 8; ++i) {
+                        svalVec[i] = _mm256_loadu_ps(pScl_iter + i * 8);
+                    }
+
+                    // vectorized unpack u4 to f16
+                    __m128i htmp[8];  // 64 x f16
+                    avx2_u4tof16(vinput, htmp, zvalVec, svalVec);
+
+                    for (int i = 0; i < 8; ++i) {
+                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst_iter + i * 8), htmp[i]);
+                    }
+                }
+            }
+        }
+    };
+
+    size_t stride = C;
+    size_t num_jobs = 1;
+
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+            num_jobs = unpack_options.nPartitions;
+        } else {
+            stride = std::max<size_t>(1, C / unpack_options.nPartitions);
+            num_jobs = (C + stride - 1) / stride;
+        }
+    }
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(num_jobs, [&](size_t job_index) {
+            unpack_body(job_index, stride);
+        });
+    } else {
+        for (size_t job_index = 0; job_index < num_jobs; ++job_index) {
+            unpack_body(job_index, stride);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& to,
+                                         const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const uint8_t* pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4 elements
+    float* pDst = static_cast<float*>(to->data());              // 1 x f32 element
+
+    const std::size_t total = from->get_size();
+    for (std::size_t index = 0; index < total; index += 2) {
+        pDst[0] = static_cast<float>(lo4(*pSrc));  // LSB is [0] - since OpenVINO 2024.0!
+        pDst[1] = static_cast<float>(hi4(*pSrc));  // MSB is [1] - since OpenVINO 2024.0!
+        pSrc++;
+        pDst += 2;
+    }
+}
+
+void ov::npuw::util::XARCH::unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& to,
+                                         const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_size() % 8 == 0);
+
+#if defined(HAVE_AVX2)
+    constexpr std::size_t VECSIZE = 8;
+
+    const std::size_t total = from->get_size();
+    const int8_t* pSrc = from->data<int8_t>();
+    int16_t* pDst = static_cast<int16_t*>(to->data());
+
+    for (std::size_t index = 0; index < total; index += VECSIZE) {
+        const __m128i* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+        __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+        __m128i i8vec = _mm_loadl_epi64(pSrcV);  // load:    8 x i8  [ 64b of 128b]
+        __m128i f16vec = avx2_i8tof16(i8vec);
+        _mm_store_si128(pDstV, f16vec);  // store:   8 x f16 [128b]
+        pSrc += 8;
+        pDst += 8;
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_i8f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                                               const ov::SoPtr<ov::ITensor>& scale,
+                                               const ov::SoPtr<ov::ITensor>& to,
+                                               const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_size() % 8 == 0);
+    NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(scale->get_shape()[1] == 1);
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
+
+#if defined(HAVE_AVX2)
+    constexpr std::size_t VECSIZE = 8;
+
+    const std::size_t total = from->get_size();
+    const std::size_t stotal = scale->get_size();
+    const int8_t* pSrc = from->data<int8_t>();
+    const int8_t* pScl = static_cast<int8_t*>(scale->data());
+    int16_t* pDst = static_cast<int16_t*>(to->data());
+
+    for (std::size_t sindex = 0u; sindex < stotal; sindex++) {
+        __m256 svec = avx2_load_scale(pScl, scale_elem_type);
+        for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
+            const __m128i* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+            __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+            __m128i i8vec = _mm_loadl_epi64(pSrcV);      // load:    8 x i8  [ 64b of 128b]
+            __m128i f16vec = avx2_i8tof16(i8vec, svec);  // convert & scale
+            _mm_store_si128(pDstV, f16vec);              // store:   8 x f16 [128b]
+            pSrc += 8;
+            pDst += 8;
+        }  // index
+        pScl += scale_elem_type.size();
+    }  // sindex
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& zerop,
+                                         const ov::SoPtr<ov::ITensor>& scale,
+                                         const ov::SoPtr<ov::ITensor>& to,
+                                         const ov::npuw::util::UnpackOptions& _options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_size() % 8 == 0);
+    NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(scale->get_shape()[1] == 1);
+    NPUW_ASSERT(zerop->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(zerop->get_shape()[1] == 1);
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::u8);
+
+#if defined(HAVE_AVX2)
+    constexpr std::size_t VECSIZE = 8;
+
+    const std::size_t total = from->get_size();
+    const std::size_t stotal = scale->get_size();
+    const uint8_t* pSrc = from->data<uint8_t>();
+    const uint8_t* pZrp = zerop->data<uint8_t>();
+    const int8_t* pScl = static_cast<int8_t*>(scale->data());
+    int16_t* pDst = static_cast<int16_t*>(to->data());
+
+    for (std::size_t sindex = 0u; sindex < stotal; sindex++) {
+        __m256 svec = avx2_load_scale(pScl, scale_elem_type);
+        __m128i u8zp = _mm_set1_epi8(*pZrp);         // bcast:   8 x u8
+        __m256i u32zp = _mm256_cvtepu8_epi32(u8zp);  // i32 zero point
+        __m256 f32zp = _mm256_cvtepi32_ps(u32zp);    // f32 zero point
+        for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
+            const __m128i* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+            __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+            __m128i u8in = _mm_loadl_epi64(pSrcV);             // load:    8 x u8
+            __m128i f16vec = avx2_u8tof16(u8in, f32zp, svec);  // convert & scale
+            _mm_store_si128(pDstV, f16vec);                    // store:   8 x f16
+            pSrc += VECSIZE;
+            pDst += VECSIZE;
+        }  // index
+        pScl += scale_elem_type.size();
+        pZrp++;
+    }  // sindex
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(t.get_element_type() == ov::element::f32);
+    NPUW_ASSERT(t.get_size() % 8 == 0);
+    NPUW_ASSERT(t.is_continuous());
+
+    ov::Tensor tnew(ov::element::f16, shape);
+
+#if defined(HAVE_AVX2)
+    const float* psrc = t.data<float>();
+    uint8_t* pdst = static_cast<uint8_t*>(tnew.data());
+    const std::size_t nblocks = t.get_size() / 8;
+
+    ov::parallel_for(nblocks, [&](std::size_t i) {
+        const float* psrc_block = psrc + i * 8;
+        uint8_t* pdst_block = pdst + i * 16;  // 8 * 2 bytes for f16
+        __m256 vsrc = _mm256_loadu_ps(psrc_block);
+        __m128i vout = _mm256_cvtps_ph(vsrc, _MM_FROUND_TO_NEAREST_INT);
+        __m128i* pout = reinterpret_cast<__m128i*>(pdst_block);
+        _mm_storeu_si128(pout, vout);
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+    return tnew;
+}
+
+void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to) {
+#if defined(HAVE_AVX2)
+    constexpr uint32_t BLOCK_SIZE = sizeof(__m256i) / sizeof(uint16_t);
+
+    OPENVINO_ASSERT(from->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(from->is_continuous());
+    OPENVINO_ASSERT(from->get_size() % BLOCK_SIZE == 0);
+    OPENVINO_ASSERT(from->get_shape().size() == 4u);
+    OPENVINO_ASSERT(from->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(to->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(to->get_shape().size() == 4u);
+    OPENVINO_ASSERT(to->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(from->get_shape()[1] == to->get_shape()[1]);
+    OPENVINO_ASSERT(from->get_shape()[2] == to->get_shape()[2]);
+
+    const auto* pSrc = reinterpret_cast<uint16_t*>(from->data());
+    auto* pDst = reinterpret_cast<uint16_t*>(to->data());
+
+    const auto row_step = to->get_strides()[2] / sizeof(uint16_t);
+    for (size_t k = 0; k < from->get_size(); k += BLOCK_SIZE) {
+        const uint16_t* pSrcBlock = pSrc + k;
+        __m256i vsrc = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcBlock));
+        // NB: Assign particular byte from the block to the column
+        pDst[0 * row_step] = _mm256_extract_epi16(vsrc, 0);
+        pDst[1 * row_step] = _mm256_extract_epi16(vsrc, 1);
+        pDst[2 * row_step] = _mm256_extract_epi16(vsrc, 2);
+        pDst[3 * row_step] = _mm256_extract_epi16(vsrc, 3);
+        pDst[4 * row_step] = _mm256_extract_epi16(vsrc, 4);
+        pDst[5 * row_step] = _mm256_extract_epi16(vsrc, 5);
+        pDst[6 * row_step] = _mm256_extract_epi16(vsrc, 6);
+        pDst[7 * row_step] = _mm256_extract_epi16(vsrc, 7);
+        pDst[8 * row_step] = _mm256_extract_epi16(vsrc, 8);
+        pDst[9 * row_step] = _mm256_extract_epi16(vsrc, 9);
+        pDst[10 * row_step] = _mm256_extract_epi16(vsrc, 10);
+        pDst[11 * row_step] = _mm256_extract_epi16(vsrc, 11);
+        pDst[12 * row_step] = _mm256_extract_epi16(vsrc, 12);
+        pDst[13 * row_step] = _mm256_extract_epi16(vsrc, 13);
+        pDst[14 * row_step] = _mm256_extract_epi16(vsrc, 14);
+        pDst[15 * row_step] = _mm256_extract_epi16(vsrc, 15);
+        pDst += BLOCK_SIZE * row_step;
+    }
+#else
+    from->copy_to(to._ptr);
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    size_t c_step = 8;
+    size_t r_step = 8;
+
+    size_t cols32 = cols / c_step;
+    size_t rows32 = rows / r_step;
+
+    // lambda: get int32 pointer for each row of src.
+    auto get_src_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<const int32_t*>(&src[(r * r_step + i) * (cols / 2)])[c];
+    };
+    // lambda: get int32 pointer for each column of dst.
+    auto get_dst_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<int32_t*>(&dst[(c * c_step + i) * (rows / 2)]) + r;
+    };
+
+    // Main block processing.
+    for (size_t c = 0; c < cols32; ++c) {
+        for (size_t r = 0; r < rows32; ++r) {
+            // For each row of src, recalculate the pointer.
+            __m256i column = _mm256_set_epi32(get_src_int32(r, c, 7),
+                                              get_src_int32(r, c, 6),
+                                              get_src_int32(r, c, 5),
+                                              get_src_int32(r, c, 4),
+                                              get_src_int32(r, c, 3),
+                                              get_src_int32(r, c, 2),
+                                              get_src_int32(r, c, 1),
+                                              get_src_int32(r, c, 0));
+
+            for (int i = 0; i < 8; ++i) {
+                __m256i shifted = _mm256_srli_epi32(column, 4 * i);
+                *get_dst_int32(r, c, i) = pack_4bit_avx2_reduction(shifted);
+            }
+        }
+    }
+
+    size_t tail_cols = cols % c_step;
+    size_t tail_rows = rows % r_step;
+
+    auto naive_transpose = [&](size_t r_start, size_t r_end, size_t c_start, size_t c_end) {
+        for (size_t r = r_start; r < r_end; ++r) {
+            for (size_t c = c_start; c < c_end; ++c) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
+            }
+        }
+    };
+
+    if (tail_cols > 0) {
+        naive_transpose(0, rows - tail_rows, cols - tail_cols, cols);
+    }
+    if (tail_rows > 0) {
+        naive_transpose(rows - tail_rows, rows, 0, cols - tail_cols);
+    }
+    if (tail_cols > 0 && tail_rows > 0) {
+        naive_transpose(rows - tail_rows, rows, cols - tail_cols, cols);
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    const size_t blockSize = 16;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(cols, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= rows; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256i gathered = _mm256_set_epi16(src[(r + 15) * cols + c],
+                                                src[(r + 14) * cols + c],
+                                                src[(r + 13) * cols + c],
+                                                src[(r + 12) * cols + c],
+                                                src[(r + 11) * cols + c],
+                                                src[(r + 10) * cols + c],
+                                                src[(r + 9) * cols + c],
+                                                src[(r + 8) * cols + c],
+                                                src[(r + 7) * cols + c],
+                                                src[(r + 6) * cols + c],
+                                                src[(r + 5) * cols + c],
+                                                src[(r + 4) * cols + c],
+                                                src[(r + 3) * cols + c],
+                                                src[(r + 2) * cols + c],
+                                                src[(r + 1) * cols + c],
+                                                src[(r + 0) * cols + c]);
+
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + c * rows + r), gathered);
+        }
+        for (; r < rows; ++r) {
+            dst[c * rows + r] = src[r * cols + c];
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(cols, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= rows; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256 gathered = _mm256_set_ps(src[(r + 7) * cols + c],
+                                            src[(r + 6) * cols + c],
+                                            src[(r + 5) * cols + c],
+                                            src[(r + 4) * cols + c],
+                                            src[(r + 3) * cols + c],
+                                            src[(r + 2) * cols + c],
+                                            src[(r + 1) * cols + c],
+                                            src[(r + 0) * cols + c]);
+
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_ps(&dst[c * rows + r], gathered);
+        }
+        for (; r < rows; ++r) {
+            dst[c * rows + r] = src[r * cols + c];
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                                               const ov::SoPtr<ov::ITensor>& scale,
+                                               const ov::SoPtr<ov::ITensor>& to,
+                                               const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+
+    const auto from_shape = from->get_shape();
+    const auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(scale_shape.size() >= 2);
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto ftype = from->get_element_type();
+    NPUW_ASSERT(ftype == ov::element::f8e4m3 || ftype == ov::element::f8e5m2 || ftype == ov::element::f8e8m0);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
+    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
+
+    const size_t total = from->get_size();    // total number of f8 elements
+    const size_t stotal = scale->get_size();  // number of scale factors
+    NPUW_ASSERT(total % stotal == 0);
+    const size_t elemsPerScale = total / stotal;  // elements governed by one scale
+    NPUW_ASSERT(elemsPerScale > 0);
+
+#if defined(HAVE_AVX2)
+    const uint8_t* src = static_cast<uint8_t*>(from->data());
+    const float* scl = static_cast<float*>(scale->data());
+    uint16_t* dst = static_cast<uint16_t*>(to->data());
+
+    const size_t VEC = 16;  // vector width (16 x f8 -> 16 x f16)
+    // Vector convert helper: load 16 f8 -> 16 f16, apply uniform scale
+    auto convert_block = [&](const uint8_t* bsrc, uint16_t* bdst, float scale_val) {
+        __m128i vf8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(bsrc));
+        __m256i vf16_bits;
+        switch (ftype) {
+        case ov::element::f8e4m3:
+            vf16_bits = f8e4m3tof16(vf8);
+            break;
+        case ov::element::f8e5m2:
+            vf16_bits = f8e5m2tof16(vf8);
+            break;
+        case ov::element::f8e8m0:
+            vf16_bits = f8e8m0tof16(vf8);
+            break;
+        default:
+            NPUW_ASSERT(false);
+            return;
+        }
+
+        // Split into two 128-bit halves (each holds 8 f16)
+        __m128i h_lo = _mm256_castsi256_si128(vf16_bits);
+        __m128i h_hi = _mm256_extracti128_si256(vf16_bits, 1);
+
+        // Convert to float32
+        __m256 f_lo = _mm256_cvtph_ps(h_lo);
+        __m256 f_hi = _mm256_cvtph_ps(h_hi);
+
+        // Apply scale
+        __m256 svec = _mm256_set1_ps(scale_val);
+        f_lo = _mm256_mul_ps(f_lo, svec);
+        f_hi = _mm256_mul_ps(f_hi, svec);
+
+        // Back to f16
+        __m128i out_lo = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
+        __m128i out_hi = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
+
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst), out_lo);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst + 8), out_hi);
+    };
+
+    // Work partitioning over scale dimension (similar pattern to other unpack_*_scale functions)
+    size_t stride = 1;
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride = (stotal + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+        } else {
+            // Heuristic: ensure minimum intrinsic workload per thread.
+            // Require at least 2048 vector blocks per thread (if possible).
+            size_t vecBlocksPerScale = elemsPerScale / VEC;
+            if (vecBlocksPerScale == 0)
+                vecBlocksPerScale = 1;
+            size_t minScaleStride = 2048 / vecBlocksPerScale;
+            if (minScaleStride == 0)
+                minScaleStride = 1;
+            size_t minPartitions = stotal / minScaleStride;
+            if (minPartitions == 0)
+                minPartitions = 1;
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+            stride = stotal / minPartitions;
+            if (stride == 0)
+                stride = 1;
+        }
+    }
+    const size_t numWork = (stotal + stride - 1) / stride;
+
+    auto unpack_body = [&](size_t workIndex) {
+        size_t start = workIndex * stride;
+        size_t end = std::min(stotal, start + stride);
+        for (size_t s = start; s < end; ++s) {
+            const float scale_val = scl[s];
+            const uint8_t* src_scale_base = src + s * elemsPerScale;
+            uint16_t* dst_scale_base = dst + s * elemsPerScale;
+
+            size_t vecBlocks = elemsPerScale / VEC;
+            size_t tail = elemsPerScale % VEC;
+
+            // Vector path
+            for (size_t b = 0; b < vecBlocks; ++b) {
+                convert_block(src_scale_base + b * VEC, dst_scale_base + b * VEC, scale_val);
+            }
+
+            // Tail (scalar fallback)
+            if (tail) {
+                size_t offset = vecBlocks * VEC;
+                for (size_t t = 0; t < tail; ++t) {
+                    uint8_t v = src_scale_base[offset + t];
+                    uint16_t h;
+                    // Lossy direct mapping for tail (no special cases like NaN/Inf)
+                    if (ftype == ov::element::f8e4m3) {
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x78) >> 3;
+                        uint8_t man = (v & 0x07);
+                        int16_t exp16 = exp + 8;
+                        h = static_cast<uint16_t>((sign << 15) | (exp16 << 10) | (man << 7));
+                    } else if (ftype == ov::element::f8e5m2) {
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x7C) >> 2;
+                        uint8_t man = (v & 0x03);
+                        h = static_cast<uint16_t>((sign << 15) | (exp << 10) | (man << 8));
+                    } else {  // f8e8m0
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x7F);
+                        int16_t exp16 = static_cast<int16_t>(exp) - 112;
+                        h = static_cast<uint16_t>((sign << 15) | ((exp16 & 0x1F) << 10));
+                    }
+                    // Convert single f16 -> f32 -> scale -> f16
+                    __m128i hvec = _mm_cvtsi32_si128(h);
+                    __m256 f32v = _mm256_cvtph_ps(hvec);
+                    float fval = _mm_cvtss_f32(_mm256_castps256_ps128(f32v)) * scale_val;
+                    __m256 scaled = _mm256_set1_ps(fval);
+                    __m128i out_h = _mm256_cvtps_ph(scaled, _MM_FROUND_TO_NEAREST_INT);
+                    dst_scale_base[offset + t] = static_cast<uint16_t>(_mm_cvtsi128_si32(out_h));
+                }
+            }
+        }
+    };
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(numWork, [&](size_t wi) {
+            unpack_body(wi);
+        });
+    } else {
+        for (size_t wi = 0; wi < numWork; ++wi) {
+            unpack_body(wi);
+        }
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}

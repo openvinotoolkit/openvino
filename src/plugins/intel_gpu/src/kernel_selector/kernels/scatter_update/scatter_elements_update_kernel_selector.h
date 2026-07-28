@@ -1,0 +1,23 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "kernel_selector.h"
+
+namespace kernel_selector {
+class scatter_elements_update_kernel_selector : public kernel_selector_base {
+public:
+    static scatter_elements_update_kernel_selector& Instance() {
+        static scatter_elements_update_kernel_selector instance_;
+        return instance_;
+    }
+
+    scatter_elements_update_kernel_selector();
+
+    ~scatter_elements_update_kernel_selector() override = default;
+
+    KernelsData GetBestKernels(const Params& params) const override;
+};
+}  // namespace kernel_selector

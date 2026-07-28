@@ -1,0 +1,6 @@
+hf-internal-testing/tiny-random-LlamaForCausalLM,https://huggingface.co/trl-internal-testing/tiny-random-LlamaForCausalLM
+hf-internal-testing/tiny-random-StableLmForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-StableLmForCausalLM
+hf-internal-testing/tiny-random-PhiForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PhiForCausalLM
+hf-internal-testing/tiny-random-CodeGenForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CodeGenForCausalLM
+hf-internal-testing/tiny-random-Starcoder2ForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-Starcoder2ForCausalLM
+hf-internal-testing/tiny-random-OPTForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-OPTForCausalLM

@@ -1,0 +1,23 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <kernel_selector.h>
+
+namespace kernel_selector {
+class experimental_detectron_prior_grid_generator_kernel_selector : public kernel_selector_base {
+public:
+    static experimental_detectron_prior_grid_generator_kernel_selector& Instance() {
+        static experimental_detectron_prior_grid_generator_kernel_selector instance_;
+        return instance_;
+    }
+
+    experimental_detectron_prior_grid_generator_kernel_selector();
+
+    ~experimental_detectron_prior_grid_generator_kernel_selector() override = default;
+
+    KernelsData GetBestKernels(const Params& params) const override;
+};
+}  // namespace kernel_selector

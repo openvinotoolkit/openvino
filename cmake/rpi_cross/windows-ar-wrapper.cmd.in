@@ -1,0 +1,6 @@
+@echo off
+REM Copyright (C) 2018-2026 Intel Corporation
+REM SPDX-License-Identifier: Apache-2.0
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "@OV_RPI_AR_WRAPPER_PS1_NATIVE@" -RealTool "@OV_RPI_WRAPPER_REAL_TOOL_NATIVE@" %*
+exit /b %ERRORLEVEL%

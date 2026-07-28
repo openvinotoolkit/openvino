@@ -1,0 +1,33 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+#include <memory>
+
+#include "openvino/openvino.hpp"
+
+namespace ov ::npuw ::util {
+
+/*
+ * special mark on nodes to be remain in high-precision for optimal processing
+ */
+class HighPrecisionAttr : public RuntimeAttribute {
+public:
+    OPENVINO_RTTI("HighPrecisionAttr", "0", RuntimeAttribute);
+    ov::element::Type compute_precision_type;
+
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        visitor.on_attribute("compute_precision", compute_precision_type);
+        return true;
+    }
+};
+
+constexpr const char* kVisualPosMasksParamName = "visual_pos_masks";
+constexpr const char* kDeepstackVisualEmbedsParamName = "deepstack_visual_embeds";
+
+bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
+
+// clang-format off
+}  // namespace ov
+// clang-format on

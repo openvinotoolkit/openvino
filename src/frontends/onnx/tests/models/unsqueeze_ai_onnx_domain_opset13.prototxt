@@ -1,0 +1,84 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "AXIS"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 6
+        int32_data: 0
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: "AXIS"
+    output: "Y"
+    op_type: "Unsqueeze"
+  }
+  name: "test-model-unsqueeze"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "AXIS"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "ai.onnx"
+  version: 13
+}
+

@@ -1,0 +1,150 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import pytest
+import torch
+
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+
+
+class TestSplit(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(1, 10, 224, 224),)
+
+    def create_model_split_getitem(self):
+        class aten_split(torch.nn.Module):
+            def __init__(self, split, axis, getitem):
+                super().__init__()
+                self.split = split
+                self.axis = axis
+                self.getitem = getitem
+
+            def forward(self, input):
+                return torch.split(input, self.split, self.axis)[self.getitem]
+
+        return (
+            aten_split(self.split_param, self.axis, self.getitem),
+            "aten::split",
+        )
+
+    def create_model_split_listunpack(self):
+        class aten_split(torch.nn.Module):
+            def __init__(self, split, axis):
+                super().__init__()
+                self.split = split
+                self.axis = axis
+
+            def forward(self, input):
+                # Hardcode to test with ListUnpack
+                a, b, c, d, e = torch.split(input, self.split, self.axis)
+                return b
+
+        return aten_split(self.split_param, self.axis), "aten::split"
+
+    # Test case - (split_param, axis), always split into 5 due to hardcoded number of outputs in ListUnpack test.
+    test_cases = [
+        (2, 1),
+        (45, 2),
+        (45, -1),
+        # the following test cases produce split_with_sizes for FX
+        skip_if_export(([2, 2, 2, 2, 2], 1)),
+        skip_if_export(([200, 20, 1, 1, 2], 2)),
+        skip_if_export(([20, 200, 1, 1, 2], -1)),
+    ]
+
+    @pytest.mark.parametrize("params", test_cases)
+    @pytest.mark.parametrize("getitem", [-5, -2, -1, 0, 1, 4])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
+        (self.split_param, self.axis) = params
+        self.getitem = getitem
+        self._test(*self.create_model_split_getitem(),
+                   ie_device, precision, ir_version)
+
+    @pytest.mark.parametrize("params", test_cases)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_split_listunpack(self, params, ie_device, precision, ir_version):
+        (self.split_param, self.axis) = params
+        self._test(
+            *self.create_model_split_listunpack(), ie_device, precision, ir_version
+        )
+
+
+class TestSplitWithSizes(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(20),self.random.randn(20))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes(torch.nn.Module):
+            def forward(self, x, y):
+                return x.split([y.shape[0]], dim=0)
+
+        return aten_split_with_sizes(), ["aten::split_with_sizes", "prim::ListConstruct"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_split_with_sizes(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes.default")
+
+
+class TestSplitWithSizesCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(20),self.random.randn(20))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes_copy(torch.nn.Module):
+            def forward(self, x, y):
+                return torch.split_with_sizes_copy(x, [y.shape[0]], dim=0)
+
+
+        return aten_split_with_sizes_copy(), ["aten::split_with_sizes_copy", "prim::ListConstruct"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_split_with_sizes_copy(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes_copy.default")
+
+
+class TestSplitWithSizesComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(20, 2),
+                self.random.randn(5))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes(torch.nn.Module):
+            def forward(self, x, y):
+                x = torch.view_as_complex(x)
+                x1, x2, x3, x4 = x.split([y.shape[0], y.shape[0], y.shape[0], y.shape[0]], dim=0)
+                return (torch.view_as_real(x1),
+                        torch.view_as_real(x2),
+                        torch.view_as_real(x3),
+                        torch.view_as_real(x4))
+
+        return aten_split_with_sizes(), ["aten::split_with_sizes", "prim::ListConstruct"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_split_with_sizes_complex(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes.default")

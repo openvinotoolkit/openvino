@@ -1,0 +1,47 @@
+<cases>
+
+    <device name="CPU" iterations="5000" processes="1" threads="1">
+        <model name="alexnet" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="CPU" iterations="5000" processes="1" threads="1">
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="CPU" iterations="5000" processes="1" threads="1">
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="GPU" iterations="5000" processes="1" threads="1">
+        <model name="alexnet" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="GPU" iterations="5000" processes="1" threads="1">
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="GPU" iterations="5000" processes="1" threads="1">
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="5000" processes="1" threads="1">
+        <model name="bert-base-ner" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="5000" processes="1" threads="1">
+        <model name="bert-base-ner" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="5000" processes="1" threads="1">
+        <model name="alexnet" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+    </device>
+    
+    <device name="GPU" iterations="5000" processes="1" threads="1">
+        <model name="alexnet" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+    </device>
+
+</cases>

@@ -1,0 +1,15 @@
+on:
+  merge_group:
+
+permissions: read-all
+
+jobs:
+  merge_group_stub_check:
+    name: ci/jenkins
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    if: ${{ github.event_name == 'merge_group' }}
+    steps:
+      - run: echo "Just a stub check to keep Jenkins running in pre-commits but not in merge queue"

@@ -1,0 +1,97 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import pytest
+
+from pytorch_layer_test_class import PytorchLayerTest
+
+
+class TestLayerNorm(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(20, 5, 10, 10),)
+
+    def create_model(self, normalized_shape, weight, bias, eps):
+        import torch
+        import torch.nn.functional as F
+
+        if weight == "ones":
+            weight = torch.ones(normalized_shape)
+
+        if weight == "random":
+            weight = self.random.torch_randn(*normalized_shape)
+
+        if bias == "zeros":
+            bias = torch.zeros(normalized_shape)
+
+        if bias == "random":
+            bias = self.random.torch_randn(*normalized_shape)
+
+        class aten_layer_norm(torch.nn.Module):
+            def __init__(self, normalized_shape, weight, bias, eps):
+                super().__init__()
+                self.normalized_shape = normalized_shape
+                self.weight = weight
+                self.bias = bias
+                self.eps = eps
+
+            def forward(self, x):
+                return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+
+
+        return aten_layer_norm(normalized_shape, weight, bias, eps), "aten::layer_norm"
+
+    @pytest.mark.parametrize("normalized_shape", [[10,], [10, 10], [5, 10, 10]])
+    @pytest.mark.parametrize("weight", [None, "ones", "random"])
+    @pytest.mark.parametrize("bias", [None, "zeros", "random"])
+    @pytest.mark.parametrize("eps", [1e-5, 0.005])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_layer_norm(self, normalized_shape, weight, bias, eps, ie_device, precision, ir_version):
+        self._test(*self.create_model(normalized_shape, weight, bias, eps), ie_device, precision, ir_version)
+
+
+class TestLayerNormMixedPrecision(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(20, 5, 10, 10),)
+
+    def create_model(self, normalized_shape, input_dtype, with_bias):
+        import torch
+        import torch.nn.functional as F
+
+        weight = self.random.torch_randn(*normalized_shape)
+        bias = self.random.torch_randn(*normalized_shape) if with_bias else None
+
+        class aten_layer_norm_mixed(torch.nn.Module):
+            def __init__(self, normalized_shape, weight, bias, input_dtype):
+                super().__init__()
+                self.normalized_shape = normalized_shape
+                self.weight = weight
+                self.bias = bias
+                self.input_dtype = input_dtype
+
+            def forward(self, x):
+                x = x.to(self.input_dtype)
+                out = F.layer_norm(x, self.normalized_shape, self.weight, self.bias, 1e-5)
+                return out.to(torch.float32)
+
+        return aten_layer_norm_mixed(normalized_shape, weight, bias, input_dtype), "aten::layer_norm"
+
+    @pytest.mark.parametrize("normalized_shape", [[10,], [10, 10]])
+    @pytest.mark.parametrize("input_dtype", ["float16", "bfloat16"])
+    @pytest.mark.parametrize("with_bias", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_layer_norm_mixed_precision(self, normalized_shape, input_dtype, with_bias, ie_device, precision, ir_version):
+        import torch
+
+        torch_dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16}[input_dtype]
+        custom_eps = 1e-2 if input_dtype == "float16" else 5e-2
+        self._test(
+            *self.create_model(normalized_shape, torch_dtype, with_bias),
+            ie_device,
+            precision,
+            ir_version,
+            custom_eps=custom_eps,
+        )

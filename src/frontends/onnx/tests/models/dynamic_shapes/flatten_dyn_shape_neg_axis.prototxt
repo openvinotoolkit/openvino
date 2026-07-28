@@ -1,0 +1,36 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  name: "Dynamic Flatten"
+  node {
+    input: "A"
+    output: "flatten_out"
+    name: "FlattenNode"
+    op_type: "Flatten"
+    attribute {
+      name: "axis"
+      i: -3
+      type: INT
+    }
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "flatten_out"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

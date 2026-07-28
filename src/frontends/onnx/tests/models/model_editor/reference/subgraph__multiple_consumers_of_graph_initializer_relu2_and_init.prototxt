@@ -1,0 +1,103 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "in1"
+    output: "relu1"
+    name: "add1"
+    op_type: "Relu"
+  }
+  node {
+    input: "in1"
+    output: "relu2"
+    op_type: "Relu"
+  }
+  node {
+    input: "in2"
+    output: "relu3"
+    op_type: "Relu"
+  }
+  node {
+    input: "in2"
+    output: "relu4"
+    name: "relu4_name"
+    op_type: "Relu"
+  }
+  node {
+    input: "relu1"
+    input: "relu2"
+    output: "add1"
+    name: "add1_name"
+    op_type: "Add"
+  }
+  node {
+    input: "add2/placeholder_port_0"
+    input: "relu3"
+    output: "add2"
+    op_type: "Add"
+  }
+  name: "subgraph_extraction_testing"
+  input {
+    name: "in1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "in2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "add2/placeholder_port_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "add1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "add2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "relu4"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

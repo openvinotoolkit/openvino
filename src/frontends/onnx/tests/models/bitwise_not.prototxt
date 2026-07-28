@@ -1,0 +1,41 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    output: "y"
+    name: "BitwiseNotNode"
+    op_type: "BitwiseNot"
+  }
+  name: "BitwiseNotGraph"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 16
+}

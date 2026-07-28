@@ -1,0 +1,52 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  node {
+    name: "non_zero"
+    input: "A"
+    output: "out"
+    op_type: "NonZero"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+        }
+      }
+    }
+  }
+  initializer {
+    data_type: 1
+    name: "A"
+    dims: 10
+    float_data: -1234.567
+    float_data: -0.5
+    float_data: 0.0
+    float_data: 0.1
+    float_data: 0.01
+    float_data: 0.001
+    float_data: 0.0001
+    float_data: 0.00001
+    float_data: 0.000001
+    float_data: 0.0000001
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+  name: "non_zero_1d_float"
+}
+opset_import {
+  domain: ""
+  version: 9
+}

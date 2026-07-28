@@ -1,0 +1,64 @@
+ir_version: 5
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    output: "input_ReduceMin"
+    op_type: "ReduceMin"
+    attribute {
+      name: "keepdims"
+      i: 0
+      type: INT
+    }
+  }
+  node {
+    input: "input"
+    output: "input_ReduceMax"
+    op_type: "ReduceMax"
+    attribute {
+      name: "keepdims"
+      i: 0
+      type: INT
+    }
+  }
+  node {
+    input: "input_ReduceMax"
+    input: "input_ReduceMin"
+    output: "input_scale_Sub"
+    op_type: "Sub"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "unk"
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 224
+          }
+          dim {
+            dim_value: 224
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "input_scale_Sub"
+    type {
+      tensor_type {
+        elem_type: 0
+      }
+    }
+  }
+}
+opset_import {
+  domain: "ai.onnx"
+  version: 10
+}

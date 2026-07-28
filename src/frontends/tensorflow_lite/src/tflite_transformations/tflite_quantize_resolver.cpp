@@ -1,0 +1,297 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "tflite_transformations/tflite_quantize_resolver.hpp"
+
+#include <memory>
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "tflite_ops/tflite_quantize.hpp"
+#include "utils.hpp"
+
+using namespace std;
+using namespace ov::pass;
+using namespace ov::op;
+using namespace ov::pass::pattern;
+using namespace ov::frontend::tensorflow_lite;
+
+pass::TFLQuantizeConvert::TFLQuantizeConvert() {
+    auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
+    auto convert_label = wrap_type<v0::Convert>({tfl_quantize_label});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto pattern_map = m.get_pattern_map();
+        auto tfl_quantize_node = pattern_map.at(tfl_quantize_label);
+        auto convert_node = pattern_map.at(convert_label);
+        auto convert = ov::as_type_ptr<v0::Convert>(convert_node);
+        if (!convert)
+            return false;
+        auto type = convert->get_destination_type();
+        if (!type.is_real())
+            return false;
+        auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
+        if (!tfl_quantize)
+            return false;
+
+        const auto replace_f32_convert = [](const std::shared_ptr<v0::Convert>& consumer_convert,
+                                            const std::shared_ptr<TFLQuantize>& producer) -> bool {
+            if (!consumer_convert || !consumer_convert->get_destination_type().is_real())
+                return false;
+            consumer_convert->input(0).replace_source_output(producer->output(0));
+            consumer_convert->output(0).replace(producer->output(0));
+            ov::copy_runtime_info(consumer_convert, producer);
+            return true;
+        };
+
+        auto output_targets = tfl_quantize->get_output_target_inputs(0);
+
+        // Matcher guarantees at least one Convert consumer for this TFLQuantize.
+        if (output_targets.size() == 1) {
+            tfl_quantize->set_type(type);
+            if (!replace_f32_convert(convert, tfl_quantize))
+                return false;
+            tfl_quantize->set_friendly_name(convert->get_friendly_name());
+            return true;
+        }
+
+        // If there are multiple consumers of TFLQuantize, we cannot just change its output type to f32.
+        auto new_tfl_quantize = std::make_shared<TFLQuantize>(tfl_quantize->input_value(0),
+                                                              tfl_quantize->get_info(),
+                                                              tfl_quantize->get_original_type());
+        new_tfl_quantize->set_type(type);
+        // Seed new node with original TFLQuantize RT info before replacing consumers.
+        ov::copy_runtime_info(tfl_quantize, new_tfl_quantize);
+        bool replaced = false;
+        std::shared_ptr<v0::Convert> first_replaced_convert;
+        for (const auto& target : output_targets) {
+            auto consumer_convert = ov::as_type_ptr<v0::Convert>(target.get_node()->shared_from_this());
+            if (replace_f32_convert(consumer_convert, new_tfl_quantize)) {
+                if (!first_replaced_convert)
+                    first_replaced_convert = consumer_convert;
+                replaced = true;
+            }
+        }
+        if (first_replaced_convert) {
+            new_tfl_quantize->set_friendly_name(first_replaced_convert->get_friendly_name());
+        }
+        return replaced;
+    };
+
+    auto m =
+        std::make_shared<pattern::Matcher>(convert_label, "ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
+    register_matcher(m, callback);
+}
+
+ov::Shape get_quant_shape(const ov::Output<ov::Node>& output,
+                          const std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo>& quantization,
+                          const size_t& size) {
+    auto shape = ov::Shape{};
+    if (size > 1) {
+        FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(),
+                                "Per-Channel Quantization of tensor with dynamic rank");
+        auto rank = output.get_partial_shape().size();
+        auto axis = quantization->get_axis();
+        FRONT_END_GENERAL_CHECK(axis >= 0 && static_cast<size_t>(axis) < rank,
+                                "Per-Channel Quantization axis ",
+                                axis,
+                                " is out of range for tensor of rank ",
+                                rank);
+        shape = ov::Shape(rank, 1);
+        shape[static_cast<size_t>(axis)] = size;
+    }
+    return shape;
+}
+
+void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero_point, const ov::Shape& zp_shape) {
+    if (std::all_of(zero_point.begin(), zero_point.end(), [](const int64_t& i) {
+            return i == 0;
+        }))
+        return;
+    auto type = output.get_element_type();
+    if (type != ov::element::u8 && type != ov::element::i8)
+        return;
+    auto rank = output.get_partial_shape().size();
+    vector<int64_t> axes_vec(rank);
+    std::iota(axes_vec.begin(), axes_vec.end(), 0);
+
+    auto axes = v0::Constant::create(ov::element::i64, {axes_vec.size()}, axes_vec);
+    auto max_value = make_shared<v1::ReduceMax>(output, axes, false)->output(0);
+    auto min_value = make_shared<v1::ReduceMin>(output, axes, false)->output(0);
+
+    auto check_in_bounds = [&](ov::Output<ov::Node>& value) -> bool {
+        shared_ptr<v0::Constant> constant;
+        if (rank == 0) {
+            constant = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+        } else {
+            constant = ov::util::get_constant_from_source(value);
+        }
+        if (!constant)
+            return false;
+        auto weight = constant->cast_vector<int64_t>()[0];
+        return std::all_of(zero_point.begin(), zero_point.end(), [&](const int64_t& zp) {
+            auto new_value = weight - zp;
+            return new_value >= -128 && new_value <= 127;
+        });
+    };
+    if (!check_in_bounds(min_value) || !check_in_bounds(max_value))
+        return;
+    output = std::make_shared<v0::Convert>(output, ov::element::i32);
+    auto zp_node = v0::Constant::create(ov::element::i32, zp_shape, zero_point);
+    output = std::make_shared<v1::Subtract>(output, zp_node);
+    output = std::make_shared<v0::Convert>(output, ov::element::i8);
+    output = ov::util::get_constant_from_source(output);  // TODO: Check Me
+    zero_point = {0};
+}
+
+pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
+    const auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto pattern_map = m.get_pattern_map();
+        const auto& tfl_quantize_node = pattern_map.at(tfl_quantize_label);
+        const auto& tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
+        if (!tfl_quantize)
+            return false;
+        const auto& quantization = tfl_quantize->get_info();
+        FRONT_END_GENERAL_CHECK(
+            quantization != nullptr,
+            "Internal operation TFLQuantized representing quantized tensor doesn't have quantization details");
+
+        const auto in_type = tfl_quantize->get_input_element_type(0);
+        const auto out_type = tfl_quantize->get_type();
+
+        const auto is_constant =
+            ov::is_type<v0::Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
+
+        FRONT_END_GENERAL_CHECK(in_type == out_type || in_type.is_real() || out_type.is_real(),
+                                "TFLQuantized types do not match: in_type = ",
+                                in_type,
+                                " out_type = ",
+                                out_type);
+
+        // non constant case -- FQ case
+        Output<Node> output = tfl_quantize->get_input_source_output(0);
+
+        auto zp = quantization->get_zero_point();
+        const auto& scale = quantization->get_scale();
+
+        const auto& zp_shape = get_quant_shape(output, quantization, zp.size());
+        const auto& scale_shape = get_quant_shape(output, quantization, scale.size());
+
+        const auto& zp_node = v0::Constant::create(element::f32, zp_shape, zp);
+        const auto& scale_node = v0::Constant::create(element::f32, scale_shape, scale);
+
+        if (is_constant) {
+            // Dequantize constant weights directly into the requested floating type (f32 for typical
+            // models, f16 for fully float16 models) so the produced constant matches the consuming op.
+            const auto deq_type = out_type.is_real() ? out_type : element::f32;
+            const auto& const_scale = v0::Constant::create(deq_type, scale_shape, scale);
+            fuse_zp_to_weights(output, zp, zp_shape);
+            ov::Output<ov::Node> zp_input;
+            if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
+                    return i != 0;
+                })) {
+                zp_input = v0::Constant::create(deq_type, zp_shape, zp);
+            }
+            output = ov::decomposition::low_precision_dequantize(output, const_scale, zp_input);
+            tfl_quantize->output(0).replace(output);
+            return true;
+        }
+        if (!in_type.is_real()) {
+            output = make_shared<v0::Convert>(output, element::f32);
+        }
+
+        // Amount of levels for quantized original type, for example, for u/int8 - 256
+        const auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
+        const auto is_signed = tfl_quantize->get_original_type().is_signed();
+
+        // Lower bound for original type, for example, int8 - -128, uint8 - 0
+        const auto low = is_signed ? (-levels / 2) : 0;
+        // Upper bound for original type, for example, int8 - 127, uint8 - 255
+        const auto high = (is_signed ? levels / 2 : levels) - 1;
+
+        Output<Node> input_low, input_high, output_low, output_high;
+
+        if (!out_type.is_real()) {
+            /*
+                Quantize case when it must provide non-float output
+                Calculating default values for input/output low/high (example calculations for int8):
+                output_low = lower bound for original type (-128)
+                output_high = upper bound for original type (127)
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
+            output_low = v0::Constant::create(element::f32, {}, {low});
+            output_high = v0::Constant::create(element::f32, {}, {high});
+            input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
+            input_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
+        } else if (!in_type.is_real()) {
+            /*
+                Dequantize case when it must accept non-float input
+                Calculating default values for input/output low/high (example calculations for int8):
+                input_low = lower bound for original type (-128)
+                input_high = upper bound for original type (127)
+                output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
+            input_low = v0::Constant::create(element::f32, {}, {low});
+            input_high = v0::Constant::create(element::f32, {}, {high});
+            output_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_low, zp_node), scale_node);
+            output_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_high, zp_node), scale_node);
+        } else {
+            /*
+                Requantize (QDQ) case when both input and output are real (float) types
+                Calculating default values for input/output low/high (example calculations for int8):
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+                output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
+            output_low = v0::Constant::create(element::f32, {}, {low});
+            output_high = v0::Constant::create(element::f32, {}, {high});
+            input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
+            input_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
+            output_low = input_low;
+            output_high = input_high;
+        }
+
+        input_low = ov::util::get_constant_from_source(input_low);
+        input_high = ov::util::get_constant_from_source(input_high);
+        output_low = ov::util::get_constant_from_source(output_low);
+        output_high = ov::util::get_constant_from_source(output_high);
+        output = std::make_shared<v0::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
+        if (out_type != element::f32) {
+            output = make_shared<v0::Convert>(output, out_type);
+        }
+        tfl_quantize->output(0).replace(output);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(tfl_quantize_label,
+                                                "ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer");
+    register_matcher(m, callback);
+}
+
+bool pass::TFLQuantizeResolver::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    ov::pass::Manager manager("Frontend:TFLite:TFLQuantizeResolver");
+    manager.register_pass<pass::TFLQuantizeConvert>();
+    manager.register_pass<pass::TFLQuantizeReplacer>();
+    manager.run_passes(m);
+    return true;
+}

@@ -1,0 +1,389 @@
+name: Windows Conditional Compilation (VS 2022, Python 3.11)
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  schedule:
+    # run daily at 00:00
+    - cron: '0 0 * * *'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-cc
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
+
+  # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
+
+  Build_And_Run_Collect_Mode:
+    needs: Smart_CI
+    timeout-minutes: 300 # 5 hours without cache
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-32-cores-128gb-build
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
+      INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+
+      # TODO: specify version of compiler here
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
+
+    steps:
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Clone test models
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          lfs: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
+      # Dependencies
+      #
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      - name: Install certifi
+        run: |
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+
+      #
+      # Build
+      #
+
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          toolset: 14.42 # v2022
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
+      # If the build fails due to running out of RAM, lower the number of link jobs
+      - name: CMake configure - CC COLLECT
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_CXX_STANDARD=20 `
+            -DENABLE_TESTS=OFF `
+            -DENABLE_NCC_STYLE=OFF `
+            -DENABLE_PROFILING_ITT=FULL `
+            -DSELECTIVE_BUILD=COLLECT `
+            -DENABLE_UNITY_BUILD=ON `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
+
+      - name: Cmake build - CC COLLECT
+        run: |
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
+
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
+
+      - name: Build C++ samples - OpenVINO build tree
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Perform code tracing via ITT collector
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+
+          python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
+          --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
+          -o ${{ env.SELECTIVE_BUILD_STAT_DIR }}\itt_stat ! ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe ^
+          -niter 1 ^
+          -nireq 1 ^
+          -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml ^
+          -d CPU
+
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
+
+      - name: List install files
+        shell: cmd
+        run: dir ${{ env.INSTALL_DIR }} /s
+
+      - name: Pack Artifacts
+        run: |
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
+          }
+          Compress-Archive @compress
+
+          $file=Get-ChildItem -Path "${{ env.INSTALL_PDB_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
+          }
+          Compress-Archive @compress
+
+
+          $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip"
+          }
+          Compress-Archive @compress
+
+      - name: Build C samples - OpenVINO install tree
+        run: |
+          # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
+          # then, we need to clean build tree to remove PDB files
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CXXFLAGS: "/Zi"
+          CFLAGS: "/Zi"
+          LDFLAGS: "/DEBUG"
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
+
+      #
+      # Upload build artifacts and logs
+      #
+
+      - name: Upload OpenVINO package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.zip
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO PDB package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_pdb
+          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+          if-no-files-found: 'error'
+
+      - name: Upload selective build statistics package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_selective_build_stat
+          path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
+          if-no-files-found: 'error'
+
+      - name: Upload compile_commands
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: compile_commands_windows_cc_collect
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
+  Build_And_Run_On_Mode:
+    name: Conditional Compilation
+    timeout-minutes: 40
+    needs: [Build_And_Run_Collect_Mode, Smart_CI]
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-16-cores-32gb-build
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+    if: "!needs.smart_ci.outputs.skip_workflow"
+
+    steps:
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Clone test models
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          lfs: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Download selective build statistics package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_selective_build_stat
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+
+      - name: Extract selective build statistics package
+        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      - name: CMake configure - CC ON
+        run: |
+          cmake `
+            -DENABLE_TESTS=OFF `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DSELECTIVE_BUILD=ON `
+            -DENABLE_TEMPLATE=OFF `
+            -DENABLE_INTEL_GPU=OFF `
+            -DENABLE_INTEL_NPU=OFF `
+            -DENABLE_OV_TF_FRONTEND=OFF `
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF `
+            -DENABLE_OV_PADDLE_FRONTEND=OFF `
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF `
+            -DENABLE_OV_JAX_FRONTEND=OFF `
+            -DENABLE_OV_ONNX_FRONTEND=OFF `
+            -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
+        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
+      - name: Cmake build - CC ON
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
+
+      - name: Run with CC-ed runtime
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+
+  Overall_Status:
+    name: ci/gha_overall_status_windows_cc
+    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

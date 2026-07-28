@@ -1,0 +1,358 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <algorithm>
+
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
+using namespace ov::op;
+using ov::Shape;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace detail {
+namespace {
+ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
+    if (inputs.size() > 2) {
+        return inputs.at(2);
+    } else {
+        return std::make_shared<v0::Constant>(ov::element::u8, ov::Shape{}, std::uint8_t(0));
+    }
+}
+
+void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>& y_zero_point) {
+    const auto& y_zero_point_et = y_zero_point.get_element_type();
+    CHECK_VALID_NODE(
+        onnx_node,
+        y_zero_point_et.is_static() &&
+            (y_zero_point_et == ov::element::u4 || y_zero_point_et == ov::element::i4 ||
+             y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
+             y_zero_point_et == ov::element::u16 || y_zero_point_et == ov::element::i16 ||
+             y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2),
+        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
+        "u16, i16, f8e4m3 or f8e5m2.");
+
+    // The ONNX spec requires the zero point to be 0 for fp8 types.
+    // Both f8e4m3 and f8e5m2 encode 0.0 as the all-zero bit pattern (0x00),
+    // so checking that every raw byte is zero is sufficient.
+    if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2) {
+        const auto zp_const = ov::util::get_constant_from_source(y_zero_point);
+        if (zp_const) {
+            const auto raw = zp_const->cast_vector<float>();
+            CHECK_VALID_NODE(onnx_node,
+                             std::all_of(raw.begin(),
+                                         raw.end(),
+                                         [](const float value) {
+                                             return value == 0.0f;
+                                         }),
+                             "Expecting \"y_zero_point\" in QuantizeLinear equal zero for 8-bit floating point types.");
+        }
+    }
+}
+
+ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
+    const auto& y_scale_et = y_scale.get_element_type();
+    CHECK_VALID_NODE(onnx_node, y_scale_et.is_static(), "\"y_scale\" input data type must be static.");
+    if (y_scale_et != ov::element::f32) {
+        return std::make_shared<v0::Convert>(y_scale, ov::element::f32);
+    }
+    return y_scale;
+}
+
+ov::Output<ov::Node> validate_data(const Node& onnx_node, const ov::Output<ov::Node>& data) {
+    const auto& data_et = data.get_element_type();
+    CHECK_VALID_NODE(onnx_node, data_et.is_static(), "\"x\" input data type must be static.");
+
+    if (data_et != ov::element::f32) {
+        return std::make_shared<v0::Convert>(data, ov::element::f32);
+    }
+    return data;
+}
+
+std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_bands(
+    const ov::element::Type& destination_type,
+    const ov::element::Type& data_type) {
+    std::shared_ptr<ov::Node> output_low;
+    std::shared_ptr<ov::Node> output_high;
+    const ov::Shape shape{};
+
+    // These values could be used in a ConvertQuantizeDequantize transformation and
+    // should be aligned
+    switch (destination_type) {
+    case ov::element::i4:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -8);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 7);
+        break;
+    case ov::element::u4:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 15);
+        break;
+    case ov::element::i8:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -128);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 127);
+        break;
+    case ov::element::u8:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 255);
+        break;
+    case ov::element::i16:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -32768);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 32767);
+        break;
+    case ov::element::u16:
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 65535);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type for QuantizeLinear");
+        break;
+    }
+
+    return std::make_tuple(output_low, output_high);
+}
+
+std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands(
+    const ov::Output<ov::Node>& y_scale,
+    const ov::Output<ov::Node>& y_zero_point,
+    const std::shared_ptr<ov::Node>& output_low,
+    const std::shared_ptr<ov::Node>& output_high,
+    const ov::element::Type& data_type) {
+    std::shared_ptr<ov::Node> input_low;
+    std::shared_ptr<ov::Node> input_high;
+    const auto& zero_point = std::make_shared<v0::Convert>(y_zero_point, data_type);
+
+    input_low = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_low, zero_point));
+    if (auto constant = ov::util::get_constant_from_source(input_low)) {
+        input_low = constant;
+    }
+    input_high = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_high, zero_point));
+    if (auto constant = ov::util::get_constant_from_source(input_high)) {
+        input_high = constant;
+    }
+
+    return std::make_tuple(input_low, input_high);
+}
+
+std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& y_scale,
+                                            const ov::Output<ov::Node>& y_zero_point,
+                                            const ov::Output<ov::Node>& data) {
+    const ov::element::Type& destination_type = y_zero_point.get_element_type();
+    const ov::element::Type& data_type = data.get_element_type();
+
+    // Normalize x by the quantization scale: x_scaled = x / y_scale.
+    // FakeConvert will then simulate fp8 quantization and dequantization on x_scaled
+    // using a unit scale (scale=1), since the data is already in the fp8 value range.
+    const auto x_scaled = std::make_shared<v1::Divide>(data, y_scale);
+    const auto unit_scale = std::make_shared<v0::Constant>(data_type, ov::Shape{}, 1.0f);
+
+    // FakeConvert simulates: fp8_dequant(fp8_quant(x_scaled)) in f32
+    const auto fake_convert = std::make_shared<v13::FakeConvert>(x_scaled, unit_scale, destination_type);
+
+    // Convert the fp8-rounded floating-point value to the actual fp8 output type
+    return std::make_shared<v0::Convert>(fake_convert, destination_type);
+}
+
+}  // namespace
+
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
+                                             const ov::Output<ov::Node>& y_zero_point,
+                                             const ov::Output<ov::Node>& data) {
+    const ov::element::Type& destination_type = y_zero_point.get_element_type();
+    const ov::element::Type& data_type = data.get_element_type();
+
+    // For 8-bit floating point output types, use FakeConvert instead of FakeQuantize
+    if (destination_type == ov::element::f8e4m3 || destination_type == ov::element::f8e5m2) {
+        return make_fake_convert(y_scale, y_zero_point, data);
+    }
+
+    std::shared_ptr<ov::Node> output_low;
+    std::shared_ptr<ov::Node> output_high;
+    std::tie(output_low, output_high) = detail::get_output_bands(destination_type, data_type);
+
+    std::shared_ptr<ov::Node> input_low;
+    std::shared_ptr<ov::Node> input_high;
+    std::tie(input_low, input_high) =
+        detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
+
+    const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
+
+    return std::make_shared<v0::Convert>(
+        std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
+        destination_type);
+}
+
+bool is_per_tensor_quantization(const ov::Output<ov::Node>& scale, const ov::Output<ov::Node>& zero_point) {
+    auto is_per_tensor = [](const ov::Output<ov::Node>& input) {
+        const auto& shape = input.get_partial_shape();
+        return shape.is_static() && ov::shape_size(shape.to_shape()) == 1;
+    };
+    return is_per_tensor(scale) && is_per_tensor(zero_point);
+}
+}  // namespace detail
+
+namespace opset_1 {
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
+    auto x = inputs.at(0);
+    auto y_scale = inputs.at(1);
+    auto y_zero_point = detail::get_zero_point(inputs);
+
+    x = detail::validate_data(node, x);
+    detail::validate_zero_point_type(node, y_zero_point);
+    y_scale = detail::validate_scale(node, y_scale);
+
+    return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
+}
+ONNX_OP("QuantizeLinear", {1, 12}, ai_onnx::opset_1::quantize_linear);
+}  // namespace opset_1
+
+namespace opset_13 {
+namespace detail {
+const int64_t BLOCKED_QUANTIZATION_DISABLED_SIZE = 0;
+ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
+                                 ov::Output<ov::Node> y_scale,
+                                 ov::Output<ov::Node> y_zero_point,
+                                 int64_t axis,
+                                 int64_t block_size,
+                                 Node node) {
+    namespace detail = ov::frontend::onnx::ai_onnx::detail;
+
+    x = detail::validate_data(node, x);
+    detail::validate_zero_point_type(node, y_zero_point);
+    y_scale = detail::validate_scale(node, y_scale);
+
+    const auto& x_shape = x.get_partial_shape();
+
+    if (x_shape.rank().is_static()) {
+        axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
+    }
+
+    const auto& y_scale_shape = y_scale.get_partial_shape();
+    const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
+
+    if (block_size > 1) {
+        if (x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+            CHECK_VALID_NODE(node,
+                             x_shape[axis].get_length() % block_size == 0,
+                             "The input data axis size: ",
+                             x_shape[axis],
+                             " must be divisible by the block size: ",
+                             block_size);
+            ov::Shape target_shape(x_shape.rank().get_length() + 1, 1);
+            // Copy the shape to dimensions before the axis
+            for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+                target_shape[i] = x_shape[i].get_length();
+            }
+            target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length() / block_size);
+            target_shape[axis + 1] = static_cast<size_t>(block_size);
+            // Copy the shape to dimensions after the axis
+            for (size_t i = axis + 2; i < target_shape.size(); ++i) {
+                target_shape[i] = x_shape[i - 1].get_length();
+            }
+            auto input_x = ov::op::util::reshape(x, target_shape);
+
+            target_shape[axis + 1] = 1;
+            y_scale = ov::op::util::reshape(y_scale, target_shape);
+            y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
+
+            auto fake_quantize = detail::make_fake_quantize(y_scale, y_zero_point, input_x);
+            return {ov::op::util::reshape(fake_quantize, x_shape.to_shape())};
+        }
+    }
+
+    if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
+        x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+        CHECK_VALID_NODE(node,
+                         y_scale_shape[0].same_scheme(x_shape[axis]),
+                         "The number of quantization scale elements ",
+                         y_scale_shape[0],
+                         " must match the number of respective input data axis size: ",
+                         x_shape[axis]);
+
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
+        target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
+
+        y_scale = ov::op::util::reshape(y_scale, target_shape);
+    }
+
+    if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
+        x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+        CHECK_VALID_NODE(node,
+                         y_zero_point_shape[0].same_scheme(x_shape[axis]),
+                         "The number of quantization zero point elements ",
+                         y_zero_point_shape[0],
+                         " must match the number of respective input data axis size: ",
+                         x_shape[axis]);
+
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
+        target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
+
+        y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
+    }
+
+    return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
+}
+}  // namespace detail
+
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
+    common::default_op_checks(node, 2, 3);
+
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+
+    // per-tensor quantization, axis attribute ignored
+    if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
+        return ai_onnx::opset_1::quantize_linear(node);
+    }
+    return detail::quantize_linear(x,
+                                   scale,
+                                   zero_point,
+                                   node.get_attribute_value<int64_t>("axis", 1),
+                                   detail::BLOCKED_QUANTIZATION_DISABLED_SIZE,
+                                   node);
+}
+ONNX_OP("QuantizeLinear", OPSET_RANGE(13, 19), ai_onnx::opset_13::quantize_linear);
+}  // namespace opset_13
+
+namespace opset_21 {
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
+    common::default_op_checks(node, 2, 3);
+
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+
+    if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
+        return ai_onnx::opset_1::quantize_linear(node);
+    }
+    return opset_13::detail::quantize_linear(
+        x,
+        scale,
+        zero_point,
+        node.get_attribute_value<int64_t>("axis", 1),
+        node.get_attribute_value<int64_t>("block_size", opset_13::detail::BLOCKED_QUANTIZATION_DISABLED_SIZE),
+        node);
+}
+ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
+}  // namespace opset_21
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

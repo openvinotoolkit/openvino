@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<net name="dummy_model_dynamic_shapes" version="11">
+	<layers>
+		<layer id="0" name="Parameter_97" type="Parameter" version="opset1">
+			<data shape="1..32,1..32,64" element_type="f16" />
+			<output>
+				<port id="0" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Softmax_98" type="SoftMax" version="opset1">
+			<data axis="2" />
+			<input>
+				<port id="0" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Constant_99" type="Const" version="opset1">
+			<data element_type="f16" shape="1, 1, 64" offset="0" size="128" />
+			<output>
+				<port id="0" precision="FP16">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Add_100" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+				<port id="1" precision="FP16">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Result_101" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP16">
+					<dim>-1</dim>
+					<dim>-1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="3" to-port="0" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="3" from-port="2" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>

@@ -1,0 +1,73 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "scale"
+    output: "simplified_layer_norm"
+    name: "test_simplified_layer_norm"
+    op_type: "SimplifiedLayerNormalization"
+    attribute {
+      name: "epsilon"
+      f: 1e-05
+      type: FLOAT
+    }
+    attribute {
+      name: "axis"
+      i: -1
+      type: INT
+    }
+    attribute {
+      name: "stash_type"
+      i: 1
+      type: INT
+    }
+  }
+  initializer {
+    dims: 8
+    data_type: 1
+    name: "scale"
+    raw_data: "\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "simplified_layer_norm"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+         dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

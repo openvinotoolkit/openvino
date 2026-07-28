@@ -1,0 +1,42 @@
+mo_out: /tmp/out_dir/
+pregen_irs_path: /tmp/out_dir/
+input_model_dir: /tmp/input_dir/
+
+models: W:\models/models/model_downloader/
+test_data: test_data/inputs/
+references_repo: test_data/references/
+references: test_data/references/
+
+# internal models location
+caffe_internal_models: W:\models\internal\caffe\
+mxnet_internal_models: W:\models/models/internal/mxnet/
+tf_internal_models: \\ov-share-02.iotg.sclab.intel.com\data\vdp_tests\models/internal/tf/
+onnx_internal_models: W:\models/models/internal/onnx/
+onnx_internal_models_paddlepaddle: W:\models/models/internal/onnx/PaddlePaddle
+onnx_small_models: W:\models/models/internal/onnx/small/
+paddlepaddle_internal_models: W:\models/models/internal/paddlepaddle
+
+# Kaldi models location
+kaldi_models: \\ov-share-02.iotg.sclab.intel.com\data\vdp_tests\models/internal/kaldi
+
+# PyTorch specific environment
+pytorch_models_path: W:\models/models/internal/pytorch/
+pytorch_pretrained_models_path: W:\models/models/internal/pytorch/pretrained/0.7.4
+pytorch_torchvision_models_path: W:\models/models/internal/pytorch/torchvision/0.2.1
+pytorch_timm_models_path: W:\models/models/internal/pytorch/timm
+pytorch_hf_models_path: \\ov-share-02.iotg.sclab.intel.com\data\vdp_tests/models/internal/pytorch/huggingface
+pytorch_to_onnx_dump_path: /tmp/pytorch_to_onnx_dump
+
+# private models location
+private_models: \\ov-share-02.iotg.sclab.intel.com\data\vdp_tests\models/private/
+
+# large models location
+tf_large_models: /nfs/ov-share-05/data/chunk-01/openvino_models/models/tf/
+pytorch_large_models: /nfs/ov-share-05/data/chunk-01/openvino_models/models/pytorch/
+
+# ICV models zoo location
+icv_model_zoo_models: W:\models/models/icv_modelzoo/
+
+omz_root: /localdisk/repos/open_model_zoo/
+omz_models_out: /tmp/omz_model_out
+omz_downloader_cache: /tmp/omz_model_out/downloader_cache

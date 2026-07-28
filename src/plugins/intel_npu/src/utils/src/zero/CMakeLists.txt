@@ -1,0 +1,54 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TARGET_NAME openvino_npu_zero_utils)
+
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_cmd_queue_pool.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_host_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_mem.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_mem_pool.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_remote_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_result.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_wrappers.cpp
+)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+
+add_library(${TARGET_NAME} STATIC ${SOURCES})
+set_target_properties(
+  ${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+add_library(openvino::npu_zero_utils ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_zero_utils)
+target_include_directories(${TARGET_NAME}
+  PUBLIC
+    $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
+    $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
+
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev openvino::zero_loader)
+
+#
+# targets install
+#
+
+ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
+
+ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>/)
+
+ov_developer_package_export_targets(
+    TARGET level-zero-ext
+    INSTALL_INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_graph_ext.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_graph_profiling_ext.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_command_queue_npu_ext.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_intel_npu_uuid.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_context_npu_ext.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_driver_npu_ext.h
+)
+ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})

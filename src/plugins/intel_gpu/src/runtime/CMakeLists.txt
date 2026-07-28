@@ -1,0 +1,109 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TARGET_NAME "openvino_intel_gpu_runtime")
+
+file(GLOB LIBRARY_SOURCES_MAIN
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+  )
+
+file(GLOB LIBRARY_SOURCES_OCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
+)
+
+file(GLOB LIBRARY_SOURCES_ZE
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/compute_runtime/*.h"
+)
+
+file(GLOB LIBRARY_SOURCES_SYCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
+)
+
+file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
+
+if(NOT OV_GPU_WITH_SYCL)
+    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${OCL_SYCL_SOURCES})
+endif()
+
+set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
+
+if(GPU_RT_TYPE STREQUAL "OCL")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+    set(SYCL_SOURCES ${OCL_SYCL_SOURCES})
+endif()
+
+if(GPU_RT_TYPE STREQUAL "ZE")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
+    set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
+endif()
+
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${INCLUDE_DIR}>)
+
+target_compile_options(${TARGET_NAME} PRIVATE
+  $<$<CONFIG:Release>:
+    $<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os
+    >
+  >
+  $<$<CXX_COMPILER_ID:GNU>:
+    $<$<VERSION_GREATER:$<CXX_COMPILER_VERSION>,6.0>:
+      -Wno-ignored-attributes
+    >
+  >)
+
+if(OV_GPU_WITH_SYCL)
+    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
+    target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+endif()
+
+if(ENABLE_ONEDNN_FOR_GPU)
+  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+endif()
+
+ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+
+# Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
+target_link_libraries(${TARGET_NAME} PRIVATE
+    OpenCL::OpenCL
+    openvino::itt
+    openvino::runtime::dev
+  )
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(WIN32)
+  target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
+elseif((NOT ANDROID) AND (UNIX))
+  target_link_libraries(${TARGET_NAME} PRIVATE pthread)
+endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

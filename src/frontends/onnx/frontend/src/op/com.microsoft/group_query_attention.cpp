@@ -1,0 +1,156 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/op/group_query_attention.hpp"
+
+#include <algorithm>
+
+#include "core/null_node.hpp"
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "utils/attention.hpp"
+#include "utils/common.hpp"
+#include "utils/split.hpp"
+
+using namespace ov::op;
+
+namespace ov::frontend::onnx::com_microsoft {
+
+namespace detail {
+using ov::frontend::onnx::attention::get_dimensions;
+}  // namespace detail
+
+namespace opset_1 {
+ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
+    constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 16;  // Taken from ONNX spec
+
+    // Minimum required inputs basing on the spec and ONNX Runtime code: 7
+    // 0: packed QKV (mandatory)
+    // 3-4: possibly null (if unused)
+    // 5: seqlens_k (mandatory)
+    // 6: total_sequence_length (mandatory in the spec)
+    // 12-13: k_scale/v_scale (required when the KV cache is quantized)
+    common::default_op_checks(node, inputs_count_min, inputs_count_max);
+
+    const auto onnx_op_inputs = node.get_ov_inputs();
+    const auto num_heads = node.get_attribute_value<int64_t>("num_heads");
+    const auto kv_num_heads = node.get_attribute_value<int64_t>("kv_num_heads");
+    const auto scale = node.get_attribute_value<float>("scale", 0.0f);
+    const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
+    const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
+    const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
+    const auto k_quant_type = node.get_attribute_value<std::string>("k_quant_type", "NONE");
+    const auto v_quant_type = node.get_attribute_value<std::string>("v_quant_type", "NONE");
+
+    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 11),
+                                  "GroupQueryAttention: head_sink input is not supported.");
+    FRONT_END_OP_CONVERSION_CHECK(
+        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
+        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
+        "supported.");
+
+    if (0 != do_rotary) {
+        constexpr size_t cos_cache_index = 7;
+        constexpr size_t sin_cache_index = 8;
+
+        FRONT_END_OP_CONVERSION_CHECK(common::is_input_valid(onnx_op_inputs, sin_cache_index) &&
+                                          common::is_input_valid(onnx_op_inputs, cos_cache_index),
+                                      "GroupQueryAttention: cos_cache and sin_cache inputs are required when "
+                                      "do_rotary is enabled.");
+    }
+
+    // In ONNX, the format of input QKV is [B, S, N*H] and of past_kv is [B, N, S, H]
+    // In OV, we always use [B, N, S, H]
+    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+
+    auto Q = onnx_op_inputs[0];
+    auto K = onnx_op_inputs[1];
+    auto V = onnx_op_inputs[2];
+
+    FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(Q), "GroupQueryAttention: Expecting Q/QKV not null.");
+
+    const auto& seqlens_k = onnx_op_inputs[5];
+
+    FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(seqlens_k),
+                                  "GroupQueryAttention: Expecting seqlens_k not null.");
+
+    const auto q_shape_node = std::make_shared<v3::ShapeOf>(Q);
+    const auto batch_size_node = detail::get_dimensions(q_shape_node, {0});
+    const auto current_seqlen_size_node = detail::get_dimensions(q_shape_node, {1});
+    const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
+
+    OutputVector ov_op_inputs;
+    if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
+        auto total_num_heads_node =
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
+        auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, total_num_heads_node);
+        auto packed_qkv_shape = std::make_shared<v0::Concat>(
+            ov::NodeVector{batch_size_node, current_seqlen_size_node, total_num_heads_node, head_size_node},
+            0);
+
+        auto inputs_qkv = std::make_shared<v1::Reshape>(Q, packed_qkv_shape, false)->output(0);
+        inputs_qkv = std::make_shared<v1::Transpose>(inputs_qkv, perm);
+        auto split = ov::op::util::make_split(inputs_qkv, {num_heads, kv_num_heads, kv_num_heads}, 1);
+
+        std::copy(split.begin(), split.end(), std::back_inserter(ov_op_inputs));
+
+        FRONT_END_OP_CONVERSION_CHECK(ov_op_inputs.size() == 3,
+                                      "GroupQueryAttention: Expecting QKV split to produce 3 outputs.");
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
+        FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
+
+        auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
+        auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
+        auto q_shape = std::make_shared<v0::Concat>(
+            ov::NodeVector{batch_size_node, current_seqlen_size_node, num_heads_node, head_size_node},
+            0);
+
+        Q = std::make_shared<v1::Reshape>(Q, q_shape, false)->output(0);
+        Q = std::make_shared<v1::Transpose>(Q, perm);
+        ov_op_inputs.push_back(std::move(Q));
+
+        auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+        auto kv_shape = std::make_shared<v0::Concat>(
+            ov::NodeVector{batch_size_node, current_seqlen_size_node, kv_num_heads_node, head_size_node},
+            0);
+
+        K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);
+        V = std::make_shared<v1::Reshape>(V, kv_shape, false)->output(0);
+        K = std::make_shared<v1::Transpose>(K, perm);
+        V = std::make_shared<v1::Transpose>(V, perm);
+        ov_op_inputs.push_back(std::move(K));
+        ov_op_inputs.push_back(std::move(V));
+    }
+
+    for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
+        ov_op_inputs.push_back(onnx_op_inputs[i]);
+    }
+
+    return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
+                                                           num_heads,
+                                                           kv_num_heads,
+                                                           scale,
+                                                           do_rotary,
+                                                           rotary_interleaved,
+                                                           kv_cache_bit_width,
+                                                           k_quant_type,
+                                                           v_quant_type)
+        ->outputs();
+}
+
+ONNX_OP("GroupQueryAttention", OPSET_SINCE(1), com_microsoft::opset_1::group_query_attention, MICROSOFT_DOMAIN);
+
+}  // namespace opset_1
+
+}  // namespace ov::frontend::onnx::com_microsoft

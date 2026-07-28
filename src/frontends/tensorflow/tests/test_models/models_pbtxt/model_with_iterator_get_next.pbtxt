@@ -1,0 +1,109 @@
+node {
+  name: "IteratorV2"
+  op: "IteratorV2"
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "output_shapes"
+    value {
+      list {
+        shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 3
+          }
+        }
+        shape {
+          dim {
+            size: -1
+          }
+        }
+        shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 3
+          }
+        }
+      }
+    }
+  }
+  attr {
+    key: "output_types"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_INT32
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "IteratorGetNext"
+  op: "IteratorGetNext"
+  input: "IteratorV2"
+  attr {
+    key: "output_shapes"
+    value {
+      list {
+        shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 3
+          }
+        }
+        shape {
+          dim {
+            size: -1
+          }
+        }
+        shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 3
+          }
+        }
+      }
+    }
+  }
+  attr {
+    key: "output_types"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_INT32
+        type: DT_FLOAT
+      }
+    }
+  }
+}
+node {
+  name: "sub"
+  op: "Sub"
+  input: "IteratorGetNext:0"
+  input: "IteratorGetNext:2"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}

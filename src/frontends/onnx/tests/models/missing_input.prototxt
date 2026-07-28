@@ -1,0 +1,81 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "I0"
+    input: ""
+    input: "I2"
+    output: "N0O0"
+    output: "N0O1"
+    output: "N0O2"
+    name: "Node0"
+    op_type: "TestMissingInOut"
+    domain: "com.intel.ai"
+  }
+  node {
+    input: "N0O0"
+    input: "N0O1"
+    input: "N0O2"
+    output: "O0"
+    name: "Node1"
+    op_type: "TestMissingIn"
+    domain: "com.intel.ai"
+  }
+  name: "test_graph"
+  input {
+    name: "I0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "O0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "com.intel.ai"
+  version: 1
+}
+opset_import {
+  domain: ""
+  version: 6
+}

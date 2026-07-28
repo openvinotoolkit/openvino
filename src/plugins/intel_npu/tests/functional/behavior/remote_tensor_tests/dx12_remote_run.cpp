@@ -1,0 +1,23 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "dx12_remote_run.hpp"
+
+#include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
+#include "intel_npu/config/options.hpp"
+
+#ifdef _WIN32
+
+using namespace ov::test::behavior;
+
+const std::vector<ov::AnyMap> remoteConfigs = {{ov::log::level(ov::log::Level::WARNING)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         DX12RemoteRunTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(remoteConfigs)),
+                         DX12RemoteRunTests::getTestCaseName);
+
+#endif

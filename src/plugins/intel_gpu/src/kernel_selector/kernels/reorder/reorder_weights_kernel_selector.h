@@ -1,0 +1,23 @@
+﻿// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "kernel_selector.h"
+
+namespace kernel_selector {
+class ReorderWeightsKernelSelector : public kernel_selector_base {
+public:
+    static ReorderWeightsKernelSelector& Instance() {
+        static ReorderWeightsKernelSelector instance_;
+        return instance_;
+    }
+
+    ReorderWeightsKernelSelector();
+
+    ~ReorderWeightsKernelSelector() override = default;
+
+    KernelsData GetBestKernels(const Params& params) const override;
+};
+}  // namespace kernel_selector

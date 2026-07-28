@@ -1,0 +1,132 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data"
+    input: "gamma"
+    input: "beta"
+    output: "y"
+    op_type: "GroupNorm"
+    domain: "org.openvinotoolkit"
+    attribute {
+        name: "num_groups"
+        i: 4
+        type: INT
+    }
+    attribute {
+        name: "eps"
+        f: 1e-6
+        type: FLOAT
+    }
+  }
+  name: "group_norm_example"
+  initializer {
+    dims: 1
+    dims: 8
+    dims: 1
+    dims: 1
+    data_type: 1
+    name: "gamma"
+    raw_data: "\0\0\200?\0\0\0@\0\0@@\0\0\200@\0\0\240@\0\0\300@\0\0\340@\0\0\0A"
+  }
+  initializer {
+    dims: 1
+    dims: 8
+    dims: 1
+    dims: 1
+    data_type: 1
+    name: "beta"
+    raw_data: "\0\0\200?\0\0\0@\0\0@@\0\0\200@\0\0\240@\0\0\300@\0\0\340@\0\0\0A"
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "gamma"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "beta"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

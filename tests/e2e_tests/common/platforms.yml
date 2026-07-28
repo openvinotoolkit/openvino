@@ -1,0 +1,138 @@
+# CPU / GPU
+apl:
+  CPU:
+    description: 'ApolloLake'
+    sockets: 1
+    numa_nodes: 1
+cfl:
+  CPU:
+    description: 'CoffeeLake'
+    sockets: 1
+    numa_nodes: 1
+  GPU:
+    description: 'GPU (GEN9)'
+clx:
+  CPU:
+    description: 'CascadeLake/8280'
+    sockets: 2
+    numa_nodes: 2
+clx-ap:
+  CPU:
+    description: 'CascadeLake'
+    sockets: 2
+    numa_nodes: 4
+cslx:
+  CPU:
+    description: 'CascadeLake/10980'
+    sockets: 1
+    numa_nodes: 1
+dg1:
+  CPU:
+    description: 'CoffeeLake/9900'
+    sockets: 1
+    numa_nodes: 1
+  GPU:
+    description: 'dGPU (DG1)'
+cpx:
+  CPU:
+    description: 'CooperLake'
+    sockets: 4
+    numa_nodes: 4
+halo:
+  CPU:
+    description: 'Skylake/8160'
+    sockets: 1
+    numa_nodes: 1
+iclu:
+  CPU:
+    description: 'IceLake'
+    sockets: 1
+    numa_nodes: 1
+  GPU:
+    description: 'GPU (GEN11)'
+skl:
+  CPU:
+    description: 'Skylake'
+    sockets: 1
+    numa_nodes: 1
+sklx:
+  CPU:
+    description: 'Skylake/8180'
+    sockets: 2
+    numa_nodes: 2
+skx-avx512:
+  CPU:
+    description: 'Skylake'
+    sockets: 1
+    numa_nodes: 1
+skl-e:
+  CPU:
+    description: 'Skylake'
+    sockets: 1
+    numa_nodes: 1
+tglu:
+  CPU:
+    description: 'TigerLake'
+    sockets: 1
+    numa_nodes: 1
+  GPU:
+    description: 'GPU (GEN12)'
+whl:
+  CPU:
+    description: 'WhiskyLake'
+    sockets: 1
+    numa_nodes: 1
+epyc:
+  CPU:
+    description: 'AMD EPYC 7601'
+    sockets: 2
+    numa_nodes: 8
+
+
+# VPU
+myriad:
+  MYRIAD:
+    description: 'Myriad 2 Stick'
+  'HETERO:MYRIAD,CPU':
+    description: 'Myriad 2 Stick'
+myriad-evm:
+  MYRIAD:
+    description: 'Myriad 2 Board'
+  'HETERO:MYRIAD,CPU':
+    description: 'Myriad 2 Board'
+myriadx:
+  MYRIAD:
+    description: 'Myriad X Stick'
+  'HETERO:MYRIAD,CPU':
+    description: 'Myriad X Stick'
+myriadx-evm:
+  MYRIAD:
+    description: 'Myriad X Board'
+  'HETERO:MYRIAD,CPU':
+    description: 'Myriad X Board'
+myriadx-pc:
+  MYRIAD:
+    description: 'Myriad X Board 2085'
+  'HETERO:MYRIAD,CPU':
+    description: 'Myriad X Board 2085'
+hddl:
+  HDDL:
+    description: 'HDDL-R'
+
+
+# VCAA
+vcaa:
+  HDDL:
+    description: 'Harker Heights PCI-e board CPU/GPU/HDDL'
+
+
+# FPGA
+fpgadcp:
+  'HETERO:FPGA,CPU':
+    description: 'Rush Creek'
+hddlf:
+  'HETERO:FPGA,CPU':
+    description: 'PyramidLake'
+hddlf_SG2:
+  'HETERO:FPGA,CPU':
+    description: 'PyramidLake SG2'

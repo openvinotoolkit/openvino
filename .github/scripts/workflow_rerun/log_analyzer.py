@@ -1,0 +1,183 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import json
+import re
+import tempfile
+from pathlib import Path
+from typing import Optional, TypedDict
+from zipfile import ZipFile
+
+from workflow_rerun.constants import LOGGER
+
+# Sentinel ticket number used for errors sourced from CI Doctor MQ pattern files,
+# which are not tied to a specific JIRA/GitHub ticket.
+CI_DOCTOR_PATTERN_TICKET = 9999999
+
+
+class LogFile(TypedDict):
+    file_name: str
+    path: Path
+
+
+class ErrorData(TypedDict):
+    error_text: str
+    ticket: int
+
+
+class LogAnalyzer:
+    def __init__(self,
+                 path_to_logs: Path,
+                 path_to_errors_file: Path,
+                 patterns_dir: Optional[Path] = None) -> None:
+        self._path_to_errors_file = path_to_errors_file
+        self._patterns_dir = patterns_dir
+
+        self._errors_to_look_for: list[ErrorData] = []
+        self._collect_errors_to_look_for()
+        self._collect_errors_from_patterns()
+
+        self._log_dir = path_to_logs
+
+        self._log_files: list[LogFile] = []
+        self._collect_log_files()
+        all_txt_log_files_pretty = '\n'.join(map(lambda item: str(item['path']), self._log_files))
+        LOGGER.info(f'ALL .txt LOG FILES: \n{all_txt_log_files_pretty}')
+
+        self.found_matching_error = False
+        self.found_error_ticket = None
+        self.matched_error_text = None
+
+    def _collect_errors_to_look_for(self) -> None:
+        with open(file=self._path_to_errors_file,
+                  mode='r',
+                  encoding='utf-8') as errors_file:
+            errors_data = json.load(errors_file)
+            for error_data in errors_data:
+                self._errors_to_look_for.append(
+                    ErrorData(error_text=error_data['error_text'],
+                              ticket=error_data['ticket'])
+                    )
+
+    def _collect_errors_from_patterns(self) -> None:
+        """
+        Collects additional errors to look for from CI Doctor MQ pattern files.
+
+        Each pattern .json file (fetched from the memory/ci-doctor-mq branch) may
+        contain a "rerun_search_string" field: a stable, searchable substring of a
+        transient failure's log output. When present and non-empty, it is used as an
+        additional error to look for, analogous to entries in errors_to_look_for.json.
+        Pattern-derived errors are not tied to a specific ticket, so they are recorded
+        with the CI_DOCTOR_PATTERN_TICKET sentinel ticket number.
+        """
+        if self._patterns_dir is None:
+            return
+
+        if not self._patterns_dir.is_dir():
+            LOGGER.info(f'PATTERNS DIR {self._patterns_dir} DOES NOT EXIST, SKIPPING PATTERNS')
+            return
+
+        for pattern_file in sorted(self._patterns_dir.glob('*.json')):
+            try:
+                with open(file=pattern_file,
+                          mode='r',
+                          encoding='utf-8') as _pattern_file:
+                    pattern_data = json.load(_pattern_file)
+            except (json.JSONDecodeError, OSError) as error:
+                LOGGER.warning(f'COULD NOT READ PATTERN FILE {pattern_file}: {error}')
+                continue
+
+            rerun_search_string = pattern_data.get('rerun_search_string')
+            if not isinstance(rerun_search_string, str) or not rerun_search_string.strip():
+                continue
+
+            LOGGER.info(f'ADDING RERUN SEARCH STRING FROM PATTERN {pattern_file.name}: '
+                        f'"{rerun_search_string}"')
+            self._errors_to_look_for.append(
+                ErrorData(error_text=rerun_search_string,
+                          ticket=CI_DOCTOR_PATTERN_TICKET)
+                )
+
+    def _collect_log_files(self) -> None:
+        """
+        Collects the .txt log files from the log archive
+
+        The GitHub Actions pipeline logs archive should have the following structure:
+            > Job_name_0
+                > step_name_0.txt
+                > step_name_1.txt
+                ...
+            > Job_name_1
+                > step_name_0.txt
+                > step_name_1.txt
+                ...
+            > Job_name_2
+                ...
+            ...
+
+        We need to only analyze the `*.txt` files
+        """
+
+        for _file in Path(self._log_dir).iterdir():
+            if _file.is_dir():
+                for log_file in _file.iterdir():
+                    self._log_files.append(LogFile(file_name=log_file.name,
+                                                   path=log_file.resolve()))
+            elif _file.suffix == '.txt':
+                self._log_files.append(LogFile(file_name=_file.name,
+                                               path=_file.resolve()))
+
+    def _is_error_in_log(self,
+                         error_to_look_for: str,
+                         log_file_path: Path) -> bool:
+        """
+        Searches for the error in the provided log
+        """
+
+        error_to_look_for = self._clean_up_string(error_to_look_for)
+
+        with open(file=log_file_path,
+                  mode='r',
+                  encoding='utf-8') as log_file:
+            for line in log_file:
+                if error_to_look_for in self._clean_up_string(line):
+                    return True
+        return False
+
+    @staticmethod
+    def _clean_up_string(string: str) -> str:
+        """
+        Replaces special characters with spaces in the string, strips it from leading and following spaces,
+        and lowers it
+
+        for "Could not resolve host: github.com" returns "could not resolve host github com"
+
+        This cleanup is applied to both errors to look for and logs themselves for matching
+        """
+        return re.sub(r'[^A-Za-z0-9]+', ' ', string).lower().strip()
+
+    def analyze(self) -> None:
+        """
+        Iterates over the known errors and tries to find them in the collected log files
+        """
+        for error in self._errors_to_look_for:
+
+            LOGGER.info(f'LOOKING FOR "{error["error_text"]}" ERROR...')
+
+            for log_file in self._log_files:
+                if self._is_error_in_log(error_to_look_for=error['error_text'],
+                                         log_file_path=log_file['path']):
+                    LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. TICKET: {error["ticket"]}')
+                    self.found_matching_error = True
+                    self.found_error_ticket = error['ticket']
+                    self.matched_error_text = error['error_text']
+                    return
+
+
+if __name__ == '__main__':
+    # Usage example
+    log_analyzer = LogAnalyzer(path_to_logs=Path('/tmp/logs_dir'),
+                               path_to_errors_file=Path('/tmp/errors_to_look_for.json'))
+    log_analyzer.analyze()
+    if log_analyzer.found_matching_error:
+        print('found matching error, see logs above')

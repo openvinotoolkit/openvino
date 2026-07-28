@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<net name="dummy_model" version="11">
+	<layers>
+		<layer id="0" name="Param_1" type="Parameter" version="opset1">
+			<data shape="1,1,32,32" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="data">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Const_1" type="Const" version="opset1">
+			<data element_type="i64" shape="4" offset="0" size="32" />
+			<output>
+				<port id="0" precision="I64" names="const1">
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Reshape_1" type="Reshape" version="opset1">
+			<data special_zero="false" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>32</dim>
+				</port>
+				<port id="1" precision="I64">
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="reshape1">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Constant_4" type="Const" version="opset1">
+			<data element_type="f32" shape="4, 32, 1, 3" offset="32" size="1536" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>4</dim>
+					<dim>32</dim>
+					<dim>1</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Conv_1" type="Convolution" version="opset1">
+			<data strides="1, 1" dilations="1, 1" pads_begin="0, 0" pads_end="0, 0" auto_pad="explicit" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>4</dim>
+					<dim>32</dim>
+					<dim>1</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="conv">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="Pool_1" type="MaxPool" version="opset1">
+			<data strides="1, 1" pads_begin="0, 0" pads_end="0, 0" kernel="1, 2" rounding_type="floor" auto_pad="explicit" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32" names="pool">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>29</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="Relu_1" type="ReLU" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>29</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32" names="relu">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>29</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="7" name="Const_2" type="Const" version="opset1">
+			<data element_type="i64" shape="2" offset="1568" size="16" />
+			<output>
+				<port id="0" precision="I64" names="const2">
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="8" name="Reshape_2" type="Reshape" version="opset1">
+			<data special_zero="false" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>29</dim>
+				</port>
+				<port id="1" precision="I64">
+					<dim>2</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="reshape2">
+					<dim>1</dim>
+					<dim>116</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="9" name="Result_10" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>116</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="4" to-port="0" />
+		<edge from-layer="3" from-port="0" to-layer="4" to-port="1" />
+		<edge from-layer="4" from-port="2" to-layer="5" to-port="0" />
+		<edge from-layer="5" from-port="1" to-layer="6" to-port="0" />
+		<edge from-layer="6" from-port="1" to-layer="8" to-port="0" />
+		<edge from-layer="7" from-port="0" to-layer="8" to-port="1" />
+		<edge from-layer="8" from-port="2" to-layer="9" to-port="0" />
+	</edges>
+	<rt_info />
+</net>

@@ -1,0 +1,22 @@
+<attributes>
+    <processes>
+        <value>1</value>
+        <value>2</value>
+    </processes>
+    <threads>
+        <value>1</value>
+        <value>2</value>
+    </threads>
+    <iterations>
+        <value>100</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <model name="densenet-121-tf" precision="FP32" source="omz" />
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
+    </models>
+</attributes>
