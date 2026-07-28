@@ -31,10 +31,11 @@ public:
      * build flags.
      * @return A compiler adapter for the resolved compiler type.
      */
-    std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  ov::intel_npu::CompilerType& compilerType,
-                                                  std::string_view platform,
-                                                  const std::optional<ov::log::Level>& compilerLogLevel = std::nullopt) const;
+    std::unique_ptr<ICompilerAdapter> getCompiler(
+        const ov::SoPtr<IEngineBackend>& engineBackend,
+        ov::intel_npu::CompilerType& compilerType,
+        std::string_view platform,
+        const std::optional<ov::log::Level>& compilerLogLevel = std::nullopt) const;
 
 private:
     inline static std::atomic<bool> _pluginCompilerIsPresent{true};

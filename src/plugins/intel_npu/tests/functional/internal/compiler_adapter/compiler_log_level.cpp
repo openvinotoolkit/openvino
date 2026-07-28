@@ -59,8 +59,7 @@ TEST_F(CompilerLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetP
 }
 
 TEST_F(CompilerLogLevelSerializeConfigTests, CompilerLogLevelSetPrioritizedOverUnchangedPluginLogLevel) {
-    config->update({{ov::log::level.name(), "LOG_DEBUG"},
-                    {ov::intel_npu::compiler_log_level.name(), "LOG_ERROR"}});
+    config->update({{ov::log::level.name(), "LOG_DEBUG"}, {ov::intel_npu::compiler_log_level.name(), "LOG_ERROR"}});
 
     const std::string flags = serialize();
 

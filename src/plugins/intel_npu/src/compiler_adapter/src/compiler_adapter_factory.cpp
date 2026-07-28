@@ -20,10 +20,11 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompiler
     return ov::intel_npu::CompilerType::DRIVER;
 }
 
-std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                                      ov::intel_npu::CompilerType& compilerType,
-                                                                      std::string_view platform,
-                                                                      const std::optional<ov::log::Level>& compilerLogLevel) const {
+std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
+    const ov::SoPtr<IEngineBackend>& engineBackend,
+    ov::intel_npu::CompilerType& compilerType,
+    std::string_view platform,
+    const std::optional<ov::log::Level>& compilerLogLevel) const {
     const auto device = engineBackend != nullptr ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {

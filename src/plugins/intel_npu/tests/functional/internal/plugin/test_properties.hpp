@@ -229,8 +229,8 @@ TEST_P(CompilerLogLevelPropertyTests, InheritsPluginLogLevelWhenUnset) {
 }
 
 TEST_P(CompilerLogLevelPropertyTests, IsIndependentFromLogLevel) {
-    propertiesManager->setProperty({{ov::log::level(ov::log::Level::DEBUG)},
-                                    {ov::intel_npu::compiler_log_level(ov::log::Level::ERR)}});
+    propertiesManager->setProperty(
+        {{ov::log::level(ov::log::Level::DEBUG)}, {ov::intel_npu::compiler_log_level(ov::log::Level::ERR)}});
 
     ov::Any compilerLevel;
     OV_ASSERT_NO_THROW(compilerLevel = propertiesManager->getProperty(ov::intel_npu::compiler_log_level.name()));
