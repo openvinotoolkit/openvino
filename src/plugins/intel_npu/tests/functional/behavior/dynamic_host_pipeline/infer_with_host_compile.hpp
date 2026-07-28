@@ -19,6 +19,7 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
@@ -223,10 +224,11 @@ public:
 
     void SetUp() {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
+        configuration[ov::intel_npu::compiler_log_level.name()] = ov::intel_npu::compiler_log_level(ov::log::Level::ERR);
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
