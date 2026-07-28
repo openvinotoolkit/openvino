@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-08-12-20-000-30336408463",
+  "timestamp": "2026-07-28T08:12:20Z",
+  "run_id": "30336408463",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30336408463",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "nazanin-beheshti",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "PyTorch LLM Model Tests step failed — test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed (max diff ~0.069)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Downstream overall-status failure caused by PyTorch Models tests failure"
+    }
+  ],
+  "key_errors": [
+    "FAILED install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+    "AssertionError: Accuracy validation failed\nMax diff is 0.06871891021728516",
+    "multiprocessing.context.ProcessError: katuni4ka/opt-125m-gptq running failed: assert is_ok, 'Accuracy validation failed'"
+  ],
+  "root_cause": "The OPT 125m GPTQ model export test (`test_export_model_precommit`) in the PyTorch LLM Model Tests step produces OpenVINO inference results that diverge from the PyTorch reference outputs beyond the test's tolerance threshold (max diff ~0.069). This is a persistent, deterministic accuracy regression in the GPTQ INT4 quantized OPT model conversion path, first observed 2026-07-27T12:33Z and now recurring across 17 merge-queue runs. The failure is unrelated to PR #35116 (which changes GPU plugin memory-dependency storage from hashMap to vector). A restart cannot fix this — the failure is deterministic.",
+  "reproduction_steps": "cd install/tests && python -m pytest model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Identify which PR introduced the accuracy regression (first appeared 2026-07-27 ~12:33 UTC) by bisecting recent merged PRs",
+    "Inspect the PyTorch frontend GPTQ/INT4 dequantization path for numerical precision changes",
+    "Compare dequantized weight values between TorchFusedQuantLinear and the OV runtime",
+    "Consider temporarily disabling or skipping this test while the root cause is fixed to unblock unrelated PRs"
+  ],
+  "prevention_strategies": "Add a dedicated precommit accuracy test for GPTQ model exports that runs on every PR touching the PyTorch frontend or quantization code paths.",
+  "historical_context": "This exact failure has been recorded 17 times since 2026-07-27T12:33:21Z. It is a persistent deterministic Code Issue affecting multiple unrelated PRs. Not related to this PR's changes."
+}
