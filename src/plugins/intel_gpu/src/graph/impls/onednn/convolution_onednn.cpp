@@ -145,6 +145,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 
 private:
     int _zero_point_mask;
+    ov::element::Type_t _azp_data_type = ov::element::dynamic;
     dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
 
 protected:
@@ -201,6 +202,10 @@ protected:
         _zero_point_mask = zero_point_mask;
     }
 
+    void set_activations_zero_point_data_type(ov::element::Type_t data_type) {
+        _azp_data_type = data_type;
+    }
+
     void set_weights_zero_point_data_type(dnnl::memory::data_type data_type) {
         _wzp_data_type = data_type;
     }
@@ -219,6 +224,7 @@ protected:
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg,
                                                                             const kernel_impl_params& impl_params,
                                                                             int& zero_point_mask,
+                                                                            ov::element::Type_t& a_zp_dtype,
                                                                             dnnl::memory::data_type& wzp_data_type) {
         auto attrs = impl_params.attrs_onednn;
 
@@ -229,7 +235,7 @@ protected:
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
-            auto a_zp_dtype = a_zp.get_output_layout().data_type;
+            a_zp_dtype = a_zp.get_output_layout().data_type;
 
             if (!data_type_traits::is_i8_u8(a_zp_dtype) && a_zp_dtype != data_types::i32) {
                 throw std::runtime_error("Unsupported data type for activations zero points for oneDNN convolution");
@@ -302,6 +308,10 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<convolution>();
+        bool has_azp = prim->activations_zero_points.is_valid();
+        if (has_azp) {
+            ob << make_data(&_azp_data_type, sizeof(ov::element::Type_t));
+        }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
@@ -342,6 +352,22 @@ public:
         ib >> zero_bias;
 
         auto prim = impl_params->typed_desc<convolution>();
+        bool has_azp = prim->activations_zero_points.is_valid();
+        if (has_azp) {
+            ib >> make_data(&_azp_data_type, sizeof(ov::element::Type_t));
+            auto& a_zp = impl_params->get_program().get_node_ptr(prim->id)->as<convolution>().activations_zero_points().as<data>();
+            memory::ptr s32_mem = nullptr;
+
+            if (_azp_data_type == data_types::i8) {
+                s32_mem = onednn::convert_zp_data_to_s32<ov::element_type_traits<data_types::i8>::value_type>(a_zp.get_attached_memory_ptr());
+            } else if (_azp_data_type == data_types::u8) {
+                s32_mem = onednn::convert_zp_data_to_s32<ov::element_type_traits<data_types::u8>::value_type>(a_zp.get_attached_memory_ptr());
+            } else if (_azp_data_type == data_types::i32) {
+                s32_mem = onednn::convert_zp_data_to_s32<ov::element_type_traits<data_types::i32>::value_type>(a_zp.get_attached_memory_ptr());
+            }
+            if (s32_mem != nullptr)
+                a_zp.attach_memory(s32_mem, false);
+        }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
@@ -380,9 +406,10 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         int zero_point_mask = -1;
+        ov::element::Type_t a_zp_dtype = ov::element::dynamic;
         dnnl::memory::data_type wzp_data_type = dnnl::memory::data_type::undef;
 
-        auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask, wzp_data_type);
+        auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask, a_zp_dtype, wzp_data_type);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
@@ -390,6 +417,7 @@ public:
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);
+    conv_onednn_impl->set_activations_zero_point_data_type(a_zp_dtype);
         conv_onednn_impl->set_weights_zero_point_data_type(wzp_data_type);
 
         return conv_onednn_impl;
