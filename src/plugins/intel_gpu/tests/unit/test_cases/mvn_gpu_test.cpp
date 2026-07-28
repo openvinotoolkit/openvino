@@ -32,7 +32,8 @@ void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_
 
     cldnn::mem_lock<T> buff(output, get_test_stream());
 
-    float err_margin = output->get_layout().data_type == data_types::f32 ? 1e-03F : 1e-02F;
+    float err_margin = output->get_layout().data_type == data_types::f32 ? 1e-03F :
+                       output->get_layout().data_type == data_types::bf16 ? 1e-01F : 1e-02F;
 
     for (uint32_t b = 0; b < batch_size; ++b) {
         float sum = 0.f;
@@ -75,7 +76,8 @@ void mvn_compute_mean_within_channels(cldnn::memory::ptr output, bool normalize_
 
     cldnn::mem_lock<T> buff(output, get_test_stream());
 
-    float err_margin = output->get_layout().data_type == data_types::f32 ? 1e-03F : 2e-02F;
+    float err_margin = output->get_layout().data_type == data_types::f32 ? 1e-03F :
+                       output->get_layout().data_type == data_types::bf16 ? 1e-01F : 2e-02F;
 
     for (uint32_t b = 0; b < batch_size; ++b) {
         for (uint32_t f = 0; f < feature_size; ++f) {
@@ -323,6 +325,313 @@ TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_f
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<ov::float16>(output, true);
+}
+
+TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_bf16) {
+    // mvn across channels bf16 test with normalize_variance set to false
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, {1, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, false);
+}
+
+TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_bf16) {
+    // mvn across channels bf16 test with normalize_variance set to false, eps_inside_sqrt
+    using namespace cldnn;
+    using namespace tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, {1, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, false);
+}
+
+TEST(mvn_gpu_test, mvn_test_across_channels_bf16_normalize_variance) {
+    // mvn across channels bf16 test with normalize_variance set to true (matching ViT LayerNorm)
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, {1, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, true);
+}
+
+TEST(mvn_gpu_test, mvn_test_across_channels_bf16_normalize_variance_inside_sqrt) {
+    // mvn across channels bf16 test with normalize_variance + eps_inside_sqrt
+    // This matches the exact config of the ViT pre-attn norm: eps_mode=INSIDE_SQRT, normalize_variance=true
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, true);
+}
+
+TEST(mvn_gpu_test, mvn_test_within_channels_bf16_normalize_variance) {
+    // mvn within channels bf16 test with normalize_variance set to true
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_within_channels<ov::bfloat16>(output, true);
+}
+
+TEST(mvn_gpu_test, mvn_test_across_channels_small_bfyx_bf16) {
+    // Smaller shape bf16 test for quick validation
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {7, 10, 17, 13}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, true);
+}
+
+TEST(mvn_gpu_test, mvn_bf16_bfyx_ref_force) {
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"mvn", {format::bfyx, "mvn_gpu_ref"}}}));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, true);
+}
+
+// bf16 test that explicitly forces mvn_gpu_bfyx_opt kernel
+TEST(mvn_gpu_test, mvn_bf16_bfyx_opt_force) {
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {3, 1024, 1, 1152}});
+
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"mvn", {format::bfyx, "mvn_gpu_bfyx_opt"}}}));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<ov::bfloat16>(output, true);
+}
+
+// BF16 MVN + scale + shift (LayerNorm pattern) with mvn_gpu_bfyx_opt kernel and fusions.
+TEST(mvn_gpu_test, mvn_bf16_bfyx_opt_layernorm_fusion) {
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+    auto input_size = tensor{batch(3), feature(1024), spatial(1, 1152)};
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, input_size});
+    tests::set_random_values<ov::bfloat16>(input, true, 7, 100);
+
+    // Scale (gamma) and shift (beta) for layer norm — shape [1,1024,1,1]
+    auto scale = engine.allocate_memory({data_types::bf16, format::bfyx, tensor{batch(1), feature(1024), spatial(1, 1)}});
+    tests::set_random_values<ov::bfloat16>(scale, true, 4, 1);
+    auto shift = engine.allocate_memory({data_types::bf16, format::bfyx, tensor{batch(1), feature(1024), spatial(1, 1)}});
+    tests::set_random_values<ov::bfloat16>(shift, true, 3, 1);
+
+    // Topology: MVN with Multiply + Add (graph optimizer fuses them automatically)
+    topology topo;
+    topo.add(input_layout("input", input->get_layout()));
+    topo.add(data("scale_data", scale));
+    topo.add(data("shift_data", shift));
+    topo.add(mvn("mvn_opt", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
+    topo.add(eltwise("scale", {input_info("mvn_opt"), input_info("scale_data")}, eltwise_mode::prod, data_types::bf16));
+    topo.add(eltwise("shift", {input_info("scale"), input_info("shift_data")}, eltwise_mode::sum, data_types::bf16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"mvn_opt", {format::bfyx, "mvn_gpu_bfyx_opt"}}}));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"shift", "mvn_opt"}));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+    auto outputs = net.execute();
+
+    auto out_gpu = outputs.at("shift").get_memory();
+    auto out_mvn = outputs.at("mvn_opt").get_memory();
+
+    // CPU reference: compute MVN + scale + shift manually
+    cldnn::mem_lock<ov::bfloat16> in_ptr(input, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> s_ptr(scale, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> sh_ptr(shift, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> gpu_ptr(out_gpu, get_test_stream());
+
+    size_t B = 3, C = 1024, W = 1152;
+    float eps = 1e-10f;
+    // BF16 has ~7 mantissa bits; LayerNorm compounds errors from mean (over 1024 elements),
+    // variance, inverse sqrt, multiply, and add. 0.25 absolute tolerance is reasonable.
+    float tolerance = 2.5e-1f;
+    for (size_t b = 0; b < B; ++b) {
+        for (size_t w = 0; w < W; ++w) {
+            // Compute mean over channels
+            float sum = 0.f;
+            for (size_t c = 0; c < C; ++c) {
+                sum += static_cast<float>(in_ptr[b*C*W + c*W + w]);
+            }
+            float mean = sum / static_cast<float>(C);
+
+            // Compute variance over channels
+            float var_sum = 0.f;
+            for (size_t c = 0; c < C; ++c) {
+                float diff = static_cast<float>(in_ptr[b*C*W + c*W + w]) - mean;
+                var_sum += diff * diff;
+            }
+            float variance = var_sum / static_cast<float>(C);
+            float inv_std = 1.f / std::sqrt(variance + eps);
+
+            // Normalize, scale, shift
+            for (size_t c = 0; c < C; ++c) {
+                float val = static_cast<float>(in_ptr[b*C*W + c*W + w]);
+                float normalized = (val - mean) * inv_std;
+                float scaled = normalized * static_cast<float>(s_ptr[c]);
+                float shifted = scaled + static_cast<float>(sh_ptr[c]);
+
+                float gpu_val = static_cast<float>(gpu_ptr[b*C*W + c*W + w]);
+                float diff = std::abs(gpu_val - shifted);
+                ASSERT_LE(diff, tolerance)
+                    << "Mismatch at b=" << b << " c=" << c << " w=" << w
+                    << " gpu=" << gpu_val << " ref=" << shifted;
+            }
+        }
+    }
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx) {
@@ -691,6 +1000,12 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
             } else {
                 mvn_compute_mean_within_channels<ov::float16>(output, normalize_variance);
             }
+        } else if (output->get_layout().data_type == data_types::bf16) {
+            if (across_channels) {
+                mvn_compute_mean_across_channels<ov::bfloat16>(output, normalize_variance);
+            } else {
+                mvn_compute_mean_within_channels<ov::bfloat16>(output, normalize_variance);
+            }
         }
     }
 
@@ -706,6 +1021,9 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
                 break;
             case data_types::f16:
                 fill_random_data<ov::float16>(input, -127, 127);
+                break;
+            case data_types::bf16:
+                fill_random_data<ov::bfloat16>(input, -127, 127);
                 break;
             case data_types::i8:
                 fill_random_data<int8_t>(input, -127, 127);
@@ -865,7 +1183,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
         cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
 
-        float tolerance = (output_lay.data_type == data_types::f16) ? 5.e-2f : 1.e-2f;
+        float tolerance = (output_lay.data_type == data_types::f16) ? 5.e-2f :
+                          (output_lay.data_type == data_types::bf16) ? 1.e-1f : 1.e-2f;
 
         size_t err_count = 0;
         for (size_t bi = 0; bi < b; ++bi) {
@@ -911,6 +1230,9 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
                 break;
             case data_types::f16:
                 fill_random_data<ov::float16>(input, -10, 10, 1);
+                break;
+            case data_types::bf16:
+                fill_random_data<ov::bfloat16>(input, -10, 10, 1);
                 break;
             case data_types::i8:
                 fill_random_data<int8_t>(input, -127, 127, 1);
@@ -962,6 +1284,10 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto outputs_opt = net_opt->execute();
         auto output_opt = outputs_opt.at("mvn_opt").get_memory();
 
+        ASSERT_EQ(output_opt->get_layout().format, params.input_format)
+            << "mvn_opt output was reordered away from the requested format "
+            << fmt_to_str(params.input_format);
+
         auto output_dtype = output->get_layout().data_type;
         auto output_opt_dtype = output_opt->get_layout().data_type;
         if (output_dtype == output_opt_dtype) {
@@ -969,6 +1295,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
                 compare_outputs<float>(output, output_opt);
             } else if (output_dtype == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
+            } else if (output_dtype == data_types::bf16) {
+                compare_outputs<ov::bfloat16>(output, output_opt);
             } else if (output_dtype == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (output_dtype == data_types::u8) {
@@ -1033,6 +1361,17 @@ INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
 
+// BF16 bsv32 (validates mvn_gpu_b_fs_yx_bsv32 bf16 decode/accumulate/final paths)
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16_bf16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::bf16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv32_bf16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv32, data_types::bf16)));
+
 INSTANTIATE_TEST_SUITE_P(mvn_fsv16,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
@@ -1069,6 +1408,23 @@ INSTANTIATE_TEST_SUITE_P(mvn_fsv32_i8,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .fsv_tests(format::b_fs_yx_fsv32, data_types::i8)));
+
+// BF16 fsv16: validates mvn_gpu_b_fs_yx_fsv16 bf16 decode path against the mvn_gpu_bfyx_opt reference.
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_bf16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .fsv_tests(format::b_fs_yx_fsv16, data_types::bf16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_bf16_large_spatial,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .fsv_large_spatial_tests(format::b_fs_yx_fsv16, data_types::bf16)));
+
+// BF16 fsv32 (covers INPUT_SLICE_PITCH=32 kernel path with bf16)
+INSTANTIATE_TEST_SUITE_P(mvn_fsv32_bf16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .fsv_tests(format::b_fs_yx_fsv32, data_types::bf16)));
 
 // 5D zyx fsv16 (new: covers b_fs_zyx_fsv16 kernel path with float types)
 INSTANTIATE_TEST_SUITE_P(mvn_zyx_fsv16_f16,
