@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-09-30-41-000-30340994709",
+  "timestamp": "2026-07-28T09:30:41Z",
+  "run_id": "30340994709",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30340994709",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37020",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37020",
+  "author": "intelgaoxiong",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] accuracy validation failed",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "PyTorch Models tests / PyTorch Models tests \u2014 test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] accuracy validation failed"
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nassert False\nMax diff is 0.06871891021728516\nfw_res vs ov_res comparison failed in test_convert_model.py:93"
+  ],
+  "root_cause": "The PyTorch LLM test for export of GPTQ-quantized OPT-125m model produced outputs that differ from the PyTorch reference by up to 0.069 (Max diff 0.06871891021728516). The compare_results in test_llm.py delegates to the base class test_convert_model.py which asserts near-equal outputs. The numeric divergence likely stems from non-deterministic GPTQ dequantization paths or a tolerance threshold that may be too tight for this quantized model at float16 precision. This could be a genuine code regression introduced by the PR changes (quantization handling or OPT model conversion) or a flaky accuracy threshold issue for GPTQ models.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v on a machine with the PR changes applied.",
+  "recommended_actions": [
+    "Inspect the accuracy tolerance used in test_llm.py compare_results for GPTQ quantized models \u2014 check if a tighter-than-appropriate threshold is rejecting a numerically valid conversion.",
+    "Verify that the PR changes to the PyTorch frontend or transformations do not alter GPTQ model dequantization handling.",
+    "If the divergence is inherent to GPTQ float16 quantization, widen the tolerance threshold specifically for GPTQ/quantized model exports.",
+    "Reproduce locally with the same model (katuni4ka/opt-125m-gptq) and compare framework vs OV output deltas before and after the PR changes."
+  ],
+  "prevention_strategies": "Add a per-test-type tolerance configuration for quantized models (GPTQ, AWQ, etc.) so accuracy thresholds can be set appropriate to the quantization error floor. Consider also pinning the test to use a deterministic seed or a frozen model snapshot.",
+  "historical_context": "No prior investigation matches this exact failure in the database. Other similar accuracy comparison failures have been seen in the merge queue but for different models/test variants."
+}
