@@ -33,7 +33,6 @@ ParamsKey ResampleKernelBfyxCubicOpt::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableDynamicShapesSupport();
     k.EnableResampleType(ResampleType::CUBIC);
     return k;
 }
@@ -76,8 +75,7 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
-        std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; }))
+    if (ResampleKernelBase::has_padding(params))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Explicit axes may include B/F with unit scale. The optimized kernel is still valid
