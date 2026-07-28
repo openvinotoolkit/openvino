@@ -580,7 +580,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
                                                     const std::string& device_type) {
     std::call_once(m_telemetry_client_init_once, [this]() {
-        m_telemetry_client = std::make_shared<device_monitor::TelemetryClient>();
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
     auto result = m_telemetry_client->utilization(device_name, device_type);
     if (result.has_value()) {

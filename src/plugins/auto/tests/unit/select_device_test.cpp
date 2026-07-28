@@ -247,8 +247,14 @@ public:
         std::map<std::string, float> deviceUtilization;
         std::tie(threshold, devices, deviceUtilization, selectedDeviceInfo) = obj.param;
         std::ostringstream result;
+        // Sort threshold keys for deterministic test naming
+        std::vector<std::string> sorted_keys;
         for (const auto& item : threshold) {
-            result << item.first << "_utilizationThreshold_" << item.second << "_";
+            sorted_keys.push_back(item.first);
+        }
+        std::sort(sorted_keys.begin(), sorted_keys.end());
+        for (const auto& key : sorted_keys) {
+            result << key << "_utilizationThreshold_" << threshold.at(key) << "_";
         }
         result << "candidateDeviceList_";
         for (auto dev : devices)

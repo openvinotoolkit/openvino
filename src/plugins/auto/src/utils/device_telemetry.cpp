@@ -32,9 +32,9 @@ public:
         const ipf_err_t status = IpfCreate(nullptr, &m_handle);
         if (status != IpfError::IPF_ERR_OK) {
             m_handle = nullptr;
-            LOG_DEBUG_TAG("TelemetryClient: IPF ClientApi initialization failed: %s", ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF ClientApi initialization failed: %s", ipf_ef_error_str(status));
         } else {
-            LOG_DEBUG_TAG("TelemetryClient: IPF ClientApi initialized successfully");
+            LOG_INFO_TAG("TelemetryClient: IPF ClientApi initialized successfully");
         }
     }
 
@@ -52,7 +52,7 @@ public:
         }
         const std::string metric_key = device_to_metric_key(device_name, device_type);
         if (metric_key.empty()) {
-            LOG_DEBUG_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
+            LOG_WARNING_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
             return std::nullopt;
         }
         LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
@@ -64,11 +64,11 @@ public:
             LOG_DEBUG_TAG("TelemetryClient: raw IPF response: %s", json_str.c_str());
             const auto parsed = nlohmann::json::parse(json_str);
             if (!parsed.contains("Performance")) {
-                LOG_DEBUG_TAG("TelemetryClient: JSON missing 'Performance' section");
+                LOG_WARNING_TAG("TelemetryClient: JSON missing 'Performance' section");
                 return std::nullopt;
             }
             if (!parsed["Performance"].contains(metric_key)) {
-                LOG_DEBUG_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
+                LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
                 return std::nullopt;
             }
             float value = parsed["Performance"][metric_key].get<float>();
@@ -76,16 +76,19 @@ public:
             LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
                           value_as_string.c_str(),
                           device_name.c_str());
-            if (!std::isfinite(value) || value < 0.0f) {
-                LOG_DEBUG_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
+            if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
+                LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
                               value_as_string.c_str(),
                               device_name.c_str());
                 return std::nullopt;
             }
-            value = value > 100.0f ? 100.0f : value;
+
             return value;
-        } catch (...) {
-            LOG_DEBUG_TAG("TelemetryClient: unknown exception during query for device=%s", device_name.c_str());
+        } catch (const nlohmann::json::exception& e) {
+            LOG_DEBUG_TAG("TelemetryClient: JSON parsing exception: %s", e.what());
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            LOG_DEBUG_TAG("TelemetryClient: exception during query for device=%s: %s", device_name.c_str(), e.what());
             return std::nullopt;
         }
     }
@@ -99,13 +102,13 @@ private:
         size_t len = 0;
         ipf_err_t status = IpfGetNode(m_handle, path, nullptr, &len);
         if (status != IpfError::IPF_ERR_BUFFERTOOSMALL || len == 0) {
-            LOG_DEBUG_TAG("TelemetryClient: IpfGetNode(%s) size query failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IpfGetNode(%s) size query failed: %s", path, ipf_ef_error_str(status));
             return {};
         }
         std::vector<char> buf(len);
         status = IpfGetNode(m_handle, path, buf.data(), &len);
         if (status != IpfError::IPF_ERR_OK) {
-            LOG_DEBUG_TAG("TelemetryClient: IpfGetNode(%s) failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IpfGetNode(%s) failed: %s", path, ipf_ef_error_str(status));
             return {};
         }
         return std::string(buf.data());

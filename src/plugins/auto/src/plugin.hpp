@@ -101,7 +101,7 @@ private:
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
     std::once_flag m_telemetry_client_init_once;
-    std::shared_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
 };
 
 }  // namespace auto_plugin

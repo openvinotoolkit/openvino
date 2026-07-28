@@ -55,6 +55,24 @@ public:
     }
 };
 
+class DeviceUtilizationThresholdValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            const auto& threshold_map = v.as<std::map<std::string, unsigned>>();
+            // Validate that all threshold values are in range [0, 100]
+            for (const auto& [device, value] : threshold_map) {
+                if (value > 100) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (std::exception&) {
+            return false;
+        }
+    }
+};
+
 class PluginConfig {
 public:
     PluginConfig();
@@ -173,7 +191,7 @@ public:
                                 multi_supported_properties.end());
         multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
                                                      multi_supported_properties.end(),
-                                                     ov::intel_auto::devices_utilization_threshold.name()),
+                                                     ov::intel_auto::devices_utilization_threshold),
                                          multi_supported_properties.end());
         return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
