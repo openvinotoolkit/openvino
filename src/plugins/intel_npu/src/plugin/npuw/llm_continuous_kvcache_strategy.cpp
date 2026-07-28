@@ -4,8 +4,12 @@
 
 #include "llm_continuous_kvcache_strategy.hpp"
 
+#include <regex>
+
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
+#include "llm_prefix_caching.hpp"
+#include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -56,6 +60,24 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
     if (use_chunk_prefill) {
         m_req.bind_past_kv();
         m_req.clear_chunk_prefill_kv_cache();
+    }
+
+    // Build the output→input name map for prefix caching once, avoiding repeated
+    // regex_replace calls in apply_cached_prefix_blocks().
+    // Prefill outputs that contain "present" map to the corresponding prefill input
+    // that uses the "past_key_values" prefix instead.
+    if (m_req.m_npuw_llm_compiled_model->m_enable_prefix_caching) {
+        const std::regex present_regex("present");
+        for (const auto& output_port : m_req.m_prefill_request->get_compiled_model()->outputs()) {
+            const auto& out_name = output_port.get_any_name();
+            if (out_name.find("present") == std::string::npos) {
+                continue;
+            }
+            const auto in_name = std::regex_replace(out_name, present_regex, "past_key_values");
+            if (m_req.m_prefill_in_ports.find(in_name) != m_req.m_prefill_in_ports.end()) {
+                m_prefill_out_to_in_port_map[out_name] = in_name;
+            }
+        }
     }
 }
 
@@ -146,6 +168,90 @@ void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_l
                              m_req.m_kvcache_out_ports,
                              input_tokens_len,
                              v_transposed);
+}
+
+// make_prefix_block: copy the prefill output slice [out_token_offset, out_token_offset+block_size) for every
+// KV layer into freshly allocated CPU tensors and return them packaged as a KVBlock.
+// out_token_offset: token-dimension offset in the padded prefill output buffer
+//   (= pad_offset + k*block_size; > 0 when the last chunk is shorter than m_prefill_chunk_size).
+// block_token_start: absolute token position in the prompt (used for set_token_start on the block).
+std::shared_ptr<KVBlock> LLMContinuousKVCacheStrategy::make_prefix_block(size_t block_token_start,
+                                                                         size_t out_token_offset,
+                                                                         size_t block_size_arg,
+                                                                         const std::vector<uint64_t>& token_hashes) {
+    // m_prefill_out_to_in_port_map keys are exactly the KV output names that have a corresponding
+    // prefill input port — the same set apply_cached_prefix_blocks will later restore from.
+    OPENVINO_ASSERT(!m_prefill_out_to_in_port_map.empty(),
+                    "make_prefix_block called but m_prefill_out_to_in_port_map is empty; "
+                    "on_initialize() must be called first with prefix caching enabled.");
+
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    KVData kvcache_data;
+    kvcache_data.reserve(m_prefill_out_to_in_port_map.size());
+
+    for (const auto& [output_name, _] : m_prefill_out_to_in_port_map) {
+        const bool is_value = (output_name.find("value") != std::string::npos);
+        const uint32_t kv_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+
+        auto kv_src_tensor = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(output_name));
+        auto kv_src_slice = ov::npuw::util::view(kv_src_tensor, kv_dim, out_token_offset, block_size_arg);
+
+        auto new_kv_tensor =
+            ov::get_tensor_impl(ov::Tensor(kv_src_slice->get_element_type(), kv_src_slice->get_shape()));
+        ov::npuw::util::copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim, kv_dim);
+
+        kvcache_data.emplace_back(output_name, std::move(new_kv_tensor));
+    }
+
+    auto block = std::make_shared<KVBlock>(block_size_arg);
+    block->set_token_start(block_token_start);
+    block->add_block(token_hashes, std::move(kvcache_data));
+    return block;
+}
+
+// apply_cached_prefix_blocks: copy CPU KV tensors from each cached block's KVData into the
+// prefill model's past_key_values input ports.
+// The output-to-input name mapping is derived on-the-fly via the same regex used by
+// PrefixCachingHelper::create_name_mapping() ("present" → "past_key_values"), with an
+// existence check to skip any output that has no corresponding input port.
+void LLMContinuousKVCacheStrategy::apply_cached_prefix_blocks(
+    const std::vector<std::shared_ptr<KVBlock>>& cached_blocks) {
+    if (cached_blocks.empty()) {
+        return;
+    }
+
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+    const uint64_t block_size = m_req.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+
+    ov::parallel_for(cached_blocks.size(), [&](size_t block_idx) {
+        const auto& block = cached_blocks[block_idx];
+        const auto token_start = block->get_token_start();
+        const KVData& block_kv_data = block->get_block_kv_data();
+
+        for (const auto& kv_per_layer : block_kv_data) {
+            const auto& kv_out_name = kv_per_layer.first;
+
+            auto map_it = m_prefill_out_to_in_port_map.find(kv_out_name);
+            if (map_it == m_prefill_out_to_in_port_map.end()) {
+                continue;
+            }
+
+            auto port_it = m_req.m_prefill_in_ports.find(map_it->second);
+            if (port_it == m_req.m_prefill_in_ports.end()) {
+                continue;
+            }
+
+            const auto& kv_dim =
+                (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
+                    ? 3u
+                    : kvcache_desc.dim;
+
+            auto kv_dst_tensor = m_req.m_prefill_request->get_tensor(port_it->second);
+            auto kv_dst_slice = ov::npuw::util::view(kv_dst_tensor, kv_dim, token_start, block_size);
+            ov::npuw::util::copy_tensor_by_dim(kv_per_layer.second, kv_dst_slice, kv_dim, kv_dim);
+        }
+    });
 }
 
 }  // namespace npuw

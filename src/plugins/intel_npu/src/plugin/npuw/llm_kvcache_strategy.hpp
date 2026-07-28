@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "llm_infer_base_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -14,6 +15,7 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;  // forward declaration — strategy always outlived by its owning request
+class KVBlock;          // forward declaration — full definition in llm_prefix_caching.hpp
 
 /**
  * @brief Abstract strategy interface for LLM KV cache management.
@@ -86,6 +88,30 @@ public:
 
     // Called after each generate step's infer(): persist new token KV and update bindings
     virtual void on_generate_step_done(uint32_t input_tokens_len) = 0;
+
+    // -------------------------------------------------------------------------
+    // Prefix caching integration (Block KV mode only)
+    // -------------------------------------------------------------------------
+
+    /// Called by PrefixCachingHelper::restore_blocks() before the first prefill chunk.
+    /// Block KV strategy injects cached NPU tensors back into KVCacheBlockManagers via
+    /// allocate_block_with_tensor() so they appear as pre-allocated past-KV blocks.
+    /// Continuous strategy: default no-op (uses copy_cached_kv_data() instead).
+    virtual void apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& /*blocks*/) {}
+
+    /// Called by PrefixCachingHelper::store_computed_blocks() after each prefill chunk.
+    /// Block KV strategy: returns a PrefixBlockBlockKV holding SoPtr refs to the NPU
+    ///   block tensors at [block_token_start, block_token_start + block_size).  out_token_offset ignored.
+    /// Continuous KV strategy: CPU-copies the slice [out_token_offset, out_token_offset+block_size) from
+    ///   the prefill output buffer into a new KVBlock.
+    ///   out_token_offset is the token-dimension offset in the padded prefill output buffer
+    ///   (equals pad_offset + k*block_size; > 0 when the last chunk is shorter than m_prefill_chunk_size).
+    virtual std::shared_ptr<KVBlock> make_prefix_block(size_t /*block_token_start*/,
+                                                       size_t /*out_token_offset*/,
+                                                       size_t /*block_size*/,
+                                                       const std::vector<uint64_t>& /*token_hashes*/) {
+        return nullptr;
+    }
 
 protected:
     LLMInferRequest& m_req;

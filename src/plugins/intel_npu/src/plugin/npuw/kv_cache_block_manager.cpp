@@ -178,6 +178,29 @@ void KVCacheBlockManager::clear_all() {
     release(0);
 }
 
+uint32_t KVCacheBlockManager::allocate_block_with_tensor(ov::SoPtr<ov::ITensor> tensor, uint32_t num_tokens) {
+    OPENVINO_ASSERT(!free_block_ids_.empty(),
+                    "KVCacheBlockManager: No free blocks available for prefix block injection");
+    OPENVINO_ASSERT(num_tokens == block_size_,
+                    "KVCacheBlockManager: prefix injection requires a full block, but num_tokens (",
+                    num_tokens,
+                    ") != block_size (",
+                    block_size_,
+                    ")");
+
+    uint32_t block_id = free_block_ids_.top();
+    free_block_ids_.pop();
+
+    auto& block = blocks_[block_id];
+    block.tensor = std::move(tensor);
+    block.num_tokens = num_tokens;
+    block.is_allocated = true;
+
+    LOG_VERB("KVCacheBlockManager: Injected cached prefix tensor into block " << block_id << " (" << num_tokens
+                                                                              << " tokens)");
+    return block_id;
+}
+
 void KVCacheBlockManager::validate_block_id(uint32_t block_id) const {
     if (block_id >= max_blocks_) {
         OPENVINO_THROW("KVCacheBlockManager: Invalid block ID ", block_id, " (valid range: 0-", max_blocks_ - 1, ")");

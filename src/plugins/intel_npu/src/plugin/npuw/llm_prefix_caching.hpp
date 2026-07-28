@@ -43,6 +43,8 @@ public:
         m_token_hashes.reserve(m_block_size);
     }
 
+    virtual ~KVBlock() = default;
+
     bool is_full() const {
         return m_is_full;
     }
@@ -104,6 +106,39 @@ private:
     // One block only has single parent block
     uint64_t m_parent_block_hash;
     KVData m_kv_data;
+};
+
+/// @brief References to a pair of NPU block tensors for one transformer layer,
+/// held by PrefixBlockBlockKV to keep device memory alive across conversation resets.
+struct BlockKVRef {
+    ov::SoPtr<ov::ITensor> key_tensor;
+    ov::SoPtr<ov::ITensor> value_tensor;
+    uint32_t num_tokens = 0;
+};
+
+/// @brief KVBlock subclass for the Block-based (paged) KV cache mode.
+///
+/// Instead of storing KV data as CPU tensors in KVData, this block type
+/// holds SoPtr references to the NPU block tensors managed by
+/// KVCacheBlockManager.  Holding these SoPtrs ensures the NPU memory
+/// is not freed by KVCacheBlockManager::release() as long as this block
+/// remains alive in the PrefixCacheManager.
+class PrefixBlockBlockKV : public KVBlock {
+public:
+    explicit PrefixBlockBlockKV(size_t block_size) : KVBlock(block_size) {}
+
+    /// @brief Store NPU tensor refs for one transformer layer.
+    void add_layer_ref(uint32_t layer_idx, BlockKVRef ref) {
+        m_layer_refs[layer_idx] = std::move(ref);
+    }
+
+    /// @brief Access per-layer NPU tensor references.
+    const std::unordered_map<uint32_t, BlockKVRef>& get_layer_refs() const {
+        return m_layer_refs;
+    }
+
+private:
+    std::unordered_map<uint32_t, BlockKVRef> m_layer_refs;
 };
 
 class PrefixCacheManager {
@@ -239,12 +274,6 @@ private:
      */
     std::vector<std::shared_ptr<KVBlock>> find_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
                                                              const std::vector<uint64_t>& prompt_hashes);
-
-    /**
-     * @brief Copy KV data from cached blocks to prefill request tensors
-     * @param cached_blocks Vector of cached KV blocks to copy from
-     */
-    void copy_cached_kv_data(const std::vector<std::shared_ptr<KVBlock>>& cached_blocks);
 
     uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids, const std::vector<uint64_t>& prompt_hashes);
     void store_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);

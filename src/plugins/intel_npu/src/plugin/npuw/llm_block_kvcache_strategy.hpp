@@ -12,6 +12,7 @@
 
 #include "kv_cache_block_manager.hpp"
 #include "llm_kvcache_strategy.hpp"
+#include "llm_prefix_caching.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -119,6 +120,13 @@ public:
                                     const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
                                     const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
+
+    // Prefix caching integration (Block KV mode)
+    void apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) override;
+    std::shared_ptr<KVBlock> make_prefix_block(size_t block_token_start,
+                                               size_t out_token_offset,
+                                               size_t block_size,
+                                               const std::vector<uint64_t>& token_hashes) override;
 
 private:
     // -------------------------------------------------------------------------
