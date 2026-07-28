@@ -17,10 +17,10 @@
 #include <numeric>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <tuple>
 #include <vector>
 
+#include "openvino/util/../../../src/memory_prefetch.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/io.hpp"
 #include "openvino/util/memory.hpp"
@@ -209,7 +209,7 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
+    mapped->hint_prefetch();
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 

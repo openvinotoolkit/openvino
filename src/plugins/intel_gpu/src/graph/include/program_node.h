@@ -83,7 +83,7 @@ public:
         return res;
     }
 
-    bool is_shape_infer_dep(void) const {
+    bool is_shape_infer_dep() const {
         if (!myprog.is_new_shape_infer())
             return false;
         for (auto u : users) {
