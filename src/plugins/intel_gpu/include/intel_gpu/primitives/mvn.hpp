@@ -102,5 +102,10 @@ struct mvn : public primitive_base<mvn> {
 
         return false;
     }
+
+    // Returns false when the given layout needs a reorder to planar before an aligned MVN (see requires_alignment):
+    // the normalized-axes flattening in mvn_impl::static_canonicalize_shapes is only valid for planar / single-fsv
+    // layouts.
+    bool is_aligned_layout_supported(const layout& input_layout) const;
 };
 }  // namespace cldnn

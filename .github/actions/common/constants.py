@@ -10,7 +10,6 @@ class EventType(Enum):
 
 
 productTypes = (
-    'public_linux_debian_10_arm_release',
     'public_linux_fedora_29_x86_64_release',
     'public_linux_ubuntu_20_04_x86_64_release',
     'public_linux_ubuntu_22_04_arm64_release',
@@ -18,6 +17,8 @@ productTypes = (
     'public_linux_ubuntu_22_04_x86_64_release',
     'public_linux_ubuntu_22_04_dpcpp_x86_64_release',
     'public_linux_ubuntu_24_04_x86_64_release',
+    'public_linux_ubuntu_24_04_x86_64_levelzero_release',
+    'public_linux_ubuntu_26_04_x86_64_release',
     'public_windows_vs2019_release',
     'public_windows_vs2019_debug',
     'public_windows_vs2022_release',
@@ -34,13 +35,13 @@ ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
 platformKeys = (
     'almalinux8_x86_64',
-    'debian10_armhf',
     'rhel8_x86_64',
     'ubuntu22_arm64',
     'ubuntu22_arm64_cross_compile',
     'ubuntu20_x86_64',
     'ubuntu22_x86_64',
     'ubuntu24_x86_64',
+    'ubuntu26_x86_64',
     'macos_12_6_arm64',
     'macos_12_6_x86_64',
     'macos_14_7_arm64',
@@ -51,12 +52,12 @@ platformKeys = (
 PlatformKey = Enum('PlatformKey', {t.upper(): t for t in platformKeys})
 
 PlatformMapping = {
-    PlatformKey.DEBIAN10_ARMHF: ProductType.PUBLIC_LINUX_DEBIAN_10_ARM_RELEASE,
     PlatformKey.UBUNTU20_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_20_04_X86_64_RELEASE,
     PlatformKey.UBUNTU22_ARM64: ProductType.PUBLIC_LINUX_UBUNTU_22_04_ARM64_RELEASE,
     PlatformKey.UBUNTU22_ARM64_CROSS_COMPILE: ProductType.PUBLIC_LINUX_UBUNTU_22_04_ARM64_CROSS_COMPILE_RELEASE,
     PlatformKey.UBUNTU22_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_22_04_X86_64_RELEASE,
     PlatformKey.UBUNTU24_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_24_04_X86_64_RELEASE,
+    PlatformKey.UBUNTU26_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_26_04_X86_64_RELEASE,
     PlatformKey.WINDOWS_X86_64: ProductType.PUBLIC_WINDOWS_VS2022_RELEASE,
     PlatformKey.MACOS_12_6_X86_64: ProductType.PUBLIC_MACOS_X86_64_RELEASE,
     PlatformKey.MACOS_14_7_ARM64: ProductType.PUBLIC_MACOS_ARM64_RELEASE,

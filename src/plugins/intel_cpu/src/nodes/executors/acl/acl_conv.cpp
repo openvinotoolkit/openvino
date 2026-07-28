@@ -101,13 +101,8 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                 }
             }
 
-            if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
-                fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
-                for (auto& v : fqInputShift) {
-                    v += fqOutputShift[0];
-                }
-                fqOutputShift.clear();
-            }
+            foldFakeQuantizeOutputShift(fqInputShift, fqOutputScale, fqOutputShift);
+            fqOutputShift.clear();
         } else {
             OPENVINO_THROW("ACLConvolutionExecutor: the executor supports FakeQuantize and Activation post ops only");
         }

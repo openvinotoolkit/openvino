@@ -277,7 +277,7 @@ protected:
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+        if ((all_events.empty()) && (!tmp_events.empty()))
             return stream.aggregate_events(tmp_events);
 
         bool group_events = (all_events.size() > 1);

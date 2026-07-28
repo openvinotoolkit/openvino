@@ -16,7 +16,7 @@ public:
 
     count_nonzero_kernel_selector();
 
-    virtual ~count_nonzero_kernel_selector() {}
+    ~count_nonzero_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -11,7 +11,7 @@ namespace kernel_selector {
 class FullyConnectedBlockKernelBase : public FullyConnectedKernelBase {
 public:
     using FullyConnectedKernelBase::FullyConnectedKernelBase;
-    virtual ~FullyConnectedBlockKernelBase() {}
+    ~FullyConnectedBlockKernelBase() override {}
 
 protected:
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;

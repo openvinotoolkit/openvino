@@ -11,7 +11,7 @@ namespace kernel_selector {
 class ConcatenationKernel_b_fs_yx_fsv32 : public ConcatenationKernelBase {
 public:
     ConcatenationKernel_b_fs_yx_fsv32() : ConcatenationKernelBase("concatenation_gpu_b_fs_yx_fsv32") {}
-    virtual ~ConcatenationKernel_b_fs_yx_fsv32() {}
+    ~ConcatenationKernel_b_fs_yx_fsv32() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

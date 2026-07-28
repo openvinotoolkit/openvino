@@ -5,6 +5,7 @@
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <tuple>
+#include <unordered_set>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -241,6 +243,18 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     return {mask, offset};
 }
 
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gemma4_sliding_window_pattern() {
+    auto offset = wrap_type<v0::Constant>();
+    auto ge = wrap_type<v1::GreaterEqual>({any_input(), offset});
+    auto unsqueeze_0 = wrap_type<v0::Unsqueeze>({ge, any_input()});
+    auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({unsqueeze_0, any_input()});
+    auto inner_select = wrap_type<v1::Select>({unsqueeze_1, any_input(), any_input()});
+    auto outer_select = wrap_type<v1::Select>({any_input(), any_input(), inner_select});
+    auto mask = pattern::optional<v8::Slice>({outer_select, any_input(), any_input(), any_input(), any_input()});
+
+    return {mask, offset};
+}
+
 typedef std::
     tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
         node_tuple;
@@ -294,6 +308,12 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
         return default_heads_num;
     }
 };
+
+static std::shared_ptr<ov::Node> optional_fake_convert(const std::shared_ptr<ov::Node>& input) {
+    auto fc_2 = wrap_type<v13::FakeConvert>({input, any_input()});
+    auto fc_3 = wrap_type<v13::FakeConvert>({input, any_input(), any_input()});
+    return std::make_shared<Or>(OutputVector{fc_2, fc_3, input});
+}
 
 StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
     const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
@@ -398,24 +418,35 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
     std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
+    // gemma4 sliding layer case
+    std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
+    std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
+
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
         return output.get_partial_shape() == ov::PartialShape{} ||
                (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
     };
 
-    auto q = any_input();
     auto scale_input = any_input(scale_predicate);
     auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
 
-    auto k_to_sdpa = std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa = std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    std::shared_ptr<ov::Node> k_to_sdpa =
+        std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
+    std::shared_ptr<ov::Node> v_to_sdpa =
+        std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+
+    auto q_inner = any_input();
+    auto q = optional_fake_convert(q_inner);
+    k_to_sdpa = optional_fake_convert(k_to_sdpa);
+    v_to_sdpa = optional_fake_convert(v_to_sdpa);
 
     auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
                                                           general_alibi_mask,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
                                                           gptoss_gemma3_mask,
+                                                          gemma4_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -428,7 +459,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& real_q = pattern_map.at(q);
+        const auto& real_q = pattern_map.at(q_inner);
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
@@ -549,6 +580,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
+        // Re-apply FakeConvert after Reshape for Q/K/V (aligned position for all three)
+        Output<Node> q_to_pa = q_reshape;
+        Output<Node> k_to_pa = k_reshape;
+        Output<Node> v_to_pa = v_reshape;
+        for (auto& [pattern_node, target] :
+             {std::tie(q, q_to_pa), std::tie(k_to_sdpa, k_to_pa), std::tie(v_to_sdpa, v_to_pa)}) {
+            if (pattern_map.count(pattern_node)) {
+                auto fc = ov::as_type_ptr<v13::FakeConvert>(pattern_map.at(pattern_node).get_node_shared_ptr());
+                if (fc) {
+                    auto new_inputs = fc->input_values();
+                    new_inputs[0] = target;
+                    target = fc->clone_with_new_inputs(new_inputs);
+                }
+            }
+        }
+
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
@@ -587,7 +634,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        OutputVector pa_arguments = {q_to_pa, k_to_pa, v_to_pa, k_parameter, v_parameter};
         pa_arguments.push_back(pa_params["past_lens"]);
         pa_arguments.push_back(pa_params["subsequence_begins"]);
         if (!options.use_per_layer_block_indices_inputs) {
@@ -611,6 +658,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
+        } else if (pattern_map.count(gemma4_offset)) {
+            auto offset = pattern_map.at(gemma4_offset).get_node_shared_ptr();
+            if (pattern_map.at(gemma4_offset).get_partial_shape().rank() != 0) {
+                offset = std::make_shared<v15::Squeeze>(offset);
+            }
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = offset;
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
