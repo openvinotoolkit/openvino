@@ -55,7 +55,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -95,14 +95,7 @@ public:
 namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
-    auto dyn_types = {
-        data_types::i8,
-        data_types::u8,
-        data_types::f16,
-        data_types::f32,
-        data_types::i32,
-        data_types::i64
-    };
+    auto dyn_types = {data_types::i8, data_types::u8, data_types::f16, data_types::f32, data_types::i32, data_types::i64, data_types::f8e4m3};
 
     auto dyn_formats = {
         format::bfyx,

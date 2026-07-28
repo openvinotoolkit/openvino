@@ -81,7 +81,7 @@ void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
 // Both GPTOSSRouter and Qwen3Router call this after validating the TopK node.
 // expected_k is updated on first call and checked for consistency on subsequent calls;
 // OPENVINO_THROW is raised if two matched layers carry different K values.
-static bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
+bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
     auto k_input = topk_node->input_value(1);
     auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr());
     if (!k_const) {
@@ -465,9 +465,13 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
     auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
 
+    auto topk_to_scatter = opp::optional<ov::op::v0::Convert>({topk});
+    auto divide_to_scatter = opp::optional<ov::op::v8::Slice>(
+        {divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
     // Scatter to full expert shape (pattern root = Unsqueeze)
-    auto scatter =
-        opp::wrap_type<ov::op::v12::ScatterElementsUpdate>({opp::any_input(), topk, divide, opp::any_input()});
+    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), topk_to_scatter, divide_to_scatter, opp::any_input()});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});

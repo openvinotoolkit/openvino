@@ -63,8 +63,7 @@ public:
     }
     // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
     //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
-    GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                 [[maybe_unused]] const std::string& isol_tag);
+    GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class Qwen3Expert : public ov::pass::MatcherPass {
@@ -99,8 +98,7 @@ public:
     }
     // NOTE: isol_tag is accepted for macro-call uniformity but is intentionally unused
     //       (Router nodes are not isolated; only K is extracted via RT_INFO_MOE_K).
-    Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                [[maybe_unused]] const std::string& isol_tag);
+    Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 }  // namespace moe
