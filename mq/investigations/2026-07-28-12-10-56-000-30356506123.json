@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-12-10-56-000-30356506123",
+  "timestamp": "2026-07-28T12:10:56Z",
+  "run_id": "30356506123",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30356506123",
+  "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+  "pr_number": "36955",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36955",
+  "author": "praasz",
+  "category": "Infrastructure",
+  "title": "RISC-V Build (RVV 1.0) CMake configure step fails - logs inaccessible, likely transient runner failure",
+  "signature": "cmake configure step failure riscv build logs unavailable|Infrastructure",
+  "signature_hash": "eb524e8027ac9d8f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build (RVV 1.0)",
+      "conclusion": "failure",
+      "symptom": "CMake - Configure step failed in ~37 seconds; subsequent Upload steps failed as skipped/dependent on failed build"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_riscv",
+      "conclusion": "failure",
+      "symptom": "Downstream status check failed because Build (RVV 1.0) failed"
+    }
+  ],
+  "key_errors": [
+    "Step 'CMake - Configure' (step 7) failed at 2026-07-28T12:04:12Z after starting at 12:03:35Z (37 seconds - abnormally short for RISC-V cross-compilation configure)",
+    "Job logs inaccessible: GitHub API returns 403 Forbidden for get_job_logs on job 90267202279",
+    "Upstream job Build (RVV 1.0) failure caused ci/gha_overall_status_linux_riscv to fail at step 'Check status of all jobs'"
+  ],
+  "root_cause": "The RISC-V Build (RVV 1.0) job failed during 'CMake - Configure' in approximately 37 seconds. This is far shorter than expected for a full RISC-V cross-compilation configure (which normally takes several minutes). Job logs are inaccessible (GitHub API 403 Forbidden), preventing direct inspection. The triggered PR (#36955) only modifies Windows-specific TBB DLL copy logic in src/cmake/openvino.cmake (inside `if(WIN32 AND BUILD_SHARED_LIBS)` guard), which is irrelevant to RISC-V builds that use THREADING=OMP and run on Linux. The same PR had a transient ARM64 runner failure earlier (run 30351149892, investigation 2026-07-28-11-15-51) which succeeded on attempt 2. The combination of abnormally short configure time, inaccessible logs, and same-PR ARM64 transient failure strongly suggests a transient runner/infrastructure issue rather than a code defect. The PR change cannot be the root cause of a cmake configure failure on RISC-V/Linux/OMP.",
+  "reproduction_steps": "N/A - logs are inaccessible and the failure is suspected to be transient infrastructure",
+  "recommended_actions": [
+    "Re-add PR #36955 to the merge queue - the cmake change does not affect RISC-V builds",
+    "Monitor RISC-V runner pool health around 2026-07-28T12:00Z",
+    "If failure recurs, escalate to GitHub Support to investigate runner availability"
+  ],
+  "prevention_strategies": "Consider adding retry logic for cmake configure steps in cross-compilation builds. Ensure RISC-V runner pool has sufficient capacity and health monitoring.",
+  "historical_context": "The same PR #36955 had a transient ARM64 runner failure (investigation 2026-07-28-11-15-51-175-30351149892) that succeeded on re-run attempt 2. Prior RISC-V build failures in this repo include artifact upload 403 Forbidden errors (pattern 602c52a223d7ebfe, count 2) and Docker build dependency issues (pattern 926d0537c057e523, count 5). None match the cmake configure failure symptom."
+}

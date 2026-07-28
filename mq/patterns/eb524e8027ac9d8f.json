@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "cmake configure step failure riscv build logs unavailable|Infrastructure",
+  "signature_hash": "eb524e8027ac9d8f",
+  "title": "RISC-V Build (RVV 1.0) CMake configure step fails - logs inaccessible, likely transient runner failure",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-28T12:10:56Z",
+  "last_seen": "2026-07-28T12:10:56Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30356506123"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36955"
+  ],
+  "recent_timestamps": [
+    "2026-07-28T12:10:56Z"
+  ],
+  "rerun_search_string": null
+}
