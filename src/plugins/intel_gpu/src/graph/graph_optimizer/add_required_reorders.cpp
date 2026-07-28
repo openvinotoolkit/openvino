@@ -172,7 +172,7 @@ void add_required_reorders::run(program& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
-        if (usr->get_dependencies().size() == 0)
+        if (usr->get_dependencies().empty())
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
