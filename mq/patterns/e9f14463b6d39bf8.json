@@ -4,10 +4,11 @@
   "signature_hash": "e9f14463b6d39bf8",
   "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
   "category": "Flaky Test",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-07-27T22:50:38Z",
-  "last_seen": "2026-07-28T02:47:53Z",
+  "last_seen": "2026-07-28T06:48:38Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30331659250",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30320203454",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30307050013"
   ],
@@ -15,6 +16,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/35116"
   ],
   "recent_timestamps": [
+    "2026-07-28T06:48:38Z",
     "2026-07-28T02:47:53Z",
     "2026-07-27T22:50:38Z"
   ],

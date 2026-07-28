@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-06-48-38-000-30331659250",
+  "timestamp": "2026-07-28T06:48:38Z",
+  "run_id": "30331659250",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30331659250",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Flaky Test",
+  "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
+  "signature": "pytorch llm model tests step failed in pytorch models tests job|Flaky Test",
+  "signature_hash": "e9f14463b6d39bf8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "PyTorch LLM Model Tests step failed"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to PyTorch Models tests failure"
+    }
+  ],
+  "key_errors": [
+    "Step 'PyTorch LLM Model Tests' failed in job 90192736366 (PyTorch Models tests / PyTorch Models tests)",
+    "Direct log access blocked by secrecy policy (HTTP 403)",
+    "Pattern matches prior investigations: runs 30307050013, 30320203454 - both classified Flaky Test"
+  ],
+  "root_cause": "The PyTorch Models tests job fails at the 'PyTorch LLM Model Tests' step (job 90192736366). This is a recurring flaky test pattern (signature e9f14463b6d39bf8) seen 2 prior times in the last 12 hours on runs 30307050013 and 30320203454. Logs are inaccessible due to secrecy policy (403), but the pattern is consistent: the PyTorch LLM Model Tests step intermittently fails in the merge queue. Prior investigations noted this is unrelated to PR code changes and is a pre-existing flaky test. The ci/gha_overall_status job fails as a downstream consequence.",
+  "reproduction_steps": "N/A - flaky test not reliably reproducible",
+  "recommended_actions": [
+    "Re-add the affected PR to the merge queue if it was dropped (transient flaky test failure)",
+    "Track the PyTorch LLM Model Tests flakiness and stabilize or add retries",
+    "Consider skipping or quarantining the flaky LLM test until it is fixed"
+  ],
+  "prevention_strategies": "Flaky LLM model tests should be tracked and either stabilized with retries or marked as known-flaky so they do not block the merge queue.",
+  "historical_context": "This is the 3rd occurrence. Run 30307050013 and run 30320203454 on the same pattern (signature e9f14463b6d39bf8). Both were classified as Flaky Test."
+}
