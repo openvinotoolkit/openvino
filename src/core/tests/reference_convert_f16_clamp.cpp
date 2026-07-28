@@ -36,9 +36,11 @@ TEST(reference_convert_f16_clamp, f32_to_f16_preserves_specials_and_clamps_finit
 
     // 20 elements => two full 8-wide vector chunks + a 4-element tail.
     // Specials are placed in the first chunk (0..7) and again in the tail (16..19).
-    const std::vector<float> in = {pinf, ninf, nan,  1.0f, 2.0f * f16_max, -2.0f * f16_max, 0.0f, f16_max,  // chunk 0
-                                   2.0f, 3.0f, 4.0f, 5.0f, 6.0f,           7.0f,            8.0f, 9.0f,      // chunk 1
-                                   pinf, ninf, nan,  -3.0f * f16_max};                                      // tail
+    const std::vector<float> in = {pinf, ninf,    nan,  1.0f,           2.0f * f16_max, -2.0f * f16_max,
+                                   0.0f, f16_max,  // chunk 0
+                                   2.0f, 3.0f,    4.0f, 5.0f,           6.0f,           7.0f,
+                                   8.0f, 9.0f,                             // chunk 1
+                                   pinf, ninf,    nan,  -3.0f * f16_max};  // tail
     std::vector<float16> out(in.size(), float16(0.0f));
 
     ov::reference::convert_from_f32_to_f16_with_clamp(in.data(), out.data(), in.size());
@@ -68,11 +70,11 @@ TEST(reference_convert_f16_clamp, bf16_to_f16_preserves_specials_and_clamps_fini
     const float nan = std::numeric_limits<float>::quiet_NaN();
     const float big = 1.0e5f;  // finite bf16, exceeds f16::max -> must clamp
 
-    const std::vector<bfloat16> in = {bfloat16(pinf), bfloat16(ninf), bfloat16(nan),   bfloat16(1.0f),
-                                      bfloat16(big),  bfloat16(-big), bfloat16(0.0f),  bfloat16(f16_max),  // chunk 0
-                                      bfloat16(2.0f), bfloat16(3.0f), bfloat16(4.0f),  bfloat16(5.0f),
-                                      bfloat16(6.0f), bfloat16(7.0f), bfloat16(8.0f),  bfloat16(9.0f),     // chunk 1
-                                      bfloat16(pinf), bfloat16(ninf), bfloat16(nan),   bfloat16(-big)};    // tail
+    const std::vector<bfloat16> in = {bfloat16(pinf), bfloat16(ninf), bfloat16(nan),  bfloat16(1.0f),
+                                      bfloat16(big),  bfloat16(-big), bfloat16(0.0f), bfloat16(f16_max),  // chunk 0
+                                      bfloat16(2.0f), bfloat16(3.0f), bfloat16(4.0f), bfloat16(5.0f),
+                                      bfloat16(6.0f), bfloat16(7.0f), bfloat16(8.0f), bfloat16(9.0f),   // chunk 1
+                                      bfloat16(pinf), bfloat16(ninf), bfloat16(nan),  bfloat16(-big)};  // tail
     std::vector<float16> out(in.size(), float16(0.0f));
 
     ov::reference::convert_from_bf16_to_f16_with_clamp(in.data(), out.data(), in.size());

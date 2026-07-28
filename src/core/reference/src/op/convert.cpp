@@ -108,15 +108,15 @@ void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::
     auto abs_mask = gen.ymm8;
     auto nonfinite_thresh = gen.ymm9;
 
-    gen.vpmovzxwd(orig, gen.yword[src]);                   // load bf16 into tmp
-    gen.vpslld(orig, orig, 16);                            // convert bf16->f32 by bit shift
-    gen.vandps(mask, orig, abs_mask);                      // |v| bits
-    gen.vpcmpgtd(mask, mask, nonfinite_thresh);            // 0xFFFFFFFF where element is ±inf/NaN
-    gen.vminps(f32vec, orig, upper_bound);                 // clamp f16 max
-    gen.vmaxps(f32vec, f32vec, lower_bound);               // clamp f16 lowest
-    gen.vblendvps(f32vec, f32vec, orig, mask);             // restore ±inf/NaN over the clamped value
-    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);     // convert f32 -> f16
-    gen.vmovdqu(gen.xword[dst], f16vec);                   // move result to destination
+    gen.vpmovzxwd(orig, gen.yword[src]);                // load bf16 into tmp
+    gen.vpslld(orig, orig, 16);                         // convert bf16->f32 by bit shift
+    gen.vandps(mask, orig, abs_mask);                   // |v| bits
+    gen.vpcmpgtd(mask, mask, nonfinite_thresh);         // 0xFFFFFFFF where element is ±inf/NaN
+    gen.vminps(f32vec, orig, upper_bound);              // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);            // clamp f16 lowest
+    gen.vblendvps(f32vec, f32vec, orig, mask);          // restore ±inf/NaN over the clamped value
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);  // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);                // move result to destination
 }
 
 template <>
@@ -176,7 +176,7 @@ void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::Reg
     gen.vpcmpgtd(mask, mask, nonfinite_thresh);  // 0xFFFFFFFF where element is ±inf/NaN
     gen.vminps(f32vec, orig, upper_bound);
     gen.vmaxps(f32vec, f32vec, lower_bound);
-    gen.vblendvps(f32vec, f32vec, orig, mask);   // restore ±inf/NaN over the clamped value
+    gen.vblendvps(f32vec, f32vec, orig, mask);  // restore ±inf/NaN over the clamped value
     gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
