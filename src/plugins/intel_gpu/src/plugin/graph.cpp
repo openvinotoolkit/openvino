@@ -24,7 +24,11 @@
 #include "intel_gpu/plugin/simple_math.hpp"
 
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "intel_gpu/primitives/grouped_matmul.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include "dynamic_quantize_inst.h"
+#include "grouped_matmul_inst.h"
+#include "fully_connected_inst.h"
 
 #include <list>
 #include <set>
@@ -466,6 +470,37 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
             if (dyn_quan->attrs.precomputed_reduction) {
                 info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
+            }
+        }
+
+        if (prim_info.type_id == "grouped_matmul") {
+            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
+            if (gm_prim->compressed_weights) {
+                auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
+                info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                if (gm_prim->decompression_zero_point.is_valid()) {
+                    // zp follows scale in dependencies: base_inputs(3) + scale(1) = idx 4
+                    auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
+                    info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                }
+            }
+        }
+
+        if (prim_info.type_id == "fully_connected") {
+            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
+            if (fc_prim->decompression_scale.is_valid()) {
+                auto wei_layout = node.get_input_layout(1);
+                info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                if (fc_prim->decompression_zero_point.is_valid()) {
+                    // deps order: input(1) + weights + [bias] + scale + zp
+                    size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
+                                    + (fc_prim->bias.is_valid() ? 1 : 0)
+                                    + 1 /*scale*/;
+                    auto zp_layout = node.get_input_layout(zp_idx);
+                    info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                }
             }
         }
 
