@@ -23,6 +23,10 @@ ov_add_test_target(
             OV HETERO
 )
 
+target_sources(${TARGET_NAME} PRIVATE
+    $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src/blob_serialization.cpp
+)
+
 if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
