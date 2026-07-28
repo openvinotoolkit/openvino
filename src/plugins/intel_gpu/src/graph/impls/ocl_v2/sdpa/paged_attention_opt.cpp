@@ -36,11 +36,7 @@ constexpr size_t u4_elems_per_byte = 2;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    if (data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type)) {
-        return true;
-    } else {
-        return false;
-    }
+    return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
 }
 
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
@@ -1388,9 +1384,7 @@ public:
         if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
             return false;
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
-            return false;
-        return true;
+        return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
@@ -1439,11 +1433,7 @@ public:
 
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-        if (data_type_traits::is_i4_u4(kv_cache_dt) && !desc->is_key_by_channel) {
-            return false;
-        }
-
-        return true;
+        return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
     }
 
     static size_t get_micro_tile_qsize(KernelData& kernel_data) {

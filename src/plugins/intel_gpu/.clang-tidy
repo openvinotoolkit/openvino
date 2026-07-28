@@ -14,7 +14,9 @@ Checks: >
   modernize-use-using
   modernize-redundant-void-arg
   readability-container-size-empty
-  readability-redundant-string-cstr
+  readability-redundant-string-cstr,
+  readability-implicit-bool-conversion,
+  readability-simplify-boolean-expr
 # Treat every enabled check as an error so they are enforced during the build.
 # Scope is controlled via 'Checks' above; matches the CPU plugin configuration.
 WarningsAsErrors: '*'
@@ -23,5 +25,17 @@ FormatStyle: file
 HeaderFilterRegex: "src/plugins/intel_gpu/(include|src)/.*\\.(h|hpp)$"
 CheckOptions:
   - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
     value: true
 ---

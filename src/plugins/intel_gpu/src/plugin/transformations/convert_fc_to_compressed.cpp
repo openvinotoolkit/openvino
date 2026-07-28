@@ -46,9 +46,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        bool has_transpose = pattern_map.count(transpose_m);
+        bool has_transpose = pattern_map.count(transpose_m) != 0u;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
-        bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
+        bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0;
 
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);

@@ -119,9 +119,7 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
-            return false;
-        return true;
+        return compare_common_params(rhs);
     }
 
     void save(BinaryOutputBuffer& ob) const override {

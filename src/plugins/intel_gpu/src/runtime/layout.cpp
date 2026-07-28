@@ -535,10 +535,7 @@ bool layout::compatible(const layout& other) const {
 
     auto l1_offset = l1.get_linear_offset();
     auto l2_offset = l2.get_linear_offset();
-    if (l1_pitch == l2_pitch && l1_offset == l2_offset)
-        return true;
-
-    return false;
+    return l1_pitch == l2_pitch && l1_offset == l2_offset;
 }
 
 bool layout::identical(const layout& other) const {

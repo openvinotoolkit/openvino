@@ -133,7 +133,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string key = options;
 
-            if (batch_compilation == false) {
+            if (!batch_compilation) {
                 key += " __PROGRAM__" + std::to_string(program_buckets.size());
             }
 

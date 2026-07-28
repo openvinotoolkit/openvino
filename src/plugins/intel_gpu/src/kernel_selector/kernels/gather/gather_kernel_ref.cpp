@@ -328,13 +328,9 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
     if (params.outputs[0].is_dynamic()) {
         auto supported_tensor_layout = [](const DataTensor& t) -> bool {
-            if (t.GetLayout() == DataLayout::bfyx ||
+            return t.GetLayout() == DataLayout::bfyx ||
                 t.GetLayout() == DataLayout::bfzyx ||
-                t.GetLayout() == DataLayout::bfwzyx) {
-                return true;
-            }
-
-            return false;
+                t.GetLayout() == DataLayout::bfwzyx;
         };
 
         for (auto& in : params.inputs) {

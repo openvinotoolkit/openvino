@@ -51,11 +51,7 @@ inline size_t get_input_kv_len(const RuntimeParams& params) {
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
-        return true;
-    } else {
-        return false;
-    }
+    return data_type_traits::is_i8_u8(key_cache_layout.data_type);
 }
 
 // max_context_len = max(past_lens + prompt_lens)

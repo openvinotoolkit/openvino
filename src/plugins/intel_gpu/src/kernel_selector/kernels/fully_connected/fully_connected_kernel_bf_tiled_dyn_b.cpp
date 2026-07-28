@@ -87,10 +87,7 @@ bool FullyConnected_bf_tiled_dyn_b::IsBeneficial(const fully_connected_params& p
     auto ofm = weights.OFM().v;
     if (std::min(ifm, ofm) < simd)
         return false;
-    if (!(2 * ifm < ofm || ifm > 2 * ofm))
-        return false;
-
-    return true;
+    return 2 * ifm < ofm || ifm > 2 * ofm;
 }
 
 bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
@@ -165,7 +162,7 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
         auto ofm = weights.OFM().v;
         if (std::min(ifm, ofm) < simd)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (!(2 * ifm < ofm || ifm > 2 * ofm))
+        if (2 * ifm >= ofm && ifm <= 2 * ofm)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 

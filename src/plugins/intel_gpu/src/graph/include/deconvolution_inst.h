@@ -65,7 +65,7 @@ public:
             return false;
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        return input_layout.data_padding ? true : false;
+        return static_cast<bool>(input_layout.data_padding);
     }
 
     bool need_reset_output_memory() const override {

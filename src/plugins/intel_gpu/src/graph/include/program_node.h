@@ -218,7 +218,7 @@ public:
     // At least the following scenarios are not allocating from memory pool:
     // 1. constant nodes
     // 2. read_value nodes that are optimized out to reuse from Variables.
-    bool may_use_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
+    bool may_use_mempool() const { return !is_constant() && (!is_type<read_value>() || !optimized); }
 
     template <class PType>
     bool have_user_with_type() const {
@@ -295,7 +295,7 @@ public:
     bool is_valid_output_layout(size_t idx = 0) const { return valid_output_layouts[idx]; }
     bool is_all_valid_output_layouts() const {
         for (auto l : valid_output_layouts) {
-            if (l == false) return false;
+            if (!l) return false;
         }
         return true;
     }
