@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-11-15-51-175-30351149892",
+  "timestamp": "2026-07-28T11:15:51Z",
+  "run_id": "30351149892",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30351149892",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36955",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36955",
+  "author": "praasz",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already completed on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Linux ARM64 (Ubuntu 22.04, Python 3.11) - attempt 1",
+      "conclusion": "failure",
+      "symptom": "All job logs from attempt 1 are inaccessible (403 secrecy policy); attempt 2 succeeded with all 21 jobs passing"
+    }
+  ],
+  "key_errors": [
+    "Job logs for attempt 1 inaccessible: Error [Filtered] resource:get_job_logs exists but is not accessible — filtered by secrecy policy",
+    "Run attempt 1 concluded as failure; run attempt 2 completed with all 21 jobs passing"
+  ],
+  "root_cause": "The Linux ARM64 (Ubuntu 22.04, Python 3.11) workflow failed on its first attempt (run_attempt=1) for PR #36955 ([cmake] Refactor TBB DLL copying logic). Job logs from attempt 1 are inaccessible due to the secrecy policy applied to this CI environment. The workflow was automatically re-run as attempt 2, and all 21 jobs completed successfully. This pattern is consistent with a transient infrastructure issue (runner failure, resource exhaustion, or environment instability) on the ARM64 runner pool. The PR change itself (CMake TBB DLL copy refactor affecting only Windows builds) is unrelated to ARM64 infrastructure.",
+  "reproduction_steps": "N/A — transient infrastructure issue on ARM64 runner; not reproducible locally.",
+  "recommended_actions": [
+    "No action required — attempt 2 already succeeded with all 21 jobs passing.",
+    "Monitor ARM64 runner pool for recurring transient failures.",
+    "If the PR is not automatically re-queued, manually re-add it to the merge queue."
+  ],
+  "prevention_strategies": "Ensure the ARM64 runner pool has sufficient capacity and health monitoring. Consider increasing runner redundancy or timeout thresholds to reduce first-attempt failures.",
+  "historical_context": "This pattern (ARM64/Linux logs inaccessible, attempt 1 failure, attempt 2 success) has been seen before (pattern hash 44dec04115b12f89). Similar patterns exist for Windows VS 2022 (pattern cc822c07e113be0a, count 6) and Linux Ubuntu 24.04 (pattern 44dec04115b12f89)."
+}
