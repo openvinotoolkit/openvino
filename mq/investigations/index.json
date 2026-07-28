@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 67,
+  "total": 68,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -650,6 +650,17 @@
       "title": "JS API E2E openvino-node package (cmd) step fails on Windows",
       "category": "Flaky Test",
       "signature_hash": "2c5337624cd0205d",
+      "pr_number": "37029"
+    },
+    {
+      "investigation_id": "2026-07-28-03-31-54-000-30320204200",
+      "run_id": "30320204200",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320204200",
+      "workflow_name": "PyTorch Models tests",
+      "timestamp": "2026-07-28T03:31:54Z",
+      "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+      "category": "Code Issue",
+      "signature_hash": "671a331e9a60933e",
       "pr_number": "37029"
     }
   ]

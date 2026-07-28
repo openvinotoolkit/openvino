@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-03-31-54-000-30320204200",
+  "timestamp": "2026-07-28T03:31:54Z",
+  "run_id": "30320204200",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320204200",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] failed with AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "E           AssertionError: Accuracy validation failed\nE           assert False\n\n  File test_convert_model.py:93, in compare_results\n    assert is_ok, \"Accuracy validation failed\""
+  ],
+  "root_cause": "The test_export_model_precommit test for the OPT-GPTQ quantized model (katuni4ka/opt-125m-gptq) fails because the inference outputs produced by the exported OpenVINO model differ from the reference PyTorch framework outputs beyond the acceptable tolerance. The commit being tested (GPU clang-tidy nullptr modernization, PR #37029) changes the GPU plugin only; however this PyTorch LLM test runs on CPU. The accuracy divergence may be a pre-existing flaky test (quantized model accuracy can vary across runs, or model weights may have changed on HuggingFace Hub) OR may indicate a regression introduced in CPU kernel paths indirectly affected by the PR. The model is loaded from an external HuggingFace Hub source (katuni4ka/opt-125m-gptq) and quantized via GPT-Q, making it sensitive to library version changes in transformers (5.5.3) and auto-gptq (6.0.3) detected in the test output.",
+  "reproduction_steps": "python -m pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Check whether this test has failed for other recent PRs unrelated to GPU changes \u2014 if so this is a flaky/model-version issue.",
+    "Inspect if transformers==5.5.3 or auto-gptq==6.0.3 changed the quantized model's default generation, which could shift accuracy.",
+    "If the test is consistently failing for GPU-only PRs, add it to the known-flaky or skip list for GPU-only changes.",
+    "Re-run the test to confirm whether the failure is intermittent."
+  ],
+  "prevention_strategies": "For quantized model hub tests that depend on external model weights and third-party quantization libraries, pin exact versions and consider caching model weights to avoid drift. Tag these tests as potentially flaky when the PR does not touch the relevant compute path.",
+  "historical_context": "First occurrence of this exact signature in CI Doctor MQ records. GPU clang-tidy PRs should not affect CPU inference accuracy; if this test fails again in future GPU PRs it should be treated as a flaky test."
+}
