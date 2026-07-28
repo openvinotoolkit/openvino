@@ -31,21 +31,22 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::vector<ov::element::Type>& supported_weights_types,
-    const std::set<size_t>& supported_weights_ranks)
+    const std::set<size_t>& supported_weights_ranks,
+    bool enable_parameter_weights)
     : Block({}, {}, "CompressedWeightsBlock") {
-    // [DBG] Also accept Parameter (NPUW submodel weights appear as Parameter, will be Const in real use)
-    auto weights = wrap_type<v0::Constant, v0::Parameter>(ov::pass::pattern::type_matches_any(supported_weights_types));
+    auto weights =
+        enable_parameter_weights
+            ? wrap_type<v0::Constant, v0::Parameter>(ov::pass::pattern::type_matches_any(supported_weights_types))
+            : wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
     auto convert = wrap_type<v0::Convert>({weights});
 
-    // [DBG]
-    auto sub_const = wrap_type<v0::Constant, v0::Parameter>();
+    auto sub_const = enable_parameter_weights ? wrap_type<v0::Constant, v0::Parameter>() : wrap_type<v0::Constant>();
     auto sub_convert_const = wrap_type<v0::Convert>({sub_const});
     auto sub_with_convert = wrap_type<v1::Subtract>({convert, sub_convert_const});
     auto sub_no_convert = wrap_type<v1::Subtract>({convert, sub_const});
     auto subtract = sub_with_convert | sub_no_convert;
 
-    // [DBG]
-    auto mul_const = wrap_type<v0::Constant, v0::Parameter>();
+    auto mul_const = enable_parameter_weights ? wrap_type<v0::Constant, v0::Parameter>() : wrap_type<v0::Constant>();
     auto mul_convert_const = wrap_type<v0::Convert>({mul_const});
     auto mul_scale = mul_const | mul_convert_const;
 

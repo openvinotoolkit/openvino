@@ -43,7 +43,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                               std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
         auto constant = ov::as_type_ptr<v0::Constant>(node);
         if (!constant) {
-            // [DBG] Non-Constant (e.g. Parameter): insert runtime Reshape to fold group dims
+            // Non-Constant (e.g. Parameter): insert runtime Reshape to fold group dims
             const auto& ps = node->get_output_partial_shape(0);
             if (!ps.rank().is_static() || static_cast<size_t>(ps.rank().get_length()) <= final_weights_rank) {
                 return node;
@@ -103,7 +103,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     };
 
     auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-        // [DBG] Guard for non-Constant (e.g. Parameter ZP)
         auto constant = ov::as_type_ptr<v0::Constant>(node);
         if (!constant || constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
             return node;
@@ -197,9 +196,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
     SupportsPredicate supports_config,
-    bool convert_u4zp_to_u8) {
-    auto weights_block =
-        std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
+    bool convert_u4zp_to_u8,
+    bool enable_parameter_weights) {
+    auto weights_block = std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types,
+                                                                               std::set<size_t>{2},
+                                                                               enable_parameter_weights);
     auto activation = pattern::any_input(pattern::type_matches_any(supported_activation_types));
     auto bias = pattern::any_input();
     auto fully_connected = pattern::wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
