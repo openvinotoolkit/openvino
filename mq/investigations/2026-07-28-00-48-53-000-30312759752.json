@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-00-48-53-000-30312759752",
+  "timestamp": "2026-07-28T00:48:53Z",
+  "run_id": "30312759752",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30312759752",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "nazanin-beheshti",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow failed on attempt 1 - logs inaccessible (403 secrecy policy)",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Windows (VS 2022, Python 3.11, Release)",
+      "conclusion": "failure",
+      "symptom": "Workflow concluded as failure on attempt 1; automatically re-queued as attempt 2 (status: queued); logs inaccessible due to 403 secrecy policy"
+    }
+  ],
+  "key_errors": [
+    "Run 30312759752 concluded as failure on attempt 1; run is now on attempt 2 (status: queued). Job logs for attempt 1 inaccessible via CI Doctor secrecy policy (403 Forbidden)."
+  ],
+  "root_cause": "The Windows (VS 2022, Python 3.11, Release) merge-queue workflow for PR #35116 (change memory dependencies from hashMap to vector) failed on attempt 1. The run has been automatically re-queued as attempt 2. The original failure cannot be investigated directly because job logs are inaccessible (403 Forbidden, filtered by secrecy policy). This matches a well-known recurring pattern (signature cc822c07e113be0a) of transient Windows VS2022 runner or infrastructure failures where attempt 1 fails without accessible diagnostics and attempt 2 typically succeeds.",
+  "reproduction_steps": "N/A - likely transient infrastructure failure, logs not accessible",
+  "recommended_actions": [
+    "Monitor attempt 2 (currently queued) to see if it completes successfully",
+    "If attempt 2 also fails, manually inspect the runner environment for Windows VS2022 infrastructure issues",
+    "No immediate action required - rerun has been triggered automatically"
+  ],
+  "prevention_strategies": "Investigate why Windows VS2022 runners intermittently fail. Consider adding retry logic at the workflow level. Improve CI Doctor log access policies so failed job logs can be inspected for root cause.",
+  "historical_context": "This matches pattern cc822c07e113be0a 'Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy' seen 5 prior times, most recently on 2026-07-28T00:13:15Z for run 30311996736 (PR #37029). PR #35116 itself was previously affected by this same pattern."
+}
