@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
+#include <cmath>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -313,7 +314,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
         if (rnnCellBase) {
-            if (rnnCellBase->get_clip() != 0.F) {
+            // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
+            const float clip = rnnCellBase->get_clip();
+            if (!(clip == 0.F || std::isinf(clip))) {
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }
