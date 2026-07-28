@@ -260,20 +260,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
-#if CL_HPP_TARGET_OPENCL_VERSION >= 300
-    // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
-    // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
-    // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
-    info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
-    info.supports_non_uniform_work_group = device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>();
-#elif CL_HPP_TARGET_OPENCL_VERSION >= 200
-    // Can't query the optional CL3.0 feature below target 300; assume unsupported and use safe CL2.0.
-    info.supports_work_group_collective_functions = false;
-    info.supports_non_uniform_work_group = true;
-#else
-    info.supports_work_group_collective_functions = false;
-    info.supports_non_uniform_work_group = false;
-#endif
+    auto query_device_bool = [&](cl_device_info param) -> bool {
+        cl_bool value = CL_FALSE;
+        try {
+            if (device.getInfo(param, &value) != CL_SUCCESS)
+                return false;
+        } catch (const cl::Error&) {
+            return false;
+        }
+        return value == CL_TRUE;
+    };
+    info.supports_work_group_collective_functions = query_device_bool(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT);
+    info.supports_non_uniform_work_group = query_device_bool(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT);
 
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
