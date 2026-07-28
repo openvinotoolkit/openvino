@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-04-33-14-000-30325352936",
+  "timestamp": "2026-07-28T04:33:14Z",
+  "run_id": "30325352936",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30325352936",
+  "workflow_name": "PyTorch Models tests / PyTorch Models tests",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] fails with AssertionError: Accuracy validation failed (max diff 0.0687)"
+    }
+  ],
+  "key_errors": [
+    "E           AssertionError: Accuracy validation failed\nMax diff is 0.06871891021728516"
+  ],
+  "root_cause": "The OPT-125m GPTQ model exported via opt_gptq path produces inference results that diverge from the PyTorch baseline by ~0.07 (max diff). This is a deterministic accuracy regression in the OpenVINO conversion/inference of GPTQ-quantized OPT models. The same failure has been observed 12 times since 2026-07-27, indicating a persistent issue rather than a flake.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+  "recommended_actions": [
+    "Investigate the OPT model GPTQ quantization path in the PyTorch frontend or transformations pipeline for accuracy regression",
+    "Check recent changes to OPT model conversion or GPTQ-related transformations",
+    "If the test tolerance threshold is the issue, tighten the comparison in compare_results or fix the underlying numerical difference",
+    "Consider temporarily disabling the test while the root cause is investigated to unblock the merge queue"
+  ],
+  "prevention_strategies": "Add per-layer accuracy monitoring to catch GPTQ quantization drift early; consider tightening accuracy thresholds and adding dedicated GPTQ accuracy regression tests.",
+  "historical_context": "This same failure (signature_hash 671a331e9a60933e) has been recorded 12 times since 2026-07-27T12:33:21Z. It has blocked PRs including #37029, #36957, and #36860."
+}
