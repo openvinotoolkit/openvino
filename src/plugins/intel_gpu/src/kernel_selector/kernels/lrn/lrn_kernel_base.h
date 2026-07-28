@@ -37,7 +37,7 @@ struct lrn_params : public base_params {
 class LRNKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~LRNKernelBase() {}
+    ~LRNKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 

@@ -17,10 +17,16 @@ namespace pre_compute = ov::npuw::patterns::pre_compute;
 
 namespace {
 // TODO: copied from common tests
+// Builds a [1, max_position_embeddings, rotary_ndims] sin/cos LUT.
+// When duplicate=true (LLama2-style rotate_half), rotary_ndims = inv_freq_size*2
+// and the second half mirrors the first (torch.cat([freqs, freqs], dim=-1)).
+// When duplicate=false (GPT-style), rotary_ndims = inv_freq_size with no mirroring.
 static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
-                                        const std::shared_ptr<ov::Node> inverse_frequencies) {
+                                        const std::shared_ptr<ov::Node> inverse_frequencies,
+                                        bool duplicate = true) {
     const auto inverse_freq_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(inverse_frequencies)->cast_vector<float>();
-    const size_t rotary_ndims = ov::shape_size(inverse_frequencies->get_shape()) * 2;
+    const size_t inv_freq_size = ov::shape_size(inverse_frequencies->get_shape());
+    const size_t rotary_ndims = duplicate ? inv_freq_size * 2 : inv_freq_size;
 
     std::vector<ov::float16> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
     std::vector<ov::float16> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
@@ -29,18 +35,17 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     //   y1 = cos(m*xita_i) * x1 - sin(m*xita_i) * x2
     //   y2 = cos(m*xita_i) * x2 + sin(m*xita_i) * x1
     //
-    for (size_t i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
-        auto xita_i = inverse_freq_fp32[i >> 1];
+    for (size_t k = 0; k < inv_freq_size; k++) {
+        auto xita_i = inverse_freq_fp32[k];
         ov::float16* psin = lut_sin.data();
         ov::float16* pcos = lut_cos.data();
         for (size_t m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
-            auto vsin = std::sin(xita_i * m);
-            auto vcos = std::cos(xita_i * m);
-            pcos[k] = ov::float16{vcos};
-            pcos[k + rotary_ndims / 2] = pcos[k];
-
-            psin[k] = ov::float16{vsin};
-            psin[k + rotary_ndims / 2] = psin[k];
+            pcos[k] = ov::float16{std::cos(xita_i * static_cast<float>(m))};
+            psin[k] = ov::float16{std::sin(xita_i * static_cast<float>(m))};
+            if (duplicate) {
+                pcos[k + inv_freq_size] = pcos[k];
+                psin[k + inv_freq_size] = psin[k];
+            }
         }
     }
 
@@ -120,6 +125,7 @@ void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, con
     auto gather_input_to_concat = rpe->matched_concat->input(0);
     gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
 }
+
 }  // namespace
 
 ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matcher("sin-cos-matcher") {
@@ -135,7 +141,9 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-    auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
+    // Optional Concat between Transpose and Sin/Cos: present in LLama2-style RoPE
+    // (torch.cat([freqs, freqs], dim=-1)), absent in GPT-style RoPE (inv_freq shape [1, n, 1]).
+    auto concat_2 = opp::optional<ov::op::v0::Concat>({transpose->output(0), opp::any_input()});
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
@@ -150,7 +158,13 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
-        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
+        // Determine if freq duplication was applied by inspecting the actual graph:
+        // sin's direct input is Concat (LLama2-style) or Transpose (GPT-style, no dup).
+        auto sin_input = this->matched_sin->input_value(0).get_node_shared_ptr();
+        this->duplicate_freqs = ov::is_type<ov::op::v0::Concat>(sin_input);
+
+        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
+                                     << " (duplicate_freqs=" << duplicate_freqs << ")");
 
         return true;
     };
@@ -341,7 +355,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     auto rpe = std::make_shared<RopePatternLLama2>();
 
     rpe->transform_cb = [&]() {
-        auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq);
+        auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq, rpe->duplicate_freqs);
         replaceSinCosByCache(max_prompt_len, cache, rpe.get());
     };
     rpe->run_on_model(model);
