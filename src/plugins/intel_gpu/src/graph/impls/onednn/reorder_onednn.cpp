@@ -102,7 +102,7 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-        if (prim_cache.size() > 0)
+        if (!prim_cache.empty())
             _prim = dnnl::reorder(_pd, prim_cache);
         else
             _prim = dnnl::reorder(_pd);

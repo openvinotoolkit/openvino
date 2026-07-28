@@ -15,7 +15,7 @@ namespace kernel_selector {
 class KernelBaseOpenCL : public KernelBase {
 public:
     using KernelBase::KernelBase;
-    virtual ~KernelBaseOpenCL() {}
+    ~KernelBaseOpenCL() override {}
 
 protected:
     virtual bool Validate(const Params&) const { return true; }
