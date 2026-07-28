@@ -12,6 +12,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -5912,7 +5913,8 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
     }
 }
 
-// Gemma3 test: same sliding window pattern as gpt_oss, but with token_type_ids as model parameter
+// Gemma test: Because the mask depends on token_type_ids, the
+// transformation must forward token_type_ids to the resulting PagedAttention node.
 TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
@@ -5982,7 +5984,6 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
             {makeOP<v3::Broadcast>({v_unsqueeze, k_bcast_shape}, {{"mode", "bidirectional"}}), {0, 4, -1, 128}},
             {{"special_zero", true}});
 
-        // Same pattern as gpt_oss
         auto Constant_true1 = makeConst(element::boolean, ov::Shape({}), {1});
         auto Constant_true2 = makeConst(element::boolean, ov::Shape({}), {1});
 
@@ -6012,8 +6013,12 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto sw_greater = makeOP<v1::Greater>({kv_idx, sw_add}, {{"auto_broadcast", "numpy"}});
 
         auto causal_le = makeOP<v1::LessEqual>({kv_idx, q_idx}, {{"auto_broadcast", "numpy"}});
+        auto tti_q = makeOP<v1::Reshape>({token_type_ids, {1, 1, -1, 1}}, {{"special_zero", false}});
+        auto tti_kv = makeOP<v1::Reshape>({token_type_ids, {1, 1, 1, -1}}, {{"special_zero", false}});
+        auto same_group = makeOP<v1::Equal>({tti_q, tti_kv}, {{"auto_broadcast", "numpy"}});
+        auto causal_or_block = makeOP<v13::BitwiseOr>({causal_le, same_group}, {{"auto_broadcast", "numpy"}});
         auto BitwiseAnd0 = makeOP<v13::BitwiseAnd>({Constant_true2, sw_greater}, {{"auto_broadcast", "numpy"}});
-        auto BitwiseAnd1 = makeOP<v13::BitwiseAnd>({BitwiseAnd0, causal_le}, {{"auto_broadcast", "numpy"}});
+        auto BitwiseAnd1 = makeOP<v13::BitwiseAnd>({BitwiseAnd0, causal_or_block}, {{"auto_broadcast", "numpy"}});
         auto BitwiseAnd2 = makeOP<v13::BitwiseAnd>({Constant_true1, BitwiseAnd1}, {{"auto_broadcast", "numpy"}});
 
         auto Convert_am = makeOP<v0::Convert>({attention_mask}, {{"destination_type", "boolean"}});
@@ -6181,6 +6186,141 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         disable_result_friendly_names_check();
         disable_rt_info_check();
     }
+}
+
+TEST(SDPAToPA, FullAttention_TokenTypeIdsNotForwarded) {
+    // When token_type_ids is a model parameter but NOT referenced in the attention
+    // mask (purely causal mask), SDPAToPagedAttention mustn't forward it to PA.
+
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto token_type_ids = make_param(PartialShape{1, DYN}, element::i64, "token_type_ids");
+    auto params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids, token_type_ids});
+
+    // Batch size for KV-cache init shape
+    auto shape_ids = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_ids, {0}, 0}, {{"batch_dims", 0}});
+
+    // Embedding: input_ids → hidden [B, S, 128]
+    auto embed_w = makeConst(element::f32, ov::Shape({32000, 128}), MOCK_VALUE);
+    auto hidden = makeOP<v8::Gather>({embed_w, makeOP<v0::Convert>({input_ids}, {{"destination_type", "i32"}}), 0},
+                                     {{"batch_dims", 0}});
+
+    // Q [B, 4, S, 128], K_cur/V_cur [B, 1, S, 128] via MatMul + Reshape + Transpose
+    auto Q_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({512, 128}), MOCK_VALUE)},
+                                   {{"transpose_a", false}, {"transpose_b", true}});
+    auto Q =
+        makeOP<v1::Transpose>({makeOP<v1::Reshape>({Q_mm, {0, 0, 4, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+    auto K_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
+                                   {{"transpose_a", false}, {"transpose_b", true}});
+    auto K_cur =
+        makeOP<v1::Transpose>({makeOP<v1::Reshape>({K_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+    auto V_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
+                                   {{"transpose_a", false}, {"transpose_b", true}});
+    auto V_cur =
+        makeOP<v1::Transpose>({makeOP<v1::Reshape>({V_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+
+    // KV cache: ReadValue(init) → Gather(beam_idx) → Concat(cur)
+    auto k_init_shape = makeOP<v0::Concat>({batch_dim, {1l}, {0l}, {128l}}, {{"axis", 0}});
+    auto k_read = makeOP<v6::ReadValue>(
+        {makeOP<v3::Broadcast>({0.0f, k_init_shape}, {{"mode", "numpy"}})},
+        {{"variable_id", "k_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+    auto k_past = makeOP<v8::Gather>({k_read, beam_idx, 0}, {{"batch_dims", 0}});
+    auto k_concat = makeOP<v0::Concat>({k_past, K_cur}, {{"axis", -2}});
+
+    auto v_init_shape = makeOP<v0::Concat>({batch_dim, {1l}, {0l}, {128l}}, {{"axis", 0}});
+    auto v_read = makeOP<v6::ReadValue>(
+        {makeOP<v3::Broadcast>({0.0f, v_init_shape}, {{"mode", "numpy"}})},
+        {{"variable_id", "v_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+    auto v_past = makeOP<v8::Gather>({v_read, beam_idx, 0}, {{"batch_dims", 0}});
+    auto v_concat = makeOP<v0::Concat>({v_past, V_cur}, {{"axis", -2}});
+
+    // GQA broadcast: K/V [B, 1, S, 128] → [B, 4, S, 128]
+    auto k_unsqueeze = makeOP<v0::Unsqueeze>({k_concat, 2});
+    auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
+    auto k_gather_dims = makeOP<v8::Gather>({k_shape, {0, 1}, 0}, {{"batch_dims", 0}});
+    auto k_gather_dims2 = makeOP<v8::Gather>({k_shape, {2, 3}, 0}, {{"batch_dims", 0}});
+    auto k_bcast_shape = makeOP<v0::Concat>({k_gather_dims, {4l}, k_gather_dims2}, {{"axis", 0}});
+    auto K = makeOP<v1::Reshape>(
+        {makeOP<v3::Broadcast>({k_unsqueeze, k_bcast_shape}, {{"mode", "bidirectional"}}), {0, 4, -1, 128}},
+        {{"special_zero", true}});
+    auto V = makeOP<v1::Reshape>(
+        {makeOP<v3::Broadcast>({makeOP<v0::Unsqueeze>({v_concat, 2}), k_bcast_shape}, {{"mode", "bidirectional"}}),
+         {0, 4, -1, 128}},
+        {{"special_zero", true}});
+
+    // Purely causal + attention_mask (token_type_ids is NOT used in the mask)
+    auto ShapeOf_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto Gather_cur = makeOP<v8::Gather>({ShapeOf_pos, 1, 0}, {{"batch_dims", 0}});
+    auto Reshape_cur = makeOP<v1::Reshape>({Gather_cur, {1}}, {{"special_zero", false}});
+    auto Squeeze_cur = makeOP<v0::Squeeze>({Reshape_cur, 0});
+    auto Gather_past =
+        makeOP<v8::Gather>({makeOP<v3::ShapeOf>({k_past}, {{"output_type", "i64"}}), 2, 0}, {{"batch_dims", 0}});
+    auto total_len = makeOP<v1::Add>({Squeeze_cur, Gather_past}, {{"auto_broadcast", "numpy"}});
+
+    auto Range_kv = makeOP<v4::Range>({0, total_len, 1}, {{"output_type", "i64"}});
+    auto Unsqueeze_kv2 = makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({Range_kv, 0}), 1}), 2});
+    auto kv_idx = makeOP<v0::Convert>({Unsqueeze_kv2}, {{"destination_type", "f32"}});
+    auto kv_idx_i32 = makeOP<v0::Convert>({Unsqueeze_kv2}, {{"destination_type", "i32"}});
+
+    auto Range_q_start = makeOP<v1::Add>({Gather_past, Gather_cur}, {{"auto_broadcast", "numpy"}});
+    auto Range_q = makeOP<v4::Range>({Gather_past, Range_q_start, 1}, {{"output_type", "f32"}});
+    auto q_idx = makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({Range_q, 0}), 1}), 3});
+
+    auto causal_le = makeOP<v1::LessEqual>({kv_idx, q_idx}, {{"auto_broadcast", "numpy"}});
+    auto BitwiseAnd0 = makeOP<v13::BitwiseAnd>({makeConst(element::boolean, ov::Shape({}), {1}), causal_le},
+                                               {{"auto_broadcast", "numpy"}});
+
+    auto Convert_am = makeOP<v0::Convert>({attention_mask}, {{"destination_type", "boolean"}});
+    auto ShapeOf_am = makeOP<v3::ShapeOf>({Convert_am}, {{"output_type", "i32"}});
+    auto ReduceProd_am = makeOP<v1::ReduceProd>({ShapeOf_am, 0}, {{"keep_dims", true}});
+    auto Reshape_am = makeOP<v1::Reshape>({Convert_am, makeOP<v0::Concat>({ReduceProd_am, {-1}}, {{"axis", 0}})},
+                                          {{"special_zero", true}});
+    auto Gather0_batch = makeOP<v8::Gather>({ShapeOf_pos, {0}, 0}, {{"batch_dims", 0}});
+    auto Range_batch = makeOP<v4::Range>({0, makeOP<v0::Squeeze>({Gather0_batch}), 1}, {{"output_type", "i64"}});
+    auto b_unsq2 = makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({Range_batch, 1}), 2}), 3});
+    auto batch_idx = makeOP<v0::Convert>({b_unsq2}, {{"destination_type", "i32"}});
+    auto Split_am = makeOP<v1::Split>({ShapeOf_am, 0}, {{"num_splits", 2}});
+    auto flat_idx = makeOP<v1::Add>(
+        {kv_idx_i32, makeOP<v1::Multiply>({batch_idx, Split_am->output(1)}, {{"auto_broadcast", "numpy"}})},
+        {{"auto_broadcast", "numpy"}});
+    auto Gather_am = makeOP<v8::Gather>({Reshape_am, flat_idx, 0}, {{"batch_dims", 0}});
+    auto Reshape_am3 = makeOP<v1::Reshape>({makeOP<v1::Reshape>({Gather_am, {-1}}, {{"special_zero", false}}),
+                                            makeOP<v3::ShapeOf>({flat_idx}, {{"output_type", "i32"}})},
+                                           {{"special_zero", false}});
+
+    auto BitwiseAnd3 = makeOP<v13::BitwiseAnd>({BitwiseAnd0, Reshape_am3}, {{"auto_broadcast", "numpy"}});
+    auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+    auto bcast_shape = makeOP<v0::Concat>({Gather0_batch, {1l}, Reshape_cur, total_len_unsq}, {{"axis", 0}});
+    auto Broadcast_mask = makeOP<v3::Broadcast>({BitwiseAnd3, bcast_shape}, {{"mode", "bidirectional"}});
+    auto Select_mask = makeOP<v1::Select>({Broadcast_mask, 0.0f, -65504.0f}, {{"auto_broadcast", "numpy"}});
+    auto past_len_rs = makeOP<v1::Reshape>({Gather_past, {1}}, {{"special_zero", false}});
+    auto slice_end = makeOP<v1::Add>({past_len_rs, Reshape_cur}, {{"auto_broadcast", "numpy"}});
+    auto Slice_mask = makeOP<v8::Slice>({Select_mask, {0}, slice_end, {1}, {3}});
+
+    auto sdpa = makeOP<v13::ScaledDotProductAttention>({Q, K, V, Slice_mask, 0.125f}, {{"causal", false}});
+    auto model = std::make_shared<ov::Model>(OutputVector{std::make_shared<v0::Result>(sdpa)}, params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa = node;
+        }
+    }
+    ASSERT_NE(pa, nullptr) << "SDPAToPagedAttention did not produce PagedAttentionExtension";
+
+    auto tti_source = pa->input_value(25).get_node_shared_ptr();
+    auto tti_param = ov::as_type_ptr<v0::Parameter>(tti_source);
+    EXPECT_EQ(tti_param, nullptr) << "token_type_ids parameter must not be wired to PA when not in mask";
+    auto tti_const = ov::as_type_ptr<v0::Constant>(tti_source);
+    ASSERT_NE(tti_const, nullptr) << "PA token_type_ids (port 25) should be a Constant";
+    EXPECT_EQ(tti_const->get_shape(), ov::Shape{0}) << "PA token_type_ids disabled sentinel must have Shape{0}";
 }
 
 TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
