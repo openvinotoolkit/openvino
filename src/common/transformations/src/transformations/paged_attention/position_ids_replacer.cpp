@@ -271,8 +271,8 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
         const auto gather = m.get_match_root();
 
         auto reshape = std::make_shared<v1::Reshape>(gather->input_value(0),
-                                                      v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                      false);
+                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     false);
 
         reshape->set_friendly_name(gather->get_friendly_name());
         reshape->output(0).set_names(gather->output(0).get_names());
