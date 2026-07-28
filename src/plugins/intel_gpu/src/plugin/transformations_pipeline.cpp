@@ -246,6 +246,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                           ov::op::internal::MOE::get_type_info_static(),
                                                           ov::op::v8::Gather::get_type_info_static(),
                                                           ov::op::v17::GroupedMatMul::get_type_info_static(),
+                                                          ov::op::internal::GatherMatmul::get_type_info_static(),
                                                           ov::op::v1::Convolution::get_type_info_static(),
                                                           ov::opset1::Convolution::get_type_info_static(),
                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
