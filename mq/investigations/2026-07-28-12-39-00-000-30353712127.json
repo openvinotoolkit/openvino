@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-12-39-00-000-30353712127",
+  "timestamp": "2026-07-28T12:39:00Z",
+  "run_id": "30353712127",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30353712127",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36937",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36937",
+  "author": "v-Golubev",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E of openvino-node package step fails - electron.exe Permission denied during cleanup"
+    }
+  ],
+  "key_errors": [
+    "Step 'E2E of openvino-node package' failed in job 'JS API (26)'",
+    "Known pattern: rm cannot remove electron.exe: Permission denied (locked process on Windows runner)",
+    "Step conclusion: failure; subsequent steps (E2E cmd, Create package dir, Test installation) all skipped"
+  ],
+  "root_cause": "The Electron process started during the E2E test is not fully terminated before the cleanup phase attempts to delete it. On Windows runners, a running or recently-exited process keeps a lock on its executable, causing the `rm` or cleanup step to fail with 'Permission denied'. This is a well-known transient runner-side race condition that does not affect functional correctness and resolves on retry.",
+  "reproduction_steps": "Run the JS API E2E test on a Windows runner. The failure is intermittent and depends on process cleanup timing.",
+  "recommended_actions": [
+    "Re-add PR #36937 to the merge queue - this is a transient flaky test unrelated to the PR changes",
+    "Long-term: add a retry/kill loop in the E2E cleanup step to forcefully terminate electron.exe before removing files",
+    "Consider using taskkill /F /IM electron.exe before rm in the Windows E2E cleanup step"
+  ],
+  "prevention_strategies": "Add a pre-cleanup step in the JS API E2E workflow that forcefully kills any lingering electron.exe processes on Windows (e.g., `taskkill /F /IM electron.exe || true`).",
+  "historical_context": "This exact failure has been recorded 12 times since 2026-07-09 (pattern hash 85df26485ff568d8). All prior occurrences were resolved by re-running or re-queueing the affected PR. Affected PRs include #36905, #36933, #36884, and others."
+}
