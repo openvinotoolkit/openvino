@@ -60,7 +60,7 @@ runs:
         images=$(echo "${{ inputs.images }}" | tr '\n' ',' | sed 's/,*$//')
         pr="${{ github.event.pull_request.number }}"
 
-        python3 .github/actions/handle_docker/get_images_to_build.py \
+        python3 ${{ github.action_path }}/get_images_to_build.py \
         -d "${{ inputs.dockerfiles_root_dir }}" \
         -r "${{ inputs.registry }}" \
         --images "$images" \
