@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API PositionIDsReplacerQwen;
 class TRANSFORMATIONS_API PositionIDsReplacerLFM2;
 class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 class TRANSFORMATIONS_API EliminateDropBatch;
+class TRANSFORMATIONS_API RoPEUnsqueezeAxisReplacer;
 
 }  // namespace pass
 }  // namespace ov
@@ -118,6 +119,22 @@ class ov::pass::EliminateDropBatch : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateDropBatch");
     EliminateDropBatch();
+};
+
+/**
+ * @brief Some models compute RoPE manually with an explicit outer product (position * inv_freq) followed by
+ * Cos/Sin instead of using a fused rotary embedding op, producing cos/sin values in the original
+ * [batch=1, tokens, ...] layout via a trailing Unsqueeze(axis=0). PagedAttention's Q/K arrive with tokens
+ * flattened into the leading axis instead, so this transformation detects that RoPE outer-product tail
+ * (Unsqueeze -> MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast -> Unsqueeze(axis=0)) and
+ * rewrites the trailing Unsqueeze's axis from 0 to 1, moving the flattened-tokens axis to index 0 to match
+ * the layout Q/K arrive in. This is independent of how the per-token positions were derived (works whether
+ * or not EliminateDropBatch has already collapsed a batch-drop select feeding into the outer product).
+ */
+class ov::pass::RoPEUnsqueezeAxisReplacer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEUnsqueezeAxisReplacer");
+    RoPEUnsqueezeAxisReplacer();
 };
 
 namespace ov {
