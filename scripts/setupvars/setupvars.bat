@@ -100,8 +100,6 @@ call :strip_suffix pyversion_minor
 
 set "current_python_version=%pyversion_major%.%pyversion_minor%"
 
-:: Match the current interpreter against the Python versions the OpenVINO
-:: Python API in this package was actually compiled for.
 call :get_available_python_versions
 if "%available_python_versions%"=="" goto :python_version_ok
 
@@ -133,9 +131,6 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\python;%INTEL_OPENVINO_DIR%\python\python3;%
 exit /B 0
 
 :get_available_python_versions
-:: Build a space-separated list (with a leading space) of the Python versions the
-:: OpenVINO Python API was compiled for, based on the shipped extension modules
-:: (e.g. _pyopenvino.cp312-win_amd64.pyd -> 3.12).
 set "available_python_versions="
 set "ov_python_dir=%INTEL_OPENVINO_DIR%\python\openvino"
 if not exist "%ov_python_dir%" exit /B 0
@@ -147,7 +142,6 @@ exit /B 0
 set "fname=%~1"
 set "tag=%fname:*_pyopenvino.cp=%"
 for /f "delims=-" %%A in ("%tag%") do set "vernum=%%A"
-:: Strip non-numeric suffix from version tag (e.g., 313t -> 313)
 call :strip_suffix vernum
 set "available_python_versions=%available_python_versions% %vernum:~0,1%.%vernum:~1%"
 exit /B 0

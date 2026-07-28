@@ -101,9 +101,6 @@ fi
 
 PYTHON_VERSION_MAJOR="3"
 
-# Detect the Python versions the OpenVINO Python API in this package was actually
-# compiled for, based on the shipped extension modules
-# (e.g. _pyopenvino.cpython-312-x86_64-linux-gnu.so -> 3.12).
 get_available_python_versions () {
     available_python_versions=""
     ov_python_dir="$INTEL_OPENVINO_DIR/python/openvino"
@@ -133,8 +130,6 @@ check_python_version () {
 
     get_available_python_versions
 
-    # If the package ships a compiled Python API, ensure the current interpreter
-    # matches one of the versions the API was actually built for.
     if [ -n "$available_python_versions" ]; then
         version_supported=""
         for v in $available_python_versions; do

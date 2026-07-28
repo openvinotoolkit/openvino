@@ -63,9 +63,6 @@ Write-Host "[setupvars] OpenVINO environment initialized"
 
 # Check if Python is installed
 
-# Detect the Python versions the OpenVINO Python API in this package was actually
-# compiled for, based on the shipped extension modules
-# (e.g. _pyopenvino.cp312-win_amd64.pyd or _pyopenvino.cpython-312-...so -> 3.12).
 function Get-AvailablePythonVersions
 {
     $ov_python_dir = Join-Path $Env:INTEL_OPENVINO_DIR "python/openvino"
@@ -126,8 +123,6 @@ else
 $current_python_version = "$installed_python_version_major.$installed_python_version_minor"
 $available_python_versions = @(Get-AvailablePythonVersions)
 
-# If the package ships a compiled Python API, ensure the current interpreter
-# matches one of the versions the API was actually built for.
 if ($available_python_versions.Count -gt 0 -and ($available_python_versions -notcontains $current_python_version))
 {
     Write-Host "Warning: Unsupported Python version $current_python_version. The OpenVINO Python API in this package is built for Python: $($available_python_versions -join ', '). Please activate a Python environment with a matching version."
