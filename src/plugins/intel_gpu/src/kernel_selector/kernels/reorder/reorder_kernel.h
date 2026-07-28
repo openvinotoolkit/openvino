@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ReorderKernelRef : public ReorderKernelBase {
 public:
     ReorderKernelRef() : ReorderKernelBase("reorder_data") {}
-    virtual ~ReorderKernelRef() {}
+    ~ReorderKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

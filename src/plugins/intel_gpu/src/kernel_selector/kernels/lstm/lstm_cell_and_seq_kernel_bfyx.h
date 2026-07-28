@@ -10,7 +10,7 @@ namespace kernel_selector {
 class LSTMCellAndSeqKernel_bfyx : public LSTMKernelBase {
 public:
     LSTMCellAndSeqKernel_bfyx() : LSTMKernelBase("lstm_cell_and_seq_bfyx") {}
-    virtual ~LSTMCellAndSeqKernel_bfyx() {}
+    ~LSTMCellAndSeqKernel_bfyx() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

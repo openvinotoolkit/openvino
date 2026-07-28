@@ -465,9 +465,13 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
     auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
 
+    auto topk_to_scatter = opp::optional<ov::op::v0::Convert>({topk});
+    auto divide_to_scatter = opp::optional<ov::op::v8::Slice>(
+        {divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
     // Scatter to full expert shape (pattern root = Unsqueeze)
-    auto scatter =
-        opp::wrap_type<ov::op::v12::ScatterElementsUpdate>({opp::any_input(), topk, divide, opp::any_input()});
+    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), topk_to_scatter, divide_to_scatter, opp::any_input()});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
