@@ -151,6 +151,40 @@ TEST_P(EltwiseBufferAllocationTest, BufferAllocation) {
     Validate();
 }
 
+class WideBranchBufferAllocationTest : public BufferAllocationTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<BufferAllocationParams>& obj) {
+        return "Branches=" + std::to_string(std::get<0>(obj.param).size());
+    }
+
+protected:
+    std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
+        const auto subtensor = std::vector<size_t>{1, m_vector_size};
+        ov::ParameterVector parameters;
+        ov::OutputVector branch_outputs;
+        parameters.reserve(shapes.size());
+        branch_outputs.reserve(shapes.size());
+
+        for (const auto& shape : shapes) {
+            const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+            const auto relu = std::make_shared<ov::op::v0::Relu>(parameter);
+            MarkOp(relu, subtensor);
+            parameters.push_back(parameter);
+            branch_outputs.push_back(relu);
+        }
+
+        const auto concat = std::make_shared<ov::op::v0::Concat>(branch_outputs, 0);
+        MarkOp(concat, subtensor);
+        const auto result = std::make_shared<ov::snippets::op::Result>(concat);
+        return std::make_shared<ov::Model>(result, parameters);
+    }
+};
+
+TEST_P(WideBranchBufferAllocationTest, BufferAllocation) {
+    EXPECT_EQ(m_linear_ir.get_buffers().size(), m_shapes.size());
+    Validate();
+}
+
 namespace BufferAllocationTest_Instances {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseNotOptimized, EltwiseBufferAllocationTest,
@@ -172,6 +206,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseOptimized, Eltwi
                                  ::testing::Values(1),      // Two Buffers reuse IDs
                                  ::testing::Values(1)),     // Two Buffers are from the same luster
                          BufferAllocationTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_WideBranch,
+                         WideBranchBufferAllocationTest,
+                         ::testing::Values(BufferAllocationParams{
+                             std::vector<ov::PartialShape>(32, ov::PartialShape{1, 1, 16}), true, false, 2048, 1, 32},
+                                           BufferAllocationParams{
+                                               std::vector<ov::PartialShape>(64, ov::PartialShape{1, 1, 16}),
+                                               true,
+                                               false,
+                                               4096,
+                                               1,
+                                               64},
+                                           BufferAllocationParams{
+                                               std::vector<ov::PartialShape>(128, ov::PartialShape{1, 1, 16}),
+                                               true,
+                                               false,
+                                               8192,
+                                               1,
+                                               128}),
+                         WideBranchBufferAllocationTest::getTestCaseName);
 
 }  // namespace BufferAllocationTest_Instances
 }  // namespace snippets
