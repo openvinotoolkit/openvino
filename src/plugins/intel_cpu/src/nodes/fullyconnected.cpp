@@ -78,7 +78,9 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8, Type_t::i4};
+    // Symmetric weight-only compression uses i4. Asymmetric groupwise
+    // compression exported by Optimum uses u4 weights plus u4 zero-points.
+    return {Type_t::i8, Type_t::i4, Type_t::u4};
 #else
     return {};
 #endif
@@ -203,9 +205,23 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
-            return false;
+        const bool hasWeightZeroPoints =
+            op->get_input_size() > WEIGHT_ZERO_POINTS &&
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
+
+        if (hasWeightZeroPoints) {
+            const auto weightsType = op->input(WEIGHTS).get_element_type();
+            const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
+            // unsigned INT4 weights with unsigned INT4 per-group zero-points.
+            if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || isNotGroupWise) {
+                return false;
+            }
+            // The asymmetric path requires one zero-point for every weight
+            // scale entry. This rejects per-tensor and unsupported layouts.
+            if (shape_size(op->input(WEIGHT_ZERO_POINTS).get_shape()) !=
+                shape_size(op->input(WEIGHT_SCALES).get_shape())) {
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -576,8 +592,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                                                         context->getConfig().fcSparseWeiDecompressionRate);
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
-
-    attrs.dqScales = getDQScales();
 
     attrs.postOps = getPostOps(fusedWith);
 
