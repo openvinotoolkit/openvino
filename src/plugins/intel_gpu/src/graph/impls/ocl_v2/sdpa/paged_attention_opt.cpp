@@ -30,10 +30,9 @@ namespace {
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
+constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
 constexpr size_t u4_elems_per_byte = 2;
-
-constexpr size_t seq_len_partition_size = 256;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
@@ -302,8 +301,6 @@ public:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
-        jit.make("SWA_BLOCK_SKIP", 1);
-        jit.make("FINALIZATION_SWA_FIX", 1);
 
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         const bool is_kv_compressed = get_kv_compressed(params);
