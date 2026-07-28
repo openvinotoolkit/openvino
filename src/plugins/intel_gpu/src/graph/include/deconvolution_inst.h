@@ -36,7 +36,7 @@ public:
         auto prim = get_primitive();
         if (!prim->output_shape_id.is_valid())
             return {};
-        return {prim->input.size() + 1 + (prim->bias.is_valid() ? 1 : 0)};
+        return {prim->input.size() + 1 /* weights */ + (prim->bias.is_valid() ? 1 : 0)};
     }
 
     using parent::get_kernel_impl_params;
