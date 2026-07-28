@@ -38,7 +38,7 @@ namespace ov::hetero {
 // Payload frame (repeated once per compiled_submodel in the XML header order):
 //
 //   +--------------------+--------------------------+----------------------+
-//   | type (1 byte char) | payload size (uint64_t) | payload raw data     |
+//   | type (1 byte char) | payload size (uint64_t)  | payload raw data     |
 //   +--------------------+--------------------------+----------------------+
 //
 // Payload type values:
@@ -48,7 +48,7 @@ namespace ov::hetero {
 //     Its internal layout is:
 //
 //       +----------------------+------------------+-------------------------+--------------------+
-//       | IR XML size (u64)    | IR XML raw data  | IR weights size (u64)   | IR weights raw data |
+//       | IR XML size (u64)    | IR XML raw data  | IR weights size (u64)   | IR weights raw data|
 //       +----------------------+------------------+-------------------------+--------------------+
 //
 // Notes:
