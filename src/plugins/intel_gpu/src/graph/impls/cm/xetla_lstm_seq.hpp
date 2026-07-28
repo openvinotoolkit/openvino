@@ -58,7 +58,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         const auto& lstm_prim = lstm_node.get_primitive();
         // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
         const float clip = lstm_prim->clip;
-        if (!(clip == 0.0f || std::isinf(clip))) {
+        if (clip != 0.0f && !std::isinf(clip)) {
             return false;
         }
 
