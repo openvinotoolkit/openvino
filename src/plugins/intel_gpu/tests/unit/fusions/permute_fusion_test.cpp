@@ -787,34 +787,24 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 // these tests requires building AND installing the plugin.
 
 namespace {
-// Exact f16 weights captured from the customer defect-triggering model (branch-1 and branch-2 MatMul, [12,8]).
-const std::vector<float> kFusedPeerFoldWeights1 = {
-    -1.085938f, 0.997559f, 0.282959f, -1.505859f, -0.578613f, 1.651367f, -2.425781f, -0.428955f,
-    1.265625f, -0.866699f, -0.678711f, -0.094727f, 1.491211f, -0.638672f, -0.444092f, -0.434326f,
-    2.205078f, 2.187500f, 1.003906f, 0.386230f, 0.737305f, 1.491211f, -0.936035f, 1.175781f,
-    -1.253906f, -0.637695f, 0.907227f, -1.428711f, -0.140015f, -0.861816f, -0.255615f, -2.798828f,
-    -1.771484f, -0.699707f, 0.927246f, -0.173584f, 0.002846f, 0.687988f, -0.879395f, 0.283691f,
-    -0.805176f, -1.727539f, -0.390869f, 0.573730f, 0.338623f, -0.011833f, 2.392578f, 0.412842f,
-    0.978516f, 2.238281f, -1.293945f, -1.039062f, 1.744141f, -0.797852f, 0.029678f, 1.069336f,
-    0.890625f, 1.754883f, 1.496094f, 1.069336f, -0.772949f, 0.794922f, 0.314209f, -1.326172f,
-    1.416992f, 0.807129f, 0.045502f, -0.233032f, -1.198242f, 0.199585f, 0.468506f, -0.831055f,
-    1.162109f, -1.097656f, -2.123047f, 1.040039f, -0.403320f, -0.125977f, -0.837402f, -1.606445f,
-    1.254883f, -0.688965f, 1.661133f, 0.807129f, -0.314697f, -1.085938f, -0.732422f, -1.212891f,
-    2.087891f, 0.164429f, 1.150391f, -1.267578f, 0.181030f, 1.177734f, -0.334961f, 1.031250f};
+// The fusion/impl-selection decision under test (can_fuse_reorder_to_prev ->
+// fused_peers_can_fold_to_layout -> fold_higher_rank_fused_peer) depends only on shape, format, and
+// padding -- never on tensor values -- so these MatMul weights need not match the original
+// defect-triggering model; any values reproduce the same rank/fusion behavior and the same MSE-vs-CPU
+// comparison. Generated once with a fixed seed rather than per-test so every model in this file (5D
+// and 6D) can share them; sized for the largest consumer (6D branch, K=12 by X=2), smaller consumers
+// slice a prefix.
+const std::vector<float> kFusedPeerFoldWeights1 = [] {
+    tests::random_generator rg;
+    rg.set_seed("fused_peer_fold_weights_1");
+    return rg.generate_random_1d<float>(96, -2, 2);
+}();
 
-const std::vector<float> kFusedPeerFoldWeights2 = {
-    -1.084961f, -1.363281f, 0.379395f, -0.379150f, 0.642090f, -1.977539f, 0.712402f, 2.597656f,
-    -0.024628f, 0.034149f, 0.179565f, -1.862305f, 0.426025f, -1.605469f, -0.427734f, 1.243164f,
-    -0.735352f, 0.501465f, 1.012695f, 0.278809f, -1.371094f, -0.332520f, 1.958984f, -2.025391f,
-    -0.275879f, -0.552246f, 0.120728f, 0.748047f, 1.608398f, -0.270264f, 0.812500f, 0.499756f,
-    0.474365f, -0.563965f, -0.997559f, -1.099609f, -0.756348f, 0.321777f, 0.760742f, 0.323486f,
-    -0.548828f, 1.805664f, 1.518555f, -0.354004f, -0.823242f, 0.130249f, 1.267578f, 0.332764f,
-    0.556641f, -0.212036f, 0.456299f, 1.544922f, -0.239624f, 0.143311f, 0.253906f, 0.283691f,
-    -1.412109f, -1.876953f, -1.019531f, 0.167969f, 0.553711f, -0.530762f, 1.376953f, -0.143188f,
-    0.020309f, -0.193970f, 0.134033f, 0.704590f, 0.665527f, -0.898438f, 1.523438f, -1.094727f,
-    0.079224f, -0.274414f, -1.048828f, -0.075134f, -0.740723f, 0.072937f, 0.403076f, 1.471680f,
-    0.307373f, -0.611328f, -0.391602f, 0.140015f, 0.093445f, 1.459961f, 1.395508f, -0.358887f,
-    -0.548828f, -2.556641f, -0.548828f, -0.978027f, -0.354736f, 0.391602f, 0.177246f, -0.029968f};
+const std::vector<float> kFusedPeerFoldWeights2 = [] {
+    tests::random_generator rg;
+    rg.set_seed("fused_peer_fold_weights_2");
+    return rg.generate_random_1d<float>(96, -2, 2);
+}();
 
 // Compiles the given model on device, runs one inference with (in1, in2), and returns the f16 output
 // flattened to float alongside the compiled model.
