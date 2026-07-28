@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,8 @@ enum class GQAMode {
 };
 
 // validate the batch axis padding for sdpa_micro kernel.
-class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
+class SDPA : virtual public ov::test::SubgraphBaseStaticTest,
+             public testing::WithParamInterface<ov::element::Type> {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
@@ -47,7 +48,7 @@ protected:
             if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
                 GTEST_SKIP();
         }
-        auto inType = ov::element::f16;
+        auto inType = GetParam();  // Get data type from parameter
         ov::Shape inputShape{3, 4, 8, 16};
         auto constant1 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
         auto constant2 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
@@ -73,63 +74,106 @@ protected:
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
         manager.run_passes(functionRefs);
 
+        // Set thresholds based on data type and sequence length
         bool has_long_seq = inputShape[2] >= 384 || inputShape[3] >= 128;
         if (inType == ov::element::f16) {
-            if (has_long_seq) {
-                abs_threshold = 0.025;
-                rel_threshold = 0.025;
-            } else {
-                abs_threshold = 0.005;
-                rel_threshold = 0.005;
-            }
+            abs_threshold = has_long_seq ? 0.025 : 0.005;
+            rel_threshold = has_long_seq ? 0.025 : 0.005;
+        } else if (inType == ov::element::bf16) {
+            abs_threshold = has_long_seq ? 0.1 : 0.1;
+            rel_threshold = has_long_seq ? 0.1 : 0.1;
+        } else if (inType == ov::element::f32) {
+            abs_threshold = has_long_seq ? 0.01 : 0.001;
+            rel_threshold = has_long_seq ? 0.01 : 0.001;
         }
     }
 };
 
-// Validate that non-PA SDPA with f16 K/V inputs is not incorrectly blocked
+// Validate that non-PA SDPA with f16/bf16 K/V inputs is not incorrectly blocked
 // from using micro kernel when KV_CACHE_PRECISION is globally set to u4.
 // This simulates a Vision Encoder SDPA node running alongside a PA-based LLM
 // that uses INT4 KV cache. The global config should not affect the Vision Encoder path.
-class SDPAWithInt4KVCacheConfig : public SDPA {
+class SDPAWithInt4KVCacheConfig : virtual public ov::test::SubgraphBaseStaticTest,
+                                  public testing::WithParamInterface<ov::element::Type> {
 protected:
     void SetUp() override {
-        SDPA::SetUp();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        {
+            auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+                GTEST_SKIP();
+        }
+        auto inType = GetParam();  // Get data type from parameter
+        ov::Shape inputShape{3, 4, 8, 16};
+        auto constant1 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
+        auto constant2 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
+        auto constant3 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
+        auto input = std::make_shared<ov::op::v0::Parameter>(inType, inputShape);
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{}, std::vector<int64_t>{0});
+        auto split = std::make_shared<ov::op::v1::Split>(input, split_axis_op, 3);
+
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), constant1, false);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(split->output(1), constant2, false);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(split->output(2), constant3, false);
+        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(reshape1, reshape2, reshape3, false);
+        sdpa->set_friendly_name("sdpa");
+
+        auto output = std::make_shared<ov::op::v0::Result>(sdpa->output(0));
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input}, "sdpa_model");
+
+        functionRefs = function->clone();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+        manager.run_passes(functionRefs);
+
+        // Set INT4 KV cache precision config
         configuration.insert(ov::hint::kv_cache_precision(ov::element::u4));
+
+        // Set thresholds based on data type
+        bool has_long_seq = inputShape[2] >= 384 || inputShape[3] >= 128;
+        if (inType == ov::element::f16) {
+            abs_threshold = has_long_seq ? 0.025 : 0.005;
+            rel_threshold = has_long_seq ? 0.025 : 0.005;
+        } else if (inType == ov::element::bf16) {
+            abs_threshold = has_long_seq ? 0.20 : 0.20;
+            rel_threshold = has_long_seq ? 0.20 : 0.20;
+        } else if (inType == ov::element::f32) {
+            abs_threshold = has_long_seq ? 0.01 : 0.001;
+            rel_threshold = has_long_seq ? 0.01 : 0.001;
+        }
     }
 };
 
-TEST_F(SDPAWithInt4KVCacheConfig, smoke_Inference) {
-    run();
-}
-
 class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
-                   public testing::WithParamInterface<std::tuple<ov::PartialShape,  // 0: query shape
-                                                                 ov::Shape,         // 1: query reshape shape
-                                                                 ov::PartialShape,  // 2: key shape
-                                                                 ov::Shape,         // 3: key reshape shape
-                                                                 ov::PartialShape,  // 4: value shape
-                                                                 ov::Shape,         // 5: value reshape shape
-                                                                 ov::PartialShape,  // 6: mask shape
-                                                                 float,             // 7: scale value
-                                                                 float,             // 8: abs_threshold
-                                                                 float,             // 9: rel_threshold
-                                                                 GQAMode>>          // 10: gqa_mode
+                   public testing::WithParamInterface<std::tuple<ov::element::Type,  // 0: data type
+                                                                 ov::PartialShape,   // 1: query shape
+                                                                 ov::Shape,          // 2: query reshape shape
+                                                                 ov::PartialShape,   // 3: key shape
+                                                                 ov::Shape,          // 4: key reshape shape
+                                                                 ov::PartialShape,   // 5: value shape
+                                                                 ov::Shape,          // 6: value reshape shape
+                                                                 ov::PartialShape,   // 7: mask shape
+                                                                 float,              // 8: scale value
+                                                                 float,              // 9: abs_threshold
+                                                                 float,              // 10 rel_threshold
+                                                                 GQAMode>>           // 11: gqa_mode
 {
 protected:
     void create_model() {
         auto params = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
-        inType = ov::element::f16;
+        inType = std::get<0>(params);
         bool reshape = false;
 
-        const ov::PartialShape query_shape = std::get<0>(params);
-        const ov::Shape query_reshape_shape = std::get<1>(params);
-        const ov::PartialShape key_shape = std::get<2>(params);
-        const ov::Shape key_reshape_shape = std::get<3>(params);
-        const ov::PartialShape value_shape = std::get<4>(params);
-        const ov::Shape value_reshape_shape = std::get<5>(params);
-        const ov::PartialShape attention_mask_shape = std::get<6>(params);
-        GQAMode gqa_mode = std::get<10>(params);
+        const ov::PartialShape query_shape = std::get<1>(params);
+        const ov::Shape query_reshape_shape = std::get<2>(params);
+        const ov::PartialShape key_shape = std::get<3>(params);
+        const ov::Shape key_reshape_shape = std::get<4>(params);
+        const ov::PartialShape value_shape = std::get<5>(params);
+        const ov::Shape value_reshape_shape = std::get<6>(params);
+        const ov::PartialShape attention_mask_shape = std::get<7>(params);
+        GQAMode gqa_mode = std::get<11>(params);
 
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
@@ -263,7 +307,7 @@ protected:
         const auto mask = std::make_shared<ov::op::v0::Parameter>(inType, attention_mask_shape);
         model_params.push_back(mask);
 
-        const auto scale_const = ov::op::v0::Constant::create(inType, {}, std::vector<float>{std::get<7>(params)});
+        const auto scale_const = ov::op::v0::Constant::create(inType, {}, std::vector<float>{std::get<8>(params)});
         std::shared_ptr<ov::op::v0::MatMul> qk;
         if (reshape) {
             qk = std::make_shared<ov::op::v0::MatMul>(query_reshaped, key_input, false, true);
@@ -292,8 +336,8 @@ protected:
 
         functionRefs = function->clone();
 
-        abs_threshold = std::get<8>(params);
-        rel_threshold = std::get<9>(params);
+        abs_threshold = std::get<9>(params);
+        rel_threshold = std::get<10>(params);
     }
 
     void check_results() {
@@ -332,7 +376,37 @@ protected:
     }
 };
 
-TEST_F(SDPA, smoke_Inference) {
+// Instantiate parameterized tests for SDPA with different data types
+INSTANTIATE_TEST_SUITE_P(
+    smoke_SDPA_DataTypes,
+    SDPA,
+    ::testing::Values(
+        ov::element::f16,
+        ov::element::bf16
+    ),
+    [](const testing::TestParamInfo<ov::element::Type>& info) {
+        return info.param.get_type_name();  // Test names: f16, bf16
+    }
+);
+
+TEST_P(SDPA, smoke_Inference) {
+    run();
+}
+
+// Instantiate parameterized tests for SDPAWithInt4KVCacheConfig
+INSTANTIATE_TEST_SUITE_P(
+    smoke_SDPA_INT4Config_DataTypes,
+    SDPAWithInt4KVCacheConfig,
+    ::testing::Values(
+        ov::element::f16,
+        ov::element::bf16
+    ),
+    [](const testing::TestParamInfo<ov::element::Type>& info) {
+        return info.param.get_type_name();  // Test names: f16, bf16
+    }
+);
+
+TEST_P(SDPAWithInt4KVCacheConfig, smoke_Inference) {
     run();
 }
 
@@ -345,82 +419,100 @@ TEST_P(SDPAFusion, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                          SDPAFusion,
-                         ::testing::Values(std::make_tuple(ov::PartialShape{10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{1024, 77},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::Default),
-                                           std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{1, 10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{1, 10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{10, 1024, 77},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::Default),
-                                           std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{10, 1024, 64},
-                                                           ov::PartialShape{10, 1024, 1024},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::Default),
-                                           std::make_tuple(ov::PartialShape{1, 10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{1, 10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{1, 10, 77, 64},
-                                                           ov::Shape{10, 77, 64},
-                                                           ov::PartialShape{77, 77},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::Default),
-                                           std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{1, 10, 1024, 64},
-                                                           ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{1, 10, 1024, 64},
-                                                           ov::PartialShape{1, 10, 1024, 64},
-                                                           ov::Shape{1, 10, 1024, 64},
-                                                           ov::PartialShape{10, 1024, 1024},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::Default),
-                                           std::make_tuple(ov::PartialShape{1, 8, 10, 256},
-                                                           ov::Shape{1, 8, 10, 256},
-                                                           ov::PartialShape{1, 1, 10, 256},
-                                                           ov::Shape{1, 1, 10, 256},
-                                                           ov::PartialShape{1, 1, 10, 256},
-                                                           ov::Shape{1, 1, 10, 256},
-                                                           ov::PartialShape{10, 842},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                           GQAMode::DirectBroadcast),
-                                           std::make_tuple(ov::PartialShape{1, 8, 60, 256},
-                                                           ov::Shape{1, 8, 60, 256},
-                                                           ov::PartialShape{1, 1, 60, 256},
-                                                           ov::Shape{1, 1, 60, 256},
-                                                           ov::PartialShape{1, 1, 60, 256},
-                                                           ov::Shape{1, 1, 60, 256},
-                                                           ov::PartialShape{60, 20},
-                                                           1.0f,
-                                                           0.025f,
-                                                           0.025f,
-                                                          GQAMode::ConcatBasedBroadcast)));
-
+                         ::testing::Values(std::make_tuple(ov::element::f16,
+                                                            ov::PartialShape{10, 1024, 64},
+                                                            ov::Shape{10, 1024, 64},
+                                                            ov::PartialShape{10, 77, 64},
+                                                            ov::Shape{10, 77, 64},
+                                                            ov::PartialShape{10, 77, 64},
+                                                            ov::Shape{10, 77, 64},
+                                                            ov::PartialShape{1024, 77},
+                                                            1.0f,
+                                                            0.025f,
+                                                            0.025f,
+                                                            GQAMode::Default),
+                                             std::make_tuple(ov::element::f16,
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 77, 64},
+                                                             ov::Shape{10, 77, 64},
+                                                             ov::PartialShape{1, 10, 77, 64},
+                                                             ov::Shape{10, 77, 64},
+                                                             ov::PartialShape{10, 1024, 77},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             GQAMode::Default),
+                                             std::make_tuple(ov::element::f16,
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{10, 1024, 64},
+                                                             ov::PartialShape{10, 1024, 1024},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             GQAMode::Default),
+                                             std::make_tuple(ov::element::f16,
+                                                             ov::PartialShape{1, 10, 77, 64},
+                                                             ov::Shape{10, 77, 64},
+                                                             ov::PartialShape{1, 10, 77, 64},
+                                                             ov::Shape{10, 77, 64},
+                                                             ov::PartialShape{1, 10, 77, 64},
+                                                             ov::Shape{10, 77, 64},
+                                                             ov::PartialShape{77, 77},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             GQAMode::Default),
+                                             std::make_tuple(ov::element::f16,
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{10, 1024, 1024},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             GQAMode::Default),
+                                             std::make_tuple(ov::element::f16,
+                                                             ov::PartialShape{1, 8, 10, 256},
+                                                             ov::Shape{1, 8, 10, 256},
+                                                             ov::PartialShape{1, 1, 10, 256},
+                                                             ov::Shape{1, 1, 10, 256},
+                                                             ov::PartialShape{1, 1, 10, 256},
+                                                             ov::Shape{1, 1, 10, 256},
+                                                             ov::PartialShape{10, 842},
+                                                             1.0f,
+                                                             0.025f,
+                                                             0.025f,
+                                                             GQAMode::DirectBroadcast),
+                                             std::make_tuple(ov::element::bf16,
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{1, 10, 1024, 64},
+                                                             ov::Shape{1, 10, 1024, 64},
+                                                             ov::PartialShape{10, 1024, 1024},
+                                                             1.0f,
+                                                             0.1f,
+                                                             0.1f,
+                                                             GQAMode::Default),
+                                             std::make_tuple(ov::element::bf16,
+                                                             ov::PartialShape{1, 8, 10, 256},
+                                                             ov::Shape{1, 8, 10, 256},
+                                                             ov::PartialShape{1, 1, 10, 256},
+                                                             ov::Shape{1, 1, 10, 256},
+                                                             ov::PartialShape{1, 1, 10, 256},
+                                                             ov::Shape{1, 1, 10, 256},
+                                                             ov::PartialShape{10, 842},
+                                                             1.0f,
+                                                             0.1f,
+                                                             0.1f,
+                                                             GQAMode::DirectBroadcast)));
 }  // namespace

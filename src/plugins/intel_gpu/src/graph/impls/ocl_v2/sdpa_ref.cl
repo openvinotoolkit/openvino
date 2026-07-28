@@ -3,6 +3,34 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/bf16_utils.cl"
+
+// For bf16 inputs, raw storage is ushort; TO_ACCUMULATOR_TYPE would do integer-to-float.
+// Use bit-reinterpretation helpers instead.
+#if INPUT0_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
+    #define INPUT0_TO_ACC(val) _convert_as_bfloat16_float(val)
+#else
+    #define INPUT0_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+#endif
+
+#if INPUT1_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
+    #define INPUT1_TO_ACC(val) _convert_as_bfloat16_float(val)
+#else
+    #define INPUT1_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+#endif
+
+#if INPUT2_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
+    #define INPUT2_TO_ACC(val) _convert_as_bfloat16_float(val)
+#else
+    #define INPUT2_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+#endif
+
+// tmp_buf and output use OUTPUT_TYPE which is bf16/ushort for bf16 models
+#if OUTPUT_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
+    #define ACC_TO_OUTPUT(val) _convert_bfloat16_as_ushort(val)
+#else
+    #define ACC_TO_OUTPUT(val) TO_OUTPUT_TYPE(val)
+#endif
 
 // query_input   [batch, heads_num, q_len, head_size]
 // key_input     [batch, kv_heads_num, kv_len, head_size]
@@ -155,7 +183,7 @@ KERNEL(sdpa_ref)(
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
 #endif
-    __global OUTPUT_TYPE* tmp_buf
+    __global ACCUMULATOR_TYPE* tmp_buf
 )
 {
     const uint batch_idx = get_global_id(0);
@@ -165,18 +193,18 @@ KERNEL(sdpa_ref)(
     const uint head_size_idx = get_global_id(2);
 
 #if HAS_SCALE_INPUT
-    const OUTPUT_TYPE scale_val = *scale;
+    const ACCUMULATOR_TYPE scale_val = TO_ACCUMULATOR_TYPE(*scale);
 #elif defined(STATIC_SCALE_VALUE)
-    const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
+    const ACCUMULATOR_TYPE scale_val = TO_ACCUMULATOR_TYPE(STATIC_SCALE_VALUE);
 #else
-    const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(INPUT1_SIZE_X));
+    const ACCUMULATOR_TYPE scale_val = ACCUMULATOR_VAL_ONE / sqrt(TO_ACCUMULATOR_TYPE(INPUT1_SIZE_X));
 #endif
 
     // Process 1*seq_len elements (Gemm1 + SoftMax) using a single work item, saving results to tmp_buf and
     // reusing them between all work items within a single workgroup for Gemm2 calculations.
     if (get_local_id(2) == 0) {
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-            OUTPUT_TYPE acc = 0;
+            ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
             for (uint h = 0; h < HEAD_SIZE /* head_size */; h++) {
                 uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, target_seq_idx, h);
 #ifdef BEAM_TABLE_TYPE
@@ -187,9 +215,9 @@ KERNEL(sdpa_ref)(
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, h);
 
 #if APPLY_SCALE_TO_QUERY
-                INPUT0_TYPE q_val = query_input[query_offset] * scale_val;
+                ACCUMULATOR_TYPE q_val = INPUT0_TO_ACC(query_input[query_offset]) * scale_val;
 #else
-                INPUT0_TYPE q_val = query_input[query_offset];
+                ACCUMULATOR_TYPE q_val = INPUT0_TO_ACC(query_input[query_offset]);
 #endif
 
                 INPUT1_TYPE k_val_packed = key_input[key_offset];
@@ -207,7 +235,7 @@ KERNEL(sdpa_ref)(
                 KEY_COMPRESSION_SCALE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
 
 #else
-                INPUT1_TYPE k_val = k_val_packed;
+                ACCUMULATOR_TYPE k_val = INPUT1_TO_ACC(k_val_packed);
 #endif
                 acc += q_val * k_val;
             }
@@ -228,20 +256,20 @@ KERNEL(sdpa_ref)(
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 #if IS_CAUSAL
-            OUTPUT_TYPE attn_mask_val = s > target_seq_idx ? OUTPUT_VAL_MIN : 0;
+            ACCUMULATOR_TYPE attn_mask_val = s > target_seq_idx ? ACCUMULATOR_VAL_MIN : ACCUMULATOR_VAL_ZERO;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
-            OUTPUT_TYPE attn_mask_val = attn_mask[attn_mask_offset];
+            ACCUMULATOR_TYPE attn_mask_val = INPUT0_TO_ACC(attn_mask[attn_mask_offset]);
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
-            OUTPUT_TYPE attn_mask_val = TO_OUTPUT_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
+            ACCUMULATOR_TYPE attn_mask_val = TO_ACCUMULATOR_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else
-            OUTPUT_TYPE attn_mask_val = OUTPUT_VAL_ZERO;
+            ACCUMULATOR_TYPE attn_mask_val = ACCUMULATOR_VAL_ZERO;
 #endif
 
-            OUTPUT_TYPE qk_val = tmp_buf[tmp_buf_offset] + attn_mask_val;
+            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset] + attn_mask_val;
             tmp_buf[tmp_buf_offset] = qk_val;
 
-            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(qk_val));
+            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, qk_val);
             #ifdef HAS_SINK_INPUT
             qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(sink_ptr[b1]));
             #endif
@@ -253,11 +281,11 @@ KERNEL(sdpa_ref)(
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            OUTPUT_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            ACCUMULATOR_TYPE val = native_exp(TO_ACCUMULATOR_TYPE(qk_val) - qk_max);
+            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            ACCUMULATOR_TYPE val = native_exp(qk_val - qk_max);
             exp_sum += val;
 
-            tmp_buf[tmp_buf_offset] = TO_OUTPUT_TYPE(val);
+            tmp_buf[tmp_buf_offset] = val;
         }
         #ifdef HAS_SINK_INPUT
         ACCUMULATOR_TYPE val = native_exp(TO_ACCUMULATOR_TYPE(sink_ptr[b1] - qk_max));
@@ -270,15 +298,15 @@ KERNEL(sdpa_ref)(
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            OUTPUT_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            ACCUMULATOR_TYPE val = TO_ACCUMULATOR_TYPE(qk_val) * inv_sum;
-            tmp_buf[tmp_buf_offset] = TO_OUTPUT_TYPE(val);
+            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            ACCUMULATOR_TYPE val = qk_val * inv_sum;
+            tmp_buf[tmp_buf_offset] = val;
         }
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 
-    OUTPUT_TYPE acc = 0;
+    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
     for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
         uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
@@ -305,12 +333,12 @@ KERNEL(sdpa_ref)(
 #endif
         VALUE_COMPRESSION_SCALE_TYPE value = ((value_packed - comp_zp) * comp_scale);
 #else
-        INPUT2_TYPE value = value_packed;
+        ACCUMULATOR_TYPE value = INPUT2_TO_ACC(value_packed);
 #endif
 
         acc += tmp_buf[tmp_buf_offset] * value;
     }
 
     uint output_offset = OUTPUT_GET_INDEX(b0, b1, target_seq_idx, head_size_idx);
-    output[output_offset] = acc;
+    output[output_offset] = ACC_TO_OUTPUT(acc);
 }
