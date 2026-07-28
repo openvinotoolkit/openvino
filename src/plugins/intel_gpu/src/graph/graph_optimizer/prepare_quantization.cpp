@@ -435,10 +435,11 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
 
     auto &usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
+    const bool is_reorder_node_fp = (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16 && reorder_node.get_output_layout().data_type != data_types::bf16);
     if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
-        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16 && reorder_node.get_output_layout().data_type != data_types::bf16) ||
+        is_reorder_node_fp ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
         dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
