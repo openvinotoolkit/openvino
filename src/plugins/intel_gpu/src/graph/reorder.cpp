@@ -212,7 +212,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
     reorder_info.add("input mem type", input_mem_type);
-    if (desc->subtract_per_feature.size() > 0) {
+    if (!desc->subtract_per_feature.empty()) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
 

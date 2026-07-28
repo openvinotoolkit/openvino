@@ -916,7 +916,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         continue;
 
                     auto data_shape = data_layout.get_shape();
-                    if (data_shape.size() && shape_size(data_shape) == 1ul)
+                    if (!data_shape.empty() && shape_size(data_shape) == 1ul)
                         continue;
 
                     static size_t idx = 0;
