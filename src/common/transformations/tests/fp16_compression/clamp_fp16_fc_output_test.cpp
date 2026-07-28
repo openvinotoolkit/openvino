@@ -129,3 +129,34 @@ TEST_F(TransformationTestsF, ClampFp16FCOutputTest5_NonConstantWeightNotChanged)
     { model_ref = model->clone(); }  // not changed: weight operand must be a Constant
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, ClampFp16FCOutputTest6_ConstantBiasNotChanged) {
+    {
+        auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto weight = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{4096, 4096}, {1});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true);
+        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{4096}, {1});
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{activation});
+        manager.register_pass<ClampFP16FCOutput>();
+    }
+    { model_ref = model->clone(); }  // not changed: bias operand is a Constant
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ClampFp16FCOutputTest7_ConvertWrappedConstantBiasNotChanged) {
+    {
+        auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto weight = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{4096, 4096}, {1});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true);
+        auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4096}, {1});
+        auto bias_convert = std::make_shared<ov::op::v0::Convert>(bias, ov::element::f16);
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, bias_convert);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{activation});
+        manager.register_pass<ClampFP16FCOutput>();
+    }
+    { model_ref = model->clone(); }  // not changed: bias operand is Convert(Constant)
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}

@@ -18,6 +18,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+// excludes a Constant and a Convert(Constant), e.g. a bias -- not a residual activation
+bool is_not_constant_like(const std::shared_ptr<ov::Node>& node) {
+    if (ov::is_type<ov::op::v0::Constant>(node)) {
+        return false;
+    }
+    if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+        return !ov::is_type<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+    }
+    return true;
+}
+}  // namespace
+
 namespace ov {
 namespace pass {
 
@@ -31,7 +44,8 @@ ClampFP16FCOutput::ClampFP16FCOutput() {
     auto matmul_m =
         wrap_type<v0::MatMul>({activation_in, weight_in}, type_matches(ov::element::f16) && consumers_count(1));
     auto fc_output_m = optional<v0::Convert>(matmul_m);
-    auto residual_add_m = wrap_type<v1::Add>({fc_output_m, any_input()});
+    auto residual_in = any_input(is_not_constant_like);
+    auto residual_add_m = wrap_type<v1::Add>({fc_output_m, residual_in});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
