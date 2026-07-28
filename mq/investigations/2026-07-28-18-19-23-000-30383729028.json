@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-18-19-23-000-30383729028",
+  "timestamp": "2026-07-28T18:19:23Z",
+  "run_id": "30383729028",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30383729028",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "35116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35116",
+  "author": "yury-intel",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 CPU functional tests job fails - logs inaccessible (exit code 255)",
+  "signature": "cpu functional tests job failed arm64 logs unavailable 403 forbidden|Infrastructure",
+  "signature_hash": "724272b6bb94e4b5",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed with exit code 255"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Check status of all jobs failed with exit code 1 due to CPU functional tests failure"
+    }
+  ],
+  "key_errors": [
+    "Process completed with exit code 255.",
+    "Job logs endpoint returned HTTP 403 - full log not accessible for deeper triage."
+  ],
+  "root_cause": "The ARM64 CPU functional tests job returned exit code 255 in the 'Intel CPU plugin func tests (parallel)' step. Full job logs are not accessible (HTTP 403), preventing deep root cause analysis. Exit code 255 on ARM64 typically indicates an OOM kill, runner shutdown signal, or process crash at the OS level. This is the 3rd occurrence of this pattern on ARM64, consistent with a transient infrastructure issue. The workflow is currently on attempt 2 (a re-run was already triggered).",
+  "reproduction_steps": "N/A - infrastructure-level failure not reproducible locally without the same ARM64 runner environment.",
+  "recommended_actions": [
+    "Wait for the currently-running attempt 2 to complete.",
+    "If attempt 2 also fails, inspect the ARM64 runner health and resource usage.",
+    "Check for OOM conditions on ARM64 runners during CPU functional test execution.",
+    "Consider adding memory/resource monitoring to the ARM64 functional test step."
+  ],
+  "prevention_strategies": "Monitor ARM64 runner memory usage during CPU functional tests. Consider adding retry logic or memory limits to the parallel test execution step.",
+  "historical_context": "This same pattern (ARM64 CPU functional tests failing with inaccessible logs, exit code 255) was seen on 2026-07-23 (run 30043161341, PR 37027) and 2026-07-27 (run 30311997797, PR 37040)."
+}
