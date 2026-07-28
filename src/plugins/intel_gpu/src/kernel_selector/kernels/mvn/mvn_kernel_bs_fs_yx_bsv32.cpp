@@ -22,11 +22,13 @@ ParamsKey MVNKernel_bs_fs_yx_bsv32::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::BF16);
 
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::BF16);
 
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
@@ -71,6 +73,7 @@ Datatype MVNKernel_bs_fs_yx_bsv32::GetAccumulatorType(const mvn_params& params) 
     switch (input_dt) {
         case Datatype::F32:
         case Datatype::F16:
+        case Datatype::BF16:
             return Datatype::F32;
         case Datatype::INT8:
         case Datatype::UINT8:
@@ -100,7 +103,10 @@ JitConstants MVNKernel_bs_fs_yx_bsv32::GetJitConstants(const mvn_params& params,
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = {"b", "(f + fi)", "(y)", "(x)"};
-        auto conf = FusedOpsConfiguration("", idx_order, "normalized", activation_dt);
+        // bf16 activation type is ushort: fused ops would do integer math, so compute in float.
+        // For other dtypes keep the activation type to preserve f16 rounding behavior.
+        auto fused_dt = params.inputs[0].GetDType() == Datatype::BF16 ? Datatype::F32 : activation_dt;
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized_activation", fused_dt);
         jits.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

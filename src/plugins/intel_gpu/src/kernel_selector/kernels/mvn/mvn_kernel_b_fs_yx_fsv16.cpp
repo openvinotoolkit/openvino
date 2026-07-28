@@ -20,11 +20,13 @@ ParamsKey MVNKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
@@ -115,6 +117,7 @@ Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) c
     switch (input_dt) {
         case Datatype::F32:
         case Datatype::F16:
+        case Datatype::BF16:
             return Datatype::F32;
         case Datatype::INT8:
         case Datatype::UINT8:
@@ -168,7 +171,10 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
                          "(output_spatial % OUTPUT_SIZE_X)"};
         }
 
-        auto conf = FusedOpsConfiguration("", idx_order, "normalized_activation", activation_dt);
+        // bf16 activation type is ushort: fused ops would do integer math, so compute in float.
+        // For other dtypes keep the activation type to preserve f16 rounding behavior.
+        auto fused_dt = params.inputs[0].GetDType() == Datatype::BF16 ? Datatype::F32 : activation_dt;
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized_activation", fused_dt);
         if (params.has_dynamic_tensors()) {
             conf.SetBoundaryCheck(FusedOpsConfiguration::BoundaryCheck::ENABLED);
         }

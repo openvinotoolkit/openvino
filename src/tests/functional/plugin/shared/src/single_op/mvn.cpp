@@ -100,6 +100,16 @@ void Mvn6LayerTest::SetUp() {
     targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
+    // BF16 MVN: the plugin runs the model at f32 inference precision, so the bf16 model is upconverted
+    // and the kernel computes accurate f32 math. The default reference (template plugin) would instead
+    // compute stepwise in bf16, whose rounding is lossier than the 0.01 tolerance. Convert the reference
+    // model to f32 as well (convert_precisions) so both sides compute the accurate result; the device's
+    // bf16 output rounding is then well within the abs+rel threshold.
+    if (model_type == ov::element::bf16) {
+        abs_threshold = 0.01;
+        convert_precisions = {{ov::element::bf16, ov::element::f32}};
+    }
+
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     auto axes_node = ov::op::v0::Constant::create(axis_type, ov::Shape{axes.size()}, axes);

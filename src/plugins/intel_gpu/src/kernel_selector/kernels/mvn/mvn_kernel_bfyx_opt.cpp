@@ -14,10 +14,12 @@ ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -147,7 +149,10 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
                 }
             }
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, boundary_check);
+        // bf16 activation type is ushort: fused ops would do integer math, so compute in float.
+        // For other dtypes keep the activation type to preserve f16 rounding behavior.
+        auto fused_dt = params.inputs[0].GetDType() == Datatype::BF16 ? Datatype::F32 : activation_dt;
+        auto conf = FusedOpsConfiguration("", idx_order, "result", fused_dt, 1, LoadType::LT_UNALIGNED, boundary_check);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
