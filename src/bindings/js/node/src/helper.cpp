@@ -342,9 +342,12 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
             return Napi::String::New(cb.Env(), formatted_str);
         },
         "toString");
-    // toString() is defined as a non-enumerable method so
-    // it does not show up in Object.keys()/spread and keeps the object a pure data shape.
-    version_obj.DefineProperty(Napi::PropertyDescriptor::Value("toString", to_string_fn, napi_default));
+    // toString() is defined as a non-enumerable method so it does not show up
+    // in Object.keys()/spread and keeps the object a pure data shape.
+    version_obj.DefineProperty(
+        Napi::PropertyDescriptor::Value("toString",
+                                        to_string_fn,
+                                        static_cast<napi_property_attributes>(napi_writable | napi_configurable)));
     return version_obj;
 }
 
