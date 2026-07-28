@@ -18,6 +18,14 @@
 #include "perf.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
@@ -44,6 +52,10 @@ protected:
                        std::shared_ptr<ov::IAsyncInferRequest> to_request,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
+    // Share lincache tensors from the largest generate variant to all smaller variants so
+    // that a variant switch requires no explicit lincache migration. Called once after
+    // m_kvcache_strategy->on_initialize() and is strategy-independent.
+    void share_lincache_across_generate_variants();
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -51,22 +63,38 @@ protected:
 
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
+    // Returns the KV cache capacity (max storable tokens) of the currently active variant.
+    uint32_t get_current_variant_capacity() const;
+
+    // Switches to the next larger generate variant mid-decode when the current variant's
+    // KV cache is full. Updates m_kvcache_request, ports, m_kvcache_variant_idx, and
+    // delegates KV rebinding to the strategy. Returns false if already at the largest variant.
+    bool try_switch_to_larger_variant();
+
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids,
-                               ov::SoPtr<ov::ITensor> per_layer_inputs);
+                               ov::SoPtr<ov::ITensor> per_layer_inputs,
+                               ov::SoPtr<ov::ITensor> visual_pos_masks,
+                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+    PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
+    bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
                              ov::SoPtr<ov::ITensor> token_type_ids,
-                             ov::SoPtr<ov::ITensor> per_layer_inputs);
+                             ov::SoPtr<ov::ITensor> per_layer_inputs,
+                             ov::SoPtr<ov::ITensor> visual_pos_masks,
+                             ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
                        ov::SoPtr<ov::ITensor> token_type_ids,
-                       ov::SoPtr<ov::ITensor> per_layer_inputs);
+                       ov::SoPtr<ov::ITensor> per_layer_inputs,
+                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
@@ -116,6 +144,10 @@ protected:
 
     bool m_generate_initialized = false;
 
+    // Index into m_generate_requests / m_kvcache_sizes for the currently active variant.
+    // Updated in prepare_for_new_conversation() and try_switch_to_larger_variant().
+    size_t m_kvcache_variant_idx = 0;
+
     bool m_first_run = true;
 
     int64_t m_first_position_id = 0;
@@ -140,7 +172,7 @@ protected:
     std::string init_pre_alloc_device();
 
     // Support prefix caching
-    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+    std::vector<std::unique_ptr<PrefixCachingHelper>> m_prefix_caching_helpers;
 
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
@@ -153,6 +185,7 @@ protected:
     friend class LLMContinuousKVCacheStrategy;
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
 };
 
 }  // namespace npuw

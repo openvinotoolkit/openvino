@@ -10,7 +10,7 @@ namespace kernel_selector {
 class CumSumKernelRef : public CumSumKernelBase {
 public:
     CumSumKernelRef() : CumSumKernelBase("cum_sum_ref") {}
-    virtual ~CumSumKernelRef() = default;
+    ~CumSumKernelRef() override = default;
 protected:
     JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const override;
     KernelsData GetKernelsData(const Params& params) const override;

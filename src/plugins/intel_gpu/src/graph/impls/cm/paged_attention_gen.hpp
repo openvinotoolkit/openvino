@@ -200,6 +200,12 @@ public:
     }
 
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+        if (desc->k_head_size == 256 && xe_arch >= 2) {
+            constexpr size_t num_team = 8;
+            return num_team * get_q_step(params);
+        }
         return _wg_size * get_q_step(params);
     }
 
@@ -259,6 +265,12 @@ public:
 
     static uint32_t get_block_wg_n(const kernel_impl_params& params) {
         return get_block_sg_n(params) * SG_N;
+    }
+
+    // XAttention metadata is built at WG-level Q-tile granularity, ignoring the
+    // head_size=256 worker subdivision used inside the multi-token kernel.
+    static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        return PagedAttentionGeneratorMultiToken::_wg_size * PagedAttentionGeneratorMultiToken::get_q_step(params);
     }
 
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {

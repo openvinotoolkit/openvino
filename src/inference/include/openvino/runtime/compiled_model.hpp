@@ -54,6 +54,26 @@ public:
     CompiledModel() = default;
 
     /**
+     * @brief Default copy constructor.
+     */
+    CompiledModel(const CompiledModel&) = default;
+
+    /**
+     * @brief Default copy assignment operator.
+     */
+    CompiledModel& operator=(const CompiledModel&) = default;
+
+    /**
+     * @brief Default move constructor.
+     */
+    CompiledModel(CompiledModel&&) = default;
+
+    /**
+     * @brief Default move assignment operator.
+     */
+    CompiledModel& operator=(CompiledModel&&) = default;
+
+    /**
      * @brief Destructor that preserves unloading order of an implementation object and reference to library.
      */
     ~CompiledModel();

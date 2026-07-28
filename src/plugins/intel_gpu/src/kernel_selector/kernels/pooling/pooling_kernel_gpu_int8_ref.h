@@ -12,7 +12,7 @@ namespace kernel_selector {
 class PoolingKernelGPUInt8Ref : public PoolingKernelBase {
 public:
     PoolingKernelGPUInt8Ref() : PoolingKernelBase("pooling_gpu_int8_ref") {}
-    virtual ~PoolingKernelGPUInt8Ref() {}
+    ~PoolingKernelGPUInt8Ref() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -40,7 +40,7 @@ struct concatenation_params : public base_params {
 class ConcatenationKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ConcatenationKernelBase() {}
+    ~ConcatenationKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
 

@@ -317,7 +317,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     } else {
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
-        OPENVINO_ASSERT(kernels.size() > 0, "[GPU] Expected to compile more than 0 kernels in the batch");
+        OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");
         OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");
         if (dump_sources && dump_file.good()) {
             dump_file << "\n/* Build Log:\n";
@@ -387,7 +387,7 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
     }
     auto res = _kernels.find(params);
     OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
-    OPENVINO_ASSERT(res->second.size() != 0, "Number of kernels should not be zero for " + current_node_id);
+    OPENVINO_ASSERT(!res->second.empty(), "Number of kernels should not be zero for " + current_node_id);
 
     std::vector<kernel::ptr> kernels(res->second.size());
     for (auto& k : res->second) {
