@@ -119,10 +119,10 @@ KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
     ACC_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_global_id(0));
 
 #if SG_NUM != 1
-    __local int slm_acc[(SG_NUM - 1) * FSV];
-    int full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
+    __local ACCUMULATOR_TYPE slm_acc[(SG_NUM - 1) * FSV];
+    ACCUMULATOR_TYPE full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
 #else
-    int full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
+    ACCUMULATOR_TYPE full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
 #endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
@@ -132,7 +132,7 @@ KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
 // ================================================================================================
 #elif MVN_KERNEL_MEAN_2
 
-DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, ACCUMULATOR_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, ACCUMULATOR_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM_IDENTITY)
 
 #define CALC_MEAN(sum) ((sum) / ITEMS_NUM)
 #if SG_NUM != 1
@@ -174,7 +174,7 @@ KERNEL(mvn_mean_2)(const __global ACCUMULATOR_TYPE* intermidiate_sum,
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ((curr) + ((DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx)) * (DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx))))
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if SG_NUM != 1
@@ -219,7 +219,7 @@ KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
 // ================================================================================================
 #elif MVN_KERNEL_VAR_2
 
-DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM_IDENTITY)
 #if defined EPS_OUTSIDE_SQRT
     #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, (MEAN_TYPE)-1.f);
 #elif defined EPS_INSIDE_SQRT
@@ -296,20 +296,44 @@ KERNEL(mvn_final_bsv32)(
     uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
 
     INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[0];
-    ACT_PACKED_TYPE normalized_vec = fma((TO_ACT_PACKED_TYPE(in_pack) - TO_ACT_PACKED_TYPE(mean_vals)),
-                                            TO_ACT_PACKED_TYPE(inv_variance), (ACT_PACKED_TYPE)0);
+#if MVN_BF16_COMPUTE
+    // Decode each input element via DECODE_INPUT0_COMPUTE_TYPE (bf16 -> float) and
+    // compute the normalization in float: ACTIVATION_TYPE is ushort for bf16, so
+    // fma/arithmetic on it would be integer math.
+    MEAN_PACKED_TYPE normalized_vec;
+    unroll_for (uint fi = 0; fi < FSV; fi++) {
+        normalized_vec[fi] = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[fi]) - mean_vals[fi]) * inv_variance[fi];
+    }
     OUTPUT_PACKED_TYPE result_vec = OUTPUT_VAL_ZERO;
 
     unroll_for (uint fi = 0; fi < FSV; fi++) {
-        ACTIVATION_TYPE normalized = normalized_vec[fi];
+        MEAN_TYPE normalized = normalized_vec[fi];
 #   if HAS_FUSED_OPS
+        // bf16: fused ops run in float (fused_dt = F32), no pre-rounding of the normalized value.
+        float normalized_activation = normalized;
         FUSED_OPS;
         result_vec[fi] = FUSED_OPS_RESULT;
 #   else
         result_vec[fi] = TO_OUTPUT_TYPE(normalized);
 #   endif
     }
+#else
+    // Legacy ACTIVATION_TYPE (half for f16) math, kept for f16/f32/i8/u8 so the rounding
+    // behavior stays identical to the pre-BF16 implementation.
+    ACT_PACKED_TYPE normalized_vec = fma((TO_ACT_PACKED_TYPE(in_pack) - TO_ACT_PACKED_TYPE(mean_vals)),
+                                            TO_ACT_PACKED_TYPE(inv_variance), (ACT_PACKED_TYPE)0);
+    OUTPUT_PACKED_TYPE result_vec = OUTPUT_VAL_ZERO;
 
+    unroll_for (uint fi = 0; fi < FSV; fi++) {
+        ACTIVATION_TYPE normalized_activation = normalized_vec[fi];
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        result_vec[fi] = FUSED_OPS_RESULT;
+#   else
+        result_vec[fi] = TO_OUTPUT_TYPE(normalized_activation);
+#   endif
+    }
+#endif
     vstore16(result_vec, 0, &output[output_offset]);
 }
 
@@ -330,7 +354,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ((curr) + ((DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx)) * (DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx))))
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if defined EPS_OUTSIDE_SQRT
