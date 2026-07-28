@@ -85,6 +85,3 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
-
-# SSL Certificates
-RUN update-ca-certificates
