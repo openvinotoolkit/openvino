@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-11-01-06-000-30346547405",
+  "timestamp": "2026-07-28T11:01:06Z",
+  "run_id": "30346547405",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30346547405",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] \u2014 AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED [100%]",
+    "AssertionError: Accuracy validation failed",
+    "File test_llm.py:559, in compare_results: return super().compare_results([fw_outputs[0]], [ov_outputs[0]])",
+    "File test_convert_model.py:93, in compare_results: assert is_ok, 'Accuracy validation failed'"
+  ],
+  "root_cause": "The LLM export test for katuni4ka/opt-125m-gptq (GPTQ-quantized OPT model) fails because the exported OpenVINO model produces numerically different logits compared to the PyTorch reference outputs. This is an accuracy regression: during export_model_precommit the model is converted to an OV IR and then inferred on CPU, but the compare_results step asserts the first token outputs are close enough to the reference. The failure is deterministic (100% test completion before failure, not a timeout), suggesting a recent change in conversion logic, quantization handling, or numerical precision for GPTQ models broke parity. GPT-QModel 6.0.3 is being used with Torch 2.12.0+cpu.",
+  "reproduction_steps": "cd openvino && python -m pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Identify the PR in the merge queue and review changes to OV PyTorch export/conversion for GPTQ models.",
+    "Run the failing test locally: pytest test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+    "Check if the PyTorch frontend GPTQ/quantization conversion path was modified in the triggering PR (head SHA df90f62b89f315390dcf2ade49d2cf364fc45b63).",
+    "Compare fw_outputs[0] vs ov_outputs[0] to understand the magnitude of the accuracy divergence."
+  ],
+  "prevention_strategies": "Add numerical tolerance checks for GPTQ-quantized model exports as a precommit gate. Ensure any changes to quantization conversion paths include regression tests with known-accuracy models.",
+  "historical_context": "No previous identical pattern found in the database."
+}
