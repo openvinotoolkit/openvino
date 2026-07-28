@@ -1800,6 +1800,12 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision);
+
+        if (p.zero_key_data) {
+            for (auto& sequence_key_data : pam->key_data) {
+                std::fill(sequence_key_data.begin(), sequence_key_data.end(), ov::float16{0.0f});
+            }
+        }
     }
 
     std::vector<ov::float16> get_output_data() {
@@ -2172,6 +2178,37 @@ public:
 
         result.outputs = network->execute();
         result.network = network;
+
+        if (p.zero_key_data) {
+            ASSERT_TRUE(p.kv_cache_compression);
+            ASSERT_EQ(p.key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL);
+
+            const bool is_int4 = kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
+            const size_t adjusted_head_size = is_int4 ? p.k_head_size / 2 : p.k_head_size;
+            const size_t adjusted_block_size = p.block_size + (is_int4 ? 8 : 4);
+            const float expected_inv_scale = is_int4 ? (0.001f / 15.0f) : (1.0f / 255.0f);
+            const size_t scales_per_packed_dim = is_int4 ? 2 : 1;
+            const size_t num_blocks = pam.block_indices.back() + 1;
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(result.key_cache_mem,
+                                                                               tests::get_test_stream());
+
+            for (size_t block = 0; block < num_blocks; ++block) {
+                for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
+                    const size_t block_head_offset =
+                        (block * p.num_kv_heads + head) * adjusted_head_size * adjusted_block_size;
+                    for (size_t dim = 0; dim < adjusted_head_size; ++dim) {
+                        const size_t dim_offset = block_head_offset + dim * adjusted_block_size;
+                        const size_t comp_offset = (dim_offset + p.block_size) / sizeof(ov::float16);
+                        for (size_t scale_idx = 0; scale_idx < scales_per_packed_dim; ++scale_idx) {
+                            const float inv_scale = static_cast<float>(cache_ptr[comp_offset + scale_idx * 2]);
+                            EXPECT_TRUE(std::isfinite(inv_scale));
+                            EXPECT_GT(inv_scale, 0.0f);
+                            EXPECT_NEAR(inv_scale, expected_inv_scale, 1e-5f);
+                        }
+                    }
+                }
+            }
+        }
 
         last_output_data_mem = result.outputs.at("output_data").get_memory();
 
@@ -2932,6 +2969,7 @@ struct paged_attention_test_params {
     std::optional<std::vector<int>> xattention_block_size = std::nullopt;
 
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+    bool zero_key_data = false;
 
     // test query-to-query attention bias
     bool has_qq_bias = false;

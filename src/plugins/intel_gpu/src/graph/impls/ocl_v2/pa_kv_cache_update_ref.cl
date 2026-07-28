@@ -146,8 +146,13 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         for (int j = 0; j < new_tokens_num; ++j) {
             INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * K_HEAD_SIZE * KV_HEADS_NUM + hidden_idx);
             cache_data_vec_decompressed[token_pos_in_block + j] = new_token;
-            max_value = fmax(max_value, new_token);
-            min_value = fmin(min_value, new_token);
+            #if IS_INT4_COMPRESSED
+                max_value = fmax(max_value, new_token);
+                min_value = fmin(min_value, new_token);
+            #else
+                INPUT0_TYPE max_value = fmax(max_value, new_token);
+                INPUT0_TYPE min_value = fmin(min_value, new_token);
+            #endif
         }
         // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
@@ -292,7 +297,11 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             key_in_offset_tmp += in_data_pitch;
         }
         #define ACCUMULATOR_TYPE float
-        ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+        #if IS_INT4_COMPRESSED
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+        #else
+            ACCUMULATOR_TYPE range = max_value - min_value;
+        #endif
         const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
         if (range <= min_range) {
             // When the range is very small, expand the range to avoid zp overflow
