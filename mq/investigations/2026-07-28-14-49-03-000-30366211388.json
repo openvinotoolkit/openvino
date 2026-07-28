@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-14-49-03-000-30366211388",
+  "timestamp": "2026-07-28T14:49:03Z",
+  "run_id": "30366211388",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30366211388",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37071",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37071",
+  "author": "sbutnari",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already completed on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Linux ARM64 (Ubuntu 22.04, Python 3.11) - attempt 1",
+      "conclusion": "failure",
+      "symptom": "Attempt 1 failed; logs inaccessible due to secrecy policy. Attempt 2 succeeded with all 22 jobs passing."
+    }
+  ],
+  "key_errors": [
+    "Log access blocked: resource:get_job_logs exists but is not accessible \u2014 filtered by secrecy policy",
+    "Run attempt 2 status: completed/success (all 22 jobs: success/skipped)"
+  ],
+  "root_cause": "The Linux ARM64 workflow attempt 1 failed with an unknown transient infrastructure error. The attempt 1 logs are inaccessible due to the secrecy policy on the MCP tool. Attempt 2 was automatically triggered and completed successfully with all 22 jobs passing. This is a known recurring pattern on ARM64 infrastructure.",
+  "reproduction_steps": "N/A - transient infrastructure failure that auto-recovered on re-run",
+  "recommended_actions": [
+    "No action needed - attempt 2 already succeeded",
+    "PR 37071 should re-enter the merge queue if it was dropped; attempt 2 completed successfully"
+  ],
+  "prevention_strategies": "Infrastructure transient failures on ARM64 runners auto-recover via re-run. Consider adding retry logic in the workflow.",
+  "historical_context": "This is the 3rd occurrence of this pattern (hash: 44dec04115b12f89). Previous occurrences: run 30351149892 (PR 36955, 2026-07-28T11:15:51Z), run 30156795631 (PR 37024, 2026-07-25T13:05:00Z)."
+}
