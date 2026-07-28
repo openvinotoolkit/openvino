@@ -1,0 +1,36 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-07-28-13-28-07-000-30357349840",
+    "timestamp": "2026-07-28T13:28:07Z",
+    "run_id": "30357349840",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30357349840",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "36860",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36860",
+    "author": "gooddoog",
+    "category": "Infrastructure",
+    "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+    "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+    "signature_hash": "cc822c07e113be0a",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "Windows (VS 2022, Python 3.11, Release) - attempt 1",
+            "conclusion": "failure",
+            "symptom": "Job logs from attempt 1 are inaccessible (403 secrecy policy); run is at attempt 2 (in_progress)"
+        }
+    ],
+    "key_errors": [
+        "Job logs for attempt 1 inaccessible: Error [Filtered] resource:get_job_logs exists but is not accessible - filtered by secrecy policy",
+        "Run attempt 1 concluded as failure; run attempt 2 is in_progress as of 2026-07-28T13:28Z",
+        "PR #36860 is already merged (2026-07-28T13:32:46Z)"
+    ],
+    "root_cause": "The Windows (VS 2022, Python 3.11, Release) workflow failed on its first attempt for PR #36860 ([Snippets][CPU][Test] Enable ConvAdd tests on all supported architectures). Job logs from attempt 1 are inaccessible due to the secrecy policy in this CI environment. The run has been re-triggered as attempt 2 (in_progress). The PR has since been merged. This is a recurring pattern (hash cc822c07e113be0a, count 7 after this investigation) consistent with a transient Windows runner infrastructure issue.",
+    "reproduction_steps": "N/A - transient infrastructure issue; not reproducible locally.",
+    "recommended_actions": [
+        "No action required - PR #36860 has already been merged at 2026-07-28T13:32:46Z.",
+        "Monitor the Windows VS 2022 runner pool for recurring transient failures (7 occurrences recorded)."
+    ],
+    "prevention_strategies": "Ensure the Windows VS 2022 runner pool has sufficient capacity and health monitoring. Consider investigating why logs are inaccessible for attempt 1 runs.",
+    "historical_context": "This is the 7th recorded occurrence of this Windows VS 2022 logs-inaccessible infrastructure pattern (cc822c07e113be0a). Previous occurrences: runs 30068549392, 30229750900, 30235668359, 30294958202, 30311996736, 30312759752. No root cause has been identified beyond transient runner issues."
+}
