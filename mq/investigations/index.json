@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 69,
+  "total": 70,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -673,6 +673,15 @@
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
       "pr_number": null
+    },
+    {
+      "investigation_id": "2026-07-28-04-50-13-000-30326123523",
+      "run_id": "30326123523",
+      "timestamp": "2026-07-28T04:50:13Z",
+      "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+      "category": "Code Issue",
+      "signature_hash": "671a331e9a60933e",
+      "pr_number": "37029"
     }
   ]
 }

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-28-04-50-13-000-30326123523",
+  "timestamp": "2026-07-28T04:50:13Z",
+  "run_id": "30326123523",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30326123523",
+  "workflow_name": "PyTorch Models tests",
+  "pr_number": "37029",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37029",
+  "author": null,
+  "category": "Code Issue",
+  "title": "opt-125m-gptq model export accuracy validation failed",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] \u2014 AssertionError: Accuracy validation failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "E           AssertionError: Accuracy validation failed\nE           assert False",
+    "File test_convert_model.py:93, in compare_results\n    assert is_ok, \"Accuracy validation failed\""
+  ],
+  "root_cause": "The opt-125m-gptq model export test failed accuracy validation when comparing OV-exported outputs against framework (PyTorch) reference outputs. The model is loaded via GPT-QModel (6.0.3) with TorchFusedQuantLinear kernel, converted through the PyTorch FX frontend (TorchFXPythonDecoder), and the resulting ov::Model inference results diverge from the PyTorch baseline. This is a deterministic correctness failure \u2014 the compare_results function returns False for at least one output tensor pair. The failure is not a timeout and all other test cases passed, isolating the issue to opt_gptq model handling.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v after installing OV with PyTorch frontend and GPT-QModel 6.0.3 + transformers 5.5.3",
+  "recommended_actions": [
+    "Inspect the PyTorch FX frontend conversion path for OPT-GPTQ models \u2014 check if any recent changes to quantization-related op handling (MatMul, dequantize, etc.) introduced numerical divergence.",
+    "Compare OV output tensors vs PyTorch tensors for the opt-125m-gptq logits to determine magnitude of error.",
+    "Check if PR #37029 touches the PyTorch frontend or any quantization/GPTQ conversion logic.",
+    "If the test was passing before this PR, bisect the PyTorch FX decoder changes."
+  ],
+  "prevention_strategies": "Add tolerance-aware comparison for quantized model exports; ensure GPTQ model accuracy tests are run on affected frontend changes before merge queue entry.",
+  "historical_context": "This is a recurring failure: 13 occurrences starting 2026-07-27T12:33:21Z. Same test (test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]) has been failing across multiple PRs (37029, 36957, 36860). The pattern has been active for over 16 hours."
+}
