@@ -1014,7 +1014,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                     // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
                     const float clip = lstm_seq->get_clip();
-                    if (!(clip == 0.f || std::isinf(clip))) {
+                    if (clip != 0.f && !std::isinf(clip)) {
                         return false;
                     }
 
