@@ -6,6 +6,16 @@ pre-compiled OpenVINO graph instead of PyTorch eager / `torch.compile +
 inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
+> ⚠️ **Known regression on `vllm_dev` tip (as of `52edc43fef`):** the OV
+> backend hangs on the first `generate()` after model load
+> (`EngineDeadError` / `Processed prompts: 0%`, worker stuck in
+> `posix_memalign` inside `libopenvino_intel_cpu_plugin.so` per
+> `py-spy --native`). Verified via a fresh venv following the steps below.
+> Pin to commit **`dddcff2cc70`** for a working stack; the "Measured
+> performance" table below is against that commit. Eager and Inductor
+> paths on the tip are fine — only the OV compile-and-infer path is
+> affected.
+
 ## Layout
 
 | File | Role |
