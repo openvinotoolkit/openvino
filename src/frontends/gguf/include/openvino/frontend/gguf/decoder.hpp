@@ -35,6 +35,11 @@ struct RopeConfig {
     // SWA and global layers use different n_dims), so the shared rope_cos/rope_sin table that
     // TranslateSession::preprocess would otherwise pre-build is skipped.
     bool per_op = false;
+    // When true the model uses interleaved M-RoPE (qwen3.5 / qwen3vl): pos carries 4 mrope sections
+    // (4*n_tokens ids) and the sin/cos gather differs. The shared-table builder must know this so it
+    // matches the per-op translate_rope path -- otherwise it builds a NEOX table whose token axis is
+    // 4x the data's and the rope Multiply fails the eltwise broadcast check.
+    bool is_imrope = false;
 };
 
 // Decoder interface consumed by the gguf frontend translators.
