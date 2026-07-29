@@ -42,6 +42,7 @@ using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
@@ -294,11 +295,13 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
     auto p_outer_matmul = wrap_type<v0::MatMul>({any_input(), ov::pass::pattern::wrap_const()});
     auto p_trig = wrap_type<v0::Cos, v0::Sin>({p_outer_matmul});
     auto p_scaled = wrap_type<v1::Multiply>({any_input(), p_trig});
-    auto p_broadcast = ov::pass::pattern::optional<ov::op::v3::Broadcast>({p_scaled, any_input()});
+    auto p_broadcast = ov::pass::pattern::optional<op::util::BroadcastBase>({p_scaled, any_input()});
+    auto p_concat = wrap_type<v0::Concat>({p_broadcast, p_broadcast});
+    auto p_rope_out = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_broadcast, p_concat});
     auto p_axis = wrap_type<v0::Constant>([](const Output<Node>& output) -> bool {
         return ov::op::util::has_constant_value<int64_t>(output.get_node_shared_ptr(), 0);
     });
-    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_broadcast, p_axis});
+    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_rope_out, p_axis});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
