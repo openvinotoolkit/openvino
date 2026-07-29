@@ -7,7 +7,6 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
-#include <cmath>
 #include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -315,8 +314,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
         if (rnnCellBase) {
             // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
-            const float clip = rnnCellBase->get_clip();
-            if (clip != 0.F && !std::isinf(clip)) {
+            if (!ov::op::util::is_no_clip(rnnCellBase->get_clip())) {
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }

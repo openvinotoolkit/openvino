@@ -1015,8 +1015,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
 
                     // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
-                    const float clip = lstm_seq->get_clip();
-                    if (clip != 0.f && !std::isinf(clip)) {
+                    if (!ov::op::util::is_no_clip(lstm_seq->get_clip())) {
                         return false;
                     }
 
@@ -1141,8 +1140,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             if (const auto& lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
                 // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
-                const float clip = lstm_cell_v1->get_clip();
-                return (clip == 0.0f || std::isinf(clip)) && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                return ov::op::util::is_no_clip(lstm_cell_v1->get_clip()) &&
+                       lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
             return false;
         };
@@ -1166,8 +1165,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (const auto& gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
                 // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
-                const float clip = gru_seq->get_clip();
-                return (clip == 0.0f || std::isinf(clip)) &&
+                return ov::op::util::is_no_clip(gru_seq->get_clip()) &&
                     gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                     max_seq_len != 1 &&
                     (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
@@ -1179,8 +1177,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (!data_pshape[1].is_static())
                     return false;
                 // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
-                const float clip = lstm_seq->get_clip();
-                return ((clip == 0.0f || std::isinf(clip)) &&
+                return (ov::op::util::is_no_clip(lstm_seq->get_clip()) &&
                     lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                     max_seq_len != 1 &&
                     !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),

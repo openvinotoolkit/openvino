@@ -3,12 +3,12 @@
 //
 
 #include <algorithm>
-#include <cmath>
 #include <memory>
 #include <utility>
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
@@ -57,8 +57,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         const auto& lstm_node = node.as<lstm_seq>();
         const auto& lstm_prim = lstm_node.get_primitive();
         // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
-        const float clip = lstm_prim->clip;
-        if (clip != 0.0f && !std::isinf(clip)) {
+        if (!ov::op::util::is_no_clip(lstm_prim->clip)) {
             return false;
         }
 
