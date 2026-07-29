@@ -196,8 +196,3 @@ target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
 target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)
-
-ov_check_all_sources_listed(TARGET ${TARGET_NAME}
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDE_TARGETS openvino_mock1_frontend ${BENCHMARK_TARGET_NAME}
-    EXCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)

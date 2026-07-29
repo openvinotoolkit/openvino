@@ -1,3 +1,5 @@
+set(OV_TRANSFORMATIONS_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
+
 set(TESTS_ROOT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/const_folding_for_if.cpp
     ${CMAKE_CURRENT_LIST_DIR}/const_folding_for_mvn.cpp
@@ -275,11 +277,17 @@ set(UTILS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/utils/compare_functions_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/compress_quantize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/convert_precision.cpp
-    # ENABLE_DEBUG_CAPS is ON
-    $<$<BOOL:${ENABLE_DEBUG_CAPS}>:${CMAKE_CURRENT_LIST_DIR}/utils/extract_subgraph_test.cpp>
     ${CMAKE_CURRENT_LIST_DIR}/utils/primitives_priority_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/utils_test.cpp
 )
+
+if(ENABLE_DEBUG_CAPS)
+    list(APPEND UTILS_TESTS_SRCS ${CMAKE_CURRENT_LIST_DIR}/utils/extract_subgraph_test.cpp)
+else()
+    list(APPEND OV_TRANSFORMATIONS_TESTS_CHECK_SOURCES_EXCLUDE_FILES
+        ${CMAKE_CURRENT_LIST_DIR}/utils/extract_subgraph_test.cpp
+    )
+endif()
 
 set(TRANSPOSE_SINKING_TESTS_HDRS
     ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_test_case.hpp
