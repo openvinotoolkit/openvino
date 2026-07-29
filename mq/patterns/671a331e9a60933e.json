@@ -4,10 +4,11 @@
   "signature_hash": "671a331e9a60933e",
   "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
   "category": "Code Issue",
-  "count": 21,
+  "count": 22,
   "first_seen": "2026-07-27T12:33:21Z",
-  "last_seen": "2026-07-29T08:28:05Z",
+  "last_seen": "2026-07-29T15:33:49Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30459307602",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30430085622",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30350620904",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30346547405",
@@ -16,8 +17,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/30334713492",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30331659250",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30329778351",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/30326123523",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/30325352936"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30326123523"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/37079",
@@ -30,10 +30,8 @@
     "https://github.com/openvinotoolkit/openvino/pull/36860"
   ],
   "recent_timestamps": [
-    "2026-07-29T08:28:05Z",
-    "2026-07-28T11:54:01Z",
-    "2026-07-28T11:01:06Z",
-    "2026-07-28T09:30:41Z"
+    "2026-07-29T15:33:49Z",
+    "2026-07-29T08:28:05Z"
   ],
   "rerun_search_string": null
 }

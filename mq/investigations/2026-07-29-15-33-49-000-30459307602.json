@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-29-15-33-49-000-30459307602",
+  "timestamp": "2026-07-29T15:33:49Z",
+  "run_id": "30459307602",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30459307602",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37079",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37079",
+  "author": "whitneyfoster",
+  "category": "Code Issue",
+  "title": "PyTorch LLM export test fails accuracy validation for katuni4ka/opt-125m-gptq on CPU",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] failed with AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "FAILED install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq]",
+    "AssertionError: Accuracy validation failed\nassert False",
+    "Max diff is 0.06871891021728516"
+  ],
+  "root_cause": "The GPTQ LLM export test for katuni4ka/opt-125m-gptq has been failing since 2026-07-27 across 22 runs (21 prior + this one), affecting many different PRs. This is a recurring Code Issue in OpenVINO's handling of GPTQ-quantized OPT model export, showing a max numerical diff of ~0.069 exceeding the accuracy threshold. The docs-only PR #37079 is unrelated; the failure is a pre-existing regression in the GPTQ export path.",
+  "reproduction_steps": "pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Re-add PR #37079 to the merge queue as the failure is unrelated to the docs-only change",
+    "Investigate the accuracy threshold for GPTQ models - the 0.069 diff may require a looser tolerance for quantized models",
+    "Consider marking this test as flaky or adding a retry decorator"
+  ],
+  "prevention_strategies": "Set appropriate per-model accuracy thresholds for quantized/GPTQ models that account for expected quantization noise on CPU.",
+  "historical_context": "This is occurrence #22 of a known Code Issue tracked since 2026-07-27. Prior occurrences affected PRs: #37079, #37071, #37020, #35116, #36894, #37029, #36957, #36860. 21 prior runs have shown the same failure."
+}
