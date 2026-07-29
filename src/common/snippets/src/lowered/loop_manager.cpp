@@ -146,11 +146,9 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                     std::vector<ExpressionPort>& exits) {
     entries.clear();
     exits.clear();
-    // Note: the set only needs identity lookups, so raw pointers are stored instead of
-    // ExpressionPtr (shared_ptr) copies. Besides avoiding refcount churn, this also sidesteps a
-    // GCC 15 -Warray-bounds false positive that fires when shared_ptr elements are copied into an
-    // unordered_set's hash nodes here (reproduces both via the range constructor and via
-    // explicit single-element inserts).
+    // WA: GCC 15 -Warray-bounds false positive fires when shared_ptr elements are copied into an
+    // unordered_set's hash nodes here. Since the set only needs identity lookups,
+    // raw pointers can be used instead of shared ones.
     std::unordered_set<const Expression*> loop_exprs;
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         loop_exprs.insert(expr_it->get());
