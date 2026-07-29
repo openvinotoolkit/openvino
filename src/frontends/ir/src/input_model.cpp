@@ -204,12 +204,12 @@ namespace frontend {
 namespace ir {
 
 class InputModel::InputModelIRImpl {
+    std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
     std::filesystem::path m_weights_path;
-    std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
 
 public:
     InputModelIRImpl(std::istream& model,
