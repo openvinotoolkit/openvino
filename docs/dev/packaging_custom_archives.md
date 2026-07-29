@@ -24,7 +24,7 @@ components. Nothing here depends on any internal infrastructure.
 - [Building a custom archive from selected components](#building-a-custom-archive-from-selected-components)
   - [Option A — one archive from a selected component set (recommended)](#option-a--one-archive-from-a-selected-component-set-recommended)
   - [Option B — per-component staging with `cmake --install`](#option-b--per-component-staging-with-cmake---install)
-  - [Covering the three archive cases](#covering-the-three-archive-cases)
+  - [Common archive composition cases](#common-archive-composition-cases)
 - [How documentation and licenses are added](#how-documentation-and-licenses-are-added)
 - [Automating custom archives](#automating-custom-archives)
   - [Manifest format](#manifest-format)
@@ -102,10 +102,9 @@ set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
 - **Empty value** → the component is installed by `cmake --install` and is part
   of the default archive.
 - **`EXCLUDE_FROM_ALL`** → the component still exists and can be packed
-  explicitly by name, but it is **not** in the default archive. This is the
-  mechanism behind the "blue circle" case: a component that is not part of the
-  default `ALL` target for the platform, yet can be requested for a custom
-  archive.
+  explicitly by name, but it is **not** in the default archive. This is how a
+  component can be kept out of the default `ALL` target for the platform, yet
+  still be requested for a custom archive.
 
 A real "not-in-ALL, but installable on demand" component is `npu_internal`
 (e.g. `compile_tool`), see
@@ -243,9 +242,8 @@ cpack --config <build_dir>/CPackConfig.cmake \
 ```
 
 - `CPACK_COMPONENTS_ALL` — the explicit component list for the archive. Any
-  component may be listed, including ones marked `EXCLUDE_FROM_ALL` (the "blue
-  circle" case), because CPack packs by component name regardless of the
-  default `ALL` membership.
+  component may be listed, including ones marked `EXCLUDE_FROM_ALL`, because
+  CPack packs by component name regardless of the default `ALL` membership.
 - `CPACK_ARCHIVE_COMPONENT_INSTALL=OFF` — merge listed components into a
   single archive instead of one-per-component.
 - `CPACK_ARCHIVE_FILE_NAME` — the custom archive name.
@@ -265,15 +263,15 @@ tar -czvf openvino_custom_runtime.tar.gz -C <stage_dir> .
 This is essentially what the release jobs do to build the main TGZ archive;
 custom archives differ only in the component list.
 
-### Covering the three archive cases
+### Common archive composition cases
 
-The three cases from the requirement map directly onto the mechanism above:
+The mechanism above covers every archive composition case:
 
-| Case (circle) | Meaning | How to produce |
+| Case | Meaning | How to produce |
 |---|---|---|
-| Black | A **subset** of the default public components | List only the wanted subset in `CPACK_COMPONENTS_ALL` |
-| Red | A **different combination** of default components | List any combination of default components |
-| Blue | Components **not** in the default `ALL` for the platform | List the `EXCLUDE_FROM_ALL` component name explicitly (e.g. `npu_internal`) |
+| Subset | A **subset** of the default components | List only the wanted subset in `CPACK_COMPONENTS_ALL` |
+| Recombination | A **different combination** of default components | List any combination of default components |
+| Non-default | Components **not** in the default `ALL` for the platform | List the `EXCLUDE_FROM_ALL` component name explicitly (e.g. `npu_internal`) |
 
 No CMake `ALL`-target rebuild is required for any of these — only the CPack
 component selection changes.
