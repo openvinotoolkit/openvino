@@ -334,33 +334,6 @@ variable in the target's sources.cmake, e.g.:
   set(MY_TESTS_CHECK_SOURCES_EXCLUDE_FILES
       ${CMAKE_CURRENT_LIST_DIR}/debug_only_test.cpp
   )
-  ov_check_all_sources_listed(TARGET my_unit_tests
-      DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-
-Legacy example (ROOT — avoid for new targets):
-  ov_add_test_target(
-    NAME              my_unit_tests
-    ROOT              ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/skip_this/
-    INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    LINK_LIBRARIES
-        common_test_utils
-        openvino::runtime
-    DEPENDENCIES
-        openvino_template_extension
-    GTEST_DISCOVER
-    LABELS
-        OV UNIT
-  )
-
-Test-specific parameters (in addition to all ov_add_target parameters):
-  NAME              <target-name>          (required) — also becomes the CTest test name
-  LABELS            <label1> <label2>      CTest LABELS property; must come after all pass-through args
-  GTEST_DISCOVER                           Register per-TEST() CTest entries via gtest_discover_tests
-  TESTS_PER_SOURCE                         Create one executable per source file (local dev only, not CI)
-  COMPONENT         <cpack-component>      CPack install component (default: tests)
 
   # CMakeLists.txt
   include(sources.cmake)
