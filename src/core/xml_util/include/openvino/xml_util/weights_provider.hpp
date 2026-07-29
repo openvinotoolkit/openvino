@@ -106,10 +106,8 @@ public:
 private:
     using WeightsRegionKey = std::pair<size_t, size_t>;
 
-    std::filesystem::path m_weights_path;
-    size_t m_weights_size = 0;
-    size_t m_weights_source_id = 0;
-    std::shared_ptr<ov::AlignedBuffer> m_weights_source_handle;
+    std::filesystem::path m_weights_path{};
+    size_t m_weights_size{};
     // Cache of previously loaded weights regions, keyed by (offset, size) of the region in the weights file.
     std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
