@@ -514,6 +514,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<ReducePattern<v1::ReduceMin>>();
     manager.register_pass<ReducePattern<v1::ReduceProd>>();
     manager.register_pass<ReducePattern<v1::ReduceSum>>();
+    manager.register_pass<RMSPattern>();
     manager.register_pass<ReshapePattern>();
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();

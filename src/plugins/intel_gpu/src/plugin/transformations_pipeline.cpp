@@ -783,8 +783,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (config.get_enable_mlir()) {
             pass_config->disable<ov::pass::ConvertSubtract>();
-            pass_config->disable<ov::pass::ConvertDivide>();
-            pass_config->disable<ov::pass::RMSFusion>();
         }
 
         manager.register_pass<ov::pass::CommonOptimizations>();
