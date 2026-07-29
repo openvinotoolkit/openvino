@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 """Shared helpers for the CI Doctor agentic-workflow scripts.
 
 Imported by the sibling scripts in this directory. They run as
