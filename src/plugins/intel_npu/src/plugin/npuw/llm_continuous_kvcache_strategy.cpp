@@ -10,6 +10,7 @@
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -255,7 +256,10 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
 
     if (plan.source_is_generate) {
         LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
-        for (const auto& name : m_req.m_kvcache_past_names) {
+        // Every tensor is independent, so repack them in parallel like copy_kvcache does.
+        // The plan's temp map is only read here.
+        ov::parallel_for(m_req.m_kvcache_past_names.size(), [&](size_t idx) {
+            const auto& name = m_req.m_kvcache_past_names[idx];
             auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(name));
             auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(name));
 
@@ -269,7 +273,7 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             const bool same_layout = aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
             if (same_layout) {
                 // The bytes already sit where the prefill will read them.
-                continue;
+                return;
             }
 
             auto src_slice = uu::make_tensor_slice(src, src_dim, 0u, keep);
@@ -281,7 +285,7 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             } else {
                 uu::copy_tensor_by_dim(src_slice, dst_slice, src_dim, dst_dim);
             }
-        }
+        });
     } else if (keep > plan.past_tokens) {
         // Persist the final present chunk into the past inputs before the next prefill
         // overwrites it. Repacking from the generate request here would copy stale data
@@ -289,7 +293,8 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
         LOG_DEBUG("Continued prefill: persisting " << plan.present_tokens
                                                    << " present-chunk tokens into prefill past KV.");
         const auto chunk = static_cast<uint32_t>(m_req.m_npuw_llm_compiled_model->m_prefill_chunk_size);
-        for (const auto& name : m_req.m_kvcache_past_names) {
+        ov::parallel_for(m_req.m_kvcache_past_names.size(), [&](size_t idx) {
+            const auto& name = m_req.m_kvcache_past_names[idx];
             const auto present_name =
                 std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
             const bool is_value = present_name.find("value") != std::string::npos;
@@ -302,7 +307,7 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             auto dst_slice =
                 uu::make_tensor_slice(past, kv_dim, plan.past_tokens, plan.past_tokens + plan.present_tokens);
             uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
-        }
+        });
     }
     // Otherwise the prefill past inputs already hold the whole preserved prefix.
 }
