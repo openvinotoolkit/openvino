@@ -34,8 +34,6 @@ public:
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
         auto prim = get_primitive();
-        if (!prim->output_shape_id.is_valid())
-            return {};
         return {prim->input.size() + 1 /* weights */ + (prim->bias.is_valid() ? 1 : 0)};
     }
 
