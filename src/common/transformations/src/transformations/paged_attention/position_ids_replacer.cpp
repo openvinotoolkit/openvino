@@ -259,12 +259,8 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
             const auto gather = ov::as_type_ptr<v8::Gather>(output.get_node_shared_ptr());
             const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
             const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
-            if (!indices || !axis) {
-                return false;
-            }
-            const auto indices_vec = indices->cast_vector<int64_t>();
-            const auto axis_vec = axis->cast_vector<int64_t>();
-            return indices_vec.size() == 1 && indices_vec[0] == 0 && axis_vec.size() == 1 && axis_vec[0] == 0;
+            return ov::op::util::has_constant_value<int64_t>(indices, 0) &&
+                   ov::op::util::has_constant_value<int64_t>(axis, 0);
         });
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
@@ -300,9 +296,7 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
     auto p_scaled = wrap_type<v1::Multiply>({any_input(), p_trig});
     auto p_broadcast = ov::pass::pattern::optional<ov::op::v3::Broadcast>({p_scaled, any_input()});
     auto p_axis = wrap_type<v0::Constant>([](const Output<Node>& output) -> bool {
-        const auto axis_const = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-        const auto axis_vec = axis_const->cast_vector<int64_t>();
-        return axis_vec.size() == 1 && axis_vec[0] == 0;
+        return ov::op::util::has_constant_value<int64_t>(output.get_node_shared_ptr(), 0);
     });
     auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_broadcast, p_axis});
 
