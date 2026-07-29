@@ -56,7 +56,7 @@ class timer {
 
 public:
     /// @brief Timer value type.
-    typedef typename ClockTy::duration val_type;
+    using val_type = typename ClockTy::duration;
 
     /// @brief Starts timer.
     timer() : start_point(ClockTy::now()) {}
