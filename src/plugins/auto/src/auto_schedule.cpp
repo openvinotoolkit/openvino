@@ -337,10 +337,27 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
             } catch (const ov::Exception& e) {
                 const auto compile_end = std::chrono::steady_clock::now();
                 const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
-                LOG_DEBUG_TAG("cache pre-compilation failed for device: %s, %s",
+                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, %s",
                               device.device_name.c_str(),
                               e.what());
-                LOG_DEBUG_TAG("cache pre-compilation time for device: %s: %lf ms",
+                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
+                              device.device_name.c_str(),
+                              compile_ms);
+            } catch (const std::exception& e) {
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, std::exception: %s",
+                              device.device_name.c_str(),
+                              e.what());
+                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
+                              device.device_name.c_str(),
+                              compile_ms);
+            } catch (...) {
+                const auto compile_end = std::chrono::steady_clock::now();
+                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
+                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, unknown exception",
+                              device.device_name.c_str());
+                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
                               device.device_name.c_str(),
                               compile_ms);
             }
