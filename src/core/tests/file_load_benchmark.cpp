@@ -663,11 +663,10 @@ TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
         {page_touch, 4, "pg touch"},
         {page_touch, 10, "pg touch"},
         {page_touch, 16, "pg touch"},
-        {page_touch, 24, "pg touch"},
         {io_uring, 8, "io uring"},
         {io_uring, 32, "io uring"},
         {io_uring, 128, "io uring"},
-        {io_uring, 512, "io uring"},
+        {io_uring, 256, "io uring"},
     };
 
     struct Row {
