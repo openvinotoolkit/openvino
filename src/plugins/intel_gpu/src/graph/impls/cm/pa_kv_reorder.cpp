@@ -30,8 +30,7 @@ struct KVCacheGeometry {
 
 KVCacheGeometry resolve_geometry_from_desc(const std::shared_ptr<const pa_kv_reorder>& desc) {
     OPENVINO_ASSERT(desc->kv_heads_num > 0, "[GPU][CM] pa_kv_reorder expects positive kv_heads_num");
-    OPENVINO_ASSERT(desc->adjusted_k_head_size > 0 && desc->adjusted_v_head_size > 0,
-                    "[GPU][CM] pa_kv_reorder expects positive adjusted head sizes");
+    OPENVINO_ASSERT(desc->adjusted_k_head_size > 0 && desc->adjusted_v_head_size > 0, "[GPU][CM] pa_kv_reorder expects positive adjusted head sizes");
     OPENVINO_ASSERT(desc->adjusted_paged_attention_block_size > 0, "[GPU][CM] pa_kv_reorder expects positive block size");
 
     const bool is_kv_compressed = desc->is_kv_compressed;

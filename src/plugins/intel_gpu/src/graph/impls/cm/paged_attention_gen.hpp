@@ -191,7 +191,7 @@ enum PagedAttentionInternBuffIdx {
     // Small-q decode scratch buffers (q_len > 1 spec-decoding path).
     SMALL_Q_PARTITIONOUT = 11,      // f32 partial outputs indexed by (sel_idx, head, partition, head_size)
     SMALL_Q_EXPSUMS = 12,           // f32 lse per (sel_idx, head, partition)
-    SMALL_Q_SELECTED_MAPPING = 13,  // i32 pairs [orig_seq_idx, q_in_subseq] per selected (seq, q-token)
+    SMALL_Q_SELECTED_MAPPING = 13,  // triples (orig_seq_idx, q_start, valid_count)
 #endif
 };
 

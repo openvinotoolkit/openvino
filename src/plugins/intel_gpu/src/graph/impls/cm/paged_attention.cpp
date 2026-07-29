@@ -100,10 +100,6 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         m_mixed_route_mode = get_mixed_route_mode_from_config(params);
 
-        // Note: when has_qq_bias && has_xattention are both set, the user is expected to
-        // bypass xattn at runtime (threshold >= 1.0) so execute_multi_token_path() routes
-        // to pa_multi_token_1 which carries the qq_bias mask.
-
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()"
                                << " with mode: " << (m_mixed_route_mode == MixedRouteMode::SPLIT ? "split" : "multi") << std::endl;
         add_stage(kv_cache_update, params);
@@ -283,8 +279,6 @@ public:
             const auto wg_seq_len = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params);
             const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED && m_mixed_route_mode == MixedRouteMode::SPLIT;
 
-            // TILE_Q for small_q path — needed here to compute per-subseq tile counts.
-            // Must match value chosen by PagedAttentionGeneratorSmallQ::get_jit_constants.
             const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
             const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -300,11 +294,8 @@ public:
                 if (use_split_mixed) {
                     const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[subsequence_id], 0));
                     const bool decode_subsequence = (q_len == 1) && (past_len > 0);
-                    // Small-q route: spec-decoding subsequences with q_len in (1, SMALL_Q_THRESHOLD]
-                    // and a non-empty past keep all tokens in pa_small_q. Each subseq is tiled into
-                    // ceil_div(q_len, TILE_Q) tiles; each tile is one SG.
                     const bool small_q_subsequence = (q_len > 1) && (q_len <= SMALL_Q_THRESHOLD) && (past_len > 0);
-                    //std::cout << "small _q mode: " << small_q_subsequence << "  decode mode: " << decode_subsequence << std::endl;
+
                     if (decode_subsequence) {
                         rt_params->single_token_selected_count++;
                     } else if (small_q_subsequence) {
@@ -505,11 +496,7 @@ public:
                         ", got ",
                         selected_count);
         OPENVINO_ASSERT(mapping_idx == expected_mapping_size, "Unexpected multi-token mapping size: expected ", expected_mapping_size, ", got ", mapping_idx);
-        OPENVINO_ASSERT(small_q_idx == expected_small_q_size,
-                        "Unexpected small-q mapping size: expected ",
-                        expected_small_q_size,
-                        ", got ",
-                        small_q_idx);
+        OPENVINO_ASSERT(small_q_idx == expected_small_q_size, "Unexpected small-q mapping size: expected ", expected_small_q_size, ", got ", small_q_idx);
 
         rt_params->single_token_selected_count = selected_count;
     }
@@ -745,7 +732,6 @@ public:
                                        << "  count_find_map_int32s=" << count_find_map_int32s << "  count_post_map_int32s=" << count_post_map_int32s
                                        << std::endl;
             } else {
-                // Pad slots 4..10 (or 4..11 with FIND_DEBUG_ACC) so SMALL_Q_* enum indices remain valid.
                 const size_t pad_to_index = static_cast<size_t>(PagedAttentionInternBuffIdx::SMALL_Q_PARTITIONOUT);
                 while (internal_buffers.size() < pad_to_index) {
                     internal_buffers.emplace_back(1, ov::element::i32, true, false);
@@ -765,17 +751,14 @@ public:
             int64_t small_q_mapping_elems = 3;
             if (needs_small_q_buffers) {
                 OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
-                const size_t partition_token_rows =
-                    rt_params->small_q_tile_count * static_cast<size_t>(std::max(1, rt_params->small_q_tile_q));
-                small_q_buf_elems =
-                    static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->num_of_partitions);
-                small_q_tmp_out_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num *
-                                                              desc->v_head_size * rt_params->num_of_partitions);
+                const size_t partition_token_rows = rt_params->small_q_tile_count * static_cast<size_t>(std::max(1, rt_params->small_q_tile_q));
+                small_q_buf_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->num_of_partitions);
+                small_q_tmp_out_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * desc->v_head_size * rt_params->num_of_partitions);
                 small_q_mapping_elems = static_cast<int64_t>(rt_params->small_q_tile_count * 3);
             }
-            internal_buffers.emplace_back(small_q_tmp_out_elems, ov::element::f32);                       // SMALL_Q_PARTITIONOUT
-            internal_buffers.emplace_back(small_q_buf_elems, ov::element::f32);                           // SMALL_Q_EXPSUMS
-            internal_buffers.emplace_back(small_q_mapping_elems, ov::element::i32, true, false);          // SMALL_Q_SELECTED_MAPPING
+            internal_buffers.emplace_back(small_q_tmp_out_elems, ov::element::f32);               // SMALL_Q_PARTITIONOUT
+            internal_buffers.emplace_back(small_q_buf_elems, ov::element::f32);                   // SMALL_Q_EXPSUMS
+            internal_buffers.emplace_back(small_q_mapping_elems, ov::element::i32, true, false);  // SMALL_Q_SELECTED_MAPPING
         }
 
         return internal_buffers;

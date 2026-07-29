@@ -368,10 +368,8 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
-    } else if (_xattn_block_size <= 1 && desc->has_qq_bias) {
-        // Speculative tree mask path: only the dense `pa_multi_token_1` stage carries qq_bias.
-        // When has_xattention is also true, the user must bypass xattn at runtime
-        // (threshold >= 1.0) so execute_multi_token_path() routes here.
+    }
+    if (desc->has_qq_bias) {
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
     }
@@ -407,11 +405,7 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     // regresses ~9% on FP16 (extra scratch matrix increases register pressure).
     jit.make("CMFLA_USE_TREE_SOFTMAX", get_kv_compressed(params) ? 1 : 0);
 
-    // Speculative tree mask: applied only on the dense `_xattn_block_size == 1` stage.
-    // Sparse xattn stages (128/256) skip qq_bias because they short-circuit via block-mask;
-    // when both xattn and qq_bias are configured, runtime bypass (threshold >= 1.0) routes
-    // to the dense stage instead.
-    if (_xattn_block_size <= 1 && desc->has_qq_bias) {
+    if (desc->has_qq_bias) {
         jit.make("HAS_QQ_BIAS", 1);
     } else {
         jit.make("HAS_QQ_BIAS", 0);
@@ -708,9 +702,9 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
         }
 
         if (DEBUG_ENABLED) {
-            std::cout << "PagedAttentionGeneratorSmallQ::get_dispatch_data_func: small_q_tokens=" << rtp->small_q_token_count
-                      << ", tile_count=" << tile_count << ", TILE_Q=" << rtp->small_q_tile_q
-                      << ", partition_num=" << partition_num << ", gws=[" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]\n";
+            std::cout << "PagedAttentionGeneratorSmallQ::get_dispatch_data_func: small_q_tokens=" << rtp->small_q_token_count << ", tile_count=" << tile_count
+                      << ", TILE_Q=" << rtp->small_q_tile_q << ", partition_num=" << partition_num << ", gws=[" << wgs.global[0] << ", " << wgs.global[1]
+                      << ", " << wgs.global[2] << "]\n";
         }
     }};
 }
@@ -765,8 +759,7 @@ DispatchDataFunc PagedAttentionGeneratorSmallQFinalization::get_dispatch_data_fu
         // Partition buffer is [tile_count * TILE_Q, head, partition, head_size] — one row
         // per potential q-token slot (including padding). Finalization walks all these
         // rows; padded rows early-return via t_in_tile >= valid_count check.
-        const size_t partition_token_rows =
-            rtp->small_q_tile_count * static_cast<size_t>(std::max(1, rtp->small_q_tile_q));
+        const size_t partition_token_rows = rtp->small_q_tile_count * static_cast<size_t>(std::max(1, rtp->small_q_tile_q));
         const size_t sq_reduce_step = get_small_q_reduce_split_step();
         wgs.global = {partition_token_rows, heads_num, head_size / sq_reduce_step};
         wgs.local = {1, 1, 1};
