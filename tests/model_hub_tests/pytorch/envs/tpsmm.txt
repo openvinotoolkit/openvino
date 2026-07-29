@@ -1,0 +1,2 @@
+# Extra dependencies for test_tpsmm.py
+PyYAML==6.0.2

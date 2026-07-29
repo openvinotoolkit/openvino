@@ -176,7 +176,7 @@ bool is_type_list_not_empty(Args&&... args) {
  * OpenVINO conditional compilation feature.
  *
  * @param region  Region name for ITT which will be combined with TYPE_LIST_ prefix.
- * @param types   List ov::element IfTypeOf class e.g. OV_PP_ET_LIST(f16, i8) to pack as one paramater.
+ * @param types   List ov::element IfTypeOf class e.g. OV_PP_ET_LIST(f16, i8) to pack as one parameter.
  * @param visitor Class name of visitor which will be used by IfTypeOf<types>::visit(_VA_ARGS_) function.
  * @param ...     List of parameters must match parameter list of `visit` function.
  *

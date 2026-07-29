@@ -167,7 +167,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
 
     auto codes = db.get(name);
 
-    if (codes.size()) {
+    if (!codes.empty()) {
         kernel_string->str = codes[0];
         kernel_string->jit = jit.first;
         kernel_string->undefs = jit.second;
@@ -177,6 +177,8 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
             if (engine_info.enable_large_allocations)
                 kernel_string->options += " -cl-intel-greater-than-4GB-buffer-required";
+            if (engine_info.supports_register_file_size_option)
+                kernel_string->options += " -ze-exp-register-file-size 128";
         }
 
         if (engine_info.supports_work_group_collective_functions)

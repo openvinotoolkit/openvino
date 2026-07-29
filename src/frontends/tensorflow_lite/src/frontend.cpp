@@ -18,6 +18,7 @@
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 
@@ -58,8 +59,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        const auto model_path = path.value().native();
-        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
+        if (GraphIteratorFlatBuffer::is_supported(*path)) {
             return true;
         }
     } else if (variants[0].is<GraphIterator::Ptr>()) {
@@ -73,11 +73,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-            const auto model_path = path.value().native();
-            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-                return std::make_shared<tensorflow_lite::InputModel>(
-                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
-                    m_telemetry);
+            if (GraphIteratorFlatBuffer::is_supported(*path)) {
+                return std::make_shared<tensorflow_lite::InputModel>(std::make_shared<GraphIteratorFlatBuffer>(*path),
+                                                                     m_telemetry);
             }
         } else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
@@ -279,6 +277,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
+    // TSGeneral runs ConstantFolding; mark dequantization before it.
+    manager.register_pass<ov::pass::MarkDequantization>(
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);

@@ -88,7 +88,7 @@ TEST(control_dependencies, cdep_ops) {
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
     auto f = make_shared<Model>(cdop, ParameterVector{A, B});
-    test_ordered_ops(f, NodeVector{absn});
+    EXPECT_TRUE(test_ordered_ops(f, NodeVector{absn}));
 }
 
 TEST(control_dependencies, two_cdep_ops) {
@@ -100,7 +100,7 @@ TEST(control_dependencies, two_cdep_ops) {
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A}, std::set<std::shared_ptr<Node>>{absn, absn_c});
 
     auto f = make_shared<Model>(cdop, ParameterVector{A, B, C});
-    test_ordered_ops(f, NodeVector{absn, absn_c});
+    EXPECT_TRUE(test_ordered_ops(f, NodeVector{absn, absn_c}));
 }
 
 TEST(control_dependencies, two_cdep_ops_op_on_top) {
@@ -112,7 +112,7 @@ TEST(control_dependencies, two_cdep_ops_op_on_top) {
     auto absn_cdop = make_shared<ov::op::v0::Abs>(cdop);
 
     auto f = make_shared<Model>(absn_cdop, ParameterVector{A, B});
-    test_ordered_ops(f, NodeVector{absn, absn_b});
+    EXPECT_TRUE(test_ordered_ops(f, NodeVector{absn, absn_b}));
 }
 
 TEST(control_dependencies, clone_function_cdop) {
@@ -121,7 +121,7 @@ TEST(control_dependencies, clone_function_cdop) {
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
     auto f = make_shared<Model>(cdop, ParameterVector{A});
-    test_ordered_ops(f, NodeVector{absn});
+    EXPECT_TRUE(test_ordered_ops(f, NodeVector{absn}));
     auto clone = f->clone();
     auto matcher = std::make_shared<pass::pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();

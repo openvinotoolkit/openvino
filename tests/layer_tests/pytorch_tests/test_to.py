@@ -167,6 +167,7 @@ class TestAtenToComplex(PytorchLayerTest):
                                        torch.complex128])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.filterwarnings("ignore:ComplexHalf support is experimental:UserWarning")
     def test_aten_to_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device, precision,
                    ir_version, trace_model=True)
@@ -196,6 +197,7 @@ class TestAtenToFromComplex(PytorchLayerTest):
                                        torch.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.filterwarnings("ignore:Casting complex values to real discards the imaginary part:UserWarning")
     def test_aten_to_from_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device, precision,
                    ir_version)
@@ -225,6 +227,7 @@ class TestAtenToFromComplexTensor(PytorchLayerTest):
                                        torch.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.filterwarnings("ignore:Casting complex values to real discards the imaginary part:UserWarning")
     def test_aten_to_from_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device, precision,
                    ir_version)

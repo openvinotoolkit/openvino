@@ -53,12 +53,19 @@ KERNEL(pooling_gpu)(
     // we do max in "x" dimension
     for(uint j = 0; j < BLOCK_SIZE_Y; j++)
     {
-        for(uint i = 0; i < POOL_SIZE_X; i++)
-        {
-            max_x[j] = FUNC_CALL(apply_pooling)(max_x[j], TO_ACCUMULATOR_TYPE(input[input_idx]));
-            input_idx += INPUT0_X_PITCH;
+        // On Xe2+ OOB reads crash (CL_OUT_OF_RESOURCES) instead of returning zero.
+        // The last Y-block may extend past the input when output height is not
+        // divisible by POOL_SIZE_Y. Guard against reading beyond the input buffer.
+        if (offset_y + (int)j >= 0 && offset_y + (int)j < (int)INPUT0_SIZE_Y) {
+            for(uint i = 0; i < POOL_SIZE_X; i++)
+            {
+                max_x[j] = FUNC_CALL(apply_pooling)(max_x[j], TO_ACCUMULATOR_TYPE(input[input_idx]));
+                input_idx += INPUT0_X_PITCH;
+            }
+            input_idx += (INPUT0_Y_PITCH - POOL_SIZE_X*INPUT0_X_PITCH);
+        } else {
+            input_idx += INPUT0_Y_PITCH;
         }
-        input_idx += (INPUT0_Y_PITCH - POOL_SIZE_X*INPUT0_X_PITCH);
     }
 
     for(uint i = 0; i < POOL_SIZE_Y; i++)

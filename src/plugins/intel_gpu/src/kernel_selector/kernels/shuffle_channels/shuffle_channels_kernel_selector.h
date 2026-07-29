@@ -16,7 +16,7 @@ public:
 
     shuffle_channels_kernel_selector();
 
-    virtual ~shuffle_channels_kernel_selector() {}
+    ~shuffle_channels_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

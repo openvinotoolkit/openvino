@@ -9,7 +9,7 @@
 #endif
 
 
-// Do not include DirectX / VA wrappers when running with L0 runtime as they depend on OCL
+// Do not include DirectX / VA wrappers when running with ZE runtime as they depend on OCL
 #ifndef OV_GPU_WITH_ZE_RT
 #ifdef _WIN32
 # include <openvino/runtime/intel_gpu/ocl/dx.hpp>
@@ -18,6 +18,7 @@
 #endif
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -40,7 +41,9 @@ public:
                      TensorType mem_type = TensorType::BT_BUF_INTERNAL,
                      cldnn::shared_handle mem = nullptr,
                      cldnn::shared_surface surf = 0,
-                     uint32_t plane = 0);
+                     uint32_t plane = 0,
+                     ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
+                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr));
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -83,6 +86,8 @@ private:
     cldnn::shared_handle m_mem;
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
+    ov::intel_gpu::SharedBufferHandle m_shared_buffer_handle;
+    ov::intel_gpu::VirtualAddressMemory m_va_mem;
     size_t m_hash = 0;
 
     bool supports_caching() const;

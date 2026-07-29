@@ -7,6 +7,13 @@ import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
+# torch.nn.modules.rnn performs tensor-to-bool shape checks (input_size and
+# hidden_size validation) inside the traced forward pass. The warning is not
+# actionable at the test level; shapes are constant for all parametrize cases.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Converting a tensor to a Python boolean:torch.jit.TracerWarning"
+)
+
 
 class aten_lstm(torch.nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first):

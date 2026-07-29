@@ -15,25 +15,20 @@
  *******************************************************************************/
 
 namespace KERNEL_NAME {
-#include "estimate.hpp"
+#include "xattn_subseq_meta.hpp"
 
-extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merged_block_mask ATTR, uint q_stride_pad, uint q_block_pad, uint k_block_pad) {
-    // block_mask:                [b, hq, q_block_pad, k_block_pad]
-    // merged_block_mask:         [b, hq, q_block_pad/MERGED_Q_NUM, k_block_pad]
-    // global:                    [q_block_pad/MERGED_Q_NUM, hq, b]
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+CM_INLINE void post_proc_impl(svmptr_t block_mask,
+                              svmptr_t merged_block_mask,
+                              uint q_stride_pad,
+                              uint q_block_pad,
+                              uint k_block_pad,
+                              uint m_mereged) {
     const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
-    uint m_mereged = cm_group_id(0);
-    uint hq = cm_group_id(1);
-    uint b = cm_group_id(2);
-    block_mask += (b * HQ + hq) * q_block_pad * k_block_pad;
-    block_mask += m_mereged * MERGED_Q_NUM * k_block_pad;
-    merged_block_mask += (b * HQ + hq) * cm_group_count(0) * k_block_pad;
-    merged_block_mask += m_mereged * k_block_pad;
 
-    // mask shape: [div_up(q_len, xattn_block_size), rnd_up(k_stride, WG_N) / sum_per_n_token_in_block]
-    // k_block_pad is aligned to 16 or 32, as WG_N of xattn_gemmQK is 128 or 256, and sum_per_n_token_in_block is 8 or 16 w.r.t
-    // xattn_block_size 128 or 256 respectively.
-    // Hence it is safe to not handle tailing here.
     int j = 0;
     {
         constexpr int STEP = 32;
@@ -63,6 +58,38 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
             cm_ptr_store<int, STEP / 4>((int*)merged_block_mask, j, new_mask.format<int>());
         }
     }
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR,
+                                         svmptr_t merged_block_mask ATTR,
+                                         svmptr_t xattn_subseq_meta ATTR,
+                                         svmptr_t xattn_post_wg_map ATTR) {
+    // GWS: [xattn_post_wg_count, HQ, 1]
+    uint hq = cm_group_id(1);
+    uint wg_flat = cm_group_id(0);
+
+    int* wg_map = (int*)xattn_post_wg_map;
+    int map_base = wg_flat * 2;
+    uint b = (uint)wg_map[map_base + 0];
+    uint m_mereged = (uint)wg_map[map_base + 1];
+
+    int* meta = (int*)xattn_subseq_meta;
+    int meta_base = b * XATTN_META_STRIDE;
+
+    uint q_stride_pad = (uint)meta[meta_base + XATTN_META_Q_STRIDE_PAD];
+    uint q_block_pad = (uint)meta[meta_base + XATTN_META_Q_BLOCK_PAD];
+    uint k_block_pad = (uint)meta[meta_base + XATTN_META_K_BLOCK_PAD];
+    uint buf_off_mask = (uint)meta[meta_base + XATTN_META_BUF_OFF_MASK];
+    uint buf_off_mask_wg = (uint)meta[meta_base + XATTN_META_BUF_OFF_MASK_WG];
+
+    uint merged_q_blocks = (q_block_pad + MERGED_Q_NUM - 1) / MERGED_Q_NUM;
+
+    svmptr_t mask_base = block_mask + buf_off_mask + hq * q_block_pad * k_block_pad;
+    mask_base += m_mereged * MERGED_Q_NUM * k_block_pad;
+    svmptr_t merged_base = merged_block_mask + buf_off_mask_wg + hq * merged_q_blocks * k_block_pad;
+    merged_base += m_mereged * k_block_pad;
+
+    post_proc_impl(mask_base, merged_base, q_stride_pad, q_block_pad, k_block_pad, m_mereged);
 }
 
 }  // NAMESPACE

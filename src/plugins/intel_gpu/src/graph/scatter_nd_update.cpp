@@ -77,11 +77,14 @@ void scatter_nd_update_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
+    if (!_outputs.empty() && static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

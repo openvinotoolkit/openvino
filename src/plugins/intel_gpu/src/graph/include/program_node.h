@@ -22,6 +22,8 @@
 #include <list>
 #include <algorithm>
 #include <thread>
+#include <map>
+#include <utility>
 
 namespace cldnn {
 
@@ -81,7 +83,7 @@ public:
         return res;
     }
 
-    bool is_shape_infer_dep(void) const {
+    bool is_shape_infer_dep() const {
         if (!myprog.is_new_shape_infer())
             return false;
         for (auto u : users) {
@@ -208,7 +210,7 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
+    const std::vector<uint32_t>& get_memory_dependencies() const;
 
     void add_memory_dependency(std::vector<size_t>);
     void add_memory_dependency(const program_node& node);
@@ -320,10 +322,6 @@ public:
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
-
-    // check/set if the node's internal buffer can be shared
-    bool can_share_internal_buffer() const { return share_internal_buffer; }
-    void can_share_internal_buffer(bool share) { share_internal_buffer = share; }
 
     // Sets padding support for all axis
     void support_padding_all(bool support);
@@ -508,7 +506,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::unordered_set<uint32_t> memory_dependencies;
+    std::vector<uint32_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     impl_types forced_impl_type = impl_types::any;
@@ -652,24 +650,25 @@ inline RT test_no_input_pad(program_node& node, std::function<RT(program_node& n
     if (!node.is_all_valid_output_layouts())
         node.recalc_output_layouts(false);
 
-    std::vector<padding> original_padding(node.get_dependencies().size());
+    // Use a map keyed by (dep_node_ptr, port) to handle duplicate dependencies correctly.
+    // When the same dependency appears multiple times (e.g., eltwise self-multiply),
+    // we must save and restore its padding only once.
+    std::map<std::pair<program_node*, int32_t>, padding> original_padding;
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
         auto dep_with_port = node.get_dependency_with_port(i);
         if (dep_with_port.first->is_constant())
             continue;
-        original_padding[i] = dep_with_port.first->get_output_layout(false, dep_with_port.second).data_padding;;
-
+        auto key = std::make_pair(dep_with_port.first, dep_with_port.second);
+        if (original_padding.count(key))
+            continue;
+        original_padding[key] = dep_with_port.first->get_output_layout(false, dep_with_port.second).data_padding;
         dep_with_port.first->set_output_padding(padding(), dep_with_port.second);
     }
 
     RT res = f(node);
 
-    for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        auto dep_with_port = node.get_dependency_with_port(i);
-        if (dep_with_port.first->is_constant())
-            continue;
-
-        dep_with_port.first->set_output_padding(original_padding[i], dep_with_port.second);
+    for (auto& entry : original_padding) {
+        entry.first.first->set_output_padding(entry.second, entry.first.second);
     }
 
     return res;

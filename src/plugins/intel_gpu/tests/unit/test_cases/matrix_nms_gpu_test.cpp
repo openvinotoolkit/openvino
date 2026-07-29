@@ -113,7 +113,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("matrix_nms").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         cldnn::mem_lock<int> selected_boxes_ptr(selected_boxes, get_test_stream());
         cldnn::mem_lock<int> valid_outputs_ptr(valid_outputs, get_test_stream());

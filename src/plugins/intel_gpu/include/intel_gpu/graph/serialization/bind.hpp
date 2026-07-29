@@ -40,7 +40,11 @@ struct saver_storage {
     }
 
     const save_function& get_save_function(const std::string& type) const {
-        return map.at(type);
+        try {
+            return map.at(type);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("saver_storage: Failed to get save function for type: ", type, ". Error: ", e.what());
+        }
     }
 
     void set_save_function(const value_type& pair) {
@@ -70,7 +74,11 @@ struct loader_storage {
     }
 
     const FuncT& get_load_function(const std::string& type) {
-        return map.at(type);
+        try {
+            return map.at(type);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("loader_storage: Failed to get load function for type: ", type, ". Error: ", e.what());
+        }
     }
 
     void set_load_function(const value_type& pair) {

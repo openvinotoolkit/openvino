@@ -9,6 +9,8 @@
 #include "intel_gpu/runtime/device_info.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/impl_forcing_map_read.hpp"
+
 #include <thread>
 
 namespace ov::intel_gpu {
@@ -36,7 +38,7 @@ struct ExecutionConfig : public ov::PluginConfig {
 protected:
     void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
-    void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model);
+    void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora);
 
     void apply_user_properties(const cldnn::device_info& info);
     void apply_hints(const cldnn::device_info& info);

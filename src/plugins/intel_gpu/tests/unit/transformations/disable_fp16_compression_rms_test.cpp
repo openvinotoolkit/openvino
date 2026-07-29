@@ -11,6 +11,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/convert_precision.hpp>
+#include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "ov_ops/rms.hpp"
@@ -96,10 +97,10 @@ static void run_test(std::shared_ptr<ov::Model> model,
         if (it != expected_fp16_disabled_status.end()) {
             bool expected_status = it->second;
             if (expected_status) {
-                ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
+                ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
                     << "FP16 compression is not disabled for node: " << op->get_friendly_name();
             } else {
-                ASSERT_FALSE(ov::fp16_compression_is_disabled(op))
+                ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
                     << "FP16 compression is unexpectedly disabled for node: " << op->get_friendly_name();
             }
         }

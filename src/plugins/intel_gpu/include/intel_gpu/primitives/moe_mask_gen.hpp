@@ -35,37 +35,48 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     moe_mask_gen(const primitive_id& id,
               const input_info& router_idx,
               const int32_t num_total_experts,
-              const int32_t num_experts_per_token)
+              const int32_t num_experts_per_token,
+              const bool onednn_grouped_gemm_used = false)
         : primitive_base(id, {router_idx}, 5),
           num_total_experts(num_total_experts),
-          num_experts_per_token(num_experts_per_token) {}
+          num_experts_per_token(num_experts_per_token),
+          onednn_grouped_gemm_used(onednn_grouped_gemm_used) {}
 
     int32_t num_total_experts = 0;
     int32_t num_experts_per_token = 0;
+    bool onednn_grouped_gemm_used = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, num_total_experts);
         seed = hash_combine(seed, num_experts_per_token);
-        return primitive::hash();
+        seed = hash_combine(seed, onednn_grouped_gemm_used);
+        return seed;
     }
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
-        return true;
+        if (auto rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
+            return num_total_experts == rhs_casted->num_total_experts &&
+                   num_experts_per_token == rhs_casted->num_experts_per_token &&
+                   onednn_grouped_gemm_used == rhs_casted->onednn_grouped_gemm_used;
+        }
+        return false;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_mask_gen>::save(ob);
         ob << num_total_experts;
         ob << num_experts_per_token;
+        ob << onednn_grouped_gemm_used;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_mask_gen>::load(ib);
         ib >> num_total_experts;
         ib >> num_experts_per_token;
+        ib >> onednn_grouped_gemm_used;
     }
 };
 

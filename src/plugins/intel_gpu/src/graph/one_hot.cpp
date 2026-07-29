@@ -15,7 +15,7 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
-static bool is_output_bfzyx(const layout& input, int32_t axis) {
+static bool is_output_bfzyx(const layout& input, int64_t axis) {
     if (input.format == format::bfzyx)
         return true;
     if (axis == 4)

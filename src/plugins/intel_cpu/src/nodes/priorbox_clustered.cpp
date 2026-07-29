@@ -130,7 +130,7 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
         float center_x = (static_cast<float>(w) + offset) * step_w;
         float center_y = (static_cast<float>(h) + offset) * step_h;
 
-        for (int s = 0; s < number_of_priors; ++s) {
+        for (size_t s = 0; s < number_of_priors; ++s) {
             float box_width = widths[s];
             float box_height = heights[s];
 

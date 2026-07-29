@@ -310,6 +310,39 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_dyn) {
     ASSERT_EQ(mvn_layout.data_type, data_types::f16);
 }
 
+TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_cross_layout) {
+    // Topology: input(bfyx) -> reorder(b_fs_yx_fsv16) -> MVN -> reorder(b_fs_yx_fsv32) -> activation
+    // Expectation: MVN supports cross-layout fusing between fsv16 and fsv32,
+    // so the reorder after MVN should be fused (MVN outputs fsv32 directly).
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 8, 8 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reorder("reorder_to_fsv16", input_info("input"),
+                         { data_types::f16, format::b_fs_yx_fsv16, { 1, 32, 8, 8 } }));
+    topology.add(mvn("mvn", input_info("reorder_to_fsv16"), true, 1e-10f, false, { 2, 3 }));
+    topology.add(reorder("reorder_to_fsv32", input_info("mvn"),
+                         { data_types::f16, format::b_fs_yx_fsv32, { 1, 32, 8, 8 } }));
+    topology.add(activation("act", input_info("reorder_to_fsv32"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    EXPECT_NO_THROW(network.execute());
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    // The reorder_to_fsv32 should be fused into MVN (MVN outputs fsv32 directly)
+    ASSERT_FALSE(has_node(*prog, "reorder_to_fsv32"));
+    auto& mvn_node = prog->get_node("mvn");
+    auto mvn_layout = mvn_node.get_output_layout();
+    ASSERT_EQ(mvn_layout.format.value, format::b_fs_yx_fsv32);
+}
+
 TEST(remove_redundant_reorders, fuse_reorder_to_prev_concat_dyn) {
     auto& engine = get_test_engine();
     auto in_layout1 = layout{ov::PartialShape{ ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), 80 }, data_types::f16, format::bfyx};

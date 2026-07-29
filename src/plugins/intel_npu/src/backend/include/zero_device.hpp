@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/icompiled_model.hpp"
@@ -36,6 +36,10 @@ public:
                                                      const Config& config) override;
 
     void updateInfo(const ov::AnyMap& properties) override;
+
+    bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const override;
+
+    DeviceProperties getDeviceProperties() const override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;

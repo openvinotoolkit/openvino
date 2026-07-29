@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <openvino/runtime/intel_npu/properties.hpp>
+
 #include "common/utils.hpp"
 
 using namespace ov::test::behavior;

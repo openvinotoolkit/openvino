@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_F8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+
+#if IS_F8
+#include "include/batch_headers/common.cl"
+#include "include/f8_utils.cl"
+#endif
+
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 
@@ -153,6 +160,8 @@ KERNEL (reorder_data)(
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
         OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+    #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
+            OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(_convert_float(input[input_idx]));
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
@@ -223,6 +232,10 @@ KERNEL (reorder_data)(
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE_SAT(res)
     #endif
+    #elif F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT
+        // fp8 encoders are overloaded on float/half only; a non-float `res` (e.g. uchar from an integer
+        // input) makes the call ambiguous, so encode from float. (f8->f8 identity is handled below.)
+        #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(convert_float(res))
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(res)
     #endif
@@ -252,6 +265,10 @@ KERNEL (reorder_data)(
 
         atomic_and(&output_u32[main_idx], ~(0x0F << shift));
         atomic_or(&output_u32[main_idx], (val_u32 << shift));
+    #elif (F8E5M2_INPUT && F8E5M2_OUTPUT) || (F8E4M3_INPUT && F8E4M3_OUTPUT) || (F8E8M0_INPUT && F8E8M0_OUTPUT)
+        // f8->f8 layout reorder: `res` is already the fp8 OUTPUT_TYPE, so store it directly. Re-encoding
+        // via TO_OUTPUT_TYPE/ACTIVATION has no overload for the fp8 struct (and a copy needs none).
+        output[output_idx] = res;
     #else
         output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
     #endif

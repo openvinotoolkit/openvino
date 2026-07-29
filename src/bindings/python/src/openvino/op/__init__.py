@@ -11,6 +11,7 @@ Low level wrappers for the c++ api in ov::op.
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import _PagedAttentionExtension
+from openvino._pyopenvino.op import _GroupQueryAttentionExtension
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop

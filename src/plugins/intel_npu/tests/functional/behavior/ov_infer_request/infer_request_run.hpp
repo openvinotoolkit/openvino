@@ -17,6 +17,7 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/zero_init_mock.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -36,22 +37,6 @@ using CompilationParams = std::tuple<std::string,  // Device name
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
-
-namespace {
-class LogCallbackGuard {
-public:
-    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
-        ov::util::set_log_callback(callback);
-    }
-
-    ~LogCallbackGuard() {
-        ov::util::reset_log_callback();
-    }
-
-    LogCallbackGuard(const LogCallbackGuard&) = delete;
-    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
-};
-}  // namespace
 
 namespace ov {
 namespace test {
@@ -974,7 +959,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
         for (uint32_t i = 0; i < inferences; i++) {
             auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
             for (size_t j = 0; j < shape_size; ++j) {
-                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                     << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
@@ -1034,7 +1019,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
         for (int i = inferences - 1; i >= 0; i--) {
             auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
             for (size_t j = 0; j < shape_size; ++j) {
-                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                     << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
@@ -1191,7 +1176,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
                 for (int i = inferences - 1; i >= 0; i--) {
                     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
                     for (size_t j = 0; j < shape_size; ++j) {
-                        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                             << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                             << ", actual=" << output_tensor_data[j] << " for index " << j;
                     }
@@ -1217,7 +1202,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
                 for (uint32_t i = 0; i < inferences; i++) {
                     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
                     for (size_t j = 0; j < shape_size; ++j) {
-                        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                             << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                             << ", actual=" << output_tensor_data[j] << " for index " << j;
                     }
@@ -1282,7 +1267,7 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
         for (int i = inferences - 1; i >= 0; i--) {
             auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
             for (size_t j = 0; j < shape_size; ++j) {
-                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                     << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
@@ -1343,7 +1328,7 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
         for (uint32_t i = 0; i < inferences; i++) {
             auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
             for (size_t j = 0; j < shape_size; ++j) {
-                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                     << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
@@ -1386,7 +1371,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun0) {
     float expected_result = static_cast<float>(batch_size) + 1.f;
     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
     for (size_t j = 0; j < shape_size; ++j) {
-        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
             << "Run=" << batch_size << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
             << " for index " << j;
     }
@@ -1412,7 +1397,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun0) {
         EXPECT_EQ(output_test_tensor.get_size(), input_host_tensor.get_size());
 
         for (size_t j = 0; j < output_test_tensor.get_size(); ++j) {
-            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                 << "Run=" << z << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
@@ -1451,7 +1436,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun1) {
     float expected_result = static_cast<float>(batch_size) + 1.f;
     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
     for (size_t j = 0; j < shape_size; ++j) {
-        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
             << "Run=" << batch_size << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
             << " for index " << j;
     }
@@ -1477,7 +1462,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun1) {
         EXPECT_EQ(output_test_tensor.get_size(), input_host_tensor.get_size());
 
         for (size_t j = 0; j < output_test_tensor.get_size(); ++j) {
-            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                 << "Run=" << z << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
@@ -1514,7 +1499,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun2) {
     float expected_result = static_cast<float>(batch_size) + 1.f;
     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
     for (size_t j = 0; j < shape_size; ++j) {
-        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
             << "Run=" << batch_size << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
             << " for index " << j;
     }
@@ -1569,7 +1554,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRunsSeq) {
         for (uint32_t i = 0; i < inferences; i++) {
             auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
             for (size_t j = 0; j < shape_size; ++j) {
-                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                     << "Run=" << z << "Output=" << i << " Expected=" << expected_result
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
@@ -1636,7 +1621,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
 
     auto* actual = first_output_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     // imitates blob reallocation
@@ -1658,7 +1643,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
 
     actual = second_output_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 10.f, 1e-5) << "Expected=10, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 10.f, 1e-5) << "Expected=10, actual=" << actual[i] << " for index " << i;
     }
 }
 
@@ -1695,7 +1680,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
     auto output_tensor = inference_request.get_tensor("sigmod_state");
     auto output_data = output_tensor.data<float>();
     for (size_t i = 0; i < output_tensor.get_size(); i++) {
-        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+        ASSERT_NEAR(0.5f, output_data[i], 1e-5);
     }
 
     auto states = inference_request.query_state();
@@ -1707,7 +1692,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
         for (size_t i = 0; i < last_state_size; ++i) {
-            EXPECT_NEAR(0.0, last_state_data[i], 1e-5);
+            ASSERT_NEAR(0.0, last_state_data[i], 1e-5);
         }
     }
 
@@ -1754,7 +1739,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
         for (size_t i = 0; i < last_state_size; ++i) {
-            EXPECT_NEAR(input_data[i], last_state_data[i], 1e-5);
+            ASSERT_NEAR(input_data[i], last_state_data[i], 1e-5);
         }
     }
 }
@@ -1863,7 +1848,7 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
         auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
         EXPECT_EQ(output_tensor_data, output_data[i]);
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                 << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
@@ -1935,7 +1920,7 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
     for (int i = 0; i < inferences; i++) {
         auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                 << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
@@ -2018,7 +2003,7 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
     for (int i = 0; i < inferences; i++) {
         auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
                 << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
@@ -2084,13 +2069,13 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
 
     auto* output_tensor_data = reinterpret_cast<float*>(output_tensor0.data());
     for (size_t j = 0; j < shape_size; ++j) {
-        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
             << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
     }
 
     output_tensor_data = reinterpret_cast<float*>(output_tensor1.data());
     for (size_t j = 0; j < shape_size; ++j) {
-        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
             << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
     }
 
@@ -2151,7 +2136,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
     auto output_tensor = inference_request.get_tensor("sigmod_state");
     auto output_data = output_tensor.data<float>();
     for (size_t i = 0; i < output_tensor.get_size(); i++) {
-        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+        ASSERT_NEAR(0.5f, output_data[i], 1e-5);
     }
 
     states = inference_request.query_state();
@@ -2181,11 +2166,11 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
 
     auto get_state_data = static_cast<float*>(l0_host_tensor.data());
     for (size_t i = 0; i < get_tensor_state.get_size(); ++i) {
-        EXPECT_NEAR(0.0, get_state_data[i], 1e-5);
-        EXPECT_NEAR(0.0, state_data[0][i], 1e-5);
+        ASSERT_NEAR(0.0, get_state_data[i], 1e-5);
+        ASSERT_NEAR(0.0, state_data[0][i], 1e-5);
 
-        EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
-        EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
+        ASSERT_NEAR(input_data[i], state_data[1][i], 1e-5);
+        ASSERT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
 
     inference_request = {};
@@ -2249,7 +2234,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     auto output_tensor = inference_request.get_tensor("sigmod_state");
     auto output_data = output_tensor.data<float>();
     for (size_t i = 0; i < output_tensor.get_size(); i++) {
-        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+        ASSERT_NEAR(0.5f, output_data[i], 1e-5);
     }
 
     states = inference_request.query_state();
@@ -2279,11 +2264,11 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
 
     auto get_state_data = static_cast<float*>(l0_host_tensor.data());
     for (size_t i = 0; i < get_tensor_state.get_size(); ++i) {
-        EXPECT_NEAR(0.0, get_state_data[i], 1e-5);
-        EXPECT_NEAR(0.0, state_data[0][i], 1e-5);
+        ASSERT_NEAR(0.0, get_state_data[i], 1e-5);
+        ASSERT_NEAR(0.0, state_data[0][i], 1e-5);
 
-        EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
-        EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
+        ASSERT_NEAR(input_data[i], state_data[1][i], 1e-5);
+        ASSERT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
 
     inference_request = {};
@@ -2323,7 +2308,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
     }
@@ -2337,7 +2322,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
             inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
             inference_request.infer();
@@ -2348,7 +2333,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
         logs.clear();
 
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+            ASSERT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
                 << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
                 << " for index " << j;
         }
@@ -2387,7 +2372,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
@@ -2401,7 +2386,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 
@@ -2415,7 +2400,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
         logs.clear();
 
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+            ASSERT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
                 << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
                 << " for index " << j;
         }
@@ -2453,7 +2438,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         input_tensor = inference_request.get_input_tensor();
@@ -2469,7 +2454,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 
@@ -2479,7 +2464,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
         logs.clear();
 
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+            ASSERT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
                 << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
                 << " for index " << j;
         }
@@ -2518,7 +2503,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(input_tensor);
@@ -2532,7 +2517,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 
@@ -2542,7 +2527,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
         logs.clear();
 
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+            ASSERT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
                 << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
                 << " for index " << j;
         }
@@ -2585,7 +2570,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
         OV_ASSERT_NO_THROW(inference_request.infer());
 
         for (size_t j = 0; j < shape_size; ++j) {
-            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+            ASSERT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
                 << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
                 << " for index " << j;
         }
@@ -2593,6 +2578,294 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
 
     ::operator delete(input_data, std::align_val_t(4096));
     ::operator delete(output_data, std::align_val_t(4096));
+}
+
+class DynamicBoundsTests : public InferRequestRunTests
+{
+public:
+    void SetUp() override {
+        InferRequestRunTests::SetUp();
+        configuration.insert({ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")});
+    }
+};
+
+TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSet) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 2, 2};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto shape = Shape{1, 4, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = ov::Tensor{ov::element::f32, shape};
+    auto output_tensor = ov::Tensor{ov::element::f32, shape};
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto input_data = input_tensor.data<float>();
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    auto input_data_after_run = input_tensor.data<float>();
+    auto output_data_after_run = output_tensor.data<float>();
+
+    ASSERT_EQ(input_data, input_data_after_run);
+    ASSERT_EQ(output_data, output_data_after_run);
+
+    auto new_shape = Shape{1, 6, 2, 2};
+    auto new_shape_size = ov::shape_size(new_shape);
+    input_tensor.set_shape(new_shape);
+    output_tensor.set_shape(new_shape);
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data = input_tensor.data<float>();
+    output_data = output_tensor.data<float>();
+
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data_after_run = input_tensor.data<float>();
+    output_data_after_run = output_tensor.data<float>();
+
+    ASSERT_EQ(input_data, input_data_after_run);
+    ASSERT_EQ(output_data, output_data_after_run);
+}
+
+TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSetUsingAlignedExternalMemory) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    ov::Allocator allocator{ov::test::utils::DefaultAllocatorAligned{}};
+
+    auto shape = Shape{1, 8, 4, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = ov::Tensor{ov::element::f32, shape, allocator};
+    auto output_tensor = ov::Tensor{ov::element::f32, shape, allocator};
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    auto new_shape = Shape{1, 6, 4, 64};
+    auto new_shape_size = ov::shape_size(new_shape);
+    input_tensor.set_shape(new_shape);
+    output_tensor.set_shape(new_shape);
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data = input_tensor.data<float>();
+    output_data = output_tensor.data<float>();
+
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+}
+
+TEST_P(DynamicBoundsTests, RunningTwiceWithRemoteTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto context = core->get_default_context(target_device);
+
+    auto shape = Shape{1, 8, 4, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    auto output_tensor = context.create_host_tensor(ov::element::f32, shape);
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+}
+
+TEST_P(DynamicBoundsTests, ExpectErrorFromWrongTensorShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto context = core->get_default_context(target_device);
+    auto input_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 2, 64});
+    OV_EXPECT_THROW(req.set_input_tensor(input_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
+
+    auto output_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 12, 64});
+    OV_EXPECT_THROW(req.set_output_tensor(output_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
+}
+
+using NumStreamsTests = InferRequestRunTests;
+
+TEST_P(NumStreamsTests, RunWithDifferentNumStreamsCheckResults) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto shape = Shape{1, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    const uint32_t inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i] = compiled_model.create_infer_request();
+
+        auto input_tensor = inference_request[i].get_input_tensor();
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        OV_ASSERT_NO_THROW(inference_request[i].infer());
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        OV_ASSERT_NO_THROW(inference_request[i].start_async());
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        OV_ASSERT_NO_THROW(inference_request[i].wait());
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        float expected_result = static_cast<float>(i) + 1.f;
+        auto output_tensor = inference_request[i].get_output_tensor();
+        auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Inference=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+    }
 }
 
 }  // namespace behavior

@@ -71,4 +71,13 @@ std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& e
     return nullptr;
 }
 
+uint32_t utils::getOptimalNumberOfInferRequestsInParallel(std::string_view platform,
+                                                          const ov::hint::PerformanceMode performanceMode) {
+    if (performanceMode != ov::hint::PerformanceMode::THROUGHPUT) {
+        return 1;
+    }
+
+    return (platform == ov::intel_npu::Platform::NPU3720) ? 4 : 8;
+}
+
 }  // namespace intel_npu

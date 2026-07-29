@@ -12,10 +12,12 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -26,53 +28,61 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-namespace {
-std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
-    return [=](const ov::Output<ov::Node>& output) -> bool {
-        auto node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-        if (!node) {
-            return false;
-        }
-        float value;
-        if (!op_util::get_single_value(node, value)) {
-            return false;
-        }
-        return value == target_value;
-    };
-}
-}  // namespace
-
 RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
 
     // x^2
-    auto const_power = pattern::wrap_type<v0::Constant>(constant_value(2));
+    auto const_power = pattern::wrap_type<v0::Constant>(pattern::value_matches("2"));
     auto const_power_convert = pattern::optional<v0::Convert>(const_power);
     auto power = pattern::wrap_type<v1::Power>({x, const_power_convert});
 
+    // x^2 via Multiply(x, x) — used by TFLite RMS norm decomposition
+    auto mul_square = pattern::wrap_type<v1::Multiply>({x, x});
+
+    // Either Power(x, 2) or Multiply(x, x)
+    auto square = std::make_shared<pattern::op::Or>(OutputVector{power, mul_square});
+
     // ReduceMean(x^2,axes)
-    auto mean_axes = pattern::wrap_type<v0::Constant>(constant_value(-1));
-    auto mean = pattern::wrap_type<v1::ReduceMean>({power, mean_axes});
+    auto mean_axes = pattern::wrap_type<v0::Constant>([](const ov::Output<ov::Node>& output) {
+        auto const_node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+        if (!const_node) {
+            return false;
+        }
+        const auto& axes_shape = const_node->get_output_shape(0);
+        const auto num_elems = ov::shape_size(axes_shape);
+        // RMS fusion is only valid when ReduceMean has exactly one axis.
+        return num_elems == 1;
+    });
+    auto mean = pattern::wrap_type<v1::ReduceMean>({square, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
     auto eps = pattern::wrap_type<v0::Constant>();
     auto eps_convert = pattern::optional<v0::Convert>(eps);
     auto add_eps = pattern::wrap_type<v1::Add>({mean, eps_convert});
 
+    // Optional Reshape between add_eps and sqrt/rsqrt (e.g., TFLite decomposition with keepdims=false)
+    auto add_eps_opt_reshape = pattern::optional<v1::Reshape>({add_eps, pattern::any_input()});
+
     // Sqrt(ReduceMean(x^2,axes)+eps)
-    auto sqrt = pattern::wrap_type<v0::Sqrt>({add_eps});
+    auto sqrt = pattern::wrap_type<v0::Sqrt>({add_eps_opt_reshape});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_pow = pattern::wrap_type<v0::Constant>(constant_value(-1));
+    auto const_pow = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
     auto const_pow_convert = pattern::optional<v0::Convert>(const_pow);
     auto pow = pattern::wrap_type<v1::Power>({sqrt, const_pow_convert});
 
-    auto const_div = pattern::wrap_type<v0::Constant>(constant_value(1));
+    auto const_div = pattern::wrap_type<v0::Constant>(pattern::value_matches("1"));
     auto const_div_convert = pattern::optional<v0::Convert>(const_div);
     auto div = pattern::wrap_type<v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
+
+    // Power(ReduceMean(x^2,axes)+eps, -0.5) — direct rsqrt without Sqrt node
+    auto const_neg_half = pattern::wrap_type<v0::Constant>(pattern::value_matches("-0.5"));
+    auto const_neg_half_convert = pattern::optional<v0::Convert>(const_neg_half);
+    auto pow_direct = pattern::wrap_type<v1::Power>({add_eps_opt_reshape, const_neg_half_convert});
+
+    std::shared_ptr<pattern::op::Or> div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow, pow_direct});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = pattern::wrap_type<v1::Multiply>({x, div_or_pow});

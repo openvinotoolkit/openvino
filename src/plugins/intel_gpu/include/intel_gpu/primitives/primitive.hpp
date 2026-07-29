@@ -33,7 +33,7 @@ struct primitive_info;
 /// @brief Describes information of inputs.
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
-    input_info() : pid(""), idx(0) {}
+    input_info() : idx(0) {}
     input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
     input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
@@ -97,7 +97,7 @@ struct prim_map_storage {
         return instance;
     }
 
-    const cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
+    cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
         return map.at(type_string);
     }
 

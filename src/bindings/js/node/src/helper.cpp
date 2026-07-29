@@ -7,7 +7,9 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -369,17 +371,10 @@ ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
 ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::Shape& shape,
                           const ov::element::Type_t& type) {
-    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
-    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
-    if (typed_array.ByteOffset() != 0) {
-        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
-    }
-    auto array_buffer = typed_array.ArrayBuffer();
-    auto tensor = ov::Tensor(type, shape, array_buffer.Data());
-    if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
-    }
-    return tensor;
+    OPENVINO_ASSERT(typed_array.ByteOffset() == 0,
+                    "TypedArray.byteOffset must be zero for zero-copy tensor construction.");
+    auto impl = std::make_shared<ov::js::TensorImpl>(typed_array.Env(), typed_array, type, shape);
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>{impl, nullptr});
 }
 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {

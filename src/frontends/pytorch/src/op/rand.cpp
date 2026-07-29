@@ -16,7 +16,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "pt_framework_node.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
 
 namespace ov {

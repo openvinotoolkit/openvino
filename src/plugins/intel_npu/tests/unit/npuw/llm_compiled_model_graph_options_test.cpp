@@ -14,6 +14,7 @@
 
 #include "llm_test_helpers.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -45,6 +46,12 @@ protected:
         auto props = base_props();
         merge_props(props, extra_props);
         return std::make_unique<ov::npuw::LLMCompiledModel>(build_model(), m_plugin, props, recorder.make_factory());
+    }
+
+    static const CompileCall& require_call_containing(const RecordingFactory& recorder, std::string_view fragment) {
+        const auto* call = recorder.find_contains(fragment);
+        OPENVINO_ASSERT(call != nullptr, "Missing compile call containing: ", std::string(fragment));
+        return *call;
     }
 
     template <class Port>
@@ -141,14 +148,13 @@ TEST_F(LLMCompiledModelGraphOptionsTest, PromptResponseAndGenerationLengthsDrive
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
-    const auto* generate = recorder.find_suffix("_kv192");
+    const auto& generate = require_call_containing(recorder, "_kv");
     ASSERT_NE(prefill, nullptr);
-    ASSERT_NE(generate, nullptr);
 
     const auto prefill_ids = find_input(prefill->model, "input_ids");
     const auto prefill_mask = find_input(prefill->model, "attention_mask");
-    const auto generate_ids = find_input(generate->model, "input_ids");
-    const auto generate_mask = find_input(generate->model, "attention_mask");
+    const auto generate_ids = find_input(generate.model, "input_ids");
+    const auto generate_mask = find_input(generate.model, "attention_mask");
     ASSERT_TRUE(prefill_ids.has_value());
     ASSERT_TRUE(prefill_mask.has_value());
     ASSERT_TRUE(generate_ids.has_value());
@@ -199,7 +205,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeep
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 128}));
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidCreatesIntermediateKvVariants) {
+TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateVariants) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -210,14 +216,67 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidCreatesIntermediateKvVar
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    std::vector<std::string> kv_names;
+    std::vector<ov::Shape> generate_attention_mask_shapes;
     for (const auto& call : recorder.calls()) {
         if (call.friendly_name.find("_kv") != std::string::npos) {
-            kv_names.push_back(call.friendly_name);
+            const auto mask = find_input(call.model, "attention_mask");
+            ASSERT_TRUE(mask.has_value());
+            ASSERT_TRUE(mask->get_partial_shape().is_static());
+            generate_attention_mask_shapes.push_back(mask->get_shape());
         }
     }
-    EXPECT_THAT(kv_names, ::testing::UnorderedElementsAre(::testing::EndsWith("_kv1152"),
-                                                          ::testing::EndsWith("_kv2176")));
+    EXPECT_EQ(generate_attention_mask_shapes.size(), 2u);
+    EXPECT_THAT(generate_attention_mask_shapes,
+                ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
+}
+
+TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());
+    ASSERT_NE(model, nullptr);
+
+    // Hybrid model must have sinks (conv + SSM + KV cache state assigns)
+    EXPECT_GT(model->get_sinks().size(), 0u);
+
+    // Validate the model is well-formed
+    EXPECT_TRUE(model->get_results().size() > 0u);
+}
+
+// LFM2-style gated short conv: conv state only (no SSM), key/value on attention layers.
+// StatefulToStateless is the pass NPUW actually runs to consume cache_params.* states.
+TEST(HybridModelBuilderTest, LFM2ModelConvertsToStateless) {
+    auto model = ov::test::npuw::build_lfm2_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    // 2 short-conv layers x conv + 2 attn layers x (key + value) = 6 states.
+    ASSERT_EQ(model->get_sinks().size(), 6u);
+    ASSERT_EQ(model->get_variables().size(), 6u);
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    auto has_input = [&](const std::string& n) {
+        for (const auto& p : model->inputs())
+            if (p.get_names().count(n))
+                return true;
+        return false;
+    };
+    auto has_output = [&](const std::string& n) {
+        for (const auto& r : model->outputs())
+            if (r.get_names().count(n))
+                return true;
+        return false;
+    };
+
+    for (size_t lin = 0; lin < 2; ++lin) {
+        const auto idx = std::to_string(lin);
+        EXPECT_TRUE(has_input("cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output("cache_params.present.conv." + idx));
+    }
+    for (size_t att = 0; att < 2; ++att) {
+        const auto idx = std::to_string(att);
+        EXPECT_TRUE(has_input("past_key_values." + idx + ".key"));
+        EXPECT_TRUE(has_output("present." + idx + ".key"));
+    }
 }
 
 }  // namespace

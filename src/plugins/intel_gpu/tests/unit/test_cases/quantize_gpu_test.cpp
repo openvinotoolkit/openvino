@@ -90,7 +90,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)64);
@@ -154,7 +154,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)32);
@@ -232,7 +232,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)64);
@@ -321,7 +321,7 @@ TEST(quantize_gpu, quantize_levels_3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), ref_data.size());
@@ -412,7 +412,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), ref_data.size());
@@ -503,7 +503,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned_const_input) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), ref_data.size());
@@ -595,7 +595,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), ref_data.size());
@@ -725,7 +725,7 @@ TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)64);
@@ -827,7 +827,7 @@ TEST(quantize_gpu, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)64);
@@ -930,7 +930,7 @@ TEST(quantize_gpu, dynamic_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output_reorder").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor
     ASSERT_EQ(output->count(), (size_t)64);

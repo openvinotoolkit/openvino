@@ -122,7 +122,8 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     return ev;
 }
 
-shared_mem_params gpu_buffer::get_internal_params() const {
+shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] Can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
@@ -207,13 +208,22 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
 #ifdef OV_GPU_WITH_ZE_RT
-    OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+    OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
     dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
 #endif
     return dnnl_mem;
 }
+
+dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
+    OPENVINO_THROW("[GPU] Grouped memory is not supported for gpu_buffer.");
+}
 #endif
+
+gpu_buffer_from_handle::~gpu_buffer_from_handle() {
+    auto cl_engine = downcast<const ocl_engine>(_engine);
+    cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+}
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem()
@@ -357,7 +367,8 @@ void gpu_image2d::unlock(const stream& stream) {
 }
 
 
-shared_mem_params gpu_image2d::get_internal_params() const {
+shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_image2d can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
@@ -436,7 +447,8 @@ gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
     surface(params.surface),
     plane(params.plane) { }
 
-shared_mem_params gpu_media_buffer::get_internal_params() const {
+shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_media_buffer can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_vasurface, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), surface, plane };
@@ -451,7 +463,8 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
     device(params.user_device),
     resource(params.mem) { }
 
-shared_mem_params gpu_dx_buffer::get_internal_params() const {
+shared_mem_params gpu_dx_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_dx_buffer can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_dxbuffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), resource, 0 };
@@ -508,34 +521,47 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     if (0 == _lock_count) {
         auto& cl_stream = downcast<const ocl_stream>(stream);
         if (get_allocation_type() == allocation_type::usm_device) {
-            if (type != mem_lock_type::read) {
-                throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
-            }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
+            // Always copy device data to host buffer (treat write as read_write internally).
+            // This ensures the host buffer always has valid data, making nested locks safe.
             try {
                 cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
             } catch (cl::Error const& err) {
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
+            _host_buffer_has_device_data = true;
+            _copy_back_to_device = (type != mem_lock_type::read);
             _mapped_ptr = _host_buffer.get();
         } else {
             _mapped_ptr = _buffer.get();
+        }
+    } else if (get_allocation_type() == allocation_type::usm_device) {
+        if (type != mem_lock_type::read) {
+            _copy_back_to_device = true;
         }
     }
     _lock_count++;
     return _mapped_ptr;
 }
 
-void gpu_usm::unlock(const stream& /* stream */) {
+void gpu_usm::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
-    if (_lock_count == 0) {
-        OPENVINO_THROW("Trying to unlock an already unlocked buffer");
-    }
+    OPENVINO_ASSERT(_lock_count != 0, "[GPU] Trying to unlock an already unlocked buffer");
     _lock_count--;
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
+            if (_copy_back_to_device) {
+                auto& cl_stream = downcast<const ocl_stream>(stream);
+                try {
+                    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), _host_buffer.get(), _bytes_count, CL_TRUE);
+                } catch (cl::Error const& err) {
+                    OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+                }
+            }
             _host_buffer.freeMem();
+            _copy_back_to_device = false;
+            _host_buffer_has_device_data = false;
         }
         _mapped_ptr = nullptr;
     }
@@ -643,16 +669,30 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
     return dnnl_mem;
 #endif
 }
+
+dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
+    auto onednn_engine = _engine->get_onednn_engine();
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
+#else
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
+    OPENVINO_ASSERT(offsets.get_engine() == this->_engine);
+    dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
+        {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
+    return dnnl_mem;
+#endif
+}
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_usm can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type

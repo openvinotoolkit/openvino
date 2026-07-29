@@ -5,9 +5,8 @@
 #include "ze_device_detector.hpp"
 #include "ze_device.hpp"
 #include "ze_common.hpp"
-#include <ze_api.h>
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "openvino/core/except.hpp"
+#include "ze_resource_interop.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <vector>
 
@@ -16,13 +15,13 @@ namespace ze {
 
 static std::vector<ze_device_handle_t> get_sub_devices(ze_device_handle_t root_device) {
     uint32_t n_subdevices = 0;
-    OV_ZE_EXPECT(zeDeviceGetSubDevices(root_device, &n_subdevices, nullptr));
+    OV_ZE_EXPECT(ze::zeDeviceGetSubDevices(root_device, &n_subdevices, nullptr));
     if (n_subdevices == 0)
         return {};
 
     std::vector<ze_device_handle_t> subdevices(n_subdevices);
 
-    OV_ZE_EXPECT(zeDeviceGetSubDevices(root_device, &n_subdevices, &subdevices[0]));
+    OV_ZE_EXPECT(ze::zeDeviceGetSubDevices(root_device, &n_subdevices, &subdevices[0]));
 
     return subdevices;
 }
@@ -52,7 +51,7 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
         auto root_device = std::dynamic_pointer_cast<ze_device>(dptr);
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
 
-        auto sub_devices = get_sub_devices(root_device->get_device());
+        auto sub_devices = get_sub_devices(root_device->get_device().handle());
         if (!sub_devices.empty()) {
             uint32_t sub_idx = 0;
             for (auto& sub_device : sub_devices) {
@@ -60,7 +59,8 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
                     sub_idx++;
                     continue;
                 }
-                auto sub_device_ptr = std::make_shared<ze_device>(root_device->get_driver(), sub_device, initialize_devices);
+                ze_device_resource sub_device_res(sub_device);
+                auto sub_device_ptr = std::make_shared<ze_device>(root_device->get_driver(), sub_device_res, ze_context_resource{}, initialize_devices);
                 ret[map_id + "." + std::to_string(sub_idx++)] = sub_device_ptr;
             }
         }
@@ -72,28 +72,30 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
 std::vector<device::ptr> ze_device_detector::create_device_list(bool initialize_devices) const {
     std::vector<device::ptr> ret;
 
-    OV_ZE_EXPECT(zeInit(ZE_INIT_FLAG_GPU_ONLY));
+    OV_ZE_EXPECT(ze::zeInit(ZE_INIT_FLAG_GPU_ONLY));
 
     uint32_t driver_count = 0;
-    OV_ZE_EXPECT(zeDriverGet(&driver_count, nullptr));
+    OV_ZE_EXPECT(ze::zeDriverGet(&driver_count, nullptr));
 
     std::vector<ze_driver_handle_t> all_drivers(driver_count);
-    OV_ZE_EXPECT(zeDriverGet(&driver_count, &all_drivers[0]));
+    OV_ZE_EXPECT(ze::zeDriverGet(&driver_count, &all_drivers[0]));
 
     for (uint32_t i = 0; i < driver_count; ++i) {
         uint32_t device_count = 0;
-        OV_ZE_EXPECT(zeDeviceGet(all_drivers[i], &device_count, nullptr));
+        OV_ZE_EXPECT(ze::zeDeviceGet(all_drivers[i], &device_count, nullptr));
 
         std::vector<ze_device_handle_t> all_devices(device_count);
-        OV_ZE_EXPECT(zeDeviceGet(all_drivers[i], &device_count, &all_devices[0]));
+        OV_ZE_EXPECT(ze::zeDeviceGet(all_drivers[i], &device_count, &all_devices[0]));
 
         for (uint32_t d = 0; d < device_count; ++d) {
             try {
                 ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES};
-                OV_ZE_EXPECT(zeDeviceGetProperties(all_devices[d], &device_properties));
+                OV_ZE_EXPECT(ze::zeDeviceGetProperties(all_devices[d], &device_properties));
 
                 if (ZE_DEVICE_TYPE_GPU == device_properties.type) {
-                    ret.emplace_back(std::make_shared<ze_device>(all_drivers[i], all_devices[d], initialize_devices));
+                    ze_driver_resource driver_res(all_drivers[i]);
+                    ze_device_resource device_res(all_devices[d]);
+                    ret.emplace_back(std::make_shared<ze_device>(driver_res, device_res, ze_context_resource{}, initialize_devices));
                 }
             } catch (std::exception& ex) {
                 GPU_DEBUG_LOG << "Devices query/creation failed for driver " << i << ex.what() << std::endl;
@@ -112,6 +114,20 @@ std::vector<device::ptr> ze_device_detector::create_device_list_from_user_contex
 
 std::vector<device::ptr> ze_device_detector::create_device_list_from_user_device(void* user_device) const {
     OPENVINO_NOT_IMPLEMENTED;
+}
+
+device::ptr create_ze_device_from_ocl_device(device::ptr ocl_device, bool initialize) {
+    auto ocl_dev = std::dynamic_pointer_cast<ocl::ocl_device>(ocl_device);
+    OPENVINO_ASSERT(ocl_dev != nullptr, "[GPU] Invalid device type for OpenCL to ZE device conversion");
+    auto device = ocl_dev->get_device().get();
+    auto ze_driver_res = ze_import_driver(device);
+    auto ze_device_res = ze_import_device(device);
+    auto context = ocl_dev->get_context().get();
+    if (context == nullptr) {
+        return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_resource{}, initialize);
+    }
+    auto ze_context_res = ze_import_context(context);
+    return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_res, initialize);
 }
 
 }  // namespace ze

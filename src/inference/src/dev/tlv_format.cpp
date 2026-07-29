@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/tlv_format.hpp"
 
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -48,6 +49,19 @@ static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits
         data.clear();
         return true;
     }
+    constexpr auto size_limit =
+        std::min(static_cast<TLVTraits::LengthType>(std::numeric_limits<std::streamsize>::max()),
+                 static_cast<TLVTraits::LengthType>(std::numeric_limits<size_t>::max()));
+    if (size > size_limit) {
+        return false;
+    }
+    const auto current_pos = stream.tellg();
+    const auto stream_end = stream.seekg(0, std::ios::end).tellg();
+    stream.seekg(current_pos);
+    const auto remaining_offset = stream.good() ? static_cast<TLVTraits::LengthType>(stream_end - current_pos) : 0u;
+    if (remaining_offset < size) {
+        return false;
+    }
     data.resize(size);
     stream.read(reinterpret_cast<char*>(data.data()), size);
     return stream.good();
@@ -75,7 +89,7 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
             return false;
         }
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-        if (!stream.good()) {
+        if (!stream.good() || (stream_end - stream.tellg() < static_cast<std::streamoff>(size))) {
             return false;
         }
 
@@ -84,9 +98,6 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
                 return false;
             }
         } else {
-            if (stream_end - stream.tellg() < static_cast<std::streamoff>(size) || !stream.good()) {
-                return false;
-            }
             stream.seekg(size, std::ios::cur);
             if (!stream.good()) {
                 return false;

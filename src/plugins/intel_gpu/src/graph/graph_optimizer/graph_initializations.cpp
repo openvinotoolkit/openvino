@@ -38,10 +38,25 @@ void graph_initializations::run(program& p) {
     set_outputs(p);
 
     auto forcing_map = p.get_config().get_force_implementations();
+    std::vector<primitive_id> missing_forced_nodes;
     for (auto& kv : forcing_map) {
         if (p.has_node(kv.first)) {
             p.get_node(kv.first).set_forced_impl_type(kv.second.impl_type);
+        } else {
+            missing_forced_nodes.push_back(kv.first);
         }
+    }
+
+    if (!missing_forced_nodes.empty() && !p.is_internal_program()) {
+        std::string missing_ids;
+        for (size_t i = 0; i < missing_forced_nodes.size(); ++i) {
+            missing_ids += missing_forced_nodes[i];
+            if (i + 1 < missing_forced_nodes.size()) {
+                missing_ids += ", ";
+            }
+        }
+
+        OPENVINO_THROW("[GPU] force_implementations contains primitive ids that are not present in graph: ", missing_ids);
     }
 
     p.get_processing_order().calc_processing_order(p);

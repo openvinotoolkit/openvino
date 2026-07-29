@@ -357,16 +357,17 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core) {
-    if (!xml_config_file_ws) {
+    if (!core || !xml_config_file_ws) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
-    std::string xml_config_file;
     try {
-        xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
+        auto _core = std::make_unique<ov_core_t>();
+        _core->object = std::make_shared<ov::Core>(ov::util::make_path(xml_config_file_ws));
+        *core = _core.release();
     }
     CATCH_OV_EXCEPTIONS
-    return ov_core_create_with_config(xml_config_file.c_str(), core);
+    return ov_status_e::OK;
 }
 
 ov_status_e ov_core_read_model_unicode(const ov_core_t* core,
@@ -401,7 +402,6 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
     }
 
     try {
-        std::string model_path = ov::util::wstring_to_string(std::wstring(model_path_ws));
         ov::AnyMap property = {};
         size_t property_size = property_args_size / 2;
         va_list args_ptr;
@@ -415,9 +415,9 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
         std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
-            object = core->object->compile_model(model_path, dev_name, property);
+            object = core->object->compile_model(model_path_ws, dev_name, property);
         } else {
-            object = core->object->compile_model(model_path, property);
+            object = core->object->compile_model(model_path_ws, property);
         }
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));

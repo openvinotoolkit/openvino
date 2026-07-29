@@ -33,6 +33,7 @@
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -142,21 +143,20 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    std::filesystem::path model_fs_path, checkpoints_dir;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        model_fs_path = path.value();
-    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+    std::filesystem::path model_path, checkpoints_or_tags;
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        model_path = std::move(*path);
+    } else if (auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
         if (paths->size() == 2) {
-            model_fs_path = paths.value()[0];
-            checkpoints_dir = paths.value()[1];
+            model_path = std::move((*paths)[0]);
+            checkpoints_or_tags = std::move((*paths)[1]);
         }
     }
 
     // to figure out if the model with v1 checkpoints is supported,
     // it is sufficient to check only the input model format
     // avoid parsing of checkpoints here
-    if (!model_fs_path.empty() && checkpoints_dir.empty()) {
-        auto model_path = model_fs_path.native();
+    if (!model_path.empty() && checkpoints_or_tags.empty()) {
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
@@ -170,8 +170,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // handle text protobuf format
             return true;
         }
-    } else if (!model_fs_path.empty() && !checkpoints_dir.empty()) {
-        auto model_path = model_fs_path.native();
+    } else if (!model_path.empty() && !checkpoints_or_tags.empty()) {
         // here, we assume to get the input model path and checkpoints directory
         if (GraphIteratorProto::is_supported(model_path)) {
             // binary protobuf format with checkpoints
@@ -202,17 +201,16 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.";
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num, err_msg);
 
-    std::filesystem::path model_fs_path, checkpoints_fs_dir;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        model_fs_path = path.value();
-    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+    std::filesystem::path model_path, checkpoints_or_tags;
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        model_path = std::move(*path);
+    } else if (auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
         FRONT_END_GENERAL_CHECK(paths->size() == 2, err_msg);
-        model_fs_path = paths.value()[0];
-        checkpoints_fs_dir = paths.value()[1];
+        model_path = std::move((*paths)[0]);
+        checkpoints_or_tags = std::move((*paths)[1]);
     }
 
-    if (!model_fs_path.empty() && checkpoints_fs_dir.empty()) {
-        const auto model_path = model_fs_path.native();
+    if (!model_path.empty() && checkpoints_or_tags.empty()) {
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
@@ -243,10 +241,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle text protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         }
-    } else if (!model_fs_path.empty() && !checkpoints_fs_dir.empty()) {
+    } else if (!model_path.empty() && !checkpoints_or_tags.empty()) {
         // here, we assume to get the input model path and checkpoints directory
-        const auto model_path = ov::util::path_to_string(model_fs_path);
-        const auto checkpoints_dir = ov::util::path_to_string(checkpoints_fs_dir);
+        const auto checkpoints_dir = checkpoints_or_tags;
         if (GraphIteratorProto::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
             // handle binary protobuf format with checkpoints
@@ -272,7 +269,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
-            auto saved_model_tags = checkpoints_dir;
+            const auto saved_model_tags = ov::util::path_to_string(checkpoints_or_tags);
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -430,6 +427,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    // TSGeneral runs ConstantFolding; mark dequantization before it.
+    manager.register_pass<ov::pass::MarkDequantization>(
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);

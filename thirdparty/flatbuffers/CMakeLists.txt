@@ -24,14 +24,29 @@ if(FLATBUFFERS_BUILD_FLATC)
         set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
     endif()
 
+    # we dont want to build flatc with ThreadSanitizer since it causes issues during our build.
+    # this might be incorrect if flatbuffers::flatc gets used / linked in the NPU Plugin
+    # current assumption is that it is only a build tool
+    if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
+        target_compile_options(flatc PRIVATE -fno-sanitize=thread)
+        target_link_options(flatc PRIVATE -fno-sanitize=thread)
+        string(REPLACE "-shared-libsan" "" _flatc_exe_flags "${CMAKE_EXE_LINKER_FLAGS}")
+        set_target_properties(flatc PROPERTIES LINK_FLAGS "${_flatc_exe_flags}")
+    endif()
+
     set(flatbuffers_COMPILER $<TARGET_FILE:flatc> PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY flatc PARENT_SCOPE)
 else()
     set(HOST_FLATC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
 
+    if(ENABLE_THREAD_SANITIZER)
+        set(flatc_extra_flags "-fno-sanitize=thread")
+    endif()
+
     ov_native_compile_external_project(
         TARGET_NAME host_flatc
         NATIVE_INSTALL_DIR "${HOST_FLATC_INSTALL_DIR}"
+        EXTRA_COMPILE_FLAGS "${flatc_extra_flags}"
         CMAKE_ARGS "-DFLATBUFFERS_BUILD_TESTS=${FLATBUFFERS_BUILD_TESTS}"
                    "-DFLATBUFFERS_BUILD_FLATLIB=OFF"
                    "-DFLATBUFFERS_BUILD_FLATC=ON"

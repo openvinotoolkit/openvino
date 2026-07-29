@@ -962,7 +962,7 @@ void ROIAlign::executeSpecified() {
         }
     }
 
-    std::vector<int> numSamples(realRois);
+    std::vector<size_t> numSamples(realRois);
     std::vector<std::vector<float>> weightsTbl(realRois);
     std::vector<std::vector<size_t>> srcAddressListTbl;
     std::vector<std::vector<int>> srcIndexTbl;

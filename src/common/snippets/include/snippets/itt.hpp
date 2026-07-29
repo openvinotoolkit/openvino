@@ -12,7 +12,7 @@
 #include <openvino/cc/pass/itt.hpp>
 
 namespace ov::pass::itt::domains {
-OV_ITT_DOMAIN(SnippetsTransform);
+OV_ITT_DOMAIN(SnippetsTransform, "ov::snippets_transformations");
 }  // namespace ov::pass::itt::domains
 
 OV_CC_DOMAINS(internal_op);

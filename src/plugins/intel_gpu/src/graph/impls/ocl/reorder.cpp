@@ -27,7 +27,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -106,7 +106,7 @@ public:
         if (output_layout.format == format::winograd_2x3_s1_data) {
             params.winograd_input_offset_x = 0;
             params.winograd_input_offset_y = 0;
-            params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
+            params.winograd_nr_tiles_x = static_cast<uint32_t>(ceil_div(output_layout.spatial(0), 4));
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();

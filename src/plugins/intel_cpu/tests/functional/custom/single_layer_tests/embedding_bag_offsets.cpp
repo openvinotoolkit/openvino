@@ -83,6 +83,18 @@ TEST_P(EmbeddingBagOffsetsLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "embeddingBagOffsets");
 }
 
+class EmbeddingBagOffsetsLayerNegativeTest : public EmbeddingBagOffsetsLayerCPUTest {};
+
+TEST_P(EmbeddingBagOffsetsLayerNegativeTest, CompareWithRefsNegative) {
+    bool exception_caught = false;
+    set_callback_exception([&exception_caught](const std::exception& ex) {
+        exception_caught = true;
+        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
+    });
+    run();
+    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for non-monotonic offsets";
+}
+
 namespace {
 
 const std::vector<ElementType> netPrecisions = {ElementType::f32, ElementType::i32, ElementType::u8};
@@ -141,6 +153,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagOffsets_With_Weights,
 INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagOffsets_No_Weights,
                          EmbeddingBagOffsetsLayerCPUTest,
                          ::testing::Combine(embBagOffsetArgSetNoWeights,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(indPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EmbeddingBagOffsetsLayerCPUTest::getTestCaseName);
+
+const auto embBagOffsetArgSetNegative = ::testing::Combine(
+    ::testing::Values(InputShape{{5, 6}, {{5, 6}}}),
+    ::testing::Values(std::vector<size_t>{0, 2, 3, 4}),
+    ::testing::Values(std::vector<size_t>{0, 3, 2}),  // offsets (non-monotonic: 2 < 3)
+    ::testing::Values(0),
+    ::testing::Values(false),
+    ::testing::Values(false),
+    ::testing::Values(ov::op::util::EmbeddingBagOffsetsBase::Reduction::SUM)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagOffsets_Negative,
+                         EmbeddingBagOffsetsLayerNegativeTest,
+                         ::testing::Combine(embBagOffsetArgSetNegative,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(indPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),

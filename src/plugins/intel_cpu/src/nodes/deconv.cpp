@@ -169,7 +169,7 @@ private:
     public:
         explicit DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
             : m_shape_infer(make_shape_inference(op)),
-              m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
+              m_port_mask((op->get_input_size() > 2LLU) ? PortMask(2U) : EMPTY_PORT_MASK) {}
 
         Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                      const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
@@ -685,9 +685,9 @@ void Deconvolution::initPaddingR(const Shape& inShape, const Shape& outShape) {
     for (size_t i = 0; i < deconvAttrs.paddingR.size(); i++) {
         int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
         const auto& weightDims = getWeightDims();
-        int krn = weightDims[with_group + 2 + i];
-        int src = outShape.getStaticDims()[2 + i];
-        int dst = inShape.getStaticDims()[2 + i];
+        auto krn = weightDims[with_group + 2 + i];
+        auto src = outShape.getStaticDims()[2 + i];
+        auto dst = inShape.getStaticDims()[2 + i];
         krn = (krn - 1) * (deconvAttrs.dilation[i] + 1) + 1;
         deconvAttrs.paddingR[i] = (dst - 1) * deconvAttrs.stride[i] - (src - krn + deconvAttrs.paddingL[i]);
     }

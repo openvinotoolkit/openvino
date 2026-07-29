@@ -16,6 +16,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_gpu {
 DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
@@ -49,7 +50,7 @@ DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
         if (transformation_callback(sin_node)) return false;
 
         for (const auto& node : {multiply_node, interpolate_node, transpose_node, sin_node}) {
-            ov::disable_fp16_compression(node);
+            ov::disable_conversion(node, element::f16);
         }
         
         return true;

@@ -235,7 +235,7 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() ||
             r_node.has_mean() ||
             r_node.get_users().size() > 1 ||
-            r_node.get_primitive()->subtract_per_feature.size() ||
+            !r_node.get_primitive()->subtract_per_feature.empty() ||
             r_node.has_fused_primitives())
             continue;
 
@@ -573,7 +573,7 @@ void remove_redundant_reorders::run(program& p) {
                     auto sizes_in_format = layout::format_sizes(node->get_input_layout(0).data_padding._lower_size, node_format);
                     for (size_t axis = 0; axis < sizes_in_format.size(); axis++) {
                         if (!user->is_padding_supported(static_cast<int>(axis),
-                            sizes_in_format[axis]))
+                            static_cast<int>(sizes_in_format[axis])))
                             return false;
                     }
                 }

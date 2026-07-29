@@ -39,33 +39,93 @@ float calculateIoU(const Detection& detection1, const Detection& detection2, boo
     return union_area > 0.0f ? intersection / union_area : 0.0f;
 }
 
-// Parse detections from model outputs (single image)
-// Expected outputs: pred_boxes, logits, encoder_hidden_state, last_hidden_state
-// pred_boxes: [batch, num_queries, 4] with format [x_center, y_center, width, height] (normalized)
-// logits: [batch, num_queries, num_classes] with class probabilities/logits
-std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
-                                                  float confidence_threshold) {
+// Parse detections from a single combined output tensor.
+// Supports two formats:
+//   - [batch, N, 6]: each detection is [x1, y1, x2, y2, score, class_id] (e.g. YOLOv10)
+//   - [batch, N, 5+C]: each detection is [x1, y1, x2, y2, score, class_0, ..., class_C-1]
+//     where score is objectness and class scores are per-class confidences
+static std::vector<Detection> parseSingleTensorDetections(const ov::Tensor& tensor,
+                                                          float confidence_threshold) {
     std::vector<Detection> detections;
 
-    // Find the pred_boxes and logits tensors
-    auto pred_boxes_it = outputs.find("pred_boxes");
-    auto logits_it = outputs.find("logits");
+    const ov::Tensor fp32 = npu::utils::toFP32(tensor);
+    const auto buffer = fp32.data<const float>();
+    const auto shape = tensor.get_shape();
 
-    // Use the provided confidence_threshold parameter as the single source of truth
-    const float confThresh = confidence_threshold;
-
-    if (pred_boxes_it == outputs.end()) {
-        std::cout << "Warning: 'pred_boxes' output not found" << std::endl;
+    if (shape.size() != 3) {
+        std::cout << "Warning: Single-tensor detection requires 3D shape [batch, N, cols], got "
+                  << shape.size() << "D" << std::endl;
         return detections;
     }
 
-    if (logits_it == outputs.end()) {
-        std::cout << "Warning: 'logits' output not found" << std::endl;
+    size_t num_detections = shape[1];
+    size_t cols = shape[2];
+
+    if (cols < 6) {
+        std::cout << "Warning: Single-tensor detection requires at least 6 columns, got "
+                  << cols << std::endl;
         return detections;
     }
 
-    const ov::Tensor& pred_boxes_tensor = pred_boxes_it->second;
-    const ov::Tensor& logits_tensor = logits_it->second;
+    if (cols == 6) {
+        // YOLOv10 format: [x1, y1, x2, y2, score, class_id]
+        for (size_t i = 0; i < num_detections; ++i) {
+            size_t offset = i * cols;
+            float x1 = buffer[offset + 0];
+            float y1 = buffer[offset + 1];
+            float x2 = buffer[offset + 2];
+            float y2 = buffer[offset + 3];
+            float score = buffer[offset + 4];
+            int class_id = static_cast<int>(buffer[offset + 5]);
+
+            // Skip padding detections (score <= 0 or invalid boxes)
+            if (score > confidence_threshold && x2 > x1 && y2 > y1) {
+                detections.emplace_back(x1, y1, x2, y2, score, class_id);
+            }
+        }
+    } else {
+        // Format [x1, y1, x2, y2, objectness_score, class_0_score, ..., class_C-1_score]
+        size_t num_classes = cols - 5;
+        for (size_t i = 0; i < num_detections; ++i) {
+            size_t offset = i * cols;
+            float x1 = buffer[offset + 0];
+            float y1 = buffer[offset + 1];
+            float x2 = buffer[offset + 2];
+            float y2 = buffer[offset + 3];
+            float obj_score = buffer[offset + 4];
+
+            if (obj_score <= confidence_threshold || x2 <= x1 || y2 <= y1) {
+                continue;
+            }
+
+            // Find the class with the highest score
+            float max_class_score = -std::numeric_limits<float>::infinity();
+            int best_class = 0;
+            for (size_t c = 0; c < num_classes; ++c) {
+                float class_score = buffer[offset + 5 + c];
+                if (class_score > max_class_score) {
+                    max_class_score = class_score;
+                    best_class = static_cast<int>(c);
+                }
+            }
+
+            float confidence = obj_score * max_class_score;
+            if (confidence > confidence_threshold) {
+                detections.emplace_back(x1, y1, x2, y2, confidence, best_class);
+            }
+        }
+    }
+
+    return detections;
+}
+
+// Parse detections from two separate output tensors (pred_boxes + logits).
+// pred_boxes: [batch, num_queries, 4] with format [x_center, y_center, width, height] (normalized)
+// logits: [batch, num_queries, num_classes] with class probabilities/logits
+static std::vector<Detection> parseTwoTensorDetections(const ov::Tensor& pred_boxes_tensor,
+                                                       const ov::Tensor& logits_tensor,
+                                                       float confidence_threshold) {
+    std::vector<Detection> detections;
 
     const ov::Tensor boxes_fp32 = npu::utils::toFP32(pred_boxes_tensor);
     const ov::Tensor logits_fp32 = npu::utils::toFP32(logits_tensor);
@@ -76,21 +136,15 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
     const auto boxes_shape = pred_boxes_tensor.get_shape();
     const auto logits_shape = logits_tensor.get_shape();
 
-    // Expected shapes: pred_boxes [batch, num_queries, 4], logits [batch, num_queries, num_classes]
     if (boxes_shape.size() != 3 || logits_shape.size() != 3) {
         std::cout << "Unexpected tensor shapes - pred_boxes: " << boxes_shape
                   << ", logits: " << logits_shape << std::endl;
         return detections;
     }
 
-    size_t batch_size = boxes_shape[0];
     size_t num_queries = boxes_shape[1];
-    size_t box_dim = boxes_shape[2];  // Should be 4
+    size_t box_dim = boxes_shape[2];
     size_t num_classes = logits_shape[2];
-
-    if (batch_size != 1) {
-        std::cout << "Warning: batch_size = " << batch_size << ", expected 1 for single-image inference" << std::endl;
-    }
 
     if (box_dim != 4) {
         std::cout << "Error: Expected 4 box coordinates, got " << box_dim << std::endl;
@@ -110,20 +164,16 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         float width = boxes_buffer[box_offset + 2];
         float height = boxes_buffer[box_offset + 3];
 
-        // Convert from [x_center, y_center, w, h] to [x_min, y_min, x_max, y_max]
         float x_min = x_center - width / 2.0f;
         float y_min = y_center - height / 2.0f;
         float x_max = x_center + width / 2.0f;
         float y_max = y_center + height / 2.0f;
 
-        // Get class logits/probabilities
         size_t logits_offset = queryIdx * num_classes;
 
-        // Find class with highest confidence and compute proper softmax
         float max_logit = -std::numeric_limits<float>::infinity();
         int best_class = -1;
 
-        // First pass: find max logit for numerical stability
         for (size_t c = 0; c < num_classes; ++c) {
             float logit = logits_buffer[logits_offset + c];
             if (logit > max_logit) {
@@ -132,23 +182,81 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
             }
         }
 
-        // Second pass: compute softmax with numerical stability
-        // softmax(x_i) = exp(x_i - max) / sum(exp(x_j - max))
         float exp_sum = 0.0f;
         for (size_t c = 0; c < num_classes; ++c) {
             float logit = logits_buffer[logits_offset + c];
             exp_sum += std::exp(logit - max_logit);
         }
 
-        // Confidence is the softmax probability of the best class
         float confidence = 1.0f / exp_sum;
 
-        // Filter by confidence threshold (use resolved per-layer threshold)
-        if (confidence > confThresh && best_class >= 0) {
+        if (confidence > confidence_threshold && best_class >= 0) {
             detections.emplace_back(x_min, y_min, x_max, y_max, confidence, best_class);
         }
     }
 
+    return detections;
+}
+
+// Automatically detects the output formats for DETR and YOLOv10 style models
+std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
+                                                  float confidence_threshold) {
+    std::vector<Detection> detections;
+
+    if (outputs.empty()) {
+        std::cout << "Warning: No output tensors provided" << std::endl;
+        return detections;
+    }
+
+    // Strategy 1: Look for named "pred_boxes" and "logits" tensors (DETR-style)
+    auto pred_boxes_it = outputs.find("pred_boxes");
+    auto logits_it = outputs.find("logits");
+
+    if (pred_boxes_it != outputs.end() && logits_it != outputs.end()) {
+        return parseTwoTensorDetections(pred_boxes_it->second, logits_it->second, confidence_threshold);
+    }
+
+    // Strategy 2: Single output tensor so parse as combined detections
+    if (outputs.size() == 1) {
+        const auto& [name, tensor] = *outputs.begin();
+        const auto shape = tensor.get_shape();
+
+        if (shape.size() == 3 && shape[2] >= 6) {
+            return parseSingleTensorDetections(tensor, confidence_threshold);
+        }
+
+        std::cout << "Warning: Single output '" << name << "' with shape " << shape
+                  << " does not match expected detection format [batch, N, 6+]" << std::endl;
+        return detections;
+    }
+
+    // Strategy 3: Two outputs without standard names so infer roles by shape
+    // The tensor with last dim == 4 is boxes, the other is logits/classes
+    if (outputs.size() == 2) {
+        const ov::Tensor* boxes_tensor = nullptr;
+        const ov::Tensor* classes_tensor = nullptr;
+        std::string boxes_name, classes_name;
+
+        for (const auto& [name, tensor] : outputs) {
+            const auto shape = tensor.get_shape();
+            if (shape.size() == 3 && shape[2] == 4) {
+                boxes_tensor = &tensor;
+                boxes_name = name;
+            } else {
+                classes_tensor = &tensor;
+                classes_name = name;
+            }
+        }
+
+        if (boxes_tensor && classes_tensor) {
+            return parseTwoTensorDetections(*boxes_tensor, *classes_tensor, confidence_threshold);
+        }
+    }
+
+    std::cout << "Warning: Could not determine detection format from outputs. Available tensors:" << std::endl;
+    for (const auto& [name, tensor] : outputs) {
+        std::cout << "  " << name << " : " << tensor.get_shape() << std::endl;
+    }
     return detections;
 }
 

@@ -160,7 +160,7 @@ KERNEL (reorder_data_fast_b1)(
 
     tmp_data_idx  = data_idx / OUTPUT_SIZE_W;
     const uint w = data_idx - tmp_data_idx * OUTPUT_SIZE_W;
-#else // BYXF?
+#else // BYXF or blocked formats (b_fs_yx_fsv16, etc.)
     uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;

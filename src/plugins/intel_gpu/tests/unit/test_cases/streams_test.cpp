@@ -40,7 +40,7 @@ public:
 
         auto output_memory = outputs.at("relu").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -118,8 +118,8 @@ public:
         auto output_memory0 = outputs0.at("conv").get_memory();
         auto output_memory1 = outputs1.at("conv").get_memory();
         auto output_layout = output_memory0->get_layout();
-        cldnn::mem_lock<float> output_ptr0(output_memory0, get_test_stream());
-        cldnn::mem_lock<float> output_ptr1(output_memory1, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output_memory0, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output_memory1, get_test_stream());
 
         auto wmem0 = network0->get_output_memory("weights");
         auto wmem1 = network1->get_output_memory("weights");
@@ -206,8 +206,8 @@ public:
         auto output_memory0 = outputs0.at("conv").get_memory();
         auto output_memory1 = outputs1.at("conv").get_memory();
         auto output_layout = output_memory0->get_layout();
-        cldnn::mem_lock<float> output_ptr0(output_memory0, get_test_stream());
-        cldnn::mem_lock<float> output_ptr1(output_memory1, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output_memory0, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output_memory1, get_test_stream());
 
         auto wmem0 = network0->get_output_memory("weights");
         auto wmem1 = network1->get_output_memory("weights");

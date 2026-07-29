@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <openvino/runtime/tensor.hpp>
 
@@ -42,6 +43,14 @@ MatchResult matchDetectionsForClass(const std::vector<Detection>& predictions,
                                     float iou_threshold,
                                     bool include_boundaries = true);
 
+// Parse detections from model outputs.
+// Supports multiple output formats:
+//   - Two-layer mode: outputs contain "pred_boxes" [batch, N, 4] (cx, cy, w, h normalized)
+//     and "logits" [batch, N, num_classes]
+//   - Single-layer mode (e.g. YOLOv10): single output with shape [batch, N, 6]
+//     where each detection is [x1, y1, x2, y2, score, class_id]
+//   - Single-layer mode with per-class scores: single output with shape [batch, N, 5+C]
+//     where each detection is [x1, y1, x2, y2, score, class_0_score, ..., class_C-1_score]
 std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
                                      float confidence_threshold = 0.0f);
 }  // namespace utils

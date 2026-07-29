@@ -157,7 +157,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf_main = {"_MAIN",
-                                           {"data_set_offset", "in_data_set_idx + i * workers_per_data_set", "0", "0"},
+                                           {"data_set_offset", "in_data_set_idx + output_idx * workers_per_data_set", "0", "0"},
                                            "dequantized",
                                            activation_dt};
         FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",

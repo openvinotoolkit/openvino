@@ -4,8 +4,6 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-ov_try_use_gold_linker()
-
 ov_deprecated_no_errors()
 
 message(STATUS "ONNX frontend test enabled")
@@ -53,6 +51,7 @@ endif()
 set(MULTI_TEST_SRC
     onnx_import.in.cpp
     onnx_import_com_microsoft.in.cpp
+    onnx_import_ml_normalizer.in.cpp
     onnx_import_controlflow.in.cpp
     onnx_import_const_folding.in.cpp
     onnx_import_convpool.in.cpp
@@ -69,6 +68,7 @@ set(SRC
     conversion.cpp
     convert_tests.cpp
     convert_partially_tests.cpp
+    gather_block_quantized_tests.cpp
     graph_iterator.cpp
     library_extension.cpp
     load_from.cpp

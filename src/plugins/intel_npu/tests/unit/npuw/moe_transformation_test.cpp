@@ -6,10 +6,24 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <common_test_utils/test_common.hpp>
+#include <map>
 
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "llm_test_helpers.hpp"
+#include "model_builder.hpp"
+#include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
+#include "partitioning/online/compiler.hpp"
+#include "partitioning/online/snapshot.hpp"
+#include "partitioning/partitioning.hpp"
+#include "partitioning/patterns/moe.hpp"
 
 /*
  * Test suite for MoE Expert Transformation
@@ -555,6 +569,475 @@ TEST_F(MoETransformationTest, AWQvsNonAWQComparison) {
 
     EXPECT_EQ(result_awq->get_input_partial_shape(0), result_non_awq->get_input_partial_shape(0))
         << "AWQ and non-AWQ models should have identical output shapes";
+}
+
+// ============================================================================
+// GPTOSSMoEFFN + build_llm E2E Tests (uses build_moe_llm_test_model from llm_test_helpers.hpp)
+// ============================================================================
+
+TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
+    auto model = ov::test::npuw::build_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_topk = false, has_reduce_sum = false, has_softmax = false;
+    size_t topk_router_count = 0, scatter_count = 0, softmax_router_count = 0;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op))
+            has_reduce_sum = true;
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
+            has_topk = true;
+            if (topk->get_friendly_name().find("router") != std::string::npos) {
+                EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
+                topk_router_count++;
+            }
+        }
+        if (auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(op)) {
+            has_softmax = true;
+            if (softmax->get_friendly_name().find("router") != std::string::npos) {
+                softmax_router_count++;
+            }
+        }
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op))
+            scatter_count++;
+    }
+
+    EXPECT_TRUE(has_tile) << "Missing Tile (expert)";
+    EXPECT_TRUE(has_topk) << "Missing TopK (router)";
+    EXPECT_TRUE(has_reduce_sum) << "Missing ReduceSum (aggregation)";
+    EXPECT_TRUE(has_softmax) << "Missing Softmax (router)";
+    EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
+    EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+}
+
+// Qwen3 MoE topology: separate gate/up MatMuls (SwiGLU) and a Softmax->TopK router with
+// ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router patterns.
+TEST_F(MoETransformationTest, BuildQwen3MoELLM_HasExpertAndRouterNodes) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_topk = false, has_softmax = false;
+    size_t topk_router_count = 0, softmax_router_count = 0, scatter_count = 0;
+    size_t router_reduce_count = 0, router_divide_count = 0, swish_count = 0;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto& fname = op->get_friendly_name();
+        const bool is_router = fname.find("router") != std::string::npos;
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v4::Swish>(op))
+            swish_count++;
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
+            has_topk = true;
+            if (is_router) {
+                EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
+                topk_router_count++;
+            }
+        }
+        if (std::dynamic_pointer_cast<ov::op::v8::Softmax>(op)) {
+            has_softmax = true;
+            if (is_router)
+                softmax_router_count++;
+        }
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op) ||
+            std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(op))
+            scatter_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op))
+            router_reduce_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::Divide>(op))
+            router_divide_count++;
+    }
+
+    EXPECT_TRUE(has_tile) << "Missing Tile (expert)";
+    EXPECT_TRUE(has_topk) << "Missing TopK (router)";
+    EXPECT_TRUE(has_softmax) << "Missing Softmax (router)";
+    // Two layers, separate gate/up -> one Swish per gate projection per layer.
+    EXPECT_EQ(swish_count, 2u) << "One expert Swish (gate activation) per layer";
+    EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
+    EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+    // Qwen3-specific renormalization: ReduceSum + Divide on the router scores per layer.
+    EXPECT_EQ(router_reduce_count, 2u) << "One router ReduceSum (renormalization) per layer";
+    EXPECT_EQ(router_divide_count, 2u) << "One router Divide (renormalization) per layer";
+}
+
+// Gemma4 MoE topology: separate gate/up MatMuls with Gelu (not Swish), a
+// Softmax->TopK router with ReduceSum->Divide + per-expert scale Gather, and an
+// extra Slice before ScatterElementsUpdate.  Matches NPUW's Gemma4Expert + Gemma4Router.
+TEST_F(MoETransformationTest, BuildGemma4MoELLM_HasExpertAndRouterNodes) {
+    auto model = ov::test::npuw::build_gemma4_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_topk = false, has_softmax = false, has_gelu = false;
+    size_t topk_router_count = 0, softmax_router_count = 0, scatter_count = 0;
+    size_t router_reduce_count = 0, router_divide_count = 0, router_gather_count = 0;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto& fname = op->get_friendly_name();
+        const bool is_router = fname.find(".router") != std::string::npos;
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v7::Gelu>(op))
+            has_gelu = true;
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
+            has_topk = true;
+            if (is_router) {
+                EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
+                topk_router_count++;
+            }
+        }
+        if (std::dynamic_pointer_cast<ov::op::v8::Softmax>(op)) {
+            has_softmax = true;
+            if (is_router)
+                softmax_router_count++;
+        }
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op) ||
+            std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(op))
+            scatter_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op))
+            router_reduce_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::Divide>(op))
+            router_divide_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v8::Gather>(op))
+            router_gather_count++;
+    }
+
+    EXPECT_TRUE(has_tile) << "Missing Tile (expert input broadcast)";
+    EXPECT_TRUE(has_topk) << "Missing TopK (router)";
+    EXPECT_TRUE(has_softmax) << "Missing Softmax (router)";
+    // Gemma4 expert activation is Gelu, not Swish.
+    EXPECT_TRUE(has_gelu) << "Missing Gelu (expert gate activation)";
+    EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
+    EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+    // Gemma4-specific renormalization and per-expert scale.
+    EXPECT_EQ(router_reduce_count, 2u) << "One router ReduceSum (renormalization) per layer";
+    EXPECT_EQ(router_divide_count, 2u) << "One router Divide (renormalization) per layer";
+    EXPECT_EQ(router_gather_count, 2u) << "One router Gather (per-expert scale) per layer";
+}
+
+// Minimal Qwen3 MoE config: num_experts + moe_factory, everything else defaulted.
+TEST_F(MoETransformationTest, Qwen3MoE_MinimalConfigBuildsFromFactory) {
+    ov::test::npuw::ModelBuilder mb;
+    ov::test::npuw::LLMConfig cfg;
+    cfg.num_experts = 8;
+    cfg.moe_factory = ov::test::npuw::make_qwen3_moe_ffn;
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = mb.build_llm(cfg));
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_swish = false, has_softmax = false, has_topk = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v4::Swish>(op))
+            has_swish = true;
+        if (std::dynamic_pointer_cast<ov::op::v8::Softmax>(op))
+            has_softmax = true;
+        if (std::dynamic_pointer_cast<ov::op::v11::TopK>(op))
+            has_topk = true;
+    }
+    EXPECT_TRUE(has_tile && has_swish && has_softmax && has_topk);
+}
+
+inline ::intel_npu::Config make_moe_isolate_cfg() {
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    ::intel_npu::Config cfg(opt_desc);
+    cfg.update({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "MOE"}});
+    return cfg;
+}
+
+inline size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::string& tag) {
+    return static_cast<size_t>(std::count_if(ens.groups.begin(), ens.groups.end(), [&tag](const ov::npuw::Group& g) {
+        return g.gettag() == tag;
+    }));
+}
+
+// The builder model is stateful (KV cache) like a real LLM; the partitioner and the
+// device-routed transform need static shapes, so prepare it the way production prepares
+// an LLM: StatefulToStateless, then a static reshape (query_len tokens, past_len cached).
+inline std::shared_ptr<ov::Model> make_static_qwen3_moe_model(int64_t query_len, int64_t past_len) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else {  // past KV inputs: [batch, kv_heads, past_len, head_dim]
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    return model;
+}
+
+// The online partitioner with the MOE preset must isolate an expert group from the builder's
+// output. Only the expert is asserted: since #36427 Qwen3Router isolates nothing (it only tags
+// K on the TopK), so router coverage lives in the device-routed-transform test and moe_k_tag_test.
+TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpert) {
+    auto model = make_static_qwen3_moe_model(/*query_len=*/8, /*past_len=*/8);
+    ASSERT_NE(model, nullptr);
+
+    auto cfg = make_moe_isolate_cfg();
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    // Qwen3Expert bound -> at least one expert group. (Exact count depends on the
+    // partitioner's fusion heuristics, so we don't couple the assertion to layer count.)
+    EXPECT_GE(count_groups_with_tag(ens, "expert"), 1u) << "Qwen3Expert did not isolate any expert group";
+}
+
+// End-to-end against the *production* MoE pipeline (not just the matchers): the full
+// ApplyMoEDeviceRoutedTransforms pass — DeviceRoutedMoETransform followed by GatherTo2DGather,
+// exactly what production runs — must accept the builder's Qwen3 MoE and rewrite it into the
+// gathered (K-active-expert) form. detect_router_by_topology requires the decoding stage
+// (TopK indices batch dim == 1), so the model is shaped to a single token. This proves the
+// builder output agrees with the hand-rolled create_qwen3_moe_graph that the transform's own
+// unit tests use.
+TEST_F(MoETransformationTest, Qwen3MoE_DeviceRoutedTransformRewritesBuilderOutput) {
+    // Decoding shape: single token so the router TopK indices have batch dim 1.
+    auto model = make_static_qwen3_moe_model(/*query_len=*/1, /*past_len=*/8);
+    ASSERT_NE(model, nullptr);
+
+    // Count expert-weight Gathers only (the MoE region), not the embedding Gather that any
+    // LLM has. The transform names its inserted gathers under the expert/mlp scope.
+    auto count_expert_gathers = [](const std::shared_ptr<ov::Model>& m) {
+        size_t n = 0;
+        for (const auto& op : m->get_ordered_ops()) {
+            if (ov::as_type_ptr<ov::op::v8::Gather>(op) &&
+                op->get_friendly_name().find("expert") != std::string::npos) {
+                ++n;
+            }
+        }
+        return n;
+    };
+    EXPECT_EQ(count_expert_gathers(model), 0u) << "No expert Gather before the device-routed transform";
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::npuw::ApplyMoEDeviceRoutedTransforms>();
+    manager.run_passes(model);
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // The transform replaces the batched all-expert MatMuls with per-active-expert Gathers
+    // (weight + scale Gather for each of gate/up/down -> 6 per layer). If it fired at all,
+    // expert Gathers appear and every Tile's repeat[0] is rewritten from num_experts to k.
+    EXPECT_GT(count_expert_gathers(model), 0u)
+        << "ApplyMoEDeviceRoutedTransforms did not rewrite the builder's Qwen3 MoE";
+
+    constexpr int64_t kTopK = 2;
+    size_t checked_tiles = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto tile = ov::as_type_ptr<ov::op::v0::Tile>(op);
+        if (!tile || tile->get_friendly_name().find("expert") == std::string::npos) {
+            continue;  // skip non-MoE tiles (masks/embeddings)
+        }
+        auto rep = ov::as_type_ptr<ov::op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(rep, nullptr);
+        EXPECT_EQ(rep->cast_vector<int64_t>()[0], kTopK) << "expert Tile repeat[0] should be rewritten to k";
+        ++checked_tiles;
+    }
+    EXPECT_GT(checked_tiles, 0u) << "no expert Tile found to verify";
+}
+
+// ============================================================================
+// Gemma4Expert pattern tests
+// ============================================================================
+
+// Build a Gemma4-style expert subgraph that matches NPUW's Gemma4Expert pattern:
+//   Tile -> Reshape1
+//   gate:  Reshape1 -> MatMul1(DQ_gate) -> Gelu
+//   up:    Reshape1 -> MatMul2(DQ_up)
+//   merge: Gelu * MatMul2 -> Multiply1
+//   down:  Multiply1 -> MatMul3(DQ_down) -> Reshape2
+//   Pattern root: Reshape2 * router_scores -> output_multiply
+//
+// If with_reduce_sum is true a ReduceSum consumer is appended (simulates the downstream
+// ReduceSum that exists in the full MoE graph, which is isolated into the expert group
+// only in the decoding stage).
+static std::shared_ptr<Model> create_gemma4_expert_graph(size_t num_experts,
+                                                         size_t hidden_dim = 64,
+                                                         size_t intermediate_dim = 128,
+                                                         size_t token_count = 1,
+                                                         bool with_reduce_sum = false) {
+    ov::ParameterVector params;
+
+    // Expert input: [token_count, hidden_dim]
+    auto expert_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{token_count, hidden_dim});
+    expert_input->set_friendly_name("expert_input");
+    params.push_back(expert_input);
+
+    // Tile: [token_count, hidden_dim] -> [num_experts * token_count, hidden_dim]
+    auto repeats =
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{static_cast<int64_t>(num_experts), 1});
+    auto tile = std::make_shared<op::v0::Tile>(expert_input, repeats);
+    tile->set_friendly_name("expert_tile");
+
+    // Reshape1: [num_experts, token_count, hidden_dim]
+    auto reshape_shape1 = op::v0::Constant::create(element::i64,
+                                                   Shape{3},
+                                                   std::vector<int64_t>{static_cast<int64_t>(num_experts),
+                                                                        static_cast<int64_t>(token_count),
+                                                                        static_cast<int64_t>(hidden_dim)});
+    auto reshape1 = std::make_shared<op::v1::Reshape>(tile, reshape_shape1, false);
+    reshape1->set_friendly_name("expert_reshape1");
+
+    // Helper lambda: build a DQ chain (nf4 -> fp16 -> Multiply(scale) -> fp32)
+    auto make_dq_weight = [&](const std::string& name, const Shape& weight_shape) -> std::shared_ptr<Node> {
+        auto w_nf4 = std::make_shared<op::v0::Parameter>(element::nf4, weight_shape);
+        w_nf4->set_friendly_name(name + "_nf4");
+        params.push_back(w_nf4);
+        auto w_fp16 = std::make_shared<op::v0::Convert>(w_nf4, element::f16);
+        w_fp16->set_friendly_name(name + "_fp16");
+        Shape scale_shape{weight_shape[0], weight_shape[1], 1};
+        auto scale = std::make_shared<op::v0::Parameter>(element::f16, scale_shape);
+        scale->set_friendly_name(name + "_scale");
+        params.push_back(scale);
+        auto w_scaled = std::make_shared<op::v1::Multiply>(w_fp16, scale);
+        w_scaled->set_friendly_name(name + "_multiply");
+        auto w_fp32 = std::make_shared<op::v0::Convert>(w_scaled, element::f32);
+        w_fp32->set_friendly_name(name + "_fp32");
+        return w_fp32;
+    };
+
+    // Gate projection: MatMul1(reshape1, DQ_gate) -> Gelu
+    auto gate_dq = make_dq_weight("gate_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul1 = std::make_shared<op::v0::MatMul>(reshape1, gate_dq, false, true);
+    matmul1->set_friendly_name("expert_matmul1_gate");
+    auto gelu = std::make_shared<op::v7::Gelu>(matmul1);
+    gelu->set_friendly_name("expert_gelu");
+
+    // Up projection: MatMul2(reshape1, DQ_up)
+    auto up_dq = make_dq_weight("up_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul2 = std::make_shared<op::v0::MatMul>(reshape1, up_dq, false, true);
+    matmul2->set_friendly_name("expert_matmul2_up");
+
+    // SwiGLU merge: Gelu(gate) * up
+    auto multiply1 = std::make_shared<op::v1::Multiply>(gelu, matmul2);
+    multiply1->set_friendly_name("expert_multiply1_swiglu");
+
+    // Down projection: MatMul3(merge, DQ_down) -> Reshape2
+    auto down_dq = make_dq_weight("down_weights", Shape{num_experts, hidden_dim, intermediate_dim});
+    auto matmul3 = std::make_shared<op::v0::MatMul>(multiply1, down_dq, false, true);
+    matmul3->set_friendly_name("expert_matmul3_down");
+    auto reshape_shape2 = op::v0::Constant::create(element::i64,
+                                                   Shape{3},
+                                                   std::vector<int64_t>{static_cast<int64_t>(num_experts),
+                                                                        static_cast<int64_t>(token_count),
+                                                                        static_cast<int64_t>(hidden_dim)});
+    auto reshape2 = std::make_shared<op::v1::Reshape>(matmul3, reshape_shape2, false);
+    reshape2->set_friendly_name("expert_reshape2");
+
+    // Pattern root: Reshape2 * scattered_router_scores
+    auto router_scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_experts, token_count, 1});
+    router_scores->set_friendly_name("router_scores");
+    params.push_back(router_scores);
+    auto output_multiply = std::make_shared<op::v1::Multiply>(reshape2, router_scores);
+    output_multiply->set_friendly_name("output_multiply");
+
+    Output<Node> result_input = output_multiply->output(0);
+
+    if (with_reduce_sum) {
+        // Downstream ReduceSum: aggregates over expert dim (axis 0)
+        auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
+        auto reduce_sum = std::make_shared<op::v1::ReduceSum>(output_multiply, reduce_axis, false);
+        reduce_sum->set_friendly_name("expert_downstream_reduce_sum");
+        result_input = reduce_sum->output(0);
+    }
+
+    auto result = std::make_shared<op::v0::Result>(result_input);
+    auto model = std::make_shared<Model>(ResultVector{result}, params);
+    model->set_friendly_name("gemma4_expert_" + std::to_string(num_experts));
+    return model;
+}
+
+// Verify that Gemma4Expert isolates all matched nodes with the "expert" tag.
+TEST_F(MoETransformationTest, Gemma4Expert_IsolatesNodes) {
+    constexpr size_t num_experts = 8;
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
+                                            /*token_count=*/1);
+
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Expert>(snapshot, "expert");
+    ASSERT_NO_THROW(rewr.run_on_model(model));
+
+    // At least the core compute nodes (Tile, Reshape, MatMuls, Gelu, Multiply) must be isolated.
+    const auto& node_map = *snapshot->getNodeToGroupMap();
+    size_t isolated_count = 0;
+    for (const auto& [node, group] : node_map) {
+        if (group->isolatedTag() == "expert")
+            ++isolated_count;
+    }
+    EXPECT_GT(isolated_count, 0u) << "Gemma4Expert did not isolate any node";
+}
+
+// In decoding mode (token_count == 1, middle shape dim == 1) the downstream ReduceSum
+// must also be isolated into the expert group.
+TEST_F(MoETransformationTest, Gemma4Expert_DecodingIsolatesReduceSum) {
+    constexpr size_t num_experts = 8;
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
+                                            /*token_count=*/1,
+                                            /*with_reduce_sum=*/true);
+
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Expert>(snapshot, "expert");
+    rewr.run_on_model(model);
+
+    // The downstream ReduceSum must be tagged "expert" (decoding path).
+    bool reduce_sum_isolated = false;
+    for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
+        if (group->isolatedTag() == "expert" && std::dynamic_pointer_cast<op::v1::ReduceSum>(node)) {
+            reduce_sum_isolated = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(reduce_sum_isolated) << "Downstream ReduceSum must be isolated into the expert group in decoding mode";
+}
+
+// In prefill mode (token_count > 1) the downstream ReduceSum must NOT be isolated.
+TEST_F(MoETransformationTest, Gemma4Expert_PrefillDoesNotIsolateReduceSum) {
+    constexpr size_t num_experts = 8;
+    constexpr size_t prefill_tokens = 16;
+    auto model = create_gemma4_expert_graph(num_experts,
+                                            /*hidden_dim=*/64,
+                                            /*intermediate_dim=*/128,
+                                            /*token_count=*/prefill_tokens,
+                                            /*with_reduce_sum=*/true);
+
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Expert>(snapshot, "expert");
+    rewr.run_on_model(model);
+
+    for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
+        if (std::dynamic_pointer_cast<op::v1::ReduceSum>(node) &&
+            node->get_friendly_name() == "expert_downstream_reduce_sum") {
+            EXPECT_NE(group->isolatedTag(), "expert") << "Downstream ReduceSum must NOT be isolated in prefill mode";
+        }
+    }
 }
 
 }  // namespace

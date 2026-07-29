@@ -106,7 +106,7 @@ public:
         return make_deep_copy<SegmentMaxImpl>(this);
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
         // Always prefer the optimized kernel (binary search) since segment_ids
         // is required to be sorted (non-decreasing) by the SegmentMax-16 spec.
         return {KernelsTypes::OPT};

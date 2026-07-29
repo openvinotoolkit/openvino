@@ -18,7 +18,7 @@ namespace pass {
 namespace low_precision {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(LowPrecisionTransformations);
+    OV_ITT_DOMAIN(LowPrecisionTransformations, "ov::low_precision_transformations");
 }   // namespace domains
 }   // namespace itt
 }   // namespace low_precision

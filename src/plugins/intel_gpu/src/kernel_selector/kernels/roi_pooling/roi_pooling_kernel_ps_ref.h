@@ -14,7 +14,7 @@ namespace kernel_selector {
 class PSROIPoolingKernelRef : public ROIPoolingKernelBase {
 public:
     PSROIPoolingKernelRef() : ROIPoolingKernelBase("roi_pooling_ps_ref") {}
-    virtual ~PSROIPoolingKernelRef() {}
+    ~PSROIPoolingKernelRef() override {}
 
     using DispatchData = CommonDispatchData;
 

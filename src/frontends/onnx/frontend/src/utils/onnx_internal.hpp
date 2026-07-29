@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -38,7 +39,7 @@ using ::ONNX_NAMESPACE::ModelProto;
 /// \return     An ov::Model that represents a single output from the created
 /// graph.
 std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ModelProto> model_proto,
-                                             const std::string& model_path,
+                                             const std::filesystem::path& model_path,
                                              detail::MappedMemoryHandles mmap_cache,
                                              ov::frontend::ExtensionHolder extensions = {});
 
@@ -51,7 +52,7 @@ std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ModelProto> model_p
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 /// \return     A ov::Model with ONNXFrameworkNodes
 std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto> model_proto,
-                                                     const std::string& model_path,
+                                                     const std::filesystem::path& model_path,
                                                      detail::MappedMemoryHandles mmap_cache,
                                                      ov::frontend::ExtensionHolder extensions = {});
 

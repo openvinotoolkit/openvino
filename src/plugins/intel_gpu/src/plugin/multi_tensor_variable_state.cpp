@@ -106,7 +106,7 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 
                     if (ov::element::Type(kv_layout.data_type).size() == 2)
                         copy_element<uint16_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
-                    else if (ov::element::Type(kv_layout.data_type).size() == 2)
+                    else if (ov::element::Type(kv_layout.data_type).size() == 4)
                         copy_element<uint32_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
                 }
             }
@@ -165,7 +165,7 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
     const std::vector<cldnn::layout>& output_layouts,
     size_t beam_idx,
     size_t concat_idx,
-    bool has_zp_state = false)
+    bool has_zp_state)
     : VariableStateIndirectKVCache(info, context, shape_predictor, beam_idx, concat_idx),
       m_has_zp_state(has_zp_state) {
     OPENVINO_ASSERT((has_zp_state && output_layouts.size() == 3) ||

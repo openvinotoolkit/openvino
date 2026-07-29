@@ -17,31 +17,15 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace common {
-ModelProto parse_from_file(const std::string& file_path) {
-    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
+ModelProto parse_from_file(const std::filesystem::path& file_path) {
+    std::ifstream file_stream{file_path, std::ios::binary};
 
-    if (!file_stream.is_open()) {
-        OPENVINO_THROW("Could not open the file: \"" + file_path, '"');
-    };
+    OPENVINO_ASSERT(file_stream.is_open(), "Could not open the file: ", file_path);
 
     auto model_proto = parse_from_istream(file_stream);
     file_stream.close();
     return model_proto;
 }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-ModelProto parse_from_file(const std::wstring& file_path) {
-    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
-
-    if (!file_stream.is_open()) {
-        OPENVINO_THROW("Could not open the file: \"", ov::util::wstring_to_string(file_path), '"');
-    };
-
-    auto model_proto = parse_from_istream(file_stream);
-    file_stream.close();
-    return model_proto;
-}
-#endif
 
 ModelProto parse_from_istream(std::istream& model_stream) {
     if (!model_stream.good()) {

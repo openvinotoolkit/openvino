@@ -1,0 +1,179 @@
+ir_version: 13
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    input: "B"
+    input: "sequence_lens"
+    input: "initial_h"
+    input: "initial_c"
+    input: ""
+    input: "W_scale"
+    input: "W_zero_point"
+    input: "R_scale"
+    input: "R_zero_point"
+    output: "Y"
+    output: "Y_h"
+    output: "Y_c"
+    op_type: "DynamicQuantizeLSTM"
+    attribute {
+      name: "hidden_size"
+      i: 2
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "dq_lstm_const_weights_test"
+  initializer {
+    name: "W"
+    dims: 1
+    dims: 3
+    dims: 8
+    data_type: 3
+    raw_data: "\x0c\xf9\x05\x09\xf5\x03\x04\xfa\x08\x0d\xf7\x02\x07\xfb\x0a\x01\xfc\x06\x0e\xf8\x0c\xf6\x0b\xfd"
+  }
+  initializer {
+    name: "R"
+    dims: 1
+    dims: 2
+    dims: 8
+    data_type: 3
+    raw_data: "\x05\xfd\x04\x07\xfa\x02\x01\xfc\x09\x08\xfb\x03\x06\xf9\x0a\xfe"
+  }
+  initializer {
+    name: "W_scale"
+    dims: 1
+    data_type: 1
+    raw_data: "\xcd\xcc\x4c\x3d"
+  }
+  initializer {
+    name: "W_zero_point"
+    dims: 1
+    data_type: 3
+    raw_data: "\x01"
+  }
+  initializer {
+    name: "R_scale"
+    dims: 1
+    data_type: 1
+    raw_data: "\x0a\xd7\x23\x3d"
+  }
+  initializer {
+    name: "R_zero_point"
+    dims: 1
+    data_type: 3
+    raw_data: "\xfe"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  input {
+    name: "sequence_lens"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 17
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

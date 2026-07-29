@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <string>
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -92,20 +91,6 @@ public:
      * @return a new Shape with dummy values instead of undefined dims
      */
     static Shape makeDummyShape(const Shape& shape, const VectorDims& dummyVals);
-
-    /**
-     * @brief Converts dim to string, undefined dim represented as ?
-     * @param dim Dim to be converted
-     * @return dim as string
-     */
-    static std::string dim2str(Dim dim);
-
-    /**
-     * @brief Converts dims to string, undefined dim represented as ?
-     * @param dim Dims to be converted
-     * @return dims as string
-     */
-    static std::string dims2str(const VectorDims& dims);
 };
 
 }  // namespace ov::intel_cpu

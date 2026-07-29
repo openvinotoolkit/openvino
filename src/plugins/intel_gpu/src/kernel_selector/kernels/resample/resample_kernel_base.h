@@ -29,7 +29,7 @@ struct resample_params : public base_params {
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
-        k.EnableReampleType(resampleType);
+        k.EnableResampleType(resampleType);
         return k;
     }
 };
@@ -42,7 +42,7 @@ public:
     using DispatchData = CommonDispatchData;
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
-    virtual ~ResampleKernelBase() {}
+    ~ResampleKernelBase() override {}
 
 protected:
     bool Validate(const Params& p) const override;

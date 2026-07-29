@@ -43,7 +43,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint items_num = data_size / workers_per_data;
     const uint leftovers = data_size % workers_per_data;
 
-    #if HAS_DYNAMIC_PADDING
+    #if HAS_PADDING
         uint b_idx = 0;
         uint f_idx = 0;
         uint z_idx = 0;

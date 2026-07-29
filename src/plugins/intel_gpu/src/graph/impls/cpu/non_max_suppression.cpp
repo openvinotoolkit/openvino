@@ -121,10 +121,10 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
     mem_lock<T, mem_lock_type::read> boxes_lock(mem, stream);
     auto ptr = boxes_lock.data();
 
-    for (int bi = 0; bi < batch_size; ++bi) {
+    for (int64_t bi = 0; bi < batch_size; ++bi) {
         result[bi].reserve(boxes_num);
-        for (int bxi = 0; bxi < boxes_num; ++bxi) {
-            int offset = bi * boxes_num * 4 + bxi * 4;
+        for (int64_t bxi = 0; bxi < boxes_num; ++bxi) {
+            int64_t offset = bi * boxes_num * 4 + bxi * 4;
             if (center_point) {
                 result[bi].emplace_back(static_cast<float>(ptr[offset + 0]),
                                         static_cast<float>(ptr[offset + 1]),

@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
@@ -12,9 +11,6 @@
 #include <transformations/cpu_opset/x64/pass/convert_to_interaction.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
-#include <openvino/pass/manager.hpp>
 #include "ov_ops/type_relaxed.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -30,19 +26,23 @@ using namespace testing;
 using namespace ov::intel_cpu;
 using namespace ov;
 
-static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
+static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input,
+                                                           const std::string& name = "") {
     auto input_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
     auto input_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
     auto output_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
-    return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    if (!name.empty())
+        fq->set_friendly_name(name);
+    return fq;
 }
 
 static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputShape, bool intraFQ = false, bool postFQ = false) {
     std::shared_ptr<ov::opset1::Parameter> input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
     std::shared_ptr<ov::Node> dense_feature = nullptr;
     if (intraFQ) {
-        dense_feature = createFQ(input);
+        dense_feature = createFQ(input, "fq_dense_init");
     } else {
         dense_feature = input;
     }
@@ -53,7 +53,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
         auto sparse_input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
         std::shared_ptr<ov::Node> sparse_feat = nullptr;
         if (intraFQ) {
-            sparse_feat = createFQ(sparse_input);
+            sparse_feat = createFQ(sparse_input, "fq_sparse_init_" + std::to_string(i));
         } else {
             sparse_feat = sparse_input;
         }
@@ -80,7 +80,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
     auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, transpose1);
     std::shared_ptr<ov::Node> inter = nullptr;
     if (intraFQ) {
-        inter = createFQ(matmul);
+        inter = createFQ(matmul, "fq_matmul");
     } else {
         inter = matmul;
     }
@@ -128,109 +128,73 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
     return model;
 }
 
-TEST(TransformationTests, ConvertToInteractionTest1) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertToInteraction) {
+    disable_rt_info_check();
+    auto inputShape = ov::PartialShape{3, 4};
+    model = makeInteraction(inputShape);
+    manager.register_pass<ov::pass::NopElimination>();
+    manager.register_pass<ov::pass::TransposeMatMul>();
+    manager.register_pass<ConvertToInteraction>();
     {
-        using namespace ov;
-        //construct interaction graph
-        auto inputShape = ov::PartialShape{3, 4};
-        {
-            f = makeInteraction(inputShape);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::NopElimination>();
-            m.register_pass<ov::pass::TransposeMatMul>();
-            m.register_pass<ConvertToInteraction>();
-            m.run_passes(f);
+        auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+        NodeVector features{dense_feature};
+        ParameterVector inputsParams{dense_feature};
+        const size_t sparse_feature_num = 26;
+        for (size_t i = 0; i < sparse_feature_num; i++) {
+            auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+            features.push_back(sparse_feat);
+            inputsParams.push_back(sparse_feat);
         }
-        //construct ref interaction
-        {
-            auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-            NodeVector features{dense_feature};
-            ParameterVector inputsParams{dense_feature};
-            const size_t sparse_feature_num = 26;
-            for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-                features.push_back(sparse_feat);
-                inputsParams.push_back(sparse_feat);
-            }
-            auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
-            f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
+        model_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
     }
 }
 
-TEST(TransformationTests, FuseFQtoInteractionTest1) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, FuseFQtoInteraction) {
+    disable_rt_info_check();
+    auto inputShape = ov::PartialShape{3, 4};
+    model = makeInteraction(inputShape, false, true);
+    manager.register_pass<ov::pass::NopElimination>();
+    manager.register_pass<ov::pass::TransposeMatMul>();
+    manager.register_pass<ConvertToInteraction>();
+    manager.register_pass<FuseFQtoInteraction>();
     {
-        using namespace ov;
-        //construct interaction graph
-        auto inputShape = ov::PartialShape{3, 4};
-        {
-            f = makeInteraction(inputShape, false, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::NopElimination>();
-            m.register_pass<ov::pass::TransposeMatMul>();
-            m.register_pass<ConvertToInteraction>();
-            m.register_pass<FuseFQtoInteraction>();
-            m.run_passes(f);
+        auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+        NodeVector features{dense_feature};
+        ParameterVector inputsParams{dense_feature};
+        const size_t sparse_feature_num = 26;
+        for (size_t i = 0; i < sparse_feature_num; i++) {
+            auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+            features.push_back(sparse_feat);
+            inputsParams.push_back(sparse_feat);
         }
-        //construct ref interaction
-        {
-            auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-            NodeVector features{dense_feature};
-            ParameterVector inputsParams{dense_feature};
-            const size_t sparse_feature_num = 26;
-            for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-                features.push_back(sparse_feat);
-                inputsParams.push_back(sparse_feat);
-            }
-            auto interaction = std::make_shared<ov::op::TypeRelaxed<ov::intel_cpu::InteractionNode>>(
-                ov::intel_cpu::InteractionNode(features), element::i8);
-            f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        auto interaction = std::make_shared<ov::op::TypeRelaxed<ov::intel_cpu::InteractionNode>>(
+            ov::intel_cpu::InteractionNode(features), element::i8);
+        model_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
     }
 }
 
-TEST(TransformationTests, FuseFQtoInteractionTest2) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertInteractionInt8WithIntraFQ) {
+    disable_rt_info_check();
+    auto inputShape = ov::PartialShape{3, 4};
+    model = makeInteraction(inputShape, true);
+    manager.register_pass<ov::pass::NopElimination>();
+    manager.register_pass<ov::pass::TransposeMatMul>();
+    manager.register_pass<ConvertInteractionInt8>();
     {
-        using namespace ov;
-        //construct interaction graph
-        auto inputShape = ov::PartialShape{3, 4};
-        {
-            f = makeInteraction(inputShape, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::NopElimination>();
-            m.register_pass<ov::pass::TransposeMatMul>();
-            m.register_pass<ConvertInteractionInt8>();
-            m.run_passes(f);
+        auto dense_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+        auto dense_feature = createFQ(dense_input, "fq_dense");
+        NodeVector features{dense_feature};
+        ParameterVector inputsParams{dense_input};
+        const size_t sparse_feature_num = 26;
+        for (size_t i = 0; i < sparse_feature_num; i++) {
+            auto sparse_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+            auto sparse_feat = createFQ(sparse_input, "fq_sparse_" + std::to_string(i));
+            features.push_back(sparse_feat);
+            inputsParams.push_back(sparse_input);
         }
-        //construct ref interaction
-        {
-            auto dense_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-            auto dense_feature = createFQ(dense_input);
-            NodeVector features{dense_feature};
-            ParameterVector inputsParams{dense_input};
-            const size_t sparse_feature_num = 26;
-            for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-                auto sparse_feat = createFQ(sparse_input);
-                features.push_back(sparse_feat);
-                inputsParams.push_back(sparse_input);
-            }
-            auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
-            auto fq = createFQ(interaction);
-            f_ref = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
+        auto fq = createFQ(interaction, "fq_output");
+        model_ref = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
     }
 }

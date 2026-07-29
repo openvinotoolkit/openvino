@@ -66,7 +66,7 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
 void ov::IAsyncInferRequest::wait() {
     // Just use the last '_futures' member to wait pipeline completion
     auto future = [this] {
-        std::lock_guard<std::mutex> lock{m_mutex};
+        std::lock_guard lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
     if (future.valid()) {
@@ -79,7 +79,7 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
 
     // Just use the last '_futures' member to wait pipeline completion
     auto future = [this] {
-        std::lock_guard<std::mutex> lock{m_mutex};
+        std::lock_guard lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
 
@@ -98,7 +98,7 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
 }
 
 void ov::IAsyncInferRequest::cancel() {
-    std::lock_guard<std::mutex> lock{m_mutex};
+    std::lock_guard lock{m_mutex};
     if (m_state == InferState::BUSY) {
         m_state = InferState::CANCELLED;
     }
@@ -106,8 +106,8 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
-    std::lock_guard<std::mutex> lock{m_mutex};
-    m_callback = std::move(callback);
+    std::lock_guard lock{m_mutex};
+    m_callback = std::make_shared<std::function<void(std::exception_ptr)>>(std::move(callback));
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
@@ -160,22 +160,18 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
                     std::promise<void> promise;
-                    std::function<void(std::exception_ptr)> callback;
+                    std::shared_ptr<std::function<void(std::exception_ptr)>> callback;
                     {
-                        std::lock_guard<std::mutex> lock{m_mutex};
+                        std::lock_guard lock{m_mutex};
                         m_state = InferState::IDLE;
                         promise = std::move(m_promise);
-                        std::swap(callback, m_callback);
+                        callback = m_callback;
                     }
-                    if (callback) {
+                    if (callback && *callback) {
                         try {
-                            callback(currentException);
+                            (*callback)(currentException);
                         } catch (...) {
                             currentException = std::current_exception();
-                        }
-                        std::lock_guard<std::mutex> lock{m_mutex};
-                        if (!m_callback) {
-                            std::swap(callback, m_callback);
                         }
                     }
                     if (nullptr == currentException) {

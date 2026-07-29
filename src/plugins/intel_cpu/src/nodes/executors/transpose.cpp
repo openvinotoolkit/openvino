@@ -25,10 +25,10 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims src_block_order = params.src_block_order;
     VectorDims src_block_strides(params.src_block_dims.size(), 1);
     VectorDims dst_block_strides(params.dst_block_dims.size(), 1);
-    for (int i = params.src_block_dims.size() - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(params.src_block_dims.size()) - 2; i >= 0; i--) {
         src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
     }
-    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(params.dst_block_dims.size()) - 2; i >= 0; i--) {
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
     }
 
@@ -43,9 +43,9 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
     }
 
-    for (int i = tmp_order.size() - 1; i >= 0; i--) {
-        int pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
-                                src_block_order.rend() - 1);
+    for (auto i = static_cast<int>(tmp_order.size()) - 1; i >= 0; i--) {
+        auto pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
+                                 src_block_order.rend() - 1);
         if (pos != -1) {
             new_src_block_strides[i] = src_block_strides[pos];
             src_block_order.erase(src_block_order.begin() + pos);
@@ -59,7 +59,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         }
     }
     if (!src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
+        auto pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
         new_src_block_strides.insert(new_src_block_strides.begin() + pos, src_block_strides[0]);
         new_dst_block_strides.insert(
             new_dst_block_strides.begin() + pos,
@@ -78,11 +78,12 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims sorted_dst_dims;
 
     //  support dynamic batch
-    int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
-    int batch_count = 0;
-    int batch_pos = 0;
+    const auto batch_ord = static_cast<size_t>(
+        std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0)));
+    size_t batch_count = 0;
+    size_t batch_pos = 0;
     for (size_t i = 0; i < new_dst_block_order.size(); i++) {
-        if (static_cast<int>(new_dst_block_order[i]) == batch_ord) {
+        if (new_dst_block_order[i] == batch_ord) {
             batch_count++;
             batch_pos = i;
         }
@@ -99,7 +100,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     for (size_t i = 0; i < mask.size(); i++) {
         if (mask[i] == 0) {
             n2++;
-            if (batch_count == 1 && static_cast<int>(new_dst_block_order[i]) == batch_ord) {
+            if (batch_count == 1 && new_dst_block_order[i] == batch_ord) {
                 continue;
             }
             sorted_src_strides.push_back(new_src_block_strides[i]);
@@ -117,10 +118,10 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         }
     }
 
-    int max_threads = parallel_get_max_threads();
+    auto max_threads = static_cast<size_t>(parallel_get_max_threads());
     const int n_max = 3;  //  max count dims for parallel
     int n = 0;
-    int work_amount = sorted_dst_dims[0];
+    auto work_amount = sorted_dst_dims[0];
     for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
         n++;
         if (work_amount >= 4 * max_threads) {  //  4 * max_threads is a specially selected value for best performance

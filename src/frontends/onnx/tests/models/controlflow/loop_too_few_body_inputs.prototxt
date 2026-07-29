@@ -1,0 +1,138 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+doc_string: "Malformed Loop: 3 loop-carried deps but body only has 2 params (iter + cond, missing state params)"
+graph {
+  name: "loop_body_inputs_oob"
+  node {
+    input: "trip_count"
+    input: ""
+    input: "dep1"
+    input: "dep2"
+    input: "dep3"
+    output: "res1"
+    output: "res2"
+    output: "res3"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        name: "loop body with too few inputs"
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "trip_count"
+  }
+  input {
+    name: "dep1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "dep2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "dep3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "res1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "res2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "res3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

@@ -297,7 +297,7 @@ protected:
     std::pair<int, int> get_scale_dims(const CompressedParams& p, int oc) const {
         switch (p.scale_config) {
             case ScaleConfig::PerTensor: return {1, 1};
-            case ScaleConfig::Grouped: return {p.scale_groups, 1};
+            case ScaleConfig::Grouped: return {p.scale_groups, oc};
             case ScaleConfig::PerOC: return {1, oc};
         }
         return {1, 1};
@@ -514,7 +514,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         // 8-bit with reference check
         CompressedParams{2, 4, 3, data_types::u8, data_types::u8, ScaleConfig::PerTensor, 1, false, 2e-2f, VerifyMode::Reference},
-        CompressedParams{32, 32, 32, data_types::u8, data_types::u8, ScaleConfig::Grouped, 2, false, 5e-2f, VerifyMode::Reference},
+        CompressedParams{32, 32, 32, data_types::u8, data_types::u8, ScaleConfig::Grouped, 2, false, 1e-1f, VerifyMode::Reference},
         CompressedParams{1, 4, 3, data_types::u8, data_types::u8, ScaleConfig::PerOC, 1, false, 3e-2f, VerifyMode::Reference},
         CompressedParams{2, 4, 4, data_types::i8, data_types::i8, ScaleConfig::PerTensor, 1, false, 5e-2f, VerifyMode::Reference},
         // 4-bit zero-scale

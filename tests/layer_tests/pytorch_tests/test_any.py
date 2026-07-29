@@ -58,10 +58,15 @@ class aten_any_out(torch.nn.Module):
         ), out
 
 class TestAny(PytorchLayerTest):
-    def _prepare_input(self, out=False):
+    def _prepare_input(self, out=False, dim=None, keepdim=None):
         if not out:
             return (self.input_tensor,)
-        return (self.input_tensor, np.zeros_like(self.input_tensor, dtype=bool if self.input_tensor.dtype != np.uint8 else np.uint8))
+        out_dtype = bool if self.input_tensor.dtype != np.uint8 else np.uint8
+        if dim is not None:
+            input_shape = list(self.input_tensor.shape)
+            out_shape = input_shape[:dim] + ([1] if keepdim else []) + input_shape[dim + 1:]
+            return (self.input_tensor, np.zeros(out_shape, dtype=out_dtype))
+        return (self.input_tensor, np.array(False, dtype=out_dtype))
 
     @pytest.mark.parametrize("input_shape, d_type", [
         (np.eye(5,5), np.int64),
@@ -119,4 +124,4 @@ class TestAny(PytorchLayerTest):
             self.input_tensor = input_shape
         for dim in range(len(self.input_tensor.shape)):
             self._test(aten_any(dim, keepdim) if not out else aten_any_out(dim, keepdim), "aten::any",
-                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
+                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out, "dim": dim, "keepdim": keepdim})

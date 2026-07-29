@@ -58,7 +58,7 @@ class TestFull(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x: float):
-                return torch.full(self.shape, x, out=torch.tensor(1, dtype=self.dtype))
+                return torch.full(self.shape, x, out=torch.zeros(self.shape, dtype=self.dtype))
 
         class aten_full_out_with_names(torch.nn.Module):
             def __init__(self, shape, dtype):
@@ -67,7 +67,7 @@ class TestFull(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x: float):
-                return torch.full(self.shape, x, out=torch.tensor(1, dtype=self.dtype), names=None)
+                return torch.full(self.shape, x, out=torch.zeros(self.shape, dtype=self.dtype), names=None)
 
         model = aten_full(shape)
         if use_dtype or use_out:
@@ -262,7 +262,7 @@ class TestFullLike(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, input_t: torch.Tensor, x: float):
-                return torch.full_like(input_t, x, out=torch.tensor(1, dtype=self.dtype))
+                return torch.full_like(input_t, x, out=torch.zeros_like(input_t, dtype=self.dtype))
 
 
         model = aten_full_like()
@@ -431,7 +431,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
             def forward(self, x):
                 shape = x.shape
-                return self.op(shape, out=torch.tensor(0, dtype=self.dtype))
+                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype))
 
         class aten_op_out_with_names(torch.nn.Module):
             def __init__(self, op, dtype):
@@ -441,7 +441,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
             def forward(self, x):
                 shape = x.shape
-                return self.op(shape, out=torch.tensor(0, dtype=self.dtype), names=None)
+                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype), names=None)
 
         class aten_op_like_out(torch.nn.Module):
             def __init__(self, op, dtype):
@@ -450,7 +450,7 @@ class TestZerosAndOnes(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x):
-                return self.op(x, out=torch.tensor(0, dtype=self.dtype))
+                return self.op(x, out=torch.zeros_like(x, dtype=self.dtype))
 
         like = op_type.endswith('_like')
         op = ops[op_type]

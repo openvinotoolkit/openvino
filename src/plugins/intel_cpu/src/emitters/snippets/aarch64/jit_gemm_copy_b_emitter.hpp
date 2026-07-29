@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <memory>
+#include <set>
+#include <variant>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
@@ -29,12 +34,15 @@ protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     template <typename ExecutorT>
-    void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
+    void emit_call(const std::shared_ptr<ExecutorT>& kernel_executor, const std::vector<size_t>& mem_ptrs_idxs) const;
+    bool is_f16_executor() const;
 
-    std::shared_ptr<GemmCopyBKaiKernelExecutorBase> m_kernel_executor = nullptr;
+    using KernelExecutor =
+        std::variant<std::shared_ptr<GemmCopyBF32KaiKernelExecutor>, std::shared_ptr<GemmCopyBF16KaiKernelExecutor>>;
+
+    KernelExecutor m_kernel_executor;
     std::vector<size_t> m_memory_offsets;
     std::vector<size_t> m_buffer_ids;
-    bool m_is_f16 = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_gemm_copy_b_emitter(const jit_gemm_copy_b_emitter* emitter);

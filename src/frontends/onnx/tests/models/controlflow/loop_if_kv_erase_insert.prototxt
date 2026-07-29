@@ -1,0 +1,278 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "init0"
+    input: "init1"
+    output: "seq_init"
+    op_type: "SequenceConstruct"
+  }
+  node {
+    input: "trip_count"
+    input: "cond_init"
+    input: "seq_init"
+    output: "seq_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        node {
+          input: "iter"
+          output: "iter_f"
+          op_type: "Cast"
+          attribute {
+            name: "to"
+            i: 1
+            type: INT
+          }
+        }
+        node {
+          input: "iter"
+          input: "two"
+          output: "iter_mod"
+          op_type: "Mod"
+        }
+        node {
+          input: "iter_mod"
+          input: "zero"
+          output: "pred"
+          op_type: "Equal"
+        }
+        node {
+          input: "pred"
+          output: "seq_out"
+          op_type: "If"
+          attribute {
+            name: "else_branch"
+            g {
+              node {
+                input: "seq_in"
+                output: "seq_else"
+                op_type: "Identity"
+              }
+              name: "else_body"
+              output {
+                name: "seq_else"
+                type {
+                  sequence_type {
+                    elem_type {
+                      tensor_type {
+                        elem_type: 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            type: GRAPH
+          }
+          attribute {
+            name: "then_branch"
+            g {
+              node {
+                input: "iter_f"
+                input: "shape_1d"
+                output: "val"
+                op_type: "Reshape"
+              }
+              node {
+                input: "seq_in"
+                output: "seq_short"
+                op_type: "SequenceErase"
+              }
+              node {
+                input: "seq_short"
+                input: "val"
+                output: "seq_then"
+                op_type: "SequenceInsert"
+              }
+              name: "then_body"
+              output {
+                name: "seq_then"
+                type {
+                  sequence_type {
+                    elem_type {
+                      tensor_type {
+                        elem_type: 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            type: GRAPH
+          }
+        }
+        name: "loop_body"
+        initializer {
+          dims: 1
+          data_type: 7
+          int64_data: 1
+          name: "shape_1d"
+        }
+        initializer {
+          data_type: 7
+          int64_data: 2
+          name: "two"
+        }
+        initializer {
+          data_type: 7
+          int64_data: 0
+          name: "zero"
+        }
+        input {
+          name: "iter"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "seq_in"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "seq_out"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  node {
+    input: "seq_final"
+    input: "idx0"
+    output: "slot0"
+    op_type: "SequenceAt"
+  }
+  node {
+    input: "seq_final"
+    input: "idx1"
+    output: "slot1"
+    op_type: "SequenceAt"
+  }
+  node {
+    input: "slot0"
+    input: "slot1"
+    output: "output"
+    op_type: "Add"
+  }
+  name: "loop_if_kv_erase_insert"
+  initializer {
+    data_type: 7
+    int64_data: 0
+    name: "idx0"
+  }
+  initializer {
+    data_type: 7
+    int64_data: 1
+    name: "idx1"
+  }
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "init0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "init1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 14
+}

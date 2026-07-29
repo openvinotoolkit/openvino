@@ -950,7 +950,7 @@ void RNN::fillWeights() {
             ie_w_vec.resize(ie_w_vec_size);
             ie_w_ptr = ie_w_vec.data();
 
-            cpu_convert(w_const_blob->getData(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
+            cpu_parallel_convert(w_const_blob->getData(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
         } else {
             ie_w_ptr = reinterpret_cast<DataType*>(w_const_blob->getData());
         }
@@ -986,7 +986,7 @@ void RNN::fillWeights() {
             ie_r_vec.resize(ie_r_vec_size);
             ie_r_ptr = ie_r_vec.data();
 
-            cpu_convert(r_const_blob->getData(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
+            cpu_parallel_convert(r_const_blob->getData(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
         } else {
             ie_r_ptr = reinterpret_cast<DataType*>(r_const_blob->getData());
         }
@@ -1054,11 +1054,11 @@ void RNN::fillBiases() {
             ie_b_vec.resize(ie_b_vec_size);
             ie_b_ptr = ie_b_vec.data();
 
-            cpu_convert(b_const_blob->getData(),
-                        ie_b_ptr,
-                        DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
-                        ET,
-                        ie_b_vec_size);
+            cpu_parallel_convert(b_const_blob->getData(),
+                                 ie_b_ptr,
+                                 DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
+                                 ET,
+                                 ie_b_vec_size);
         } else {
             ie_b_ptr = reinterpret_cast<DataType*>(b_const_blob->getData());
         }

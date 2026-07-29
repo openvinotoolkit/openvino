@@ -113,7 +113,7 @@ int main(int argc, char** argv, char** envp) {
                   << "'; Full device name: '" << full << "'" << std::endl;
     }
 
-    std::string dTest = ::testing::internal::GTEST_FLAG(internal_run_death_test);
+    std::string dTest = ::testing::GTEST_FLAG(internal_run_death_test);
     if (dTest.empty()) {
         std::cout << oss.str() << std::endl;
     } else {

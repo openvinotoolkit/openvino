@@ -28,8 +28,20 @@ struct RVVGenerator : public CodeGenerator {
     }
 };
 
+struct ZvfhGenerator : public CodeGenerator {
+    ZvfhGenerator() : CodeGenerator(32) {
+        // Probe Zvfh instructions used by Snippets Convert emitters.
+        vsetivli(a0, 1, SEW::e16, LMUL::mf2);
+        vfwcvt_f_f_v(v0, v0);
+        vfncvt_f_f_w(v0, v0);
+        li(a0, 1);
+        ret();
+    }
+};
+
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
-bool can_compile_rvv100() {
+template <typename Generator>
+bool can_execute_generated_code() {
 #if defined(__linux__)
     static thread_local sigjmp_buf jmpbuf;
     __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
@@ -45,9 +57,9 @@ bool can_compile_rvv100() {
 
     bool status = false;
     if (sigsetjmp(jmpbuf, 1) == 0) {
-        RVVGenerator gen;
+        Generator gen;
         gen.ready();
-        const auto caller = gen.getCode<uint32_t (*)()>();
+        const auto caller = gen.template getCode<uint32_t (*)()>();
         status = static_cast<bool>(caller());
     }
 
@@ -59,6 +71,16 @@ bool can_compile_rvv100() {
 #else
     return false;
 #endif
+}
+
+bool can_compile_rvv100() {
+    static const bool status = can_execute_generated_code<RVVGenerator>();
+    return status;
+}
+
+bool can_compile_zvfh() {
+    static const bool status = can_execute_generated_code<ZvfhGenerator>();
+    return status;
 }
 
 }  // namespace
@@ -77,6 +99,8 @@ bool mayiuse(const cpu_isa_t cpu_isa) {
     // [TODO] If needed, support other RVV versions
     case gv:
         return mayiuse(g) && cpu.hasExtension(RISCVExtension::V) && can_compile_rvv100();
+    case gv_zvfh:
+        return mayiuse(gv) && can_compile_zvfh();
     case isa_all:
         return false;
     case isa_undef:
@@ -93,6 +117,8 @@ std::string isa2str(cpu_isa_t isa) {
         return "g";
     case cpu_isa_t::gv:
         return "gv";
+    case cpu_isa_t::gv_zvfh:
+        return "gv_zvfh";
     case cpu_isa_t::isa_all:
         return "all";
     default:

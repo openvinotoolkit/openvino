@@ -130,9 +130,9 @@ public:
             std::fill(pads_end.begin(), pads_end.end(), 0);
         }
 
-        uint32_t kx = weights_layout.spatial(0);
-        uint32_t ky = weights_layout.spatial(1);
-        uint32_t kz = weights_layout.spatial(2);
+        uint32_t kx = static_cast<uint32_t>(weights_layout.spatial(0));
+        uint32_t ky = static_cast<uint32_t>(weights_layout.spatial(1));
+        uint32_t kz = static_cast<uint32_t>(weights_layout.spatial(2));
         conv_params.filterSize = { kx, ky, kz };
 
         uint32_t pad_begin_x, pad_begin_y, pad_begin_z;

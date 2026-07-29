@@ -195,6 +195,11 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
+// On some architectures (e.g. RISC-V) filterCPUInfo filters out all backends
+// defined in filterSpecificParams(), producing empty INSTANTIATE_TEST_SUITE_P.
+// gtest >= 1.11 flags this as a failure unless explicitly allowed.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MatMulLayerCPUTest);
+
 namespace MatMul {
 const ov::AnyMap& emptyAdditionalConfig() {
     static const ov::AnyMap emptyAdditionalConfig;
