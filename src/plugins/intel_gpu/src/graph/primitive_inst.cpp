@@ -135,7 +135,11 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
+        // registered as CPU but do not actually access their inputs from the host
+        // (e.g. assign, which only enqueues USM memcpy).
+        // Those impls opt out of forcing their producer into lockable memory.
+        return impl->requires_lockable_input() && !user->is_type<shape_of>();
     return false;
 }
 
@@ -574,7 +578,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_n
     if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
-        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+        if (get_node().is_type<fully_connected>() && !dependencies().empty() && dep_memory(0).get_layout().is_static()
             && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
             GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
                 << "  allocated: " << dep_memory(0).count()
@@ -616,13 +620,15 @@ bool primitive_inst::need_reset_output_memory() const {
             continue;
         }
 
-        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
+        if (user_inst->need_reset_input_memory(dependency_idx))
             return true;
 
         // OneDNN requires zero-filled input for padded area
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
-        if (is_user_conv && is_user_onednn_impl) {
+        if (dependency_idx == 0 && is_user_conv && is_user_onednn_impl) {
             auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
@@ -1041,7 +1047,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        bool reclaim = 0;
+        bool reclaim = false;
         size_t required_buffer_size = 0;
         if (get_node().is_type<kv_cache>() && i != 1) {
             // Relax reclaiming condition for kv cache
@@ -1476,7 +1482,7 @@ void primitive_inst::do_runtime_skip_reorder() {
     if (can_be_optimized())
         return;
 
-    if (_impl_params->fused_desc.size() > 0)
+    if (!_impl_params->fused_desc.empty())
         return;
 
     // set successive reorder can_be_optimized if layouts are same
@@ -2012,7 +2018,7 @@ void primitive_inst::do_runtime_skip_resample() {
 }
 
 bool primitive_inst::has_inner_networks() const {
-    return (_impl_params->inner_nets.size() > 0);
+    return (!_impl_params->inner_nets.empty());
 }
 
 void primitive_inst::add_dep_events(const std::vector<event::ptr>& events) {
@@ -2220,7 +2226,9 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    const bool may_reuse_output_memory = is_dynamic() ||
+                                         (can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool());
+    if (may_reuse_output_memory && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
@@ -2647,7 +2655,6 @@ void primitive_inst::update_weights() {
 
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
-    return;
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
@@ -3161,7 +3168,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl && impl->get_kernels_source().size() > 0) {
+            if (impl && !impl->get_kernels_source().empty()) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }

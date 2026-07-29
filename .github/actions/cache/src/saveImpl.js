@@ -1,8 +1,8 @@
-const core = require('@actions/core');
-const tar = require('tar');
-const fs = require('fs/promises');
-const path = require('path');
-const { humanReadableFileSize, checkFileExists } = require('./utils');
+import * as core from '@actions/core';
+import * as tar from 'tar';
+import fs from 'fs/promises';
+import path from 'path';
+import { humanReadableFileSize, checkFileExists } from './utils.js';
 
 /**
  * The main function for the action.
@@ -66,6 +66,4 @@ async function save() {
   }
 }
 
-module.exports = {
-  save
-};
+export { save };

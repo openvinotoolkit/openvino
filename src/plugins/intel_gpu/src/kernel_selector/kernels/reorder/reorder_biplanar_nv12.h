@@ -10,7 +10,7 @@ namespace kernel_selector {
 class reorder_biplanar_nv12 : public ReorderKernelBase {
 public:
     reorder_biplanar_nv12() : ReorderKernelBase("reorder_biplanar_nv12") {}
-    virtual ~reorder_biplanar_nv12() {}
+    ~reorder_biplanar_nv12() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

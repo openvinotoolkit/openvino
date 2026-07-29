@@ -470,7 +470,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::bs_fs_zyx_bsv32_fsv32,  {32, 32}}
     };
 
-    if (params.inputs.size()) {
+    if (!params.inputs.empty()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
         auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
@@ -480,7 +480,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
                     return false;
         }
 
-        if (params.fused_ops.size()) {
+        if (!params.fused_ops.empty()) {
             for (auto fused_op : params.fused_ops) {
                 for (size_t in = 0; in < fused_op.tensors.size(); in++) {
                     if (fused_op.tensors[in].LogicalSize() == 1)
