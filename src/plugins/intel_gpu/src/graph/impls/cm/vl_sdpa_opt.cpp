@@ -20,9 +20,39 @@ constexpr auto get_vlsdpa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
-struct VLSDPARuntimeParams : public ImplRuntimeParams {
-    std::vector<int32_t> cu_seqlens;
-};
+constexpr size_t round_up_to_tile(size_t value, size_t tile_size) {
+    return (value + tile_size - 1) / tile_size * tile_size;
+}
+
+constexpr size_t get_default_kv_blk(size_t head_size) {
+    const size_t padded_head_size = round_up_to_tile(head_size, 16);
+    const size_t tail_size = padded_head_size - head_size;
+
+    if (padded_head_size <= 64 || tail_size <= 1) {
+        return 2;
+    }
+
+    return 1;
+}
+
+// Enforce the CM kernel memory-layout contract documented in cm_sdpa_vlen.cm:
+//   Q/K/V/output layouts must all carry the fused transpose order {1,0,2}, i.e. the
+//   original SDPA-facing view [H, L, S] is expressed as physical memory [L, H, S] with
+//   the token (outer) axis at dim 0. When this contract is violated (empty or non-{1,0,2}
+//   orders, typically because TransposeVLSDPA fusion did not fire — e.g. surrounding
+//   Transposes were converted to Reshape by TransposeToReshape when a permuted dim
+//   degenerates to size 1), `get_pitches()[0]` no longer represents the per-token stride
+//   and the kernel silently walks out of bounds -> GPU hang (CL_OUT_OF_RESOURCES).
+//   Fail fast at compile / dispatch time with an actionable message.
+inline void ensure_fused_transpose_order(const vl_sdpa& desc) {
+    const std::vector<int64_t> expected_order{1, 0, 2};
+    OPENVINO_ASSERT(desc.input_q_transpose_order == expected_order && desc.input_k_transpose_order == expected_order &&
+                        desc.input_v_transpose_order == expected_order && desc.output_transpose_order == expected_order,
+                    "VLSDPA CM impl requires the surrounding Transpose{1,0,2} to be fused into "
+                    "VLSDPA (all four transpose orders must be {1,0,2}). If this fires, the "
+                    "SDPAToVLSDPA / TransposeVLSDPAMatcher fusion did not run for this pattern; "
+                    "kernel arg computation (`get_pitches()[0]` as the token stride) is unsafe.");
+}
 
 class VLSDPAGenerator : public KernelGenerator {
 public:
@@ -49,6 +79,7 @@ protected:
         };
 
         auto desc = params.typed_desc<vl_sdpa>();
+        ensure_fused_transpose_order(*desc);
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
 
@@ -56,6 +87,7 @@ protected:
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0f / std::sqrt(static_cast<float>(head_size));
+        const size_t cmfla_kv_blk = get_default_kv_blk(head_size);
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)
@@ -67,6 +99,7 @@ protected:
             make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
             make_jit_constant("CMFLA_HEAD_SIZE", head_size),
             make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
+            make_jit_constant("CMFLA_KV_BLK", cmfla_kv_blk),
         });
 
         return jit;
@@ -85,15 +118,26 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)});  // input: cu_seq_lens
 
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // need_wg_mapping
+
+        // Per-input token-axis discontinuity descriptors (populated in the dispatch lambda
+        // from each input layout's get_linear_offset() and get_pitches()[0]). See
+        // cm_sdpa_vlen.cm for the exact memory-layout contract with the kernel.
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // token_offset_q
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_k
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_offset_v
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // q_token_pitch
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // k_token_pitch
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // v_token_pitch
 
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             assert(!params.is_dynamic());
             auto desc = params.typed_desc<vl_sdpa>();
+            ensure_fused_transpose_order(*desc);
 
             // transpose shape into BHLS(4D), or HLS(3D)
             auto transpose_pshape = [](const ov::Shape& pshape, const std::vector<int64_t>& order) {
@@ -107,28 +151,30 @@ protected:
                 return transposed_pshape;
             };
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
-            const size_t num_q_heads = query_shape[query_shape.size() - 3];  // TODO: make it to be configuration of primitive_inst
+            const size_t num_q_heads = query_shape[query_shape.size() - 3];
 
-            const auto& vlsdpa_rt_params = static_cast<VLSDPARuntimeParams&>(*rt_params);
-            const auto& cu_seqlens = vlsdpa_rt_params.cu_seqlens;
+            // Read cu_seqlens via mem_lock — zero-cost on USM-host (PC), no GPU sync stall.
+            const auto cu_seqlens_mem = params.memory_deps.at(params.input_layouts.size() - 1);
+            OPENVINO_ASSERT(cu_seqlens_mem->get_layout().data_type == ov::element::i32, "VLSDPA expects cu_seqlens input to be i32");
+            mem_lock<int32_t, mem_lock_type::read> cu_seqlens_lock(cu_seqlens_mem, *params.strm);
 
+            const auto cu_seqlens_sz = cu_seqlens_lock.size();
+            OPENVINO_ASSERT(cu_seqlens_sz >= 2, "VLSDPA expects cu_seqlens to contain at least two elements (start/end)");
             size_t max_seq_len = 0;
-            for (size_t i = 1; i < cu_seqlens.size(); i++) {
-                auto start_idx = cu_seqlens[i - 1];
-                auto end_idx = cu_seqlens[i];
+            for (size_t i = 1; i < cu_seqlens_sz; i++) {
+                auto start_idx = cu_seqlens_lock[i - 1];
+                auto end_idx = cu_seqlens_lock[i];
                 max_seq_len = std::max(max_seq_len, static_cast<size_t>(end_idx - start_idx));
             }
 
             const auto& info = params.get_device_info();
             const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 256 : 512;
-            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));  // or 8 on Xe1
+            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));
             size_t wg_size = static_cast<size_t>(std::floor((max_seq_len + q_step - 1) / q_step));
-            int32_t need_wg_mapping = 0;
+            size_t need_wg_mapping = 0;
             if (wg_size > 16) {
-                // # seq_len is too big to fit into a single work-group
-                // # will use fixed work-group size 16, process 16*16 (or 16*8 on xe1)
-                // # part of sequence, in this case, kernel needs to figure-out which part
-                // # it needs to handle
+                // seq_len is too large for a single work-group; use wg_size=16 and let
+                // the kernel's while-loop scan cu_seqlens to find its sequence/block.
                 need_wg_mapping = 1;
                 wg_size = 16;
             }
@@ -137,26 +183,45 @@ protected:
             if (need_wg_mapping) {
                 wg_count = 0;
                 const auto wg_seq_len = wg_size * q_step;
-                for (size_t i = 1; i < cu_seqlens.size(); i++) {
-                    auto start_idx = cu_seqlens[i - 1];
-                    auto end_idx = cu_seqlens[i];
-                    wg_count += static_cast<size_t>(std::floor((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len));
+                for (size_t i = 1; i < cu_seqlens_sz; i++) {
+                    auto start_idx = cu_seqlens_lock[i - 1];
+                    auto end_idx = cu_seqlens_lock[i];
+                    wg_count += static_cast<size_t>((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len);
                 }
             } else {
-                wg_count = cu_seqlens.size() - 1;
+                wg_count = cu_seqlens_sz - 1;
             }
 
             auto& wgs = kd.params.workGroups;
             wgs.global = {num_q_heads, wg_count * wg_size, 1};
             wgs.local = {1, wg_size, 1};
 
-            std::vector<int32_t> scalars{need_wg_mapping};
+            // Element-count offsets and per-input token strides taken directly from the
+            // input layouts. Non-zero token_offset_x arises when an in-place crop
+            // (e.g. TransposeSplitMatcher axis=1) leaves the SVM base pointing at the
+            // packed parent buffer and expresses the slice view via layout padding on
+            // the token axis; the kernel shifts the Q/K/V pointers accordingly.
+            // Contract with the CM kernel (see cm_sdpa_vlen.cm): only the token (outer)
+            // axis of each input layout may be padded — the head and head_size strides
+            // are hardcoded in the kernel and are NOT parameterized here.
+            constexpr size_t i32_max = 0x7fffffff;
+            const auto token_offset_q = params.input_layouts[0].get_linear_offset();
+            const auto token_offset_k = params.input_layouts[1].get_linear_offset();
+            const auto token_offset_v = params.input_layouts[2].get_linear_offset();
+            const size_t q_token_pitch = static_cast<size_t>(params.input_layouts[0].get_pitches()[0]);
+            const size_t k_token_pitch = static_cast<size_t>(params.input_layouts[1].get_pitches()[0]);
+            const size_t v_token_pitch = static_cast<size_t>(params.input_layouts[2].get_pitches()[0]);
+            OPENVINO_ASSERT(token_offset_q <= i32_max && token_offset_k <= i32_max && token_offset_v <= i32_max && q_token_pitch <= i32_max &&
+                                k_token_pitch <= i32_max && v_token_pitch <= i32_max,
+                            "VLSDPA token offsets/pitches must fit into int32");
+
+            std::vector<size_t> scalars{need_wg_mapping, token_offset_q, token_offset_k, token_offset_v, q_token_pitch, k_token_pitch, v_token_pitch};
             kd.params.scalars.clear();
             for (auto i : scalars) {
-                scalar_desc desc;
-                desc.t = scalar_desc::Types::INT32;
-                desc.v.s32 = static_cast<int32_t>(i);
-                kd.params.scalars.push_back(desc);
+                scalar_desc s;
+                s.t = scalar_desc::Types::INT32;
+                s.v.s32 = static_cast<int32_t>(i);
+                kd.params.scalars.push_back(s);
             }
         }};
     }
@@ -168,9 +233,7 @@ public:
 
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 
-    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {
-        m_rt_params = std::make_unique<VLSDPARuntimeParams>();
-    }
+    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {}
     VLSDPAOptImpl(const program_node& node, const RuntimeParams& params) : VLSDPAOptImpl() {
         add_stage(vl_sdpa, params);
     }
@@ -178,27 +241,16 @@ public:
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<VLSDPAOptImpl>(this);
     }
-
-    void update_rt_params(const cldnn::primitive_inst& instance) override {
-        update_stages_flags(instance);
-
-        auto rt_params = static_cast<VLSDPARuntimeParams*>(m_rt_params.get());
-        auto& vlsdpa_instance = dynamic_cast<const typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
-        vlsdpa_instance.get_mask_seqlens_from_memory(rt_params->cu_seqlens);
-    }
-
-    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
-        if (m_rt_params == nullptr) {
-            m_rt_params = std::make_unique<VLSDPARuntimeParams>();
-        }
-        return PrimitiveImplCM::execute(events, instance);
-    }
 };
 
 }  // namespace
 
 std::unique_ptr<primitive_impl> VLSDPAOptImplementationManager::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<vl_sdpa>());
+    // Validate the fused-transpose invariant on the main thread, before triggering async
+    // kernel compilation — the same check inside get_jit_constants would be swallowed by
+    // the kernels cache and surface only as "Kernel for {vlsdpa:sdpa} is not found".
+    ensure_fused_transpose_order(*params.typed_desc<vl_sdpa>());
     return std::make_unique<VLSDPAOptImpl>(node, params);
 }
 
