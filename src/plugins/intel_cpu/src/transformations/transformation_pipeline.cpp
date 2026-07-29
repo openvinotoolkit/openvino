@@ -1199,7 +1199,9 @@ void Transformations::PostLpt() {
         },
         ov::intel_cpu::DecomposeRMSNorm);
 
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ClampFP16FCOutput);
+    // x64 only: Clamp is expected to fuse into the preceding MatMul there, which does not
+    // necessarily hold on other platforms
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::ClampFP16FCOutput);
 
     // markup Rope Input when BF16/F16 inference.
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
