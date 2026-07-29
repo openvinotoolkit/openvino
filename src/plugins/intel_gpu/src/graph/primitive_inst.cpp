@@ -983,7 +983,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             }
         };
         if (can_be_optimized()) {
-            _max_output_layout_count = _deps[0].first->_max_output_layout_count;
+            _max_output_layout_count[0] = _deps[0].first->_max_output_layout_count[_deps[0].second];
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             // If the inst is optimized out but it executed at the previous iteration,
             // reset all output memory of users which was optimized out at the previous iteration.
