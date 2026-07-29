@@ -107,21 +107,31 @@ set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
   component can be kept out of the default `ALL` target for the platform, yet
   still be requested for a custom archive.
 
-A real "not-in-ALL, but installable on demand" component is `npu_internal`
-(e.g. `compile_tool`), see
-[`src/plugins/intel_npu/tools/compile_tool/CMakeLists.txt`](../../src/plugins/intel_npu/tools/compile_tool/CMakeLists.txt):
+Whether a given component is in `ALL` is **generator-dependent**: the same
+component may be in `ALL` for archives (`TGZ/ZIP`) but excluded for `DEB/RPM/NPM`.
+For the archive generator, components marked non-`ALL` include `python_wheels`
+and `ov_node_addon` (NPM), see
+[`archive.cmake`](../../cmake/developer_package/packaging/archive.cmake).
+
+Any component — regardless of its default-`ALL` membership — can be installed
+independently by name, which is the basis for building custom archives:
+
+```bash
+# npu_internal is in ALL for archives, but can still be installed on its own:
+cmake --install <build_dir> --component npu_internal --prefix <stage_dir>
+```
+
+The `npu_internal` component (e.g. `compile_tool`) is attached like any other
+component, see
+[`src/plugins/intel_npu/tools/compile_tool/CMakeLists.txt`](../../src/plugins/intel_npu/tools/compile_tool/CMakeLists.txt);
+its default-`ALL` membership is controlled per generator via
+`OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL`:
 
 ```cmake
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION "tools/${TARGET_NAME}"
         COMPONENT ${NPU_INTERNAL_COMPONENT}
         ${OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL})
-```
-
-It can be installed independently with:
-
-```bash
-cmake --install <build_dir> --component npu_internal --prefix <stage_dir>
 ```
 
 ### Per-generator include/exclude rules
@@ -317,7 +327,7 @@ The mechanism above covers every archive composition case:
 |---|---|---|
 | Subset | A **subset** of the default components | List only the wanted subset in `CPACK_COMPONENTS_ALL` |
 | Recombination | A **different combination** of default components | List any combination of default components |
-| Non-default | Components **not** in the default `ALL` for the platform | List the `EXCLUDE_FROM_ALL` component name explicitly (e.g. `npu_internal`) |
+| Non-default | Components **not** in the default `ALL` for the platform | List the `EXCLUDE_FROM_ALL` component name explicitly (e.g. `python_wheels`, `ov_node_addon`) |
 
 No CMake `ALL`-target rebuild is required for any of these — only the CPack
 component selection changes.
