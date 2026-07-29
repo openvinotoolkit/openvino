@@ -73,12 +73,11 @@ namespace pass {
 /// This lives in SmartReshape because it is a reshapeability concern (it runs inside `Model::reshape`),
 /// not a framework-import concern: it operates on the already-built `ov::Model` and is framework-agnostic.
 ///
-/// It is a ModelPass (not a MatcherPass) because window-reverse uses two chained views: the second view's
-/// data is the permuted output of the first, whose channel OV shape inference does NOT propagate through
-/// the permute (the spatial value-bounds collapse the permuted output to fully dynamic). The pass recovers
-/// the channel itself with a deterministic two-phase walk-back: COLLECT iterates the ops in topological
-/// order and, for each structurally matching reshape, recovers the channel by walking back from its data;
-/// REWRITE then replays the recorded rewrites.
+/// Window-reverse uses two chained views: the second view's data is the permuted output of the first, and
+/// OV shape inference does NOT propagate the channel through the permute (the spatial value-bounds collapse
+/// the permuted output to fully dynamic). The pass therefore recovers the channel itself, walking the whole
+/// model in two phases: COLLECT iterates the ops in topological order and, for each structurally matching
+/// reshape, recovers the channel by walking back from its data; REWRITE then replays the recorded rewrites.
 ///
 /// Channel recovery walk-back (the two chained window-reverse views):
 ///
