@@ -790,8 +790,9 @@ std::string serializeConfig(const FilteredConfig& config,
 
     std::ostringstream existingLogLevel;
     existingLogLevel << ov::log::level.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    if (std::regex_search(content, std::regex(existingLogLevel.str()))) {
-        content = std::regex_replace(content, std::regex(existingLogLevel.str()), logLevelEntry.str());
+    const std::regex existingLogLevelRe(existingLogLevel.str());
+    if (std::regex_search(content, existingLogLevelRe)) {
+        content = std::regex_replace(content, existingLogLevelRe, logLevelEntry.str());
     } else {
         if (!content.empty()) {
             content += VALUES_SEPARATOR;
