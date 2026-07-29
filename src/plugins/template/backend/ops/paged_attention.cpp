@@ -133,7 +133,7 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
     OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttentionExtension: cache manager handle is null");
 
     const std::uintptr_t node_key = reinterpret_cast<std::uintptr_t>(node.get());
-    const auto et = node->get_output_element_type(0);
+    const auto& et = node->get_output_element_type(0);
 
     switch (et) {
     case ov::element::bf16:

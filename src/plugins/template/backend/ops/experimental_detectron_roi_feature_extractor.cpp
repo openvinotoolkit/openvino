@@ -40,7 +40,7 @@ template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    const auto attrs = op->get_attrs();
+    const auto& attrs = op->get_attrs();
 
     std::vector<std::vector<float>> input_data;
     std::vector<ov::Shape> input_shapes;
@@ -54,7 +54,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureE
     const auto& output_rois_features_shape = info.output_rois_features_shape;
     const auto& output_rois_shape = info.output_rois_shape;
 
-    const auto output_type = op->get_input_element_type(0);
+    const auto& output_type = op->get_input_element_type(0);
 
     outputs[0].set_shape(output_rois_features_shape);
     outputs[1].set_shape(output_rois_shape);
@@ -83,9 +83,10 @@ template <>
 bool evaluate_node<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(std::shared_ptr<ov::Node> node,
                                                                          ov::TensorVector& outputs,
                                                                          const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
+    const auto& element_type =
+        (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
+            ? node->get_input_element_type(1)
+            : node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:

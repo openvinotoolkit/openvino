@@ -56,7 +56,7 @@ InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
     const ov::TensorVector& inputs) {
     InfoForEDPriorGrid result;
 
-    auto attrs = prior_grid->get_attrs();
+    const auto& attrs = prior_grid->get_attrs();
 
     result.grid_h = attrs.h;
     result.grid_w = attrs.w;
@@ -95,9 +95,10 @@ template <>
 bool evaluate_node<ov::op::v6::ExperimentalDetectronPriorGridGenerator>(std::shared_ptr<ov::Node> node,
                                                                         ov::TensorVector& outputs,
                                                                         const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
+    const auto& element_type =
+        (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
+            ? node->get_input_element_type(1)
+            : node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:
