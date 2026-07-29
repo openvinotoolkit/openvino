@@ -6,21 +6,32 @@ pre-compiled OpenVINO graph instead of PyTorch eager / `torch.compile +
 inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
-> ⚠️ **First-infer hang caused by pip dep drift.** On some fresh venvs
-> the OV backend hangs on the first `generate()` after model load
-> (`EngineDeadError` / `Processed prompts: 0%`, worker stuck in
-> `posix_memalign → libtvm_ffi.so → __lll_lock_wait_private` per
-> `py-spy --native`). Bisecting proved this is **not** an OV source
-> regression: cloning a known-working venv onto the exact same host,
-> against the exact same OV binaries, makes the hang go away.
-> Whatever pip resolution produced the working env picked a
-> combination that avoids the glibc heap-lock contention that
-> `libtvm_ffi.so` triggers on newer minor versions.
-> **Use `requirements-known-good.txt` in this directory as the pip
-> lockfile.** Do NOT rely on `pip install "vllm-cpu==0.25.0"` alone —
-> it resolves to different dep versions week to week, and the wrong
-> resolution hangs. The performance table below is against
-> `dddcff2cc70` + `requirements-known-good.txt`.
+> ⚠️ **Required: KV chunk fix for vLLM 0.25 rank-4 KV cache.** Without
+> this patch, OV's side-channel code does `kv_cache.unbind(0)` which is
+> wrong for vLLM 0.25's `[num_blocks, num_kv_heads, block_size,
+> 2*head_size]` layout and causes the first `generate()` to hang
+> silently (`EngineDeadError` / `Processed prompts: 0%`, worker in
+> `posix_memalign` per `py-spy --native`).
+>
+> Location on `vllm_dev` tip: `vllm/side_channel.py` around the
+> `kc, vc = kv_cache.unbind(0)` line.
+> Location on `dddcff2cc70`: `torchdynamo/execute.py`.
+>
+> Replace with:
+> ```python
+> if kv_cache.ndim == 4:
+>     _nb, _hk, _bs, _last = kv_cache.shape
+>     _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
+>     kc, vc = _view.chunk(2, dim=2)
+>     kc = kc.contiguous()
+>     vc = vc.contiguous()
+> else:
+>     kc, vc = kv_cache.unbind(0)
+> ```
+>
+> This is a **required source patch** until it lands as a commit. Verified
+> on this session: tip (`52edc43fef`) with KV fix + `requirements-known-good.txt`
+> runs cleanly; without KV fix it hangs on both `dddcff2cc70` and tip.
 
 ## Layout
 
@@ -51,22 +62,28 @@ The tables and perf numbers below were measured on this stack:
 | Python | 3.11 | 3.10 also works |
 | PyTorch | 2.11.0+cpu | CPU-only build; MUST match vLLM's torch pin |
 | vLLM | 0.25.0 | v1 engine; CPU wheel |
-| OpenVINO | 2026.2.0 build `dddcff2cc70` on `vllm_dev` | see "Known good build" below |
+| OpenVINO | 2026.2.0 `vllm_dev` tip (`52edc43fef`) | with KV chunk source patch — see banner |
 
-**Known good build:** the performance numbers below were measured against
-OpenVINO source at commit **`dddcff2cc70`** on `vllm_dev`. The current tip
-of `vllm_dev` (`31999c2484` at time of writing) has a first-infer hang
-that is still under investigation — see the Troubleshooting section.
-Pin to `dddcff2cc70` for a working stack:
+**Verified working configuration** (session 2026-07-29 on SPR):
+
+- `vllm_dev` **tip** (`52edc43fef` at time of writing) — WORKS
+- `dddcff2cc70` — also WORKS
+
+Both require the KV chunk source patch shown in the banner above; without
+it, both hang at first infer. With the patch, tip is measurably faster on
+Llama sampling (+30% vs `dddcff2cc70`, because the OV-fused sampler landed
+in `21ac11be7e` / `9dedb29901`).
 
 ```bash
 git clone --recursive https://github.com/ynimmaga/openvino.git
 cd openvino
-git checkout dddcff2cc70   # known-good; do not use vllm_dev tip yet
+git checkout vllm_dev
 git submodule update --init --recursive
+# Apply the KV chunk fix from the banner to
+# src/bindings/python/src/openvino/frontend/pytorch/torchdynamo/vllm/side_channel.py
 ```
 
-Older/newer combinations may work but are not benched. In particular vLLM
+Older/newer vLLM combinations may work but are not benched. In particular vLLM
 0.24.x targets torch 2.10 and 0.26.x moves to torch 2.12 — do not mix minor
 versions across vLLM and PyTorch.
 
