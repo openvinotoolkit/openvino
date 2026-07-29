@@ -1,0 +1,66 @@
+:root {
+    --input-color: #2b2c30;
+    --input-color-disabled: #b2b3b9;
+    --input-color-placeholder: #6a6d75;
+    --input-color-placeholder-hover: #494b51;
+    --input-border-color: #c9cace;
+    --input-border-color-hover: #8b8e97;
+    --input-border-color-focus: #0068b5;
+    --input-border-color-invalid: #c81326;
+    --input-border-color-disabled: #e2e2e4;
+}
+
+.input-quiet {
+    border-width: 0;
+    background-color: transparent;
+    border-bottom-width: 1px;
+}
+.input-quiet:focus {
+    border-bottom-width: 2px;
+}
+.input-size-l {
+    height: 40px;
+}
+.input-size-m {
+    height: 32px;
+}
+.input-size-s {
+    height: 24px;
+}
+.input {
+    color: var(--input-color);
+    cursor: pointer;
+    box-sizing: border-box;
+    border-color: var(--input-border-color);
+    border-style: solid;
+}
+.input:hover {
+    border-color: var(--input-border-color-hover);
+}
+.input:focus {
+    border-color: var(--input-border-color-focus);
+}
+.input:disabled {
+    color: var(--input-color-disabled);
+    cursor: default;
+    border-color: var(--input-border-color-disabled);
+}
+.input:invalid,
+.input.is-invalid {
+    border-color: var(--input-border-color-invalid);
+}
+.input:focus-visible {
+    outline: none;
+}
+.input::placeholder {
+    color: var(--input-color-placeholder);
+}
+.input:hover:not(:disabled)::placeholder {
+    color: var(--input-color-placeholder-hover);
+}
+.input::-webkit-search-cancel-button{
+    display: none;
+    right:20px;  
+
+    -webkit-appearance: none;
+}

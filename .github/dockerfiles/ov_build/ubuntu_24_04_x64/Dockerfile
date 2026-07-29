@@ -1,0 +1,92 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:24.04
+
+USER root
+
+# APT configuration
+RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
+    echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
+
+ENV DEBIAN_FRONTEND="noninteractive" \
+    TZ="Europe/London"
+
+RUN apt-get update && \
+    apt-get install software-properties-common && \
+    add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install \
+        curl \
+        git \
+        gpg-agent \
+        tzdata \
+        # parallel gzip
+        pigz \
+        # Pythons
+        python3.10-dev \
+        python3.10-venv \
+        python3.10-distutils \
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils \
+        python3.12-dev \
+        python3.12-venv \
+        python3.13-dev \
+        python3.13-venv \
+        python3-dev \
+        python3-venv \
+        python3-pip \
+        python3-full \
+        python3.14-nogil \
+        python3.14-venv \
+        python3.14-dev \
+        # For Java API
+        default-jdk \
+        # For clang-tidy validation
+        clang-format-18 \
+        clang-tidy-18 \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install build dependencies
+ADD install_build_dependencies.sh /install_build_dependencies.sh
+RUN chmod +x /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install sccache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="/opt/sccache/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+
+ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
+# packages into the system Python
+RUN python3 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION}
+
+# Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+

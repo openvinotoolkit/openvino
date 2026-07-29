@@ -1,0 +1,15 @@
+bin
+include
+/lib
+!/scripts/lib
+src
+tests
+thirdparty
+
+eslint.config.js
+.prettierrc
+CMakeLists.txt
+tsconfig.json
+
+**/*.tsbuildinfo
+*.tgz

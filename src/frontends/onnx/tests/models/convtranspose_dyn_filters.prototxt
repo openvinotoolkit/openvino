@@ -1,0 +1,85 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "Data"
+    input: "Filters"
+    input: "Bias"
+    output: "Output"
+    op_type: "ConvTranspose"
+    attribute {
+      name: "group"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "pads"
+      ints: 1
+      ints: 2
+      ints: 2
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+  }
+  name: "compute_graph"
+  input {
+    name: "Data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Filters"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "Bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Output"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

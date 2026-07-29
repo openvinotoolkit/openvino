@@ -1,0 +1,99 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import os
+import platform
+
+import pytest
+import random
+import torch
+from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
+from models_hub_common.utils import cleanup_dir
+
+from torch_utils import TestTorchConvertModel
+from PIL import Image
+
+# To make tests reproducible we seed the random generator
+torch.manual_seed(0)
+
+
+class TestEdsrConvertModel(TestTorchConvertModel):
+    def load_model(self, model_name, model_link):
+        import requests
+        from super_image import (ImageLoader, EdsrModel, MsrnModel, A2nModel,
+                                  PanModel, CarnModel, DrlnModel, MdsrModel,
+                                  HanModel, AwsrnModel, RcanModel)
+
+        name_to_class = {
+            "a2n": A2nModel,
+            "awsrn-bam": AwsrnModel,
+            "carn": CarnModel,
+            "carn-bam": CarnModel,
+            "drln": DrlnModel,
+            "drln-bam": DrlnModel,
+            "edsr": EdsrModel,
+            "edsr-base": EdsrModel,
+            "msrn": MsrnModel,
+            "mdsr": MdsrModel,
+            "msrn-bam": MsrnModel,
+            "mdsr-bam": MdsrModel,
+            "pan": PanModel,
+            "pan-bam": PanModel,
+            "rcan-bam": RcanModel,
+            "han": HanModel,
+        }
+
+        url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        image = Image.open(response.raw)
+        assert model_name in name_to_class, "Unexpected model name"
+        print(f"scale: {self.scale}")
+        model = name_to_class[model_name].from_pretrained(
+            f'eugenesiow/{model_name}', scale=self.scale)
+        inputs = ImageLoader.load_image(image)
+        self.example = (torch.randn_like(inputs),)
+        self.inputs = (inputs,)
+        return model
+
+    def teardown_method(self):
+        if clean_hf_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_cache_dir)
+        super().teardown_method()
+
+    @pytest.mark.skipif(
+        condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+        reason="Not supported on ARM",
+    )
+    @pytest.mark.parametrize("name", ["edsr"])
+    @pytest.mark.precommit
+    def test_convert_model_precommit(self, name, ie_device):
+        self.scale = random.randint(2, 4)
+        self.run(name, None, ie_device)
+
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("name", [
+        "a2n",
+        "awsrn-bam",
+        "carn",
+        "carn-bam",
+        "drln",
+        "drln-bam",
+        "edsr",
+        "edsr-base",
+        "msrn",
+        "msrn-bam",
+        "mdsr",
+        "mdsr-bam",
+        "pan",
+        "pan-bam",
+        "han",
+        "rcan-bam",
+    ])
+    def test_convert_model_all_models(self, name, ie_device):
+        if name in ["han", "rcan-bam"]:
+            self.scale = 4
+        else:
+            self.scale = random.randint(2, 4)
+        self.run(name, None, ie_device)

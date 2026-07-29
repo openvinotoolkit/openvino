@@ -1,0 +1,42 @@
+ir_version: 4
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    output: "Y"
+    name: "node1"
+    op_type: "Softplus"
+    doc_string: "Softplus"
+    domain: ""
+  }
+  name: "test"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 13
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 13
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}

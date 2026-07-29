@@ -1,0 +1,89 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "max_output_boxes"
+    name: "Constant_1521"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        raw_data: "\377\377\377\377\377\377\377\177"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "iou_threshold"
+    name: "Constant_1522"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 1
+        raw_data: "333?"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "boxes"
+    input: "scores"
+    input: "max_output_boxes"
+    input: "iou_threshold"
+    output: "selected_indices"
+    op_type: "NonMaxSuppression"
+  }
+  input {
+    name: "boxes"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 50
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "scores"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 50
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "selected_indices"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

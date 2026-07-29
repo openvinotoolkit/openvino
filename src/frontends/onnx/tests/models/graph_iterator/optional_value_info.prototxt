@@ -1,0 +1,53 @@
+ir_version: 3
+producer_name: "OpenVINO GraphIterator Tests"
+graph {
+  node {
+    input: "optional_input"
+    output: "optional_output"
+    op_type: "Identity"
+  }
+  name: "graph_iterator_optional"
+  input {
+    name: "optional_input"
+    type {
+      optional_type {
+        elem_type {
+          tensor_type {
+            elem_type: 1
+            shape {
+              dim {
+                dim_value: 2
+              }
+              dim {
+                dim_value: 3
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "optional_output"
+    type {
+      optional_type {
+        elem_type {
+          tensor_type {
+            elem_type: 1
+            shape {
+              dim {
+                dim_value: 2
+              }
+              dim {
+                dim_value: 3
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}

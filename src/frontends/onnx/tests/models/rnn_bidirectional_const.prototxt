@@ -1,0 +1,187 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "W"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2  # num_directions
+        dims: 5 # gates_count*hidden_size
+        dims: 2  # input_size
+        data_type: 1
+        float_data: 0.31403765
+        float_data: -0.16793324
+        float_data: 1.388258
+        float_data: -0.6902954
+        float_data: -0.3994045
+        float_data: -0.7833511
+        float_data: -0.30992958
+        float_data: 0.3557573
+        float_data: -0.4682631
+        float_data: 1.1741459
+        float_data: -2.414789
+        float_data: -0.42783254
+        float_data: -0.82199496
+        float_data: -0.03900861
+        float_data: -0.43670088
+        float_data: -0.53810567
+        float_data: -0.10769883
+        float_data: 0.75242394
+        float_data: -0.2507971
+        float_data: 1.0447186
+        name: "W_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "R"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2  # num_directions
+        dims: 5 # gates_count*hidden_size
+        dims: 5  # input_size
+        data_type: 1
+        float_data: -1.4777364
+        float_data: 0.19993274
+        float_data: 0.925649
+        float_data: -2.282516
+        float_data: 0.95039636
+        float_data: 1.5379831
+        float_data: -0.88576007
+        float_data: 0.28566247
+        float_data: 0.79292643
+        float_data: -0.04261953
+        float_data: 0.8490583
+        float_data: 0.45121244
+        float_data: -1.1799014
+        float_data: 0.13536449
+        float_data: 0.81328654
+        float_data: 0.6017516
+        float_data: 0.48475724
+        float_data: -1.2136037
+        float_data: 0.16383322
+        float_data: 1.5106261
+        float_data: 1.1177503
+        float_data: 0.23582461
+        float_data: 0.5754652
+        float_data: 0.43879887
+        float_data: 0.7399294
+        float_data: 0.4517558
+        float_data: 1.3536783
+        float_data: -0.4843166
+        float_data: -1.1503736
+        float_data: -0.2458678
+        float_data: 0.54523313
+        float_data: -0.08649993
+        float_data: -0.6936281
+        float_data: 1.002422
+        float_data: -1.770847
+        float_data: -0.94642
+        float_data: -1.8135757
+        float_data: 1.8819852
+        float_data: -0.10852333
+        float_data: -0.26120332
+        float_data: 1.0223165
+        float_data: -0.7468837
+        float_data: 0.28566906
+        float_data: 0.92321056
+        float_data: 0.22521864
+        float_data: 1.1123824
+        float_data: -0.9298287
+        float_data: 1.2141289
+        float_data: 1.3470556
+        float_data: -0.32972014
+
+        name: "R_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    output: "Y"
+    output: "Y_h"
+    op_type: "RNN"
+    attribute {
+      name: "hidden_size"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "direction"
+      s: "bidirectional"
+      type: STRING
+    }
+  }
+  name: "test_rnn_bidirectional"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4  # seq_length
+          }
+          dim {
+            dim_value: 3  # batch size
+          }
+          dim {
+            dim_value: 2  # input size
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4 # seq_length
+          }
+          dim {
+            dim_value: 2 # num_directions
+          }
+          dim {
+            dim_value: 3 # batch_size
+          }
+          dim {
+            dim_value: 5 # hidden_size
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2 # num_directions
+          }
+          dim {
+            dim_value: 3 # batch_size
+          }
+          dim {
+            dim_value: 5 # hidden_size
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 9
+}

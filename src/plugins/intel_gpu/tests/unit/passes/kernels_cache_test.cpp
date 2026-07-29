@@ -1,0 +1,249 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "test_utils.h"
+
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
+
+#include "data_inst.h"
+#include "eltwise_inst.h"
+#include "reshape_inst.h"
+#include "shape_of_inst.h"
+#include "fully_connected_inst.h"
+#include "permute_inst.h"
+#include "reduce_inst.h"
+#include "to_string_utils.h"
+#include "program_wrapper.h"
+#include "pass_manager.h"
+#include "kernel_base.h"
+
+#include <memory>
+#include <regex>
+
+using namespace cldnn;
+using namespace ::tests;
+
+TEST(kernels_cache, reuse_kernel_for_static_model_01) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input1 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input2 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input3 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input4 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input5 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto weights1 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
+    auto weights2 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
+
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
+                      input_layout("input2", input2->get_layout()),
+                      input_layout("input3", input3->get_layout()),
+                      input_layout("input4", input4->get_layout()),
+                      input_layout("input5", input5->get_layout()),
+                      data("weights1", weights1),
+                      data("weights2", weights2),
+                      concatenation("concat1",
+                                    { input_info("input0"), input_info("input1"), input_info("input2") },
+                                    1,
+                                    data_types::f16),
+                      convolution("conv1", input_info("concat1"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+                      concatenation("concat2",
+                                    { input_info("input3"), input_info("input4"), input_info("input5") },
+                                    1,
+                                    data_types::f16),
+                      convolution("conv2", input_info("concat2"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+                      eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
+                      reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    auto& cache = prog->get_kernels_cache();
+    auto& conv1_node = prog->get_node("conv1");
+    auto& conv2_node = prog->get_node("conv2");
+    auto conv1_kernels = conv1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv1_kernels);
+    auto conv2_kernels = conv2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv2_kernels);
+    ASSERT_EQ(conv1_kernels.size(), conv2_kernels.size());
+    for (size_t idx = 0; idx < conv1_kernels.size(); idx++) {
+        auto conv1_kern = cache.get_cached_kernel_id(conv1_kernels[idx]);
+        auto conv2_kern = cache.get_cached_kernel_id(conv2_kernels[idx]);
+        ASSERT_EQ(conv1_kern, conv2_kern);
+    }
+
+    auto& concat1_node = prog->get_node("concat1");
+    auto& concat2_node = prog->get_node("concat2");
+    auto concat1_kernels = concat1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat1_kernels);
+    auto concat2_kernels = concat2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat2_kernels);
+    ASSERT_EQ(concat1_kernels.size(), concat2_kernels.size());
+    for (size_t idx = 0; idx < concat1_kernels.size(); idx++) {
+        auto concat1_kern = cache.get_cached_kernel_id(concat1_kernels[idx]);
+        auto concat2_kern = cache.get_cached_kernel_id(concat2_kernels[idx]);
+        ASSERT_EQ(concat1_kern, concat2_kern);
+    }
+}
+
+TEST(kernels_cache, sub_kernel_ordering_test) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::threading::IStreamsExecutor::Config task_executor_config("sub_kernel_ordering_test", 2);
+    auto executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
+    const size_t num_kernels = 9;
+    auto _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(engine, config, 0, executor));
+    std::vector<std::string> entry_point_list;
+    std::vector<std::shared_ptr<kernel_selector::KernelString>> kernel_code_list;
+    for (size_t idx = 0; idx < num_kernels; idx++) {
+        std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+        std::string entry_point = "add_kernel_" + std::to_string(idx);
+        std::string kernel_code =
+            R"__krnl(
+                __kernel void $entry_point_name(const __global float* input0, const __global float* input1, __global float* output)
+                {
+                    const unsigned idx = get_global_id(0);
+                    output[idx] = input0[idx] + input1[idx];
+
+                }
+            )__krnl";
+        kernel_code = std::regex_replace(kernel_code, std::regex("\\$entry_point_name"), entry_point);
+        kernel_string->str = kernel_code;
+        kernel_string->options = "-cl-mad-enable";
+        kernel_string->entry_point = entry_point;
+        kernel_string->batch_compilation = true;
+        entry_point_list.push_back(entry_point);
+        kernel_code_list.push_back(kernel_string);
+    }
+    kernel_impl_params dummy_params;
+    auto dummy_prog = std::make_shared<program>(engine, config);
+    dummy_params.prog = dummy_prog.get();
+    _kernels_cache->add_kernels_source(dummy_params, kernel_code_list, false);
+    _kernels_cache->build_all();
+    auto _out_kernels = _kernels_cache->get_kernels(dummy_params);
+    ASSERT_EQ(entry_point_list.size(), _out_kernels.size());
+    for (size_t i = 0; i < entry_point_list.size(); i++) {
+        ASSERT_EQ(entry_point_list[i], _out_kernels[i]->get_id());
+    }
+}
+
+// NEO 23.x+ no longer implicitly declares __local overloads of intel_sub_group_block_read*,
+// which broke SLM block reads in sub_group_block_read.cl.
+// This test compiles a kernel that uses the _sub_group_block_read_slm* family to guard against regressions:
+// if those symbols are missing, clBuildProgram fails on any driver.
+TEST(kernels_cache, sub_group_block_read_slm_emulation_path_compiles) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::threading::IStreamsExecutor::Config task_executor_config("slm_block_read_regression", 2);
+    auto executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
+    auto _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(
+        engine, config, 0, executor, kernel_selector::KernelBase::get_db().get_batch_headers()));
+
+    auto kernel_string = std::make_shared<kernel_selector::KernelString>();
+    kernel_string->str =
+        R"__krnl(
+            __attribute__((intel_reqd_sub_group_size(16)))
+            __kernel void slm_block_read_probe(const __global ushort* in, __global uint* out) {
+                __local uint   slm_u[256];
+                __local ushort slm_s[256];
+                const uint gid = get_global_id(0);
+                const uint lid = get_local_id(0);
+                slm_u[lid] = (uint)in[gid];
+                slm_s[lid] = in[gid];
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                uint    a  = _sub_group_block_read_slm(slm_u);
+                ushort  b  = _sub_group_block_read_slm_us(slm_s);
+                ushort4 c4 = _sub_group_block_read_slm_us4(slm_s);
+                ushort8 c8 = _sub_group_block_read_slm_us8(slm_s);
+                uint4   d  = as_uint4(BLOCK_READN_SLM(uint, 4, slm_u, 0));
+
+                out[gid] = a + (uint)b + (uint)c4.s0 + (uint)c8.s0 + d.x;
+            }
+        )__krnl";
+    kernel_string->language = kernel_language::OCLC;
+    kernel_string->options = "-cl-std=CL2.0";
+    kernel_string->entry_point = "slm_block_read_probe";
+    kernel_string->batch_compilation = true;
+
+    std::vector<std::shared_ptr<kernel_selector::KernelString>> kernel_code_list{kernel_string};
+    kernel_impl_params dummy_params;
+    auto dummy_prog = std::make_shared<program>(engine, config);
+    dummy_params.prog = dummy_prog.get();
+    _kernels_cache->add_kernels_source(dummy_params, kernel_code_list, false);
+
+    ASSERT_NO_THROW(_kernels_cache->build_all());
+    ASSERT_EQ(_kernels_cache->get_kernels(dummy_params).size(), size_t(1));
+}
+
+
+TEST(kernels_cache, reuse_kernels_property) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input1 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input2 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input3 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input4 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto input5 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
+    auto weights1 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
+    auto weights2 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
+
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
+                      input_layout("input2", input2->get_layout()),
+                      input_layout("input3", input3->get_layout()),
+                      input_layout("input4", input4->get_layout()),
+                      input_layout("input5", input5->get_layout()),
+                      data("weights1", weights1),
+                      data("weights2", weights2),
+                      concatenation("concat1",
+                                    { input_info("input0"), input_info("input1"), input_info("input2") },
+                                    1,
+                                    data_types::f16),
+                      convolution("conv1", input_info("concat1"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+                      concatenation("concat2",
+                                    { input_info("input3"), input_info("input4"), input_info("input5") },
+                                    1,
+                                    data_types::f16),
+                      convolution("conv2", input_info("concat2"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+                      eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
+                      reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::hint::enable_kernels_reuse(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    auto& cache = prog->get_kernels_cache();
+    auto& conv1_node = prog->get_node("conv1");
+    auto& conv2_node = prog->get_node("conv2");
+    auto conv1_kernels = conv1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv1_kernels);
+    auto conv2_kernels = conv2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv2_kernels);
+    ASSERT_EQ(conv1_kernels.size(), conv2_kernels.size());
+    for (size_t idx = 0; idx < conv1_kernels.size(); idx++) {
+        auto conv1_kern = cache.get_cached_kernel_id(conv1_kernels[idx]);
+        auto conv2_kern = cache.get_cached_kernel_id(conv2_kernels[idx]);
+        ASSERT_EQ(conv1_kern, conv2_kern);
+        ASSERT_TRUE(conv1_kernels[idx]->is_same(*conv2_kernels[idx].get()));
+    }
+
+    auto& concat1_node = prog->get_node("concat1");
+    auto& concat2_node = prog->get_node("concat2");
+    auto concat1_kernels = concat1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat1_kernels);
+    auto concat2_kernels = concat2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat2_kernels);
+    ASSERT_EQ(concat1_kernels.size(), concat2_kernels.size());
+    for (size_t idx = 0; idx < concat1_kernels.size(); idx++) {
+        auto concat1_kern = cache.get_cached_kernel_id(concat1_kernels[idx]);
+        auto concat2_kern = cache.get_cached_kernel_id(concat2_kernels[idx]);
+        ASSERT_EQ(concat1_kern, concat2_kern);
+        ASSERT_TRUE(concat1_kernels[idx]->is_same(*concat2_kernels[idx].get()));
+    }
+}

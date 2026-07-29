@@ -1,0 +1,53 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+# Linear chain given in reverse order:
+#   Correct order: X -> Relu -> R1, R1 -> Abs -> R2, R2 -> Neg -> Y
+#   Given order:   Neg(R2->Y), Abs(R1->R2), Relu(X->R1)
+# Topological sort must reorder completely.
+graph {
+  name: "reverse_chain_graph"
+  node {
+    input: "R2"
+    output: "Y"
+    op_type: "Neg"
+  }
+  node {
+    input: "R1"
+    output: "R2"
+    op_type: "Abs"
+  }
+  node {
+    input: "X"
+    output: "R1"
+    op_type: "Relu"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

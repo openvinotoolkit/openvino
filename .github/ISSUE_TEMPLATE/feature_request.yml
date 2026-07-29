@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest a feature or improvement for the OpenVINO toolkit.
+title: "[Feature Request]: "
+labels: ["enhancement", "feature"]
+assignees:
+  - octocat
+body:
+  - type: textarea
+    id: request_description
+    attributes:
+      label: Request Description
+      description: What would you like us to improve on?
+      placeholder: Please provide a detailed description of your request.
+    validations:
+      required: true
+  - type: textarea
+    id: feature_usecase
+    attributes:
+      label: Feature Use Case
+      description: What is the use case of the feature you are proposing?
+      placeholder: What is the new feature use case? How will it be useful?
+    validations:
+      required: false
+  - type: checkboxes
+    id: check2
+    attributes:
+      label: Issue submission checklist
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: The feature request or improvement must be related to OpenVINO
+          required: true

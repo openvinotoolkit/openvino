@@ -1,0 +1,56 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "dense_constant"
+    op_type: "Constant"
+    attribute {
+      name: "sparse_value"
+      type: SPARSE_TENSOR
+      sparse_tensor {
+        values {
+          dims: 3
+          data_type: 13
+          uint64_data: 1
+          uint64_data: 8
+          uint64_data: 3
+          name: "values"
+        }
+        indices {
+          dims: 3
+          dims: 2
+          data_type: 7
+          int64_data: 0
+          int64_data: 0
+          int64_data: 0
+          int64_data: 3
+          int64_data: 2
+          int64_data: 2
+          name: "indices"
+        }
+        dims: 3
+        dims: 4
+      }
+    }
+  }
+  name: "test_sparse_tensor"
+  output {
+    name: "dense_constant"
+    type {
+      tensor_type {
+        elem_type: 13
+        shape {
+          dim {
+            dim_value: 3
+          },
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

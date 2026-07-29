@@ -1,0 +1,27 @@
+fail-on-severity: 'low'
+allow-licenses:
+  - 'BSD-2-Clause'
+  - 'BSD-3-Clause'
+  - 'BSD-3-Clause-Clear'
+  - 'BSD-2-Clause-Views'
+  - 'MIT'
+  - 'CC0-1.0'
+  - 'CC-BY-4.0'
+  - 'Apache-2.0'
+  - 'ISC'
+  - 'BlueOak-1.0.0'
+  - '0BSD'
+  - 'Python-2.0'
+  - 'LGPL-3.0'
+  - 'MPL-2.0'
+fail-on-scopes:
+  - 'runtime'
+  - 'development'
+  - 'unknown'
+license-check: true
+vulnerability-check: true
+allow-dependencies-licenses:
+  - 'pkg:pypi/PyGithub@2.2.0'
+  - 'pkg:pypi/psycopg2-binary'
+  - 'pkg:pypi/pytz@2026.2' # MIT license, but dependency review flags it as MIT AND ZPL-2.1: https://github.com/stub42/pytz/blob/release_2026.2/LICENSE.txt
+  - 'pkg:npm/@sinclair/typebox@0.34.49' # It has only an MIT license, but the dependency check actions reports it as MIT AND Zlib, see https://github.com/sinclairzx81/sinclair-typebox?tab=License-1-ov-file

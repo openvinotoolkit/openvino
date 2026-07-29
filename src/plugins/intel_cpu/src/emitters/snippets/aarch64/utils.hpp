@@ -1,0 +1,138 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <vector>
+
+#include "cpu/aarch64/jit_generator.hpp"
+#include "snippets/emitter.hpp"
+
+namespace ov::intel_cpu::aarch64 {
+
+class EmitABIRegSpills {
+public:
+    explicit EmitABIRegSpills(dnnl::impl::cpu::aarch64::jit_generator_t* h_arg);
+    ~EmitABIRegSpills();
+
+    [[nodiscard]] size_t get_num_spilled_regs() const {
+        return m_regs_to_spill.size();
+    }
+
+    [[nodiscard]] const std::vector<Xbyak_aarch64::Reg>& get_spilled_regs() const {
+        return m_regs_to_spill;
+    }
+
+    void preamble(const std::vector<Xbyak_aarch64::Reg>& live_regs);
+    void preamble(const std::set<snippets::Reg>& live_regs);
+    void postamble();
+
+    static void store_regs_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                    const std::vector<Xbyak_aarch64::Reg>& regs_to_store);
+    static void load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                     const std::vector<Xbyak_aarch64::Reg>& regs_to_load);
+
+private:
+    dnnl::impl::cpu::aarch64::jit_generator_t* h = nullptr;
+    std::vector<Xbyak_aarch64::Reg> m_regs_to_spill;
+    bool spill_status = true;
+};
+
+namespace utils {
+
+Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::set<snippets::Reg>& regs);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs);
+
+inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
+    std::vector<Xbyak_aarch64::XReg> regs;
+    regs.reserve(idxs.size());
+    std::transform(idxs.begin(), idxs.end(), std::back_inserter(regs), [](size_t idx) {
+        return Xbyak_aarch64::XReg(static_cast<int>(idx));
+    });
+    return regs;
+}
+
+/**
+ * @brief Find multiple available registers from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
+ * @param used_gpr_idxs current used gpr register indexes
+ * @param count number of auxiliary registers needed (default: 3)
+ * @return vector of registers
+ */
+std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count = 3);
+
+/**
+ * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`
+ * @param h generator
+ * @param stack_offset stack offset
+ * @param ptr_reg register containing data pointer
+ * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, ptr_reg must not be in this
+ * vector)
+ * @param runtime_offset offset in runtime params `abi_param1`
+ */
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                           int32_t stack_offset,
+                                           const Xbyak_aarch64::XReg& ptr_reg,
+                                           const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                           size_t runtime_offset);
+
+/**
+ * @brief Push data pointer on stack adding static offset `ptr_offset`
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
+ * @param h generator
+ * @param stack_offset stack offset
+ * @param ptr_reg register containing data pointer
+ * @param aux_regs vector of available auxiliary registers (must contain >= 2 registers, ptr_reg must not be in this
+ * vector)
+ * @param ptr_offset offset which will be added to data pointer
+ */
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                          int32_t stack_offset,
+                                          const Xbyak_aarch64::XReg& ptr_reg,
+                                          const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                          size_t ptr_offset);
+
+/**
+ * @brief Push multiple data pointers on stack with offsets and load them back to specified registers
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
+ * @param h generator
+ * @param mem_ptrs vector of registers containing data pointers
+ * @param memory_offsets vector of memory offsets (can be dynamic or static)
+ * @param buffer_ids vector of buffer IDs for runtime offset calculation
+ * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, no overlap with mem_ptrs)
+ * @param load_regs vector of registers to load the adjusted pointers back to
+ */
+void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                     const std::vector<Xbyak_aarch64::XReg>& load_regs);
+
+/**
+ * @brief Push multiple data pointers to specific stack offsets with applied memory offsets
+ * This is designed for struct-based calling conventions where pointers need to be stored
+ * at specific stack locations rather than loaded back to registers.
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
+ * @param h generator
+ * @param mem_ptrs vector of registers containing data pointers
+ * @param memory_offsets vector of memory offsets (can be dynamic or static)
+ * @param buffer_ids vector of buffer IDs for runtime offset calculation
+ * @param aux_regs vector of available auxiliary registers
+ * @param stack_offsets vector of stack offsets where adjusted pointers should be stored
+ */
+void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                     const std::vector<int32_t>& stack_offsets);
+
+}  // namespace utils
+}  // namespace ov::intel_cpu::aarch64

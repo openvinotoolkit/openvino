@@ -1,0 +1,69 @@
+ir_version: 6
+graph {
+  node {
+    input: "A"
+    input: "B"
+    output: "Y"
+    name: "node1"
+    op_type: "MatMul"
+    doc_string: "MatMul"
+  }
+  name: "fused_function_subgraph"
+  doc_string: ""
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 7
+}
+opset_import {
+  domain: "ai.onnx.ml"
+  version: 2
+}

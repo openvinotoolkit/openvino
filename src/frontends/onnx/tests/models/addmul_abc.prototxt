@@ -1,0 +1,133 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  node {
+    input: "Input4"
+    input: "Input5"
+    output: "ElementTimes6_Output_0"
+    name: "ElementTimes6"
+    op_type: "Mul"
+    attribute {
+      name: "broadcast"
+      i: 0
+      type: INT
+    }
+    doc_string: ""
+    domain: ""
+  }
+  node {
+    input: "Input3"
+    input: "ElementTimes6_Output_0"
+    output: "Plus9_Output_0"
+    name: "Plus9"
+    op_type: "Add"
+    attribute {
+      name: "broadcast"
+      i: 0
+      type: INT
+    }
+    doc_string: ""
+    domain: ""
+  }
+  name: "CNTKGraph"
+  input {
+    name: "Input4"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Input5"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Input3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Plus9_Output_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  value_info {
+    name: "ElementTimes6_Output_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 2
+}

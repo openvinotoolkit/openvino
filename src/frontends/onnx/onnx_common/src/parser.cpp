@@ -1,0 +1,51 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "onnx_common/parser.hpp"
+
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+#include <onnx/onnx_pb.h>
+
+#include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
+
+using namespace ::ONNX_NAMESPACE;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
+ModelProto parse_from_file(const std::filesystem::path& file_path) {
+    std::ifstream file_stream{file_path, std::ios::binary};
+
+    OPENVINO_ASSERT(file_stream.is_open(), "Could not open the file: ", file_path);
+
+    auto model_proto = parse_from_istream(file_stream);
+    file_stream.close();
+    return model_proto;
+}
+
+ModelProto parse_from_istream(std::istream& model_stream) {
+    if (!model_stream.good()) {
+        model_stream.clear();
+        model_stream.seekg(0);
+        if (!model_stream.good()) {
+            OPENVINO_THROW("Provided input stream has incorrect state.");
+        }
+    }
+
+    ModelProto model_proto;
+    if (!model_proto.ParseFromIstream(&model_stream)) {
+        OPENVINO_THROW("Error during import of ONNX model provided as input stream "
+                       " with binary protobuf message.");
+    }
+
+    return model_proto;
+}
+
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

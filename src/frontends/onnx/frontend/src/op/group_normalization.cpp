@@ -1,0 +1,95 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/op/group_normalization.hpp"
+
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "utils/common.hpp"
+using ::ONNX_NAMESPACE::TensorProto_DataType;
+using namespace ov::op;
+using ov::Shape;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_18 {
+ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
+    OPENVINO_ASSERT(inputs.size() == 3);
+
+    const auto& data = inputs[0];   // Shape [N, C, ...]
+    const auto& scale = inputs[1];  // Shape [num_groups]
+    const auto& bias = inputs[2];   // Shape [num_groups]
+
+    const auto eps = node.get_attribute_value<float>("epsilon", 1e-05f);
+    const auto num_groups = node.get_attribute_value<int64_t>("num_groups");
+
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    const auto c_dim = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(data), one, zero);
+    const auto g_dim = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_groups});
+
+    const auto c_g_div = std::make_shared<v1::Divide>(c_dim, g_dim);
+
+    // Adjust scale and bias shape, [G] -> [G, C/G] -> [C]
+    const auto scale_unsq = std::make_shared<v0::Unsqueeze>(scale, one);
+    const auto broadcast_scale =
+        std::make_shared<v3::Broadcast>(scale_unsq, c_g_div, ov::op::BroadcastType::BIDIRECTIONAL);
+    const auto c_scale = std::make_shared<v1::Reshape>(broadcast_scale, c_dim, false);
+
+    const auto bias_unsq = std::make_shared<v0::Unsqueeze>(bias, one);
+    const auto broadcast_bias =
+        std::make_shared<v3::Broadcast>(bias_unsq, c_g_div, ov::op::BroadcastType::BIDIRECTIONAL);
+    const auto c_bias = std::make_shared<v1::Reshape>(broadcast_bias, c_dim, false);
+
+    return {std::make_shared<v12::GroupNormalization>(data, c_scale, c_bias, num_groups, eps)};
+}
+ONNX_OP("GroupNormalization", OPSET_RANGE(1, 20), ai_onnx::opset_18::group_normalization);
+}  // namespace opset_18
+namespace opset_21 {
+ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
+    OPENVINO_ASSERT(inputs.size() == 3);
+
+    auto default_stash_type_i = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
+    int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type_i);
+    element::Type stash_type = common::get_ov_element_type(stash_type_i);
+
+    ov::Output<ov::Node> data = inputs[0];   // Shape [N, C, ...]
+    ov::Output<ov::Node> scale = inputs[1];  // Shape [C]
+    ov::Output<ov::Node> bias = inputs[2];   // Shape [C]
+
+    element::Type original_type = data.get_element_type();
+    bool needs_type_casting = stash_type != original_type;
+    if (needs_type_casting) {
+        data = std::make_shared<ov::op::v0::Convert>(data, stash_type);
+        scale = std::make_shared<ov::op::v0::Convert>(scale, stash_type);
+        bias = std::make_shared<ov::op::v0::Convert>(bias, stash_type);
+    }
+
+    const auto eps = node.get_attribute_value<float>("epsilon", 1e-05f);
+    const auto num_groups = node.get_attribute_value<int64_t>("num_groups");
+
+    ov::Output<ov::Node> op = std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps);
+    if (needs_type_casting)
+        op = std::make_shared<ov::op::v0::Convert>(op, original_type);
+
+    return {op};
+}
+ONNX_OP("GroupNormalization", OPSET_SINCE(21), ai_onnx::opset_21::group_normalization);
+}  // namespace opset_21
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,0 +1,60 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "Q"
+    input: "K"
+    input: "V"
+    input: ""
+    input: "past_key"
+    input: "past_value"
+    output: "Y"
+    output: "present_key"
+    output: "present_value"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute { name: "is_causal" i: 1 type: INT }
+  }
+  name: "attention_kv_cache_causal"
+  input {
+    name: "Q"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 1 } dim { dim_value: 3 } } } }
+  }
+  input {
+    name: "K"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 1 } dim { dim_value: 3 } } } }
+  }
+  input {
+    name: "V"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 1 } dim { dim_value: 3 } } } }
+  }
+  input {
+    name: "past_key"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 3 } } } }
+  }
+  input {
+    name: "past_value"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 3 } dim { dim_value: 3 } } } }
+  }
+  output {
+    name: "Y"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 1 } dim { dim_value: 3 } } } }
+  }
+  output {
+    name: "present_key"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 4 } dim { dim_value: 3 } } } }
+  }
+  output {
+    name: "present_value"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 4 } dim { dim_value: 3 } } } }
+  }
+}
+opset_import { version: 23 }

@@ -1,0 +1,594 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+/**
+ * @brief Defines API to trace using Intel ITT.
+ * @file itt.hpp
+ */
+
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <utility>
+
+#include "openvino/function_name.hpp"
+#include "openvino/util/pp.hpp"
+
+/** @ingroup ov_dev_profiling
+ * @brief openvino namespace
+ */
+namespace openvino {
+namespace itt {
+/**
+ * @typedef domain_t
+ * @ingroup ov_dev_profiling
+ * @brief A domain type which enables tagging trace data for different modules or libraries in a program.
+ */
+typedef struct domain_ {
+}* domain_t;
+
+/**
+ * @typedef handle_t
+ * @ingroup ov_dev_profiling
+ * @brief Annotation handle for section of code which would be named at runtime.
+ */
+typedef struct handle_ {
+}* handle_t;
+
+/**
+ * @cond
+ */
+namespace internal {
+domain_t domain(const char* name);
+handle_t handle(const char* name);
+void taskBegin(domain_t d, handle_t t);
+void taskBegin(domain_t d, handle_t t, const char* key, uint64_t value);
+void taskEnd(domain_t d);
+void threadName(const char* name);
+void regionBegin(domain_t d, handle_t t);
+void regionBegin(domain_t d, handle_t t, const char* key, uint64_t value);
+void regionEnd(domain_t d);
+void shutdown();
+}  // namespace internal
+/**
+ * @endcond
+ */
+
+/**
+ * @fn void threadName(const char* name)
+ * @ingroup ov_dev_profiling
+ * @brief Set thread name using a char string.
+ * @param name [in] The thread name
+ */
+inline void threadName(const char* name) {
+    internal::threadName(name);
+}
+
+inline void threadName(const std::string& name) {
+    internal::threadName(name.c_str());
+}
+
+inline handle_t handle(const char* name) {
+    return internal::handle(name);
+}
+
+inline handle_t handle(const std::string& name) {
+    return internal::handle(name.c_str());
+}
+
+/**
+ * @fn handle_t handle(char const *name)
+ * @ingroup ov_dev_profiling
+ * @brief Create annotation handle with a given name.
+ * @details If template function is instantiated with a tag, the handle is created as a singleton.
+ * @param name [in] The annotation name
+ */
+template <typename Tag>
+handle_t handle(const char* name) {
+    static auto h = internal::handle(name);
+    return h;
+}
+
+template <typename Tag>
+handle_t handle(const std::string& name) {
+    return handle<Tag>(name.c_str());
+}
+
+template <typename Tag>
+handle_t handle(handle_t h) {
+    return h;
+}
+
+/**
+ * @class ScopedTask
+ * @ingroup ov_dev_profiling
+ * @brief Used to annotate section of code which would be named at runtime.
+ * @note Uses ITT task begin/end. If a region is active on the
+ *       current thread, tasks started within it are recorded as its children.
+ * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
+ */
+template <domain_t (*domain)()>
+struct ScopedTask {
+    /**
+     * @brief Construct ScopedTask with defined annotation handle
+     */
+    ScopedTask(handle_t taskHandle) noexcept {
+        internal::taskBegin(domain(), taskHandle);
+    }
+
+    /**
+     * @brief Constructs a scoped task with an associated key-value metadata pair.
+     *
+     * Creates an ITT (Intel Tracing Technology) scoped task that will automatically
+     * begin upon construction and end when the object goes out of scope (RAII pattern).
+     * This overload allows attaching custom metadata to the task for enhanced profiling.
+     *
+     * @param taskHandle Handle identifying the task type for profiling tools.
+     * @param key String identifier for the metadata attribute (e.g., "InferenceID").
+     * @param value Numeric value associated with the key (e.g., unique request ID).
+     *
+     * @note The task begins immediately upon construction via internal::taskBegin.
+     * @note The key string must remain valid for the duration of the task scope.
+     * @note This constructor is noexcept, ensuring exception safety in profiling code.
+     *
+     * @see ScopedTask(handle_t) for the basic constructor without metadata.
+     */
+    ScopedTask(handle_t taskHandle, const char* key, uint64_t value) noexcept {
+        internal::taskBegin(domain(), taskHandle, key, value);
+    }
+
+    /**
+     * @brief The ScopedTask destructor closes or ends the task scope
+     */
+    ~ScopedTask() noexcept {
+        internal::taskEnd(domain());
+    }
+
+    ScopedTask(const ScopedTask&) = delete;
+    ScopedTask& operator=(const ScopedTask&) = delete;
+};
+
+/**
+ * @class ScopedRegion
+ * @ingroup ov_dev_profiling
+ * @brief Used to annotate region of code which would be named at runtime using RAII.
+ * @note Uses ITT region begin/end. At most one region is active per thread; tasks
+ *       started while a region is active attach to it as their parent.
+ * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
+ */
+template <domain_t (*domain)()>
+struct ScopedRegion {
+    /**
+     * @brief Construct ScopedRegion with defined annotation handle
+     */
+    ScopedRegion(handle_t handle) noexcept {
+        internal::regionBegin(domain(), handle);
+    }
+
+    /**
+     * @brief Constructs a scoped region with metadata for ITT profiling.
+     *
+     * @param handle Region identifier for profiling tools.
+     * @param key Metadata attribute name (e.g., "RequestID").
+     * @param value Metadata numeric value associated with the key.
+     *
+     * @note Region begins immediately and ends when object goes out of scope (RAII).
+     * @note The key string must remain valid for the region's lifetime.
+     */
+    ScopedRegion(handle_t handle, const char* key, uint64_t value) noexcept {
+        internal::regionBegin(domain(), handle, key, value);
+    }
+
+    /**
+     * @brief The ScopedRegion destructor closes or ends the region scope
+     */
+    ~ScopedRegion() noexcept {
+        internal::regionEnd(domain());
+    }
+
+    ScopedRegion(const ScopedRegion&) = delete;
+    ScopedRegion& operator=(const ScopedRegion&) = delete;
+};
+
+/**
+ * @class TaskChain
+ * @ingroup ov_dev_profiling
+ * @brief Used to annotate a sequence of sections of code which would be named at runtime
+ * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
+ */
+template <domain_t (*domain)()>
+class TaskChain {
+    uint32_t _id = 1;
+    std::string _prefix;
+    bool _skipped{};
+
+    TaskChain(const TaskChain&) = delete;
+    TaskChain& operator=(const TaskChain&) = delete;
+
+public:
+    /**
+     * @brief Construct TaskChain with defined annotation handle
+     */
+    TaskChain(handle_t taskHandle, std::string&& prefix) noexcept : _prefix(std::forward<std::string>(prefix)) {
+        internal::taskBegin(domain(), taskHandle);
+    }
+
+    /**
+     * @brief The TaskChain destructor closes or ends the task scope
+     */
+    ~TaskChain() noexcept {
+        skip();
+    }
+
+    /**
+     * @brief Ends the previous task from the chain and starts a new one with the given annotation handle
+     */
+    void next(handle_t taskHandle) {
+        if (_skipped)
+            _skipped = false;
+        else
+            internal::taskEnd(domain());
+        internal::taskBegin(domain(), taskHandle);
+        ++_id;
+    }
+
+    /*
+     * @brief Generating a task name using a sequence number.
+     */
+    std::string taskName() const {
+        return _prefix + "_" + std::to_string(_id);
+    }
+
+    /*
+     * @brief Generating a task name using a scope name.
+     */
+    std::string taskNameOrHandle(const std::string& name) const {
+        return _prefix + "_" + name;
+    }
+
+    /*
+     * @brief Returns a handle provided as argument.
+     */
+    handle_t taskNameOrHandle(handle_t handle) const {
+        return handle;
+    }
+
+    /*
+     * @brief Skips the remaining task scope.
+     */
+    void skip() {
+        if (!_skipped) {
+            _skipped = true;
+            internal::taskEnd(domain());
+        }
+    }
+};
+
+/**
+ * @def OV_ITT_DOMAIN(domainName)
+ * @ingroup ov_dev_profiling
+ * @brief Declare domain with a given name.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param domainDisplayName [in] Domain name used as the ITT counter name and displayed in Intel VTune. Parameter is
+ * optional.
+ */
+#define OV_ITT_DOMAIN(...) OV_PP_OVERLOAD(OV_ITT_DOMAIN, __VA_ARGS__)
+
+#define OV_ITT_GROUP(group) OV_PP_CAT(ENABLE_PROFILING_, group)
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_DOMAIN_1(domainName)                                   \
+    inline openvino::itt::domain_t domainName() noexcept {            \
+        static auto d = openvino::itt::internal::domain(#domainName); \
+        return d;                                                     \
+    }
+
+#define OV_ITT_DOMAIN_2(domainName, domainDisplayName)                      \
+    inline openvino::itt::domain_t domainName() noexcept {                  \
+        static auto d = openvino::itt::internal::domain(domainDisplayName); \
+        return d;                                                           \
+    }
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_SCOPE(domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
+ * @details In case if handle or taskName absent, the current function name is used.
+ * @note Implements a task scope
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPE(group, ...) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPE_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(__VA_ARGS__))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_SCOPE_IMPL_0(...)
+#define OV_ITT_SCOPE_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPE, __VA_ARGS__)
+
+#define OV_ITT_SCOPE_1(domain)                                            \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
+
+#define OV_ITT_SCOPE_2(domain, taskOrTaskName)                            \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_SCOPED_TASK(domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
+ * @details In case if handle or taskName absent, the current function name is used.
+ * @note Implements a task scope
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPED_TASK(...) OV_ITT_SCOPE(ALL, __VA_ARGS__)
+
+/**
+ * @def OV_ITT_SCOPED_TASK_BASE(domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate section of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
+ * @details In case if handle or taskName absent, the current function name is used.
+ * @note All *_BASE() macros are enabled by default and will be used by supporting toolchains. The strings
+ *       used/provided by these calls should follow the following rules:
+ *       - Should NOT be deleted or modified to ensure correct visible names in profiling tools
+ *         until CVS-179230 is implemented/resolved.
+ *       - Should use string literals or constant strings when possible
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ * @param metadata_key [in] A metadata element's key as a string. Parameter is optional.
+ * @param metadata_value [in] The metadata value. Parameter is optional.
+ */
+#define OV_ITT_SCOPED_TASK_BASE(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_TASK_BASE, __VA_ARGS__)
+
+#define OV_ITT_SCOPED_TASK_BASE_1(domain)                                 \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
+
+#define OV_ITT_SCOPED_TASK_BASE_2(domain, taskOrTaskName)                 \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
+
+#define OV_ITT_SCOPED_TASK_BASE_4(domain, taskOrTaskName, metadata_key, metadata_value) \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)(               \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName),        \
+        metadata_key,                                                                   \
+        metadata_value);
+
+/**
+ * @def OV_ITT_SCOPED_REGION_BASE(domain, handleOrRegionName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate region of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
+ * @details In case if handle or regionName absent, the current function name is used.
+ * @note Implements a region scope (single-active per thread; tasks started within
+ *       the region attach as children).
+ * @note All *_BASE() macros are enabled by default and will be used by supporting toolchains. The strings
+ *       used/provided by these calls should follow the following rules:
+ *       - Should NOT be deleted or modified to ensure correct visible names in profiling tools
+ *         until CVS-179230 is implemented/resolved.
+ *       - Should use string literals or constant strings when possible
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
+ * @param metadata_key [in] A metadata element's key as a string. Parameter is optional.
+ * @param metadata_value [in] The metadata value. Parameter is optional.
+ */
+#define OV_ITT_SCOPED_REGION_BASE(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION_BASE, __VA_ARGS__)
+
+#define OV_ITT_SCOPED_REGION_BASE_1(domain)                                   \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(ITT_FUNCTION_NAME));
+
+#define OV_ITT_SCOPED_REGION_BASE_2(domain, regionOrRegionName)               \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(regionOrRegionName));
+
+#define OV_ITT_SCOPED_REGION_BASE_4(domain, regionOrRegionName, metadata_key, metadata_value) \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)(                 \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(regionOrRegionName),        \
+        metadata_key,                                                                         \
+        metadata_value);
+
+/**
+ * @def OV_ITT_SCOPED_REGION(group, domain, handleOrRegionName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate region of code till scope exit to be profiled using known @p handle or @p regionName as section id.
+ * @details In case if handle or regionName absent, the current function name is used.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPED_REGION(group, ...) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPED_REGION_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(__VA_ARGS__))
+
+/**
+ * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
+ * @ingroup ov_dev_profiling
+ * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
+ * @details In case if prefix absent, the current function name is used,
+ *          if taskName absent, the first chain index is used, i.e 1.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param chainId [in] The tasks chain identifier.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param prefix [in] The task chain name prefix. The task name starts with this prefix. Parameter is optional.
+ * @param taskName [in] The annotation name for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPE_CHAIN(group, ...) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPE_CHAIN_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(__VA_ARGS__))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_SCOPE_CHAIN_IMPL_0(...)
+#define OV_ITT_SCOPE_CHAIN_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPE_CHAIN, __VA_ARGS__)
+
+#define OV_ITT_SCOPE_CHAIN_2(chainId, domain)                                                           \
+    openvino::itt::TaskChain<domain> chainId(                                                           \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(ITT_FUNCTION_NAME) + "_1"), \
+        ITT_FUNCTION_NAME);
+
+#define OV_ITT_SCOPE_CHAIN_3(chainId, domain, prefix)                                        \
+    openvino::itt::TaskChain<domain> chainId(                                                \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(prefix) + "_1"), \
+        prefix);
+
+#define OV_ITT_SCOPE_CHAIN_4(chainId, domain, prefix, taskName)                                        \
+    openvino::itt::TaskChain<domain> chainId(                                                          \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(prefix) + "_" + taskName), \
+        prefix);
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_SCOPE_NEXT(group, chainId, taskName)
+ * @ingroup ov_dev_profiling
+ * @brief Inserts new annotated section of code to tasks chain using @p taskName as section id.
+ * @details If taskName is missing, the current chain index is used.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param chainId [in] The tasks chain identifier.
+ * @param taskOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPE_NEXT(group, ...) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPE_NEXT_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(__VA_ARGS__))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_SCOPE_NEXT_IMPL_0(...)
+#define OV_ITT_SCOPE_NEXT_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPE_NEXT, __VA_ARGS__)
+
+#define OV_ITT_SCOPE_NEXT_1(chainId) \
+    chainId.next(openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(chainId.taskName()));
+
+#define OV_ITT_SCOPE_NEXT_2(chainId, taskOrTaskName) \
+    chainId.next(openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(chainId.taskNameOrHandle(taskOrTaskName)));
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_SCOPE_SKIP(group, chainId)
+ * @ingroup ov_dev_profiling
+ * @brief Skips the remaining task scope.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param chainId [in] The tasks chain identifier.
+ */
+#define OV_ITT_SCOPE_SKIP(group, chainId) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPE_SKIP_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(chainId))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_SCOPE_SKIP_0(chainId)
+#define OV_ITT_SCOPE_SKIP_1(chainId) chainId.skip();
+
+/**
+ * @endcond
+ */
+
+/**
+ * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
+ * @ingroup ov_dev_profiling
+ * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
+ * @details In case if prefix absent, the current function name is used,
+ *          if taskName absent, the first chain index is used, i.e 1.
+ * @param chainId [in] The tasks chain identifier.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param prefix [in] The task chain name prefix. The task name starts with this prefix. Parameter is optional.
+ * @param taskName [in] The annotation name for section of code. Parameter is optional.
+ */
+#define OV_ITT_TASK_CHAIN(...) OV_ITT_SCOPE_CHAIN(ALL, __VA_ARGS__)
+
+/**
+ * @def OV_ITT_TASK_NEXT(chainId, taskName)
+ * @ingroup ov_dev_profiling
+ * @brief Inserts new annotated section of code to tasks chain using @p taskName as section id.
+ * @details If taskName is missing, the current chain index is used.
+ * @param chainId [in] The tasks chain identifier.
+ * @param taskOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_TASK_NEXT(...) OV_ITT_SCOPE_NEXT(ALL, __VA_ARGS__)
+
+/**
+ * @def OV_ITT_TASK_SKIP(chainId)
+ * @ingroup ov_dev_profiling
+ * @brief Skips the remaining task scope.
+ * @param chainId [in] The tasks chain identifier.
+ */
+#define OV_ITT_TASK_SKIP(chainId) OV_ITT_SCOPE_SKIP(ALL, chainId);
+
+/**
+ * @def OV_ITT_REGION_BEGIN(group, domain, handleOrRegionName)
+ * @ingroup ov_dev_profiling
+ * @brief Begin a region of code to be profiled using known @p handle or @p regionName as section id.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrRegionName [in] The annotation name or handle for section of code.
+ */
+#define OV_ITT_REGION_BEGIN(group, domain, handleOrRegionName) \
+    OV_PP_EXPAND(                                              \
+        OV_PP_CAT(OV_ITT_REGION_BEGIN_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(domain, handleOrRegionName))
+
+/**
+ * @def OV_ITT_REGION_END(group, domain, handleOrRegionName)
+ * @ingroup ov_dev_profiling
+ * @brief End a region of code to be profiled using known @p handle or @p regionName as section id.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrRegionName [in] The annotation name or handle for section of code.
+ */
+#define OV_ITT_REGION_END(group, domain, handleOrRegionName) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_REGION_END_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(domain, handleOrRegionName))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_REGION_BEGIN_IMPL_0(domain, handleOrRegionName)
+#define OV_ITT_REGION_BEGIN_IMPL_1(domain, handleOrRegionName) \
+    openvino::itt::internal::regionBegin(                      \
+        domain(),                                              \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrRegionName));
+
+#define OV_ITT_REGION_END_IMPL_0(domain, ...)
+#define OV_ITT_REGION_END_IMPL_1(domain, ...) openvino::itt::internal::regionEnd(domain());
+
+#define OV_ITT_SCOPED_REGION_IMPL_0(...)
+#define OV_ITT_SCOPED_REGION_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION, __VA_ARGS__)
+
+#define OV_ITT_SCOPED_REGION_1(domain)                                        \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(ITT_FUNCTION_NAME));
+
+#define OV_ITT_SCOPED_REGION_2(domain, taskOrRegionName)                      \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(taskOrRegionName));
+
+/**
+ * @endcond
+ */
+
+}  // namespace itt
+}  // namespace openvino

@@ -1,0 +1,64 @@
+ir_version: 8
+graph {
+  node {
+    input: "data"
+    input: "indices"
+    input: "updates"
+    output: "y"
+    op_type: "ScatterElements"
+    attribute {
+      name: "axis"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "reduction"
+      s: "add"
+      type: STRING
+    }
+  }
+  name: "test_scatter"
+  initializer {
+    dims: 1
+    dims: 5
+    data_type: 1
+    float_data: 1
+    float_data: 2
+    float_data: 3
+    float_data: 4
+    float_data: 5
+    name: "data"
+  }
+  initializer {
+    dims: 1
+    dims: 2
+    data_type: 6
+    int32_data: 1
+    int32_data: 3
+    name: "indices"
+  }
+  initializer {
+    dims: 1
+    dims: 2
+    data_type: 1
+    float_data: 1.1000000238418579
+    float_data: 2.0999999046325684
+    name: "updates"
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 16
+}

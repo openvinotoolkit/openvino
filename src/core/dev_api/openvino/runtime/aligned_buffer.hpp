@@ -1,0 +1,98 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/core_visibility.hpp"
+
+namespace ov {
+
+class AlignedBuffer;
+
+class OPENVINO_API IBufferDescriptor {
+public:
+    virtual size_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const = 0;
+    virtual ~IBufferDescriptor();
+};
+
+/// \brief Allocates a block of memory which starts at an aligned address determined by \p alignment.
+class OPENVINO_API AlignedBuffer {
+public:
+    // Allocator objects and the allocation interfaces are owned by the
+    // creators of AlignedBuffers. They need to ensure that the lifetime of
+    // allocator exceeds the lifetime of this AlignedBuffer.
+    AlignedBuffer(size_t byte_size, size_t alignment = 64);
+
+    AlignedBuffer();
+    virtual ~AlignedBuffer();
+
+    AlignedBuffer(AlignedBuffer&& other);
+    AlignedBuffer& operator=(AlignedBuffer&& other);
+
+    size_t size() const {
+        return m_byte_size;
+    }
+    void* get_ptr(size_t offset) const {
+        hint_prefetch();
+        return m_aligned_buffer + offset;
+    }
+    void* get_ptr() {
+        hint_prefetch();
+        return m_aligned_buffer;
+    }
+    const void* get_ptr() const {
+        hint_prefetch();
+        return m_aligned_buffer;
+    }
+    template <typename T>
+    T* get_ptr() {
+        hint_prefetch();
+        return reinterpret_cast<T*>(m_aligned_buffer);
+    }
+    template <typename T>
+    const T* get_ptr() const {
+        hint_prefetch();
+        return reinterpret_cast<const T*>(m_aligned_buffer);
+    }
+
+    template <typename T>
+    explicit operator T*() {
+        return get_ptr<T>();
+    }
+
+    virtual std::shared_ptr<IBufferDescriptor> get_descriptor() const;
+
+    AlignedBuffer(const AlignedBuffer&) = delete;
+    AlignedBuffer& operator=(const AlignedBuffer&) = delete;
+
+    virtual void hint_evict() noexcept;
+
+    /// \brief Ensures the buffer is available and populated with actual data.
+    virtual void hint_prefetch() const;
+
+protected:
+    virtual void hint_evict(size_t offset, size_t size) noexcept;
+    static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
+
+    static void invoke_hint_prefetch(const AlignedBuffer& buffer);
+
+    char* m_aligned_buffer;
+    size_t m_byte_size;
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>
+    : public DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>> {
+public:
+    AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value);
+    ~AttributeAdapter() override;
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>");
+};
+}  // namespace ov

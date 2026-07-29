@@ -1,0 +1,20 @@
+{
+    "buildEnvVars" : [
+        {"name" : "ALL_PROXY", "val" : "<path_1>"},
+        {"name" : "http_proxy", "val" : "<path_2>"},
+        {"name" : "https_proxy", "val" : "<path_3>"}
+    ],
+    "appCmd" : "./benchmark_app -m {model} -d CPU -hint latency -inference_only=false -t 60",
+    "makeCmd" : "cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_INTEL_GPU=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OPENVINO_DEBUG=OFF -DCMAKE_CXX_FLAGS=-Wno-deprecated -DCMAKE_C_FLAGS=-Wno-deprecated -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_FLAGS=-Wno-deprecated-declarations ..",
+    "appPath" : "../../bin/arm64/Release/",
+    "runConfig" : {
+        "commitList" : {
+            "getCommitListCmd" : "git log <start>..<end> --boundary --pretty=\"%h\""
+        },
+        "mode" : "bmPerf",
+        "traversal" : "{traversal}",
+        "perfAppropriateDeviation" : 0.1,
+        "metric": "latency:average"
+    },
+    "verboseOutput" : true
+}

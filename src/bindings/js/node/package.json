@@ -1,0 +1,71 @@
+{
+  "name": "openvino-node",
+  "version": "2026.3.0",
+  "description": "OpenVINO™ Runtime for Node.js: high-performance deep learning inference on Intel CPU, GPU, and NPU.",
+  "repository": {
+    "url": "git+https://github.com/openvinotoolkit/openvino.git",
+    "type": "git"
+  },
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "build": "npm run tsc",
+    "prepare": "npm run build",
+    "lint": "eslint .",
+    "format": "prettier --ignore-path .gitignore --write .",
+    "test_setup": "node ./tests/setup.js",
+    "test": "npm run test_setup && node --expose-gc --test ./tests/unit/*.test.js",
+    "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
+    "tsc": "tsc",
+    "postinstall": "npm run install_runtime",
+    "download_runtime": "node ./scripts/download-runtime.js",
+    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.3",
+    "@types/node": "^22.19.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.5.0",
+    "mocha": "12.0.0-beta-9",
+    "prettier": "3.7.3",
+    "random-bigint": "^0.0.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  },
+  "engines": {
+    "node": ">=21.0.0"
+  },
+  "dependencies": {
+    "gunzip-maybe": "^1.4.2",
+    "https-proxy-agent": "^7.0.2",
+    "tar-fs": "^3.1.1"
+  },
+  "binary": {
+    "module_path": "./bin/",
+    "remote_path": "./repositories/openvino/nodejs_bindings/{version}/{platform}/",
+    "package_name": "openvino_nodejs_bindings_{platform}_{version}_{arch}.tar.gz",
+    "host": "https://storage.openvinotoolkit.org"
+  },
+  "keywords": [
+    "openvino",
+    "openvino-node",
+    "intel",
+    "inference",
+    "deep-learning",
+    "machine-learning",
+    "neural-network",
+    "computer-vision",
+    "ai",
+    "ml",
+    "nodejs",
+    "typescript"
+  ]
+}

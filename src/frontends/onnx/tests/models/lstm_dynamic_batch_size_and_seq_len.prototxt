@@ -1,0 +1,322 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    output: "shape"
+    op_type: "Shape"
+  }
+  node {
+    output: "zero"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "one"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "shape"
+    input: "one"
+    output: "mul"
+    op_type: "Mul"
+  }
+  node {
+    input: "mul"
+    output: "constantofshape"
+    op_type: "ConstantOfShape"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 1
+        float_data: 1
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "constantofshape"
+    input: "A"
+    output: "conv"
+    op_type: "Conv"
+  }
+  node {
+    input: "conv"
+    output: "transposed"
+    op_type: "Transpose"
+    attribute {
+      name: "perm"
+      ints: 2
+      ints: 0
+      ints: 1
+      type: INTS
+    }
+  }
+  node {
+    input: "shape"
+    input: "zero"
+    output: "batch_size"
+    op_type: "Gather"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+  }
+  node {
+    output: "hidden_size"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 2
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "one"
+    input: "batch_size"
+    input: "hidden_size"
+    output: "concat"
+    op_type: "Concat"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+  }
+  node {
+    input: "concat"
+    output: "initial_hc"
+    op_type: "ConstantOfShape"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 1
+        float_data: 0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "W"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 8
+        dims: 3
+        data_type: 1
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "R"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 8
+        dims: 2
+        data_type: 1
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "B"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 16
+        data_type: 1
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "transposed"
+    input: "W"
+    input: "R"
+    input: "B"
+    input: ""
+    input: "initial_hc"
+    input: "initial_hc"
+    output: "Y"
+    output: "Y_h"
+    output: "Y_c"
+    op_type: "LSTM"
+    attribute {
+      name: "hidden_size"
+      i: 2
+      type: INT
+    }
+  }
+  name: "test-model-lstm"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 12
+}

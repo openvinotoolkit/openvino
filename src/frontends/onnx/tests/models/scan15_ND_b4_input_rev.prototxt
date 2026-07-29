@@ -1,0 +1,346 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "initial"
+    input: "initial_next"
+    input: "seq_mul"
+    input: "seq_div"
+    output: "scan_end_sum"
+    output: "scan_end_sum_next"
+    output: "scan_seq"
+    op_type: "Scan"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "previous"
+          input: "next"
+          output: "sum"
+          op_type: "Add"
+        }
+        node {
+          input: "sum"
+          input: "div_factor"
+          output: "div_sum"
+          op_type: "Div"
+        }
+        node {
+          input: "div_sum"
+          input: "mul_factor"
+          output: "multiplied_sum"
+          op_type: "Mul"
+        }
+        node {
+          input: "multiplied_sum"
+          output: "state_next"
+          op_type: "Identity"
+        }
+        node {
+          input: "next"
+          output: "state_previous"
+          op_type: "Identity"
+        }
+        name: "body"
+        input {
+          name: "previous"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "mul_factor"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "div_factor"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "state_previous"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "state_next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "multiplied_sum"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+                dim {
+                  dim_value: 3
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "num_scan_inputs"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "scan_input_axes"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "scan_input_directions"
+      ints: 1
+      ints: 0
+      type: INTS
+    }
+  }
+  name: "test-model-scan"
+  input {
+    name: "initial"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_next"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seq_mul"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seq_div"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_end_sum"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_end_sum_next"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_seq"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 15
+}

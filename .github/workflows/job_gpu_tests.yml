@@ -1,0 +1,160 @@
+name: GPU
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        description: 'Type of tests to execute'
+        type: string
+        required: true
+      device:
+        description: 'Device name (igpu or dgpu)'
+        type: string
+        required: true
+      runner:
+        description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
+        type: string
+        required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen'
+        type: string
+        required: true
+      image:
+        description: 'Docker image in which the tests would run'
+        type: string
+        required: false
+        default: null
+      options:
+        description: 'Docker options to use for the job'
+        type: string
+        required: false
+        default: ''
+      test_filter:
+        description: 'Custom gtest filter, overrides the default unit/func filter'
+        type: string
+        required: false
+        default: ''
+
+permissions: read-all
+
+jobs:
+  GPU:
+    timeout-minutes: 80
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+        - /opt/home/actions_runner/.cache/neo_compiler_cache:/root/.cache/neo_compiler_cache # Persistent cl_cache across runs
+      options: ${{ inputs.options }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/build
+      MODELS_PATH: ${{ github.workspace }}/testdata
+      GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      NEO_CACHE_DIR: /root/.cache/neo_compiler_cache 
+      NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
+    steps:
+
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+            pigz -dc openvino_package.tar.gz | tar -xf - -v
+            pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Verify devices
+        timeout-minutes: 5
+        run: clinfo
+
+      #
+      # Samples
+      #
+
+      - name: Build cpp samples
+        if: ${{ inputs.test_type == 'unit' }}
+        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
+
+      # git uses the system CA bundle, so add the proxy root CA (mounted at
+      # /usr/local/share/ca-certificates) to it before cloning over HTTPS,
+      # otherwise git fails with "server certificate verification failed".
+      - name: Add proxy CA certificate to system trust store
+        if: ${{ inputs.test_type == 'unit' }}
+        run: update-ca-certificates
+
+      - name: Clone test models
+        if: ${{ inputs.test_type == 'unit' }}
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: ${{ env.MODELS_PATH }}
+          lfs: 'true'
+          ref: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref_name }}
+
+      - name: Run hello_query_device sample
+        if: ${{ inputs.test_type == 'unit' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          $INSTALL_DIR/samples_bin/hello_query_device
+      
+      - name: Run benchmark_app sample
+        if: ${{ inputs.test_type == 'unit' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          $INSTALL_DIR/samples_bin/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d GPU
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
+        id: run_tests
+        env:
+          TEST_TYPE: ${{ inputs.test_type }}
+          DEVICE: ${{ inputs.device }}
+          CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
+          echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
+
+          rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
+
+          test_filter=''
+          if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
+            test_filter="${CUSTOM_TEST_FILTER}"
+          elif [[ "${TEST_TYPE}" == 'unit' ]]; then
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+          else
+            test_filter='*smoke*'
+          fi
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
+
+      - name: Upload Test Results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
+          if-no-files-found: 'error'

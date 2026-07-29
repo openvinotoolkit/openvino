@@ -1,0 +1,13 @@
+{
+  "name": "demo-electron-app",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron --disable-gpu --no-sandbox ."
+  },
+  "devDependencies": {
+    "electron": "43.0.0"
+  },
+  "dependencies": {
+    "openvino-node": ".."
+  }
+}

@@ -1,0 +1,53 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "uint16_raw_initializer"
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 4
+    name: "const_input"
+    raw_data: "\144\000\310\000\054\001\220\001"
+  }
+  input {
+    name: "const_input"
+    type {
+      tensor_type {
+        elem_type: 4
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  node {
+    input: "const_input"
+    output: "const_output"
+    name: "Identity_uint16"
+    op_type: "Identity"
+  }
+  output {
+    name: "const_output"
+    type {
+      tensor_type {
+        elem_type: 4
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

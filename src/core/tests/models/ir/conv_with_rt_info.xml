@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<net name="Function_0" version="10">
+	<layers>
+		<layer id="0" name="Parameter_69" type="Parameter" version="opset1">
+			<data shape="490, 608, 1, 1" element_type="f32" />
+			<rt_info>
+				<attribute name="custom_attr" version="0"/>
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<rt_info>
+						<attribute name="another_custom_attr" version="0"/>
+					</rt_info>
+					<dim>490</dim>
+					<dim>608</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Parameter_68" type="Parameter" version="opset1">
+			<data shape="1, 608, 34, 60" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>608</dim>
+					<dim>34</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Convolution_72" type="Convolution" version="opset1">
+			<data strides="1, 1" dilations="1, 1" pads_begin="1, 1" pads_end="1, 1" auto_pad="SAME_LOWER" PrimitivesPriority="_IMPLS_"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>608</dim>
+					<dim>34</dim>
+					<dim>60</dim>
+				</port>
+				<port id="1">
+					<dim>490</dim>
+					<dim>608</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>490</dim>
+					<dim>34</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Result_73" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>490</dim>
+					<dim>34</dim>
+					<dim>60</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+</net>

@@ -1,0 +1,59 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    output: "B"
+    op_type: "DepthToSpace"
+    attribute {
+      name: "blocksize"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "mode"
+      s: "DCR"
+      type: STRING
+    }
+  }
+  name: "compute_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

@@ -1,0 +1,14 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "subgraph_tests/transpose_matmul_fusion.hpp"
+
+using namespace ov::test;
+
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_TransposeMatMulFusion, TransposeMatMulFusion,
+                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                         TransposeMatMulFusion::getTestCaseName);
+
+}  // namespace

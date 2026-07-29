@@ -1,0 +1,83 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test"
+  node {
+    domain: "org.openvinotoolkit"
+    input: "data"
+    input: "weight"
+    output: "out"
+    name: "Normalize_177"
+    op_type: "Normalize"
+    attribute {
+      name: "across_spatial"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "channel_shared"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "eps"
+      f: 1.000000013351432e-10
+      type: FLOAT
+    }
+  }
+  initializer {
+    dims: 3
+    data_type: 1
+    name: "weight"
+    float_data: 2
+    float_data: 3
+    float_data: 4
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

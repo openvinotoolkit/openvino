@@ -1,0 +1,61 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/runtime/aligned_buffer.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <utility>
+
+#include "openvino/util/memory.hpp"
+
+namespace ov {
+IBufferDescriptor::~IBufferDescriptor() = default;
+
+AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
+
+AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(std::max<size_t>(1, byte_size)) {
+    m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
+}
+
+AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
+    : m_aligned_buffer(std::exchange(other.m_aligned_buffer, nullptr)),
+      m_byte_size(std::exchange(other.m_byte_size, 0)) {}
+
+AlignedBuffer::~AlignedBuffer() {
+    util::aligned_free(m_aligned_buffer);  // safe with nullptr
+}
+
+AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {
+    if (this != &other) {
+        util::aligned_free(m_aligned_buffer);
+        m_aligned_buffer = std::exchange(other.m_aligned_buffer, nullptr);
+        m_byte_size = std::exchange(other.m_byte_size, 0);
+    }
+    return *this;
+}
+
+AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>::AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value)
+    : DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>>(value) {}
+
+AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
+
+std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
+    return nullptr;
+}
+
+void AlignedBuffer::hint_evict() noexcept {}
+
+void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
+
+void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
+    buffer.hint_evict(offset, size);
+}
+
+void AlignedBuffer::hint_prefetch() const {}
+
+void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
+    buffer.hint_prefetch();
+}
+}  // namespace ov

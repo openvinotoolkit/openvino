@@ -1,0 +1,105 @@
+name: Bug report
+description: Help us improve OpenVINO.
+title: "[Bug]: "
+labels: ["bug", "support_request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide all the necessary information to expedite the response.
+  - type: input
+    id: ov_version
+    attributes:
+      label: OpenVINO Version 
+      description: OpenVINO version, branch, or tag in OpenVINO GitHub
+      placeholder: 2021.4.0 LTS / Master Branch / tag 2022.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you using?
+      options:
+        - Ubuntu 18.04 (LTS)
+        - Ubuntu 20.04 (LTS)
+        - Windows System
+        - Red Hat Enterprise Linux 8
+        - Android System
+        - Raspbian Stretch OS
+        - macOS Systems for Intel CPU
+        - macOS Systems for Apple Silicon
+        - WebAssembly
+        - Other (Please specify in description)
+    validations:
+      required: true
+  - type: dropdown
+    id: device_use
+    attributes:
+      label: Device used for inference
+      description: What hardware are you using for inference?
+      options:
+        - CPU
+        - GPU
+        - NPU
+        - AUTO
+        - HETERO
+        - BATCH
+    validations:
+      required: true
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      description: Framework used for model optimization
+      options:
+        - TensorFlow 1
+        - Keras (TensorFlow 2)
+        - Caffe
+        - ONNX
+        - PyTorch
+        - PaddlePaddle
+    validations:
+      required: false
+  - type: input
+    id: model_name
+    attributes:
+      label: Model used
+      description: Link to the model 
+      placeholder: ResNet50 / YOLOv4
+    validations:
+      required: false
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Issue description
+      description: What issue are you having, and what did you expect to happen instead?
+      placeholder: "Error when performing model optimization on yolov4 model."
+    validations:
+      required: true
+  - type: textarea
+    id: step_by_step
+    attributes:
+      label: Step-by-step reproduction 
+      description: How can we reproduce your issue?
+      placeholder: Please provide detailed instructions on how to reproduce the issue
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Issue submission checklist
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I'm reporting an issue. It's not a question.
+          required: true
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
+          required: true
+        - label: There is reproducer code and related data files such as images, videos, models, etc.
+          required: true

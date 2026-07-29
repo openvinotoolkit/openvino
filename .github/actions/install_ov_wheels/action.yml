@@ -1,0 +1,82 @@
+name: 'Find and install OpenVINO Python wheels'
+description: 'Finds the OpenVINO Python wheels suitable for the "python3" executable and installs them'
+inputs:
+  wheels-dir-path:
+    description: 'Path to the directory in which wheels are located'
+    required: true
+  wheels-to-install:
+    description: 'List of wheel names to install in the form of "openvino openvino_tokenizers"'
+  free-threaded-python:
+    description: 'Whether to look for free-threaded Python wheels (with "cpXYt" in their names)'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OpenVINO Python wheels (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        Write-Host "Python Version: $(python3 -V)"
+
+        $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+        Write-Host "Parsed Python version: $pyVersion"
+        
+        Write-Host "Wheels folder: $(Get-ChildItem -Path ${{ inputs.wheels-dir-path }})"
+
+        foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
+            Write-Host "Installing the $wheel wheel"
+            
+            # Search for the python-specific wheel version and install it if exists
+            # Free-threading Python wheels have 'cpXYt' in their names
+            if ("${{ inputs.free-threaded-python }}" -eq "true") {
+                Write-Host "Looking for free-threaded Python wheel: $wheel-*cp$pyVersion*t*.whl"
+                $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*t*.whl" | Select-Object -First 1
+            } else {
+                Write-Host "Looking for non-free-threaded Python wheel: $wheel-*cp$pyVersion*.whl"
+                $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Where-Object { $_.Name -notlike "*cp$pyVersion*t*.whl" } | Select-Object -First 1
+            }
+            
+            Write-Host "Wheel path: $($wheelPath)"
+            if ($wheelPath) {
+                python3 -m pip install $wheelPath.FullName
+            } else {
+                # If the python-specific version does not exist, install by name only
+                $wheelPathByName = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*.whl" | Select-Object -First 1
+                python3 -m pip install $wheelPathByName.FullName
+            }
+        }
+
+    - name: Install OpenVINO Python wheels (Linux and macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        echo "Python Version: $(python3 -V)"
+        
+        py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+        echo "Parsed Python version: ${py_version}"
+        
+        echo "Wheels folder: $(ls -la ${{ inputs.wheels-dir-path }})"
+
+        for wheel in ${{ inputs.wheels-to-install }}; do
+          echo "Installing the ${wheel} wheel"
+          
+          # Search for the python-specific wheel version and install it if exists
+
+          # free-threading Python wheels have 'cpXYt' in their names
+          if [ "${{ inputs.free-threaded-python }}" == "true" ]; then
+            echo "Looking for free-threaded Python wheel: $wheel-*cp$pyVersion*t*.whl"
+            wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp${py_version}t*.whl")
+          else
+            echo "Looking for non-free-threaded Python wheel: $wheel-*cp$pyVersion*.whl"
+            wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl" ! -name "*cp${py_version}t*.whl")
+          fi
+          
+          echo "Wheel path: ${wheel_path}"
+          if [ -n "${wheel_path}" ]; then
+            python3 -m pip install $wheel_path
+          else
+            # If the python-specific version does not exist, install by name only
+            python3 -m pip install ${{ inputs.wheels-dir-path }}/$wheel-*.whl
+          fi
+        done
