@@ -361,33 +361,3 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
     auto m = std::make_shared<Matcher>(p_slice, matcher_name);
     register_matcher(m, callback);
 }
-
-std::shared_ptr<v0::Parameter> ov::pass::paged_attention::prepare_position_ids(PaParams& params) {
-    auto position_ids = params.get("position_ids");
-    if (!position_ids) {
-        position_ids = params.add("position_ids", element::i64, PartialShape{-1});
-    } else {
-        const auto& position_ids_shape = position_ids->get_partial_shape();
-        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
-            position_ids->set_partial_shape(PartialShape{-1});
-        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
-            // Qwen2.5 VL M-RoPE: [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num, 1]
-            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
-        } else {
-            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
-                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
-        }
-        position_ids->validate_and_infer_types();
-    }
-
-    // Restore the rank of the flattened position_ids at its consumers with a single shared Unsqueeze(-1)
-    // ([tokens, 1]). The batch-drop select branch is re-oriented to [1, tokens] later by EliminateDropBatch.
-    const auto consumers = position_ids->output(0).get_target_inputs();
-
-    auto column = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-    for (const auto& consumer : consumers) {
-        consumer.replace_source_output(column);
-    }
-
-    return position_ids;
-}

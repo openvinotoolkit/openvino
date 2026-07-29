@@ -136,18 +136,3 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEUnsqueezeAxisReplacer");
     RoPEUnsqueezeAxisReplacer();
 };
-
-namespace ov {
-namespace pass {
-namespace paged_attention {
-
-/// \brief Get-or-create the flattened position_ids parameter and normalize its shape to the token-major layout.
-///
-/// Adds a rank-1 position_ids parameter when the model does not provide one. The batch-drop select chain
-/// (position_ids -> Convert -> Gather(index=0, axis=0)) is handled separately by EliminateDropBatch.
-/// The returned parameter is the raw flattened position_ids consumed by the PositionIDsReplacer* passes.
-TRANSFORMATIONS_API std::shared_ptr<ov::op::v0::Parameter> prepare_position_ids(PaParams& params);
-
-}  // namespace paged_attention
-}  // namespace pass
-}  // namespace ov

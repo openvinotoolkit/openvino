@@ -101,20 +101,10 @@ auto single_val = [](int rank, float val) {
     return makeConst(element::f32, ov::Shape{std::vector<size_t>(rank, 1)}, {val});
 };
 
-// Merges the leading (batch, sequence) dimensions of a transposed Q/K/V tensor into a single token dimension
-// and the trailing (heads, head_size) dimensions into a single hidden dimension, via one Reshape whose target
-// shape is computed at runtime as [dim0*dim1, dim2*dim3], matching StateManagementPattern's
-// flatten_to_tokens_hidden helper.
+// Flattens a transposed Q/K/V tensor's leading two dims into a single dim via Reshape({0, -1}, special_zero=true),
+// matching StateManagementPattern's Q/K/V reshape logic.
 std::shared_ptr<Node> flatten_tokens_hidden(const std::shared_ptr<Node>& transposed) {
-    auto shape_of = makeOP<opset3::ShapeOf>({transposed}, {{"output_type", "i64"}});
-    auto dim0 = makeOP<v8::Gather>({shape_of, {0}, 0ll}, {{"batch_dims", 0}});
-    auto dim1 = makeOP<v8::Gather>({shape_of, {1}, 0ll}, {{"batch_dims", 0}});
-    auto dim2 = makeOP<v8::Gather>({shape_of, {2}, 0ll}, {{"batch_dims", 0}});
-    auto dim3 = makeOP<v8::Gather>({shape_of, {3}, 0ll}, {{"batch_dims", 0}});
-    auto tokens = makeOP<v1::Multiply>({dim0, dim1}, {numpy_broadcast});
-    auto hidden = makeOP<v1::Multiply>({dim2, dim3}, {numpy_broadcast});
-    auto new_shape = makeOP<v0::Concat>({tokens, hidden}, {{"axis", 0}});
-    return makeOP<v1::Reshape>({transposed, new_shape}, {{"special_zero", false}});
+    return makeOP<v1::Reshape>({transposed, {0, -1}}, {{"special_zero", true}});
 }
 
 ov::ParameterVector nodes_to_params(const ov::NodeVector& node_vec) {
@@ -442,10 +432,7 @@ public:
 
     static std::shared_ptr<Node> align_pa_layout(const std::shared_ptr<Node>& pa,
                                                  const std::shared_ptr<Node>& head_size) {
-        auto shape_of = makeOP<v3::ShapeOf>({pa->output(0)}, {{"output_type", "i64"}});
-        auto gather_tokens = makeOP<v8::Gather>({shape_of, 0ll, 0ll}, {{"batch_dims", 0}});
-        auto tokens = makeOP<v0::Unsqueeze>({gather_tokens, 0});
-        auto shape = makeOP<v0::Concat>({{1ll}, tokens, {-1ll}, head_size}, {{"axis", 0}});
+        auto shape = makeOP<v0::Concat>({{0ll}, {1ll}, {-1ll}, head_size}, {{"axis", 0}});
         auto reshaped = makeOP<v1::Reshape>({pa->output(0), shape}, {special_zero_true});
         return makeOP<v1::Transpose>({reshaped, {0, 2, 1, 3}});
     }
@@ -724,13 +711,10 @@ public:
         return flatten_tokens_hidden(transpose_pa);
     }
 
-    // PA output → Reshape[1, tokens, -1, head_size] → Transpose[0, 2, 1, 3]
+    // PA output → Reshape[0, 1, -1, head_size] → Transpose[0, 2, 1, 3]
     static std::shared_ptr<Node> align_pa_layout(const std::shared_ptr<Node>& pa,
                                                  const std::shared_ptr<Node>& head_size) {
-        auto shape_of = makeOP<v3::ShapeOf>({pa->output(0)}, {{"output_type", "i64"}});
-        auto gather_tokens = makeOP<v8::Gather>({shape_of, 0ll, 0ll}, {{"batch_dims", 0}});
-        auto tokens = makeOP<v0::Unsqueeze>({gather_tokens, 0});
-        auto shape = makeOP<v0::Concat>({{1ll}, tokens, {-1ll}, head_size}, {{"axis", 0}});
+        auto shape = makeOP<v0::Concat>({{0ll}, {1ll}, {-1ll}, head_size}, {{"axis", 0}});
         auto reshaped = makeOP<v1::Reshape>({pa->output(0), shape}, {special_zero_true});
         return makeOP<v1::Transpose>({reshaped, {0, 2, 1, 3}});
     }
@@ -1578,37 +1562,6 @@ TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_NonBatchDropGather) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
-TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_FullFlow) {
-    // Full position_ids handling for the onyx batch-drop select: prepare_position_ids wires a rank-restoring
-    // Unsqueeze(-1) onto position_ids, then EliminateDropBatch removes the redundant Gather(select 0, 0) and
-    // collapses the wired Unsqueeze with a Reshape to [-1].
-    {
-        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
-        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
-        auto select = std::make_shared<v8::Gather>(convert,
-                                                   v0::Constant::create(element::i64, Shape{}, {0}),
-                                                   v0::Constant::create(element::i64, Shape{}, {0}));
-        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
-                                        nodes_to_params({position_ids}));
-
-        ov::pass::paged_attention::PaParams params{model->get_parameters()};
-        ov::pass::paged_attention::prepare_position_ids(params);
-        manager.register_pass<pass::EliminateDropBatch>();
-    }
-    {
-        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
-        auto unsqueeze =
-            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
-        auto reshape =
-            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
-        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
-                                            nodes_to_params({position_ids}));
-    }
-
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
-}
-
 namespace {
 // Builds the "manual RoPE" outer-product tail that RoPEUnsqueezeAxisReplacer requires before its trailing
 // Unsqueeze(axis=0): Unsqueeze -> MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast.
@@ -1990,11 +1943,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
-        auto ShapeOf_pa_tokens168 =
-            makeOP<opset3::ShapeOf>({PagedAttentionExtension168->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens168 = makeOP<opset8::Gather>({ShapeOf_pa_tokens168, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens168 = makeOP<opset1::Unsqueeze>({Gather_pa_tokens168, 0});
-        auto Concat178 = makeOP<opset1::Concat>({{1l}, Unsqueeze_pa_tokens168, {-1l}, Unsqueeze177}, {{"axis", 0}});
+        auto Concat178 = makeOP<opset1::Concat>({{0l}, {1l}, {-1l}, Unsqueeze177}, {{"axis", 0}});
         auto Reshape179 =
             makeOP<opset1::Reshape>({PagedAttentionExtension168->output(0), Concat178}, {{"special_zero", true}});
         auto Transpose180 = makeOP<opset1::Transpose>({Reshape179, {0, 2, 1, 3}});
@@ -2371,12 +2320,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
-        auto ShapeOf_pa_tokens_51962 =
-            makeOP<opset3::ShapeOf>({PagedAttentionExtension_51962->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens_51962 = makeOP<opset8::Gather>({ShapeOf_pa_tokens_51962, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens_51962 = makeOP<opset1::Unsqueeze>({Gather_pa_tokens_51962, 0});
-        auto Concat_51972 =
-            makeOP<opset1::Concat>({{1l}, Unsqueeze_pa_tokens_51962, {-1l}, Unsqueeze_51971}, {{"axis", 0}});
+        auto Concat_51972 = makeOP<opset1::Concat>({{0l}, {1l}, {-1l}, Unsqueeze_51971}, {{"axis", 0}});
         auto Reshape_51973 =
             makeOP<opset1::Reshape>({PagedAttentionExtension_51962->output(0), Concat_51972}, {{"special_zero", true}});
         auto pref_1_scaled_dot_product_attention_ScaledDotProductAttention =
@@ -2709,11 +2653,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
-        auto ShapeOf_pa_tokens =
-            makeOP<opset3::ShapeOf>({PagedAttentionExtension->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens = makeOP<opset8::Gather>({ShapeOf_pa_tokens, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens = makeOP<opset1::Unsqueeze>({Gather_pa_tokens, 0});
-        auto Concat4 = makeOP<opset1::Concat>({{1ll}, Unsqueeze_pa_tokens, {-1ll}, Unsqueeze5}, {{"axis", 0}});
+        auto Concat4 = makeOP<opset1::Concat>({{0ll}, {1ll}, {-1ll}, Unsqueeze5}, {{"axis", 0}});
         auto Reshape7 =
             makeOP<opset1::Reshape>({PagedAttentionExtension->output(0), Concat4}, {{"special_zero", true}});
         auto Transpose7 = makeOP<opset1::Transpose>({Reshape7, {0, 2, 1, 3}});
@@ -3065,11 +3005,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
-        auto ShapeOf_pa_tokens =
-            makeOP<opset3::ShapeOf>({PagedAttentionExtension->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens = makeOP<opset8::Gather>({ShapeOf_pa_tokens, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens = makeOP<opset1::Unsqueeze>({Gather_pa_tokens, 0});
-        auto Concat5 = makeOP<opset1::Concat>({{1l}, Unsqueeze_pa_tokens, {-1l}, Unsqueeze9}, {{"axis", 0}});
+        auto Concat5 = makeOP<opset1::Concat>({{0l}, {1l}, {-1l}, Unsqueeze9}, {{"axis", 0}});
         auto Reshape17 =
             makeOP<opset1::Reshape>({PagedAttentionExtension->output(0), Concat5}, {{"special_zero", true}});
         auto Transpose8 = makeOP<opset1::Transpose>({Reshape17, {0, 2, 1, 3}});
@@ -3735,10 +3671,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});
-        auto ShapeOf_pa_tokens = makeOP<v3::ShapeOf>({PagedAttentionExtension->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens = makeOP<v8::Gather>({ShapeOf_pa_tokens, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens = makeOP<v0::Unsqueeze>({Gather_pa_tokens, 0});
-        auto Concat5 = makeOP<v0::Concat>({{1l}, Unsqueeze_pa_tokens, {-1l}, Unsqueeze5}, {{"axis", 0}});
+        auto Concat5 = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze5}, {{"axis", 0}});
         auto Reshape6 = makeOP<v1::Reshape>({PagedAttentionExtension->output(0), Concat5}, {{"special_zero", true}});
         auto Transpose7 = makeOP<v1::Transpose>({Reshape6, {0, 2, 1, 3}});
 
@@ -5159,10 +5092,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
         auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
-        auto ShapeOf_pa_tokens0 = makeOP<v3::ShapeOf>({PagedAttentionExtension0->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens0 = makeOP<v8::Gather>({ShapeOf_pa_tokens0, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens0 = makeOP<v0::Unsqueeze>({Gather_pa_tokens0, 0});
-        auto Concat10 = makeOP<v0::Concat>({{1l}, Unsqueeze_pa_tokens0, {-1l}, Unsqueeze10}, {{"axis", 0}});
+        auto Concat10 = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze10}, {{"axis", 0}});
         auto Reshape23 = makeOP<v1::Reshape>({PagedAttentionExtension0->output(0), Concat10}, {{"special_zero", true}});
         auto Transpose20 = makeOP<v1::Transpose>({Reshape23, {0, 2, 1, 3}});
         auto Transpose16 = makeOP<v1::Transpose>({Transpose20, {0, 2, 1, 3}});
@@ -5751,10 +5681,7 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto ShapeOf1 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<v8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Gather2, 0});
-        auto ShapeOf_pa_tokens0 = makeOP<v3::ShapeOf>({PagedAttentionExtension0->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens0 = makeOP<v8::Gather>({ShapeOf_pa_tokens0, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens0 = makeOP<v0::Unsqueeze>({Gather_pa_tokens0, 0});
-        auto Concat1 = makeOP<v0::Concat>({{1l}, Unsqueeze_pa_tokens0, {-1l}, Unsqueeze1}, {{"axis", 0}});
+        auto Concat1 = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze1}, {{"axis", 0}});
         auto Reshape10 = makeOP<v1::Reshape>({PagedAttentionExtension0->output(0), Concat1}, {{"special_zero", true}});
         auto Transpose6 = makeOP<v1::Transpose>({Reshape10, {0, 2, 1, 3}});
 
@@ -6169,11 +6096,7 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose4}, {{"output_type", "i64"}});
         auto Gather13 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather13, 0});
-        auto ShapeOf_pa_tokens0 =
-            makeOP<opset3::ShapeOf>({PagedAttentionExtension0->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens0 = makeOP<opset8::Gather>({ShapeOf_pa_tokens0, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens0 = makeOP<opset1::Unsqueeze>({Gather_pa_tokens0, 0});
-        auto Concat6 = makeOP<opset1::Concat>({{1l}, Unsqueeze_pa_tokens0, {-1l}, Unsqueeze5}, {{"axis", 0}});
+        auto Concat6 = makeOP<opset1::Concat>({{0l}, {1l}, {-1l}, Unsqueeze5}, {{"axis", 0}});
         auto Reshape8 =
             makeOP<opset1::Reshape>({PagedAttentionExtension0->output(0), Concat6}, {{"special_zero", true}});
         auto Transpose5 = makeOP<opset1::Transpose>({Reshape8, {0, 2, 1, 3}});
@@ -6455,10 +6378,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto ShapeOf_v = makeOP<v3::ShapeOf>({Transpose_v2}, {{"output_type", "i64"}});
         auto Gather_dim = makeOP<v8::Gather>({ShapeOf_v, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_dim = makeOP<v0::Unsqueeze>({Gather_dim, 0});
-        auto ShapeOf_pa_tokens = makeOP<v3::ShapeOf>({PA->output(0)}, {{"output_type", "i64"}});
-        auto Gather_pa_tokens = makeOP<v8::Gather>({ShapeOf_pa_tokens, 0, 0}, {{"batch_dims", 0}});
-        auto Unsqueeze_pa_tokens = makeOP<v0::Unsqueeze>({Gather_pa_tokens, 0});
-        auto pa_shape = makeOP<v0::Concat>({{1l}, Unsqueeze_pa_tokens, {-1l}, Unsqueeze_dim}, {{"axis", 0}});
+        auto pa_shape = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze_dim}, {{"axis", 0}});
         auto pa_reshape = makeOP<v1::Reshape>({PA->output(0), pa_shape}, {{"special_zero", true}});
         auto pa_transpose = makeOP<v1::Transpose>({pa_reshape, {0, 2, 1, 3}});
 

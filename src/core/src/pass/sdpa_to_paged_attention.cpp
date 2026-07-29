@@ -115,9 +115,31 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::unordered_set<std::string> var_ids_to_remove;
 
-    // Get-or-create the flattened position_ids and restore its rank at each existing consumer. The
-    // PositionIDsReplacer* passes below consume the raw parameter and add their own rank-restoring nodes.
-    auto position_ids = paged_attention::prepare_position_ids(m_params);
+    // Get-or-create the flattened position_ids parameter and restore its rank at each existing consumer with a
+    // single shared Unsqueeze(-1). The PositionIDsReplacer* passes below consume the raw parameter and add their
+    // own rank-restoring nodes; EliminateDropBatch handles the batch-drop select branch separately.
+    auto position_ids = m_params.get("position_ids");
+    if (!position_ids) {
+        position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
+    } else {
+        const auto& position_ids_shape = position_ids->get_partial_shape();
+        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
+            position_ids->set_partial_shape(PartialShape{-1});
+        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
+            // Qwen2.5 VL M-RoPE: [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num, 1]
+            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
+        } else {
+            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
+                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
+        }
+        position_ids->validate_and_infer_types();
+    }
+    const auto position_ids_target_inputs = position_ids->output(0).get_target_inputs();
+    auto unsqueezed_position_ids =
+        std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+    for (const auto& target : position_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_position_ids);
+    }
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
