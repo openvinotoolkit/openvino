@@ -134,8 +134,7 @@ public:
                     const std::shared_ptr<IGraph>& graph,
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-                    const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    size_t batch_size = 1);
+                    const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;

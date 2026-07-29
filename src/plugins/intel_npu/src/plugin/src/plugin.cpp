@@ -454,6 +454,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool shouldHandleBatching = false;
     bool successfullyDebatched = false;
 
+    const bool useHostCompile = localConfig.has<COMPILATION_MODE>() &&
+                                localConfig.get<COMPILATION_MODE>() == "HostCompile_Interpreter";
+
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         // Set default batch mode if not configured
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
@@ -472,6 +475,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } else {
         // If the model contains states, it is not supported when handling batching on the plugin
         shouldHandleBatching = model->get_variables().empty();
+    }
+
+    if (useHostCompile) {
+        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        shouldHandleBatching = false;
     }
 
     if (shouldHandleBatching) {

@@ -71,6 +71,20 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     return model;
 }
 
+inline std::shared_ptr<ov::Model> createDynamicBatchAddModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{ov::Dimension(1, 4), 2, 2, 2});
+    input->set_friendly_name("tensor_input0");
+    input->get_output_tensor(0).set_names({"tensor_input0"});
+
+    auto value = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(input, value);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->get_output_tensor(0).set_names({"tensor_output0"});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "DynamicBatchAdd");
+}
+
 inline std::shared_ptr<ov::Model> createCustomNetModel() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
                                                          ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
@@ -406,6 +420,42 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
     OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+}
+
+TEST_P(InferWithHostCompileTests, SetTensorsWithChangingDynamicBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    if (selectedModelName != "MaxPool") {
+        GTEST_SKIP() << "Run one instance per device and configuration";
+    }
+
+    auto setupResult = prepareRuntimeCompareContext(createDynamicBatchAddModel());
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    for (const size_t batch : {2, 3}) {
+        std::vector<ov::Tensor> tensors;
+        for (size_t index = 0; index < batch; ++index) {
+            tensors.emplace_back(ov::test::utils::create_and_fill_tensor(ov::element::f16,
+                                                                          ov::Shape{1, 2, 2, 2},
+                                                                          10,
+                                                                          static_cast<int32_t>(index)));
+        }
+
+        OV_ASSERT_NO_THROW(testContext.reqDynamic.set_tensors("tensor_input0", tensors));
+        OV_ASSERT_NO_THROW(testContext.reqReference.set_tensors("tensor_input0", tensors));
+        inferAndCompare(setupResult.context.model,
+                        testContext.reqDynamic,
+                        testContext.reqReference,
+                        "SetTensorsWithChangingDynamicBatch_" + std::to_string(batch));
+    }
 }
 
 // Compile, infer with a large shape, then shrink the input shape and verify both output correctness and command-list
