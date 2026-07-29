@@ -27,8 +27,8 @@ ov::PartialShape infer_output_shape(const ov::TensorVector& inputs, bool flatten
         out_shape = ov::PartialShape{ov::Dimension::dynamic(), 4};
     }
 
-    const auto priors_shape = inputs[priors_port].get_shape();
-    const auto feature_map_shape = inputs[feature_map_port].get_shape();
+    const auto& priors_shape = inputs[priors_port].get_shape();
+    const auto& feature_map_shape = inputs[feature_map_port].get_shape();
 
     if (!ov::shape_size(priors_shape) || !ov::shape_size(feature_map_shape)) {
         return out_shape;
