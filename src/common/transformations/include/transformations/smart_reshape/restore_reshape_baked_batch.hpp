@@ -71,10 +71,11 @@ class TRANSFORMATIONS_API RestoreReshapeBakedBatch;
 /// that share the structural signature (spatial flatten `view(1, C, -1)`, attention head-merge
 /// `view(1, N, -1)`, merge/split reshapes whose `-1` spans more than the data's last dim):
 ///   1. If a reshape's output last dim is statically known, it must equal the recovered channel.
-///   2. (Applied to a reshape whose OWN data last dim is static.) When the output last dim is dynamic,
-///      guard 1 is vacuous; guard 2 requires the rewrite to merely re-partition the data's leading
-///      dimension and keep the data's entire trailing block, which is exactly the window-reverse
-///      semantics and rejects merge/split reshapes.
+///   2. Applied whenever a reshape's OWN data last dim is static (independently of guard 1): it requires
+///      the rewrite to merely re-partition the data's leading dimension and keep the data's entire
+///      trailing block, which is exactly the window-reverse semantics and rejects merge/split reshapes.
+///      For the window-reverse chain the output last dim is dynamic, so guard 1 is vacuous there and
+///      guard 2 does the real work.
 ///
 /// This lives in SmartReshape because it is a reshapeability concern (it runs inside `Model::reshape`),
 /// not a framework-import concern: it operates on the already-built `ov::Model` and is framework-agnostic.

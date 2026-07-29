@@ -136,7 +136,9 @@ TEST(SmartReshapeTests, RestoreReshapeBakedBatch_reshape) {
 // Negative cases. The pass runs inside every Model::reshape, so it must never fire on a graph it cannot
 // prove value-preserving. Each builder produces a graph the pass must leave untouched; the TEST_P body
 // sets only `model` (no model_ref), so TransformationTestsF::TearDown clones `model` BEFORE running the
-// pass and compares against the clone -- an exact "did not fire" assertion.
+// pass and compares against the clone. The pass's only mutation flips scalar Constant values (leading
+// batch -> -1, trailing -1 -> channel) without changing topology, so the TEST_P body enables CONST_VALUES
+// -- otherwise a spurious value-only fire would go undetected by the default comparator.
 //
 // Two families:
 //   (A) A structurally valid two-view chain in which ONE gate/guard is violated -- the chain matches the
@@ -327,7 +329,9 @@ TEST_P(RestoreReshapeBakedBatchNeg, PassDoesNotFire) {
     model = p.build();
     manager.register_pass<ov::pass::RestoreReshapeBakedBatch>();
     // model_ref left null on purpose: TearDown clones `model` before running the pass and compares,
-    // so the test asserts the pass made no change.
+    // so the test asserts the pass made no change. The pass only rewrites scalar Constant values, which
+    // the default comparator ignores, so enable CONST_VALUES to make this a true "did not fire" assertion.
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 INSTANTIATE_TEST_SUITE_P(SmartReshapeTests,

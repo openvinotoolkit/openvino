@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -76,9 +75,10 @@ bool passes_structural_gates(const std::shared_ptr<v1::Reshape>& reshape, const 
     return false;
 }
 
-// True if `transpose` has a constant, full-rank permutation order that keeps the last axis in the last
-// position (e.g. [0,1,3,2,4,5]). Such a permute preserves the channel dimension, so the two chained
-// window-reverse views share the same (static) channel.
+// True if `transpose` has a constant, full-rank order whose last element is rank-1, i.e. it keeps the
+// last axis in the last position (e.g. [0,1,3,2,4,5]). Transpose's own validation already guarantees the
+// order is a true permutation, so checking size and the last element is enough. Such a permute preserves
+// the channel dimension, so the two chained window-reverse views share the same (static) channel.
 bool is_last_axis_preserving_transpose(const std::shared_ptr<v1::Transpose>& transpose) {
     auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
     const auto& in_ps = transpose->input_value(0).get_partial_shape();
