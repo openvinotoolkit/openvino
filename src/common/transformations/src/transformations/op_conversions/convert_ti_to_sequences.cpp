@@ -40,6 +40,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -1579,8 +1580,16 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             return false;
         if (lstm_forward->get_activations() != lstm_reverse->get_activations())
             return false;
-        if (lstm_forward->get_clip() != lstm_reverse->get_clip())
+        // `clip == 0` and `clip == inf` both mean "no clipping" (see ov::op::util::is_no_clip), so the two directions
+        // still match when one carries 0 and the other inf.
+        const auto clip_forward = lstm_forward->get_clip();
+        const auto clip_reverse = lstm_reverse->get_clip();
+        if (op_util::is_no_clip(clip_forward) || op_util::is_no_clip(clip_reverse)) {
+            if (!op_util::is_no_clip(clip_forward) || !op_util::is_no_clip(clip_reverse))
+                return false;
+        } else if (clip_forward != clip_reverse) {
             return false;
+        }
 
         auto squeeze_forward = pattern_map.at(squeeze_forward_label);
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))

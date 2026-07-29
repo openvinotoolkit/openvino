@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -16,6 +17,20 @@
 namespace ov {
 namespace op {
 namespace util {
+/// \brief      Tells whether an RNN `clip` attribute value disables clipping.
+///
+/// \note       Per the RNN/GRU/LSTM specs, the default `clip` is *infinity*, which means "clipping is not applied";
+///             OpenVINO ops additionally treat `clip == 0` as no clipping (see RNNCellBase::clip). Both values must
+///             therefore be handled identically. `NaN` is not a valid clip value and is reported as "clipping
+///             requested" so that callers reject it instead of silently skipping the Clamp.
+///
+/// \param[in]  clip  Value of the `clip` attribute.
+///
+/// \return     True if no clipping should be applied.
+inline bool is_no_clip(float clip) {
+    return clip == 0.f || std::isinf(clip);
+}
+
 enum class LSTMWeightsFormat {
     FICO,  // IE
     ICOF,  // PyTorch
