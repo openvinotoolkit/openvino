@@ -205,8 +205,7 @@ protected:
             auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, { reshape2_shape.size() }, reshape2_shape);
             key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
             value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
-        }
-        else if (!is_complex_gqa && (kv_num_head_factor > 1)) {
+        } else if (kv_num_head_factor > 1) {
             auto q_shape = query_shape.to_shape();                  // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                    // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();      // [1, 1]
@@ -258,9 +257,8 @@ protected:
             auto reshape1_v = std::make_shared<ov::op::v1::Reshape>(split_v->output(0), reshape1_v_const, false);
 
             // Concat kv_num_head_factor copies to match query head expansion.
-            const size_t head_expand_factor = static_cast<size_t>(kv_num_head_factor);
-            ov::OutputVector concat_k_inputs(head_expand_factor, reshape1_k);
-            ov::OutputVector concat_v_inputs(head_expand_factor, reshape1_v);
+            ov::OutputVector concat_k_inputs(kv_num_head_factor, reshape1_k);
+            ov::OutputVector concat_v_inputs(kv_num_head_factor, reshape1_v);
             auto concat_k = std::make_shared<ov::op::v0::Concat>(concat_k_inputs, 2);
             auto concat_v = std::make_shared<ov::op::v0::Concat>(concat_v_inputs, 2);
            
@@ -434,8 +432,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
     -                                                          0.025f,
                                                             false,
                                                             1),
-                                            std::make_tuple(ov::PartialShape{1, 8, 10, 256},
-                                                            ov::Shape{1, 8, 10, 256},
+                                            std::make_tuple(ov::PartialShape{1, 1, 10, 256},
+                                                            ov::Shape{1, 1, 10, 256},
                                                             ov::PartialShape{1, 1, 10, 256},
                                                             ov::Shape{1, 1, 10, 256},
                                                             ov::PartialShape{1, 1, 10, 256},
