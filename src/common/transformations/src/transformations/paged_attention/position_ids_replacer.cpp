@@ -253,15 +253,15 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
 
     // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
-    auto p_gather = wrap_type<v8::Gather>(
-        {p_convert, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()},
-        [](const Output<Node>& output) -> bool {
-            const auto gather = ov::as_type_ptr<v8::Gather>(output.get_node_shared_ptr());
-            const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
-            const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
-            return ov::op::util::has_constant_value<int64_t>(indices, 0) &&
-                   ov::op::util::has_constant_value<int64_t>(axis, 0);
-        });
+    auto p_gather =
+        wrap_type<v8::Gather>({p_convert, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()},
+                              [](const Output<Node>& output) -> bool {
+                                  const auto gather = ov::as_type_ptr<v8::Gather>(output.get_node_shared_ptr());
+                                  const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
+                                  const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
+                                  return ov::op::util::has_constant_value<int64_t>(indices, 0) &&
+                                         ov::op::util::has_constant_value<int64_t>(axis, 0);
+                              });
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto gather = m.get_match_root();

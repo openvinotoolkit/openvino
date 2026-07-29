@@ -1502,8 +1502,8 @@ TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToRe
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto data = wrap_optional(position_ids, wrappers);
         auto select = std::make_shared<v8::Gather>(data,
-                                                    v0::Constant::create(element::i64, Shape{}, {0}),
-                                                    v0::Constant::create(element::i64, Shape{}, {0}));
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
         model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
                                         nodes_to_params({position_ids}));
         manager.register_pass<pass::EliminateDropBatch>();
@@ -1511,8 +1511,7 @@ TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToRe
     {
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto data = wrap_optional(position_ids, wrappers);
-        auto reshape =
-            std::make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto reshape = std::make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
         model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
                                             nodes_to_params({position_ids}));
     }
@@ -1521,22 +1520,22 @@ TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToRe
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAToPA,
-                        SDPAToPAEliminateDropBatchTest,
-                        ::testing::Values(EliminateDropBatchWrappers{false, false},
-                                          EliminateDropBatchWrappers{false, true},
-                                          EliminateDropBatchWrappers{true, false},
-                                          EliminateDropBatchWrappers{true, true}),
-                        [](const ::testing::TestParamInfo<EliminateDropBatchWrappers>& info) {
-                            return test_name(info.param);
-                        });
+                         SDPAToPAEliminateDropBatchTest,
+                         ::testing::Values(EliminateDropBatchWrappers{false, false},
+                                           EliminateDropBatchWrappers{false, true},
+                                           EliminateDropBatchWrappers{true, false},
+                                           EliminateDropBatchWrappers{true, true}),
+                         [](const ::testing::TestParamInfo<EliminateDropBatchWrappers>& info) {
+                             return test_name(info.param);
+                         });
 
 TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_ReconnectsDownstreamConsumer) {
     // The replaced Gather's consumers must be reconnected to the new Reshape node.
     {
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto select = std::make_shared<v8::Gather>(position_ids,
-                                                    v0::Constant::create(element::i64, Shape{}, {0}),
-                                                    v0::Constant::create(element::i64, Shape{}, {0}));
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
         auto add = std::make_shared<v1::Add>(select, v0::Constant::create(element::i64, Shape{}, {1}));
         model =
             std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
@@ -1565,9 +1564,8 @@ struct EliminateDropBatchNegativeCase {
 };
 }  // namespace
 
-class SDPAToPAEliminateDropBatchNegativeTest
-    : public TransformationTestsF,
-      public ::testing::WithParamInterface<EliminateDropBatchNegativeCase> {};
+class SDPAToPAEliminateDropBatchNegativeTest : public TransformationTestsF,
+                                               public ::testing::WithParamInterface<EliminateDropBatchNegativeCase> {};
 
 TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotABatchDropSelect) {
     const auto& test_case = GetParam();
@@ -1576,8 +1574,8 @@ TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotAB
         position_ids,
         v0::Constant::create(element::i64, Shape{test_case.indices.size()}, test_case.indices),
         v0::Constant::create(element::i64, Shape{}, {test_case.axis}));
-    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
-                                    nodes_to_params({position_ids}));
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, nodes_to_params({position_ids}));
     manager.register_pass<pass::EliminateDropBatch>();
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -1660,14 +1658,14 @@ TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerTest, SDPAToPA_RoPEUnsqueezeAxisReplacer
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAToPA,
-                        SDPAToPARoPEUnsqueezeAxisReplacerTest,
-                        ::testing::Values(RoPEUnsqueezeAxisCase{false, true},
-                                          RoPEUnsqueezeAxisCase{false, false},
-                                          RoPEUnsqueezeAxisCase{true, true},
-                                          RoPEUnsqueezeAxisCase{true, false}),
-                        [](const ::testing::TestParamInfo<RoPEUnsqueezeAxisCase>& info) {
-                            return test_name(info.param);
-                        });
+                         SDPAToPARoPEUnsqueezeAxisReplacerTest,
+                         ::testing::Values(RoPEUnsqueezeAxisCase{false, true},
+                                           RoPEUnsqueezeAxisCase{false, false},
+                                           RoPEUnsqueezeAxisCase{true, true},
+                                           RoPEUnsqueezeAxisCase{true, false}),
+                         [](const ::testing::TestParamInfo<RoPEUnsqueezeAxisCase>& info) {
+                             return test_name(info.param);
+                         });
 
 class SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest : public TransformationTestsF,
                                                       public ::testing::WithParamInterface<int64_t> {};
@@ -1680,19 +1678,19 @@ TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest, SDPAToPA_RoPEUnsqueezeAxis
     auto broadcast = build_rope_broadcast(positions, false, true);
     auto unsqueeze =
         std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {GetParam()}));
-    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
-                                    nodes_to_params({positions}));
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, nodes_to_params({positions}));
     manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAToPA,
-                        SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest,
-                        ::testing::Values(1, 2),
-                        [](const ::testing::TestParamInfo<int64_t>& info) {
-                            return "Axis" + std::to_string(info.param);
-                        });
+                         SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest,
+                         ::testing::Values(1, 2),
+                         [](const ::testing::TestParamInfo<int64_t>& info) {
+                             return "Axis" + std::to_string(info.param);
+                         });
 
 TEST_F(SDPAToPATest, SDPAToPA_RoPEUnsqueezeAxisReplacer_WithEliminateDropBatch) {
     // Full flow: EliminateDropBatch collapses the now-invalid batch-drop select to a Reshape, and
