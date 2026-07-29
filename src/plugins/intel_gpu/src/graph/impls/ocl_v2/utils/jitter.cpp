@@ -165,6 +165,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
     std::string abs_func = "dynamic";
     std::string type_size = "dynamic";
     bool is_fp = false;
+    bool is_bf16 = false;
     switch (value) {
     case ov::element::i8:
         type = "char";
@@ -304,6 +305,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         to_type_sat = "_convert_bfloat16_as_ushort(v)";
         type_size = "2";
         is_fp = false;
+        is_bf16 = true;
         break;
     case ov::element::f32:
         type = "float";
@@ -401,6 +403,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         make_jit_constant(name + "_ABS_FUNC", abs_func),
         make_jit_constant(name + "_TYPE_SIZE", type_size),
         make_jit_constant(name + "_IS_FP", is_fp),
+        make_jit_constant(name + "_IS_BF16", is_bf16),
     };
 }
 

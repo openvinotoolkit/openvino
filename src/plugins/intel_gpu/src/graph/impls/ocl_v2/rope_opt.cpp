@@ -22,6 +22,9 @@ size_t get_vec_size(const RuntimeParams& params) {
     case ov::element::f16:
         vec_size = 16;
         break;
+    case ov::element::bf16:
+        vec_size = 16;
+        break;
     case ov::element::f32:
         vec_size = 8;
         break;
@@ -107,10 +110,24 @@ protected:
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
-        if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
+        if (in_l.data_type == ov::element::bf16) {
+            jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
+        } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(1).data_type));
         } else {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(0).data_type));
+        }
+
+        // Use the standard BF16 decode flags (same names and semantics as
+        // kernel_selector's MakeTypeJitConstants, kernel_selector/jitter.cpp):
+        // BF16 -> proper BF16->float decode, other types -> identity.
+        const auto decode_flag = [](ov::element::Type dt) -> std::string {
+            return dt == ov::element::bf16 ? "_convert_as_bfloat16_float(v)" : "(v)";
+        };
+        jit.make("DECODE_INPUT0_COMPUTE_TYPE(v)", decode_flag(params.get_input_layout(0).data_type));
+        jit.make("DECODE_INPUT1_COMPUTE_TYPE(v)", decode_flag(params.get_input_layout(1).data_type));
+        if (params.input_layouts.size() > 2) {
+            jit.make("DECODE_INPUT2_COMPUTE_TYPE(v)", decode_flag(params.get_input_layout(2).data_type));
         }
         return jit;
     }
