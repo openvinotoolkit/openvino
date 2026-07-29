@@ -2035,7 +2035,13 @@ void primitive_inst::set_out_event(event::ptr&& ev) {
     _impl_params->out_event = ev;
 }
 
-void primitive_inst::reset_events() {
+void primitive_inst::reset_out_event() {
+    if (_impl_params->out_event) {
+        _impl_params->out_event->reset();
+    }
+}
+
+void primitive_inst::clear_events() {
     _impl_params->dep_events.clear();
     _impl_params->out_event = nullptr;
 }

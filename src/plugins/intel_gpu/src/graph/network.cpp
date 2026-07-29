@@ -968,6 +968,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     bool is_recording = false;
     if (net_stream.supports_recording()) {
         if (net_stream.can_replay_recording()) {
+            for (auto& inst : _exec_order) {
+                inst->reset_out_event();
+            }
             net_stream.replay_recording(events);
             GPU_DEBUG_TRACE_DETAIL << "[GPU] Replayed last iteration" << std::endl;
             return;
@@ -991,7 +994,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         NODE_DEBUG(*inst);
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
-        inst->reset_events();
+        inst->clear_events();
 
         if (inst->is_input()) {
             inst->add_dep_events(events);
@@ -1006,10 +1009,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
     if (is_recording) {
         auto recording_success = net_stream.stop_recording();
-        if (!recording_success) {
-            _recording_attempts--;
-            GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording failed. Remaining attempts: " << _recording_attempts << std::endl;
-        }
+        _recording_attempts--;
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording " << (recording_success ? "succeeded" : "failed") << std::endl;
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
@@ -1023,7 +1024,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 }
 
-void discard_stream_recording() {
+void network::discard_stream_recording() {
     auto &net_stream = get_stream();
     if (net_stream.supports_recording()) {
         net_stream.discard_recording();
