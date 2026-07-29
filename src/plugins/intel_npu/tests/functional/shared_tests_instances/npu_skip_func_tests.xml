@@ -125,7 +125,7 @@ Example:
     <skip_config>
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
+            <device>3720</device>
             <driver_version>1688</driver_version>
             <operating_system>windows</operating_system>
         </enable_rules>
@@ -293,7 +293,7 @@ Example:
     <skip_config>
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
+            <device>3720</device>
             <driver_version>1688</driver_version>
         </enable_rules>
         <filters>
@@ -371,7 +371,7 @@ Example:
     <skip_config>
         <message>PV driver cannot compile models securely</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
+            <device>3720</device>
             <driver_version>1688</driver_version>
         </enable_rules>
         <filters>
