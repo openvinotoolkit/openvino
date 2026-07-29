@@ -2,30 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_test_utils.hpp"
-
-#include "ov_ops/rotary_positional_embeddings.hpp"
-
-#include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/concat.hpp"
-
-#include "intel_gpu/op/sdpa.hpp"
-#include "intel_gpu/op/read_value.hpp"
-#include "intel_gpu/op/kv_cache.hpp"
-
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 
 #include <memory>
 #include <openvino/op/scatter_update.hpp>
 #include <openvino/op/variadic_split.hpp>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -250,7 +247,8 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion5) {
         auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
         auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
         auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
-        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto value_transpose =
+            std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
         auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_val);
         auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape, false);
         auto value_pre_reshape = std::make_shared<ov::op::v1::Reshape>(value_transpose, shape, false);
@@ -300,7 +298,8 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion6) {
         auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
         auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
         auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
-        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto value_transpose =
+            std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
         auto shape_k = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_k_val);
         auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape_k, false);
         auto shape_v = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_v_val);
@@ -346,8 +345,12 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion7) {
         auto key_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{key_rope_1, key_rope_2}, 2);
         auto pre_reshape_value_input_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 10, 256});
         auto pre_reshape_value_input_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 832, 256});
-        auto value_pre_reshape_1 = std::make_shared<ov::op::v1::Reshape>(pre_reshape_value_input_1, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 10, 256}), false);
-        auto value_pre_reshape_2 = std::make_shared<ov::op::v1::Reshape>(pre_reshape_value_input_2, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 832, 256}), false);
+        auto value_pre_reshape_1 = std::make_shared<ov::op::v1::Reshape>(pre_reshape_value_input_1,
+                                                                         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 10, 256}),
+                                                                         false);
+        auto value_pre_reshape_2 = std::make_shared<ov::op::v1::Reshape>(pre_reshape_value_input_2,
+                                                                         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 832, 256}),
+                                                                         false);
         auto value_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{value_pre_reshape_1, value_pre_reshape_2}, 2);
 
         auto shape_v = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_v_val);
@@ -365,7 +368,9 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion7) {
         auto inputs = ov::OutputVector{input_q, key_reshape, value_reshape};
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_key_input_1, rope_key_input_2, cos, sin, pre_reshape_value_input_1, pre_reshape_value_input_2});
+        model = std::make_shared<ov::Model>(
+            ov::OutputVector{sdpa},
+            ov::ParameterVector{input_q, rope_key_input_1, rope_key_input_2, cos, sin, pre_reshape_value_input_1, pre_reshape_value_input_2});
         manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
     }
     {
@@ -441,7 +446,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion9) {
 
     // GQA 16x Broadcast Logic (32 Q heads, 2 KV heads)
     std::vector<int32_t> shape_5d_val = {-1, 1, 2, 1, 128};
-    std::vector<int32_t> target_shape_bc = {1, 1, 1, 16, 1}; // Broadcast by 16x
+    std::vector<int32_t> target_shape_bc = {1, 1, 1, 16, 1};  // Broadcast by 16x
     std::vector<int32_t> pattern_4d = {0, 0, 32, 128};
     const bool is_causal = true;
 
@@ -467,8 +472,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion9) {
         auto v_shape_4d = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, pattern_4d);
         auto v_4d = std::make_shared<ov::op::v1::Reshape>(v_bc, v_shape_4d, true);
 
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-            ov::OutputVector{input_q, k_4d, v_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_q, k_4d, v_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, v_input});
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
@@ -488,8 +492,8 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion9) {
         auto k_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_k, k_ref_shape_4d, true);
         auto v_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_v, v_ref_shape_4d, true);
 
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-            ov::OutputVector{input_q, k_ref_4d, v_ref_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
+        auto sdpa =
+            std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_q, k_ref_4d, v_ref_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, v_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -497,21 +501,21 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion9) {
 }
 
 TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion10) {
-    std::vector<int64_t> in0_order = { 0, 1, 2, 3 };
-    std::vector<int64_t> in1_order = { 0, 1, 2, 3 };
-    std::vector<int64_t> in2_order = { 0, 1, 2, 3 };
-    std::vector<int64_t> out_order = { 0, 1, 2, 3 };
+    std::vector<int64_t> in0_order = {0, 1, 2, 3};
+    std::vector<int64_t> in1_order = {0, 1, 2, 3};
+    std::vector<int64_t> in2_order = {0, 1, 2, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
     const bool is_causal = false;
     {
-        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 4, 8, 16 });
-        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 8, 16 });
-        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 8, 16 });
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 16});
+        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
+        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
 
-        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 1 }, { 0 });
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, { 1 });
-        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 2 }, { 1, 1 });
-        auto k_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 8, 16 }, { 0.0f });
-        auto v_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 8, 16 }, { 0.0f });
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+        auto k_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 8, 16}, {0.0f});
+        auto v_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 8, 16}, {0.0f});
 
         auto scatter_k = std::make_shared<ov::op::v3::ScatterUpdate>(input_k, indices, k_updates, axis);
         auto scatter_v = std::make_shared<ov::op::v3::ScatterUpdate>(input_v, indices, v_updates, axis);
@@ -520,47 +524,47 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion10) {
         auto split_k_out = split_k->output(0);
         auto split_v_out = split_v->output(0);
 
-        auto reshape_k_5d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 5 }, { 1, 1, 1, 8, 16 });
-        auto reshape_v_5d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 5 }, { 1, 1, 1, 8, 16 });
+        auto reshape_k_5d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 16});
+        auto reshape_v_5d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 16});
 
         auto reshape_k_5d = std::make_shared<ov::op::v1::Reshape>(split_k_out, reshape_k_5d_pattern, false);
         auto reshape_v_5d = std::make_shared<ov::op::v1::Reshape>(split_v_out, reshape_v_5d_pattern, false);
 
-        auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ reshape_k_5d, reshape_k_5d, reshape_k_5d, reshape_k_5d }, 2);
-        auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ reshape_v_5d, reshape_v_5d, reshape_v_5d, reshape_v_5d }, 2);
+        auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape_k_5d, reshape_k_5d, reshape_k_5d, reshape_k_5d}, 2);
+        auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape_v_5d, reshape_v_5d, reshape_v_5d, reshape_v_5d}, 2);
 
-        auto reshape_k_4d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 4 }, { 1, 4, 8, 16 });
-        auto reshape_v_4d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 4 }, { 1, 4, 8, 16 });
+        auto reshape_k_4d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 16});
+        auto reshape_v_4d_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 16});
 
         auto reshape_k_4d = std::make_shared<ov::op::v1::Reshape>(concat_k, reshape_k_4d_pattern, false);
         auto reshape_v_4d = std::make_shared<ov::op::v1::Reshape>(concat_v, reshape_v_4d_pattern, false);
 
-        auto inputs = ov::OutputVector{ input_q, reshape_k_4d, reshape_v_4d };
+        auto inputs = ov::OutputVector{input_q, reshape_k_4d, reshape_v_4d};
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{ sdpa }, ov::ParameterVector{ input_q, input_k, input_v });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, input_k, input_v});
         manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
     }
     {
-        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 4, 8, 16 });
-        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 8, 16 });
-        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 8, 16 });
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 16});
+        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
+        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
 
-        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 1 }, { 0 });
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, { 1 });
-        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 2 }, { 1, 1 });
-        auto k_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 8, 16 }, { 0.0f });
-        auto v_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 8, 16 }, { 0.0f });
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+        auto k_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 8, 16}, {0.0f});
+        auto v_updates = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 8, 16}, {0.0f});
 
         auto scatter_k = std::make_shared<ov::op::v3::ScatterUpdate>(input_k, indices, k_updates, axis);
         auto scatter_v = std::make_shared<ov::op::v3::ScatterUpdate>(input_v, indices, v_updates, axis);
         auto split_k = std::make_shared<ov::op::v1::VariadicSplit>(scatter_k, axis, split_lengths);
         auto split_v = std::make_shared<ov::op::v1::VariadicSplit>(scatter_v, axis, split_lengths);
 
-        auto inputs = ov::OutputVector{ input_q, split_k->output(0), split_v->output(0) };
+        auto inputs = ov::OutputVector{input_q, split_k->output(0), split_v->output(0)};
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ sdpa }, ov::ParameterVector{ input_q, input_k, input_v });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, input_k, input_v});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
