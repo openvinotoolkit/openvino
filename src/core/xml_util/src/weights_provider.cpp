@@ -23,6 +23,10 @@ size_t get_mmap_region_threshold() {
 
 }  // namespace
 
+std::filesystem::path WeightsProvider::path() const {
+    return {};
+}
+
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
     : m_weights(std::move(weights)) {}
 
@@ -81,5 +85,9 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
 
 size_t FileWeightsProvider::size() const {
     return m_weights_size;
+}
+
+std::filesystem::path FileWeightsProvider::path() const {
+    return m_weights_path;
 }
 }  // namespace ov::util

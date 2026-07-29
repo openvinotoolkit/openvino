@@ -39,6 +39,13 @@ public:
      * @return Size of the underlying weights source.
      */
     virtual size_t size() const = 0;
+
+    /**
+     * @brief Returns the path to the weights source when the provider is file-backed.
+     *
+     * @return Path to the weights source, or an empty path if the provider is not file-backed.
+     */
+    virtual std::filesystem::path path() const;
 };
 
 /**
@@ -102,6 +109,13 @@ public:
      * @return Size of the file-backed weights source.
      */
     size_t size() const override;
+
+    /**
+     * @brief Returns the path to the backing weights file.
+     *
+     * @return Path to the backing weights file.
+     */
+    std::filesystem::path path() const override;
 
 private:
     using WeightsRegionKey = std::pair<size_t, size_t>;
