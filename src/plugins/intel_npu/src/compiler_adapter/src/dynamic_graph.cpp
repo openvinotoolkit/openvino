@@ -20,13 +20,40 @@
 
 namespace intel_npu {
 
+ze_result_t createCommandList(ze_context_handle_t context,
+                                 ze_device_handle_t device,
+                                 ze_command_list_handle_t* commandList) {
+    ze_command_list_desc_t commandListDesc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, 0, 0};
+    ze_result_t result = zeCommandListCreate(context, device, &commandListDesc, commandList);
+    if (result != ZE_RESULT_SUCCESS) {
+        return result;
+    }
+    return ZE_RESULT_SUCCESS;
+}
 void DynamicGraph::create_execution_engine() {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to create VM runtime engine");
+    if (NPU_VM_RUNTIME_MAJOR_VERSION(_engineVersion) >= 1 && (NPU_VM_RUNTIME_MINOR_VERSION(_engineVersion) >= 2)) {
+        npu_vm_runtime_creation_params_t creationParams = {};
+
+        const bool comandQueueShared = get_command_queue_desc().shared_common_queue();
+        if (_zeroInitStruct != nullptr) {
+            creationParams = { _zeroInitStruct->getContext(), _zeroInitStruct->getDevice(),
+                               _zeroInitStruct->getGraphDdiTable().getImpl(),
+                                CommandList::createCommandList,
+                                comandQueueShared};
+        }
+
+        if (npuVMRuntimeCreate2(&blobDesc, &creationParams, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create VM runtime engine");
+        }
+    }
+    else {
+        if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create VM runtime engine");
+        }
     }
 }
 
