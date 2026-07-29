@@ -16,8 +16,14 @@ KERNEL (concatenation_gpu_ref)(
 {
     const uint x = (uint)get_global_id(0) % INPUT0_SIZE_X;
     const uint y = (uint)get_global_id(0) / INPUT0_SIZE_X;
-    const uint z = (uint)get_global_id(1) % INPUT0_SIZE_Z;
-    const uint w = (uint)get_global_id(1) / INPUT0_SIZE_Z;
+    uint gid1 = (uint)get_global_id(1);
+    const uint z = gid1 % INPUT0_SIZE_Z;
+    gid1 /= INPUT0_SIZE_Z;
+    const uint w = gid1 % INPUT0_SIZE_W;
+    gid1 /= INPUT0_SIZE_W;
+    const uint u = gid1 % INPUT0_SIZE_U;
+    gid1 /= INPUT0_SIZE_U;
+    const uint v = gid1;
     const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
 
@@ -25,6 +31,8 @@ KERNEL (concatenation_gpu_ref)(
     uint out_y = y;
     uint out_z = z;
     uint out_w = w;
+    uint out_u = u;
+    uint out_v = v;
     uint out_f = f;
     uint out_b = b;
 
@@ -36,6 +44,10 @@ KERNEL (concatenation_gpu_ref)(
     out_z += output_offset_in_concat_axis;
 #elif CONCAT_W
     out_w += output_offset_in_concat_axis;
+#elif CONCAT_U
+    out_u += output_offset_in_concat_axis;
+#elif CONCAT_V
+    out_v += output_offset_in_concat_axis;
 #elif CONCAT_FEATURE
     out_f += output_offset_in_concat_axis;
 #elif CONCAT_BATCH
@@ -44,8 +56,8 @@ KERNEL (concatenation_gpu_ref)(
 #   error concatenation_gpu_bfzyx_ref.cl: Unrecognized concat axis.
 #endif
 
-    uint input_offset  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
-    uint output_offset = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
+    uint input_offset  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, v, u, w, z, y, x);
+    uint output_offset = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_v, out_u, out_w, out_z, out_y, out_x);
 
     INPUT0_TYPE result = input[input_offset];
 

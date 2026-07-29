@@ -2692,7 +2692,6 @@ void primitive_inst::update_weights() {
 
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
-    return;
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
