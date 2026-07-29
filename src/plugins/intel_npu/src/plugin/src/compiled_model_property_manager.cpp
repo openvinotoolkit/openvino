@@ -139,7 +139,7 @@ void CompiledModelPropertyManager::registerProperties() {
     OPENVINO_SUPPRESS_DEPRECATED_END
     try_register_property_based_on_config_as_read_only<LOG_LEVEL>(_config, _properties, ov::log::level.name());
     // COMPILER_LOG_LEVEL has no default value (unset == "inherit LOG_LEVEL"); report the resolved effective value.
-    register_property_with_custom_function(_properties, ov::intel_npu::compiler_log_level.name(), /*isPublic=*/true,
+    register_property_with_custom_function(_properties, ov::intel_npu::compiler_log_level.name(), /*isPublic=*/false,
         [](const Config& config) -> ov::Any { return COMPILER_LOG_LEVEL::resolve(config); });
     try_register_property_based_on_config_as_read_only<LOADED_FROM_CACHE>(_config, _properties, ov::loaded_from_cache.name());
     try_register_property_based_on_config_as_read_only<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode.name());

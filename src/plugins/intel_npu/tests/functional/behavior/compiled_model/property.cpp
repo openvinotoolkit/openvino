@@ -40,7 +40,6 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
     {ov::compilation_num_threads.name(), ov::Any(1)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::log::level.name(), ov::Any(ov::log::Level::ERR)},
-    {ov::intel_npu::compiler_log_level.name(), ov::Any(ov::log::Level::ERR)},
     {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
 };
 
@@ -53,7 +52,8 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::stepping.name(), ov::Any(4)}};
+    {ov::intel_npu::stepping.name(), ov::Any(4)},
+    {ov::intel_npu::compiler_log_level.name(), ov::Any(ov::log::Level::ERR)}};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
     {ov::device::uuid.name(), ov::Any("deadbeef")},

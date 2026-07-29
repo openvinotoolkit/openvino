@@ -264,7 +264,7 @@ struct COMPILER_LOG_LEVEL final : OptionBase<COMPILER_LOG_LEVEL, ov::log::Level>
     }
 
     static bool isPublic() {
-        return true;
+        return false;
     }
 
     /**
