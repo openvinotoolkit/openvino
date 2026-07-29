@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 87,
+  "total": 88,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -849,6 +849,15 @@
       "category": "Infrastructure",
       "signature_hash": "589cf8a9d8ff0cf3",
       "pr_number": null
+    },
+    {
+      "investigation_id": "2026-07-29-07-16-54-000-30428294996",
+      "run_id": "30428294996",
+      "timestamp": "2026-07-29T07:16:54Z",
+      "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+      "category": "Infrastructure",
+      "signature_hash": "cc822c07e113be0a",
+      "pr_number": "37067"
     }
   ]
 }

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-29-07-16-54-000-30428294996",
+  "timestamp": "2026-07-29T07:16:54Z",
+  "run_id": "30428294996",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30428294996",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37067",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37067",
+  "author": "davidsnam-intel",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "High",
+  "failed_jobs": [
+    "Windows (VS 2022, Python 3.11, Release) - attempt 1 failed; logs inaccessible (secrecy policy)"
+  ],
+  "key_errors": [
+    "Job logs unavailable: filtered by secrecy policy (Resource 'resource:get_job_logs' has secrecy requirements that agent doesn't meet)"
+  ],
+  "root_cause": "The Windows VS 2022 Release workflow failed on its first attempt (run_attempt=2 indicates a retry is in progress). Job logs are blocked by the runner secrecy policy. This is a recurring transient infrastructure failure pattern (seen 8 times, hash cc822c07e113be0a). The run is already on attempt 2 which is in_progress.",
+  "reproduction_steps": "N/A - transient runner infrastructure issue",
+  "recommended_actions": [
+    "Monitor attempt 2 which is currently in progress",
+    "If attempt 2 also fails, re-add PR 37067 to the merge queue"
+  ],
+  "prevention_strategies": "Transient Windows runner instability. No code change needed.",
+  "historical_context": "This pattern (cc822c07e113be0a) has been seen 8 times since 2026-07-24. Prior runs consistently passed on attempt 2."
+}

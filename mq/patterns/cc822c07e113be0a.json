@@ -1,33 +1,32 @@
 {
-    "schema_version": "1.0",
-    "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
-    "signature_hash": "cc822c07e113be0a",
-    "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
-    "category": "Infrastructure",
-    "count": 7,
-    "first_seen": "2026-07-24T06:35:00Z",
-    "last_seen": "2026-07-28T13:28:07Z",
-    "recent_run_urls": [
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30357349840",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30312759752",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30311996736",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30294958202",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30235668359",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30229750900",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/30068549392"
-    ],
-    "affected_prs": [
-        "https://github.com/openvinotoolkit/openvino/pull/36860",
-        "https://github.com/openvinotoolkit/openvino/pull/35116",
-        "https://github.com/openvinotoolkit/openvino/pull/37029",
-        "https://github.com/openvinotoolkit/openvino/pull/36931",
-        "https://github.com/openvinotoolkit/openvino/pull/36866"
-    ],
-    "recent_timestamps": [
-        "2026-07-28T13:28:07Z",
-        "2026-07-28T00:48:53Z",
-        "2026-07-28T00:13:15Z",
-        "2026-07-27T19:02:00Z"
-    ],
-    "rerun_search_string": null
+  "schema_version": "1.0",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "category": "Infrastructure",
+  "count": 8,
+  "first_seen": "2026-07-24T06:35:00Z",
+  "last_seen": "2026-07-29T07:16:54Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30428294996",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30357349840",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30312759752",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30311996736",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30294958202",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30235668359",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30229750900",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30068549392"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37067",
+    "https://github.com/openvinotoolkit/openvino/pull/36860",
+    "https://github.com/openvinotoolkit/openvino/pull/35116",
+    "https://github.com/openvinotoolkit/openvino/pull/37029",
+    "https://github.com/openvinotoolkit/openvino/pull/36931",
+    "https://github.com/openvinotoolkit/openvino/pull/36866"
+  ],
+  "recent_timestamps": [
+    "2026-07-29T07:16:54Z"
+  ],
+  "rerun_search_string": null
 }
