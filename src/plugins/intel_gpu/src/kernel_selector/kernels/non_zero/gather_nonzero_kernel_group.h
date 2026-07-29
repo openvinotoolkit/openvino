@@ -11,7 +11,7 @@ namespace kernel_selector {
 class GatherNonzeroKernelGroup : public KernelBaseOpenCL {
 public:
     GatherNonzeroKernelGroup() : KernelBaseOpenCL("gather_nonzero_group") {}
-    virtual ~GatherNonzeroKernelGroup() {}
+    ~GatherNonzeroKernelGroup() override {}
 
     virtual JitConstants GetJitConstants(const gather_nonzero_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_nonzero_params& params) const;

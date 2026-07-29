@@ -20,7 +20,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {

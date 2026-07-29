@@ -124,7 +124,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: emcmake cmake - configure
         run: |

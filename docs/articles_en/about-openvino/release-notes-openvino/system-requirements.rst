@@ -32,14 +32,13 @@ CPU
 
       * Windows 11, 64-bit
       * Windows 10, 64-bit
+      * Ubuntu 26.04 long-term support (LTS), 64-bit (Kernel 7.0+)
       * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * macOS 12.6 and above, 64-bit and ARM64
-      * CentOS 7
+      * macOS 12.6 and above, ARM64
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
-      * Ubuntu 20.04 ARM64
+      * Ubuntu 22.04 ARM64
 
 GPU
 ##########
@@ -61,10 +60,9 @@ GPU
 
       * Windows 11, 64-bit
       * Windows 10, 64-bit
+      * Ubuntu 26.04 long-term support (LTS), 64-bit (Kernel 7.0+)
       * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * CentOS 7
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
 
    .. tab-item:: Additional considerations
@@ -108,7 +106,6 @@ Operating systems and developer environment
 
       * Ubuntu 24.04 with Linux kernel 6.8+
       * Ubuntu 22.04 with Linux kernel 5.15+
-      * Ubuntu 20.04 with Linux kernel 5.15+
       * Red Hat Enterprise Linux 9.3-9.4 with Linux kernel 5.4
 
       Build environment components:
@@ -194,33 +191,12 @@ to learn more about the release types.
                  .. tab-item:: Ubuntu
                     :sync: ubuntu
 
-                    * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
+                    * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
 
                  .. tab-item:: RHEL 8
                     :sync: rhel-8
 
                     * GCC 8.4.1
-
-                 .. tab-item:: CentOS 7
-                    :sync: centos-7
-
-                    * GCC 8.3.1
-
-                      Use the following instructions to install it:
-
-                      Install GCC 8.3.1 via devtoolset-8
-
-                      .. code-block:: sh
-
-                         sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-                         sudo yum install -y devtoolset-8
-
-                      Enable devtoolset-8 and check current gcc version
-
-                      .. code-block:: sh
-
-                         source /opt/rh/devtoolset-8/enable
-                         gcc -v
 
          .. tab-item:: macOS
             :name: archive-mac-sysreq
@@ -260,7 +236,7 @@ to learn more about the release types.
             :sync: linux
 
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
+            * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
    .. tab-item:: Homebrew
@@ -273,7 +249,7 @@ to learn more about the release types.
 
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
+            * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
             * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
          .. tab-item:: macOS

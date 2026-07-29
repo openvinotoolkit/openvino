@@ -16,7 +16,7 @@ public:
 
     strided_slice_kernel_selector();
 
-    virtual ~strided_slice_kernel_selector() {}
+    ~strided_slice_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

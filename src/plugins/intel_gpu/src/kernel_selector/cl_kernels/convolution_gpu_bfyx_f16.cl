@@ -21,7 +21,6 @@
 
 #define AS_FILTER_TYPE8   CAT(as_, FILTER_TYPE8)
 
-
 #if OUTPUT_FORMAT_BFYX
 #   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
 #   define TO_OUTPUTVTYPE       CAT(convert_, OUTPUTVTYPE(OUTPUT_X_BLOCK_SIZE))
@@ -60,6 +59,7 @@ KERNEL(convolution_bfyx_f16)(
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
+    const int input_spatial_size_x = INPUT0_SIZE_X;
 
     const int lid1 = (int)get_local_id(1);
     const int feature_per_wg = (int)get_local_size(1) / SLM_DIV_FACTOR;
@@ -82,6 +82,9 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - input_spatial_size_x), 
+                                                INPUT_LINE_SIZE);
+    const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -188,7 +191,8 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
-                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM)
+                        const int in_x = input_x + xb;
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= input_spatial_size_x)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset +
@@ -202,7 +206,12 @@ KERNEL(convolution_bfyx_f16)(
 #endif  // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-                    for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
+                    for (int i = 0; i < left_unreachable_count_x; i++){
+                        line_cache[xb + i] = 0;
+                    }
+                    xb += left_unreachable_count_x;
+                    const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
+                    for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
@@ -217,7 +226,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 6] = vv[6];
                         line_cache[xb + 7] = vv[7];
                     }
-                    for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
+                    for (; xb + 4 <= reachable_size; xb += 4) {
                         INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
@@ -228,11 +237,14 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 2] = vv[2];
                         line_cache[xb + 3] = vv[3];
                     }
-                    for (; xb < INPUT_LINE_SIZE; xb++) {
+                    for (; xb < reachable_size; xb++) {
                         line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
                                                                  icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
                                                                  xb * input_x_pitch);
+                    }
+                    for (int i = 0; i < right_unreachable_count_x; i++){
+                        line_cache[xb + i] = 0;
                     }
                 }
 
