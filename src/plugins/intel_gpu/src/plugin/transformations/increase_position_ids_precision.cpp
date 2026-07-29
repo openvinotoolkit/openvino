@@ -89,6 +89,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
         auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
+        auto rope_node = pattern_map.at(rope).get_node_shared_ptr();
 
         if (!matmul_node || transformation_callback(matmul_node))
             return false;
@@ -98,13 +99,36 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         if (original_et == desired_et)
             return false;
 
-        size_t input_idx = 0;
-        bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, input_idx);
+        // Step 1: Ensure MatMul inputs are f32
+        for (auto& input : matmul_node->inputs()) {
+            auto src_output = input.get_source_output();
+            auto src_node = src_output.get_node_shared_ptr();
+            if (src_output.get_element_type() == desired_et)
+                continue;
 
-        if (is_changed) {
-            size_t output_idx = 0;
-            insert_converts_after_if_needed(cos_node, original_et, output_idx);
-            insert_converts_after_if_needed(sin_node, original_et, output_idx);
+            auto src_convert = ov::as_type_ptr<ov::op::v0::Convert>(src_node);
+            if (src_convert) {
+                auto new_convert = std::make_shared<ov::op::v0::Convert>(src_convert->input_value(0), desired_et);
+                new_convert->set_friendly_name(src_convert->get_friendly_name());
+                ov::copy_runtime_info(src_convert, new_convert);
+                ov::replace_node(src_convert, new_convert);
+            } else {
+                auto new_convert = std::make_shared<ov::op::v0::Convert>(src_output, desired_et);
+                new_convert->set_friendly_name(src_node->get_friendly_name() + "_to_f32");
+                ov::copy_runtime_info(src_node, new_convert);
+                input.replace_source_output(new_convert);
+            }
+        }
+
+        // Step 2: Insert restore converts only if RoPE expects non-f32 precision.
+        size_t output_idx = 0;
+        auto rope_cos_et = rope_node->get_input_element_type(1);
+        if (rope_cos_et != desired_et) {
+            insert_converts_after_if_needed(cos_node, rope_cos_et, output_idx);
+        }
+        auto rope_sin_et = rope_node->get_input_element_type(2);
+        if (rope_sin_et != desired_et) {
+            insert_converts_after_if_needed(sin_node, rope_sin_et, output_idx);
         }
         return true;
     };
@@ -475,7 +499,7 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope_qk, "IncreasePositionIdsPrecisionForGPTOSS");
     this->register_matcher(m, callback);
 }
-
+}
 
 IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
     using namespace ov::pass::pattern;
@@ -571,12 +595,13 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
     this->register_matcher(m, callback);
 }
 
-IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() = default;
+IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
+
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    const std::string dump_folder = "C:\\dev\\ahnyoung\\cvs_working\\bench_result\\graphs";
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForGemma4>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
