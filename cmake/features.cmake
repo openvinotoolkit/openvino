@@ -156,6 +156,7 @@ ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
+ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" OFF)
 
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
@@ -218,6 +219,8 @@ ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
+
+ov_dependent_option(ENABLE_IO_URING "Enables io_uring feature" OFF "LINUX" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)

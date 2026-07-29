@@ -294,6 +294,7 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        Fused_Conv
        FusedGemm
        FusedMatMul
+       GatherBlockQuantized
        MatMulIntegerToFloat
        MatMulNBits
        Pad
