@@ -13479,3 +13479,62 @@ TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_gws_112_240_1) {
         ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
     });
 }
+
+TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_repro) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    if (!engine.supports_allocation(allocation_type::usm_device))
+        GTEST_SKIP() << "USM device allocation is required for this ticket repro path.";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<ov::float16>(1, 240, 64, 32, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(240, 1, 9, 17, -1, 1);
+    auto input_flat = flatten_4d<ov::float16>(format::bfyx, input_data);
+    auto weights_flat = flatten_4d<ov::float16>(format::bfyx, weights_data);
+
+    auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, 240, 32, 64}},
+                                            allocation_type::usm_device,
+                                            false);
+    input_mem->copy_from(get_test_stream(), input_flat.data(), true);
+
+    auto weights_mem = engine.allocate_memory({
+        data_types::f16,
+        format::goiyx,
+        tensor{group(240), batch(1), feature(1), spatial(17, 9)}
+    }, allocation_type::usm_device, false);
+    weights_mem->copy_from(get_test_stream(), weights_flat.data(), true);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_fsv", input_info("input"), {data_types::f16, format::b_fs_yx_fsv16, tensor{1, 240, 32, 64}}),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input_fsv"), "weights", no_bias,
+                    240,
+                    {1, 1},
+                    {1, 1},
+                    {0, 0},
+                    {0, 0},
+                    true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
+    ));
+
+    network net(engine, topology, config);
+    net.set_input_data("input", input_mem);
+
+    ASSERT_NO_THROW({
+        constexpr int repro_iters = 20;
+        for (int i = 0; i < repro_iters; i++) {
+            auto outputs = net.execute();
+            ASSERT_FALSE(outputs.empty());
+            auto out_mem = outputs.at("conv").get_memory();
+            ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
+        }
+    });
+}
