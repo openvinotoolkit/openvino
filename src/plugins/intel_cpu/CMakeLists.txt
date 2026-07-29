@@ -8,6 +8,9 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
+# disable strict check for memory register size in Xbyak to avoid compilation errors on some platforms
+add_definitions(-DXBYAK_STRICT_CHECK_MEM_REG_SIZE=0)
+
 if (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
