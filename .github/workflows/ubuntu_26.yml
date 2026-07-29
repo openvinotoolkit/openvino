@@ -1,6 +1,7 @@
 name: Linux (Ubuntu 26.04, Python 3.14)
 run-name: ${{ github.event_name == 'schedule' && 'Linux (Ubuntu 26.04, Python 3.14) - Nightly' || 'Linux (Ubuntu 26.04, Python 3.14)' }}
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       target-branch:
