@@ -29,6 +29,21 @@ std::shared_ptr<v0::Constant> dim_const(int64_t value) {
     return v0::Constant::create(element::i64, Shape{1}, {value});
 }
 
+// n dynamic i64 shape-vector inputs (each PartialShape{1}).
+ParameterVector make_dyn_dims(size_t n) {
+    ParameterVector dims(n);
+    for (auto& d : dims)
+        d = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
+    return dims;
+}
+
+// {data, dims...} in consumption order.
+ParameterVector params_of(const std::shared_ptr<v0::Parameter>& data, const ParameterVector& dims) {
+    ParameterVector params{data};
+    params.insert(params.end(), dims.begin(), dims.end());
+    return params;
+}
+
 // Wire the window-reverse chain: inner Reshape -> Transpose(order) -> outer Reshape, and return the outer
 // Reshape (the chain root the pass matches on).
 std::shared_ptr<v1::Reshape> wire_chain(const Output<Node>& data,
@@ -45,73 +60,55 @@ std::shared_ptr<v1::Reshape> wire_chain(const Output<Node>& data,
 
 }  // namespace
 
-// Positive. The exact window-reverse chain: an inner view [?,ws,ws,C] -> [?,H//ws,W//ws,ws,ws,C] whose
-// channel resolves DIRECTLY from its data's static last dim C, a last-axis-preserving
-// Transpose(order=[0,1,3,2,4,5]) whose output is fully dynamic, then the outer view [B,H,W,-1] whose data
-// last dim is now DYNAMIC (it comes through the permute). Tracing froze the leading batch into Constant(1)
-// and left the channel as the trailing -1 in BOTH views. The pass matches the chain on the outer reshape
-// and rewrites BOTH shape Concats: leading Constant(1) -> Constant(-1) (batch inferred) and trailing -1 ->
-// Constant(C) (channel taken from the inner view's static data last dim), keeping the interior intact.
+// Positive. The window-reverse chain: inner view [?,ws,ws,C] -> [?,H//ws,W//ws,ws,ws,C] (channel from its
+// static data last dim C), a last-axis-preserving Transpose, then the outer view [B,H,W,-1] whose data
+// last dim is now dynamic. Tracing froze the leading batch into Constant(1) and left the channel as the
+// trailing -1 in both views; the pass relaxes both leading constants to -1 and pins both channels to C.
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_chain_positive) {
     constexpr int64_t WS = 8, C = 16;
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-        // Dynamic spatial split (H//ws, W//ws) and (H, W) -- non-constant shape elements.
-        auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-
-        auto shape1 =
-            std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)},
-                                         0);
-        auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+        auto dims = make_dyn_dims(4);  // h, w, H, W
+        auto shape1 = std::make_shared<v0::Concat>(
+            OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+            0);
+        auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[2], dims[3], dim_const(-1)}, 0);
         auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-        model = std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+        model = std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 
         manager.register_pass<ov::pass::RestoreReshapeBakedBatch>();
-        // The rewrite only flips scalar Constants (1 -> -1, -1 -> C); the default comparator does not
-        // inspect Constant values, so enable that explicitly to actually assert the rewrite.
+        // The rewrite only flips scalar Constants, which the default comparator ignores.
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-        auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-
-        auto shape1 =
-            std::make_shared<v0::Concat>(OutputVector{dim_const(-1), h, w, dim_const(WS), dim_const(WS), dim_const(C)},
-                                         0);
-        auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(-1), H, W, dim_const(C)}, 0);
+        auto dims = make_dyn_dims(4);
+        auto shape1 = std::make_shared<v0::Concat>(
+            OutputVector{dim_const(-1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(C)},
+            0);
+        auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(-1), dims[2], dims[3], dim_const(C)}, 0);
         auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-        model_ref = std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+        model_ref = std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
     }
 }
 
-// End-to-end: SmartReshape runs inside Model::reshape, so re-batching the windows tensor must drive the
-// pass over the whole model. We assert the rewrite happened through that full path: BOTH shape Concats
-// (inner and outer view) have their leading baked-batch Constant relaxed to -1 (batch inferred) and their
-// trailing -1 channel pinned to Constant(C). (The Reshape's inferred partial shape stays dynamic here
-// because the interior spatial dims are dynamic Parameters and the leading -1 cannot be folded -- the
-// rewrite is nonetheless value-correct, which the real-model A/B verifies; here we pin the graph effect.)
+// End-to-end: SmartReshape runs inside Model::reshape, so re-batching drives the pass over the whole
+// model. We assert on the graph (both leading constants relaxed to -1, both channels pinned to C) rather
+// than the output shape: the interior spatial dims are dynamic Parameters and the leading -1 cannot fold,
+// so the inferred shape stays dynamic although the rewrite is value-correct.
 TEST(SmartReshapeTests, RestoreReshapeBakedBatch_reshape) {
     constexpr int64_t WS = 2, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, WS, WS, C});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(4);  // h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
     auto reshape1 = std::make_shared<v1::Reshape>(data, shape1, false);
     auto order = v0::Constant::create(element::i64, Shape{6}, {0, 1, 3, 2, 4, 5});
     auto transpose = std::make_shared<v1::Transpose>(reshape1, order);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[2], dims[3], dim_const(-1)}, 0);
     auto reshape2 = std::make_shared<v1::Reshape>(transpose, shape2, false);
-    auto model = std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+    auto model = std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 
     // RestoreReshapeBakedBatch is called as a part of SmartReshape.
     OV_ASSERT_NO_THROW(model->reshape({{data->output(0), PartialShape{8, WS, WS, C}}}));
@@ -133,181 +130,147 @@ TEST(SmartReshapeTests, RestoreReshapeBakedBatch_reshape) {
 }
 
 // --------------------------------------------------------------------------------------------------
-// Negative cases. The pass runs inside every Model::reshape, so it must never fire on a graph it cannot
-// prove value-preserving. Each builder produces a graph the pass must leave untouched; the TEST_P body
-// sets only `model` (no model_ref), so TransformationTestsF::TearDown clones `model` BEFORE running the
-// pass and compares against the clone. The pass's only mutation flips scalar Constant values (leading
-// batch -> -1, trailing -1 -> channel) without changing topology, so the TEST_P body enables CONST_VALUES
-// -- otherwise a spurious value-only fire would go undetected by the default comparator.
-//
-// Two families:
-//   (A) A structurally valid two-view chain in which ONE gate/guard is violated -- the chain matches the
-//       pattern, the callback runs, and it bails at the named check. These prove the gate/guard logic.
-//   (B) Graphs that do not form the chain at all -- these prove the matcher is narrow (a lone view or an
-//       ordinary reshape is never touched).
+// Negative cases -- the pass must never fire where it cannot prove value preservation. Two families:
+//   (A) a valid two-view chain in which one gate/guard is violated (the callback runs and bails);
+//   (B) graphs that do not form the chain at all (the matcher is narrow).
+// The TEST_P body sets only `model`, so TransformationTestsF::TearDown compares against a pre-pass clone.
 // --------------------------------------------------------------------------------------------------
 
 namespace {
 
 // ---- family (A): valid chain with a single violated gate/guard -------------------------------------
 
-// special_zero == true is a different reshape semantics; the inner view's structural gate must reject it.
+// special_zero=true on the inner view: the structural gate rejects.
 std::shared_ptr<Model> build_neg_special_zero() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(4);  // h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[2], dims[3], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, /*sz1=*/true, {0, 1, 3, 2, 4, 5}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// A non-constant (already symbolic) leading element means the batch already propagates -- there is
-// nothing baked to relax, so the inner view's structural gate must reject.
+// Non-constant leading element: batch already propagates, nothing baked to relax -- the gate rejects.
 std::shared_ptr<Model> build_neg_dynamic_leading() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto b = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // dynamic leading
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{b, h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(5);  // b (dynamic leading), h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dims[0], dims[1], dims[2], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[3], dims[4], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, b, h, w, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// A fully baked shape (no dynamic interior) is an ordinary fixed reshape, not the window-reverse
-// signature -- the inner view's structural gate must reject.
+// Fully baked shape (no dynamic interior): an ordinary fixed reshape -- the gate rejects.
 std::shared_ptr<Model> build_neg_no_dynamic_interior() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
+    auto dims = make_dyn_dims(2);  // H, W
     auto shape1 = std::make_shared<v0::Concat>(
         OutputVector{dim_const(1), dim_const(2), dim_const(2), dim_const(WS), dim_const(WS), dim_const(-1)},
         0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[0], dims[1], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// A middle Transpose that MOVES the last axis (order.back() != rank-1) breaks the guarantee that the two
-// views share a channel; is_last_axis_preserving_transpose must reject.
+// Transpose moves the last axis (order.back() != rank-1): is_last_axis_preserving_transpose rejects.
 std::shared_ptr<Model> build_neg_transpose_moves_last_axis() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(4);  // h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[2], dims[3], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 2, 3, 5, 4}, shape2, false);  // last axis moved
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// Window-reverse with a DYNAMIC channel (no projection to a fixed width). Structural gates pass, but the
-// channel cannot be recovered from the inner view's data static last dim (it is dynamic), so the callback
-// bails at the channel-resolution step.
+// Dynamic channel (no projection to a fixed width): the channel cannot be recovered from the inner
+// view's data static last dim, so the callback bails at channel resolution.
 std::shared_ptr<Model> build_neg_dyn_channel() {
     constexpr int64_t WS = 8;
     auto data =
         std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, Dimension::dynamic()});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), H, W, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(4);  // h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[2], dims[3], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// Spatial flatten view(1, C, -1) as the inner (direct-path) view: the shape vector is shorter than the
-// data rank, so the trailing-block guard rejects it (the -1 would span more than data's last dim -- here
-// H*W, not W). A valid outer view completes the chain so the callback reaches the inner guard.
+// Spatial flatten view(1, C, -1) as the inner view: the shape vector is shorter than the data rank, so
+// the trailing-block guard rejects (the -1 spans more than data's last dim).
 std::shared_ptr<Model> build_neg_spatial_flatten() {
-    auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, 3, 4, 5});  // last dim 5
-    auto c = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});              // dynamic C slot
-    auto s = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});              // outer interior
-    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), c, dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), s, dim_const(-1)}, 0);
+    auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, 3, 4, 5});
+    auto dims = make_dyn_dims(2);  // c (channel slot), s (outer interior)
+    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[0], dim_const(-1)}, 0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[1], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 2}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, c, s});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// Head-merge view(1, T//2, -1) as the inner view: data has a STATIC last dim (D) but a DYNAMIC interior,
-// so the trailing -1 spans more than D. Guard 1 is vacuous (output last dim dynamic); the trailing-block
-// guard rejects at its data_dim.is_dynamic() branch (the kept interior dim is dynamic).
+// Head-merge view(1, T//2, -1) as the inner view: static data last dim but dynamic interior, so the
+// trailing -1 spans more than the last dim -- the trailing-block guard rejects at its is_dynamic branch.
 std::shared_ptr<Model> build_neg_head_merge() {
     constexpr int64_t D = 8;
     auto data =
         std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), D});
-    auto t = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // dynamic T//2
-    auto s = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // outer interior
-    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), t, dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), s, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(2);  // t (T//2), s (outer interior)
+    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[0], dim_const(-1)}, 0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[1], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 2}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, t, s});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// Head-split view(1, T*2, -1) as the inner view: data has a STATIC last dim (D) AND a static interior dim,
-// but the kept interior shape element is dynamic (T*2) and cannot be proven equal to data's static
-// interior dim, so the trailing-block guard rejects at its non-constant-interior branch (distinct from
-// head_merge).
+// Head-split view(1, T*2, -1) as the inner view: static data interior dim but the kept shape element is
+// dynamic and cannot be proven equal to it -- the trailing-block guard rejects at its non-constant branch.
 std::shared_ptr<Model> build_neg_head_split() {
     constexpr int64_t D = 8, T = 4;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), T, D});
-    auto t = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // dynamic T*2
-    auto s = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // outer interior
-    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), t, dim_const(-1)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), s, dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(2);  // t (T*2), s (outer interior)
+    auto shape1 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[0], dim_const(-1)}, 0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(1), dims[1], dim_const(-1)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 2}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, t, s});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
-// Idempotency: the already-rewritten chain (leading Constant(-1), trailing Constant(C) in both views).
-// Re-running the pass must not re-fire -- a Constant(-1) leading element fails the positive-int leading
-// gate, so the rewrite is a fixed point.
+// Idempotency: an already-rewritten chain (leading Constant(-1)) fails the positive-int leading gate.
 std::shared_ptr<Model> build_neg_already_rewritten() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto H = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto W = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape1 =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(-1), h, w, dim_const(WS), dim_const(WS), dim_const(C)}, 0);
-    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(-1), H, W, dim_const(C)}, 0);
+    auto dims = make_dyn_dims(4);  // h, w, H, W
+    auto shape1 = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(-1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(C)},
+        0);
+    auto shape2 = std::make_shared<v0::Concat>(OutputVector{dim_const(-1), dims[2], dims[3], dim_const(C)}, 0);
     auto reshape2 = wire_chain(data, shape1, false, {0, 1, 3, 2, 4, 5}, shape2, false);
-    return std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data, h, w, H, W});
+    return std::make_shared<Model>(OutputVector{reshape2}, params_of(data, dims));
 }
 
 // ---- family (B): no chain -> matcher is narrow -----------------------------------------------------
 
-// A single window-reverse view with NO following Transpose+second view. The pass matches only the full
-// two-view chain, so a lone view is deliberately left untouched (the ticket model always emits the pair).
+// A lone view with no following Transpose+second view: the pass matches only the full chain.
 std::shared_ptr<Model> build_neg_lone_view() {
     constexpr int64_t WS = 8, C = 16;
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
-    auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape =
-        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+    auto dims = make_dyn_dims(2);  // h, w
+    auto shape = std::make_shared<v0::Concat>(
+        OutputVector{dim_const(1), dims[0], dims[1], dim_const(WS), dim_const(WS), dim_const(-1)},
+        0);
     auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
-    return std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, h, w});
+    return std::make_shared<Model>(OutputVector{reshape}, params_of(data, dims));
 }
 
-// An ordinary reshape with a constant target shape (not a Concat) -- the common case -- is never matched.
+// An ordinary reshape with a constant target shape (not a Concat) is never matched.
 std::shared_ptr<Model> build_neg_ordinary_reshape() {
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 3, 4, 5});
     auto shape = v0::Constant::create(element::i64, Shape{2}, {-1, 60});
@@ -328,9 +291,8 @@ TEST_P(RestoreReshapeBakedBatchNeg, PassDoesNotFire) {
     const auto& p = GetParam();
     model = p.build();
     manager.register_pass<ov::pass::RestoreReshapeBakedBatch>();
-    // model_ref left null on purpose: TearDown clones `model` before running the pass and compares,
-    // so the test asserts the pass made no change. The pass only rewrites scalar Constant values, which
-    // the default comparator ignores, so enable CONST_VALUES to make this a true "did not fire" assertion.
+    // The pass rewrites only scalar Constant values, which the default comparator ignores, so enable
+    // CONST_VALUES to make the clone comparison a true "did not fire" assertion.
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 

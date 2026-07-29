@@ -76,9 +76,8 @@ bool passes_structural_gates(const std::shared_ptr<v1::Reshape>& reshape, const 
 }
 
 // True if `transpose` has a constant, full-rank order whose last element is rank-1, i.e. it keeps the
-// last axis in the last position (e.g. [0,1,3,2,4,5]). Transpose's own validation already guarantees the
-// order is a true permutation, so checking size and the last element is enough. Such a permute preserves
-// the channel dimension, so the two chained window-reverse views share the same (static) channel.
+// last axis last (e.g. [0,1,3,2,4,5]) -- so the two chained views share the same channel. Transpose's
+// own validation guarantees the order is a true permutation, so size + last element is enough to check.
 bool is_last_axis_preserving_transpose(const std::shared_ptr<v1::Transpose>& transpose) {
     auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
     const auto& in_ps = transpose->input_value(0).get_partial_shape();
@@ -202,8 +201,8 @@ ov::pass::RestoreReshapeBakedBatch::RestoreReshapeBakedBatch() {
         if (!is_last_axis_preserving_transpose(transpose_node))
             return false;
 
-        // The channel is the inner view's static data last dim (e.g. 180); it is batch-independent and,
-        // through the last-axis-preserving permute, is also the outer view's channel.
+        // The channel is the inner view's static data last dim; through the permute it is also the outer
+        // view's channel, and it is batch-independent.
         const auto channel = static_last_dim(r_in->input_value(0).get_partial_shape());
         if (!channel)
             return false;
