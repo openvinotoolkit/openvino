@@ -288,7 +288,18 @@ def _bind_paged_attention_side_channel(compiled):
                 if cached is not None:
                     key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
                 else:
-                    kc, vc = kv_cache.unbind(0)
+                    # vLLM 0.25 CPU KV cache is rank-4
+                    # [num_blocks, num_kv_heads, block_size, 2*head_size]
+                    # with K/V interleaved along the last dim. unbind(0)
+                    # picks the wrong axis; view + chunk splits correctly.
+                    if kv_cache.ndim == 4:
+                        _nb, _hk, _bs, _last = kv_cache.shape
+                        _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
+                        kc, vc = _view.chunk(2, dim=2)
+                        kc = kc.contiguous()
+                        vc = vc.contiguous()
+                    else:
+                        kc, vc = kv_cache.unbind(0)
                     # Allocate OV-native f32 Tensor (matches PA Parameter dtype).
                     # OV CPU PA writes back to this buffer via shared_memory.
                     import openvino as _ov
