@@ -317,7 +317,7 @@ public:
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-                scales_zp_size = get_element_size(kv_dt) * 4;
+                scales_zp_size = get_element_size(kv_dt) * 2;
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 jit.add(make_uint4_kv_cache_jit_constants(params));
             }
@@ -996,7 +996,7 @@ protected:
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-                scales_zp_size = get_element_size(data_type) * 4;
+                scales_zp_size = get_element_size(data_type) * 2;
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 jit.add(make_uint4_kv_cache_jit_constants(params));
             }
@@ -1129,7 +1129,7 @@ protected:
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-                scales_zp_size = get_element_size(original_cache_dt) * 4;
+                scales_zp_size = get_element_size(original_cache_dt) * 2;
                 jit.add(make_uint4_kv_cache_jit_constants(params));
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 // INT4 BY_CHANNEL: dim order {0,1,2,3}, scales embedded per-token in head dim

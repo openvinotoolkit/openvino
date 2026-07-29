@@ -372,11 +372,7 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
-                    #if IS_INT4_COMPRESSED
-                        k_vals[i] = ((INPUT0_TYPE)k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
-                    #else
-                        k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
-                    #endif
+                    k_vals[i] = ((INPUT0_TYPE)k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
@@ -673,18 +669,21 @@ KERNEL(pa_sdpa_opt)(
 
             const uint value_offset = block_offset + head_size_idx;
 
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+#if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+#if IS_INT4_COMPRESSED
             // INT4: per-token embedded scales at end of each token's row
             INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
             INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
-#elif IS_KV_COMPRESSED
-            const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+#else
+            const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+#endif
+
 #endif
 
             #define VALUE_VEC_SIZE SUBGROUP_SIZE
