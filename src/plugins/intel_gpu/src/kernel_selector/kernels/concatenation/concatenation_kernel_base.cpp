@@ -19,6 +19,10 @@ Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concaten
             return Tensor::DataChannelName::Z;
         case ConcatAxis::W:
             return Tensor::DataChannelName::W;
+        case ConcatAxis::U:
+            return Tensor::DataChannelName::U;
+        case ConcatAxis::V:
+            return Tensor::DataChannelName::V;
         case ConcatAxis::FEATURE:
             return Tensor::DataChannelName::FEATURE;
         case ConcatAxis::BATCH:

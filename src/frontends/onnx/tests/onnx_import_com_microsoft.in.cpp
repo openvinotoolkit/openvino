@@ -142,6 +142,59 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_input_skip_bias_sum) {
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_with_input_skip_bias_sum.onnx");
+
+    std::vector<float> input = {
+        0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
+        0.96366274f, 0.38344151f, 0.79172504f, 0.52889490f, 0.56804454f, 0.92559665f, 0.07103606f, 0.08712930f,
+        0.02021840f, 0.83261985f, 0.77815676f, 0.87001216f, 0.97861832f, 0.79915857f, 0.46147937f, 0.78052920f,
+    };
+    std::vector<float> skip = {
+        0.11827443f, 0.63992101f, 0.14335328f, 0.94466889f, 0.52184832f, 0.41466194f, 0.26455560f, 0.77423370f,
+        0.45615032f, 0.56843394f, 0.01878980f, 0.61763549f, 0.61209571f, 0.61693400f, 0.94374806f, 0.68182027f,
+        0.35950789f, 0.43703195f, 0.69763118f, 0.06022547f, 0.66676670f, 0.67063785f, 0.21038257f, 0.12892629f,
+    };
+    std::vector<float> expected_out = {
+        -0.19721794f, -0.42944565f, 0.18620640f, 0.61282152f,  -0.11097327f, -0.59518522f, 0.13393641f,  0.66901535f,
+        0.04256713f,  -0.71902490f, 0.23107991f, 0.17300847f,  -0.04390603f, -0.31109563f, 0.51021838f,  -0.66914201f,
+        -0.20009395f, -0.43313017f, 0.67281967f, -0.01712347f, 0.09767530f,  -0.43024653f, -0.01836969f, -0.29238200f,
+    };
+    // mean = ReduceMean(input + skip + bias, axis=-1, keepdims=1)
+    std::vector<float> expected_mean = {
+        1.00196671f,
+        1.03105211f,
+        1.01968336f,
+        1.06410110f,
+        0.95135093f,
+        1.11162472f,
+    };
+    // inv_std_var = 1 / sqrt(ReduceMean((sum - mean)^2, axis=-1, keepdims=1) + eps)
+    std::vector<float> expected_inv_std_var = {
+        3.14212680f,
+        2.63410830f,
+        3.40978694f,
+        5.66779423f,
+        2.02757072f,
+        3.61555910f,
+    };
+    // input_skip_bias_sum = input + skip + bias, feeds the `skip` input of a subsequent
+    // SkipLayerNormalization node when several layers are chained together
+    std::vector<float> expected_input_skip_bias_sum = {
+        0.59708798f, 0.95511043f, 0.96611667f, 1.48955202f, 0.87550312f, 0.66055608f, 0.92214286f, 1.66600668f,
+        1.34981298f, 0.55187547f, 1.03051484f, 1.14653039f, 1.11014020f, 1.14253068f, 1.23478413f, 0.76894957f,
+        0.30972630f, 0.86965179f, 1.69578791f, 0.93023765f, 1.57538497f, 1.06979644f, 0.89186192f, 0.90945548f,
+    };
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(input);
+    test_case.add_input<float>(skip);
+    test_case.add_expected_output<float>(expected_out);
+    test_case.add_expected_output<float>(expected_mean);
+    test_case.add_expected_output<float>(expected_inv_std_var);
+    test_case.add_expected_output<float>(expected_input_skip_bias_sum);
+    test_case.run_with_tolerance_as_fp();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta) {
     const auto model = convert_model("com.microsoft/skip_layer_normalization_with_gamma_beta.onnx");
 
