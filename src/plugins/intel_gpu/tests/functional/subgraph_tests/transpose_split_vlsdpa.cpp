@@ -398,17 +398,7 @@ protected:
         ASSERT_EQ(expected.size(), function->get_results().size());
 
         for (size_t j = 0; j < expected.size(); ++j) {
-            ASSERT_EQ(expected[j].get_element_type(), actual[j].get_element_type());
-            ASSERT_EQ(expected[j].get_shape(), actual[j].get_shape());
-            ASSERT_EQ(expected[j].get_size(), actual[j].get_size());
-
-            if (expected[j].get_element_type() == ov::element::f16) {
-                compare_tensor_elements<ov::float16>(expected[j], actual[j], j);
-            } else if (expected[j].get_element_type() == ov::element::f32) {
-                compare_tensor_elements<float>(expected[j], actual[j], j);
-            } else {
-                compare_tensor_elements<int32_t>(expected[j], actual[j], j);
-            }
+            utils::compare(expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }
 
