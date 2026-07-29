@@ -411,3 +411,59 @@ TEST_F(SplitKVCacheIntoBlocksTest, WithConvertNode) {
     }
     EXPECT_TRUE(found_concat);
 }
+
+TEST_F(SplitKVCacheIntoBlocksTest, HeterogeneousKVShapesAcrossLayers) {
+    // Test: MoE model with two KV layer groups that have different shapes.
+    // Layer 0: [1, 8, 512, 256]  (8 heads, head_dim=256)
+    // Layer 1: [1, 2, 512, 512]  (2 heads, head_dim=512)
+    // block_size=128 -> 4 blocks per layer.
+    // After transformation each group must produce blocks with ITS OWN shape,
+    // not the shape of the first group encountered.
+    const uint32_t block_size = 128;
+    const uint32_t expected_blocks = 512 / block_size;  // 4 blocks per layer
+
+    // --- Layer 0 ---
+    auto key0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 512, 256});
+    key0->set_friendly_name("past_key_values.0.key");
+    auto new_k0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 1, 256});
+    auto concat_k0 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{key0, new_k0}, 2);
+
+    // --- Layer 1 ---
+    auto key1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 512, 512});
+    key1->set_friendly_name("past_key_values.1.key");
+    auto new_k1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 512});
+    auto concat_k1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{key1, new_k1}, 2);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(concat_k0),
+                                                              std::make_shared<ov::op::v0::Result>(concat_k1)},
+                                             ov::ParameterVector{key0, key1, new_k0, new_k1});
+
+    ov::pass::Manager manager;
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.run_passes(model);
+
+    // 4 blocks per layer * 2 layers + 2 new_token params = 10
+    EXPECT_EQ(model->get_parameters().size(), expected_blocks * 2 + 2);
+
+    // Verify each layer's block params have the correct per-layer shape.
+    size_t layer0_blocks = 0, layer1_blocks = 0;
+    for (const auto& param : model->get_parameters()) {
+        const auto& name = param->get_friendly_name();
+        if (name.find("_block_") == std::string::npos)
+            continue;
+        const auto& s = param->get_shape();
+        if (name.find("past_key_values.0") != std::string::npos) {
+            layer0_blocks++;
+            EXPECT_EQ(s[1], 8u) << "Layer 0 block must have 8 heads";
+            EXPECT_EQ(s[2], block_size) << "Layer 0 block_size axis";
+            EXPECT_EQ(s[3], 256u) << "Layer 0 head_dim must be 256";
+        } else if (name.find("past_key_values.1") != std::string::npos) {
+            layer1_blocks++;
+            EXPECT_EQ(s[1], 2u) << "Layer 1 block must have 2 heads";
+            EXPECT_EQ(s[2], block_size) << "Layer 1 block_size axis";
+            EXPECT_EQ(s[3], 512u) << "Layer 1 head_dim must be 512";
+        }
+    }
+    EXPECT_EQ(layer0_blocks, expected_blocks);
+    EXPECT_EQ(layer1_blocks, expected_blocks);
+}

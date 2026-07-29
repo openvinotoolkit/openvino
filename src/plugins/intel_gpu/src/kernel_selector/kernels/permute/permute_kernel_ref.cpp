@@ -43,7 +43,6 @@ static void GetOrderVector(std::string s, std::vector<std::string>* res) {
     }
 
     res->push_back(s.substr(pos_start));
-    return;
 }
 
 static std::string GetReorderedOutputOrder(const permute_params& params, const std::vector<std::string>& permute_out_idx,

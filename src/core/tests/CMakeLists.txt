@@ -138,6 +138,12 @@ ov_add_test_target(
     TESTS_PER_SOURCE
     LABELS
         OV UNIT CORE
+    CHECK_SOURCES_LISTED
+    CHECK_SOURCES_EXCLUDE_TARGETS
+        openvino_mock1_frontend
+        ov_file_load_benchmark
+    CHECK_SOURCES_EXCLUDE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
@@ -190,8 +196,3 @@ target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
 target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)
-
-ov_check_all_sources_listed(TARGET ${TARGET_NAME}
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDE_TARGETS openvino_mock1_frontend ${BENCHMARK_TARGET_NAME}
-    EXCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
