@@ -133,7 +133,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
     // update split offsets
     if (is_output_static) {
-        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        auto *p_param = const_cast<kernel_impl_params*>(&impl_param);
         ov::Shape startOffset(p_param->input_layouts[0].get_partial_shape().size());
         auto input_shape = p_param->input_layouts[0].get_partial_shape();
         auto dims = p_param->input_layouts[0].get_partial_shape().size();

@@ -65,7 +65,7 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
             DispatchDataPair{{  3, 336, 336}, {3, 8, 8}}
         }};
     std::array<size_t, 3> gws = {dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]};
-    auto it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) { return ddp.first == gws; });
+    const auto *it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) { return ddp.first == gws; });
     if (it != lws_mapping_table.end()) { dispatchData.lws = {it->second[0], it->second[1], it->second[2]}; }
 
     return dispatchData;

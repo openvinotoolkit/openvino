@@ -523,23 +523,23 @@ std::string toString(const DataTensor& tensor) {
     if (tensor.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
         tensor.GetLayout() != DataLayout::b_fs_zyx_fsv16) {
         return toStringTensor(tensor);
-    } else {
-        std::stringstream s;
-        s << toString(tensor.GetDType()) << "_";
-        std::string layoutStr;
-        switch (tensor.GetLayout()) {
-            case DataLayout::b_fs_yx_fsv16: layoutStr = "BFYX_F16"; break;
-            case DataLayout::b_fs_zyx_fsv16: layoutStr = "BFZYX_F16"; break;
-            default: layoutStr = toString(tensor.GetLayout()); break;
-        }
-        s << layoutStr << "_";
-        int i = 0;
-        for (auto dim : tensor.GetDims()) {
-            s << "d" << i << "_" << toString(dim) << "_";
-            i++;
-        }
-        return s.str();
     }
+    std::stringstream s;
+    s << toString(tensor.GetDType()) << "_";
+    std::string layoutStr;
+    switch (tensor.GetLayout()) {
+        case DataLayout::b_fs_yx_fsv16: layoutStr = "BFYX_F16"; break;
+        case DataLayout::b_fs_zyx_fsv16: layoutStr = "BFZYX_F16"; break;
+        default: layoutStr = toString(tensor.GetLayout()); break;
+    }
+    s << layoutStr << "_";
+    int i = 0;
+    for (auto dim : tensor.GetDims()) {
+        s << "d" << i << "_" << toString(dim) << "_";
+        i++;
+    }
+    return s.str();
+
 }
 
 std::string toString(const WeightsTensor& tensor) {

@@ -132,9 +132,9 @@ static inline size_t CalculateTotalWorkItemCount(const quantize_params& params) 
             spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
 
         return (feature * batch * spatial);
-    } else {
-        return params.outputs[0].LogicalSize();
     }
+    return params.outputs[0].LogicalSize();
+
 }
 
 static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {

@@ -109,11 +109,10 @@ inline std::vector<int64_t> extend_order_in_num_heads_dim(const std::vector<int6
 }
 
 inline int64_t get_batch_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
-    auto& dim = qkv.get_partial_shape()[order[0]];
+    const auto& dim = qkv.get_partial_shape()[order[0]];
     if (dim.is_dynamic())
         return -1;
-    else
-        return dim.get_length();
+    return dim.get_length();
 }
 
 inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
@@ -122,32 +121,28 @@ inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t
     const auto order_rank = order.size();
     if (order_rank == 3) {
         return 1;
-    } else {
-        auto& dim = qkv.get_partial_shape()[order[order_rank - 3]];
-        if (dim.is_dynamic())
-            return -1;
-        else
-            return dim.get_length();
     }
+    const auto& dim = qkv.get_partial_shape()[order[order_rank - 3]];
+    if (dim.is_dynamic())
+        return -1;
+    return dim.get_length();
 }
 
 inline int64_t get_head_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     const auto order_rank = order.size();
-    auto& dim = qkv.get_partial_shape()[order[order_rank - 1]];
+    const auto& dim = qkv.get_partial_shape()[order[order_rank - 1]];
     if (dim.is_dynamic())
         return -1;
-    else
-        return dim.get_length();
+    return dim.get_length();
 }
 
 inline int64_t get_seq_length(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     const auto order_rank = order.size();
-    auto& dim = qkv.get_partial_shape()[order[order_rank - 2]];
+    const auto& dim = qkv.get_partial_shape()[order[order_rank - 2]];
     if (dim.is_dynamic()) {
         return -1;
-    } else {
-        return dim.get_length();
     }
+    return dim.get_length();
 }
 
 inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64_t>& order) {

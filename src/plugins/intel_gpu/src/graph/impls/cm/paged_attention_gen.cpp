@@ -33,12 +33,12 @@ inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage&
         auto key_shape = params.input_layouts[PagedAttentionInputIdx::KEY].get_shape();
         const size_t kv_len = key_shape[key_shape.size() - 2];
         return kv_len;
-    } else {
-        // key_cache shape = [block_num, head_num, block_size(128), head_size]
-        auto key_cache_shape = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_shape();
-        const size_t kv_len = key_cache_shape[0] * key_cache_shape[2];
-        return kv_len;
     }
+    // key_cache shape = [block_num, head_num, block_size(128), head_size]
+    auto key_cache_shape = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_shape();
+    const size_t kv_len = key_cache_shape[0] * key_cache_shape[2];
+    return kv_len;
+
     OPENVINO_ASSERT(false, "Unsupported PagedAttentionStage for get_kv_len");
     return 0;  // Fallback case, should not be reached
 }
@@ -53,9 +53,8 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
     if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 // max_context_len = max(past_lens + prompt_lens)
@@ -300,7 +299,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
             size_t offset = 0;
             const auto& data_padding = layout.data_padding;
             const auto& lower_pads = data_padding._lower_size;
-            for (auto& it : lower_pads) {
+            for (const auto& it : lower_pads) {
                 if (it > 0) {
                     offset = it;
                     break;
@@ -393,7 +392,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         OPENVINO_ASSERT(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
 
@@ -479,7 +478,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         OPENVINO_ASSERT(rt_params != nullptr);
 
         const size_t batch = rtp->single_token_selected_count;
@@ -549,7 +548,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         auto& wgs = kd.params.workGroups;
 
         const auto desc = params.typed_desc<paged_attention>();
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
         OPENVINO_ASSERT(rt_params != nullptr);
 
@@ -660,7 +659,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         OPENVINO_ASSERT(!params.is_dynamic());
         OPENVINO_ASSERT(rt_params != nullptr);
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
         auto get_simple_pitch = [](const layout& layout) {
@@ -735,7 +734,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         OPENVINO_ASSERT(!params.is_dynamic());
         OPENVINO_ASSERT(rt_params != nullptr);
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
         auto& wgs = kd.params.workGroups;
@@ -785,7 +784,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         OPENVINO_ASSERT(!params.is_dynamic());
         OPENVINO_ASSERT(rt_params != nullptr);
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
         auto& wgs = kd.params.workGroups;

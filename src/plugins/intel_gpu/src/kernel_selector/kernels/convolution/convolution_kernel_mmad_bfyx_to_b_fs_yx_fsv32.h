@@ -31,12 +31,12 @@ protected:
             p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
             if (p.outputs[0].Dimentions() == 5) {
                 return WeightsLayout::os_is_zyx_osv32_isv4;
-            } else {
-                return WeightsLayout::os_is_yx_osv32_isv4;
             }
-        } else {
-            return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
+            return WeightsLayout::os_is_yx_osv32_isv4;
+
         }
+        return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
+
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

@@ -40,9 +40,9 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
 
         // In Some model, the feature size could be dynamic in input0.
         // It refers to IFM value of weight of fully connected.
-        auto user_node = impl_param.prog->get_node(impl_param.desc->id).get_users().front();
+        const auto *user_node = impl_param.prog->get_node(impl_param.desc->id).get_users().front();
         if (user_node != nullptr && user_node->is_type<fully_connected>()) {
-            auto& fc_node = user_node->as<fully_connected>();
+            const auto& fc_node = user_node->as<fully_connected>();
             params.fc_ifm_size = fc_node.weights().get_output_layout().feature();
         }
 

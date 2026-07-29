@@ -49,8 +49,7 @@ protected:
     Datatype GetActivationType(const softmax_params& params) const {
         if (params.inputs[0].GetDType() == Datatype::F16)
             return Datatype::F16;
-        else
-            return Datatype::F32;
+        return Datatype::F32;
     }
 };
 

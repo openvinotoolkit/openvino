@@ -253,7 +253,7 @@ JitDefinitions JitConstants::GetDefinitions() const {
     JitDefinitions definitons;
     definitons.reserve(_constants.size() * 6);  // assuming max 6 pairs per jit_constant
 
-    for (auto& constant : _constants) {
+    for (const auto& constant : _constants) {
         auto def = constant->GetDefinitions();
         definitons.insert(definitons.end(), def.begin(), def.end());
     }
@@ -789,7 +789,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                                  "int o_size",
                                  "int osv_size",
                                  "int isv_size"};
-                const auto body = R"V0G0N( \
+                const auto *const body = R"V0G0N( \
     const uint isv = i % isv_size; \
     const uint osv = o % osv_size; \
     const uint is = i / isv_size; \
@@ -837,7 +837,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                                  "int x_size",
                                  "int osv",
                                  "int isv"};
-                const auto body = R"V0G0N( \
+                const auto *const body = R"V0G0N( \
     uint is_size = (i_size + isv - 1) / isv; \
     uint os_size = (o_size + osv - 1) / osv; \
     uint isv_index = i % isv; \
@@ -881,7 +881,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 args macroNameArgs = {"prefix", "o", "i", "y", "x"};
                 args funcArgs =
                     {"int o", "int i", "int y", "int x", "int i_size", "int o_size", "int x_size", "int otd"};
-                const auto body = R"V0G0N( \
+                const auto *const body = R"V0G0N( \
     uint out_depth_tile = o / otd; \
     uint od             = o - out_depth_tile * otd; \
     const uint tile = 4; \
@@ -913,7 +913,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         static const std::string FuncCall(std::string name, std::initializer_list<std::string> args) {
             std::string args_str;
             size_t counter = 0;
-            for (auto& arg : args)
+            for (const auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
             return "FUNC_CALL(" + name + ")(" + args_str + ")";
         }
@@ -921,7 +921,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         static const std::string MacroName(std::string tensor_name, std::string layout_name, std::initializer_list<std::string> args) {
             std::string args_str;
             size_t counter = 0;
-            for (auto& arg : args)
+            for (const auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
             return "GET_" + tensor_name + "_" + layout_name + "_INDEX(" + args_str + ")";
         }
@@ -929,7 +929,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         static const std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
             std::string args_str;
             size_t counter = 0;
-            for (auto& arg : args)
+            for (const auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
             return "inline uint FUNC(" + name + ")(" + args_str + "){" + body + "}";
         }
@@ -1396,7 +1396,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
           auto cf = [&](const char* lit) { return JitTerm{lit + type_suffix}; };
           auto horner = [&](const JitTerm& s,
                             std::initializer_list<JitTerm> coefs) {
-            auto it = coefs.begin();
+            const auto *it = coefs.begin();
             JitTerm r = *it++;
             for (; it != coefs.end(); ++it) {
               r = r * s + *it;
@@ -1817,8 +1817,8 @@ bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) co
 
     bool can_preload = true;
     // Check that tensor offset doesn't have dependency from the loop dimensions
-    for (auto& d : conf.loop_axes) {
-        for (auto& t : desc.tensors) {
+    for (const auto& d : conf.loop_axes) {
+        for (const auto& t : desc.tensors) {
             auto idx = idx_desc{conf.bfzyx_idx_order, t};
             switch (d) {
                 case Tensor::DataChannelName::BATCH:   can_preload &= idx.b == "0"; break;
@@ -1918,7 +1918,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     bool is_shuffled = false;
     bool floor_integer_div = false;
 
-    auto& dep_data = desc.dep_data;
+    const auto& dep_data = desc.dep_data;
     int first_fused_ops_idx = -1;
     size_t dep_idx = 0;
     for (auto dep : dep_data) {
@@ -1960,7 +1960,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     auto get_acc_t = [&]() -> Datatype {
         std::vector<Datatype> input_types = {desc.output_tensor.GetDType()};
-        for (auto& dep : dep_data) {
+        for (const auto& dep : dep_data) {
             input_types.push_back(dep.data_type);
         }
 
@@ -2000,8 +2000,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
         if (input_type != acc_t)
             return ConvertToType(input_name, acc_t, vec_size);
-        else
-            return input_name;
+        return input_name;
     };
 
     for (size_t i = 0; i < dep_data.size(); i++) {
@@ -2102,49 +2101,49 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 // Output conversion with rounding and saturation
                 op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
                 break;
-            } else {
-                // Input range
-                auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
-                auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
-
-                // Input clamp
-                if (p->has_clamp) {
-                    if (p->has_min_clamp && p->has_max_clamp)
-                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = clamp(" + in_converted + ", " + in_lo + ", " + in_hi + ");";
-                    else if (p->has_min_clamp)
-                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = max(" + in_converted + ", " + in_lo + ");";
-                    else
-                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(" + in_converted + ", " + in_hi + ");";
-                } else {
-                    op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + ";";
-                }
-
-                // Input scale
-                op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " * " + pre_scale + ";";
-
-                // Input shift
-                if (p->has_pre_shift)
-                    op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
-
-                // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
-                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
-                    op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
-
-                // Output scale
-                if (p->has_post_scale)
-                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
-
-                // Output shift
-                if (p->has_post_shift)
-                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
-
-                // Output conversion with rounding and saturation
-                op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
-                break;
             }
+            // Input range
+            auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
+                                                   : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+            auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
+                                                   : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+
+            // Input clamp
+            if (p->has_clamp) {
+                if (p->has_min_clamp && p->has_max_clamp)
+                    op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = clamp(" + in_converted + ", " + in_lo + ", " + in_hi + ");";
+                else if (p->has_min_clamp)
+                    op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = max(" + in_converted + ", " + in_lo + ");";
+                else
+                    op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(" + in_converted + ", " + in_hi + ");";
+            } else {
+                op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + ";";
+            }
+
+            // Input scale
+            op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " * " + pre_scale + ";";
+
+            // Input shift
+            if (p->has_pre_shift)
+                op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+
+            // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
+            bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
+            if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
+                op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
+
+            // Output scale
+            if (p->has_post_scale)
+                op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
+
+            // Output shift
+            if (p->has_post_shift)
+                op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
+
+            // Output conversion with rounding and saturation
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
+            break;
+
         }
         case KernelType::ACTIVATION: {
             auto p = desc.GetOpParams<activation_fuse_params>();
@@ -2214,8 +2213,7 @@ std::string FusedOpsCodeGenerator::GetInputTypeName(size_t input_id, size_t vec_
     std::string scalar_type = GetInputTensorName(input_id) + "_TYPE";
     if (vec_size > 1)
         return "MAKE_VECTOR_TYPE(" + scalar_type + "," + toCodeString(vec_size) + ")";
-    else
-        return scalar_type;
+    return scalar_type;
 }
 
 std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const {
@@ -2235,14 +2233,14 @@ std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool sh
 
     if (should_be_safe) {
         return GetInputTensorName(input_id) + "_GET_INDEX_SAFE(" + idx_order + ")";
-    } else {
-        return GetInputTensorName(input_id) + "_GET_INDEX(" + idx_order + ")";
     }
+    return GetInputTensorName(input_id) + "_GET_INDEX(" + idx_order + ")";
+
 }
 
 std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
                                               bool reuse_index, std::string reused_idx) const {
-    auto& input_tensor = desc.tensors[input_id];
+    const auto& input_tensor = desc.tensors[input_id];
     size_t vec_size = 1;
     auto input_dt = input_tensor.GetDType();
 
@@ -2299,9 +2297,9 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             load_str += "for (uint loop_var = 0; loop_var < " + std::to_string(vec_size)  + "; loop_var++) { ";
             load_str += GetInputVarName(input_id) + "[loop_var] = " + GetInputPtrName(input_id) + "[" + new_index_func_call + "]; }";
             return load_str;
-        } else {
-            return GetInputPtrName(input_id) + "[" + new_index_func_call + "]";
         }
+        return GetInputPtrName(input_id) + "[" + new_index_func_call + "]";
+
     }
 
     std::string index_func_call_vec = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx, desc.tensors[input_id]}, safe_load);
@@ -2313,10 +2311,8 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
         if (vec_size > 1)
             return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" +
                    GetInputPtrName(input_id) + " + " + offset + "))[0]";
-        else
-            return GetInputPtrName(input_id) + "[" + offset + "]";
-    } else {
-        // TODO: Need to add smarter vectors handling:
+        return GetInputPtrName(input_id) + "[" + offset + "]";
+    }         // TODO: Need to add smarter vectors handling:
         // 1. Boundary checks for safe load
         // 2. If in given configuration data can't be loaded by a simple UNIT_BLOCK_READx call or load from casted ptr,
         //    we can gather the data to vector
@@ -2356,19 +2352,19 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             if (input_tensor.LogicalSize() > 1) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
-            } else {
-                // Input has only one element, so broadcast it for the whole vector size
-                return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
             }
-        } else {
-            if (vec_size > 1) {
-                return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" +
-                       GetInputPtrName(input_id) + " + " + index_func_call_vec + "))[0]";
-            } else {
-                return GetInputPtrName(input_id) + "[" + index_func_call + "]";
-            }
+            // Input has only one element, so broadcast it for the whole vector size
+            return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
+
         }
-    }
+        if (vec_size > 1) {
+            return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" +
+                   GetInputPtrName(input_id) + " + " + index_func_call_vec + "))[0]";
+        }
+        return GetInputPtrName(input_id) + "[" + index_func_call + "]";
+
+
+
 }
 
 std::string FusedOpsCodeGenerator::GetInputPtrName(size_t input_id) const {
@@ -2393,8 +2389,7 @@ std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_
 std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
     if (vec_size > 1)
         return toCLType(dt) + toCodeString(vec_size);
-    else
-        return toCLType(dt);
+    return toCLType(dt);
 }
 
 std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size) const {
@@ -2420,8 +2415,7 @@ std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_
 std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size) const {
     if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16)
         return "convert_" + GetOutputType(vec_size) + "(" + var + ")";
-    else
-        return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
+    return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
 }
 
 std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {

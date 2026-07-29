@@ -134,7 +134,7 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         }
         return false;
     }
-    if (auto impl = user->get_selected_impl())
+    if (auto *impl = user->get_selected_impl())
         // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
         // registered as CPU but do not actually access their inputs from the host
         // (e.g. assign, which only enqueues USM memcpy).
@@ -349,7 +349,7 @@ void primitive_inst::update_shape() {
         update_state_layout(variable, new_layout, 0);
 
         if (prim->num_outputs > 1) {
-            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                 _impl_params->state_layouts.resize(compressed_cache_variable->has_zp_state() ? 3 : 2);
 
                 auto scales_state = compressed_cache_variable->get_compression_scale_state();
@@ -412,7 +412,7 @@ void primitive_inst::update_shape() {
         : _deps[i].first->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             bool can_skip = true;
             const auto& insts = _deps[i].first->_dependant_shape_of_insts;
-            for (auto& inst : insts) {
+            for (const auto& inst : insts) {
                 can_skip &= !inst->get_flag(ExecutionFlags::SHAPE_CHANGED);
             }
             if (can_skip)
@@ -512,7 +512,7 @@ void primitive_inst::update_shape() {
         // Custom output layout update as update_output_layout handles paddings incorrectly for optimized out read_value + kv_cache pattern
         _impl_params->output_layouts[0] = variable.get_layout();
 
-        if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+        if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
             _impl_params->output_layouts[1] = compressed_cache_variable->get_compression_scale_state()->get_layout();
 
             if (compressed_cache_variable->has_zp_state()) {
@@ -629,7 +629,7 @@ bool primitive_inst::need_reset_output_memory() const {
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
         if (dependency_idx == 0 && is_user_conv && is_user_onednn_impl) {
-            auto& conv_node = user_inst->get_node().as<convolution>();
+            const auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
             // If the channel count is dynamic, we cannot verify feature alignment,
@@ -639,7 +639,7 @@ bool primitive_inst::need_reset_output_memory() const {
 
             auto get_feature_block_size = [](format fmt) {
                         int feature_block_size = 1;
-                        for (auto &e : fmt.block_sizes()) {
+                        for (const auto &e : fmt.block_sizes()) {
                             if (e.first == 1) {
                                 OPENVINO_ASSERT(feature_block_size == 1, "UNSUPPORTED: multi-blocking for feature axis is not considered");
                                 feature_block_size = e.second;
@@ -720,7 +720,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     const auto& users = get_user_insts();
     if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
-        auto concat_inst = users.front();
+        auto *concat_inst = users.front();
         if (concat_inst->can_be_optimized()) {
             if (!concat_inst->_allocation_done_by_other) {
                 concat_inst->realloc_if_needed();
@@ -739,7 +739,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
-        auto reorder_inst = users.front();
+        auto *reorder_inst = users.front();
         if (reorder_inst->is_output()
             && reorder_inst->output_memory_ptr()
             && get_network().has_output_remote_memory_ptr(reorder_inst->id())
@@ -748,10 +748,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 this->_outputs[0] = reorder_inst->_outputs[0];
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
                 return;
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
-                reorder_inst->set_can_be_optimized(false);
             }
+            GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+            reorder_inst->set_can_be_optimized(false);
+
         }
     }
 
@@ -798,8 +798,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         dt_sizes_in_B.push_back(ov::element::Type(actual_layouts[i].data_type).size());
     }
     // read_value/assign nodes are supposed to always use variable memory
-    if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
-        auto& variable_id = stateful_prim->variable_id();
+    if (auto *stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
+        const auto& variable_id = stateful_prim->variable_id();
         auto& variable = get_network().get_variable(variable_id);
         if (get_node().is_type<kv_cache>()) {
             // Reuse state memory as output for kv cache if possible
@@ -812,7 +812,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
                 _outputs[0] = variable.get_memory();
 
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
 
                     if (compressed_cache_variable->has_zp_state()) {
@@ -825,7 +825,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                     sp.predict_preallocation_shape(id(), _impl_params->output_layouts[j], true, j);
                 GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
                 return;
-            } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
+            }
+            if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Reset output mem" << std::endl;
                 for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j) {
                     _outputs[j] = nullptr;
@@ -840,7 +841,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                     _outputs[0] = variable.get_memory();
                     _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
-                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                         _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
 
                         if (compressed_cache_variable->has_zp_state()) {
@@ -857,7 +858,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                    << ", actual_size:" << variable.get_actual_mem_size() << " bytes"
                                    << ", variable layout:" << variable.get_layout().to_short_string() << ")" << std::endl;
 
-            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                 compressed_cache_variable->get_compression_scale_state()->set_layout(_impl_params->output_layouts[1]);
 
                 if (compressed_cache_variable->has_zp_state()) {
@@ -870,7 +871,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (can_be_optimized()) {
             _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
-            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                 const size_t scale_idx = get_node().is_type<read_value>() ? 1 : 2; // kv_cache or read_value
                 _max_output_layout_count[scale_idx] = compressed_cache_variable->get_compression_scale_state()->get_actual_mem_size() / dt_sizes_in_B[1];
                 if (compressed_cache_variable->has_zp_state()) {
@@ -887,7 +888,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     std::vector<cldnn::primitive_inst *> user_insts;
     {
         const auto& user_insts_origin = get_user_insts();
-        for (auto& user : user_insts_origin) {
+        for (const auto& user : user_insts_origin) {
             auto uid = user->id();
             if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this
                 && std::find_if(user_insts_origin.begin(), user_insts_origin.end(), [&](cldnn::primitive_inst * uu){
@@ -905,9 +906,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ",
                         user_insts.size(), " and ", user_insts_origin.size());
     }
-    for (auto user : user_insts) {
+    for (auto *user : user_insts) {
         auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
-            for (auto& p : user->get_node().get_fused_primitives()) {
+            for (const auto& p : user->get_node().get_fused_primitives()) {
                 if (p.has_outer_dep()) {
                     const auto start_idx = p.outer_dep_start_idx;
                     // exclude fused_node from total_num_deps
@@ -972,7 +973,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     if (!get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>())) {
         std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory
                             = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr target_mem_ptr) {
-            for (auto& user_inst : curr_inst->get_user_insts()) {
+            for (const auto& user_inst : curr_inst->get_user_insts()) {
                 auto curr_output_memory_ptr = user_inst->output_memory_ptr(0);
                 if (user_inst->can_be_optimized()
                         && (curr_output_memory_ptr
@@ -995,7 +996,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 reset_user_output_memory(this, dep_memory_ptr(0));
             }
             return;
-        } else if (_outputs[0] && dep_memory_ptr(0) &&
+        }
+        if (_outputs[0] && dep_memory_ptr(0) &&
                    get_network().get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
             if (mem_allocated()) {
                 get_network().get_memory_pool().release_memory(_outputs[0].get(),
@@ -1192,7 +1194,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                                       sequence_axis,
                                                       "present_layout");
             if (max_pad > 0) {
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     auto present_scales_layout = _impl_params->output_layouts[2];
                     const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
 
@@ -1234,7 +1236,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                        << " (is_set  = " << variable.is_set() << ") " << std::endl;
                 variable.set_memory(_outputs[0], present_layout);
 
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     auto present_scales_layout = _impl_params->output_layouts[2];
 
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
@@ -1250,7 +1252,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                    << " (is_set  = " << variable.is_set() << ") " << std::endl;
             variable.set_layout(present_layout);
 
-            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                 auto present_scales_layout = _impl_params->output_layouts[2];
 
                 compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
@@ -1363,7 +1365,7 @@ void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) 
     }
 
     mem_lock<int32_t> lock(_shape_info_memory, get_network().get_stream());
-    auto shape_info_ptr = lock.data();
+    auto *shape_info_ptr = lock.data();
     size_t offset = 0;
     for (size_t i = 0; i < get_node().get_dependencies().size(); i++) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
@@ -1438,7 +1440,7 @@ void primitive_inst::update_paddings() {
             while (inst) {
                 reset_pad(*inst->_impl_params, inst->_node);
                 if (inst == this) {
-                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    if (auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                         const size_t scale_idx = get_node().is_type<read_value>() ? 1 : 2;
                         reset_pad(*inst->_impl_params, inst->_node, scale_idx);
                         if (compressed_cache_variable->has_zp_state()) {
@@ -1446,7 +1448,7 @@ void primitive_inst::update_paddings() {
                         }
                     }
                 }
-                auto& users = inst->get_node().get_users();
+                const auto& users = inst->get_node().get_users();
                 if (users.size() == 1 && users.front()->get_output_layout(0).data_padding.is_dynamic()) {
                     inst = inst->get_user_insts().front();
                 } else {
@@ -1465,7 +1467,7 @@ void primitive_inst::update_paddings() {
         return;
     }
     // Reset paddings used in the previous iteration for crop before executing do_runtime_in_place_crop
-    for (auto u : get_user_insts()) {
+    for (auto *u : get_user_insts()) {
         if (u->get_node().is_type<crop>() && u->_impl_params->output_layouts[0].data_padding.is_dynamic()) {
             if (u->get_node().can_be_optimized()) {
                 reset_pad(*u->_impl_params, u->_node);
@@ -1486,7 +1488,7 @@ void primitive_inst::do_runtime_skip_reorder() {
         return;
 
     // set successive reorder can_be_optimized if layouts are same
-    for (auto u : get_user_insts()) {
+    for (auto *u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
             if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
                 auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
@@ -1581,7 +1583,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
         variable.set_layout(present_layout);
 
         if (desc->compressed) {
-            auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            auto *compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             OPENVINO_ASSERT(compressed_cache_variable != nullptr, "[GPU] compressed_cache_variable is null");
             auto& present_scales_layout = _impl_params->output_layouts[2];
             const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
@@ -1804,7 +1806,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
     if (get_users().size() != 1) return;
 
-    auto concat_inst = get_user_insts().front();
+    auto *concat_inst = get_user_insts().front();
 
     if (!concat_inst->get_node().is_type<concatenation>() || !(concat_inst->get_node().can_be_optimized() && concat_inst->get_node().is_runtime_skippable()))
         return;
@@ -1821,7 +1823,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] Preparing for runtime buffer fusing" << std::endl;
     // Do shape_infer for all concat's preds and concat
-    for (auto pred : concat_preds) {
+    for (auto *pred : concat_preds) {
         if (!pred->_update_shape_done_by_other) {
             GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << pred->id() << std::endl;
             pred->update_shape();
@@ -1916,7 +1918,7 @@ void primitive_inst::do_runtime_in_place_crop() {
         return;
     }
 
-    for (auto u : get_user_insts()) {
+    for (auto *u : get_user_insts()) {
         if (u->get_node().is_type<crop>()) {
             if (u->get_node().can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
@@ -1927,7 +1929,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 std::pair<const program_node*, layout> user_info;
                 if (crop_users.front()->get_node().is_type<reshape>()) {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
-                    auto reshape_inst = crop_users.front();
+                    auto *reshape_inst = crop_users.front();
                     if (!reshape_inst->_update_shape_done_by_other) {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
@@ -1963,7 +1965,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                         continue;
                     }
                     if (user_info.first) {
-                        auto reshape_inst = crop_users.front();
+                        auto *reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
                     }
@@ -2171,11 +2173,12 @@ void primitive_inst::prepare_primitive() {
 
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
         [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
-        for (auto& dep : prim_inst->_deps) {
+        for (const auto& dep : prim_inst->_deps) {
             const cldnn::primitive_inst* dep_inst = dep.first;
             if (dep_inst->get_flag(ExecutionFlags::MEMORY_CHANGED)) {
                 return true;
-            } else if (dep_inst->can_be_optimized()) {
+            }
+            if (dep_inst->can_be_optimized()) {
                 if (has_dynamic_dependencies_insts(dep_inst)) {
                     return true;
                 }
@@ -2333,7 +2336,7 @@ void primitive_inst::build_deps() {
 
 void primitive_inst::configure_shape_of_dependencies() {
     if (_dependant_shape_of_insts.empty()) {
-        for (auto shape_of : get_node().get_dependant_shape_of_nodes()) {
+        for (const auto *shape_of : get_node().get_dependant_shape_of_nodes()) {
             _dependant_shape_of_insts.push_back(get_network().get_primitive(shape_of->id()).get());
         }
     }
@@ -2423,7 +2426,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             // but kernels always write both outputs to the same memory object which leads to wrong result.
             if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>() &&
                 !node.is_type<experimental_detectron_roi_feature_extractor>()) {
-                for (auto& user : node.get_users())
+                for (const auto& user : node.get_users())
                     if (user->is_type<mutable_data>())
                         _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
             } else {
@@ -2579,13 +2582,15 @@ void primitive_inst::update_weights() {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
-        } else if (original_layout.compatible(expected_layout)) {
+        }
+        if (original_layout.compatible(expected_layout)) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
                                            << " to " << expected_layout.to_short_string() << std::endl;
             _reordered_weights_cache.add(expected_layout, engine.reinterpret_buffer(*original_weights_memory, expected_layout));
             return;
-        } else {
+        }
+        {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
             auto& cache = get_network().get_program()->get_implementations_cache();
             auto reorder_inst = std::make_shared<cldnn::reorder_inst>(get_network());
@@ -2640,7 +2645,7 @@ void primitive_inst::update_weights() {
             args.inputs.push_back(original_weights_memory);
             args.outputs.push_back(weights_memory);
 
-            auto reorder_impl = reorder_inst->get_impl();
+            auto *reorder_impl = reorder_inst->get_impl();
             reorder_impl->set_arguments(*reorder_inst, args);
             add_dep_event(reorder_impl->execute({}, *reorder_inst));
 
@@ -2658,10 +2663,11 @@ void primitive_inst::update_weights() {
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
-    for (auto& user : node.get_users()) {
+    for (const auto& user : node.get_users()) {
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
-        } else if (user->get_selected_impl() == nullptr) {
+        }
+        if (user->get_selected_impl() == nullptr) {
             if (user->is_dynamic()) {
                 return true;
             }
@@ -2749,27 +2755,26 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                         memory_dependencies,
                                         reset,
                                         curr_memory);
-        } else {
-            if ((node.is_output() && is_reorder_weights) || (!node.is_output() && node.is_type<input_layout>()))
-                reset = false;
-            GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
-            return _engine.allocate_memory(layout, alloc_type, reset);
         }
-    } else if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
+        if ((node.is_output() && is_reorder_weights) || (!node.is_output() && node.is_type<input_layout>()))
+            reset = false;
+        GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
+        return _engine.allocate_memory(layout, alloc_type, reset);
+    }
+    if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
         GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type, reset);
-    } else {
-        return get_memory_from_pool(_engine,
-                                    net_id,
-                                    pool,
-                                    node,
-                                    layout,
-                                    alloc_type,
-                                    reusable_across_network,
-                                    memory_dependencies,
-                                    reset,
-                                    curr_memory);
     }
+    return get_memory_from_pool(_engine,
+                                net_id,
+                                pool,
+                                node,
+                                layout,
+                                alloc_type,
+                                reusable_across_network,
+                                memory_dependencies,
+                                reset,
+                                curr_memory);
 }
 
 std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {
@@ -2782,7 +2787,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
         if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());
         } else {
-            auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
+            auto *current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
             auto is_output = is_output_buffer(this, runtime_alloc);
 
             outputs.push_back(allocate_output(get_network().get_engine(),
@@ -2805,7 +2810,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
 std::vector<primitive_inst*> primitive_inst::build_exec_deps(std::vector<std::pair<primitive_inst*, int32_t>> const& deps) {
     std::vector<primitive_inst*> exec_deps;
     exec_deps.reserve(deps.size());
-    for (auto& dep : deps)
+    for (const auto& dep : deps)
         if (dep.first->get_impl() != nullptr || dep.first->is_dynamic())
             exec_deps.push_back(dep.first);
 
@@ -2855,7 +2860,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         //   Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
         auto prim_of_fused_node = _impl_params->desc->clone();
         size_t dep_idx = 0;
-        for (auto& dep : get_node().get_dependencies()) {
+        for (const auto& dep : get_node().get_dependencies()) {
             cldnn::primitive_id dep_id = dep.first->id();
 
             // Update name to have port number as postfix
@@ -2970,7 +2975,7 @@ bool primitive_inst::is_valid_fusion() const {
     if (fuse_descriptors.empty())
         return true;
     std::vector<fused_primitive_desc> fused_eltwise_prims;
-    for (auto& fd : fuse_descriptors) {
+    for (const auto& fd : fuse_descriptors) {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
@@ -2983,8 +2988,7 @@ bool primitive_inst::is_valid_fusion() const {
                 // TODO : support ref kernel too
                 if (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
                     return true;
-                else
-                    LOG_AND_RETURN_FALSE(_node);
+                LOG_AND_RETURN_FALSE(_node);
             }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
@@ -3124,7 +3128,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         return nullptr;
     };
 
-    const auto node = &inst.get_node();
+    const auto *const node = &inst.get_node();
     auto& prog = *inst.get_network().get_program();
     auto& kernels_cache = prog.get_kernels_cache();
 

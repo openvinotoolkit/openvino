@@ -213,7 +213,7 @@ Graph::~Graph() {
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
 
-    auto external_queue = m_context->get_external_queue();
+    auto *external_queue = m_context->get_external_queue();
     if (external_queue) {
         OPENVINO_ASSERT(m_config.get_num_streams() == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
@@ -366,10 +366,10 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
     auto get_inputs = [&] (const cldnn::primitive_info& prim_info) {
         ov::OutputVector inputs;
 
-        auto& deps = prim_info.c_dependencies;
+        const auto& deps = prim_info.c_dependencies;
 
         // Decrease expected dependencies count if there is a const input without original id in the IR
-        for (auto& dep : deps) {
+        for (const auto& dep : deps) {
             auto dep_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                 return entry.original_id == dep;
             });
@@ -416,7 +416,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 results.emplace_back(std::make_shared<ov::op::v0::Result>(return_node->get_default_output()));
             } else {
                 size_t port = 0;
-                for (auto& usr_id : user_ids) {
+                for (const auto& usr_id : user_ids) {
                     auto usr_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                         return entry.original_id == usr_id;
                     });
@@ -443,7 +443,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         info[ov::exec_model_info::RUNTIME_PRECISION] = ov::element::Type(prim_info.runtime_precision).get_type_name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
-        for (auto& fused_id : prim_info.c_fused_ids) {
+        for (const auto& fused_id : prim_info.c_fused_ids) {
             for (auto& origin_id : find_origin_layers(fused_id)) {
                 if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end())
                     originalNames.push_back(origin_id);
@@ -461,7 +461,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         info[ov::exec_model_info::PERF_COUNTER] = exec_time;
 
         if (prim_info.type_id == "dynamic_quantize") {
-            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            const auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
             auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
             info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
             if (dyn_quan->attrs.precomputed_reduction) {
@@ -740,7 +740,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if (combinePrimByIRLayers) {
             std::string kernelId;
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
-            for (auto &id : profilingIDs) {
+            for (const auto &id : profilingIDs) {
                 auto iter = perfMap.find(id);
                 if (iter == perfMap.end())  continue;
 
@@ -765,7 +765,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     };
 
     // Step 1. Get all primitives in execution order which was added by GPU plugin
-    for (auto& primId : profilingIDs) {
+    for (const auto& primId : profilingIDs) {
         getFromProfiling(primId);
     }
 
@@ -838,7 +838,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     }
 
     // Step 3. Checking primitives which has been deleted from execution order but added by GPU plugin
-    for (auto& primId : profilingIDs) {
+    for (const auto& primId : profilingIDs) {
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }

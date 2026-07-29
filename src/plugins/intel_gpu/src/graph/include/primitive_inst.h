@@ -261,7 +261,7 @@ public:
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
-        for (auto u : get_users()) {
+        for (const auto *u : get_users()) {
             users.push_back(u->id());
         }
         _users = get_network().get_primitives(users);

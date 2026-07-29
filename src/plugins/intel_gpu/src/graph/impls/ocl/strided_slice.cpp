@@ -198,8 +198,7 @@ public:
                     auto size = out_shape[dim];
                     if (value >= size || value < (size * -1))
                         return true;
-                    else
-                        return false;
+                    return false;
                 };
                 bool should_clamp_begin = check_out_of_bounds(begin);
                 bool should_clamp_end = check_out_of_bounds(end);

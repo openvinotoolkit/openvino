@@ -308,10 +308,10 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     auto node_info = node.desc_to_json();
     auto alpha = desc->alpha;
     auto beta = desc->beta;
-    auto transpose_input0 = desc->transpose_input0 ? " true" : "false";
-    auto transpose_input1 = desc->transpose_input1 ? " true" : "false";
-    auto indirect_input0 = desc->indirect_a ? " true" : "false";
-    auto indirect_input1 = desc->indirect_b ? " true" : "false";
+    const auto *transpose_input0 = desc->transpose_input0 ? " true" : "false";
+    const auto *transpose_input1 = desc->transpose_input1 ? " true" : "false";
+    const auto *indirect_input0 = desc->indirect_a ? " true" : "false";
+    const auto *indirect_input1 = desc->indirect_b ? " true" : "false";
     std::stringstream primitive_description;
 
     json_composite gemm_info;

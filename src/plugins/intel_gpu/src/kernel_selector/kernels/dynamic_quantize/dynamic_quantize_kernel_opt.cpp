@@ -38,10 +38,9 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
     if (params.group_sizes.back() <= 64)
         return DynQuanMode::SMALL_GS;
-    else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
+    if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
         return DynQuanMode::PER_TOKEN;
-    else
-        return DynQuanMode::LARGE_GS;
+    return DynQuanMode::LARGE_GS;
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {

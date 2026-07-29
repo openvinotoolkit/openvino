@@ -222,7 +222,7 @@ std::mutex singleton_default_contexts_mutex;
 std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
     std::call_once(m_default_contexts_once, [this]() {
         std::lock_guard<std::mutex> lock(singleton_default_contexts_mutex);
-        for (auto& device : m_device_map) {
+        for (const auto& device : m_device_map) {
             const auto device_name = get_device_name() + "." + device.first;
 
             // If already initialized, use existing one
@@ -255,7 +255,7 @@ Plugin::Plugin() {
     }
 
     // Set common info for compiled_model_runtime_properties
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
@@ -450,7 +450,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
             // If some app modifies ov::Model before compile_model(), and
             // the constants are changed, and such modification is not done before import_model(),
             // weightless caching will not produce correct result.
-            if (auto& orig_model = config.get_model(); orig_model != nullptr) {
+            if (const auto& orig_model = config.get_model(); orig_model != nullptr) {
                 if (!is_weightless_cache_attributes_set(orig_model)) {
                     create_weightless_cache_attributes(orig_model, config);
                 }
@@ -498,14 +498,16 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     // earler than querying actual ID to avoid exceptions when no devices are found
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
-    } else if (ov::internal::supported_properties == name) {
+    }
+    if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
-    } else if (name == ov::available_devices) {
+    } if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
         for (const auto& dev : m_device_map)
             available_devices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {available_devices};
-    } else if (name == ov::internal::caching_properties) {
+    }
+    if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
     }
 
@@ -524,7 +526,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         auto model_format = ov::Any(model_runtime_info);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_format.as<std::string>()));
-    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         prepare_actual_runtime_info();
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
@@ -534,7 +537,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         }
         ov::AnyMap input_map = it->second.as<ov::AnyMap>();
         // Check common info of compiled_model_runtime_properties
-        for (auto& item : m_compiled_model_runtime_properties) {
+        for (const auto& item : m_compiled_model_runtime_properties) {
             auto it = input_map.find(item.first);
             if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                 res = false;
@@ -612,19 +615,22 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
-    } else if (name == ov::intel_gpu::device_max_alloc_mem_size) {
+    }
+    if (name == ov::intel_gpu::device_max_alloc_mem_size) {
         return decltype(ov::intel_gpu::device_max_alloc_mem_size)::value_type {device_info.max_alloc_mem_size};
-    } else if (name == ov::device::type) {
+if (name == ov::device::type) {
         auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? ov::device::Type::DISCRETE : ov::device::Type::INTEGRATED;
         return decltype(ov::device::type)::value_type {dev_type};
-    } else if (name == ov::device::gops) {
+    }
+    if (name == ov::device::gops) {
         std::map<element::Type, float> gops;
         gops[element::i8] = device->get_gops(cldnn::data_types::i8);
         gops[element::u8] = device->get_gops(cldnn::data_types::u8);
         gops[element::f16] = device->get_gops(cldnn::data_types::f16);
         gops[element::f32] = device->get_gops(cldnn::data_types::f32);
         return decltype(ov::device::gops)::value_type {gops};
-    } else if (name == ov::intel_gpu::cacheline_size) {
+    }
+    if (name == ov::intel_gpu::cacheline_size) {
         return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size.value_or(0));
     } else if (name == ov::intel_gpu::execution_units_count) {
         return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
@@ -671,9 +677,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             add_zero_mem_usage(cldnn::allocation_type::usm_shared);
             add_zero_mem_usage(cldnn::allocation_type::usm_device);
             return res;
-        } else {
-            return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
         }
+        return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
+
     } else if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
     } else if (name == ov::intel_gpu::driver_version) {
@@ -715,6 +721,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
+    }
     }
 }
 
@@ -986,9 +993,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
         // Compare x with the threshold and return the appropriate power of 2
         if (x - lower_value > threshold) {
             return upper_value;  // Return the next power of 2
-        } else {
-            return lower_value;  // Return the current power of 2
         }
+        return lower_value;  // Return the current power of 2
+
     };
 
     auto model_param = options.find(ov::hint::model.name());

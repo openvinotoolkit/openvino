@@ -73,7 +73,7 @@ namespace cldnn {
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     // Even though CM frontend is a component of Intel GPU driver on Windows, the version
     // may still be incompatible to existing CM kernels.
-    auto device = e.get_device().get();
+    auto *device = e.get_device().get();
 
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
@@ -159,7 +159,7 @@ static bool driver_version_supports_microkernels(const std::string& driver_versi
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    auto device = e.get_device().get();
+    auto *device = e.get_device().get();
 
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
@@ -208,7 +208,7 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
 }
 
 bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    auto device = e.get_device().get();
+    auto *device = e.get_device().get();
     if (device->get_info().arch < gpu_arch::xe3)
         return false;
 
@@ -1002,16 +1002,16 @@ kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_
     if (l.data_padding) {
         auto vec = compute_tensor_dimensions(l, kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
         return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
-    } else {
-        const auto& t = l.get_tensor().sizes(l.format);
-        std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
-        for (size_t i = 0; i < vec.size(); i++) {
-            const size_t tensor_index = t.size() - 1 - i;
-            const auto d = t[tensor_index];
-            vec[i] = static_cast<size_t>(d);
-        }
-        return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
     }
+    const auto& t = l.get_tensor().sizes(l.format);
+    std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
+    for (size_t i = 0; i < vec.size(); i++) {
+        const size_t tensor_index = t.size() - 1 - i;
+        const auto d = t[tensor_index];
+        vec[i] = static_cast<size_t>(d);
+    }
+    return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
+
 }
 
 layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
@@ -1149,7 +1149,8 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
                                                                      clamp_max,
                                                                      swish_beta,
                                                                      up_add_val);
-    } else if (p->type() == activation::type_id()) {
+    }
+    if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
         kernel_selector::base_activation_params p;
@@ -1158,18 +1159,21 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
         p.n = desc->additional_params.b;
 
         return std::make_shared<kernel_selector::activation_fuse_params>(p);
-    } else if (p->type() == depth_to_space::type_id()) {
+    } if (p->type() == depth_to_space::type_id()) {
         return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
-    } else if (p->type() == reorder::type_id()) {
+    }
+    if (p->type() == reorder::type_id()) {
         auto casted = std::dynamic_pointer_cast<ReorderFuseParams>(p);
         kernel_selector::DataLayout ks_input_layout = convert_data_tensor(casted->_in).GetLayout();
         kernel_selector::DataLayout ks_output_layout = convert_data_tensor(casted->_out).GetLayout();
         return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
-    } else if (p->type() == eltwise::type_id()) {
+    }
+    if (p->type() == eltwise::type_id()) {
         auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(p);
         kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(casted->_desc->mode);
         return std::make_shared<kernel_selector::eltwise_fuse_params>(mode, casted->_desc->m_pythondiv);
-    } else if (p->type() == quantize::type_id()) {
+    }
+    if (p->type() == quantize::type_id()) {
         auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(p);
         return std::make_shared<kernel_selector::quantize_fuse_params>(casted->_scale_shift_opt,
                                                                        casted->_need_post_scale,
@@ -1332,7 +1336,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
     } else {
         std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
         size_t op_id = 0;
-        for (auto& fused_prim : param_info.fused_desc) {
+        for (const auto& fused_prim : param_info.fused_desc) {
             kernel_selector::fused_operation_desc desc;
             desc.op_params = convert_fuse_params(fused_prim.f_param);
 
@@ -1352,7 +1356,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
 
             if (fused_prim.total_num_deps > 0) {
                 desc.dep_data.resize(fused_prim.total_num_deps);
-                for (auto& dep : fused_prim.fused_deps) {
+                for (const auto& dep : fused_prim.fused_deps) {
                     auto iter = prim_id_type_map.find(dep.first);
                     if (iter != prim_id_type_map.end()) {
                         auto& op_data = iter->second;
@@ -1363,7 +1367,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
                 }
 
                 int idx = 0;
-                for (auto& dep : fused_prim.deps) {
+                for (const auto& dep : fused_prim.deps) {
                     desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
                     desc.dep_data[dep.second].op_id     = idx;
                     desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();

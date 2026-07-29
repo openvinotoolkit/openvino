@@ -100,7 +100,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
 
-        auto params = instance.get_impl_params();
+        const auto *params = instance.get_impl_params();
 
         std::vector<memory::ptr> input_mem_ptrs;
         for (size_t i = 0; i < instance.dependencies().size(); i++)
@@ -251,7 +251,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
             }
         }
 
-        auto params = instance.get_impl_params();
+        const auto *params = instance.get_impl_params();
 
         switch (params->input_layouts[0].data_type) {
         case data_types::f32:

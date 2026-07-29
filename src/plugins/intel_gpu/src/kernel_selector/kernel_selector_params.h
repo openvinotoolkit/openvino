@@ -554,13 +554,14 @@ struct FusedOpsConfiguration {
         int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
-        } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
-            return 1;
-        } else if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
-            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
-        } else {
-            return -1;
         }
+        if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
+            return 1;
+        }
+        if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
+            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
+        }             return -1;
+
     }
 };
 

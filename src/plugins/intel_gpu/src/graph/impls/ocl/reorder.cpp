@@ -38,7 +38,7 @@ protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         if (instance.has_node() && instance.has_mean()) {
-            auto input = &instance.input_memory();
+            auto *input = &instance.input_memory();
             auto input_layout = input->get_layout();
 
             if (input_layout.format == cldnn::format::nv12) {
@@ -130,9 +130,9 @@ public:
                                   format::is_weights_format(impl_param.get_output_layout().format);
         if (is_reorder_weights) {
             return create_reorder_weights(impl_param);
-        } else {
-            return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
         }
+        return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
+
     }
 
     static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {

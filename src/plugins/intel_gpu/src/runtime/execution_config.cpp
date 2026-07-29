@@ -190,7 +190,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
             is_paged_attention_model = true;
             return true;
-        } else if (ov::is_type<ov::intel_gpu::op::KVCache>(node)) {
+        }
+        if (ov::is_type<ov::intel_gpu::op::KVCache>(node)) {
             return true;
         }
 

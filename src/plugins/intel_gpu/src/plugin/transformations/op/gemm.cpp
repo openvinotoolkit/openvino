@@ -105,9 +105,9 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
 
     if (!order_c.empty()) {
         return { transpose_pshape(out_shapes[0], order_c) };
-    } else {
-        return { out_shapes[0] };
     }
+    return { out_shapes[0] };
+
 }
 
 }  // namespace ov::intel_gpu::op
