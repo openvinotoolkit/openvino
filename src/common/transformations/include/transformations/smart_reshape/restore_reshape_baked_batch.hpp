@@ -26,8 +26,52 @@ class TRANSFORMATIONS_API RestoreReshapeBakedBatch;
 /// rewrites the shape `Concat` to relax the leading `Constant(B)` to `Constant(-1)` (batch inferred) and
 /// pin the trailing `-1` to `Constant(channel)` (recovered statically); the interior is kept.
 ///
-///   Before:  Concat[ Constant(B), <interior...>, Constant(-1) ] ──► Reshape (special_zero=false)
-///   After:   Concat[ Constant(-1), <interior...>, Constant(chan) ] ──► Reshape
+/// Before:
+///   ┌───────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐  ┌──────┐
+///   │  Constant(B)  │ │   <interior> │ │   <interior> │ │ Constant(-1) │  │ data │
+///   │ leading batch │ │   (dynamic)  │ │   (dynamic)  │ │   channel    │  └──┬───┘
+///   └───────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘     │
+///           └────────────────┴───────┬────────┴────────────────┘             │
+///                              ┌──────▼──────┐                                │
+///                              │   Concat    │ axis = 0                       │
+///                              │ (view shape)│                                │
+///                              └──────┬──────┘                                │
+///                                     └─────────────────┬─────────────────────┘
+///                                                ┌──────▼──────┐
+///                                                │   Reshape   │ special_zero = false
+///                                                └──────┬──────┘
+///                                                       ▼
+///
+/// After:
+///   ┌───────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐  ┌──────┐
+///   │ Constant(-1)  │ │   <interior> │ │   <interior> │ │Constant(chan)│  │ data │
+///   │ leading batch │ │   (dynamic,  │ │   (dynamic,  │ │   channel    │  └──┬───┘
+///   │   (inferred)  │ │  unchanged)  │ │  unchanged)  │ │  (static)    │     │
+///   └───────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘     │
+///           └────────────────┴───────┬────────┴────────────────┘             │
+///                              ┌──────▼──────┐                                │
+///                              │   Concat    │ axis = 0                       │
+///                              │ (view shape)│                                │
+///                              └──────┬──────┘                                │
+///                                     └─────────────────┬─────────────────────┘
+///                                                ┌──────▼──────┐
+///                                                │   Reshape   │ special_zero = false
+///                                                └──────┬──────┘
+///                                                       ▼
+///
+/// Per Concat input position (window-reverse example: window size 8, channel 180) -- only the leading
+/// batch slot and the trailing channel slot change; every interior element is reused as-is:
+///
+///   input position:  0            1        2        3          4          last
+///                    ┌────────┐   ┌──────┐ ┌──────┐ ┌────────┐ ┌────────┐ ┌──────────┐
+///   old Concat:      Const(1)     interior interior Const(8)   Const(8)   Const(-1)
+///                       ▲                                                     ▲
+///                       │ changed                                    changed │
+///                       ▼                                                     ▼
+///   new Concat:      Const(-1)    interior interior Const(8)   Const(8)   Const(180)
+///                    └────────┘   └──────┘ └──────┘ └────────┘ └────────┘ └──────────┘
+///                     DIFFERENT    SAME     SAME     SAME       SAME       DIFFERENT
+///                     source       sources (reused)                       source
 ///
 /// The rewrite is value-preserving ONLY for window-reverse views, where the restored channel provably
 /// equals the data's channel dim. Window-reverse emits two chained views separated by a last-axis-
