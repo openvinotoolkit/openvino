@@ -206,6 +206,8 @@ public:
                         uint32_t axisY : 1;
                         uint32_t axisZ : 1;
                         uint32_t axisW : 1;
+                        uint32_t axisU : 1;
+                        uint32_t axisV : 1;
                         uint32_t axisFeature : 1;
                         uint32_t axisBatch : 1;
                         uint32_t kernelPerInput : 1;
@@ -242,7 +244,7 @@ public:
 
         static_assert(sizeof(restrict_t) == sizeof(uint64_t), "problem with union");
 
-        typedef union DataTypesKey_t {
+        union DataTypesKey {
             struct val_t {
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
@@ -261,7 +263,7 @@ public:
                 uint32_t F8E8M0 : 1;
             } val;
             uint32_t raw;
-        } DataTypesKey;
+        };
 
         DataTypesKey inputType;
         DataTypesKey outputType;
@@ -424,10 +426,8 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
-        return;
     }
     virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
-        return;
     }
 
 protected:
@@ -549,7 +549,7 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
-    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
+    bool IsPostReorderFused() const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
         int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
@@ -655,7 +655,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    virtual ~base_params() {}
+    ~base_params() override {}
 
     enum class ArgType {
         Input,

@@ -83,8 +83,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     : _kernels() {}
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
-    : cl_kernel(other.cl_kernel)
-    , _kernels({}) 
+    : parent(other.get_kernel_name())
+    , cl_kernel(other.cl_kernel)
+    , _kernels({})
     , size_expr_map(other.size_expr_map) {
         for (const auto& kernel : other._kernels) {
             _kernels.emplace_back(kernel->clone(other.can_share_kernels));
@@ -93,15 +94,17 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : cl_kernel(cl_kernel)
-        , _kernels() { }
+    : parent(cl_kernel->code.kernelString->entry_point)
+    , cl_kernel(cl_kernel)
+    , _kernels() { }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
-                             std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
-                             const std::map<uint32_t, std::string>& size_expr_map)
-        : cl_kernel(cl_kernel)
-        , _kernels()
-        , size_expr_map(size_expr_map) { }
+                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
+                              const std::map<uint32_t, std::string>& size_expr_map)
+    : parent(cl_kernel->code.kernelString->entry_point)
+    , cl_kernel(cl_kernel)
+    , _kernels()
+    , size_expr_map(size_expr_map) { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;

@@ -27,6 +27,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/relu.hpp"
@@ -1401,9 +1402,9 @@ jit_is_finite_emitter::jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_gener
                                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                              const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    auto isNaN = ov::as_type_ptr<ov::op::v10::IsNaN>(node);
-    if (isNaN == nullptr) {
-        OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v10::IsNaN");
+    auto isFinite = ov::as_type_ptr<ov::op::v10::IsFinite>(node);
+    if (isFinite == nullptr) {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v10::IsFinite");
     }
 
     prepare_table();

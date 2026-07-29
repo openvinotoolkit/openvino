@@ -1154,6 +1154,19 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
         int found_block_range_end = default_block_range_end;
         int found_block_range_begin = default_block_range_begin;
 
+        // Full-range fallback for lanes that do not correspond to a real target row.
+        // Do not return on lane-local conditions before the cooperative searches below,
+        // because the helpers use work-group barriers.
+        SEQ_RANGE fallback_range;
+        fallback_range.min = 0;
+        fallback_range.max = seq_len > 0 ? seq_len - 1 : 0;
+        fallback_range.subgroup_max = min(default_block_range_end, seq_len);
+
+        // These conditions are block-uniform and protect the barrier-free reads below.
+        if (default_block_range_end <= 0 || default_block_range_end > seq_len || default_block_range_begin >= seq_len) {
+            return fallback_range;
+        }
+
         // block cooperative search for token group end
         if (token_type_ids[default_block_range_end - 1] == 1) {
             found_block_range_end = FUNC_CALL(find_first_zero_to_the_right_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
@@ -1166,6 +1179,11 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
+
+        // Lane-local fallback is only safe after all cooperative searches complete.
+        if (token_group_end >= seq_len) {
+            return fallback_range;
+        }
 
         // Special case: image group is less than subgroup size.
         if (token_type_ids[token_group_end] == 1) {
