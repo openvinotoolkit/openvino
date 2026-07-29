@@ -80,7 +80,7 @@ public:
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
         result << "num_head=(" << to_str(num_head) << ")_";
         result << "head_size=(" << to_str(head_size) << ")_";
-        result << test::utils::vec2str<int32_t>({cu_seqlens}) << "_";
+        result << test::utils::vec2str<int32_t>(cu_seqlens) << "_";
         result << "Prc=" << inType;
         return result.str();
     }
