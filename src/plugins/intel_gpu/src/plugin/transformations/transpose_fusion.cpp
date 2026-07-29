@@ -586,23 +586,10 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
         // Create new Split that operates directly on axis=1 of the input (before transpose)
         // This produces 3 outputs of shape [-1, 1, H, S] instead of [1, -1, H, S]
         auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-        auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, 3);
+        auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, split->get_num_splits());
         new_split->set_friendly_name(split->get_friendly_name() + "_optimized");
-
-        // For each output of the old split, we need to update the consumers
-        // Old split outputs: [1, -1, H, S]
-        // New split outputs: [-1, 1, H, S]
-        // Consumers (Reshape nodes) need to work with the new shape
-        for (size_t i = 0; i < split->get_output_size(); i++) {
-            auto old_output = split->output(i);
-            auto new_output = new_split->output(i);
-
-            // Replace the old output with the new output
-            // The Reshape operations following should automatically adapt
-            old_output.replace(new_output);
-        }
-
-        ov::copy_runtime_info({transpose, split}, new_split);
+         ov::copy_runtime_info(m.get_matched_nodes(), new_split);
+         ov::replace_node(split, new_split);
         return true;
     };
 
