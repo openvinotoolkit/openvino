@@ -103,12 +103,6 @@ auto single_val = [](int rank, float val) {
     return makeConst(element::f32, ov::Shape{std::vector<size_t>(rank, 1)}, {val});
 };
 
-// Flattens a transposed Q/K/V tensor's leading two dims into a single dim via Reshape({0, -1}, special_zero=true),
-// matching StateManagementPattern's Q/K/V reshape logic.
-std::shared_ptr<Node> flatten_tokens_hidden(const std::shared_ptr<Node>& transposed) {
-    return makeOP<v1::Reshape>({transposed, {0, -1}}, {{"special_zero", true}});
-}
-
 ov::ParameterVector nodes_to_params(const ov::NodeVector& node_vec) {
     ov::ParameterVector params;
     params.reserve(node_vec.size());
@@ -469,13 +463,13 @@ public:
         auto gather_2 = makeOP<v8::Gather>({shape_of, -1ll, 0ll}, {{"batch_dims", 0}});
         head_size = makeOP<v0::Unsqueeze>({gather_2, 0});
 
-        return flatten_tokens_hidden(transpose);
+        return makeOP<v1::Reshape>({transpose, {0, -1}}, {{"special_zero", true}});
     }
 
     static std::shared_ptr<Node> gen_K(const std::shared_ptr<Node>& rope_K) {
         auto gather = makeOP<v8::Gather>({{0, 2, 1, 3}, {0, 2, 1, 3}, 0ll}, {{"batch_dims", 0}});
         auto transpose = makeOP<v1::Transpose>({rope_K, gather});
-        return flatten_tokens_hidden(transpose);
+        return makeOP<v1::Reshape>({transpose, {0, -1}}, {{"special_zero", true}});
     }
 
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& total_seq_len,
@@ -490,7 +484,7 @@ public:
         auto transpose_1 = makeOP<v1::Transpose>({mul, {0, 2, 1, 3}});
 
         auto transpose_2 = makeOP<v1::Transpose>({transpose_1, {0, 2, 1, 3}});
-        return flatten_tokens_hidden(transpose_2);
+        return makeOP<v1::Reshape>({transpose_2, {0, -1}}, {{"special_zero", true}});
     }
 };
 
@@ -686,19 +680,19 @@ public:
         return Opt125mSDPA::gen_proj(input);
     }
 
-    // Q path: scale → Reshape[B,S,H,D] → Transpose[B,H,S,D] → PA-Transpose[B,S,H,D] → merge tokens/hidden
+    // Q path: scale → Reshape[B,S,H,D] → Transpose[B,H,S,D] → PA-Transpose[B,S,H,D] → Reshape[0,-1]
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& q_proj) {
         auto q = Opt125mSDPA::gen_Q(q_proj);
         auto transpose_pa = makeOP<v1::Transpose>({q, {0, 2, 1, 3}});
-        return flatten_tokens_hidden(transpose_pa);
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
     }
 
-    // K path: Reshape → Transpose → PA-Transpose → merge tokens/hidden
+    // K path: Reshape → Transpose → PA-Transpose → Reshape[0,-1]
     static std::shared_ptr<Node> gen_K(const std::shared_ptr<Node>& k_proj) {
         auto reshape = makeOP<v1::Reshape>({k_proj, {0, 0, 12, 64}}, {special_zero_true});
         auto transpose_orig = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
         auto transpose_pa = makeOP<v1::Transpose>({transpose_orig, {0, 2, 1, 3}});
-        return flatten_tokens_hidden(transpose_pa);
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
     }
 
     // V path: same as K but also extracts head_size for align_pa_layout
@@ -710,7 +704,7 @@ public:
         auto shape_of = makeOP<v3::ShapeOf>({transpose_pa}, {{"output_type", "i64"}});
         auto gather_dim = makeOP<v8::Gather>({shape_of, -1ll, 0ll}, {{"batch_dims", 0}});
         head_size = makeOP<v0::Unsqueeze>({gather_dim, 0});
-        return flatten_tokens_hidden(transpose_pa);
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
     }
 
     // PA output → Reshape[0, 1, -1, head_size] → Transpose[0, 2, 1, 3]
@@ -1947,17 +1941,17 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Reshape132 = makeOP<opset1::Reshape>({Gather130, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose134 = makeOP<opset1::Transpose>({Reshape132, {0, 2, 1, 3}});
         auto Transpose136 = makeOP<opset1::Transpose>({Transpose134, {0, 2, 1, 3}});
-        auto Reshape138 = flatten_tokens_hidden(Transpose136);
+        auto Reshape138 = makeOP<v1::Reshape>({Transpose136, {0, -1}}, {{"special_zero", true}});
         auto Gather140 = makeOP<opset8::Gather>({Transpose129, 1, 0}, {{"batch_dims", 0}});
         auto Reshape142 = makeOP<opset1::Reshape>({Gather140, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose144 = makeOP<opset1::Transpose>({Reshape142, {0, 2, 1, 3}});
         auto Transpose145 = makeOP<opset1::Transpose>({Transpose144, {0, 2, 1, 3}});
-        auto Reshape147 = flatten_tokens_hidden(Transpose145);
+        auto Reshape147 = makeOP<v1::Reshape>({Transpose145, {0, -1}}, {{"special_zero", true}});
         auto Gather149 = makeOP<opset8::Gather>({Transpose129, 2, 0}, {{"batch_dims", 0}});
         auto Reshape151 = makeOP<opset1::Reshape>({Gather149, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose153 = makeOP<opset1::Transpose>({Reshape151, {0, 2, 1, 3}});
         auto Transpose154 = makeOP<opset1::Transpose>({Transpose153, {0, 2, 1, 3}});
-        auto Reshape156 = flatten_tokens_hidden(Transpose154);
+        auto Reshape156 = makeOP<v1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
         auto Constant159 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);
         auto Slice164 = makeOP<opset8::Slice>({Constant159, {1, 1}, {2, 2}, {1, 1}, {1, 2}});
         auto Reshape166 = makeOP<opset1::Reshape>({Slice164, {-1}}, {{"special_zero", false}});
@@ -2306,7 +2300,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add =
             makeOP<opset1::Add>({pref_1_mul_Multiply, pref_1_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51951 = makeOP<opset1::Transpose>({pref_1_add_Add, {0, 2, 1, 3}});
-        auto Reshape_51953 = flatten_tokens_hidden(Transpose_51951);
+        auto Reshape_51953 = makeOP<v1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
         auto pref_8_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_3_linear_MatMul = makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, pref_8_weight},
                                                            {{"transpose_a", false}, {"transpose_b", true}});
@@ -2328,7 +2322,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add_1 =
             makeOP<opset1::Add>({pref_1_mul_Multiply_2, pref_1_mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51954 = makeOP<opset1::Transpose>({pref_1_add_Add_1, {0, 2, 1, 3}});
-        auto Reshape_51957 = flatten_tokens_hidden(Transpose_51954);
+        auto Reshape_51957 = makeOP<v1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
         auto self_model_model_layers_0_self_attn_v_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_9_MatMul =
             makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_v_proj_weight},
@@ -2336,7 +2330,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_view_Reshape_2 = makeOP<opset1::Reshape>({pref_9_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
         auto pref_1_transpose_Transpose_2 = makeOP<opset1::Transpose>({pref_1_view_Reshape_2, {0, 2, 1, 3}});
         auto Transpose_51955 = makeOP<opset1::Transpose>({pref_1_transpose_Transpose_2, {0, 2, 1, 3}});
-        auto Reshape_51959 = flatten_tokens_hidden(Transpose_51955);
+        auto Reshape_51959 = makeOP<v1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
 
         auto c1 = makeConst(element::f32, {}, {0.707107f});
         auto c2 = makeConst(element::i32, {}, {0});
@@ -2648,7 +2642,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply6 = makeOP<opset1::Multiply>({Concat2, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add1 = makeOP<opset1::Add>({Multiply4, Multiply6}, {{"auto_broadcast", "numpy"}});
         auto Transpose2 = makeOP<opset1::Transpose>({Add1, {0, 2, 1, 3}});
-        auto Q = flatten_tokens_hidden(Transpose2);
+        auto Q = makeOP<v1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
 
         auto Slice3 = makeOP<opset8::Slice>({MatMul, {3072}, {6144}, {1}, {2}});
         auto Reshape3 = makeOP<opset1::Reshape>({Slice3, {0, 0, 32, 96}}, {{"special_zero", true}});
@@ -2662,13 +2656,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply9 = makeOP<opset1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add2 = makeOP<opset1::Add>({Multiply7, Multiply9}, {{"auto_broadcast", "numpy"}});
         auto Transpose4 = makeOP<opset1::Transpose>({Add2, {0, 2, 1, 3}});
-        auto K = flatten_tokens_hidden(Transpose4);
+        auto K = makeOP<v1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
 
         auto Slice6 = makeOP<opset8::Slice>({MatMul, {6144}, {LLONG_MAX}, {1}, {2}});
         auto Reshape5 = makeOP<opset1::Reshape>({Slice6, {0, 0, 32, 96}}, {{"special_zero", true}});
         auto Transpose5 = makeOP<opset1::Transpose>({Reshape5, {0, 2, 1, 3}});
         auto Transpose6 = makeOP<opset1::Transpose>({Transpose5, {0, 2, 1, 3}});
-        auto V = flatten_tokens_hidden(Transpose6);
+        auto V = makeOP<v1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
 
         auto offset = makeOP<opset1::Convert>({-2046}, {{"destination_type", "i32"}});
         auto sliding_window = makeOP<opset1::Subtract>({2, offset}, {{"auto_broadcast", "numpy"}});
@@ -3000,7 +2994,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat2 = makeOP<opset1::Concat>({Add1, Slice4}, {{"axis", -1}});
         auto Transpose2 = makeOP<opset1::Transpose>({Concat2, {0, 2, 1, 3}});
         auto Transpose3 = makeOP<opset1::Transpose>({Transpose2, {0, 2, 1, 3}});
-        auto Reshape11 = flatten_tokens_hidden(Transpose3);
+        auto Reshape11 = makeOP<v1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Multiply4 = makeOP<opset1::Multiply>({Slice1, Unsqueeze2}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<opset8::Slice>({Slice1, {1}, {LLONG_MAX}, {2}, {3}});
         auto Convert10 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
@@ -3016,13 +3010,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat4 = makeOP<opset1::Concat>({Add2, Slice7}, {{"axis", -1}});
         auto Transpose4 = makeOP<opset1::Transpose>({Concat4, {0, 2, 1, 3}});
         auto Transpose5 = makeOP<opset1::Transpose>({Transpose4, {0, 2, 1, 3}});
-        auto Reshape13 = flatten_tokens_hidden(Transpose5);
+        auto Reshape13 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
         auto Reshape14 =
             makeOP<opset1::Reshape>({VariadicSplit0->output(1), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape15 = makeOP<opset1::Reshape>({Reshape14, {0, 0, 16, 256}}, {{"special_zero", true}});
         auto Transpose6 = makeOP<opset1::Transpose>({Reshape15, {0, 2, 1, 3}});
         auto Transpose7 = makeOP<opset1::Transpose>({Transpose6, {0, 2, 1, 3}});
-        auto Reshape16 = flatten_tokens_hidden(Transpose7);
+        auto Reshape16 = makeOP<v1::Reshape>({Transpose7, {0, -1}}, {{"special_zero", true}});
 
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});
@@ -3598,7 +3592,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto Add3 = makeOP<v1::Add>({Multiply8, Multiply9}, {{"auto_broadcast", "numpy"}});
         auto Concat2 = makeOP<v0::Concat>({Subtract2, Add3}, {{"axis", -1}});
         auto Transpose2 = makeOP<v1::Transpose>({Concat2, {0, 2, 1, 3}});
-        auto Reshape1 = flatten_tokens_hidden(Transpose2);
+        auto Reshape1 = makeOP<v1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
         auto Constant15 = makeConst(element::u8,
                                     ov::Shape({
                                         512,
@@ -3642,7 +3636,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto Add5 = makeOP<v1::Add>({Multiply13, Multiply14}, {{"auto_broadcast", "numpy"}});
         auto Concat4 = makeOP<v0::Concat>({Subtract4, Add5}, {{"axis", -1}});
         auto Transpose4 = makeOP<v1::Transpose>({Concat4, {0, 2, 1, 3}});
-        auto Reshape3 = flatten_tokens_hidden(Transpose4);
+        auto Reshape3 = makeOP<v1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
         auto Constant18 = makeConst(element::u8,
                                     ov::Shape({
                                         512,
@@ -3678,7 +3672,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto Reshape4 = makeOP<v1::Reshape>({Add6, {0, 0, 8, 64}}, {{"special_zero", true}});
         auto Transpose5 = makeOP<v1::Transpose>({Reshape4, {0, 2, 1, 3}});
         auto Transpose6 = makeOP<v1::Transpose>({Transpose5, {0, 2, 1, 3}});
-        auto Reshape5 = flatten_tokens_hidden(Transpose6);
+        auto Reshape5 = makeOP<v1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
         auto Constant22 = makeConst(element::f32,
                                     ov::Shape({
                                         1,
@@ -5050,7 +5044,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply22 = makeOP<v1::Multiply>({Concat8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
         auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
         auto Transpose11 = makeOP<v1::Transpose>({Add18, {0, 2, 1, 3}});
-        auto Reshape18 = flatten_tokens_hidden(Transpose11);
+        auto Reshape18 = makeOP<v1::Reshape>({Transpose11, {0, -1}}, {{"special_zero", true}});
         auto Constant32 = makeConst(element::bf16,
                                     ov::Shape({
                                         16,
@@ -5100,7 +5094,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply26 = makeOP<v1::Multiply>({Concat9, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
         auto Add20 = makeOP<v1::Add>({Multiply24, Multiply26}, {{"auto_broadcast", "numpy"}});
         auto Transpose13 = makeOP<v1::Transpose>({Add20, {0, 2, 1, 3}});
-        auto Reshape20 = flatten_tokens_hidden(Transpose13);
+        auto Reshape20 = makeOP<v1::Reshape>({Transpose13, {0, -1}}, {{"special_zero", true}});
         auto Constant36 = makeConst(element::bf16,
                                     ov::Shape({
                                         16,
@@ -5112,7 +5106,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Reshape21 = makeOP<v1::Reshape>({MatMul13, {0, 0, 4, 4}}, {{"special_zero", true}});
         auto Transpose14 = makeOP<v1::Transpose>({Reshape21, {0, 2, 1, 3}});
         auto Transpose15 = makeOP<v1::Transpose>({Transpose14, {0, 2, 1, 3}});
-        auto Reshape22 = flatten_tokens_hidden(Transpose15);
+        auto Reshape22 = makeOP<v1::Reshape>({Transpose15, {0, -1}}, {{"special_zero", true}});
         auto Constant37 = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto scale = v0::Constant::create(element::f32, {}, {0.500000f});
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
@@ -5666,15 +5660,15 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Reshape3 = makeOP<v1::Reshape>({VariadicSplit0->output(0), {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose0 = makeOP<v1::Transpose>({Reshape3, {0, 2, 1, 3}});
         auto Transpose1 = makeOP<v1::Transpose>({Transpose0, {0, 2, 1, 3}});
-        auto Reshape4 = flatten_tokens_hidden(Transpose1);
+        auto Reshape4 = makeOP<v1::Reshape>({Transpose1, {0, -1}}, {{"special_zero", true}});
         auto Reshape5 = makeOP<v1::Reshape>({VariadicSplit0->output(1), {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose2 = makeOP<v1::Transpose>({Reshape5, {0, 2, 1, 3}});
         auto Transpose3 = makeOP<v1::Transpose>({Transpose2, {0, 2, 1, 3}});
-        auto Reshape6 = flatten_tokens_hidden(Transpose3);
+        auto Reshape6 = makeOP<v1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Reshape7 = makeOP<v1::Reshape>({VariadicSplit0->output(2), {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose4 = makeOP<v1::Transpose>({Reshape7, {0, 2, 1, 3}});
         auto Transpose5 = makeOP<v1::Transpose>({Transpose4, {0, 2, 1, 3}});
-        auto Reshape8 = flatten_tokens_hidden(Transpose5);
+        auto Reshape8 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
         auto alibi_slopes = makeConst(element::f32,
                                       ov::Shape({
                                           40,
@@ -6071,7 +6065,7 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto Multiply4 = makeOP<v1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add1 = makeOP<v1::Add>({Multiply2, Multiply4}, {{"auto_broadcast", "numpy"}});
         auto Transpose2 = makeOP<v1::Transpose>({Add1, {0, 2, 1, 3}});
-        auto Reshape1 = flatten_tokens_hidden(Transpose2);
+        auto Reshape1 = makeOP<v1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
         auto Const6 = makeConst(element::f32,
                                 ov::Shape({
                                     8,
@@ -6090,7 +6084,7 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto Multiply7 = makeOP<v1::Multiply>({Concat5, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add2 = makeOP<v1::Add>({Multiply5, Multiply7}, {{"auto_broadcast", "numpy"}});
         auto Transpose3 = makeOP<v1::Transpose>({Add2, {0, 2, 1, 3}});
-        auto Reshape4 = flatten_tokens_hidden(Transpose3);
+        auto Reshape4 = makeOP<v1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Const7 = makeConst(element::f32,
                                 ov::Shape({
                                     8,
@@ -6101,7 +6095,7 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto Reshape5 = makeOP<v1::Reshape>({MatMul3, {0, 0, 1, 8}}, {{"special_zero", true}});
         auto Reshape6 = makeOP<v1::Reshape>({Reshape5, {0, 1, -1, 0}}, {{"special_zero", true}});
         auto Transpose4 = makeOP<v1::Transpose>({Reshape6, {0, 2, 1, 3}});
-        auto Reshape7 = flatten_tokens_hidden(Transpose4);
+        auto Reshape7 = makeOP<v1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
 
         auto scale = makeConst(element::f32, ov::Shape{}, {0.353553f});
@@ -6379,21 +6373,21 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto Reshape_q = makeOP<v1::Reshape>({MatMul_q, {0, 0, 4, 128}}, {{"special_zero", true}});
         auto Transpose_q = makeOP<v1::Transpose>({Reshape_q, {0, 2, 1, 3}});
         auto Transpose_q2 = makeOP<v1::Transpose>({Transpose_q, {0, 2, 1, 3}});
-        auto Q_flat = flatten_tokens_hidden(Transpose_q2);
+        auto Q_flat = makeOP<v1::Reshape>({Transpose_q2, {0, -1}}, {{"special_zero", true}});
 
         auto k_weight = makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE);
         auto MatMul_k = makeOP<v0::MatMul>({Multiply2, k_weight}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Reshape_k = makeOP<v1::Reshape>({MatMul_k, {0, 0, 1, 128}}, {{"special_zero", true}});
         auto Transpose_k = makeOP<v1::Transpose>({Reshape_k, {0, 2, 1, 3}});
         auto Transpose_k2 = makeOP<v1::Transpose>({Transpose_k, {0, 2, 1, 3}});
-        auto K_flat = flatten_tokens_hidden(Transpose_k2);
+        auto K_flat = makeOP<v1::Reshape>({Transpose_k2, {0, -1}}, {{"special_zero", true}});
 
         auto MatMul_v = makeOP<v0::MatMul>({Multiply2, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
                                            {{"transpose_a", false}, {"transpose_b", true}});
         auto Reshape_v = makeOP<v1::Reshape>({MatMul_v, {0, 0, 1, 128}}, {{"special_zero", true}});
         auto Transpose_v = makeOP<v1::Transpose>({Reshape_v, {0, 2, 1, 3}});
         auto Transpose_v2 = makeOP<v1::Transpose>({Transpose_v, {0, 2, 1, 3}});
-        auto V_flat = flatten_tokens_hidden(Transpose_v2);
+        auto V_flat = makeOP<v1::Reshape>({Transpose_v2, {0, -1}}, {{"special_zero", true}});
 
         auto sw_neg = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1024.0f});
         auto Squeeze_sw = makeOP<v15::Squeeze>({sw_neg}, {{"allow_axis_skip", false}});
