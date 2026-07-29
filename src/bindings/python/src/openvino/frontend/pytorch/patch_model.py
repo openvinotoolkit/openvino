@@ -77,6 +77,8 @@ def unpatch_model(model, orig_forward_name):
     _unpatch_torch_functions()
 
     for _, module in model.named_modules():
+        # Re-attach real 16-bit weights that were swapped for FP32 placeholders.
+        _restore_stashed_weights(module)
         if hasattr(module, orig_forward_name):
             try:
                 module.forward = getattr(module, orig_forward_name)
@@ -107,6 +109,59 @@ def _create_function_wrapper(extension):
 def _fp32_tensor(*shape, device=None):
     """Create a placeholder FP32 tensor with the given shape and device."""
     return torch.full(shape, 0.5, dtype=torch.float32, device=device)
+
+
+# Prefix for attributes where the real (16-bit) weight tensors of a patched
+# module are stashed while ``module.weight``/``module.bias`` expose FP32
+# placeholders. See ``_stash_weights_as_fp32_placeholders``.
+_ORIG_WEIGHT_ATTR_PREFIX = "_openvino_orig_"
+
+
+def _orig_weight(module, attr):
+    """Return the stashed real weight tensor for ``attr`` if present.
+
+    Falls back to the live ``module.<attr>`` so extensions still work for
+    modules that were patched without stashing (e.g. FP32 weights).
+    """
+    return getattr(module, _ORIG_WEIGHT_ATTR_PREFIX + attr, getattr(module, attr, None))
+
+
+def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias")):
+    """Replace a module's 16-bit weight tensors with FP32 placeholders.
+
+    The real 16-bit tensors are stashed under ``_openvino_orig_<attr>`` so the
+    extension ``convert`` callback can still emit them as the graph constant
+    (via ``_orig_weight``), while model code that reads ``module.weight.dtype``
+    (or ``.device``) during tracing sees a plain FP32 tensor. This prevents the
+    tracer from baking a 16-bit ``aten::to`` cast into the graph.
+
+    The placeholder shares a single-element storage (a broadcasted zero) so it
+    costs virtually no memory even for large weights, and it keeps the original
+    device so that ``x.to(module.weight.device)`` traces correctly.
+    """
+    for attr in weight_attrs:
+        param = getattr(module, attr, None)
+        if not isinstance(param, torch.Tensor) or param.dtype not in supported:
+            continue
+        stash_name = _ORIG_WEIGHT_ATTR_PREFIX + attr
+        if hasattr(module, stash_name):
+            continue  # already stashed
+        # Keep the real 16-bit tensor reachable for `convert` (registered so
+        # tracing can resolve the prim::GetAttr for it).
+        setattr(module, stash_name, param)
+        placeholder = torch.zeros((), dtype=torch.float32,
+                                  device=param.device).expand(param.shape)
+        setattr(module, attr, torch.nn.Parameter(placeholder, requires_grad=False))
+
+
+def _restore_stashed_weights(module):
+    """Undo ``_stash_weights_as_fp32_placeholders`` for a single module."""
+    stash_names = [n for n in list(module._parameters) + list(module.__dict__)
+                   if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
+    for stash_name in stash_names:
+        attr = stash_name[len(_ORIG_WEIGHT_ATTR_PREFIX):]
+        setattr(module, attr, getattr(module, stash_name))
+        delattr(module, stash_name)
 
 
 # Extension for torch.bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
@@ -499,14 +554,14 @@ def _get_16bit_extensions(patch_condition=None):
         torch.nn.Linear: ModuleExtension(
             torch.nn.Linear, "ov_ext::linear",
             convert=lambda module, target_op, *args, **kwargs: target_op(args[0],
-                                                                         module.weight,
-                                                                         module.bias),
+                                                                         _orig_weight(module, "weight"),
+                                                                         _orig_weight(module, "bias")),
             evaluate=lambda module, *args, **kwargs: _fp32_tensor(
                 *args[0].shape[:-1], module.out_features, device=args[0].device),
             condition=patch_condition),
         torch.nn.Embedding: ModuleExtension(
             torch.nn.Embedding, "ov_ext::embedding",
-            convert=lambda module, target_op, *args, **kwargs: target_op(module.weight,
+            convert=lambda module, target_op, *args, **kwargs: target_op(_orig_weight(module, "weight"),
                                                                          args[0],
                                                                          module.padding_idx,
                                                                          module.scale_grad_by_freq,
@@ -520,8 +575,8 @@ def _get_16bit_extensions(patch_condition=None):
         extensions[Conv1D] = ModuleExtension(
             Conv1D, "ov_ext::conv1d",
             convert=lambda module, target_op, *args, **kwargs: target_op(args[0],
-                                                                         module.weight,
-                                                                         module.bias),
+                                                                         _orig_weight(module, "weight"),
+                                                                         _orig_weight(module, "bias")),
             evaluate=lambda module, *args, **kwargs: _fp32_tensor(
                 *args[0].shape[:-1], module.nf, device=args[0].device),
             condition=patch_condition)
@@ -538,6 +593,15 @@ def __make_16bit_traceable(model: torch.nn.Module,
     - Replace known list of modules with ModuleExtension.
     - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
     - Convert other modules with weights to FP32.
+
+    For extension-backed modules (Linear/Embedding/Conv1D) the real 16-bit
+    weight is stashed aside and ``module.weight``/``module.bias`` are replaced
+    with FP32 placeholders. The extension ``convert`` callbacks still emit the
+    stashed 16-bit tensor as the graph constant, but any model code that
+    inspects ``module.weight.dtype`` (or ``.device``) during tracing now sees
+    FP32 instead of the 16-bit type. Without this, such introspection bakes a
+    16-bit ``aten::to`` cast into the traced graph and the model runs in 16-bit
+    at inference even though the intent was FP32 activations.
     """
     # Patch torch functions for operations like bmm used in MoE models
     _patch_torch_functions()
@@ -547,6 +611,10 @@ def __make_16bit_traceable(model: torch.nn.Module,
         if has_been_patched(module, name, orig_forward_name):
             continue
         if module.__class__ in extensions:
+            # Expose FP32 placeholders as .weight/.bias so dtype/device
+            # introspection during tracing sees FP32; the real 16-bit tensor
+            # is stashed and re-attached by the extension's convert callback.
+            _stash_weights_as_fp32_placeholders(module, supported)
             module_patcher(module, name, orig_forward_name, extensions)
         else:
             for param in module.parameters(recurse=False):

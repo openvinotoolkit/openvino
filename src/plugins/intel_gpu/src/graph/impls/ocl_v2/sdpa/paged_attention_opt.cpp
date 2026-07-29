@@ -1378,9 +1378,9 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
-            return pa_sdpa_micro->kd.micro_kernels.size() > 0;
+            return !pa_sdpa_micro->kd.micro_kernels.empty();
         else if (stage == PagedAttentionStage::MIXED)
-            return pa_sdpa_micro_mixed->kd.micro_kernels.size() > 0;
+            return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
         return false;
     }
 
@@ -1447,7 +1447,7 @@ public:
     }
 
     static size_t get_micro_tile_qsize(KernelData& kernel_data) {
-        OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+        OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
         const auto& gemms = kernel_data.micro_kernels;
         const auto wg_tile_q = gemms[0]->p.getSetting("wg_tile_n");
@@ -1522,7 +1522,6 @@ public:
         } else {
             rt_params->use_gqa_kernel = false;
         }
-        return;
     }
 
     // update impl_parameter and rt_parameter
@@ -1799,8 +1798,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
-                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
+                                       << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;

@@ -22,6 +22,7 @@ public:
     std::shared_ptr<ov::Node> matched_sin;
     std::shared_ptr<ov::Node> matched_cos;
     std::shared_ptr<ov::Node> matched_concat;
+    bool duplicate_freqs = false;
 
     std::function<void()> transform_cb;
 

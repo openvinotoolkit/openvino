@@ -478,7 +478,17 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Select|BroadcastSelect|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(.*smoke_Snippets_MatMul.*)"),
+            std::regex(R"(.*smoke_Snippets_MatMult.*)"),
+            std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
+            std::regex(R"(.*smoke_Snippets_Dyn.*Mat.*)"),
+            std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
+            std::regex(R"(.*smoke_Snippets_MHA.*)"),
+            std::regex(R"(.*smoke_Snippets_MLP.*)"),
+            std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
+            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
+            std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
+            std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
@@ -506,7 +516,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
             std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)"),
             // Tests to be enabled on ARM64
-            std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)

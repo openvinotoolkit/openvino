@@ -56,7 +56,7 @@ class timer {
 
 public:
     /// @brief Timer value type.
-    typedef typename ClockTy::duration val_type;
+    using val_type = typename ClockTy::duration;
 
     /// @brief Starts timer.
     timer() : start_point(ClockTy::now()) {}
@@ -89,8 +89,10 @@ private:
 
 /// @brief Represents profiling interval as its type and value.
 struct profiling_interval {
-    profiling_stage stage;                    ///< @brief Display name.
-    std::shared_ptr<profiling_period> value;  ///< @brief Interval value.
+    profiling_stage stage;                                              ///< @brief Display name.
+    std::shared_ptr<profiling_period> value;                            ///< @brief Interval value.
+    std::chrono::nanoseconds start = std::chrono::nanoseconds::zero();  ///< @brief Interval start timestamp.
+    bool is_valid_start = false;                                        ///< @brief Whether start is valid.
 };
 
 /// @brief Represents list of @ref profiling_interval
@@ -194,7 +196,7 @@ private:
     instrumentation::pipeline_stage _stage;
     bool _per_iter_mode = false;
     bool cache_hit = false;
-    std::string memalloc_info = "";
+    std::string memalloc_info;
 };
 
 class mem_usage_logger {
