@@ -27,6 +27,9 @@
 #include <fstream>
 #include <tuple>
 
+// performance measurement (to be reverted)
+#include <chrono>
+
 #include "convolution_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
@@ -13473,11 +13476,17 @@ TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_gws_112_240_1) {
     net.set_input_data("input", input_mem);
 
     ASSERT_NO_THROW({
+        const auto t1 = std::chrono::steady_clock::now();
         auto outputs = net.execute();
+        const auto t0 = std::chrono::steady_clock::now();
         ASSERT_FALSE(outputs.empty());
         auto out_mem = outputs.at("conv").get_memory();
         ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
     });
+    const auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+    const double avg_ms = static_cast<double>(total_ms) / static_cast<double>(repro_iters);
+    std::cout << "depthwise_ticket_repro_execute_must_not_throw timing: total="
+                << total_ms << " ms, avg=" << avg_ms << " ms/iter" << std::endl;
 }
 
 TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_repro) {
