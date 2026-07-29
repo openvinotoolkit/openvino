@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-29-05-16-02-000-30423049570",
+  "timestamp": "2026-07-29T05:16:02Z",
+  "run_id": "30423049570",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30423049570",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Build job fails on Upload OpenVINO developer and tests package artifact upload steps",
+  "signature": "build job upload openvino developer package and tests package steps fail|Infrastructure",
+  "signature_hash": "589cf8a9d8ff0cf3",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Steps 'Upload OpenVINO developer package' and 'Upload OpenVINO tests package' failed"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because Build job failed"
+    }
+  ],
+  "key_errors": [
+    "Step 'Upload OpenVINO developer package' failed",
+    "Step 'Upload OpenVINO tests package' failed",
+    "No detailed error logs available (403 access to logs) - failure pattern matches known transient artifact upload infrastructure issue"
+  ],
+  "root_cause": "The Build / Build job failed on two consecutive artifact upload steps: 'Upload OpenVINO developer package' and 'Upload OpenVINO tests package'. All preceding build/compilation steps succeeded. The pattern is consistent with a transient GitHub Actions artifact storage service issue (network error, 403 Forbidden from blob storage, or ECONNREFUSED), which has been observed multiple times in this repository for similar artifact upload failures in Build jobs. No PR is associated with this merge-group run.",
+  "reproduction_steps": "N/A - transient infrastructure issue not reproducible locally",
+  "recommended_actions": [
+    "Re-run the failed Build / Build job to attempt a fresh artifact upload",
+    "If failure persists, check GitHub Actions artifact service status",
+    "If the PR was dropped from the merge queue, re-add it after confirming the artifact service is healthy"
+  ],
+  "prevention_strategies": "Artifact upload failures of this type are transient infrastructure issues. Adding retry logic to artifact upload steps can reduce the impact of transient failures.",
+  "historical_context": "Similar artifact upload failures have been observed in multiple prior investigations: RISC-V builds with FinalizeArtifact 403 (patterns 602c52a223d7ebfe), Windows builds with silent upload failures (pattern 89059626d1cbf7b3), and debian package upload failures (pattern edfaf9946abc4dee). These are consistently Infrastructure/Network category transient failures."
+}

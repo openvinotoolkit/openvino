@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "signature": "build job upload openvino developer package and tests package steps fail|Infrastructure",
+  "signature_hash": "589cf8a9d8ff0cf3",
+  "title": "Build job fails on Upload OpenVINO developer and tests package artifact upload steps",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-29T05:16:02Z",
+  "last_seen": "2026-07-29T05:16:02Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30423049570"
+  ],
+  "affected_prs": [],
+  "recent_timestamps": [
+    "2026-07-29T05:16:02Z"
+  ],
+  "rerun_search_string": "Upload OpenVINO developer package"
+}
