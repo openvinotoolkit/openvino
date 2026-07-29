@@ -208,6 +208,16 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
 
     std::shared_ptr<ov::Node> out_node = current_node;
     if (p.activation_op_type == "Reshape" || p.activation_op_type == "None_Reshape") {
+        // The transformation always restores NCHW order (Reshape to [N, H, W, Cout] + Transpose)
+        // before feeding a matched output Reshape, since Reshape never reorders elements and the
+        // matched Reshape was built against the original Convolution's NCHW output. Here H = W = 1,
+        // so the NCHW/NHWC shapes coincide, but the nodes are still inserted.
+        auto nhwc_shape_const =
+            ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 1, 1, 15});
+        out_node = std::make_shared<ov::opset1::Reshape>(out_node, nhwc_shape_const, false);
+        auto nhwc_to_nchw_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        out_node = std::make_shared<ov::opset1::Transpose>(out_node, nhwc_to_nchw_const);
+
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 1, 1, 15});
         out_node = std::make_shared<ov::opset1::Reshape>(out_node, reshape_const, false);
     }
