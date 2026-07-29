@@ -75,25 +75,27 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_weightless_cache_attribute) {
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
 
-    // "A" is an external initializer (offset 0); "B" is an inline Constant node.
-    // Only the external one must carry WeightlessCacheAttribute.
+    // "A" is an external initializer, so a real offset and size in an external data file are expected.
+    // All other constants are enumerated, so an index is used as an offset and a size is unknown.
+    const auto& operations = model->get_ordered_ops();
     size_t external_constants = 0;
-    for (const auto& op : model->get_ordered_ops()) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
+    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
         const auto& rt_info = const_node->get_rt_info();
         const auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        ASSERT_NE(it, rt_info.end()) << "Constant '" << const_node->get_friendly_name()
+                                     << "' is expected to have WeightlessCacheAttribute";
+        const auto& weightless_cache = it->second.as<ov::WeightlessCacheAttribute>();
+        EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
         if (const_node->get_friendly_name() == "A") {
-            ASSERT_NE(it, rt_info.end()) << "External constant is expected to have WeightlessCacheAttribute";
-            const auto& weightless_cache = it->second.as<ov::WeightlessCacheAttribute>();
             EXPECT_EQ(weightless_cache.bin_offset, 0);
             EXPECT_EQ(weightless_cache.original_size, const_node->get_byte_size());
-            EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
             ++external_constants;
         } else {
-            EXPECT_EQ(it, rt_info.end()) << "Inline constant '" << const_node->get_friendly_name()
-                                         << "' unexpectedly has WeightlessCacheAttribute";
+            EXPECT_EQ(weightless_cache.bin_offset, idx);
+            EXPECT_EQ(weightless_cache.original_size, 0);
         }
     }
     EXPECT_EQ(external_constants, 1);
