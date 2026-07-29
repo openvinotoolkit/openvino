@@ -304,21 +304,21 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
         const auto axis_vec = axis_const->cast_vector<int64_t>();
         return axis_vec.size() == 1 && axis_vec[0] == 0;
     });
-    auto p_unsqueeze_0 = wrap_type<v0::Unsqueeze>({p_broadcast, p_axis});
+    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_broadcast, p_axis});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto axis_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(p_axis).get_node_shared_ptr());
-        const auto unsqueeze_0 = pattern_map.at(p_unsqueeze_0).get_node_shared_ptr();
+        const auto unsqueeze = pattern_map.at(p_unsqueeze).get_node_shared_ptr();
         auto new_axis_const = v0::Constant::create(axis_const->get_element_type(), axis_const->get_shape(), {1});
         copy_runtime_info(axis_const, new_axis_const);
-        unsqueeze_0->input(1).replace_source_output(new_axis_const);
-        unsqueeze_0->validate_and_infer_types();
+        unsqueeze->input(1).replace_source_output(new_axis_const);
+        unsqueeze->validate_and_infer_types();
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(p_unsqueeze_0, matcher_name);
+    auto m = std::make_shared<Matcher>(p_unsqueeze, matcher_name);
     register_matcher(m, callback);
 }
 

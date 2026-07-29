@@ -113,7 +113,48 @@ public:
  * aten::select(dim=0, index=0) that dropped it (lowered to Gather(index=0, axis=0)) becomes redundant.
  *
  * This transformation detects Parameter(name == "position_ids") -> Unsqueeze(optional) -> Convert(optional) ->
- * Gather(index=0, axis=0) and removes the Gather, reconnecting its consumers to the Gather's data input.
+ * Gather(index=0, axis=0) and replaces the Gather with a Reshape(-1), which flattens whatever shape is produced
+ * by the optional Unsqueeze/Convert back to a 1D tensor. Since position_ids no longer carries a real batch
+ * dimension to select from, this is equivalent to the original select but no longer depends on a batch axis
+ * being present.
+ *
+ * We change from this:
+ *
+ *  ┌──────────────┐
+ *  │ position_ids │
+ *  └──────┬───────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │  Unsqueeze  │ (optional)
+ *  └──────┬──────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │   Convert   │ (optional)
+ *  └──────┬──────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │Gather(idx=0,│
+ *  │   axis=0)   │
+ *  └─────────────┘
+ *
+ * To this:
+ *
+ *  ┌──────────────┐
+ *  │ position_ids │
+ *  └──────┬───────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │  Unsqueeze  │ (optional)
+ *  └──────┬──────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │   Convert   │ (optional)
+ *  └──────┬──────┘
+ *         │
+ *  ┌──────┴──────┐
+ *  │   Reshape   │
+ *  │    (-1)     │
+ *  └─────────────┘
  */
 class ov::pass::EliminateDropBatch : public ov::pass::MatcherPass {
 public:
@@ -126,10 +167,56 @@ public:
  * Cos/Sin instead of using a fused rotary embedding op, producing cos/sin values in the original
  * [batch=1, tokens, ...] layout via a trailing Unsqueeze(axis=0). PagedAttention's Q/K arrive with tokens
  * flattened into the leading axis instead, so this transformation detects that RoPE outer-product tail
- * (Unsqueeze -> MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast -> Unsqueeze(axis=0)) and
+ * (MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast(optional) -> Unsqueeze(axis=0)) and
  * rewrites the trailing Unsqueeze's axis from 0 to 1, moving the flattened-tokens axis to index 0 to match
  * the layout Q/K arrive in. This is independent of how the per-token positions were derived (works whether
  * or not EliminateDropBatch has already collapsed a batch-drop select feeding into the outer product).
+ *
+ * We change from this:
+ *
+ *  ┌───────┐
+ *  │ MatMul│ (outer product with inv_freq)
+ *  └───┬───┘
+ *      │
+ *  ┌───┴───┐
+ *  │Cos/Sin│
+ *  └───┬───┘
+ *      │
+ *  ┌───┴────┐
+ *  │Multiply│ (scale)
+ *  └───┬────┘
+ *      │
+ *  ┌───┴─────┐
+ *  │Broadcast│ (optional)
+ *  └───┬─────┘
+ *      │
+ *  ┌───┴──────┐
+ *  │Unsqueeze │
+ *  │ (axis=0) │
+ *  └──────────┘
+ *
+ * To this:
+ *
+ *  ┌───────┐
+ *  │ MatMul│ (outer product with inv_freq)
+ *  └───┬───┘
+ *      │
+ *  ┌───┴───┐
+ *  │Cos/Sin│
+ *  └───┬───┘
+ *      │
+ *  ┌───┴────┐
+ *  │Multiply│ (scale)
+ *  └───┬────┘
+ *      │
+ *  ┌───┴─────┐
+ *  │Broadcast│ (optional)
+ *  └───┬─────┘
+ *      │
+ *  ┌───┴──────┐
+ *  │Unsqueeze │
+ *  │ (axis=1) │
+ *  └──────────┘
  */
 class ov::pass::RoPEUnsqueezeAxisReplacer : public ov::pass::MatcherPass {
 public:
