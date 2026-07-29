@@ -4,12 +4,11 @@
 
 #include "rnn_seq.hpp"
 
-#include <cmath>
-
 #include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "lstm_seq_inst.h"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "primitive_base.hpp"
 #include "registry/implementation_manager.hpp"
 
@@ -66,7 +65,7 @@ public:
         }
 
         // clip == 0 and clip == inf both mean "no clipping"; normalize inf to 0 so the kernel skips clamping
-        const float clip = std::isinf(primitive->clip) ? 0.0f : primitive->clip;
+        const float clip = ov::op::util::is_no_clip(primitive->clip) ? 0.0f : primitive->clip;
         if (clip > 0.0f) {
             params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }
