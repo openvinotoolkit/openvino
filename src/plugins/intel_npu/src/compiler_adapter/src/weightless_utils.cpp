@@ -65,8 +65,12 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             OPENVINO_ASSERT(opt.has_value(), "Failed to parse id for constant: ", descriptor.nameFromCompiler);
 
             const size_t id = opt.value();
-            const size_t byte_size =
-                ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            const auto byte_size_opt =
+                ov::util::get_memory_size_safe(descriptor.precision, descriptor.shapeFromCompiler.to_shape());
+            OPENVINO_ASSERT(byte_size_opt.has_value(),
+                            "Overflow computing byte size for constant: ",
+                            descriptor.nameFromCompiler);
+            const size_t byte_size = *byte_size_opt;
             OPENVINO_ASSERT(id <= mapped_memory->size() && byte_size <= mapped_memory->size() - id,
                             "Constant offset/size is out of bounds for mapped weights file: offset=",
                             id,

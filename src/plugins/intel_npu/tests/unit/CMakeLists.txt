@@ -14,6 +14,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_al"
         "openvino::npu_logger_utils"
         "openvino_npu_common"
+        "openvino_npu_compiler_adapter"
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
 )
@@ -29,6 +30,8 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/common/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
@@ -147,6 +150,7 @@ install(TARGETS ${TARGET_NAME}
 
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/weightless_utils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
