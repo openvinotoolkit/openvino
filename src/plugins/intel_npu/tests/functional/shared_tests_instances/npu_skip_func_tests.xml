@@ -46,6 +46,25 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Data types not supported by NPU3720 PV Driver.</message>
+        <enable_rules>
+            <device>3720</device>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f64.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#128116 -->
     <skip_config>
         <message>Unicode paths for ov::cache_dir are not correctly handled on Windows</message>
@@ -187,7 +206,7 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- EISW-162037 -->
+    <!-- E#162037 -->
     <skip_config>
         <message>compiled_blob test use `CACHE_MODE` which is not supported on NPU</message>
         <filters>
@@ -213,6 +232,14 @@ Example:
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#191862 -->
+    <skip_config>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
+        <filters>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -249,6 +276,28 @@ Example:
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#191861 -->
+    <skip_config>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
         </filters>
     </skip_config>
 
