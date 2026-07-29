@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
@@ -304,6 +305,8 @@ public:
     void hint_evict(size_t offset, size_t size) noexcept override;
 
     void hint_prefetch(size_t offset, size_t size) override;
+
+    void hint_prefetch_async(size_t /*offset*/, size_t /*size*/) override {}
 
 private:
     /**

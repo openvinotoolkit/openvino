@@ -146,13 +146,13 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                     std::vector<ExpressionPort>& exits) {
     entries.clear();
     exits.clear();
+    const std::unordered_set<ExpressionPtr> loop_exprs(loop_begin_pos, loop_end_pos);
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         const auto& expr = *expr_it;
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
             const auto in_port = expr->get_input_port(i);
             const auto parent_expr = in_port.get_connected_ports().begin()->get_expr();
-            if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
-                std::find(loop_begin_pos, expr_it, parent_expr) == expr_it) {
+            if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) && loop_exprs.count(parent_expr) == 0) {
                 entries.push_back(in_port);
             }
         }
@@ -161,7 +161,7 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
             const auto consumer_ports = out_port.get_connected_ports();
             for (const auto& consumer : consumer_ports) {
                 const auto& consumer_expr = consumer.get_expr();
-                if (std::find(expr_it, loop_end_pos, consumer_expr) == loop_end_pos) {
+                if (loop_exprs.count(consumer_expr) == 0) {
                     exits.push_back(out_port);
                     break;
                 }

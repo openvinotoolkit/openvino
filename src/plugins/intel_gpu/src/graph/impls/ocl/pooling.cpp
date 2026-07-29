@@ -135,22 +135,22 @@ public:
 
         uint32_t kernel_z = kernel.size() >= 3 ? static_cast<uint32_t>(kernel[kernel.size() - 3]) : 1;
         uint32_t kernel_y = kernel.size() >= 2 ? static_cast<uint32_t>(kernel[kernel.size() - 2]) : 1;
-        uint32_t kernel_x = kernel.size() >= 1 ? static_cast<uint32_t>(kernel[kernel.size() - 1]) : 1;
+        uint32_t kernel_x = !kernel.empty() ? static_cast<uint32_t>(kernel[kernel.size() - 1]) : 1;
         pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
         uint32_t pad_z = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0));
         uint32_t pad_y = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0));
-        uint32_t pad_x = static_cast<uint32_t>(std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0));
+        uint32_t pad_x = static_cast<uint32_t>(std::max<std::ptrdiff_t>(!pads_begin.empty() ? pads_begin[pads_begin.size() - 1] : 0, 0));
         pp.poolPad  = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
         uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
+        uint32_t stride_x = !stride.empty() ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
         pp.poolStride = {stride_x, stride_y, stride_z};
 
         uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
         uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
+        uint32_t dilation_x = !dilation.empty() ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
         return params;
