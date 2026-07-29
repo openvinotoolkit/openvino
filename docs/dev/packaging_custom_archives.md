@@ -232,9 +232,9 @@ Override `CPACK_COMPONENTS_ALL` with the exact component list and group them
 into a single archive:
 
 ```bash
-cmake -DCPACK_GENERATOR=TGZ \
-      -DCPACK_ARCHIVE_COMPONENT_INSTALL=OFF \
-      <build_dir>
+cmake -S <source_dir> -B <build_dir> \
+      -DCPACK_GENERATOR=TGZ \
+      -DCPACK_ARCHIVE_COMPONENT_INSTALL=OFF
 
 cpack --config <build_dir>/CPackConfig.cmake \
       -D CPACK_COMPONENTS_ALL="core;core_c;cpp_samples" \
