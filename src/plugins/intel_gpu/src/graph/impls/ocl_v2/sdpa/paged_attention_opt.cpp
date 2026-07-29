@@ -1488,8 +1488,8 @@ public:
         auto effective_context_len = rt_params->max_context_len;
         if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE && !desc->has_scores_output()) {
             auto total_blocks = ceil_div(rt_params->max_context_len, paged_attention_block_size);
-            auto swa_start_block = rt_params->max_context_len > desc->sliding_window
-                                 ? (rt_params->max_context_len - desc->sliding_window) / paged_attention_block_size : 0;
+            auto swa_start_block =
+                rt_params->max_context_len > desc->sliding_window ? (rt_params->max_context_len - desc->sliding_window) / paged_attention_block_size : 0;
             auto effective_blocks = total_blocks - swa_start_block;
             effective_context_len = effective_blocks * paged_attention_block_size;
         }
