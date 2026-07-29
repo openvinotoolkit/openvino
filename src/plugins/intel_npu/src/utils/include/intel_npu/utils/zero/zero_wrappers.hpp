@@ -56,6 +56,9 @@ public:
 
     bool operator==(const CommandQueueDesc& other) const;
 
+    bool shared_common_queue() const {
+        return _shared_common_queue;
+    }
 private:
     bool owner_tag_required() const;
     void update_key();
@@ -65,9 +68,6 @@ private:
     }
     const void* owner_tag() const {
         return _owner_tag;
-    }
-    bool shared_common_queue() const {
-        return _shared_common_queue;
     }
 
     ze_command_queue_priority_t _priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
@@ -83,6 +83,8 @@ public:
     friend class CommandQueue;
     CommandList() = delete;
     CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
+    // Immediate commandlist creation
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -106,6 +108,8 @@ public:
         return _handle;
     }
 
+    static ze_result_t createCommandList(ze_context_handle_t context, ze_device_handle_t device,
+                                         uint32_t cmd_queue_group_ordinal, ze_command_list_handle_t* handle);
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
