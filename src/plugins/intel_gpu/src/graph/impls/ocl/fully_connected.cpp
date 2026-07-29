@@ -50,7 +50,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -152,7 +152,7 @@ public:
         bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         auto updated_impl_param = impl_param;
         bool swiglu_fused = false;
-        if (updated_impl_param.fused_desc.size() > 0) {
+        if (!updated_impl_param.fused_desc.empty()) {
             for (const auto& f : updated_impl_param.fused_desc) {
                 if (f.is_type<swiglu>())
                     swiglu_fused = true;

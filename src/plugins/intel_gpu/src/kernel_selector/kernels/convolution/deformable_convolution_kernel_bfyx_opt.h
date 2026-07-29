@@ -12,7 +12,7 @@ namespace kernel_selector {
 class DeformableConvolutionKernel_bfyx_opt : public ConvolutionKernelBase {
 public:
     DeformableConvolutionKernel_bfyx_opt() : ConvolutionKernelBase("deformable_convolution_gpu_bfyx_opt") {}
-    virtual ~DeformableConvolutionKernel_bfyx_opt() {}
+    ~DeformableConvolutionKernel_bfyx_opt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

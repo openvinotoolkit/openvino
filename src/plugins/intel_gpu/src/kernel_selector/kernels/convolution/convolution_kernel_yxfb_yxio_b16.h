@@ -14,7 +14,7 @@ class ConvolutionKernel_yxfb_yxio_b16 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_yxfb_yxio_b16() : ConvolutionKernelBase("convolution_gpu_yxfb_yxio_b16") {}
-    virtual ~ConvolutionKernel_yxfb_yxio_b16() {}
+    ~ConvolutionKernel_yxfb_yxio_b16() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

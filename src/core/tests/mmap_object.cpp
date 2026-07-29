@@ -8,10 +8,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include <sstream>
+#include <thread>
+#include <utility>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -471,6 +475,191 @@ TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
     mapped->hint_prefetch(prefetch_offset, prefetch_size);
     const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
     EXPECT_EQ(pages_after, pages_before) << "hint_prefetch evicted pages.";
+}
+
+class HintPrefetchAsyncTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+
+    void TearDown() override {
+        if (!m_file_path.empty()) {
+            std::filesystem::remove(m_file_path);
+        }
+    }
+
+    static std::vector<uint8_t> read_mapped(MappedMemory& mm) {
+        return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    }
+
+    static std::vector<uint8_t> make_pattern(size_t size) {
+        std::vector<uint8_t> data(size);
+        for (size_t i = 0; i < size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
+        return data;
+    }
+
+    void write_file(const std::vector<uint8_t>& data) {
+        std::ofstream f(m_file_path, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
+    }
+
+    // hint_prefetch_async() no longer returns a token to wait on: completion is tracked and
+    // joined internally by the MappedMemory implementation. To observe residency in tests we
+    // simply poll until the background population catches up (or a generous timeout elapses).
+    static size_t wait_for_resident_pages(const char* addr,
+                                          size_t size,
+                                          size_t expected_pages,
+                                          std::chrono::milliseconds timeout = std::chrono::seconds(10)) {
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        size_t pages_resident = 0;
+        do {
+            pages_resident = utils::count_resident_pages(addr, size);
+            if (pages_resident >= expected_pages)
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+        return pages_resident;
+    }
+};
+
+TEST_F(HintPrefetchAsyncTest, pages_resident_eventually) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_wait.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t total_pages = (file_size + page - 1) / page;
+
+    mapped->hint_prefetch_async();
+
+    const size_t pages_resident = wait_for_resident_pages(mapped->data(), file_size, total_pages);
+    EXPECT_EQ(pages_resident, total_pages) << "Expected all pages resident after hint_prefetch_async().";
+}
+
+TEST_F(HintPrefetchAsyncTest, prefetch_then_immediate_destruction_is_safe) {
+    // Regression test: hint_prefetch_async() must never leave background page-touching tasks
+    // racing with this object's destruction. Dropping the last reference to the mapping right
+    // after kicking off the prefetch (with zero waiting) must not crash / use-after-free, since
+    // the implementation is required to join any in-flight tasks before unmapping.
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_destroy.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async();
+    mapped.reset();  // must not crash, regardless of whether the background tasks finished yet
+}
+
+TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_partial.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB
+    constexpr size_t prefetch_offset = 1 * 1024 * 1024;
+    constexpr size_t prefetch_size = 5 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t region_pages = (prefetch_size + page - 1) / page;
+
+    mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
+
+    const size_t pages_resident =
+        wait_for_resident_pages(mapped->data() + prefetch_offset, prefetch_size, region_pages);
+    EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
+
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, below_threshold_is_safe_noop) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_small.bin");
+    constexpr size_t file_size = 1024;  // 1 KiB - below the 4 MiB threshold
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    EXPECT_NO_THROW(mapped->hint_prefetch_async());
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, data_correct_immediately_after_call) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_alive.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async();
+    // The mapping is always readable/correct regardless of prefetch completion; background
+    // threads only accelerate residency.
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, random_access_after_async_is_correct) {
+    // Reading pages in a shuffled order concurrently with in-flight background population must
+    // always return the correct bytes, whether or not a given page has been faulted in yet.
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_random.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above the parallel-I/O threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async();
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    const size_t total_pages = (file_size + page - 1) / page;
+    std::vector<size_t> order(total_pages);
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::shuffle(order.begin(), order.end(), std::mt19937{12345});
+
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    for (const size_t idx : order) {
+        const size_t begin = idx * page;
+        const size_t end = std::min(begin + page, file_size);
+        for (size_t i = begin; i < end; ++i) {
+            ASSERT_EQ(base[i], data[i]) << "mismatch at offset " << i;
+        }
+    }
+}
+
+TEST_F(HintPrefetchAsyncTest, backward_access_after_async_is_correct) {
+    // Reading the mapping back-to-front (opposite the population's forward stride) concurrently
+    // with in-flight background population must still return the correct bytes.
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_backward.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above the parallel-I/O threshold)
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async();
+
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    for (size_t i = file_size; i-- > 0;) {
+        ASSERT_EQ(base[i], data[i]) << "mismatch at offset " << i;
+    }
 }
 
 }  // namespace ov::test
