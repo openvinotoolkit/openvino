@@ -130,7 +130,7 @@ void pa_lsc_u8(
         #pragma unroll
         for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_K / 2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -406,10 +406,10 @@ void pa_lsc_u8(
                     apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                             kv_pos, q_start, (int)past_lens);
 #endif
-                    auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+                    auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
                     matrix<half, REG_N, REG_K> P;
-                    Transpose2DMatrix(St, P);
+                    transpose_St_to_P_half(St, P);
 
                     // Each worker reads its chunk of V from SLM
                     uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
@@ -644,10 +644,10 @@ void pa_lsc_u8(
             apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                     kv_pos, q_start, (int)past_lens);
 #endif
-            auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+            auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
-            Transpose2DMatrix(St, P);
+            transpose_St_to_P_half(St, P);
 
             // Each worker reads its chunk of V from SLM
             uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
@@ -865,7 +865,7 @@ void pa_kernel_lsc_prefetch_f16(
         #pragma unroll
         for(int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 
@@ -992,10 +992,10 @@ void pa_kernel_lsc_prefetch_f16(
 #endif
 
         //show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
-        Transpose2DMatrix(St, P);
+        transpose_St_to_P_half(St, P);
 
         prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+prefetch_block_id*blk_stride));
         prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
@@ -1302,10 +1302,10 @@ void pa_kernel_lsc_prefetch_f16(
 #endif
 
         //show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
-        Transpose2DMatrix(St, P);
+        transpose_St_to_P_half(St, P);
 
         prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+prefetch_block_id*blk_stride));
         prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);

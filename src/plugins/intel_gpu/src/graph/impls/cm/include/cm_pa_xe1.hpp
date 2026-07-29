@@ -101,7 +101,7 @@ void pa_lsc_u8(
                                     CacheHint::Cached,
                                     CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
             rQ[ri].format<uint>()  = gathered;
-            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
 #if KV_CACHE_COMPRESSION == 1
@@ -277,7 +277,6 @@ void pa_lsc_u8(
 
         cm_fence(CM_LOCAL_BARRIER);
         cm_sbarrier(0);
-        //if (kv_pos > 1024000)
         if (kv_pos + kv_step < kv_stop)
             cm_sbarrier(1);
         load_slm_KV(kv_pos + kv_step*2);
@@ -308,7 +307,7 @@ void pa_lsc_u8(
             apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_spec_num,
                                     kv_pos, q_start, (int)past_lens);
 #endif
-            auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+            auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
@@ -492,7 +491,7 @@ void pa_kernel_lsc_prefetch_f16(
                         CacheHint::Cached,
                         CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
             rQ[ri].format<uint>()  = gathered;
-            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)q_prescale);
         }
     }
     constexpr int blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE*CMPA_BLOCK_SZ;
@@ -586,7 +585,7 @@ void pa_kernel_lsc_prefetch_f16(
 #endif
 
         // show(St);
-        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+        auto max_comp = cm_online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
         Transpose2DMatrix(St, P);
