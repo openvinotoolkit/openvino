@@ -50,6 +50,10 @@ ze_graph_handle_t IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
 }
 
+BlobType IGraph::get_blob_type() const {
+    return BlobType::ELF;
+}
+
 void IGraph::update_network_name(std::string_view) {
     OPENVINO_THROW("update_network_name not implemented");
 }

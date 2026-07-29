@@ -150,7 +150,8 @@ public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
                  bool blobAllocatedByPlugin,
-                 const FilteredConfig& config);
+                 const FilteredConfig& config,
+                 BlobType blobType = BlobType::LLVM);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -198,6 +199,7 @@ public:
     std::optional<bool> is_profiling_blob() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
+    BlobType get_blob_type() const override;
 
 private:
     void initialize_impl(const FilteredConfig& config) override;
@@ -225,6 +227,7 @@ private:
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
+    BlobType _blobType = BlobType::LLVM;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported

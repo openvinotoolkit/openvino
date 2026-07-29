@@ -145,7 +145,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            outputLayouts,
                                            compilerVersion,
                                            blobSizeAfterEncryption,
-                                           _graph->get_compatibility_descriptor())
+                                           _graph->get_compatibility_descriptor(),
+                                           _graph->get_blob_type())
             .write(stream);
     }
 }

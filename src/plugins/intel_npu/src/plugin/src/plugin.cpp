@@ -1070,7 +1070,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                localConfig,
                                initBlobs,
                                weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
-                               compatibilityDescriptor);
+                               compatibilityDescriptor,
+                               metadata ? metadata->get_blob_type() : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

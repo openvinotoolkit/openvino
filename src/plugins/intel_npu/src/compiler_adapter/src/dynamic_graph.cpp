@@ -441,9 +441,11 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
                            bool blobAllocatedByPlugin,
-                           const FilteredConfig& config)
+                                                     const FilteredConfig& config,
+                                                     BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
+            _blobType(blobType),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -517,6 +519,10 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
 
 const NetworkMetadata& DynamicGraph::get_metadata() const {
     return _metadata;
+}
+
+BlobType DynamicGraph::get_blob_type() const {
+    return _blobType;
 }
 
 void DynamicGraph::update_network_name(std::string_view name) {

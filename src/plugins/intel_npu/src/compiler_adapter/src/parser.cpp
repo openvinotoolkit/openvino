@@ -28,22 +28,16 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                       const FilteredConfig& config,
                                       const std::optional<std::vector<ov::Tensor>>& initBlobs,
                                       std::optional<std::shared_ptr<const ov::Model>>&& model,
-                                      const std::optional<std::string>& compatibilityDescriptor) const {
+                                      const std::optional<std::string>& compatibilityDescriptor,
+                                      const std::optional<BlobType>& blobType) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
-    // Detect blob format
-    const void* data = mainBlob.data();
-    size_t size = mainBlob.get_byte_size();
-    std::string header;
-    if (size >= 20) {
-        header.assign(static_cast<const char*>(data), 20);
-    } else {
-        header.assign(static_cast<const char*>(data), size);
-    }
-    if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
+    // New exports provide the type in metadata. Header inspection is retained only for raw and legacy imports.
+    const BlobType type = blobType.value_or(detect_blob_type(mainBlob.data(), mainBlob.get_byte_size()));
+    if (type == BlobType::LLVM || type == BlobType::BYTECODE) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
-        NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
+        NPUVMRuntimeApi::initialize(type == BlobType::BYTECODE ? "npu_interpreter_runtime" : "npu_mlir_runtime");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config, type);
     }
 
     GraphDescriptor mainGraphDesc;

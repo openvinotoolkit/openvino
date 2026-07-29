@@ -105,6 +105,10 @@ MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
       _logger("NPUBlobMetadata", Logger::global().level()),
       _source() {}
 
+std::optional<BlobType> MetadataBase::get_blob_type() const {
+    return std::nullopt;
+}
+
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
@@ -188,6 +192,29 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
                                      blobSizeAfterEncryption},
       _compatibilityDescriptor{compatibilityDescriptor} {
     _version = METADATA_VERSION_2_6;
+}
+
+Metadata<METADATA_VERSION_2_7>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption,
+                                         const std::optional<std::string_view> compatibilityDescriptor,
+                                         BlobType blobType)
+    : Metadata<METADATA_VERSION_2_6>{blobSize,
+                                     ovVersion,
+                                     initSizes,
+                                     batchSize,
+                                     inputLayouts,
+                                     outputLayouts,
+                                     compilerVersion,
+                                     blobSizeAfterEncryption,
+                                     compatibilityDescriptor},
+      _blobType(blobType) {
+    _version = METADATA_VERSION_2_7;
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -340,6 +367,21 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     }
 }
 
+void Metadata<METADATA_VERSION_2_7>::read() {
+    Metadata<METADATA_VERSION_2_6>::read();
+
+    uint8_t blobType;
+    read_data_from_source(reinterpret_cast<char*>(&blobType), sizeof(blobType));
+    if (blobType > static_cast<uint8_t>(BlobType::BYTECODE)) {
+        OPENVINO_THROW("Invalid blob type in NPU blob metadata: ", static_cast<uint32_t>(blobType));
+    }
+    _blobType = static_cast<BlobType>(blobType);
+}
+
+std::optional<BlobType> Metadata<METADATA_VERSION_2_7>::get_blob_type() const {
+    return _blobType;
+}
+
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
     const auto it = _textAttrs.find(MetadataTextKeys::OV);
     if (it == _textAttrs.end()) {
@@ -469,6 +511,21 @@ void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
     append_blob_size_and_magic(stream);
 }
 
+void Metadata<METADATA_VERSION_2_7>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write(stream);
+
+    const auto compatDesc = get_compatibility_descriptor().value_or("");
+    const uint64_t compatDesc_len = compatDesc.size();
+    stream.write(reinterpret_cast<const char*>(&compatDesc_len), sizeof(compatDesc_len));
+    if (compatDesc_len > 0) {
+        stream.write(compatDesc.data(), static_cast<std::streamsize>(compatDesc_len));
+    }
+
+    const auto blobType = static_cast<uint8_t>(_blobType);
+    stream.write(reinterpret_cast<const char*>(&blobType), sizeof(blobType));
+    append_blob_size_and_magic(stream);
+}
+
 void Metadata<METADATA_VERSION_2_0>::write_as_text(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
@@ -535,6 +592,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
     case METADATA_VERSION_2_6:
         return std::make_unique<Metadata<METADATA_VERSION_2_6>>(blobSize);
+    case METADATA_VERSION_2_7:
+        return std::make_unique<Metadata<METADATA_VERSION_2_7>>(blobSize);
     default:
         return nullptr;
     }

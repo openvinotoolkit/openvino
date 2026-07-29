@@ -74,7 +74,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
+        const auto blobType = detect_blob_type(tensor.data(), tensor.get_byte_size());
+        return std::make_shared<DynamicGraph>(_zeroInitStruct,
+                                               std::move(tensor),
+                                               true,
+                                               config,
+                                               blobType);
     }
 
     GraphDescriptor graphDesc;

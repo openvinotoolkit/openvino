@@ -42,6 +42,19 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
 }
 
+TEST_F(MetadataUnitTests, writeAndReadBlobTypes) {
+    for (const BlobType blobType : {BlobType::ELF, BlobType::LLVM, BlobType::BYTECODE}) {
+        std::stringstream stream;
+        MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt,
+                     std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, blobType)
+            .write(stream);
+
+        auto storedMeta = read_metadata_from(stream);
+        ASSERT_NE(storedMeta, nullptr);
+        ASSERT_EQ(storedMeta->get_blob_type(), std::make_optional(blobType));
+    }
+}
+
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
     uint64_t blobSize = 64;
     std::stringstream stream;

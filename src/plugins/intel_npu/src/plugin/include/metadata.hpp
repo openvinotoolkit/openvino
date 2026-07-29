@@ -14,6 +14,7 @@
 #include <variant>
 #include <vector>
 
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
@@ -82,6 +83,8 @@ public:
     virtual std::optional<bool> is_encrypted_blob() const;
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
+
+    virtual std::optional<BlobType> get_blob_type() const;
 
     virtual ~MetadataBase() = default;
 
@@ -188,11 +191,12 @@ constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
 constexpr uint32_t METADATA_VERSION_2_5{MetadataBase::make_version(2, 5)};
 constexpr uint32_t METADATA_VERSION_2_6{MetadataBase::make_version(2, 6)};
+constexpr uint32_t METADATA_VERSION_2_7{MetadataBase::make_version(2, 7)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_6};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_7};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -451,6 +455,33 @@ public:
 
 private:
     std::optional<std::string> _compatibilityDescriptor;
+};
+
+/**
+ * @brief Stores the format of the compiled blob.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_7> : public Metadata<METADATA_VERSION_2_6> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t> compilerVersion = std::nullopt,
+             const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
+             const std::optional<std::string_view> compatibilityDescriptor = std::nullopt,
+             BlobType blobType = BlobType::ELF);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    std::optional<BlobType> get_blob_type() const override;
+
+private:
+    BlobType _blobType;
 };
 
 /**
