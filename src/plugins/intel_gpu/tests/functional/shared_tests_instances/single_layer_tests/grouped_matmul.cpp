@@ -18,44 +18,44 @@ using ov::test::TokensPerExpert;
 using ov::test::utils::DecompressionType;
 
 class GroupedMatMulCompressedLayerTest_GPU : public GroupedMatMulCompressedLayerTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
-        return GroupedMatMulCompressedLayerTest::getTestCaseName(obj);
-    }
-
 protected:
     void check_results() {
-        // validates weights precision is preserved in the compiled model.
+        // Validates weights precision is preserved in the compiled model by
+        // finding the FC / GroupedMatMul node in the exec graph and inspecting
+        // the weights_precision / wzp_precision rt_info attributes.
         const auto& test_param = GetParam();
         const ov::element::Type expected_weights_prec = std::get<2>(test_param);
         const auto subtract_type = std::get<6>(test_param);
         const bool has_zero_point = (subtract_type != DecompressionType::empty);
 
-        bool found = false;
-        for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-            auto it = n->get_rt_info().find("weights_precision");
-            if (it != n->get_rt_info().end()) {
-                found = true;
-                auto actual_prec = ov::element::Type(it->second.as<std::string>());
-                ASSERT_EQ(actual_prec, expected_weights_prec)
-                    << "Node '" << n->get_friendly_name()
-                    << "' has weights_precision=" << actual_prec
-                    << " but expected " << expected_weights_prec;
+        auto runtime_model = compiledModel.get_runtime_model();
+        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul"});
+        ASSERT_FALSE(nodes.empty()) << "No FullyConnected or grouped_matmul node found in the runtime model";
 
-                if (has_zero_point) {
-                    auto zp_it = n->get_rt_info().find("wzp_precision");
-                    ASSERT_TRUE(zp_it != n->get_rt_info().end())
-                        << "Node '" << n->get_friendly_name()
-                        << "' is missing 'wzp_precision' rt_info";
-                    auto actual_zp_prec = ov::element::Type(zp_it->second.as<std::string>());
-                    ASSERT_EQ(actual_zp_prec, expected_weights_prec)
-                        << "Node '" << n->get_friendly_name()
-                        << "' has wzp_precision=" << actual_zp_prec
-                        << " but expected " << expected_weights_prec;
-                }
+        for (const auto& n : nodes) {
+            const auto& rt = n->get_rt_info();
+            auto it = rt.find("weights_precision");
+            if (it == rt.end())
+                continue;
+
+            ov::element::Type actual_prec(it->second.as<std::string>());
+            ASSERT_EQ(actual_prec, expected_weights_prec)
+                << "Node '" << n->get_friendly_name()
+                << "' has weights_precision=" << actual_prec
+                << " but expected " << expected_weights_prec;
+
+            if (has_zero_point) {
+                auto zp_it = rt.find("wzp_precision");
+                ASSERT_TRUE(zp_it != rt.end())
+                    << "Node '" << n->get_friendly_name()
+                    << "' is missing 'wzp_precision' rt_info";
+                ov::element::Type actual_zp_prec(zp_it->second.as<std::string>());
+                ASSERT_EQ(actual_zp_prec, expected_weights_prec)
+                    << "Node '" << n->get_friendly_name()
+                    << "' has wzp_precision=" << actual_zp_prec
+                    << " but expected " << expected_weights_prec;
             }
         }
-        ASSERT_TRUE(found) << "No node with 'weights_precision' rt_info found in the runtime model";
     }
 };
 
