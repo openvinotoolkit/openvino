@@ -318,6 +318,21 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;
 
+    // In case of zero-copy weight sharing: when a weight is shared, decline
+    // this (blocked-layout) kernel for compressed INT4/UINT4 FCs so the selector
+    // falls back to FullyConnected_bfyx_Ref, which reads weights in plain row-major
+    // oiyx layout. With no blocked weight reorder, the FC binds the u4 weight
+    // constant directly from the shared buffer — i.e. weights become zero-copy like the KV cache.
+    std::cout << "FullyConnected_bf_tiled" << fc_params.is_remote
+              << ", compressed=" << fc_params.compressed
+              << ", weight type=" << kernel_selector::toString(weights.GetDType())
+              << std::endl;
+    if (fc_params.is_remote && fc_params.compressed &&
+       (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+            std::cout << "!!!!!!!!!!!!FullyConnected_bf_tiled continue" << std::endl;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+    std::cout << "FullyConnected_bf_tiled continue" << std::endl;
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {

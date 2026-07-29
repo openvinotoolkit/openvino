@@ -20,6 +20,7 @@
 #include <map>
 #include <utility>
 #include <set>
+#include <unordered_set>
 
 namespace cldnn {
 
@@ -296,6 +297,14 @@ public:
 
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
+    void set_remote_constant_ids(std::unordered_set<primitive_id> ids) {
+        _remote_constant_ids = std::move(ids);
+    }
+
+    bool is_remote_constant(const primitive_id& id) const {
+        return _remote_constant_ids.count(id) > 0;
+    }
+
     bool is_new_shape_infer() const { return new_shape_infer; }
     layout_optimizer& get_layout_optimizer() const { return *_layout_optimizer; }
 
@@ -331,6 +340,7 @@ private:
     graph_optimizer_info optimizer_passes_info;
 
     std::map<std::string, std::vector<primitive_id>> state_initializers;
+    std::unordered_set<primitive_id> _remote_constant_ids;
 
     primitives_info get_current_stage_info() const;
     /*

@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <mutex>
 #include <set>
+#include <unordered_set>
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -97,8 +98,12 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<size_t, cldnn::layout> inputLayouts;
-    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, bool>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+
+    void register_remote_constant(const cldnn::primitive_id& id) {
+        remote_constant_ids.insert(id);
+    }
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
@@ -162,6 +167,7 @@ private:
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     bool m_is_inner_program = false;
+    std::unordered_set<cldnn::primitive_id> remote_constant_ids;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

@@ -128,6 +128,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::get_compiled_program() const {
 
 void ProgramBuilder::prepare_build() {
     m_topology.reset(new cldnn::topology());
+    remote_constant_ids.clear();
 }
 
 void ProgramBuilder::cleanup_build() {
@@ -167,6 +168,11 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     } catch (std::exception& e) {
         OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
     }
+
+    if (program) {
+        program->set_remote_constant_ids(remote_constant_ids);
+    }
+
     cleanup_build();
 
     return program;

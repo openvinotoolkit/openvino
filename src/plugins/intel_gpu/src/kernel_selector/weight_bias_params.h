@@ -24,6 +24,7 @@ struct weight_bias_params : public base_params {
     DataTensor decompression_scale;
     DataTensor decompression_zero_point;
 
+    bool is_remote = false;
     ParamsKey GetParamsKey() const override;
 };
 

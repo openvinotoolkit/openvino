@@ -681,6 +681,27 @@ std::string dump_shared_ctx(const ov::weight_sharing::Context& shared_ctx) {
     return oss.str();
 }
 
+bool constant_can_be_shared(const ov::op::v0::Constant& constant, const std::vector<ov::SoPtr<ov::IRemoteContext>> &shared_ctxs) {
+    if (constant.get_byte_size() < static_cast<size_t>(ov::util::get_system_page_size())) {
+        return false;
+    }
+
+    bool needs_conversion = false;
+    // TODO check types of remote context
+    // The code below is written in assumption that we have NPU and GPU as the remote contexts
+    (void)shared_ctxs;
+    if (ov::shape_size(constant.get_shape()) == 1 &&
+        constant.get_output_element_type(0) == ov::element::f64) {
+        // If a constant has element type f64 but contains no elements (empty tensor),
+        // GPU have to convert it to f32 because the GPU plugin only supports the f32 data type internally.
+        needs_conversion = true;
+    } else if (constant.get_output_element_type(0) == ov::element::u16 ||
+        constant.get_output_element_type(0) == ov::element::i16) {
+        needs_conversion = true;
+    }
+    return !needs_conversion;
+}
+
 void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
 const ov::AnyMap& properties) {
     NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
@@ -714,10 +735,15 @@ const ov::AnyMap& properties) {
     const size_t kMinRelocateBytes = ov::util::get_system_page_size();  // page-sized+; skip tiny scalar constants
     NPUW_ASSERT(!m_shared_ctx_ptr && "NPU shared context must be empty before shared weight assignment.");
     m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>();
+    size_t total_bytes_occupied_by_shared_constants = 0;
     for (const auto& op : model->get_ops()) {
         auto not_shared_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
-        // TODO devise better conditions to determine whether shared weights applicable or not
-        if (!not_shared_constant || not_shared_constant->get_byte_size() < kMinRelocateBytes) {
+        if (!not_shared_constant) {
+            continue;
+        }
+
+        if (!constant_can_be_shared(*not_shared_constant, remote_ctxs)) {
+            LOG_DEBUG("Constant " << not_shared_constant->get_friendly_name() << " cannot be shared among selected contexts, skipping.");
             continue;
         }
         const size_t bytes = not_shared_constant->get_byte_size();
@@ -731,6 +757,7 @@ const ov::AnyMap& properties) {
         shared_constant->set_friendly_name(not_shared_constant->get_friendly_name());
         ov::copy_runtime_info(not_shared_constant, shared_constant);
         std::memcpy(buffer->get_ptr(), not_shared_constant->get_data_ptr(), bytes);
+        total_bytes_occupied_by_shared_constants += bytes;
 
         // Preserve the weightless-cache attribute: copy_runtime_info drops it (is_copyable()==false),
         // and without it NPUW's Const wrapper treats every relocated weight as a brand-new Constant
@@ -742,8 +769,8 @@ const ov::AnyMap& properties) {
             ov::copy_weightless_cache_attr(not_shared_constant, shared_constant);
         }
         ov::replace_node(not_shared_constant, shared_constant);
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: " << dump_shared_ctx(*m_shared_ctx_ptr));
     }
+    LOG_INFO("[NPUW] SHARED_WEIGHTS: total bytes: " << total_bytes_occupied_by_shared_constants << "\n" << dump_shared_ctx(*m_shared_ctx_ptr));
 }
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,

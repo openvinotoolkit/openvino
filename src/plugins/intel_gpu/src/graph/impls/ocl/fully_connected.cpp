@@ -176,6 +176,8 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
+        params.is_remote = impl_param.get_program().is_remote_constant(primitive->weights.pid);
+
         bool commpressed = primitive->decompression_scale.is_valid();
         bool with_zp = primitive->decompression_zero_point.is_valid();
         if (commpressed) {

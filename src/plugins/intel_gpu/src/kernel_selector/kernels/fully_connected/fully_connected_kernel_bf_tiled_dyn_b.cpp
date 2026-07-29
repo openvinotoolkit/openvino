@@ -103,6 +103,16 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;
 
+    // In case of zero-copy weight sharing: when a weight is shared, decline
+    // this (blocked-layout) kernel for compressed INT4/UINT4 FCs so the selector
+    // falls back to FullyConnected_bfyx_Ref, which reads weights in plain row-major
+    // oiyx layout. With no blocked weight reorder, the FC binds the u4 weight
+    // constant directly from the shared buffer — i.e. weights become zero-copy like the KV cache.
+    if (fc_params.is_remote && fc_params.compressed &&
+       (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
     // Only INT4 compressed weights
     auto wt = weights.GetDType();
     if (wt != WeightsType::UINT4 && wt != WeightsType::INT4)
