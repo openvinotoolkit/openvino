@@ -680,7 +680,7 @@ void primitive_inst::realloc_intermediates() {
     if (buffer_descs.empty())
         return;
 
-    GPU_DEBUG_CODE(std::string memalloc_info = "");
+    GPU_DEBUG_CODE(std::string memalloc_info);
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         auto need_lockable = buffer_descs[i].m_lockable;
         auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
@@ -1047,7 +1047,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        bool reclaim = 0;
+        bool reclaim = false;
         size_t required_buffer_size = 0;
         if (get_node().is_type<kv_cache>() && i != 1) {
             // Relax reclaiming condition for kv cache
@@ -1161,7 +1161,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                           true);
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
-            GPU_DEBUG_CODE(std::string memalloc_info = "");
+            GPU_DEBUG_CODE(std::string memalloc_info);
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
@@ -2655,7 +2655,6 @@ void primitive_inst::update_weights() {
 
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
-    return;
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
