@@ -78,9 +78,21 @@ protected:
             std::ignore = std::filesystem::remove(xml_path);
     }
 
-    // Tag ("A"/"B") of the candidate that Core actually constructed for the bare device.
+    // Tag ("A"/"B") of the candidate Core constructed for the bare (default) device.
     std::string resolved_tag(ov::Core& core) {
         return core.get_property(device, "MOCK_CANDIDATE_TAG").as<std::string>();
+    }
+    // Tag of the candidate Core constructed for a specific canonical id (e.g. "FAKE.1").
+    std::string resolved_tag(ov::Core& core, const std::string& id) {
+        return core.get_property(device + "." + id, "MOCK_CANDIDATE_TAG").as<std::string>();
+    }
+    // available_devices entries that belong to this dispatch group.
+    std::vector<std::string> group_devices(ov::Core& core) {
+        std::vector<std::string> group;
+        for (const auto& d : core.get_available_devices())
+            if (d == device || d.rfind(device + ".", 0) == 0)
+                group.push_back(d);
+        return group;
     }
 };
 
@@ -129,6 +141,38 @@ TEST_F(DispatchGroupTest, no_candidate_serves_throws) {
     ov::Core core;
     core.register_plugins(xml_path.string());
     OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::_);
+}
+
+// Two devices, opposite per-id winners: GPU.0 -> A, GPU.1 -> B, coexisting.
+TEST_F(DispatchGroupTest, per_id_routing_picks_distinct_winners) {
+    // device aa: A preferred, B capable; device bb: A servable, B preferred.
+    script("0,aa," + std::to_string(PREFERRED) + ";1,bb," + std::to_string(SERVABLE),
+           "0,aa," + std::to_string(CAPABLE) + ";1,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "0"), "A");
+    EXPECT_EQ(resolved_tag(core, "1"), "B");
+}
+
+// The merged canonical list has each physical device once, id-qualified.
+TEST_F(DispatchGroupTest, available_devices_merged_canonical_list) {
+    script("0,aa," + std::to_string(PREFERRED) + ";1,bb," + std::to_string(SERVABLE),
+           "0,aa," + std::to_string(CAPABLE) + ";1,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(group_devices(core), (std::vector<std::string>{device + ".0", device + ".1"}));
+}
+
+// Divergent enumeration: a device only one candidate sees still appears once, served by it.
+TEST_F(DispatchGroupTest, divergent_enumeration_non_shared_device) {
+    // Both see aa; only B sees cc (e.g. a non-Intel GPU only the OCL-like candidate lists).
+    script("0,aa," + std::to_string(PREFERRED),
+           "0,aa," + std::to_string(CAPABLE) + ";1,cc," + std::to_string(SERVABLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(group_devices(core), (std::vector<std::string>{device + ".0", device + ".1"}));
+    EXPECT_EQ(resolved_tag(core, "0"), "A");  // shared device -> higher score (A)
+    EXPECT_EQ(resolved_tag(core, "1"), "B");  // B-only device -> B
 }
 
 }  // namespace

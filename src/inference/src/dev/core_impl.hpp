@@ -276,6 +276,27 @@ private:
                                                          const PluginDescriptor& desc,
                                                          const std::string& device_id) const;
 
+    // Dispatch-aware get_plugin: resolves the winner for config's device id (rewriting the id to
+    // the winner's own), or behaves like get_plugin(plugin_name) for a single-candidate name.
+    ov::Plugin get_plugin(const std::string& plugin_name, ov::AnyMap& config) const;
+
+    // Shared get_plugin core. device_id (empty = default/bare) selects the dispatch-group winner;
+    // config, when set, gets its ov::device::id rewritten to the winner library's own id.
+    ov::Plugin get_plugin_impl(const std::string& plugin_name,
+                               const std::string& device_id,
+                               ov::AnyMap* config) const;
+
+    // Rewrite config's ov::device::id from the canonical ".N" id to the winner's own id (they can
+    // differ when candidates number devices differently). Caller holds the mutex.
+    void translate_dispatch_device_id_unsafe(const std::string& device_name,
+                                             const std::string& canonical_id,
+                                             size_t winner_idx,
+                                             ov::AnyMap& config) const;
+
+    // Canonical merged device ids ("0","1",...) for a dispatch group, built from m_dispatch_map
+    // (each physical device once). Empty for a non-group name. Builds the map on first use.
+    std::vector<std::string> dispatch_group_device_ids(const std::string& device_name) const;
+
 
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 

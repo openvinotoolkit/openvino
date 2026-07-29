@@ -49,6 +49,8 @@ public:
             return std::vector<ov::PropertyName>{};
         if (name == ov::internal::supported_properties.name())
             return std::vector<ov::PropertyName>{};
+        if (name == ov::available_devices.name())
+            return std::vector<std::string>{};
         // Report which candidate answered, so a test can assert who was constructed.
         if (name == "MOCK_CANDIDATE_TAG")
             return std::string(MOCK_CANDIDATE_TAG);
