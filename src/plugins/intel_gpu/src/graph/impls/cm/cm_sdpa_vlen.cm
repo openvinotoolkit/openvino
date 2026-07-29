@@ -15,7 +15,7 @@
  * limitations under the License.
  *******************************************************************************/
 namespace KERNEL_NAME {
-    
+
 #include "cm_sdpa_common.hpp"
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
