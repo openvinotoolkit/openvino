@@ -42,10 +42,10 @@ struct jit_snippets_call_args {
     void* dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
     void* buffer_scratchpad_ptr = nullptr;
 
-    // Note: Ideally loop_args must be private, since we manage this pointer manually.
+    // Note: Ideally loop_args must be private, since this pointer is non-owning.
     // However, standard-layout class definition (to use offset_of) requires the same access specifier
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
-    loop_args_t* loop_args = nullptr;
+    const loop_args_t* loop_args = nullptr;
     amx_tile_config_t amx_tile_config;
     // Issue: 168073
     // TODO: decrease max array size

@@ -17,7 +17,7 @@ struct reshape_params : public base_params {
 class ReshapeKernelRef : public KernelBaseOpenCL {
 public:
     ReshapeKernelRef() : KernelBaseOpenCL("reshape_ref") {}
-    virtual ~ReshapeKernelRef() {}
+    ~ReshapeKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

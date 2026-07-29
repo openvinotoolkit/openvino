@@ -167,7 +167,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
 
     auto codes = db.get(name);
 
-    if (codes.size()) {
+    if (!codes.empty()) {
         kernel_string->str = codes[0];
         kernel_string->jit = jit.first;
         kernel_string->undefs = jit.second;
