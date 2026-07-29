@@ -70,12 +70,13 @@ protected:
 private:
     std::unique_ptr<ov::util::XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
+        const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const override {
         return std::make_unique<XmlDeserializer>(node,
-                                                 get_weights_provider(),
+                                                 weights_provider,
                                                  m_origin_weights,
                                                  opsets,
                                                  extensions,

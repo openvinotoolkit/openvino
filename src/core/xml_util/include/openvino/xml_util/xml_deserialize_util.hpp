@@ -21,7 +21,6 @@
 #include "openvino/util/string_view_streambuf.hpp"
 #include "openvino/xml_util/weights_provider.hpp"
 
-
 namespace ov::util {
 struct GenericLayerParams;
 
@@ -120,6 +119,7 @@ private:
 
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
                                           const pugi::xml_node& node,
+                                          const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                                           const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
@@ -130,11 +130,12 @@ private:
 
     virtual std::unique_ptr<XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
+        const std::shared_ptr<WeightsProvider>& weights_provider,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const {
-        return std::make_unique<XmlDeserializer>(node, get_weights_provider(), opsets, extensions, variables, version);
+        return std::make_unique<XmlDeserializer>(node, weights_provider, opsets, extensions, variables, version);
     }
 
     // -- DATA --

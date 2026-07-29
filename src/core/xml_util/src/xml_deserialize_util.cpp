@@ -1028,7 +1028,7 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
             inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
         }
 
-        auto node = create_node(inputs, p.xml, p.params);
+        auto node = create_node(inputs, p.xml, m_weights_provider, p.params);
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
@@ -1214,9 +1214,11 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
-std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
-                                                       const pugi::xml_node& node,
-                                                       const GenericLayerParams& params) {
+std::shared_ptr<ov::Node> XmlDeserializer::create_node(
+    const std::vector<ov::Output<ov::Node>>& inputs,
+    const pugi::xml_node& node,
+    const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
+    const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
@@ -1236,7 +1238,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     const auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
-        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, weights_provider, m_opsets, m_extensions, m_variables, m_version);
         ovNode = (*extensionIt->second).create(inputs, *visitor).at(0).get_node_shared_ptr();
     }
 
@@ -1287,7 +1289,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
-        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_weights_provider, m_opsets, m_extensions, m_variables, m_version);
         if (ovNode->visit_attributes(*visitor)) {
             ovNode->constructor_validate_and_infer_types();
         }
@@ -1299,7 +1301,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         ovNode = std::make_shared<ov::op::util::FrameworkNode>(inputs);
         // XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         // ovNode->visit_attributes(visitor);
-        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_weights_provider, m_opsets, m_extensions, m_variables, m_version);
         ovNode->visit_attributes(*visitor);
 
         size_t index{0};
