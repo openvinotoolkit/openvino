@@ -15,6 +15,7 @@
 #include <intel_gpu/primitives/permute.hpp>
 
 #include "openvino/reference/convolution.hpp"
+#include "convolution/convolution_kernel_b_fs_yx_fsv16_depthwise.h"
 
 #include <algorithm>
 #include <array>
@@ -13401,4 +13402,80 @@ TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob) {
             }
         }
     }
+}
+
+TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_gws_112_240_1) {
+    struct depthwise_kernel_test_proxy : public kernel_selector::ConvolutionKernel_b_fs_yx_fsv16_depthwise {
+        kernel_selector::ConvolutionKernelBase::DispatchData call_set_default(
+            const kernel_selector::convolution_params& params) const {
+            return SetDefault(params);
+        }
+    };
+
+    kernel_selector::convolution_params params;
+
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{32, 64, 240, 1},
+                                                    kernel_selector::Datatype::F16,
+                                                    kernel_selector::DataLayout::b_fs_yx_fsv16);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{16, 56, 240, 1},
+                                                     kernel_selector::Datatype::F16,
+                                                     kernel_selector::DataLayout::b_fs_yx_fsv16);
+
+    params.groups = 240;
+    params.stride = kernel_selector::uSize(1, 1, 1);
+    params.filterSize = kernel_selector::uSize(17, 9, 1);
+    params.engineInfo.maxWorkGroupSize = 256;
+
+    depthwise_kernel_test_proxy kernel;
+    const auto dispatch = kernel.call_set_default(params);
+
+    ASSERT_EQ(dispatch.gws, (std::vector<size_t>{112, 240, 1}));
+    ASSERT_EQ(dispatch.lws, (std::vector<size_t>{1, 16, 1}));
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<ov::float16>(1, 240, 64, 32, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(240, 1, 9, 17, -1, 1);
+
+    auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, 240, 32, 64}});
+    set_values(input_mem, flatten_4d<ov::float16>(format::bfyx, input_data));
+
+    auto weights_mem = engine.allocate_memory({
+        data_types::f16,
+        format::goiyx,
+        tensor{group(240), batch(1), feature(1), spatial(17, 9)}
+    });
+    set_values(weights_mem, flatten_4d<ov::float16>(format::bfyx, weights_data));
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_fsv", input_info("input"), {data_types::f16, format::b_fs_yx_fsv16, tensor{1, 240, 32, 64}}),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input_fsv"), "weights", no_bias,
+                    240,
+                    {1, 1},
+                    {1, 1},
+                    {0, 0},
+                    {0, 0},
+                    true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
+    ));
+
+    network net(engine, topology, config);
+    net.set_input_data("input", input_mem);
+
+    ASSERT_NO_THROW({
+        auto outputs = net.execute();
+        ASSERT_FALSE(outputs.empty());
+        auto out_mem = outputs.at("conv").get_memory();
+        ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
+    });
 }
