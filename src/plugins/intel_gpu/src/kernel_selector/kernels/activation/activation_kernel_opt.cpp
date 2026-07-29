@@ -93,7 +93,7 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
     auto input_dt = params.inputs[0].GetDType();
     if (input_dt == Datatype::INT8 || input_dt == Datatype::INT32) {
         for (auto act : params.activations) {
-            if (act.function == ActivationFunction::ABS)
+            if (act.function == ActivationFunction::ABS || act.function == ActivationFunction::SIGN)
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
