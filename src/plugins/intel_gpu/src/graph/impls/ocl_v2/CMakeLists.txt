@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj${OV_GPU_SUFFIX}")
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -54,7 +54,7 @@ ov_gpu_add_backend_target(
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RT STREQUAL "SYCL")
     # Some sources include oneDNN headers that require SYCL backend support.
     # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
