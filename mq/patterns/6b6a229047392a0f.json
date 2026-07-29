@@ -14,5 +14,6 @@
   "recent_timestamps": [
     "2026-07-01T09:51:46Z"
   ],
-  "rerun_search_string": "Failed to FinalizeArtifact Unable to make request ENOTFOUND|Build / Build"
+  "rerun_search_string": "Failed to FinalizeArtifact Unable to make request ENOTFOUND|Build / Build",
+  "signature_hash": "6b6a229047392a0f"
 }

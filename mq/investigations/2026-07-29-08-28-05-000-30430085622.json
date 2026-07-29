@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-29-08-28-05-000-30430085622",
+  "timestamp": "2026-07-29T08:28:05Z",
+  "run_id": "30430085622",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30430085622",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37079",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37079",
+  "author": "whitneyfoster",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] AssertionError: Accuracy validation failed (max diff 0.069)"
+    }
+  ],
+  "key_errors": [
+    "AssertionError: Accuracy validation failed\nMax diff is 0.06871891021728516",
+    "multiprocessing.context.ProcessError:\nkatuni4ka/opt-125m-gptq running failed:\n  File test_llm.py:559 in compare_results\n    return super().compare_results([fw_outputs[0]], [ov_outputs[0]])\n  AssertionError: Accuracy validation failed"
+  ],
+  "root_cause": "The OpenVINO conversion of the GPTQ-quantized OPT-125M model (katuni4ka/opt-125m-gptq) produces inference results that differ from the original PyTorch model beyond the acceptance threshold. The max diff is ~0.069 in the logits tensor. This is a recurring regression first seen on 2026-07-27 (pattern count now 21) that blocks numerous unrelated PRs in the merge queue. The root cause is likely a numerical precision issue introduced in the GPTQ 4-bit quantization path of the PyTorch frontend or CPU plugin.",
+  "reproduction_steps": "Run: pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v on Linux with PyTorch 2.12+cpu and the installed OpenVINO build from the merge-queue SHA.",
+  "recommended_actions": [
+    "Investigate and fix the accuracy regression in GPTQ 4-bit quantized model conversion (PyTorch FX frontend or CPU plugin) that causes the OPT-125M GPTQ test to fail with max diff ~0.069.",
+    "Consider temporarily adding katuni4ka/opt-125m-gptq to the skip list to unblock the merge queue while the root cause is investigated.",
+    "Review recent changes to the PyTorch frontend GPTQ handling between 2026-07-26 and now to identify the breaking change."
+  ],
+  "prevention_strategies": "Add a precommit accuracy gate for GPTQ quantized models so regressions are caught before entering the merge queue. Consider a dedicated nightly test that tracks max diff over time and alerts on regressions.",
+  "historical_context": "This is the 21st occurrence of this pattern (signature_hash 671a331e9a60933e), first seen 2026-07-27. It has been blocking merge-queue PRs continuously since then."
+}
