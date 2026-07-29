@@ -2,22 +2,25 @@
   "schema_version": "1.0",
   "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
   "signature_hash": "44dec04115b12f89",
-  "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already completed on attempt 2",
+  "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
   "category": "Infrastructure",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-07-25T13:05:00Z",
-  "last_seen": "2026-07-28T14:49:03Z",
+  "last_seen": "2026-07-29T09:30:40Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30435558411",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30366211388",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30351149892",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30156795631"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36970",
     "https://github.com/openvinotoolkit/openvino/pull/37071",
     "https://github.com/openvinotoolkit/openvino/pull/36955",
     "https://github.com/openvinotoolkit/openvino/pull/37024"
   ],
   "recent_timestamps": [
+    "2026-07-29T09:30:40Z",
     "2026-07-28T14:49:03Z",
     "2026-07-28T11:15:51Z"
   ],
