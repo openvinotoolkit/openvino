@@ -4,6 +4,8 @@
 
 #include "llm_continuous_kvcache_strategy.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <regex>
 #include <unordered_map>
 
@@ -228,6 +230,14 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                 auto src_slice = uu::make_tensor_slice(src, src_dim, 0u, keep);
                 plan->temps[name] = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
             }
+            if (name == m_req.m_kvcache_past_names.front()) {
+                // One line of layout diagnosis per continuation so slow copy paths can be
+                // identified from the log alone.
+                LOG_INFO("Continued prefill layout: src "
+                         << src->get_shape() << " dim " << src_dim << ", dst " << dst->get_shape() << " dim " << dst_dim
+                         << ", aliased " << aliased << ", same_layout " << same_layout << ", v_trans gen/pre "
+                         << kvcache_desc.v_tensors_transposed_gen << "/" << kvcache_desc.v_tensors_transposed_pre);
+            }
         }
     } else {
         // The prompt-phase finish case. The prefill past inputs hold everything except
@@ -256,6 +266,9 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
 
     if (plan.source_is_generate) {
         LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
+        const auto t_start = std::chrono::steady_clock::now();
+        std::atomic<uint64_t> bytes_total{0u};
+        std::atomic<uint32_t> n_skipped{0u}, n_staged{0u}, n_permuted{0u}, n_direct{0u};
         // Every tensor is independent, so repack them in parallel like copy_kvcache does.
         // The plan's temp map is only read here.
         ov::parallel_for(m_req.m_kvcache_past_names.size(), [&](size_t idx) {
@@ -273,19 +286,34 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             const bool same_layout = aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
             if (same_layout) {
                 // The bytes already sit where the prefill will read them.
+                n_skipped.fetch_add(1u, std::memory_order_relaxed);
                 return;
             }
 
             auto src_slice = uu::make_tensor_slice(src, src_dim, 0u, keep);
             auto dst_slice = uu::make_tensor_slice(dst, dst_dim, 0u, keep);
+            bytes_total.fetch_add(src_slice->get_byte_size(), std::memory_order_relaxed);
+            if (src_dim != dst_dim) {
+                n_permuted.fetch_add(1u, std::memory_order_relaxed);
+            } else {
+                n_direct.fetch_add(1u, std::memory_order_relaxed);
+            }
             auto temp_it = plan.temps.find(name);
             if (temp_it != plan.temps.end()) {
+                n_staged.fetch_add(1u, std::memory_order_relaxed);
                 src_slice->copy_to(temp_it->second._ptr);
                 uu::copy_tensor_by_dim(temp_it->second, dst_slice, src_dim, dst_dim);
             } else {
                 uu::copy_tensor_by_dim(src_slice, dst_slice, src_dim, dst_dim);
             }
         });
+        const auto t_ms =
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t_start).count() /
+            1000.0;
+        LOG_INFO("Continued prefill repack: " << keep << " tokens, " << (bytes_total.load() / 1024) << " KiB in "
+                                              << t_ms << " ms (tensors: " << n_direct.load() << " direct, "
+                                              << n_permuted.load() << " permuted, " << n_staged.load() << " staged, "
+                                              << n_skipped.load() << " skipped)");
     } else if (keep > plan.past_tokens) {
         // Persist the final present chunk into the past inputs before the next prefill
         // overwrites it. Repacking from the generate request here would copy stale data

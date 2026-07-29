@@ -5,6 +5,7 @@
 #include "llm_infer_request.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <regex>
 
@@ -624,6 +625,9 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     namespace uu = ov::npuw::util;
     LOG_DEBUG("Copying kv-cache from prefill to generate model.");
     LOG_BLOCK();
+    // Timed as the mirror operation of the continued prefill repack, so the two copy
+    // directions can be compared in the log.
+    const auto t_start = std::chrono::steady_clock::now();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
@@ -713,6 +717,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
         }
     });
+    const auto t_ms =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t_start).count() /
+        1000.0;
+    LOG_INFO("copy_kvcache: " << kvcache_desc.num_stored_tokens << " tokens, prefill to generate, " << t_ms << " ms");
     LOG_DEBUG("Done.");
 }
 
@@ -1326,9 +1334,20 @@ void ov::npuw::LLMInferRequest::infer_continued_prefill(ov::SoPtr<ov::ITensor> i
     // fluent but wrong output.
     m_continuation.begin_active();
     try {
+        const auto ms_since = [](std::chrono::steady_clock::time_point from) {
+            return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - from)
+                       .count() /
+                   1000.0;
+        };
+        const auto t_apply = std::chrono::steady_clock::now();
         m_kvcache_strategy->apply_continued_prefill(*plan);
-        prepare_for_continued_prefill(keep, static_cast<int64_t>(keep + delta_len), attention_mask);
+        const auto apply_ms = ms_since(t_apply);
 
+        const auto t_prepare = std::chrono::steady_clock::now();
+        prepare_for_continued_prefill(keep, static_cast<int64_t>(keep + delta_len), attention_mask);
+        const auto prepare_ms = ms_since(t_prepare);
+
+        const auto t_chunks = std::chrono::steady_clock::now();
         m_continued_prefill_base = keep;
         infer_chunked_prefill(input_ids,
                               attention_mask,
@@ -1337,13 +1356,20 @@ void ov::npuw::LLMInferRequest::infer_continued_prefill(ov::SoPtr<ov::ITensor> i
                               ov::npuw::util::TensorPtr(),
                               ov::npuw::util::TensorPtr());
         m_continued_prefill_base = 0u;
+        const auto chunks_ms = ms_since(t_chunks);
 
+        const auto t_head = std::chrono::steady_clock::now();
         if (m_lm_head_request) {
             m_lm_head_request->infer();
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
         } else {
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
+        const auto head_ms = ms_since(t_head);
+
+        LOG_INFO("Continued prefill timing (keep=" << keep << ", delta=" << delta_len << "): apply " << apply_ms
+                                                   << " ms, staging " << prepare_ms << " ms, chunked prefill "
+                                                   << chunks_ms << " ms, lm_head " << head_ms << " ms");
 
         m_generate_initialized = false;
         m_continuation.commit_prefill(kvcache_desc.num_stored_tokens);
