@@ -181,6 +181,11 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
 
     _logger.debug("Initialization started, batch size: %zu", _batch_size);
+    _logger.debug("PLUGIN_BATCH_DIAG constructor: plugin batch size=%zu, subgraphs=%llu, inputs=%zu, outputs=%zu",
+                  _batch_size,
+                  static_cast<unsigned long long>(_graph->get_metadata().numberOfSubgraphs),
+                  input_tensors.size(),
+                  output_tensors.size());
 
     if (!_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
@@ -189,6 +194,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         for (size_t i = 0; i < _batch_size; i++) {
             _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
         }
+        _logger.debug("PLUGIN_BATCH_DIAG constructor: allocated one event per command-list batch group, count=%zu",
+                      _events.size());
     }
     _logger.debug("Event pool and command queue setup completed");
 
@@ -199,6 +206,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         _logger.debug("Initializing %zu command list group(s) (batch size %zu)", batch_size, batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
             _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
+            _logger.debug("PLUGIN_BATCH_DIAG constructor: created command-list group for batch index=%zu", i);
         }
     } else {
         OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
@@ -209,6 +217,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         for (size_t i = 0; i < _batch_size; i++) {
             _fences.emplace_back(std::make_unique<Fence>(_command_queue));
         }
+        _logger.debug("PLUGIN_BATCH_DIAG constructor: allocated one fence per command-list batch group, count=%zu",
+                      _fences.size());
     }
 
     for (size_t i = 0; i < _batch_size; i++) {
@@ -226,6 +236,11 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                             "' is a main-input weight)");
 
             if (input_tensors.at(io_index).size() > 1) {
+                _logger.debug("PLUGIN_BATCH_DIAG input=%zu uses separate tensors: command-list batch index=%zu, "
+                              "tensor count=%zu",
+                              io_index,
+                              i,
+                              input_tensors.at(io_index).size());
                 _logger.debug("Set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
                 size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
@@ -241,17 +256,27 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                const size_t offset = (i * tensor->get_byte_size()) / _batch_size;
+                _logger.debug("PLUGIN_BATCH_DIAG input=%zu uses contiguous batch split: command-list batch index=%zu, "
+                              "byte offset=%zu",
+                              io_index,
+                              i,
+                              offset);
+                dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                       static_cast<unsigned char*>(tensor->data()) + offset,
+                                                       tensor->get_shape(),
+                                                       get_strides(tensor->get_strides(), elementSize));
             } else {
-                dynamicArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                const size_t offset = i * tensor->get_strides()[0];
+                _logger.debug("PLUGIN_BATCH_DIAG input=%zu uses strided batch split: command-list batch index=%zu, "
+                              "byte offset=%zu",
+                              io_index,
+                              i,
+                              offset);
+                dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                       static_cast<unsigned char*>(tensor->data()) + offset,
+                                                       tensor->get_shape(),
+                                                       get_strides(tensor->get_strides(), elementSize));
             }
             ++io_index;
         }
@@ -262,17 +287,27 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                const size_t offset = (i * tensor->get_byte_size()) / _batch_size;
+                _logger.debug("PLUGIN_BATCH_DIAG output=%zu uses contiguous batch split: command-list batch index=%zu, "
+                              "byte offset=%zu",
+                              io_index,
+                              i,
+                              offset);
+                dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                       static_cast<unsigned char*>(tensor->data()) + offset,
+                                                       tensor->get_shape(),
+                                                       get_strides(tensor->get_strides(), elementSize));
             } else {
-                dynamicArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                const size_t offset = i * tensor->get_strides()[0];
+                _logger.debug("PLUGIN_BATCH_DIAG output=%zu uses strided batch split: command-list batch index=%zu, "
+                              "byte offset=%zu",
+                              io_index,
+                              i,
+                              offset);
+                dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                       static_cast<unsigned char*>(tensor->data()) + offset,
+                                                       tensor->get_shape(),
+                                                       get_strides(tensor->get_strides(), elementSize));
             }
             ++io_index;
         }
@@ -301,6 +336,9 @@ void DynamicPipeline::push() {
     auto commandQueueHandle = _command_queue->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+        _logger.debug("PLUGIN_BATCH_DIAG push: submitting command-list group for batch index=%zu of %zu",
+                      i,
+                      _command_lists.size());
 
         ze_fence_handle_t fence = nullptr;
         ze_event_handle_t event = nullptr;
@@ -591,15 +629,27 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
         if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-            _command_lists.at(i)->updateMutableCommandList(index,
-                                                           static_cast<const unsigned char*>(zeroTensor->data()) +
-                                                               (i * tensor->get_byte_size()) / number_of_command_lists,
-                                                           get_strides(tensor->get_strides(), elementSize),
-                                                           tensor->get_shape());
-        } else {
+            const size_t offset = (i * tensor->get_byte_size()) / number_of_command_lists;
+            _logger.debug("PLUGIN_BATCH_DIAG update argument=%u uses contiguous batch split: command-list batch "
+                          "index=%zu, byte offset=%zu",
+                          index,
+                          i,
+                          offset);
             _command_lists.at(i)->updateMutableCommandList(
                 index,
-                static_cast<const unsigned char*>(zeroTensor->data()) + (i * tensor->get_strides()[0]),
+                static_cast<const unsigned char*>(zeroTensor->data()) + offset,
+                get_strides(tensor->get_strides(), elementSize),
+                tensor->get_shape());
+        } else {
+            const size_t offset = i * tensor->get_strides()[0];
+            _logger.debug("PLUGIN_BATCH_DIAG update argument=%u uses strided batch split: command-list batch "
+                          "index=%zu, byte offset=%zu",
+                          index,
+                          i,
+                          offset);
+            _command_lists.at(i)->updateMutableCommandList(
+                index,
+                static_cast<const unsigned char*>(zeroTensor->data()) + offset,
                 get_strides(tensor->get_strides(), elementSize),
                 tensor->get_shape());
         }
@@ -625,6 +675,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     OPENVINO_ASSERT(batch_index < number_of_command_lists,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
+    _logger.debug("PLUGIN_BATCH_DIAG indexed update: argument=%u, command-list batch index=%zu", index, batch_index);
 
     _command_lists.at(batch_index)
         ->updateMutableCommandList(index,

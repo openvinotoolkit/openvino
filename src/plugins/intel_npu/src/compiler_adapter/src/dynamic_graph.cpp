@@ -65,6 +65,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                 // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
                 // in case of dynamic dimensions
                 if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
+                    logger.debug("PLUGIN_BATCH_DIAG metadata: preserving dynamic batch for '%s' because compiler "
+                                 "metadata reports batch=1",
+                                 arg.name);
                     logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
                                 "from compiler has been lost.");
                     // We need to kepp batch dimension dynamic
@@ -369,6 +372,9 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize finish");
 
     _batchSize = determine_batch_size();
+    _logger.debug("PLUGIN_BATCH_DIAG dynamic graph initialization: initial plugin batch size=%zu configured=%s",
+                  _batchSize.value_or(0),
+                  _batchSize.has_value() ? "true" : "false");
 
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
     _init_completed.store(true, std::memory_order_release);
@@ -380,6 +386,10 @@ bool DynamicGraph::release_blob(const FilteredConfig& config) {
 };
 
 void DynamicGraph::set_batch_size(std::size_t batch) {
+    _logger.debug("PLUGIN_BATCH_DIAG dynamic graph: plugin batch size update old=%zu configured=%s new=%zu",
+                  _batchSize.value_or(0),
+                  _batchSize.has_value() ? "true" : "false",
+                  batch);
     _batchSize = batch;
 }
 
@@ -396,52 +406,78 @@ uint32_t DynamicGraph::get_last_submitted_id() const {
 }
 
 std::optional<size_t> DynamicGraph::determine_batch_size() {
+    _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: evaluating dynamic graph metadata");
     if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: disabled because output metadata has no IR shape");
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
     const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
     if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
+        _logger.debug(
+            "PLUGIN_BATCH_DIAG determine_batch_size: disabled because first output shape is dynamic or scalar: %s",
+            firstShape.to_string().c_str());
         return std::nullopt;
     }
 
     const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
+    _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: first output shape=%s candidate batch=%zu",
+                  firstShape.to_string().c_str(),
+                  candidateBatchSize);
     if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
+        _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: disabled because candidate is zero or default batch");
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
-        for (const IODescriptor& descriptor : descriptors) {
-            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
-                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
+    auto checkDescriptorsUseCandidateBatchSize =
+        [this, candidateBatchSize](const std::vector<IODescriptor>& descriptors, const char* kind) {
+            for (const IODescriptor& descriptor : descriptors) {
+                OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
+                                "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
 
-            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
-            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
+                const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
+                const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
 
-            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
-                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
-                return false;
-            }
-
-            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
-                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
-                    *shapeFromIRModel.begin() != candidateBatchSize) {
+                if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
+                    *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
+                    _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: reject %s '%s' because compiler shape=%s is "
+                                  "not static batch=1",
+                                  kind,
+                                  descriptor.nameFromCompiler.c_str(),
+                                  shapeFromCompiler.to_string().c_str());
                     return false;
                 }
+
+                if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
+                    if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
+                        *shapeFromIRModel.begin() != candidateBatchSize) {
+                        _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: reject %s '%s' because IR shape=%s does "
+                                      "not use candidate batch=%zu",
+                                      kind,
+                                      descriptor.nameFromCompiler.c_str(),
+                                      shapeFromIRModel.to_string().c_str(),
+                                      candidateBatchSize);
+                        return false;
+                    }
+                }
             }
-        }
 
-        return true;
-    };
+            return true;
+        };
 
-    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
-        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
+    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs, "input") ||
+        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs, "output")) {
+        _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: disabled because descriptors are incompatible with "
+                      "candidate batch=%zu",
+                      candidateBatchSize);
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
+    _logger.debug("PLUGIN_BATCH_DIAG determine_batch_size: plugin batching selected with batch=%zu",
+                  candidateBatchSize);
     _logger.debug("Batching is handled by the plugin");
 
     return candidateBatchSize;
