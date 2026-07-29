@@ -45,11 +45,11 @@ inline void apply_qq_bias_tree_mask(matrix_ref<float, N, M> St,
 // the result unconditionally. The mask depends only on query_spec, so callers that
 // replicate a query across GQA heads should build it once and reuse it per head.
 template <int K>
-inline vector<unsigned short, K> qq_bias_tree_mask_row(const uchar* qq_bias_ptr,
-                                                       int qq_bias_spec_num,
-                                                       int query_spec,
-                                                       int key_local_start,
-                                                       int past_lens) {
+inline vector<unsigned short, K> build_qq_bias_tree_mask_row(const uchar* qq_bias_ptr,
+                                                             int qq_bias_spec_num,
+                                                             int query_spec,
+                                                             int key_local_start,
+                                                             int past_lens) {
     vector<unsigned short, K> m = 0;
     if (qq_bias_spec_num <= 0) return m;
     if (query_spec < 0 || query_spec >= qq_bias_spec_num) return m;

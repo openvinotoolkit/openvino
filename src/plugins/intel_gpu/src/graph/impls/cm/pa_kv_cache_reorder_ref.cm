@@ -167,19 +167,29 @@ CM_INLINE void copy_value_slot(uchar* value_cache,
 
 #if KV_CACHE_COMPRESSION == 2
 // Per-channel K: re-quantize the dst sub-block after replacing the dst slot with the
-// dequantized src value. Keeps OCL/CM math semantics consistent: small-range guard,
-// CHAR range used for asymmetric int8.
+// dequantized src value. valid_rows bounds the sub-block to the rows pa_kv_cache_update
+// actually wrote; the tail of a sequence's last sub-block is never written (pad_lens in
+// pa_kv_cache_update_ref.cm). Always >= 1 since dst_slot itself is valid.
 CM_INLINE void requantize_dst_subblock(uchar* key_cache,
                                        uint head_base_src,
                                        uint head_base_dst,
                                        uint src_slot,
-                                       uint dst_slot) {
+                                       uint dst_slot,
+                                       uint valid_rows) {
     constexpr uint scales_off_base = K_DATA_BYTES;
     constexpr uint zps_off_base = K_DATA_BYTES + NUM_SUB_BLOCKS * K_HEAD_SIZE * (uint)sizeof(half);
 
     const uint src_sub = src_slot / SUB_BLOCK_SIZE;
     const uint dst_sub = dst_slot / SUB_BLOCK_SIZE;
     const uint dst_sub_first_slot = dst_sub * SUB_BLOCK_SIZE;
+
+    // Fast path: src and dst are the same sub-block of the same physical block
+    if (head_base_src == head_base_dst && src_sub == dst_sub) {
+        vector<uchar, K_HEAD_SIZE> q_row;
+        load_u8_vec<K_HEAD_SIZE>(q_row, key_cache, head_base_src + src_slot * K_HEAD_SIZE);
+        store_u8_vec<K_HEAD_SIZE>(key_cache, head_base_dst + dst_slot * K_HEAD_SIZE, q_row);
+        return;
+    }
 
     // Load src and dst sub_block scales/zps along the channel dimension.
     vector<half, K_HEAD_SIZE> scale_src;
@@ -197,10 +207,13 @@ CM_INLINE void requantize_dst_subblock(uchar* key_cache,
     vector<half, K_HEAD_SIZE> q_src_row_h = q_src_row;
     vector<half, K_HEAD_SIZE> val_src = (q_src_row_h - zp_src) * scale_src;
 
-    // Dequant the SUB_BLOCK_SIZE rows of the dst sub-block, replacing the dst slot row.
+    // Dequant the valid rows of the dst sub-block, replacing the dst slot row.
     matrix<half, SUB_BLOCK_SIZE, K_HEAD_SIZE> dequant_rows;
     #pragma unroll
     for (int i = 0; i < SUB_BLOCK_SIZE; ++i) {
+        if ((uint)i >= valid_rows) {
+            continue;
+        }
         const uint slot = dst_sub_first_slot + i;
         if (slot == dst_slot) {
             dequant_rows.row(i) = val_src;
@@ -212,11 +225,14 @@ CM_INLINE void requantize_dst_subblock(uchar* key_cache,
         }
     }
 
-    // Recompute per-channel min/max across the SUB_BLOCK_SIZE rows.
+    // Recompute per-channel min/max across the valid rows only.
     vector<half, K_HEAD_SIZE> max_vals = dequant_rows.row(0);
     vector<half, K_HEAD_SIZE> min_vals = dequant_rows.row(0);
     #pragma unroll
     for (int i = 1; i < SUB_BLOCK_SIZE; ++i) {
+        if ((uint)i >= valid_rows) {
+            continue;
+        }
         max_vals = cm_max<half>(max_vals, dequant_rows.row(i));
         min_vals = cm_min<half>(min_vals, dequant_rows.row(i));
     }
@@ -236,9 +252,11 @@ CM_INLINE void requantize_dst_subblock(uchar* key_cache,
     scale_vals.merge(1.0f, mask);
     vector<half, K_HEAD_SIZE> zp_vals = cm_mul<half>((0.0f - min_vals), scale_vals);
 
-    // Requantize and store all SUB_BLOCK_SIZE rows.
     #pragma unroll
     for (int i = 0; i < SUB_BLOCK_SIZE; ++i) {
+        if ((uint)i >= valid_rows) {
+            continue;
+        }
         vector<half, K_HEAD_SIZE> q = cm_mul<half>(dequant_rows.row(i), scale_vals) + zp_vals;
         q = cm_min<half>(cm_max<half>(q, (half)0.0f), (half)255.0f);
         vector<uchar, K_HEAD_SIZE> q_u8 = cm_rnde<uchar, K_HEAD_SIZE>(q);
@@ -279,6 +297,23 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint blocks_in_seq = (uint)block_indices_begins[seq_idx + 1] - block_indices_base;
     const uint pos_begin = (uint)block_update_indices_begins[seq_idx];
     const uint pos_end = (uint)block_update_indices_begins[seq_idx + 1];
+
+#if KV_CACHE_COMPRESSION == 2
+    // Upper bound on the sequence positions this reorder touches, used to keep the per-channel
+    // requantization away from rows pa_kv_cache_update never wrote.
+    uint touched_len = 0;
+    for (uint pos = pos_begin; pos < pos_end; ++pos) {
+        const int s = block_update_indices[pos * 2 + 0];
+        const int d = block_update_indices[pos * 2 + 1];
+        if (s < 0 || d < 0)
+            continue;
+        if ((uint)s / BLOCK_SIZE >= blocks_in_seq || (uint)d / BLOCK_SIZE >= blocks_in_seq)
+            continue;
+        const uint hi = (uint)(s > d ? s : d) + 1;
+        if (hi > touched_len)
+            touched_len = hi;
+    }
+#endif
 
     for (uint pos = pos_begin; pos < pos_end; ++pos) {
         const int src_id_s = block_update_indices[pos * 2 + 0];
@@ -344,7 +379,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         {
             const uint head_base_src = src_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
             const uint head_base_dst = dst_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
-            requantize_dst_subblock(key_cache, head_base_src, head_base_dst, src_slot, dst_slot);
+            // Sequence position of the dst sub-block's first row: dst_id is the position of
+            // dst_slot, so drop its offset inside the sub-block.
+            const uint dst_sub_first_pos = dst_id - dst_slot % SUB_BLOCK_SIZE;
+            uint valid_rows = touched_len > dst_sub_first_pos ? touched_len - dst_sub_first_pos : 0;
+            if (valid_rows > SUB_BLOCK_SIZE)
+                valid_rows = SUB_BLOCK_SIZE;
+            requantize_dst_subblock(key_cache, head_base_src, head_base_dst, src_slot, dst_slot, valid_rows);
         }
         // ---- VALUE (per-token int8): identical to mode 1.
         {

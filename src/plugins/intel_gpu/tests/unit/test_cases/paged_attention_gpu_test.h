@@ -16,6 +16,7 @@
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 #include <openvino/core/except.hpp>
+#include <algorithm>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
 #include <optional>
@@ -2336,8 +2337,19 @@ private:
                     const size_t head_base = block_base + static_cast<size_t>(head) * head_region_bytes;
                     const size_t token_offset = head_base + static_cast<size_t>(token_in_block) * token_data_stride;
 
-                    // Check for missing token write (all-zero data)
-                    bool skip_zero_check = is_by_channel && (total_new_tokens <= 1);
+                    // Check for missing token write (all-zero data).
+                    //
+                    // A by-channel sub-block that the update kernel quantized from a single row
+                    // is always stored as an all-zero byte row: min == max makes qrange 0, the
+                    // guard forces scale to 1 and zp to -min, so quant = val - min = 0 on every
+                    // channel. It round-trips exactly, so those rows must not count as missing.
+                    // The rows one sub-block is quantized from are the intersection of its 16
+                    // slots with [16 * (past_len / 16), past_len + num_tokens).
+                    const int sub_block_start = (absolute_pos / kv_sub_block_size) * kv_sub_block_size;
+                    const int quantized_first = std::max(sub_block_start, (past_len / kv_sub_block_size) * kv_sub_block_size);
+                    const int quantized_last = std::min(sub_block_start + kv_sub_block_size, past_len + num_tokens);
+                    const int rows_in_sub_block = quantized_last - quantized_first;
+                    bool skip_zero_check = is_by_channel && (total_new_tokens <= 1 || rows_in_sub_block <= 1);
                     if (!skip_zero_check) {
                         bool all_zero = true;
                         for (int b = 0; b < token_data_stride; b++) {

@@ -22,10 +22,6 @@ namespace {
 
 constexpr size_t reorder_sub_block_size = 16;
 
-// All geometry comes from the primitive descriptor (filled by plugin/ops/pa_kv_reorder.cpp
-// reading the static dims of the KV cache Parameter). This avoids reading layout shapes in
-// get_jit_constants(), which is invoked at compile time when the runtime layout may still
-// be dynamic.
 struct KVCacheGeometry {
     size_t block_size = 0;
     size_t k_head_size = 0;

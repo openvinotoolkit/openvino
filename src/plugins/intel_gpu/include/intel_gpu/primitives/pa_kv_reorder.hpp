@@ -88,9 +88,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
     size_t adjusted_v_head_size = 0;
     data_types cache_dt = data_types::f16;
     bool is_kv_compressed = false;
-    // True when the model uses a sparse-attention KV layout (XAttention / qq_bias tree mask).
-    // Source: model rt_info "sparse_enabled" written by GenAI. Selects CM token-major reorder
-    // kernel; otherwise the OCL head-major kernel is used.
+    // Align with paged_attention::has_xattention
     bool has_xattention = false;
 };
 

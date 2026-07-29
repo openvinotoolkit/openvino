@@ -134,7 +134,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     if (subseq_q_end_i <= subseq_q_begin_i) {
         return;
     }
-    printf("small q\n");
+
     const uint subseq_q_begin = (uint)subseq_q_begin_i;
 
     // Causal cap: row t sees past + q_start + t + 1 keys. The whole tile uses the
@@ -564,9 +564,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
                         const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
                         vector<unsigned short, REG_N> m =
-                            qq_bias_tree_mask_row<REG_N>(qq_bias_subseq_ptr, qq_bias_spec_num,
-                                                         query_spec, kv_global_start + blk_lo,
-                                                         (int)past_q_lens);
+                            build_qq_bias_tree_mask_row<REG_N>(qq_bias_subseq_ptr, qq_bias_spec_num,
+                                                               query_spec, kv_global_start + blk_lo,
+                                                               (int)past_q_lens);
                         #pragma unroll
                         for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
                             const int row = t * Q_head_chunk_size + qi;
