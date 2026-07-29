@@ -20,6 +20,7 @@ components. Nothing here depends on any internal infrastructure.
   - [Per-generator include/exclude rules](#per-generator-includeexclude-rules)
   - [Excluding a component by disabling it at configure time](#excluding-a-component-by-disabling-it-at-configure-time)
 - [Adding a new component](#adding-a-new-component)
+  - [Grouping several targets into one component](#grouping-several-targets-into-one-component)
 - [How the default archive is composed](#how-the-default-archive-is-composed)
 - [Building a custom archive from selected components](#building-a-custom-archive-from-selected-components)
   - [Option A — one archive from a selected component set (recommended)](#option-a--one-archive-from-a-selected-component-set-recommended)
@@ -195,6 +196,51 @@ attach files to it. The component then becomes selectable for any archive.
 4. **Pack it** — either it flows into the default archive automatically (if in
    `ALL`), or you list it explicitly when building a custom archive (see
    [below](#building-a-custom-archive-from-selected-components)).
+
+### Grouping several targets into one component
+
+A single component can gather multiple targets and files, so that the whole
+group is installed by **one** `cmake --install --component` command (and packed
+by listing a single component name). Assign the same `COMPONENT` to every
+`install(...)` call:
+
+```cmake
+# One component that bundles a plugin, a helper library and a CLI tool.
+ov_cpack_add_component(my_bundle HIDDEN DEPENDS ${OV_CPACK_COMP_CORE})
+
+install(TARGETS my_plugin
+        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
+        COMPONENT my_bundle
+        ${OV_CPACK_COMP_MY_BUNDLE_EXCLUDE_ALL})
+
+install(TARGETS my_helper
+        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR}
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
+        COMPONENT my_bundle
+        ${OV_CPACK_COMP_MY_BUNDLE_EXCLUDE_ALL})
+
+install(TARGETS my_cli
+        RUNTIME DESTINATION tools/my_cli
+        COMPONENT my_bundle
+        ${OV_CPACK_COMP_MY_BUNDLE_EXCLUDE_ALL})
+
+# Extra non-target files can join the same component too.
+install(FILES README.md
+        DESTINATION tools/my_cli
+        COMPONENT my_bundle
+        ${OV_CPACK_COMP_MY_BUNDLE_EXCLUDE_ALL})
+```
+
+All targets and files above are now installable and packable as one unit:
+
+```bash
+# Installs my_plugin + my_helper + my_cli + README.md in a single command.
+cmake --install <build_dir> --component my_bundle --prefix <stage_dir>
+```
+
+`install(TARGETS a b c ... COMPONENT my_bundle)` — listing multiple targets in a
+single `install` call — is also valid when they share the same destination
+kind, and behaves identically at pack time.
 
 ## How the default archive is composed
 
