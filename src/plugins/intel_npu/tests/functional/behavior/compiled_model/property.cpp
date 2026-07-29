@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;
 

@@ -295,6 +295,16 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: ov::log::Level
+ * Controls the verbosity of the NPU compiler's own logging, independently of ov::log::level (which
+ * controls the plugin-side logging). This lets a user raise plugin logging without also enabling
+ * the compiler's much more verbose internal logging, and vice versa.
+ * @note If this property is not set, the compiler log level inherits the value of ov::log::level.
+ */
+static constexpr ov::Property<ov::log::Level> compiler_log_level{"NPU_COMPILER_LOG_LEVEL"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.
  */

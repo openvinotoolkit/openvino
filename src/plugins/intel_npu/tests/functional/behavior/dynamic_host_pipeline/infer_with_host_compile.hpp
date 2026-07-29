@@ -15,6 +15,7 @@
 #include <tuple>
 #include <vector>
 
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
@@ -228,7 +229,7 @@ public:
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
-        configuration[ov::intel_npu::compiler_log_level.name()] = ov::intel_npu::compiler_log_level(ov::log::Level::ERR);
+        configuration[ov::intel_npu::compiler_log_level.name()] = ov::log::Level::ERR;
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
