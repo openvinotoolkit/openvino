@@ -146,7 +146,12 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                     std::vector<ExpressionPort>& exits) {
     entries.clear();
     exits.clear();
-    const std::unordered_set<ExpressionPtr> loop_exprs(loop_begin_pos, loop_end_pos);
+    // Note: the range constructor triggers a GCC 15 -Warray-bounds false positive when
+    // [loop_begin_pos, loop_end_pos) is empty, so it is only used for non-empty ranges.
+    std::unordered_set<ExpressionPtr> loop_exprs;
+    if (loop_begin_pos != loop_end_pos) {
+        loop_exprs = std::unordered_set<ExpressionPtr>(loop_begin_pos, loop_end_pos);
+    }
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         const auto& expr = *expr_it;
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
