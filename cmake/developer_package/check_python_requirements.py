@@ -36,7 +36,7 @@ def check_python_requirements(requirements_path: str) -> None:
             line = line.replace("\n", "")
             # drop inline comments (e.g. "numpy>=1.16.6,<2.6.0  # frontends")
             line = line.split("#", 1)[0].strip()
-            if not line:
+            if not line or line.startswith("-"):
                 continue
             package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
             if constraints.get(package) is None:
