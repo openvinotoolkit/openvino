@@ -17,6 +17,7 @@
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -492,7 +493,8 @@ void io_uring(ov::MappedMemory& mapped, size_t depth) {
     util::io_populate_mmap(mapped.data(), mapped.size(), 0, depth);
 }
 
-void print_disk_info(const std::filesystem::path& path) {
+void print_hw_info(const std::filesystem::path& path) {
+    printf("  [cpu]  hardware_concurrency=%u\n", std::thread::hardware_concurrency());
 #    ifdef __linux__
     struct ::stat st {};
     if (::stat(path.c_str(), &st) != 0) {
@@ -610,6 +612,37 @@ void print_disk_info(const std::filesystem::path& path) {
     (void)path;
 #    endif
 }
+
+void print_explanation(int warmup, int runs, const std::vector<size_t>& sizes_mib) {
+    std::string sizes_str;
+    for (size_t i = 0; i < sizes_mib.size(); ++i) {
+        if (i > 0)
+            sizes_str += " / ";
+        sizes_str += std::to_string(sizes_mib[i]);
+    }
+    printf("Benchmark: io_uring vs page-touch\n");
+    printf("  Goal: measure wall-clock time to make all pages of a cold mmap region\n");
+    printf("  resident in RAM under two different population strategies.\n");
+    printf("\n");
+    printf("Setup:\n");
+    printf("  Each file (%s MiB) is memory-mapped before timing starts.\n", sizes_str.c_str());
+    printf("  The OS page cache is dropped between every run (cold cache).\n");
+    printf("  Results are the mean of %d measured runs, %d warmup.\n", runs, warmup);
+    printf("\n");
+    printf("Strategies (column labels):\n");
+    printf("  pg touch N  -- N threads stride across the mapping one page at a time,\n");
+    printf("                 reading one byte per page to trigger a CPU page fault.\n");
+    printf("                 N is the thread count.\n");
+    printf("  io uring D  -- io_uring submits async IORING_OP_READ requests to\n");
+    printf("                 populate the mmap region from the kernel, bypassing\n");
+    printf("                 CPU page faults. D is the submission-queue depth\n");
+    printf("                 (max in-flight I/Os).\n");
+    printf("\n");
+    printf("Tables:\n");
+    printf("  Latency    -- mean wall-clock time (ms) for the population step.\n");
+    printf("  Throughput -- effective bandwidth: file_MiB / latency_s  (MiB/s).\n");
+    printf("  Lower latency / higher throughput is better.\n");
+}
 }  // namespace
 
 TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
@@ -627,15 +660,14 @@ TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
 
     using BenchFn = void (*)(ov::MappedMemory&, size_t);
     const std::vector<std::tuple<BenchFn, size_t, std::string>> bench_configs = {
-        {page_touch, 5, "pg touch"},
+        {page_touch, 4, "pg touch"},
         {page_touch, 10, "pg touch"},
-        {page_touch, 15, "pg touch"},
+        {page_touch, 16, "pg touch"},
+        {page_touch, 24, "pg touch"},
         {io_uring, 8, "io uring"},
-        {io_uring, 16, "io uring"},
         {io_uring, 32, "io uring"},
-        {io_uring, 64, "io uring"},
         {io_uring, 128, "io uring"},
-        {io_uring, 256, "io uring"},
+        {io_uring, 512, "io uring"},
     };
 
     struct Row {
@@ -701,7 +733,9 @@ TEST_F(FileLoadBenchmark, io_uring_vs_pg_touch) {
         printf("\n");
     }
 
-    print_disk_info(files.front().path);
+    print_hw_info(files.front().path);
+    printf("\n");
+    print_explanation(warmup, runs, sizes_mib);
     printf("\n");
 }
 #endif
